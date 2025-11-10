@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # GET functions - retrieve data from Proxmox API
 # ============================================================================
 
+
 @timeit
 def get_pools(proxmox_client) -> list[dict[str, Any]]:
     """
@@ -51,6 +52,7 @@ def get_pool_details(proxmox_client, poolid: str) -> dict[str, Any]:
 # TRANSFORM functions - manipulate data for graph ingestion
 # ============================================================================
 
+
 def transform_pool_data(
     pools: list[dict[str, Any]],
     cluster_id: str,
@@ -70,14 +72,16 @@ def transform_pool_data(
 
     for pool in pools:
         # Required field - use direct access
-        poolid = pool['poolid']
+        poolid = pool["poolid"]
 
-        transformed_pools.append({
-            'id': poolid,
-            'poolid': poolid,
-            'comment': pool.get('comment'),
-            'cluster_id': cluster_id,
-        })
+        transformed_pools.append(
+            {
+                "id": poolid,
+                "poolid": poolid,
+                "comment": pool.get("comment"),
+                "cluster_id": cluster_id,
+            }
+        )
 
     return transformed_pools
 
@@ -85,6 +89,7 @@ def transform_pool_data(
 # ============================================================================
 # LOAD functions - ingest data to Neo4j using modern data model
 # ============================================================================
+
 
 def load_pools(
     neo4j_session,
@@ -116,7 +121,7 @@ def load_pool_member_relationships(
 ) -> None:
     """
     Create relationships between pools and their member resources (VMs, storage).
-    
+
     Pool members can include VMs/containers and storage resources.
 
     :param neo4j_session: Neo4j session
@@ -124,13 +129,13 @@ def load_pool_member_relationships(
     :param update_tag: Sync timestamp
     """
     from cartography.client.core.tx import run_write_query
-    
+
     if not pool_members:
         return
 
     # Separate VM/container members from storage members
-    vm_members = [m for m in pool_members if m['type'] in ('qemu', 'lxc')]
-    storage_members = [m for m in pool_members if m['type'] == 'storage']
+    vm_members = [m for m in pool_members if m["type"] in ("qemu", "lxc")]
+    storage_members = [m for m in pool_members if m["type"] == "storage"]
 
     # Create relationships to VMs/containers
     if vm_members:
@@ -171,6 +176,7 @@ def load_pool_member_relationships(
 # SYNC function - orchestrates Get → Transform → Load
 # ============================================================================
 
+
 @timeit
 def sync(
     neo4j_session,
@@ -198,22 +204,22 @@ def sync(
     # Collect pool member information
     pool_members = []
     for pool in pools:
-        poolid = pool['poolid']
+        poolid = pool["poolid"]
         details = get_pool_details(proxmox_client, poolid)
-        
+
         # Extract members from pool details
-        if 'members' in details:
-            for member in details['members']:
+        if "members" in details:
+            for member in details["members"]:
                 member_data = {
-                    'pool_id': poolid,
-                    'type': member.get('type'),
+                    "pool_id": poolid,
+                    "type": member.get("type"),
                 }
-                
-                if member.get('type') in ('qemu', 'lxc'):
-                    member_data['vmid'] = member.get('vmid')
-                elif member.get('type') == 'storage':
-                    member_data['storage_id'] = member.get('storage')
-                
+
+                if member.get("type") in ("qemu", "lxc"):
+                    member_data["vmid"] = member.get("vmid")
+                elif member.get("type") == "storage":
+                    member_data["storage_id"] = member.get("storage")
+
                 pool_members.append(member_data)
 
     # TRANSFORM - manipulate data for ingestion
@@ -223,4 +229,6 @@ def sync(
     load_pools(neo4j_session, transformed_pools, cluster_id, update_tag)
     load_pool_member_relationships(neo4j_session, pool_members, update_tag)
 
-    logger.info(f"Synced {len(transformed_pools)} resource pools with {len(pool_members)} members")
+    logger.info(
+        f"Synced {len(transformed_pools)} resource pools with {len(pool_members)} members"
+    )

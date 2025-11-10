@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 # GET functions - retrieve data from Proxmox API
 # ============================================================================
 
+
 @timeit
-def get_backup_jobs(proxmox_client) -> list[dict[str, Any]]:
+def get_backup_jobs(proxmox_client: Any) -> list[dict[str, Any]]:
     """
     Get all backup jobs in the cluster.
 
@@ -37,6 +38,7 @@ def get_backup_jobs(proxmox_client) -> list[dict[str, Any]]:
 # ============================================================================
 # TRANSFORM functions - manipulate data for graph ingestion
 # ============================================================================
+
 
 def transform_backup_job_data(
     jobs: list[dict[str, Any]],
@@ -57,28 +59,51 @@ def transform_backup_job_data(
 
     for job in jobs:
         # Required field - use direct access
-        job_id = job['id']
+        job_id = job["id"]
 
-        # Parse prune settings if they exist
-        prune_backups = None
-        if job.get('prune-backups'):
-            prune_backups = job.get('prune-backups')
+        # Parse prune settings if they exist. The Proxmox API returns a map like:
+        # {"keep-last": "2", "keep-weekly": "4", ...}
+        # Neo4j properties cannot store maps, so we flatten into individual primitive properties.
+        prune_cfg = job.get("prune-backups") or {}
 
-        transformed_jobs.append({
-            'id': job_id,
-            'job_id': job_id,
-            'cluster_id': cluster_id,
-            'schedule': job.get('schedule'),
-            'storage': job.get('storage'),
-            'enabled': job.get('enabled', True),
-            'mode': job.get('mode', 'snapshot'),
-            'compression': job.get('compress'),
-            'mailnotification': job.get('mailnotification'),
-            'mailto': job.get('mailto'),
-            'notes': job.get('notes'),
-            'prune_backups': prune_backups,
-            'repeat_missed': job.get('repeat-missed', False),
-        })
+        def _convert(value: Any) -> Any:
+            # Convert numeric strings to int; leave others (None or non-digit strings) as-is
+            if isinstance(value, str) and value.isdigit():
+                try:
+                    return int(value)
+                except ValueError:
+                    return value
+            return value
+
+        prune_keep_last = _convert(prune_cfg.get("keep-last"))
+        prune_keep_hourly = _convert(prune_cfg.get("keep-hourly"))
+        prune_keep_daily = _convert(prune_cfg.get("keep-daily"))
+        prune_keep_weekly = _convert(prune_cfg.get("keep-weekly"))
+        prune_keep_monthly = _convert(prune_cfg.get("keep-monthly"))
+        prune_keep_yearly = _convert(prune_cfg.get("keep-yearly"))
+
+        transformed_jobs.append(
+            {
+                "id": job_id,
+                "job_id": job_id,
+                "cluster_id": cluster_id,
+                "schedule": job.get("schedule"),
+                "storage": job.get("storage"),
+                "enabled": job.get("enabled", True),
+                "mode": job.get("mode", "snapshot"),
+                "compression": job.get("compress"),
+                "mailnotification": job.get("mailnotification"),
+                "mailto": job.get("mailto"),
+                "notes": job.get("notes"),
+                "prune_keep_last": prune_keep_last,
+                "prune_keep_hourly": prune_keep_hourly,
+                "prune_keep_daily": prune_keep_daily,
+                "prune_keep_weekly": prune_keep_weekly,
+                "prune_keep_monthly": prune_keep_monthly,
+                "prune_keep_yearly": prune_keep_yearly,
+                "repeat_missed": job.get("repeat-missed", False),
+            }
+        )
 
     return transformed_jobs
 
@@ -87,8 +112,9 @@ def transform_backup_job_data(
 # LOAD functions - ingest data to Neo4j using modern data model
 # ============================================================================
 
+
 def load_backup_jobs(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
     jobs: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -111,7 +137,7 @@ def load_backup_jobs(
 
 
 def load_backup_job_vm_relationships(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
     job_vms: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -123,7 +149,7 @@ def load_backup_job_vm_relationships(
     :param update_tag: Sync timestamp
     """
     from cartography.client.core.tx import run_write_query
-    
+
     if not job_vms:
         return
 
@@ -148,10 +174,11 @@ def load_backup_job_vm_relationships(
 # SYNC function - orchestrates Get → Transform → Load
 # ============================================================================
 
+
 @timeit
 def sync(
-    neo4j_session,
-    proxmox_client,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    proxmox_client: Any,
     cluster_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
@@ -179,24 +206,30 @@ def sync(
     # Collect job-VM relationships
     job_vms = []
     for job in jobs:
-        job_id = job['id']
-        
+        job_id = job["id"]
+
         # Parse vmid field which can be:
         # - Single VMID: "100"
         # - Multiple VMIDs: "100,101,102"
         # - All VMs: "all"
         # - Pool: "pool:poolname"
-        if 'vmid' in job and job['vmid'] != 'all':
-            vmid_str = job['vmid']
-            
+        if "vmid" in job and job["vmid"] != "all":
+            vmid_str = job["vmid"]
+
             # Skip pool references for now (would need pool member lookup)
-            if not vmid_str.startswith('pool:'):
-                vmids = [int(vid.strip()) for vid in vmid_str.split(',') if vid.strip().isdigit()]
+            if not vmid_str.startswith("pool:"):
+                vmids = [
+                    int(vid.strip())
+                    for vid in vmid_str.split(",")
+                    if vid.strip().isdigit()
+                ]
                 for vmid in vmids:
-                    job_vms.append({
-                        'job_id': job_id,
-                        'vmid': vmid,
-                    })
+                    job_vms.append(
+                        {
+                            "job_id": job_id,
+                            "vmid": vmid,
+                        }
+                    )
 
     # TRANSFORM - manipulate data for ingestion
     transformed_jobs = transform_backup_job_data(jobs, cluster_id)
@@ -205,4 +238,6 @@ def sync(
     load_backup_jobs(neo4j_session, transformed_jobs, cluster_id, update_tag)
     load_backup_job_vm_relationships(neo4j_session, job_vms, update_tag)
 
-    logger.info(f"Synced {len(transformed_jobs)} backup jobs covering {len(job_vms)} VMs")
+    logger.info(
+        f"Synced {len(transformed_jobs)} backup jobs covering {len(job_vms)} VMs"
+    )

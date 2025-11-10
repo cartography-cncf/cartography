@@ -16,18 +16,19 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
-
 # ============================================================================
 # ProxmoxHAGroup Node Schema
 # ============================================================================
+
 
 @dataclass(frozen=True)
 class ProxmoxHAGroupNodeProperties(CartographyNodeProperties):
     """
     Properties for a ProxmoxHAGroup node.
-    
+
     HA groups define node preferences for high availability resources.
     """
+
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     group: PropertyRef = PropertyRef("group", extra_index=True)
@@ -43,6 +44,7 @@ class ProxmoxHAGroupToClusterRelProperties(CartographyRelProperties):
     """
     Properties for relationship from ProxmoxHAGroup to ProxmoxCluster.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -50,25 +52,31 @@ class ProxmoxHAGroupToClusterRelProperties(CartographyRelProperties):
 class ProxmoxHAGroupToClusterRel(CartographyRelSchema):
     """
     Relationship: (:ProxmoxHAGroup)-[:RESOURCE]->(:ProxmoxCluster)
-    
+
     HA groups belong to clusters.
     """
+
     target_node_label: str = "ProxmoxCluster"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: ProxmoxHAGroupToClusterRelProperties = ProxmoxHAGroupToClusterRelProperties()
+    properties: ProxmoxHAGroupToClusterRelProperties = (
+        ProxmoxHAGroupToClusterRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class ProxmoxHAGroupSchema(CartographyNodeSchema):
     """
     Schema for ProxmoxHAGroup.
-    
+
     HA groups organize nodes for high availability resource placement.
     """
+
     label: str = "ProxmoxHAGroup"
     properties: ProxmoxHAGroupNodeProperties = ProxmoxHAGroupNodeProperties()
     sub_resource_relationship: ProxmoxHAGroupToClusterRel = ProxmoxHAGroupToClusterRel()
@@ -78,13 +86,15 @@ class ProxmoxHAGroupSchema(CartographyNodeSchema):
 # ProxmoxHAResource Node Schema
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class ProxmoxHAResourceNodeProperties(CartographyNodeProperties):
     """
     Properties for a ProxmoxHAResource node.
-    
+
     Represents VMs/containers configured for high availability.
     """
+
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     sid: PropertyRef = PropertyRef("sid", extra_index=True)  # Service ID (vm:vmid)
@@ -101,6 +111,7 @@ class ProxmoxHAResourceToClusterRelProperties(CartographyRelProperties):
     """
     Properties for relationship from ProxmoxHAResource to ProxmoxCluster.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -108,16 +119,21 @@ class ProxmoxHAResourceToClusterRelProperties(CartographyRelProperties):
 class ProxmoxHAResourceToClusterRel(CartographyRelSchema):
     """
     Relationship: (:ProxmoxHAResource)-[:RESOURCE]->(:ProxmoxCluster)
-    
+
     HA resources belong to clusters.
     """
+
     target_node_label: str = "ProxmoxCluster"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: ProxmoxHAResourceToClusterRelProperties = ProxmoxHAResourceToClusterRelProperties()
+    properties: ProxmoxHAResourceToClusterRelProperties = (
+        ProxmoxHAResourceToClusterRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -125,6 +141,7 @@ class ProxmoxHAResourceToHAGroupRelProperties(CartographyRelProperties):
     """
     Properties for relationship from ProxmoxHAResource to ProxmoxHAGroup.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -132,28 +149,38 @@ class ProxmoxHAResourceToHAGroupRelProperties(CartographyRelProperties):
 class ProxmoxHAResourceToHAGroupRel(CartographyRelSchema):
     """
     Relationship: (:ProxmoxHAResource)-[:MEMBER_OF_HA_GROUP]->(:ProxmoxHAGroup)
-    
+
     HA resources are assigned to HA groups.
     """
+
     target_node_label: str = "ProxmoxHAGroup"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "group": PropertyRef("group"),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "group": PropertyRef("group"),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF_HA_GROUP"
-    properties: ProxmoxHAResourceToHAGroupRelProperties = ProxmoxHAResourceToHAGroupRelProperties()
+    properties: ProxmoxHAResourceToHAGroupRelProperties = (
+        ProxmoxHAResourceToHAGroupRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class ProxmoxHAResourceSchema(CartographyNodeSchema):
     """
     Schema for ProxmoxHAResource.
-    
+
     HA resources represent VMs/containers configured for high availability.
     """
+
     label: str = "ProxmoxHAResource"
     properties: ProxmoxHAResourceNodeProperties = ProxmoxHAResourceNodeProperties()
-    sub_resource_relationship: ProxmoxHAResourceToClusterRel = ProxmoxHAResourceToClusterRel()
-    other_relationships: OtherRelationships = OtherRelationships([
-        ProxmoxHAResourceToHAGroupRel(),
-    ])
+    sub_resource_relationship: ProxmoxHAResourceToClusterRel = (
+        ProxmoxHAResourceToClusterRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ProxmoxHAResourceToHAGroupRel(),
+        ]
+    )

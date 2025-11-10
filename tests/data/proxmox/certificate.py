@@ -11,7 +11,7 @@ MOCK_CERTIFICATE_DATA = {
             "subject": "CN=node1",
             "san": ["DNS:node1", "DNS:node1.example.com", "IP:10.0.0.1"],
             "notbefore": 1672531200,  # Jan 1, 2023
-            "notafter": 1735689600,   # Jan 1, 2025
+            "notafter": 1735689600,  # Jan 1, 2025
             "public-key-type": "RSA",
             "public-key-bits": 2048,
             "pem": "-----BEGIN CERTIFICATE-----\nMIIDXTCC...sample...==\n-----END CERTIFICATE-----",
@@ -25,7 +25,7 @@ MOCK_CERTIFICATE_DATA = {
             "subject": "CN=node2",
             "san": ["DNS:node2", "DNS:node2.example.com", "IP:10.0.0.2"],
             "notbefore": 1672531200,  # Jan 1, 2023
-            "notafter": 1704067200,   # Jan 1, 2024 (expired)
+            "notafter": 1704067200,  # Jan 1, 2024 (expired)
             "public-key-type": "RSA",
             "public-key-bits": 2048,
             "pem": "-----BEGIN CERTIFICATE-----\nMIIDXTCC...sample...==\n-----END CERTIFICATE-----",

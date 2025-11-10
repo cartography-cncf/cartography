@@ -16,18 +16,19 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
-
 # ============================================================================
 # ProxmoxUser Node Schema
 # ============================================================================
+
 
 @dataclass(frozen=True)
 class ProxmoxUserNodeProperties(CartographyNodeProperties):
     """
     Properties for a ProxmoxUser node.
-    
+
     Represents user accounts in Proxmox VE.
     """
+
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     userid: PropertyRef = PropertyRef("userid", extra_index=True)
@@ -47,6 +48,7 @@ class ProxmoxUserToClusterRelProperties(CartographyRelProperties):
     """
     Properties for relationship from ProxmoxUser to ProxmoxCluster.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -54,13 +56,16 @@ class ProxmoxUserToClusterRelProperties(CartographyRelProperties):
 class ProxmoxUserToClusterRel(CartographyRelSchema):
     """
     Relationship: (:ProxmoxUser)-[:RESOURCE]->(:ProxmoxCluster)
-    
+
     Users belong to clusters.
     """
+
     target_node_label: str = "ProxmoxCluster"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
     properties: ProxmoxUserToClusterRelProperties = ProxmoxUserToClusterRelProperties()
@@ -70,9 +75,10 @@ class ProxmoxUserToClusterRel(CartographyRelSchema):
 class ProxmoxUserSchema(CartographyNodeSchema):
     """
     Schema for ProxmoxUser.
-    
+
     User accounts for Proxmox VE authentication and authorization.
     """
+
     label: str = "ProxmoxUser"
     properties: ProxmoxUserNodeProperties = ProxmoxUserNodeProperties()
     sub_resource_relationship: ProxmoxUserToClusterRel = ProxmoxUserToClusterRel()
@@ -82,13 +88,15 @@ class ProxmoxUserSchema(CartographyNodeSchema):
 # ProxmoxGroup Node Schema
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class ProxmoxGroupNodeProperties(CartographyNodeProperties):
     """
     Properties for a ProxmoxGroup node.
-    
+
     Represents user groups in Proxmox VE.
     """
+
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     groupid: PropertyRef = PropertyRef("groupid", extra_index=True)
@@ -101,6 +109,7 @@ class ProxmoxGroupToClusterRelProperties(CartographyRelProperties):
     """
     Properties for relationship from ProxmoxGroup to ProxmoxCluster.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -108,25 +117,31 @@ class ProxmoxGroupToClusterRelProperties(CartographyRelProperties):
 class ProxmoxGroupToClusterRel(CartographyRelSchema):
     """
     Relationship: (:ProxmoxGroup)-[:RESOURCE]->(:ProxmoxCluster)
-    
+
     Groups belong to clusters.
     """
+
     target_node_label: str = "ProxmoxCluster"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: ProxmoxGroupToClusterRelProperties = ProxmoxGroupToClusterRelProperties()
+    properties: ProxmoxGroupToClusterRelProperties = (
+        ProxmoxGroupToClusterRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class ProxmoxGroupSchema(CartographyNodeSchema):
     """
     Schema for ProxmoxGroup.
-    
+
     User groups for organizing permissions in Proxmox VE.
     """
+
     label: str = "ProxmoxGroup"
     properties: ProxmoxGroupNodeProperties = ProxmoxGroupNodeProperties()
     sub_resource_relationship: ProxmoxGroupToClusterRel = ProxmoxGroupToClusterRel()
@@ -136,13 +151,15 @@ class ProxmoxGroupSchema(CartographyNodeSchema):
 # ProxmoxRole Node Schema
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class ProxmoxRoleNodeProperties(CartographyNodeProperties):
     """
     Properties for a ProxmoxRole node.
-    
+
     Represents permission roles in Proxmox VE.
     """
+
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     roleid: PropertyRef = PropertyRef("roleid", extra_index=True)
@@ -156,6 +173,7 @@ class ProxmoxRoleToClusterRelProperties(CartographyRelProperties):
     """
     Properties for relationship from ProxmoxRole to ProxmoxCluster.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -163,13 +181,16 @@ class ProxmoxRoleToClusterRelProperties(CartographyRelProperties):
 class ProxmoxRoleToClusterRel(CartographyRelSchema):
     """
     Relationship: (:ProxmoxRole)-[:RESOURCE]->(:ProxmoxCluster)
-    
+
     Roles belong to clusters.
     """
+
     target_node_label: str = "ProxmoxCluster"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
     properties: ProxmoxRoleToClusterRelProperties = ProxmoxRoleToClusterRelProperties()
@@ -179,9 +200,10 @@ class ProxmoxRoleToClusterRel(CartographyRelSchema):
 class ProxmoxRoleSchema(CartographyNodeSchema):
     """
     Schema for ProxmoxRole.
-    
+
     Permission roles defining what actions users can perform.
     """
+
     label: str = "ProxmoxRole"
     properties: ProxmoxRoleNodeProperties = ProxmoxRoleNodeProperties()
     sub_resource_relationship: ProxmoxRoleToClusterRel = ProxmoxRoleToClusterRel()
@@ -191,13 +213,15 @@ class ProxmoxRoleSchema(CartographyNodeSchema):
 # ProxmoxACL Node Schema
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class ProxmoxACLNodeProperties(CartographyNodeProperties):
     """
     Properties for a ProxmoxACL node.
-    
+
     Represents Access Control List entries granting permissions.
     """
+
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     path: PropertyRef = PropertyRef("path", extra_index=True)
@@ -212,6 +236,7 @@ class ProxmoxACLToClusterRelProperties(CartographyRelProperties):
     """
     Properties for relationship from ProxmoxACL to ProxmoxCluster.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -219,13 +244,16 @@ class ProxmoxACLToClusterRelProperties(CartographyRelProperties):
 class ProxmoxACLToClusterRel(CartographyRelSchema):
     """
     Relationship: (:ProxmoxACL)-[:RESOURCE]->(:ProxmoxCluster)
-    
+
     ACLs belong to clusters.
     """
+
     target_node_label: str = "ProxmoxCluster"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
     properties: ProxmoxACLToClusterRelProperties = ProxmoxACLToClusterRelProperties()
@@ -236,6 +264,7 @@ class ProxmoxACLToRoleRelProperties(CartographyRelProperties):
     """
     Properties for relationship from ProxmoxACL to ProxmoxRole.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -243,13 +272,16 @@ class ProxmoxACLToRoleRelProperties(CartographyRelProperties):
 class ProxmoxACLToRoleRel(CartographyRelSchema):
     """
     Relationship: (:ProxmoxACL)-[:GRANTS_ROLE]->(:ProxmoxRole)
-    
+
     ACLs grant roles to users/groups.
     """
+
     target_node_label: str = "ProxmoxRole"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "roleid": PropertyRef("roleid"),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "roleid": PropertyRef("roleid"),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "GRANTS_ROLE"
     properties: ProxmoxACLToRoleRelProperties = ProxmoxACLToRoleRelProperties()
@@ -259,12 +291,15 @@ class ProxmoxACLToRoleRel(CartographyRelSchema):
 class ProxmoxACLSchema(CartographyNodeSchema):
     """
     Schema for ProxmoxACL.
-    
+
     Access Control List entries defining permissions.
     """
+
     label: str = "ProxmoxACL"
     properties: ProxmoxACLNodeProperties = ProxmoxACLNodeProperties()
     sub_resource_relationship: ProxmoxACLToClusterRel = ProxmoxACLToClusterRel()
-    other_relationships: OtherRelationships = OtherRelationships([
-        ProxmoxACLToRoleRel(),
-    ])
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ProxmoxACLToRoleRel(),
+        ]
+    )

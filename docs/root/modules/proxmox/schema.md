@@ -5,21 +5,39 @@
 Representation of a Proxmox Virtual Environment cluster.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Unique cluster identifier (cluster name or derived from hostname) |
+| **id** | Unique cluster identifier (cluster name or derived from hostname) |
 | name | Human-readable cluster name |
 | version | Proxmox VE version string |
 | quorate | Boolean indicating if the cluster has quorum |
 | nodes_online | Number of nodes currently online in the cluster |
+| migration | Migration mode setting (secure, insecure) |
+| migration_network | CIDR network used for VM migrations |
+| bwlimit | Bandwidth limit for migrations in KB/s |
+| console | Default console viewer (html5, vv, xtermjs) |
+| email_from | Default email sender address for notifications |
+| http_proxy | HTTP proxy URL if configured |
+| keyboard | Default keyboard layout |
+| language | Default language setting |
+| mac_prefix | MAC address prefix for VMs |
+| max_workers | Maximum number of parallel migration workers |
+| next_id_lower | Lower bound for auto-assigned VM IDs |
+| next_id_upper | Upper bound for auto-assigned VM IDs |
+| totem_interface | Corosync network interface |
+| totem_cluster_name | Corosync cluster name |
+| totem_config_version | Corosync configuration version |
+| totem_ip_version | IP version used by Corosync (ipv4/ipv6) |
+| totem_secauth | Corosync authentication mode |
+| totem_version | Corosync protocol version |
 
 #### Relationships
 
 - ProxmoxCluster contains ProxmoxNodes.
 
     ```
-    (ProxmoxCluster)-[CONTAINS_NODE]->(ProxmoxNode)
+    (ProxmoxNode)-[RESOURCE]->(ProxmoxCluster)
     ```
 
 ### ProxmoxNode
@@ -27,12 +45,13 @@ Representation of a Proxmox Virtual Environment cluster.
 Representation of a physical or virtual node in a Proxmox cluster.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Unique node identifier (node name) |
+| **id** | Unique node identifier (node name) |
 | name | Node hostname |
 | cluster_id | ID of the parent ProxmoxCluster |
+| hostname | Node hostname |
 | ip | Management IP address of the node |
 | status | Current status (online, offline, unknown) |
 | uptime | Node uptime in seconds |
@@ -42,13 +61,14 @@ Representation of a physical or virtual node in a Proxmox cluster.
 | memory_used | Used RAM in bytes |
 | disk_total | Total disk space in bytes |
 | disk_used | Used disk space in bytes |
+| level | Node level in the cluster |
 
 #### Relationships
 
-- ProxmoxNode is contained by a ProxmoxCluster.
+- ProxmoxNode belongs to a ProxmoxCluster.
 
     ```
-    (ProxmoxCluster)-[CONTAINS_NODE]->(ProxmoxNode)
+    (ProxmoxNode)-[RESOURCE]->(ProxmoxCluster)
     ```
 
 - ProxmoxNode hosts ProxmoxVMs.
@@ -63,15 +83,59 @@ Representation of a physical or virtual node in a Proxmox cluster.
     (ProxmoxStorage)-[AVAILABLE_ON]->(ProxmoxNode)
     ```
 
+- ProxmoxNode has ProxmoxNodeNetworkInterfaces.
+
+    ```
+    (ProxmoxNode)-[HAS_NETWORK_INTERFACE]->(ProxmoxNodeNetworkInterface)
+    ```
+
+### ProxmoxNodeNetworkInterface
+
+Representation of a physical or virtual network interface on a Proxmox node.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier for the network interface |
+| name | Interface name (e.g., vmbr0, eth0) |
+| node_name | Name of the node this interface belongs to |
+| type | Interface type (bridge, bond, eth, vlan, etc.) |
+| address | IPv4 address |
+| netmask | IPv4 subnet mask |
+| gateway | IPv4 default gateway |
+| address6 | IPv6 address |
+| netmask6 | IPv6 subnet mask |
+| gateway6 | IPv6 default gateway |
+| bridge_ports | Bridge member ports |
+| bond_slaves | Bond slave interfaces |
+| active | Boolean indicating if interface is active |
+| autostart | Boolean indicating if interface auto-starts on boot |
+| mtu | MTU size |
+
+#### Relationships
+
+- ProxmoxNodeNetworkInterface belongs to a ProxmoxNode.
+
+    ```
+    (ProxmoxNode)-[HAS_NETWORK_INTERFACE]->(ProxmoxNodeNetworkInterface)
+    ```
+
+- ProxmoxNodeNetworkInterface belongs to a ProxmoxCluster.
+
+    ```
+    (ProxmoxNodeNetworkInterface)-[RESOURCE]->(ProxmoxCluster)
+    ```
+
 ### ProxmoxVM
 
 Representation of a QEMU virtual machine or LXC container.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Unique identifier in format "node:vmid" |
+| **id** | Unique identifier in format "node/type/vmid" (e.g., "node1/qemu/100") |
 | vmid | Numeric VM/container ID |
 | name | VM or container name |
 | node | Name of the host node |
@@ -111,11 +175,11 @@ Representation of a QEMU virtual machine or LXC container.
 Representation of a virtual disk attached to a VM or container.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Unique identifier in format "vmid:disk_id" |
-| disk_id | Disk identifier (e.g., "scsi0", "virtio0", "rootfs") |
+| **id** | Unique identifier in format "node/type/vmid:disk_id" (e.g., "node1/qemu/100:scsi0") |
+| disk_id | Disk identifier (e.g., "scsi0", "virtio0", "sata0", "ide0", "efidisk0", "tpmstate0", "rootfs") |
 | vmid | ID of the parent VM/container |
 | storage | Storage backend ID where the disk is stored |
 | size | Disk size in bytes |
@@ -141,17 +205,24 @@ Representation of a virtual disk attached to a VM or container.
 Representation of a network interface attached to a VM or container.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Unique identifier in format "vmid:net_id" |
-| net_id | Network interface identifier (e.g., "net0", "eth0") |
+| **id** | Unique identifier in format "node/type/vmid:net_id" (e.g., "node1/qemu/100:net0") |
+| net_id | Network interface identifier (e.g., "net0", "net1") |
 | vmid | ID of the parent VM/container |
 | bridge | Bridge name the interface is connected to |
 | mac_address | MAC address of the interface |
-| model | Network adapter model (e.g., "virtio", "e1000") |
+| model | Network adapter model (e.g., "virtio", "e1000", "rtl8139", "vmxnet3", "veth") |
 | firewall | Boolean indicating if Proxmox firewall is enabled |
 | vlan_tag | VLAN tag if configured |
+| ip | IPv4 address assigned to the interface |
+| ip6 | IPv6 address assigned to the interface |
+| gw | IPv4 gateway |
+| gw6 | IPv6 gateway |
+| mtu | MTU size |
+| rate | Bandwidth rate limit (in MB/s) |
+| link_up | Boolean indicating if the link is up |
 
 #### Relationships
 
@@ -166,10 +237,10 @@ Representation of a network interface attached to a VM or container.
 Representation of a storage backend in Proxmox.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Unique storage identifier |
+| **id** | Unique storage identifier |
 | name | Storage backend name |
 | cluster_id | ID of the parent ProxmoxCluster |
 | type | Storage type (dir, nfs, lvm, lvmthin, ceph, etc.) |
@@ -199,10 +270,10 @@ Representation of a storage backend in Proxmox.
 Representation of a resource pool for organizing VMs, containers, and storage.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Unique pool identifier |
+| **id** | Unique pool identifier |
 | poolid | Pool name |
 | cluster_id | ID of the parent ProxmoxCluster |
 | comment | Description or notes about the pool |
@@ -226,10 +297,10 @@ Representation of a resource pool for organizing VMs, containers, and storage.
 Representation of a scheduled backup job configuration.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Unique job identifier |
+| **id** | Unique job identifier |
 | job_id | Backup job name/ID |
 | cluster_id | ID of the parent ProxmoxCluster |
 | schedule | Cron-style schedule string (e.g., "0 2 * * *") |
@@ -240,7 +311,12 @@ Representation of a scheduled backup job configuration.
 | mailnotification | Email notification setting (always, failure, never) |
 | mailto | Email address for notifications |
 | notes | Job description or notes |
-| prune_backups | Retention policy configuration |
+| prune_keep_last | Number of most recent backups to keep |
+| prune_keep_hourly | Number of hourly backups to keep |
+| prune_keep_daily | Number of daily backups to keep |
+| prune_keep_weekly | Number of weekly backups to keep |
+| prune_keep_monthly | Number of monthly backups to keep |
+| prune_keep_yearly | Number of yearly backups to keep |
 | repeat_missed | Boolean indicating if missed backups should be repeated |
 
 #### Relationships
@@ -262,10 +338,10 @@ Representation of a scheduled backup job configuration.
 Representation of a High Availability group defining node preferences.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Unique group identifier |
+| **id** | Unique group identifier |
 | group | HA group name |
 | cluster_id | ID of the parent ProxmoxCluster |
 | nodes | Comma-separated list of preferred nodes |
@@ -286,10 +362,10 @@ Representation of a High Availability group defining node preferences.
 Representation of a VM or container configured for High Availability.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Unique resource identifier (format: "vm:100" or "ct:200") |
+| **id** | Unique resource identifier (format: "vm:100" or "ct:200") |
 | sid | Service ID (same as id) |
 | cluster_id | ID of the parent ProxmoxCluster |
 | state | Current HA state (started, stopped, disabled, etc.) |
@@ -384,7 +460,7 @@ RETURN v.name, v.node, v.cluster_id
 ### Cluster topology overview
 
 ```cypher
-MATCH (c:ProxmoxCluster)-[:CONTAINS_NODE]->(n:ProxmoxNode)
+MATCH (n:ProxmoxNode)-[:RESOURCE]->(c:ProxmoxCluster)
 OPTIONAL MATCH (n)-[:HOSTS_VM]->(v:ProxmoxVM)
 WHERE v.template = false
 RETURN c.name as cluster,
@@ -479,10 +555,10 @@ ORDER BY protected_vms DESC
 Representation of a user account in Proxmox VE.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | User identifier (format: user@realm) |
+| **id** | User identifier (format: user@realm) |
 | userid | Full user ID |
 | cluster_id | ID of the parent ProxmoxCluster |
 | enable | Boolean indicating if account is enabled |
@@ -513,10 +589,10 @@ Representation of a user account in Proxmox VE.
 Representation of a user group in Proxmox VE.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Group identifier |
+| **id** | Group identifier |
 | groupid | Group name |
 | cluster_id | ID of the parent ProxmoxCluster |
 | comment | Group description or notes |
@@ -534,10 +610,10 @@ Representation of a user group in Proxmox VE.
 Representation of a permission role in Proxmox VE.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Role identifier |
+| **id** | Role identifier |
 | roleid | Role name |
 | cluster_id | ID of the parent ProxmoxCluster |
 | privs | Array of privileges (e.g., VM.Audit, Sys.Modify) |
@@ -556,10 +632,10 @@ Representation of a permission role in Proxmox VE.
 Representation of an Access Control List entry in Proxmox VE.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | ACL entry identifier |
+| **id** | ACL entry identifier |
 | path | Resource path (e.g., /, /vms/100, /storage/local) |
 | cluster_id | ID of the parent ProxmoxCluster |
 | roleid | Role granted by this ACL |
@@ -591,10 +667,10 @@ Representation of an Access Control List entry in Proxmox VE.
 Representation of a firewall rule at cluster, node, or VM level.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Firewall rule identifier |
+| **id** | Firewall rule identifier |
 | cluster_id | ID of the parent ProxmoxCluster |
 | scope | Rule scope (cluster, node, vm) |
 | scope_id | Scope identifier (node name or vmid) |
@@ -631,10 +707,10 @@ Representation of a firewall rule at cluster, node, or VM level.
 Representation of an IP set (address group) for firewall rules.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | IP set identifier |
+| **id** | IP set identifier |
 | name | IP set name |
 | cluster_id | ID of the parent ProxmoxCluster |
 | scope | IP set scope (cluster, node, vm) |
@@ -647,10 +723,10 @@ Representation of an IP set (address group) for firewall rules.
 Representation of an SSL/TLS certificate used by a Proxmox node.
 
 | Field | Description |
-| ----- | ----------- |
+|-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | Certificate identifier |
+| **id** | Certificate identifier |
 | cluster_id | ID of the parent ProxmoxCluster |
 | node_name | Node using this certificate |
 | filename | Certificate filename |
@@ -697,7 +773,7 @@ ORDER BY permission_count DESC
 
 ```cypher
 MATCH (rule:ProxmoxFirewallRule)
-WHERE rule.action = 'ACCEPT' 
+WHERE rule.action = 'ACCEPT'
 AND rule.enable = true
 AND (rule.source IS NULL OR rule.source = '0.0.0.0/0')
 RETURN rule.scope, rule.scope_id, rule.pos, rule.proto, rule.dport, rule.comment
@@ -708,10 +784,10 @@ ORDER BY rule.scope, rule.pos
 
 ```cypher
 MATCH (n:ProxmoxNode)-[:HAS_CERTIFICATE]->(cert:ProxmoxCertificate)
-WITH n, cert, 
+WITH n, cert,
      (cert.notafter - timestamp()) / (24 * 60 * 60 * 1000) as days_until_expiry
-RETURN n.name, cert.subject, 
-       CASE 
+RETURN n.name, cert.subject,
+       CASE
          WHEN days_until_expiry < 0 THEN 'EXPIRED'
          WHEN days_until_expiry < 30 THEN 'CRITICAL'
          WHEN days_until_expiry < 90 THEN 'WARNING'

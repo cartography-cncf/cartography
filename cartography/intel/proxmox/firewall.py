@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # GET functions - retrieve data from Proxmox API
 # ============================================================================
 
+
 @timeit
 def get_cluster_firewall_rules(proxmox_client) -> list[dict[str, Any]]:
     """
@@ -51,7 +52,9 @@ def get_node_firewall_rules(proxmox_client, node_name: str) -> list[dict[str, An
 
 
 @timeit
-def get_vm_firewall_rules(proxmox_client, node_name: str, vmid: int) -> list[dict[str, Any]]:
+def get_vm_firewall_rules(
+    proxmox_client, node_name: str, vmid: int
+) -> list[dict[str, Any]]:
     """
     Get VM-level firewall rules.
 
@@ -102,6 +105,7 @@ def get_ipset_cidrs(proxmox_client, ipset_name: str) -> list[dict[str, Any]]:
 # TRANSFORM functions - manipulate data for graph ingestion
 # ============================================================================
 
+
 def transform_firewall_rule_data(
     rules: list[dict[str, Any]],
     cluster_id: str,
@@ -126,25 +130,27 @@ def transform_firewall_rule_data(
         else:
             rule_id = f"{scope}:{rule.get('pos', 0)}"
 
-        transformed_rules.append({
-            'id': rule_id,
-            'cluster_id': cluster_id,
-            'scope': scope,
-            'scope_id': scope_id,
-            'pos': rule.get('pos', 0),
-            'type': rule.get('type'),
-            'action': rule.get('action'),
-            'enable': rule.get('enable', True),
-            'iface': rule.get('iface'),
-            'source': rule.get('source'),
-            'dest': rule.get('dest'),
-            'proto': rule.get('proto'),
-            'sport': rule.get('sport'),
-            'dport': rule.get('dport'),
-            'comment': rule.get('comment'),
-            'macro': rule.get('macro'),
-            'log': rule.get('log'),
-        })
+        transformed_rules.append(
+            {
+                "id": rule_id,
+                "cluster_id": cluster_id,
+                "scope": scope,
+                "scope_id": scope_id,
+                "pos": rule.get("pos", 0),
+                "type": rule.get("type"),
+                "action": rule.get("action"),
+                "enable": bool(rule.get("enable", True)),  # Convert to bool
+                "iface": rule.get("iface"),
+                "source": rule.get("source"),
+                "dest": rule.get("dest"),
+                "proto": rule.get("proto"),
+                "sport": rule.get("sport"),
+                "dport": rule.get("dport"),
+                "comment": rule.get("comment"),
+                "macro": rule.get("macro"),
+                "log": rule.get("log"),
+            }
+        )
 
     return transformed_rules
 
@@ -170,7 +176,7 @@ def transform_ipset_data(
 
     for ipset in ipsets:
         # Required field
-        name = ipset['name']
+        name = ipset["name"]
 
         # Create unique ID based on scope
         if scope_id:
@@ -181,18 +187,20 @@ def transform_ipset_data(
         # Get CIDR entries for this IP set
         cidrs = []
         for cidr_entry in ipset_cidrs.get(name, []):
-            if 'cidr' in cidr_entry:
-                cidrs.append(cidr_entry['cidr'])
+            if "cidr" in cidr_entry:
+                cidrs.append(cidr_entry["cidr"])
 
-        transformed_ipsets.append({
-            'id': ipset_id,
-            'name': name,
-            'cluster_id': cluster_id,
-            'scope': scope,
-            'scope_id': scope_id,
-            'comment': ipset.get('comment'),
-            'cidrs': cidrs,
-        })
+        transformed_ipsets.append(
+            {
+                "id": ipset_id,
+                "name": name,
+                "cluster_id": cluster_id,
+                "scope": scope,
+                "scope_id": scope_id,
+                "comment": ipset.get("comment"),
+                "cidrs": cidrs,
+            }
+        )
 
     return transformed_ipsets
 
@@ -200,6 +208,7 @@ def transform_ipset_data(
 # ============================================================================
 # LOAD functions - ingest data to Neo4j using modern data model
 # ============================================================================
+
 
 def load_firewall_rules(
     neo4j_session,
@@ -266,10 +275,10 @@ def load_firewall_scope_relationships(
     :param update_tag: Sync timestamp
     """
     from cartography.client.core.tx import run_write_query
-    
+
     # Separate rules by scope
-    node_rules = [r for r in rules if r['scope'] == 'node' and r['scope_id']]
-    vm_rules = [r for r in rules if r['scope'] == 'vm' and r['scope_id']]
+    node_rules = [r for r in rules if r["scope"] == "node" and r["scope_id"]]
+    vm_rules = [r for r in rules if r["scope"] == "vm" and r["scope_id"]]
 
     # Create relationships to nodes
     if node_rules:
@@ -292,9 +301,9 @@ def load_firewall_scope_relationships(
     if vm_rules:
         # Convert scope_id to int for VM matching
         for rule in vm_rules:
-            if rule['scope_id']:
+            if rule["scope_id"]:
                 try:
-                    rule['vmid_int'] = int(rule['scope_id'])
+                    rule["vmid_int"] = int(rule["scope_id"])
                 except ValueError:
                     pass
 
@@ -317,6 +326,7 @@ def load_firewall_scope_relationships(
 # ============================================================================
 # SYNC function - orchestrates Get → Transform → Load
 # ============================================================================
+
 
 @timeit
 def sync(
@@ -345,7 +355,7 @@ def sync(
     # GET - Cluster-level firewall rules
     cluster_rules = get_cluster_firewall_rules(proxmox_client)
     transformed_cluster_rules = transform_firewall_rule_data(
-        cluster_rules, cluster_id, 'cluster'
+        cluster_rules, cluster_id, "cluster"
     )
     all_rules.extend(transformed_cluster_rules)
 
@@ -353,22 +363,22 @@ def sync(
     cluster_ipsets = get_cluster_ipsets(proxmox_client)
     ipset_cidrs = {}
     for ipset in cluster_ipsets:
-        ipset_name = ipset['name']
+        ipset_name = ipset["name"]
         cidrs = get_ipset_cidrs(proxmox_client, ipset_name)
         ipset_cidrs[ipset_name] = cidrs
 
     transformed_ipsets = transform_ipset_data(
-        cluster_ipsets, ipset_cidrs, cluster_id, 'cluster'
+        cluster_ipsets, ipset_cidrs, cluster_id, "cluster"
     )
     all_ipsets.extend(transformed_ipsets)
 
     # GET - Node-level firewall rules
     nodes = proxmox_client.nodes.get()
     for node in nodes:
-        node_name = node['node']
+        node_name = node["node"]
         node_rules = get_node_firewall_rules(proxmox_client, node_name)
         transformed_node_rules = transform_firewall_rule_data(
-            node_rules, cluster_id, 'node', node_name
+            node_rules, cluster_id, "node", node_name
         )
         all_rules.extend(transformed_node_rules)
 

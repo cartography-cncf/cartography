@@ -77,18 +77,84 @@ The Proxmox integration syncs the following resources:
 - `version`: Proxmox VE version
 - `quorate`: Cluster quorum status
 - `nodes_online`: Number of online nodes
+- `nodes_total`: Total number of nodes in cluster
+- `cluster_id`: Internal cluster ID from API
+- **Migration settings:**
+  - `migration_type`: Migration mode (secure, insecure)
+  - `migration_network`: CIDR network used for VM migrations
+  - `migration_bandwidth_limit`: Bandwidth limit for migrations in KB/s
+- **Console and UI settings:**
+  - `console`: Default console viewer (html5, vv, xtermjs)
+  - `keyboard`: Default keyboard layout
+  - `language`: Default language setting
+- **Email and proxy:**
+  - `email_from`: Default email sender address
+  - `http_proxy`: HTTP proxy URL if configured
+- **Resource management:**
+  - `mac_prefix`: MAC address prefix for VMs
+  - `max_workers`: Maximum parallel migration workers
+  - `next_id_lower`, `next_id_upper`: Auto-assigned VM ID bounds
+- **Corosync/Totem configuration:**
+  - `totem_cluster_name`: Cluster name from corosync
+  - `totem_config_version`: Corosync config version
+  - `totem_interface`: Network interface used by totem
+  - `totem_ip_version`: IP version (ipv4/ipv6)
+  - `totem_secauth`: Security authentication enabled
+  - `totem_version`: Totem protocol version
 
 #### ProxmoxNode
 - `id`: Node name (unique)
 - `name`: Node display name
+- `hostname`: Node hostname
 - `ip`: Management IP address
 - `status`: online/offline/unknown
-- `cpu_count`, `cpu_usage`: CPU information
-- `memory_total`, `memory_used`: RAM information
-- `disk_total`, `disk_used`: Disk information
+- `uptime`: Node uptime in seconds
+- **CPU information:**
+  - `cpu_count`: Number of CPU cores
+  - `cpu_usage`: CPU utilization (0.0 to 1.0)
+  - `cpuinfo`: CPU model information
+  - `idle`: Idle CPU percentage
+- **Memory information:**
+  - `memory_total`, `memory_used`: RAM in bytes
+  - `swap_total`, `swap_used`, `swap_free`: Swap space in bytes
+- **Disk information:**
+  - `disk_total`, `disk_used`: Disk space in bytes
+- **System information:**
+  - `kversion`: Kernel version
+  - `pveversion`: Proxmox VE version string
+  - `loadavg`: Load average (CSV: 1m, 5m, 15m)
+  - `wait`: I/O wait percentage
+- `level`: Node level in cluster
+
+#### ProxmoxNodeNetworkInterface
+- `id`: Unique identifier
+- `name`: Interface name (e.g., vmbr0, eth0)
+- `node_name`: Name of the node this interface belongs to
+- `type`: Interface type (bridge, bond, eth, vlan, etc.)
+- **IPv4 configuration:**
+  - `address`: IPv4 address
+  - `netmask`: IPv4 subnet mask
+  - `gateway`: IPv4 default gateway
+  - `cidr`: CIDR notation (e.g., 192.168.1.10/24)
+  - `method`: Configuration method (static, dhcp, manual)
+- **IPv6 configuration:**
+  - `address6`, `netmask6`, `gateway6`: IPv6 settings
+  - `cidr6`: IPv6 CIDR notation
+  - `method6`: IPv6 configuration method
+- **Bridge configuration:**
+  - `bridge_ports`: Bridge member ports
+- **Bond configuration:**
+  - `bond_slaves`: Bond slave interfaces
+  - `bond_mode`: Bonding mode (balance-rr, active-backup, 802.3ad, etc.)
+  - `bond_xmit_hash_policy`: Bond transmit hash policy (layer2, layer3+4, etc.)
+- **Status and settings:**
+  - `active`: Boolean indicating if interface is active
+  - `autostart`: Boolean indicating if interface auto-starts on boot
+  - `mtu`: MTU size
+  - `comments`: Interface comments/description
 
 #### ProxmoxVM
-- `id`: Format `node:vmid`
+- `id`: Format `node/type/vmid` (e.g., `node1/qemu/100`)
 - `vmid`: VM ID number
 - `name`: VM name
 - `type`: qemu or lxc
@@ -98,19 +164,27 @@ The Proxmox integration syncs the following resources:
 - `tags`: Array of VM tags
 
 #### ProxmoxDisk
-- `id`: Format `vmid:disk_id`
-- `disk_id`: Disk identifier (e.g., scsi0, virtio0)
+- `id`: Format `node/type/vmid:disk_id` (e.g., `node1/qemu/100:scsi0`)
+- `disk_id`: Disk identifier (e.g., scsi0, virtio0, sata0, ide0, efidisk0, tpmstate0, rootfs)
 - `storage`: Storage backend ID
 - `size`: Size in bytes
 - `backup`: Backup enabled flag
 
 #### ProxmoxNetworkInterface
-- `id`: Format `vmid:net_id`
-- `net_id`: Network interface identifier
+- `id`: Format `node/type/vmid:net_id` (e.g., `node1/qemu/100:net0`)
+- `net_id`: Network interface identifier (e.g., net0, net1)
 - `bridge`: Bridge name
 - `mac_address`: MAC address
-- `model`: Network adapter model
-- `vlan_tag`: VLAN tag (optional)
+- `model`: Network adapter model (e.g., virtio, e1000, rtl8139, vmxnet3, veth)
+- `firewall`: Boolean indicating if Proxmox firewall is enabled
+- `vlan_tag`: VLAN tag if configured
+- `ip`: IPv4 address assigned to the interface
+- `ip6`: IPv6 address assigned to the interface
+- `gw`: IPv4 gateway
+- `gw6`: IPv6 gateway
+- `mtu`: MTU size
+- `rate`: Bandwidth rate limit (in MB/s)
+- `link_up`: Boolean indicating if the link is up
 
 #### ProxmoxStorage
 - `id`: Storage ID
@@ -131,7 +205,7 @@ The Proxmox integration syncs the following resources:
 - `enabled`: Job enabled/disabled
 - `mode`: Backup mode (snapshot, suspend, stop)
 - `compression`: Compression type (zstd, gzip, lzo)
-- `prune_backups`: Retention policy settings
+- `prune_keep_last`, `prune_keep_daily`, etc.: Retention policy settings
 
 #### ProxmoxHAGroup
 - `id`: Group identifier
@@ -202,24 +276,41 @@ The Proxmox integration syncs the following resources:
 ### Relationships
 
 ```
-(:ProxmoxCluster)-[:CONTAINS_NODE]->(:ProxmoxNode)
+(:ProxmoxNode)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxNode)-[:HOSTS_VM]->(:ProxmoxVM)
+(:ProxmoxNode)-[:HAS_NETWORK_INTERFACE]->(:ProxmoxNodeNetworkInterface)
+(:ProxmoxVM)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxVM)-[:HAS_DISK]->(:ProxmoxDisk)
 (:ProxmoxVM)-[:HAS_NETWORK_INTERFACE]->(:ProxmoxNetworkInterface)
+(:ProxmoxDisk)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxDisk)-[:STORED_ON]->(:ProxmoxStorage)
+(:ProxmoxNetworkInterface)-[:RESOURCE]->(:ProxmoxCluster)
+(:ProxmoxNodeNetworkInterface)-[:RESOURCE]->(:ProxmoxCluster)
+(:ProxmoxStorage)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxStorage)-[:AVAILABLE_ON]->(:ProxmoxNode)
+(:ProxmoxPool)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxPool)-[:CONTAINS_VM]->(:ProxmoxVM)
 (:ProxmoxPool)-[:CONTAINS_STORAGE]->(:ProxmoxStorage)
+(:ProxmoxBackupJob)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxBackupJob)-[:BACKS_UP]->(:ProxmoxVM)
 (:ProxmoxBackupJob)-[:BACKS_UP_TO]->(:ProxmoxStorage)
+(:ProxmoxHAGroup)-[:RESOURCE]->(:ProxmoxCluster)
+(:ProxmoxHAResource)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxHAResource)-[:MEMBER_OF_HA_GROUP]->(:ProxmoxHAGroup)
 (:ProxmoxHAResource)-[:PROTECTS]->(:ProxmoxVM)
+(:ProxmoxUser)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxUser)-[:MEMBER_OF_GROUP]->(:ProxmoxGroup)
+(:ProxmoxGroup)-[:RESOURCE]->(:ProxmoxCluster)
+(:ProxmoxRole)-[:RESOURCE]->(:ProxmoxCluster)
+(:ProxmoxACL)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxACL)-[:GRANTS_ROLE]->(:ProxmoxRole)
 (:ProxmoxACL)-[:APPLIES_TO_USER]->(:ProxmoxUser)
 (:ProxmoxACL)-[:APPLIES_TO_GROUP]->(:ProxmoxGroup)
+(:ProxmoxFirewallRule)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxFirewallRule)-[:APPLIES_TO_NODE]->(:ProxmoxNode)
 (:ProxmoxFirewallRule)-[:APPLIES_TO_VM]->(:ProxmoxVM)
+(:ProxmoxFirewallIPSet)-[:RESOURCE]->(:ProxmoxCluster)
+(:ProxmoxCertificate)-[:RESOURCE]->(:ProxmoxCluster)
 (:ProxmoxNode)-[:HAS_CERTIFICATE]->(:ProxmoxCertificate)
 ```
 
@@ -308,7 +399,7 @@ ORDER BY group.group
 ### Find VMs not protected by HA but should be
 ```cypher
 MATCH (vm:ProxmoxVM)
-WHERE vm.template = false 
+WHERE vm.template = false
 AND vm.status = 'running'
 AND NOT (vm)<-[:PROTECTS]-(:ProxmoxHAResource)
 RETURN vm.name, vm.node, vm.memory
@@ -343,8 +434,8 @@ RETURN u.userid, u.email, r.roleid, acl.path
 ### Find firewall rules allowing all traffic
 ```cypher
 MATCH (rule:ProxmoxFirewallRule)
-WHERE rule.action = 'ACCEPT' 
-AND rule.source IS NULL 
+WHERE rule.action = 'ACCEPT'
+AND rule.source IS NULL
 AND rule.dest IS NULL
 RETURN rule.scope, rule.scope_id, rule.pos, rule.comment
 ORDER BY rule.scope, rule.pos
@@ -355,7 +446,7 @@ ORDER BY rule.scope, rule.pos
 MATCH (rule:ProxmoxFirewallRule)
 WHERE rule.action = 'ACCEPT' AND rule.enable = true
 AND rule.dport IS NOT NULL
-RETURN DISTINCT rule.dport, count(rule) as rule_count, 
+RETURN DISTINCT rule.dport, count(rule) as rule_count,
        collect(DISTINCT rule.scope) as scopes
 ORDER BY rule_count DESC
 ```

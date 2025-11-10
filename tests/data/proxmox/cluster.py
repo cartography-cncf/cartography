@@ -40,6 +40,14 @@ MOCK_NODE_DATA = [
         "id": "node/node1",
         "type": "node",
         "ip": "192.168.1.10",
+        "kversion": "Linux 6.2.16-3-pve",
+        "loadavg": [0.15, 0.25, 0.30],
+        "wait": 0.02,
+        "maxswap": 8589934592,
+        "swap": 1073741824,
+        "pveversion": "pve-manager/8.1.3/b46aac3b42da5d15",
+        "cpuinfo": "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz",
+        "idle": 0.73,
     },
     {
         "node": "node2",
@@ -55,6 +63,55 @@ MOCK_NODE_DATA = [
         "id": "node/node2",
         "type": "node",
         "ip": "192.168.1.11",
+        "kversion": "Linux 6.2.16-3-pve",
+        "loadavg": [0.55, 0.60, 0.65],
+        "wait": 0.05,
+        "maxswap": 17179869184,
+        "swap": 2147483648,
+        "pveversion": "pve-manager/8.1.3/b46aac3b42da5d15",
+        "cpuinfo": "Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz",
+        "idle": 0.50,
+    },
+]
+
+MOCK_CLUSTER_OPTIONS = {
+    "migration": "secure",
+    "migration_network": "192.168.1.0/24",
+    "bwlimit": 102400,
+    "console": "html5",
+    "email_from": "admin@proxmox.local",
+    "http_proxy": "http://proxy.example.com:8080",
+    "keyboard": "en-us",
+    "language": "en",
+    "mac_prefix": "BC:24:11",
+    "max_workers": 4,
+    "next-id": {
+        "lower": 100,
+        "upper": 999999999,
+    },
+}
+
+MOCK_CLUSTER_CONFIG = {
+    "totem": {
+        "cluster_name": "test-cluster",
+        "config_version": 3,
+        "interface": "vmbr0",
+        "ip_version": "ipv4",
+        "secauth": "on",
+        "version": 2,
+    },
+}
+
+# Proxmox API can also return cluster config as a list of section dictionaries
+MOCK_CLUSTER_CONFIG_LIST = [
+    {
+        "section": "totem",
+        "cluster_name": "test-cluster",
+        "config_version": 3,
+        "interface": "vmbr0",
+        "ip_version": "ipv4",
+        "secauth": "on",
+        "version": 2,
     },
 ]
 
@@ -72,6 +129,8 @@ MOCK_NODE_NETWORK_DATA = {
             "netmask": "255.255.255.0",
             "type": "bridge",
             "families": ["inet"],
+            "mtu": 1500,
+            "comments": "Main bridge interface",
         },
         {
             "active": 1,
@@ -85,6 +144,8 @@ MOCK_NODE_NETWORK_DATA = {
             "netmask6": 64,
             "type": "bridge",
             "families": ["inet", "inet6"],
+            "mtu": 1500,
+            "comments": "Main bridge interface",
         },
         {
             "active": 1,

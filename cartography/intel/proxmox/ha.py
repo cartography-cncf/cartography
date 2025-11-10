@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # GET functions - retrieve data from Proxmox API
 # ============================================================================
 
+
 @timeit
 def get_ha_groups(proxmox_client) -> list[dict[str, Any]]:
     """
@@ -55,6 +56,7 @@ def get_ha_resources(proxmox_client) -> list[dict[str, Any]]:
 # TRANSFORM functions - manipulate data for graph ingestion
 # ============================================================================
 
+
 def transform_ha_group_data(
     groups: list[dict[str, Any]],
     cluster_id: str,
@@ -74,17 +76,19 @@ def transform_ha_group_data(
 
     for group in groups:
         # Required field - use direct access
-        group_name = group['group']
+        group_name = group["group"]
 
-        transformed_groups.append({
-            'id': group_name,
-            'group': group_name,
-            'cluster_id': cluster_id,
-            'nodes': group.get('nodes'),
-            'restricted': group.get('restricted', False),
-            'nofailback': group.get('nofailback', False),
-            'comment': group.get('comment'),
-        })
+        transformed_groups.append(
+            {
+                "id": group_name,
+                "group": group_name,
+                "cluster_id": cluster_id,
+                "nodes": group.get("nodes"),
+                "restricted": group.get("restricted", False),
+                "nofailback": group.get("nofailback", False),
+                "comment": group.get("comment"),
+            }
+        )
 
     return transformed_groups
 
@@ -104,18 +108,20 @@ def transform_ha_resource_data(
 
     for resource in resources:
         # Required field - service ID (format: vm:100, ct:200)
-        sid = resource['sid']
+        sid = resource["sid"]
 
-        transformed_resources.append({
-            'id': sid,
-            'sid': sid,
-            'cluster_id': cluster_id,
-            'state': resource.get('state'),
-            'group': resource.get('group'),
-            'max_restart': resource.get('max_restart'),
-            'max_relocate': resource.get('max_relocate'),
-            'comment': resource.get('comment'),
-        })
+        transformed_resources.append(
+            {
+                "id": sid,
+                "sid": sid,
+                "cluster_id": cluster_id,
+                "state": resource.get("state"),
+                "group": resource.get("group"),
+                "max_restart": resource.get("max_restart"),
+                "max_relocate": resource.get("max_relocate"),
+                "comment": resource.get("comment"),
+            }
+        )
 
     return transformed_resources
 
@@ -123,6 +129,7 @@ def transform_ha_resource_data(
 # ============================================================================
 # LOAD functions - ingest data to Neo4j using modern data model
 # ============================================================================
+
 
 def load_ha_groups(
     neo4j_session,
@@ -183,18 +190,20 @@ def load_ha_resource_vm_relationships(
     :param update_tag: Sync timestamp
     """
     from cartography.client.core.tx import run_write_query
-    
+
     # Extract VM IDs from service IDs (format: vm:100, ct:200)
     vm_mappings = []
     for resource in resources:
-        sid = resource['sid']
-        if ':' in sid:
-            parts = sid.split(':', 1)
-            if parts[0] in ('vm', 'ct') and parts[1].isdigit():
-                vm_mappings.append({
-                    'ha_resource_id': sid,
-                    'vmid': int(parts[1]),
-                })
+        sid = resource["sid"]
+        if ":" in sid:
+            parts = sid.split(":", 1)
+            if parts[0] in ("vm", "ct") and parts[1].isdigit():
+                vm_mappings.append(
+                    {
+                        "ha_resource_id": sid,
+                        "vmid": int(parts[1]),
+                    }
+                )
 
     if not vm_mappings:
         return
@@ -219,6 +228,7 @@ def load_ha_resource_vm_relationships(
 # ============================================================================
 # SYNC function - orchestrates Get → Transform → Load
 # ============================================================================
+
 
 @timeit
 def sync(
@@ -255,6 +265,10 @@ def sync(
 
     if transformed_resources:
         load_ha_resources(neo4j_session, transformed_resources, cluster_id, update_tag)
-        load_ha_resource_vm_relationships(neo4j_session, transformed_resources, update_tag)
+        load_ha_resource_vm_relationships(
+            neo4j_session, transformed_resources, update_tag
+        )
 
-    logger.info(f"Synced {len(transformed_groups)} HA groups and {len(transformed_resources)} HA resources")
+    logger.info(
+        f"Synced {len(transformed_groups)} HA groups and {len(transformed_resources)} HA resources"
+    )

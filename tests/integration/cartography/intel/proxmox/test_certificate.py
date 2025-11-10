@@ -1,6 +1,7 @@
 """
 Integration tests for Proxmox certificate sync.
 """
+
 from typing import Any
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -19,6 +20,7 @@ def test_sync_certificates(mock_get_node_certs, neo4j_session):
     """
     Test that SSL/TLS certificates sync correctly.
     """
+
     # Arrange
     def get_certs_side_effect(proxmox_client, node_name):
         return MOCK_CERTIFICATE_DATA.get(node_name, [])
@@ -73,7 +75,10 @@ def test_sync_certificates(mock_get_node_certs, neo4j_session):
         ("node1:pveproxy-ssl.pem", "node1"),
         ("node2:pveproxy-ssl.pem", "node2"),
     }
-    assert check_nodes(neo4j_session, "ProxmoxCertificate", ["id", "node_name"]) == expected_certs
+    assert (
+        check_nodes(neo4j_session, "ProxmoxCertificate", ["id", "node_name"])
+        == expected_certs
+    )
 
     # Assert - Certificate to cluster relationships
     expected_cert_cluster_rels = {
@@ -115,7 +120,7 @@ def test_sync_certificates(mock_get_node_certs, neo4j_session):
     result = neo4j_session.run(
         """
         MATCH (cert:ProxmoxCertificate {node_name: 'node1'})
-        RETURN cert.fingerprint as fingerprint, 
+        RETURN cert.fingerprint as fingerprint,
                cert.subject as subject,
                cert.issuer as issuer,
                cert.notbefore as notbefore,
@@ -126,14 +131,24 @@ def test_sync_certificates(mock_get_node_certs, neo4j_session):
         """
     )
     cert_props = result.single()
-    assert cert_props["fingerprint"] == "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD"
+    assert (
+        cert_props["fingerprint"]
+        == "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD"
+    )
     assert cert_props["subject"] == "CN=node1"
-    assert cert_props["issuer"] == "CN=Proxmox Virtual Environment,OU=PVE Cluster Node,O=PVE"
+    assert (
+        cert_props["issuer"]
+        == "CN=Proxmox Virtual Environment,OU=PVE Cluster Node,O=PVE"
+    )
     assert cert_props["notbefore"] == 1672531200
     assert cert_props["notafter"] == 1735689600
     assert cert_props["key_type"] == "RSA"
     assert cert_props["key_bits"] == 2048
-    assert set(cert_props["san"]) == {"DNS:node1", "DNS:node1.example.com", "IP:10.0.0.1"}
+    assert set(cert_props["san"]) == {
+        "DNS:node1",
+        "DNS:node1.example.com",
+        "IP:10.0.0.1",
+    }
 
     # Assert - Certificate expiration (node2 is expired)
     result = neo4j_session.run(

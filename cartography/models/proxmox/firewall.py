@@ -13,21 +13,21 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-
 
 # ============================================================================
 # ProxmoxFirewallRule Node Schema
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class ProxmoxFirewallRuleNodeProperties(CartographyNodeProperties):
     """
     Properties for a ProxmoxFirewallRule node.
-    
+
     Represents firewall rules at cluster, node, or VM level.
     """
+
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     cluster_id: PropertyRef = PropertyRef("cluster_id")
@@ -53,6 +53,7 @@ class ProxmoxFirewallRuleToClusterRelProperties(CartographyRelProperties):
     """
     Properties for relationship from ProxmoxFirewallRule to ProxmoxCluster.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -60,41 +61,51 @@ class ProxmoxFirewallRuleToClusterRelProperties(CartographyRelProperties):
 class ProxmoxFirewallRuleToClusterRel(CartographyRelSchema):
     """
     Relationship: (:ProxmoxFirewallRule)-[:RESOURCE]->(:ProxmoxCluster)
-    
+
     Firewall rules belong to clusters.
     """
+
     target_node_label: str = "ProxmoxCluster"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: ProxmoxFirewallRuleToClusterRelProperties = ProxmoxFirewallRuleToClusterRelProperties()
+    properties: ProxmoxFirewallRuleToClusterRelProperties = (
+        ProxmoxFirewallRuleToClusterRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class ProxmoxFirewallRuleSchema(CartographyNodeSchema):
     """
     Schema for ProxmoxFirewallRule.
-    
+
     Firewall rules controlling network traffic.
     """
+
     label: str = "ProxmoxFirewallRule"
     properties: ProxmoxFirewallRuleNodeProperties = ProxmoxFirewallRuleNodeProperties()
-    sub_resource_relationship: ProxmoxFirewallRuleToClusterRel = ProxmoxFirewallRuleToClusterRel()
+    sub_resource_relationship: ProxmoxFirewallRuleToClusterRel = (
+        ProxmoxFirewallRuleToClusterRel()
+    )
 
 
 # ============================================================================
 # ProxmoxFirewallIPSet Node Schema
 # ============================================================================
 
+
 @dataclass(frozen=True)
 class ProxmoxFirewallIPSetNodeProperties(CartographyNodeProperties):
     """
     Properties for a ProxmoxFirewallIPSet node.
-    
+
     Represents IP sets (address groups) used in firewall rules.
     """
+
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", extra_index=True)
@@ -110,6 +121,7 @@ class ProxmoxFirewallIPSetToClusterRelProperties(CartographyRelProperties):
     """
     Properties for relationship from ProxmoxFirewallIPSet to ProxmoxCluster.
     """
+
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -117,25 +129,35 @@ class ProxmoxFirewallIPSetToClusterRelProperties(CartographyRelProperties):
 class ProxmoxFirewallIPSetToClusterRel(CartographyRelSchema):
     """
     Relationship: (:ProxmoxFirewallIPSet)-[:RESOURCE]->(:ProxmoxCluster)
-    
+
     IP sets belong to clusters.
     """
+
     target_node_label: str = "ProxmoxCluster"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
-    })
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("CLUSTER_ID", set_in_kwargs=True),
+        }
+    )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
-    properties: ProxmoxFirewallIPSetToClusterRelProperties = ProxmoxFirewallIPSetToClusterRelProperties()
+    properties: ProxmoxFirewallIPSetToClusterRelProperties = (
+        ProxmoxFirewallIPSetToClusterRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class ProxmoxFirewallIPSetSchema(CartographyNodeSchema):
     """
     Schema for ProxmoxFirewallIPSet.
-    
+
     IP address sets for use in firewall rules.
     """
+
     label: str = "ProxmoxFirewallIPSet"
-    properties: ProxmoxFirewallIPSetNodeProperties = ProxmoxFirewallIPSetNodeProperties()
-    sub_resource_relationship: ProxmoxFirewallIPSetToClusterRel = ProxmoxFirewallIPSetToClusterRel()
+    properties: ProxmoxFirewallIPSetNodeProperties = (
+        ProxmoxFirewallIPSetNodeProperties()
+    )
+    sub_resource_relationship: ProxmoxFirewallIPSetToClusterRel = (
+        ProxmoxFirewallIPSetToClusterRel()
+    )

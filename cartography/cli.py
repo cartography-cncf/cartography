@@ -884,7 +884,7 @@ class CLI:
         parser.add_argument(
             "--proxmox-user",
             type=str,
-            default='root@pam',
+            default="root@pam",
             help="Proxmox user (default: root@pam).",
         )
         parser.add_argument(
@@ -922,6 +922,17 @@ class CLI:
             action="store_true",
             default=True,
             help="Verify SSL certificates when connecting to Proxmox (default: True).",
+        )
+        parser.add_argument(
+            "--proxmox-enable-guest-agent",
+            action="store_true",
+            default=False,
+            help=(
+                "Enable QEMU Guest Agent data collection for VMs. "
+                "Requires guest agent installed in VMs. "
+                "Adds OS info, hostname, and network data. "
+                "May increase sync time (default: False)."
+            ),
         )
 
         return parser
@@ -1312,8 +1323,12 @@ class CLI:
                     f"Reading Proxmox API token from environment variables "
                     f"{config.proxmox_token_name_env_var} and {config.proxmox_token_value_env_var}",
                 )
-                config.proxmox_token_name = os.environ.get(config.proxmox_token_name_env_var)
-                config.proxmox_token_value = os.environ.get(config.proxmox_token_value_env_var)
+                config.proxmox_token_name = os.environ.get(
+                    config.proxmox_token_name_env_var
+                )
+                config.proxmox_token_value = os.environ.get(
+                    config.proxmox_token_value_env_var
+                )
             else:
                 config.proxmox_token_name = None
                 config.proxmox_token_value = None
@@ -1323,7 +1338,9 @@ class CLI:
                 logger.debug(
                     f"Reading Proxmox password from environment variable {config.proxmox_password_env_var}",
                 )
-                config.proxmox_password = os.environ.get(config.proxmox_password_env_var)
+                config.proxmox_password = os.environ.get(
+                    config.proxmox_password_env_var
+                )
             else:
                 config.proxmox_password = None
         else:

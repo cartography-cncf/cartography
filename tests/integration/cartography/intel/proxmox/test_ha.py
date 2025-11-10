@@ -1,6 +1,7 @@
 """
 Integration tests for Proxmox HA sync.
 """
+
 from typing import Any
 from unittest.mock import patch
 
@@ -14,8 +15,12 @@ TEST_UPDATE_TAG = 123456789
 TEST_CLUSTER_ID = "test-cluster"
 
 
-@patch.object(cartography.intel.proxmox.ha, "get_ha_groups", return_value=MOCK_HA_GROUP_DATA)
-@patch.object(cartography.intel.proxmox.ha, "get_ha_resources", return_value=MOCK_HA_RESOURCE_DATA)
+@patch.object(
+    cartography.intel.proxmox.ha, "get_ha_groups", return_value=MOCK_HA_GROUP_DATA
+)
+@patch.object(
+    cartography.intel.proxmox.ha, "get_ha_resources", return_value=MOCK_HA_RESOURCE_DATA
+)
 def test_sync_ha(mock_get_resources, mock_get_groups, neo4j_session):
     """
     Test that HA groups and resources sync correctly.
@@ -64,7 +69,9 @@ def test_sync_ha(mock_get_resources, mock_get_groups, neo4j_session):
         ("ha-group-1", "node1,node2"),
         ("ha-group-2", "node2"),
     }
-    assert check_nodes(neo4j_session, "ProxmoxHAGroup", ["id", "nodes"]) == expected_groups
+    assert (
+        check_nodes(neo4j_session, "ProxmoxHAGroup", ["id", "nodes"]) == expected_groups
+    )
 
     # Assert - HA resources exist
     expected_resources = {
@@ -72,7 +79,10 @@ def test_sync_ha(mock_get_resources, mock_get_groups, neo4j_session):
         ("ct:200", "started"),
         ("vm:101", "stopped"),
     }
-    assert check_nodes(neo4j_session, "ProxmoxHAResource", ["id", "state"]) == expected_resources
+    assert (
+        check_nodes(neo4j_session, "ProxmoxHAResource", ["id", "state"])
+        == expected_resources
+    )
 
     # Assert - HA group to cluster relationships
     expected_group_rels = {
@@ -145,7 +155,7 @@ def test_sync_ha(mock_get_resources, mock_get_groups, neo4j_session):
         ("vm:101", 101),
     ]
 
-    # Assert - HA group properties
+    # Assert - HA group properties (Proxmox API returns 0/1, stored as integers in Neo4j)
     result = neo4j_session.run(
         """
         MATCH (g:ProxmoxHAGroup {id: 'ha-group-2'})
@@ -153,5 +163,5 @@ def test_sync_ha(mock_get_resources, mock_get_groups, neo4j_session):
         """
     )
     record = result.single()
-    assert record["restricted"] is True
-    assert record["nofailback"] is True
+    assert record["restricted"] == 1  # Proxmox API returns 1 for true
+    assert record["nofailback"] == 1  # Proxmox API returns 1 for true

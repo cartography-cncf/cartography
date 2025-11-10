@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 # GET functions - retrieve data from Proxmox API
 # ============================================================================
 
+
 @timeit
-def get_users(proxmox_client) -> list[dict[str, Any]]:
+def get_users(proxmox_client: Any) -> list[dict[str, Any]]:
     """
     Get all users in the cluster.
 
@@ -38,7 +39,7 @@ def get_users(proxmox_client) -> list[dict[str, Any]]:
 
 
 @timeit
-def get_groups(proxmox_client) -> list[dict[str, Any]]:
+def get_groups(proxmox_client: Any) -> list[dict[str, Any]]:
     """
     Get all groups in the cluster.
 
@@ -54,7 +55,7 @@ def get_groups(proxmox_client) -> list[dict[str, Any]]:
 
 
 @timeit
-def get_roles(proxmox_client) -> list[dict[str, Any]]:
+def get_roles(proxmox_client: Any) -> list[dict[str, Any]]:
     """
     Get all roles in the cluster.
 
@@ -70,7 +71,7 @@ def get_roles(proxmox_client) -> list[dict[str, Any]]:
 
 
 @timeit
-def get_acls(proxmox_client) -> list[dict[str, Any]]:
+def get_acls(proxmox_client: Any) -> list[dict[str, Any]]:
     """
     Get all ACL entries in the cluster.
 
@@ -88,6 +89,7 @@ def get_acls(proxmox_client) -> list[dict[str, Any]]:
 # ============================================================================
 # TRANSFORM functions - manipulate data for graph ingestion
 # ============================================================================
+
 
 def transform_user_data(
     users: list[dict[str, Any]],
@@ -108,29 +110,31 @@ def transform_user_data(
 
     for user in users:
         # Required field - use direct access
-        userid = user['userid']
+        userid = user["userid"]
 
         # Parse groups if they exist
         groups = []
-        if user.get('groups'):
-            groups = [g.strip() for g in user.get('groups', '').split(',') if g.strip()]
+        if user.get("groups"):
+            groups = [g.strip() for g in user.get("groups", "").split(",") if g.strip()]
 
         # Parse tokens if they exist (tokens field contains list)
-        tokens = user.get('tokens', [])
+        tokens = user.get("tokens", [])
 
-        transformed_users.append({
-            'id': userid,
-            'userid': userid,
-            'cluster_id': cluster_id,
-            'enable': user.get('enable', True),
-            'expire': user.get('expire', 0),
-            'firstname': user.get('firstname'),
-            'lastname': user.get('lastname'),
-            'email': user.get('email'),
-            'comment': user.get('comment'),
-            'groups': groups,
-            'tokens': tokens,
-        })
+        transformed_users.append(
+            {
+                "id": userid,
+                "userid": userid,
+                "cluster_id": cluster_id,
+                "enable": bool(user.get("enable", True)),
+                "expire": user.get("expire", 0),
+                "firstname": user.get("firstname"),
+                "lastname": user.get("lastname"),
+                "email": user.get("email"),
+                "comment": user.get("comment"),
+                "groups": groups,
+                "tokens": tokens,
+            }
+        )
 
     return transformed_users
 
@@ -150,14 +154,16 @@ def transform_group_data(
 
     for group in groups:
         # Required field
-        groupid = group['groupid']
+        groupid = group["groupid"]
 
-        transformed_groups.append({
-            'id': groupid,
-            'groupid': groupid,
-            'cluster_id': cluster_id,
-            'comment': group.get('comment'),
-        })
+        transformed_groups.append(
+            {
+                "id": groupid,
+                "groupid": groupid,
+                "cluster_id": cluster_id,
+                "comment": group.get("comment"),
+            }
+        )
 
     return transformed_groups
 
@@ -177,20 +183,22 @@ def transform_role_data(
 
     for role in roles:
         # Required field
-        roleid = role['roleid']
+        roleid = role["roleid"]
 
         # Parse privileges
         privs = []
-        if role.get('privs'):
-            privs = [p.strip() for p in role.get('privs', '').split(',') if p.strip()]
+        if role.get("privs"):
+            privs = [p.strip() for p in role.get("privs", "").split(",") if p.strip()]
 
-        transformed_roles.append({
-            'id': roleid,
-            'roleid': roleid,
-            'cluster_id': cluster_id,
-            'privs': privs,
-            'special': role.get('special', False),
-        })
+        transformed_roles.append(
+            {
+                "id": roleid,
+                "roleid": roleid,
+                "cluster_id": cluster_id,
+                "privs": privs,
+                "special": bool(role.get("special", False)),
+            }
+        )
 
     return transformed_roles
 
@@ -210,21 +218,23 @@ def transform_acl_data(
 
     for acl in acls:
         # Required fields
-        path = acl['path']
-        roleid = acl['roleid']
-        ugid = acl['ugid']  # User or group ID
+        path = acl["path"]
+        roleid = acl["roleid"]
+        ugid = acl["ugid"]  # User or group ID
 
         # Create unique ID from path + ugid + roleid
         acl_id = f"{path}:{ugid}:{roleid}"
 
-        transformed_acls.append({
-            'id': acl_id,
-            'path': path,
-            'cluster_id': cluster_id,
-            'roleid': roleid,
-            'ugid': ugid,
-            'propagate': acl.get('propagate', True),
-        })
+        transformed_acls.append(
+            {
+                "id": acl_id,
+                "path": path,
+                "cluster_id": cluster_id,
+                "roleid": roleid,
+                "ugid": ugid,
+                "propagate": bool(acl.get("propagate", True)),
+            }
+        )
 
     return transformed_acls
 
@@ -233,8 +243,9 @@ def transform_acl_data(
 # LOAD functions - ingest data to Neo4j using modern data model
 # ============================================================================
 
+
 def load_users(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
     users: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -257,7 +268,7 @@ def load_users(
 
 
 def load_groups(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
     groups: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -280,7 +291,7 @@ def load_groups(
 
 
 def load_roles(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
     roles: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -303,7 +314,7 @@ def load_roles(
 
 
 def load_acls(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
     acls: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -326,7 +337,7 @@ def load_acls(
 
 
 def load_user_group_relationships(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
     users: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -338,15 +349,17 @@ def load_user_group_relationships(
     :param update_tag: Sync timestamp
     """
     from cartography.client.core.tx import run_write_query
-    
+
     # Flatten user -> groups into individual relationships
     user_groups = []
     for user in users:
-        for group in user.get('groups', []):
-            user_groups.append({
-                'userid': user['userid'],
-                'groupid': group,
-            })
+        for group in user.get("groups", []):
+            user_groups.append(
+                {
+                    "userid": user["userid"],
+                    "groupid": group,
+                }
+            )
 
     if not user_groups:
         return
@@ -369,7 +382,7 @@ def load_user_group_relationships(
 
 
 def load_acl_principal_relationships(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
     acls: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -381,14 +394,14 @@ def load_acl_principal_relationships(
     :param update_tag: Sync timestamp
     """
     from cartography.client.core.tx import run_write_query
-    
+
     if not acls:
         return
 
     # Separate user ACLs from group ACLs based on ugid format
     # Users have @ in their ID, groups don't
-    user_acls = [acl for acl in acls if '@' in acl['ugid']]
-    group_acls = [acl for acl in acls if '@' not in acl['ugid']]
+    user_acls = [acl for acl in acls if "@" in acl["ugid"]]
+    group_acls = [acl for acl in acls if "@" not in acl["ugid"]]
 
     # Create relationships to users
     if user_acls:
@@ -429,10 +442,11 @@ def load_acl_principal_relationships(
 # SYNC function - orchestrates Get → Transform → Load
 # ============================================================================
 
+
 @timeit
 def sync(
-    neo4j_session,
-    proxmox_client,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    proxmox_client: Any,
     cluster_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],

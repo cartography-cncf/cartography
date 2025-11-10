@@ -1,6 +1,7 @@
 """
 Integration tests for Proxmox access control sync.
 """
+
 from typing import Any
 from unittest.mock import patch
 
@@ -16,11 +17,19 @@ TEST_UPDATE_TAG = 123456789
 TEST_CLUSTER_ID = "test-cluster"
 
 
-@patch.object(cartography.intel.proxmox.access, "get_users", return_value=MOCK_USER_DATA)
-@patch.object(cartography.intel.proxmox.access, "get_groups", return_value=MOCK_GROUP_DATA)
-@patch.object(cartography.intel.proxmox.access, "get_roles", return_value=MOCK_ROLE_DATA)
+@patch.object(
+    cartography.intel.proxmox.access, "get_users", return_value=MOCK_USER_DATA
+)
+@patch.object(
+    cartography.intel.proxmox.access, "get_groups", return_value=MOCK_GROUP_DATA
+)
+@patch.object(
+    cartography.intel.proxmox.access, "get_roles", return_value=MOCK_ROLE_DATA
+)
 @patch.object(cartography.intel.proxmox.access, "get_acls", return_value=MOCK_ACL_DATA)
-def test_sync_access_control(mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session):
+def test_sync_access_control(
+    mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session
+):
     """
     Test that access control (users, groups, roles, ACLs) sync correctly.
     """
@@ -65,7 +74,9 @@ def test_sync_access_control(mock_get_acls, mock_get_roles, mock_get_groups, moc
         ("operators", "Operator group"),
         ("auditors", "Read-only auditor group"),
     }
-    assert check_nodes(neo4j_session, "ProxmoxGroup", ["id", "comment"]) == expected_groups
+    assert (
+        check_nodes(neo4j_session, "ProxmoxGroup", ["id", "comment"]) == expected_groups
+    )
 
     # Assert - Roles exist
     expected_roles = {
@@ -73,7 +84,9 @@ def test_sync_access_control(mock_get_acls, mock_get_roles, mock_get_groups, moc
         ("PVEAuditor", True),
         ("CustomRole", False),
     }
-    assert check_nodes(neo4j_session, "ProxmoxRole", ["id", "special"]) == expected_roles
+    assert (
+        check_nodes(neo4j_session, "ProxmoxRole", ["id", "special"]) == expected_roles
+    )
 
     # Assert - ACLs exist
     result = neo4j_session.run(

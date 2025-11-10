@@ -1,6 +1,7 @@
 """
 Integration tests for Proxmox firewall sync.
 """
+
 from typing import Any
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -11,20 +12,34 @@ from tests.data.proxmox.firewall import MOCK_CLUSTER_IPSETS
 from tests.data.proxmox.firewall import MOCK_IPSET_CIDRS
 from tests.data.proxmox.firewall import MOCK_NODE_FIREWALL_RULES
 from tests.integration.util import check_nodes
-from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_CLUSTER_ID = "test-cluster"
 
 
-@patch.object(cartography.intel.proxmox.firewall, "get_cluster_firewall_rules", return_value=MOCK_CLUSTER_FIREWALL_RULES)
+@patch.object(
+    cartography.intel.proxmox.firewall,
+    "get_cluster_firewall_rules",
+    return_value=MOCK_CLUSTER_FIREWALL_RULES,
+)
 @patch.object(cartography.intel.proxmox.firewall, "get_node_firewall_rules")
-@patch.object(cartography.intel.proxmox.firewall, "get_cluster_ipsets", return_value=MOCK_CLUSTER_IPSETS)
+@patch.object(
+    cartography.intel.proxmox.firewall,
+    "get_cluster_ipsets",
+    return_value=MOCK_CLUSTER_IPSETS,
+)
 @patch.object(cartography.intel.proxmox.firewall, "get_ipset_cidrs")
-def test_sync_firewall(mock_get_ipset_cidrs, mock_get_ipsets, mock_get_node_rules, mock_get_cluster_rules, neo4j_session):
+def test_sync_firewall(
+    mock_get_ipset_cidrs,
+    mock_get_ipsets,
+    mock_get_node_rules,
+    mock_get_cluster_rules,
+    neo4j_session,
+):
     """
     Test that firewall rules and IP sets sync correctly.
     """
+
     # Arrange
     def get_node_rules_side_effect(proxmox_client, node_name):
         return MOCK_NODE_FIREWALL_RULES.get(node_name, [])
@@ -113,7 +128,10 @@ def test_sync_firewall(mock_get_ipset_cidrs, mock_get_ipsets, mock_get_node_rule
         ("cluster:management-ips", "management-ips"),
         ("cluster:backup-servers", "backup-servers"),
     }
-    assert check_nodes(neo4j_session, "ProxmoxFirewallIPSet", ["id", "name"]) == expected_ipsets
+    assert (
+        check_nodes(neo4j_session, "ProxmoxFirewallIPSet", ["id", "name"])
+        == expected_ipsets
+    )
 
     # Assert - IP set CIDR entries
     result = neo4j_session.run(

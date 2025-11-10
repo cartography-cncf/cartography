@@ -1,6 +1,7 @@
 """
 Integration tests for Proxmox pool sync.
 """
+
 from typing import Any
 from unittest.mock import patch
 
@@ -20,6 +21,7 @@ def test_sync_pools(mock_get_pool_details, mock_get_pools, neo4j_session):
     """
     Test that pools sync correctly and create proper nodes and relationships.
     """
+
     # Arrange
     def get_details_side_effect(proxmox_client, poolid):
         return MOCK_POOL_DETAILS.get(poolid, {})
@@ -72,7 +74,9 @@ def test_sync_pools(mock_get_pool_details, mock_get_pools, neo4j_session):
         ("development", "Development environment"),
         ("backup-storage", "Backup storage resources"),
     }
-    assert check_nodes(neo4j_session, "ProxmoxPool", ["id", "comment"]) == expected_pools
+    assert (
+        check_nodes(neo4j_session, "ProxmoxPool", ["id", "comment"]) == expected_pools
+    )
 
     # Assert - Pool to cluster relationships
     expected_rels = {

@@ -1,116 +1,50 @@
-## Configuration
+## Proxmox Configuration
 
-Follow these steps to sync your Proxmox Virtual Environment infrastructure with Cartography.
+Follow these steps to analyze Proxmox Virtual Environment infrastructure with Cartography.
 
-### Prerequisites
+1. **Prepare your Proxmox credentials**
 
-- **Proxmox VE 7.0+** (tested with 8.x)
-- **API Token or User Credentials**
-- **Permissions**: Read-only access is sufficient (the `PVEAuditor` role is recommended)
+    Proxmox VE 7.0+ is required (tested with 8.x). Read-only access is sufficient - the `PVEAuditor` role is recommended.
 
 ### Option 1: API Token Authentication (Recommended)
 
-1. **Create an API token in Proxmox:**
-   1. Navigate to **Datacenter → Permissions → API Tokens** in the Proxmox web interface
-   2. Click **Add** to create a new token
-   3. Set the user to `root@pam` (or another user with appropriate permissions)
-   4. Set the token name to `cartography`
-   5. Uncheck **Privilege Separation** (or grant the `PVEAuditor` role separately)
-   6. Click **Add** and save the token value securely
+1. Create an API token in Proxmox:
+    1. Navigate to **Datacenter → Permissions → API Tokens** in the Proxmox web interface.
+    1. Click **Add** to create a new token.
+    1. Set the user to `root@pam` (or another user with appropriate permissions).
+    1. Set the token name to `cartography`.
+    1. Uncheck **Privilege Separation** (or grant the `PVEAuditor` role separately).
+    1. Click **Add** and save the token value securely.
 
-2. **Set environment variables:**
-   ```bash
-   export PROXMOX_TOKEN_NAME="cartography"
-   export PROXMOX_TOKEN_VALUE="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-   ```
+1. Populate environment variables with the token name and value. You can pass the environment variable names via CLI with the `--proxmox-token-name-env-var` and `--proxmox-token-value-env-var` parameters.
 
-3. **Run Cartography:**
-   ```bash
-   cartography --neo4j-uri bolt://localhost:7687 \
-       --proxmox-host proxmox.example.com \
-       --proxmox-user root@pam \
-       --proxmox-token-name-env-var PROXMOX_TOKEN_NAME \
-       --proxmox-token-value-env-var PROXMOX_TOKEN_VALUE
-   ```
+    ```bash
+    export PROXMOX_TOKEN_NAME="cartography"
+    export PROXMOX_TOKEN_VALUE="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    ```
 
 ### Option 2: Password Authentication
 
-1. **Set the password environment variable:**
-   ```bash
-   export PROXMOX_PASSWORD="your-password"
-   ```
+1. Populate an environment variable with the password. You can pass the environment variable name via CLI with the `--proxmox-password-env-var` parameter.
 
-2. **Run Cartography:**
-   ```bash
-   cartography --neo4j-uri bolt://localhost:7687 \
-       --proxmox-host proxmox.example.com \
-       --proxmox-user root@pam \
-       --proxmox-password-env-var PROXMOX_PASSWORD
-   ```
+    ```bash
+    export PROXMOX_PASSWORD="your-password"
+    ```
 
-### Required Permissions
+1. The Proxmox user or API token needs the following permissions:
 
-The Proxmox user or API token needs the following permissions:
+    - **VM.Audit**: Read VM and container configurations
+    - **Datastore.Audit**: Read storage information
+    - **Sys.Audit**: Read system and node information
 
-- **VM.Audit**: Read VM and container configurations
-- **Datastore.Audit**: Read storage information
-- **Sys.Audit**: Read system and node information
+    The built-in **PVEAuditor** role provides all necessary permissions for read-only access.
 
-The built-in **PVEAuditor** role provides all necessary permissions for read-only access.
+1. Provide the Proxmox host using the `--proxmox-host` parameter and user using the `--proxmox-user` parameter (e.g., `root@pam`).
 
-### SSL Configuration
+1. [Optional] To use a custom port, use the `--proxmox-port` parameter (default is 8006).
 
-By default, SSL certificates are verified. To disable SSL verification (not recommended for production):
+1. [Optional] To disable SSL verification (not recommended for production), use the `--proxmox-verify-ssl false` parameter.
 
-```bash
-cartography --proxmox-host proxmox.example.com \
-    --proxmox-verify-ssl false \
-    ...other options...
-```
+1. [Optional] To enable QEMU Guest Agent data collection (requires guest agent installed in VMs), use the `--proxmox-enable-guest-agent` flag.
 
-### Advanced Options
-
-**Custom Port:**
-```bash
-cartography --proxmox-port 8007 \
-    ...other options...
-```
-
-**Custom User:**
-```bash
-cartography --proxmox-user admin@pve \
-    ...other options...
-```
-
-### Syncing Multiple Clusters
-
-To sync multiple Proxmox clusters, run Cartography separately for each cluster:
-
-```bash
-# Cluster 1
-cartography --proxmox-host proxmox-prod.example.com ...
-
-# Cluster 2
-cartography --proxmox-host proxmox-dev.example.com ...
-```
-
-Each cluster will be represented as a separate `ProxmoxCluster` node in the graph.
-
-### Troubleshooting
-
-**Connection Issues:**
-- Verify the Proxmox host is reachable
-- Check that port 8006 (default) is accessible
-- Ensure firewall rules allow access
-- Try with `--proxmox-verify-ssl false` to rule out SSL issues
-
-**Authentication Errors:**
-- Verify the API token or password is correct
-- Check that the token hasn't expired
-- Ensure the user has the required permissions
-- Verify the user format is correct (e.g., `root@pam`, not just `root`)
-
-**Permission Errors:**
-- Ensure the user/token has the `PVEAuditor` role or equivalent
-- Check ACL permissions on the `/` path
-- Verify permissions using: `pveum user permissions <user>`
+1. [Optional] To sync multiple Proxmox clusters, run Cartography separately for each cluster. Each cluster will be represented as a separate `ProxmoxCluster` node in the graph.

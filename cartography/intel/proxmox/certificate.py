@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 # GET functions - retrieve data from Proxmox API
 # ============================================================================
 
+
 @timeit
-def get_node_certificates(proxmox_client, node_name: str) -> list[dict[str, Any]]:
+def get_node_certificates(proxmox_client: Any, node_name: str) -> list[dict[str, Any]]:
     """
     Get SSL certificates for a specific node.
 
@@ -37,6 +38,7 @@ def get_node_certificates(proxmox_client, node_name: str) -> list[dict[str, Any]
 # ============================================================================
 # TRANSFORM functions - manipulate data for graph ingestion
 # ============================================================================
+
 
 def transform_certificate_data(
     certificates: list[dict[str, Any]],
@@ -59,33 +61,35 @@ def transform_certificate_data(
 
     for cert in certificates:
         # Create unique ID from node and filename
-        filename = cert.get('filename', 'unknown')
+        filename = cert.get("filename", "unknown")
         cert_id = f"{node_name}:{filename}"
 
         # Parse SAN (Subject Alternative Names)
         san = []
-        if cert.get('san'):
+        if cert.get("san"):
             # SAN is typically a list or comma-separated string
-            if isinstance(cert['san'], list):
-                san = cert['san']
-            elif isinstance(cert['san'], str):
-                san = [s.strip() for s in cert['san'].split(',') if s.strip()]
+            if isinstance(cert["san"], list):
+                san = cert["san"]
+            elif isinstance(cert["san"], str):
+                san = [s.strip() for s in cert["san"].split(",") if s.strip()]
 
-        transformed_certs.append({
-            'id': cert_id,
-            'cluster_id': cluster_id,
-            'node_name': node_name,
-            'filename': filename,
-            'fingerprint': cert.get('fingerprint'),
-            'issuer': cert.get('issuer'),
-            'subject': cert.get('subject'),
-            'san': san,
-            'notbefore': cert.get('notbefore'),
-            'notafter': cert.get('notafter'),
-            'public_key_type': cert.get('public-key-type'),
-            'public_key_bits': cert.get('public-key-bits'),
-            'pem': cert.get('pem'),
-        })
+        transformed_certs.append(
+            {
+                "id": cert_id,
+                "cluster_id": cluster_id,
+                "node_name": node_name,
+                "filename": filename,
+                "fingerprint": cert.get("fingerprint"),
+                "issuer": cert.get("issuer"),
+                "subject": cert.get("subject"),
+                "san": san,
+                "notbefore": cert.get("notbefore"),
+                "notafter": cert.get("notafter"),
+                "public_key_type": cert.get("public-key-type"),
+                "public_key_bits": cert.get("public-key-bits"),
+                "pem": cert.get("pem"),
+            }
+        )
 
     return transformed_certs
 
@@ -94,8 +98,9 @@ def transform_certificate_data(
 # LOAD functions - ingest data to Neo4j using modern data model
 # ============================================================================
 
+
 def load_certificates(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
     certificates: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -124,10 +129,11 @@ def load_certificates(
 # SYNC function - orchestrates Get → Transform → Load
 # ============================================================================
 
+
 @timeit
 def sync(
-    neo4j_session,
-    proxmox_client,
+    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    proxmox_client: Any,
     cluster_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
@@ -150,7 +156,7 @@ def sync(
     # GET - certificates from each node
     nodes = proxmox_client.nodes.get()
     for node in nodes:
-        node_name = node['node']
+        node_name = node["node"]
         certs = get_node_certificates(proxmox_client, node_name)
 
         # TRANSFORM

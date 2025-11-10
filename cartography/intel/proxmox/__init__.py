@@ -7,7 +7,6 @@ containers, storage, networks, users, and backup configurations.
 
 import logging
 import os
-from typing import Any, Dict
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
@@ -26,7 +25,6 @@ from cartography.models.proxmox.access import ProxmoxRoleSchema
 from cartography.models.proxmox.access import ProxmoxUserSchema
 from cartography.models.proxmox.backup import ProxmoxBackupJobSchema
 from cartography.models.proxmox.certificate import ProxmoxCertificateSchema
-from cartography.models.proxmox.cluster import ProxmoxClusterSchema
 from cartography.models.proxmox.cluster import ProxmoxNodeNetworkInterfaceSchema
 from cartography.models.proxmox.cluster import ProxmoxNodeSchema
 from cartography.models.proxmox.compute import ProxmoxDiskSchema
@@ -46,7 +44,7 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 
-def _get_proxmox_client(config: Config):
+def _get_proxmox_client(config: Config) -> "ProxmoxAPI":  # type: ignore[name-defined]
     """
     Create and return a Proxmox API client.
 
@@ -117,7 +115,7 @@ def _get_proxmox_client(config: Config):
 
 
 @timeit
-def start_proxmox_ingestion(neo4j_session, config: Config) -> None:
+def start_proxmox_ingestion(neo4j_session: "neo4j.Session", config: Config) -> None:  # type: ignore[name-defined]
     """
     Main entry point for Proxmox data ingestion.
 
@@ -149,8 +147,8 @@ def start_proxmox_ingestion(neo4j_session, config: Config) -> None:
             common_job_parameters,
         )
 
-        cluster_id = cluster_data['cluster_id']
-        
+        cluster_id = cluster_data["cluster_id"]
+
         # Add cluster_id to common_job_parameters for cleanup jobs
         common_job_parameters["CLUSTER_ID"] = cluster_id
 
@@ -161,6 +159,7 @@ def start_proxmox_ingestion(neo4j_session, config: Config) -> None:
             cluster_id,
             config.update_tag,
             common_job_parameters,
+            enable_guest_agent=config.proxmox_enable_guest_agent,
         )
 
         # Sync storage
@@ -229,34 +228,68 @@ def start_proxmox_ingestion(neo4j_session, config: Config) -> None:
         # Run cleanup using modern GraphJob approach
         # Per AGENTS.md: Use GraphJob.from_node_schema() instead of JSON cleanup files
         logger.info("Running Proxmox cleanup jobs")
-        
+
         # Cleanup all resource types scoped to this cluster
-        GraphJob.from_node_schema(ProxmoxNodeSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxNodeNetworkInterfaceSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxVMSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxDiskSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxNetworkInterfaceSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxStorageSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxPoolSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxBackupJobSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxHAGroupSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxHAResourceSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxUserSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxGroupSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxRoleSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxACLSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxFirewallRuleSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxFirewallIPSetSchema(), common_job_parameters).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxCertificateSchema(), common_job_parameters).run(neo4j_session)
-        
+        GraphJob.from_node_schema(ProxmoxNodeSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(
+            ProxmoxNodeNetworkInterfaceSchema(), common_job_parameters
+        ).run(neo4j_session)
+        GraphJob.from_node_schema(ProxmoxVMSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(ProxmoxDiskSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(
+            ProxmoxNetworkInterfaceSchema(), common_job_parameters
+        ).run(neo4j_session)
+        GraphJob.from_node_schema(ProxmoxStorageSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(ProxmoxPoolSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(ProxmoxBackupJobSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(ProxmoxHAGroupSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(ProxmoxHAResourceSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(ProxmoxUserSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(ProxmoxGroupSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(ProxmoxRoleSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(ProxmoxACLSchema(), common_job_parameters).run(
+            neo4j_session
+        )
+        GraphJob.from_node_schema(
+            ProxmoxFirewallRuleSchema(), common_job_parameters
+        ).run(neo4j_session)
+        GraphJob.from_node_schema(
+            ProxmoxFirewallIPSetSchema(), common_job_parameters
+        ).run(neo4j_session)
+        GraphJob.from_node_schema(
+            ProxmoxCertificateSchema(), common_job_parameters
+        ).run(neo4j_session)
+
         # Note: ProxmoxCluster doesn't need cleanup since it's the tenant root
         # and has no sub_resource_relationship
 
         merge_module_sync_metadata(
             neo4j_session,
-            group_type='ProxmoxCluster',
+            group_type="ProxmoxCluster",
             group_id=cluster_id,
-            synced_type='ProxmoxCluster',
+            synced_type="ProxmoxCluster",
             update_tag=config.update_tag,
             stat_handler=stat_handler,
         )
@@ -264,5 +297,7 @@ def start_proxmox_ingestion(neo4j_session, config: Config) -> None:
         logger.info("Completed Proxmox infrastructure sync")
 
     except Exception as e:
-        logger.error(f"Error syncing Proxmox cluster {config.proxmox_host}: {e}", exc_info=True)
+        logger.error(
+            f"Error syncing Proxmox cluster {config.proxmox_host}: {e}", exc_info=True
+        )
         raise
