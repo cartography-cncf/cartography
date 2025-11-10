@@ -6,6 +6,10 @@ Follows Cartography's Get → Transform → Load pattern.
 
 import logging
 from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import neo4j
 
 from cartography.client.core.tx import load
 from cartography.models.proxmox.access import ProxmoxACLSchema
@@ -55,7 +59,9 @@ def get_groups(proxmox_client: Any) -> list[dict[str, Any]]:
 
 
 @timeit
-def get_group_members(proxmox_client: Any, groups: list[dict[str, Any]]) -> dict[str, list[str]]:
+def get_group_members(
+    proxmox_client: Any, groups: list[dict[str, Any]]
+) -> dict[str, list[str]]:
     """
     Get group membership information for all groups.
     Returns a mapping of group_id -> list of user_ids.
@@ -162,7 +168,9 @@ def transform_user_data(
             for groupid, members in group_members.items():
                 if userid in members and groupid not in groups:
                     groups.append(groupid)
-                    logger.debug(f"Enriched user {userid} with group {groupid} from group membership data")
+                    logger.debug(
+                        f"Enriched user {userid} with group {groupid} from group membership data"
+                    )
 
         # Parse tokens if they exist (tokens field contains list)
         tokens = user.get("tokens", [])
@@ -344,7 +352,7 @@ def transform_acl_data(
 
 
 def load_users(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: "neo4j.Session",
     users: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -367,7 +375,7 @@ def load_users(
 
 
 def load_groups(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: "neo4j.Session",
     groups: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -390,7 +398,7 @@ def load_groups(
 
 
 def load_roles(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: "neo4j.Session",
     roles: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -413,7 +421,7 @@ def load_roles(
 
 
 def load_acls(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: "neo4j.Session",
     acls: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -435,11 +443,8 @@ def load_acls(
     )
 
 
-
-
-
 def load_acl_principal_relationships(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: "neo4j.Session",
     acls: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -504,7 +509,7 @@ def load_acl_principal_relationships(
 
 
 def load_acl_resource_relationships(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: "neo4j.Session",
     acls: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -523,10 +528,18 @@ def load_acl_resource_relationships(
         return
 
     # Group ACLs by resource type
-    vm_acls = [acl for acl in acls if acl["resource_type"] == "vm" and acl["resource_id"]]
-    storage_acls = [acl for acl in acls if acl["resource_type"] == "storage" and acl["resource_id"]]
-    pool_acls = [acl for acl in acls if acl["resource_type"] == "pool" and acl["resource_id"]]
-    node_acls = [acl for acl in acls if acl["resource_type"] == "node" and acl["resource_id"]]
+    vm_acls = [
+        acl for acl in acls if acl["resource_type"] == "vm" and acl["resource_id"]
+    ]
+    storage_acls = [
+        acl for acl in acls if acl["resource_type"] == "storage" and acl["resource_id"]
+    ]
+    pool_acls = [
+        acl for acl in acls if acl["resource_type"] == "pool" and acl["resource_id"]
+    ]
+    node_acls = [
+        acl for acl in acls if acl["resource_type"] == "node" and acl["resource_id"]
+    ]
     cluster_acls = [acl for acl in acls if acl["resource_type"] == "cluster"]
 
     # Create relationships to VMs
@@ -626,7 +639,7 @@ def load_acl_resource_relationships(
 
 
 def load_effective_permissions(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: "neo4j.Session",
     update_tag: int,
 ) -> None:
     """
@@ -644,7 +657,7 @@ def load_effective_permissions(
     query = """
     MATCH (u:ProxmoxUser)<-[:APPLIES_TO_USER]-(acl:ProxmoxACL)-[:GRANTS_ROLE]->(role:ProxmoxRole)
     MATCH (acl)-[:GRANTS_ACCESS_TO]->(resource)
-    WHERE resource:ProxmoxVM OR resource:ProxmoxStorage OR resource:ProxmoxPool OR 
+    WHERE resource:ProxmoxVM OR resource:ProxmoxStorage OR resource:ProxmoxPool OR
           resource:ProxmoxNode OR resource:ProxmoxCluster
     WITH u, resource, role, acl
     MERGE (u)-[r:HAS_PERMISSION]->(resource)
@@ -662,7 +675,7 @@ def load_effective_permissions(
     query = """
     MATCH (g:ProxmoxGroup)<-[:APPLIES_TO_GROUP]-(acl:ProxmoxACL)-[:GRANTS_ROLE]->(role:ProxmoxRole)
     MATCH (acl)-[:GRANTS_ACCESS_TO]->(resource)
-    WHERE resource:ProxmoxVM OR resource:ProxmoxStorage OR resource:ProxmoxPool OR 
+    WHERE resource:ProxmoxVM OR resource:ProxmoxStorage OR resource:ProxmoxPool OR
           resource:ProxmoxNode OR resource:ProxmoxCluster
     WITH g, resource, role, acl
     MERGE (g)-[r:HAS_PERMISSION]->(resource)
@@ -679,7 +692,7 @@ def load_effective_permissions(
     # Create inherited permissions: user -> group -> resource
     query = """
     MATCH (u:ProxmoxUser)-[:MEMBER_OF_GROUP]->(g:ProxmoxGroup)-[gp:HAS_PERMISSION]->(resource)
-    WHERE resource:ProxmoxVM OR resource:ProxmoxStorage OR resource:ProxmoxPool OR 
+    WHERE resource:ProxmoxVM OR resource:ProxmoxStorage OR resource:ProxmoxPool OR
           resource:ProxmoxNode OR resource:ProxmoxCluster
     WITH u, resource, gp
     MERGE (u)-[r:HAS_PERMISSION]->(resource)
@@ -702,7 +715,7 @@ def load_effective_permissions(
 
 @timeit
 def sync(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: "neo4j.Session",
     proxmox_client: Any,
     cluster_id: str,
     update_tag: int,

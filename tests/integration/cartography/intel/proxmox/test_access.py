@@ -29,10 +29,17 @@ TEST_CLUSTER_ID = "test-cluster"
 )
 @patch.object(cartography.intel.proxmox.access, "get_acls", return_value=MOCK_ACL_DATA)
 @patch.object(
-    cartography.intel.proxmox.access, "get_group_members", return_value=MOCK_GROUP_MEMBERS_DATA
+    cartography.intel.proxmox.access,
+    "get_group_members",
+    return_value=MOCK_GROUP_MEMBERS_DATA,
 )
 def test_sync_access_control(
-    mock_get_group_members, mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session
+    mock_get_group_members,
+    mock_get_acls,
+    mock_get_roles,
+    mock_get_groups,
+    mock_get_users,
+    neo4j_session,
 ):
     """
     Test that access control (users, groups, roles, ACLs) sync correctly.
@@ -210,10 +217,17 @@ def test_sync_access_control(
 )
 @patch.object(cartography.intel.proxmox.access, "get_acls", return_value=MOCK_ACL_DATA)
 @patch.object(
-    cartography.intel.proxmox.access, "get_group_members", return_value=MOCK_GROUP_MEMBERS_DATA
+    cartography.intel.proxmox.access,
+    "get_group_members",
+    return_value=MOCK_GROUP_MEMBERS_DATA,
 )
 def test_acl_resource_relationships(
-    mock_get_group_members, mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session
+    mock_get_group_members,
+    mock_get_acls,
+    mock_get_roles,
+    mock_get_groups,
+    mock_get_users,
+    neo4j_session,
 ):
     """
     Test that ACL-to-resource relationships are created correctly.
@@ -242,17 +256,17 @@ def test_acl_resource_relationships(
         SET vm.id = 'node1/qemu/100',
             vm.name = 'test-vm',
             vm.lastupdated = $update_tag
-        
+
         // Create Storage
         MERGE (s:ProxmoxStorage {id: 'local-lvm'})
         SET s.name = 'local-lvm',
             s.lastupdated = $update_tag
-        
+
         // Create Pool
         MERGE (p:ProxmoxPool {poolid: 'production'})
         SET p.id = 'production',
             p.lastupdated = $update_tag
-        
+
         // Create Node
         MERGE (n:ProxmoxNode {id: 'node1'})
         SET n.name = 'node1',
@@ -338,10 +352,17 @@ def test_acl_resource_relationships(
 )
 @patch.object(cartography.intel.proxmox.access, "get_acls", return_value=MOCK_ACL_DATA)
 @patch.object(
-    cartography.intel.proxmox.access, "get_group_members", return_value=MOCK_GROUP_MEMBERS_DATA
+    cartography.intel.proxmox.access,
+    "get_group_members",
+    return_value=MOCK_GROUP_MEMBERS_DATA,
 )
 def test_effective_permissions(
-    mock_get_group_members, mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session
+    mock_get_group_members,
+    mock_get_acls,
+    mock_get_roles,
+    mock_get_groups,
+    mock_get_users,
+    neo4j_session,
 ):
     """
     Test that effective permission relationships are created correctly.
@@ -367,7 +388,7 @@ def test_effective_permissions(
         """
         MERGE (vm:ProxmoxVM {vmid: 100})
         SET vm.id = 'node1/qemu/100', vm.name = 'test-vm'
-        
+
         MERGE (c:ProxmoxCluster {id: $cluster_id})
         """,
         cluster_id=TEST_CLUSTER_ID,

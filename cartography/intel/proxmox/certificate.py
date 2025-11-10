@@ -6,6 +6,10 @@ Follows Cartography's Get → Transform → Load pattern.
 
 import logging
 from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import neo4j
 
 from cartography.client.core.tx import load
 from cartography.models.proxmox.certificate import ProxmoxCertificateSchema
@@ -100,7 +104,7 @@ def transform_certificate_data(
 
 
 def load_certificates(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: "neo4j.Session",
     certificates: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -132,7 +136,7 @@ def load_certificates(
 
 @timeit
 def sync(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: "neo4j.Session",
     proxmox_client: Any,
     cluster_id: str,
     update_tag: int,

@@ -8,6 +8,10 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -26,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_cluster_status(proxmox_client) -> List[Dict[str, Any]]:
+def get_cluster_status(proxmox_client: Any) -> List[Dict[str, Any]]:
     """
     Get cluster status information.
 
@@ -38,7 +42,7 @@ def get_cluster_status(proxmox_client) -> List[Dict[str, Any]]:
 
 
 @timeit
-def get_nodes(proxmox_client) -> List[Dict[str, Any]]:
+def get_nodes(proxmox_client: Any) -> List[Dict[str, Any]]:
     """
     Get all nodes in the cluster.
 
@@ -50,7 +54,7 @@ def get_nodes(proxmox_client) -> List[Dict[str, Any]]:
 
 
 @timeit
-def get_node_status(proxmox_client, node_name: str) -> Dict[str, Any]:
+def get_node_status(proxmox_client: Any, node_name: str) -> Dict[str, Any]:
     """
     Get detailed status for a specific node.
 
@@ -63,7 +67,7 @@ def get_node_status(proxmox_client, node_name: str) -> Dict[str, Any]:
 
 
 @timeit
-def get_node_network(proxmox_client, node_name: str) -> List[Dict[str, Any]]:
+def get_node_network(proxmox_client: Any, node_name: str) -> List[Dict[str, Any]]:
     """
     Get network interface configuration for a specific node.
 
@@ -80,7 +84,7 @@ def get_node_network(proxmox_client, node_name: str) -> List[Dict[str, Any]]:
 
 
 @timeit
-def get_cluster_options(proxmox_client) -> Dict[str, Any]:
+def get_cluster_options(proxmox_client: Any) -> Dict[str, Any]:
     """
     Get cluster-wide configuration options.
 
@@ -96,7 +100,7 @@ def get_cluster_options(proxmox_client) -> Dict[str, Any]:
 
 
 @timeit
-def get_cluster_resources(proxmox_client) -> List[Dict[str, Any]]:
+def get_cluster_resources(proxmox_client: Any) -> List[Dict[str, Any]]:
     """
     Get cluster resource summary.
 
@@ -112,7 +116,7 @@ def get_cluster_resources(proxmox_client) -> List[Dict[str, Any]]:
 
 
 @timeit
-def get_cluster_config(proxmox_client) -> Any:
+def get_cluster_config(proxmox_client: Any) -> Any:
     """
     Get cluster configuration including corosync info.
 
@@ -129,7 +133,7 @@ def get_cluster_config(proxmox_client) -> Any:
 
 
 @timeit
-def get_replication_jobs(proxmox_client) -> List[Dict[str, Any]]:
+def get_replication_jobs(proxmox_client: Any) -> List[Dict[str, Any]]:
     """
     Get cluster replication jobs.
 
@@ -402,7 +406,9 @@ def transform_node_network_data(
 # ============================================================================
 
 
-def load_cluster(neo4j_session, cluster_data: Dict[str, Any], update_tag: int) -> None:
+def load_cluster(
+    neo4j_session: "neo4j.Session", cluster_data: Dict[str, Any], update_tag: int
+) -> None:
     """
     Load cluster data into Neo4j using modern data model.
 
@@ -419,7 +425,10 @@ def load_cluster(neo4j_session, cluster_data: Dict[str, Any], update_tag: int) -
 
 
 def load_nodes(
-    neo4j_session, nodes: List[Dict[str, Any]], cluster_id: str, update_tag: int
+    neo4j_session: "neo4j.Session",
+    nodes: List[Dict[str, Any]],
+    cluster_id: str,
+    update_tag: int,
 ) -> None:
     """
     Load node data into Neo4j using modern data model.
@@ -439,7 +448,7 @@ def load_nodes(
 
 
 def load_node_networks(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",
     network_interfaces: List[Dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -474,8 +483,8 @@ def load_node_networks(
 
 @timeit
 def sync(
-    neo4j_session,
-    proxmox_client,
+    neo4j_session: "neo4j.Session",
+    proxmox_client: Any,
     proxmox_host: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],
@@ -549,7 +558,9 @@ def sync(
     return {"cluster_id": cluster_data["id"]}
 
 
-def cleanup(neo4j_session, common_job_parameters: Dict[str, Any]) -> None:
+def cleanup(
+    neo4j_session: "neo4j.Session", common_job_parameters: Dict[str, Any]
+) -> None:
     """
     Remove stale cluster, node, and network interface data.
 

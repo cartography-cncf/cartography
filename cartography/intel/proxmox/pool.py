@@ -6,6 +6,10 @@ Follows Cartography's Get → Transform → Load pattern.
 
 import logging
 from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import neo4j
 
 from cartography.client.core.tx import load
 from cartography.models.proxmox.pool import ProxmoxPoolSchema
@@ -20,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_pools(proxmox_client) -> list[dict[str, Any]]:
+def get_pools(proxmox_client: Any) -> list[dict[str, Any]]:
     """
     Get all resource pools in the cluster.
 
@@ -32,7 +36,7 @@ def get_pools(proxmox_client) -> list[dict[str, Any]]:
 
 
 @timeit
-def get_pool_details(proxmox_client, poolid: str) -> dict[str, Any]:
+def get_pool_details(proxmox_client: Any, poolid: str) -> dict[str, Any]:
     """
     Get detailed information about a specific pool.
 
@@ -92,7 +96,7 @@ def transform_pool_data(
 
 
 def load_pools(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",
     pools: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -115,7 +119,7 @@ def load_pools(
 
 
 def load_pool_member_relationships(
-    neo4j_session,
+    neo4j_session: "neo4j.Session",
     pool_members: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -179,8 +183,8 @@ def load_pool_member_relationships(
 
 @timeit
 def sync(
-    neo4j_session,
-    proxmox_client,
+    neo4j_session: "neo4j.Session",
+    proxmox_client: Any,
     cluster_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],

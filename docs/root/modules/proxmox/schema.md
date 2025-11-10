@@ -873,7 +873,7 @@ ORDER BY u.userid
 // Find users, their groups, and what the groups can access
 MATCH (u:ProxmoxUser)-[:MEMBER_OF_GROUP]->(g:ProxmoxGroup)
 OPTIONAL MATCH (g)-[p:HAS_PERMISSION]->(resource)
-RETURN u.userid, g.groupid, 
+RETURN u.userid, g.groupid,
        collect(DISTINCT {
          resource: coalesce(resource.name, resource.id),
          role: p.role,
@@ -912,7 +912,7 @@ ORDER BY vm.name
 ```cypher
 // Show ACL coverage across different resource types
 MATCH (acl:ProxmoxACL)
-RETURN acl.resource_type, 
+RETURN acl.resource_type,
        count(*) as acl_count,
        count(DISTINCT acl.ugid) as unique_principals,
        collect(DISTINCT acl.roleid) as roles_granted
@@ -925,7 +925,7 @@ ORDER BY acl_count DESC
 // Users who can create/modify VMs
 MATCH (u:ProxmoxUser)-[p:HAS_PERMISSION]->(resource)
 WHERE ANY(priv IN p.privileges WHERE priv IN ['VM.Allocate', 'VM.Config.Disk', 'VM.Config.CPU'])
-RETURN DISTINCT u.userid, u.email, 
+RETURN DISTINCT u.userid, u.email,
        collect(DISTINCT {resource: coalesce(resource.name, resource.id), privileges: p.privileges}) as access
 ORDER BY u.userid
 ```
@@ -937,9 +937,9 @@ ORDER BY u.userid
 MATCH (acl:ProxmoxACL)-[:APPLIES_TO_USER]->(u:ProxmoxUser)
 MATCH (acl)-[:GRANTS_ROLE]->(r:ProxmoxRole)
 MATCH (acl)-[:GRANTS_ACCESS_TO]->(resource)
-RETURN u.userid, 
-       acl.path, 
-       r.roleid, 
+RETURN u.userid,
+       acl.path,
+       r.roleid,
        r.privs,
        labels(resource)[0] as resource_type,
        coalesce(resource.name, resource.id) as resource_name,
@@ -1018,7 +1018,7 @@ OPTIONAL MATCH (acl)-[:GRANTS_ROLE]->(r:ProxmoxRole)
 OPTIONAL MATCH (acl)-[:GRANTS_ACCESS_TO]->(resource)
 WITH u, collect(DISTINCT {acl: acl.id, role: r.roleid, resource: resource}) as permissions
 WHERE size(permissions) > 0 AND permissions[0].acl IS NOT NULL
-RETURN u.userid, u.email, 
+RETURN u.userid, u.email,
        CASE WHEN u.expire > 0 THEN datetime({epochSeconds: u.expire}) ELSE 'Never' END as expired_at,
        size(permissions) as permission_count,
        permissions
