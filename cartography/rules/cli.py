@@ -13,11 +13,8 @@ from typing import Generator
 import typer
 from typing_extensions import Annotated
 
-from cartography.rules.data.frameworks import FRAMEWORKS
-from cartography.rules.runners import run_frameworks
-from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import Requirement
+from cartography.rules.data.findings import FINDINGS
+from cartography.rules.runners import run_findings
 
 app = typer.Typer(
     help="Execute Cartography security frameworks",
@@ -32,93 +29,45 @@ class OutputFormat(str, Enum):
     json = "json"
 
 
+# ----------------------------
 # Autocompletion functions
+# ----------------------------
 
 
-def complete_frameworks(incomplete: str) -> Generator[str, None, None]:
-    """Autocomplete framework names."""
-    for name in FRAMEWORKS.keys():
+def complete_findings(incomplete: str) -> Generator[str, None, None]:
+    """Autocomplete findings names."""
+    for name in FINDINGS.keys():
         if name.startswith(incomplete):
             yield name
 
 
-def complete_frameworks_with_all(incomplete: str) -> Generator[str, None, None]:
-    """Autocomplete framework names plus 'all'."""
-    for name in builtins.list(FRAMEWORKS.keys()) + ["all"]:
+def complete_findings_with_all(incomplete: str) -> Generator[str, None, None]:
+    """Autocomplete findings names plus 'all'."""
+    for name in builtins.list(FINDINGS.keys()) + ["all"]:
         if name.startswith(incomplete):
             yield name
-
-
-def complete_requirements(
-    ctx: typer.Context, incomplete: str
-) -> Generator[tuple[str, str], None, None]:
-    """Autocomplete requirement IDs with descriptions based on selected framework."""
-    framework = ctx.params.get("framework")
-    if not framework or framework not in FRAMEWORKS:
-        return
-
-    for req in FRAMEWORKS[framework].requirements:
-        if req.id.lower().startswith(incomplete.lower()):
-            yield (req.id, req.name)
-
-
-def complete_findings(
-    ctx: typer.Context, incomplete: str
-) -> Generator[tuple[str, str], None, None]:
-    # TESTS
-    """Autocomplete finding names."""
-    framework = ctx.params.get("framework")
-    requirement_id = ctx.params.get("requirement")
-    if not framework or framework not in FRAMEWORKS:
-        return
-    if not requirement_id:
-        return
-
-    for finding in FRAMEWORKS[framework].get_findings_by_requirement(requirement_id):
-        if finding.id.lower().startswith(incomplete.lower()):
-            yield (finding.id, finding.name)
 
 
 def complete_facts(
     ctx: typer.Context, incomplete: str
 ) -> Generator[tuple[str, str], None, None]:
-    """Autocomplete fact IDs with descriptions based on selected framework, requirement or finding."""
-    framework = ctx.params.get("framework")
-    requirement_id = ctx.params.get("requirement")
-    finding_id = ctx.params.get("finding")
-
-    if not framework or framework not in FRAMEWORKS:
-        return
-    if not requirement_id:
-        return
-    if not finding_id:
+    """Autocomplete facts IDs with descriptions based on selected finding."""
+    finding = ctx.params.get("finding")
+    if not finding or finding not in FINDINGS:
         return
 
-    # Find the finding
-    for fact in FRAMEWORKS[framework].get_facts_by_finding(requirement_id, finding_id):
+    for fact in FINDINGS[finding].facts:
         if fact.id.lower().startswith(incomplete.lower()):
             yield (fact.id, fact.name)
 
 
+# ----------------------------
 # CLI Commands
+# ----------------------------
 
 
-@app.command()  # type: ignore[misc]
-def list(
-    framework: Annotated[
-        str | None,
-        typer.Argument(
-            help="Framework name (e.g., mitre-attack)",
-            autocompletion=complete_frameworks,
-        ),
-    ] = None,
-    requirement: Annotated[
-        str | None,
-        typer.Argument(
-            help="Requirement ID (e.g., T1190)",
-            autocompletion=complete_requirements,
-        ),
-    ] = None,
+@app.command(name="list")  # type: ignore[misc]
+def list_cmd(
     finding: Annotated[
         str | None,
         typer.Argument(
@@ -128,140 +77,59 @@ def list(
     ] = None,
 ) -> None:
     """
-    List available frameworks, requirements, findings and facts.
+    List available findings and facts.
 
     \b
     Examples:
         cartography-rules list
-        cartography-rules list mitre-attack
-        cartography-rules list mitre-attack T1190
+        cartography-rules list mfa-missing
+        cartography-rules list mfa-missing missing-mfa-cloudflare
     """
     # List all frameworks
-    if not framework:
-        typer.secho("\nAvailable Frameworks\n", bold=True)
-        for fw_name, fw in FRAMEWORKS.items():
-            typer.secho(f"{fw_name}", fg=typer.colors.CYAN)
-            typer.echo(f"  Name:         {fw.name}")
-            typer.echo(f"  Version:      {fw.version}")
-            typer.echo(f"  Requirements: {len(fw.requirements)}")
-            all_findings = [f for req in fw.requirements for f in req.findings]
-            all_facts = [fa for f in all_findings for fa in f.facts]
-            typer.echo(f"  Findings:     {len(all_findings)}")
-            typer.echo(f"  Total Facts:  {len(all_facts)}")
-            if fw.source_url:
-                typer.echo(f"  Source:       {fw.source_url}")
-            typer.echo()
-        return
-
-    # Validate framework
-    if framework not in FRAMEWORKS:
-        typer.secho(
-            f"Error: Unknown framework '{framework}'", fg=typer.colors.RED, err=True
-        )
-        typer.echo(f"Available: {', '.join(FRAMEWORKS.keys())}", err=True)
-        raise typer.Exit(1)
-
-    fw = FRAMEWORKS[framework]
-
-    # List all requirements in framework
-    if not requirement:
-        typer.secho(f"\n{fw.name}", bold=True)
-        typer.echo(f"Version: {fw.version}\n")
-        for r in fw.requirements:
-            typer.secho(f"{r.id}", fg=typer.colors.CYAN)
-            typer.echo(f"  Name:  {r.name}")
-            typer.echo(f"  Findings: {len(r.findings)}")
-            typer.echo(f"  Facts: {sum(len(f.facts) for f in r.findings)}")
-            if r.requirement_url:
-                typer.echo(f"  URL:   {r.requirement_url}")
-            typer.echo()
-        return
-
-    # Find and list facts in requirement
-    req: Requirement | None = None
-    for r in fw.requirements:
-        if r.id.lower() == requirement.lower():
-            req = r
-            break
-
-    if not req:
-        typer.secho(
-            f"Error: Requirement '{requirement}' not found",
-            fg=typer.colors.RED,
-            err=True,
-        )
-        typer.echo("\nAvailable requirements:", err=True)
-        for r in fw.requirements:
-            typer.echo(f"  {r.id}", err=True)
-        raise typer.Exit(1)
-
-    typer.secho(f"\n{req.name}", bold=True)
-    typer.echo(f"ID:  {req.id}")
-    if req.requirement_url:
-        typer.echo(f"URL: {req.requirement_url}")
-
-    # Find and list findings in requirement
     if not finding:
-        typer.secho(f"\nFindings ({len(req.findings)})", bold=True)
-
-        for f in req.findings:
-            typer.secho(f"{f.id}", fg=typer.colors.CYAN)
-            typer.echo(f"  Name:        {f.name}")
-            typer.echo(f"  Description: {f.description}")
-            typer.echo(f"  Tags:        {', '.join(f.tags)}")
-            typer.echo(f"  Modules:     {', '.join(f.modules)}")
-            typer.echo(f"  Total Facts: {len(f.facts)}")
+        typer.secho("\nAvailable Findings\n", bold=True)
+        for finding_name, finding_obj in FINDINGS.items():
+            typer.secho(f"{finding_name}", fg=typer.colors.CYAN)
+            typer.echo(f"  Name:         {finding_obj.name}")
+            typer.echo(f"  Version:      {finding_obj.version}")
+            typer.echo(f"  Facts:        {len(finding_obj.facts)}")
+            if finding_obj.references:
+                typer.echo("  References:")
+                for ref in finding_obj.references:
+                    typer.echo(f"    - {ref}")
             typer.echo()
         return
 
-    # Find and list facts in finding
-    finding_obj: Finding | None = fw.get_finding_by_id(req.id, finding)
-
-    if not finding_obj:
+    # Validate finding
+    if finding not in FINDINGS:
         typer.secho(
-            f"Error: Finding '{finding}' not found in requirement '{requirement}'",
-            fg=typer.colors.RED,
-            err=True,
+            f"Error: Unknown finding '{finding}'", fg=typer.colors.RED, err=True
         )
-        typer.echo("\nAvailable findings:", err=True)
-        for f in req.findings:
-            typer.echo(f"  {f.id}", err=True)
+        typer.echo(f"Available: {', '.join(FINDINGS.keys())}", err=True)
         raise typer.Exit(1)
+
+    finding_obj = FINDINGS[finding]
 
     typer.secho(f"\n{finding_obj.name}", bold=True)
     typer.echo(f"ID:  {finding_obj.id}")
-    all_facts = [fa for f in req.findings for fa in f.facts]
-    typer.secho(f"\nFacts ({len(all_facts)})\n", bold=True)
+    typer.secho(f"\nFacts ({len(finding_obj.facts)})\n", bold=True)
 
     for fact in finding_obj.facts:
         typer.secho(f"{fact.id}", fg=typer.colors.CYAN)
         typer.echo(f"  Name:        {fact.name}")
         typer.echo(f"  Description: {fact.description}")
+        typer.echo(f"  Maturity:    {fact.maturity.value}")
         typer.echo(f"  Provider:    {fact.module.value}")
         typer.echo()
 
 
-@app.command()  # type: ignore[misc]
-def run(
-    framework: Annotated[
-        str,
-        typer.Argument(
-            help="Framework to execute (or 'all' for all frameworks)",
-            autocompletion=complete_frameworks_with_all,
-        ),
-    ],
-    requirement: Annotated[
-        str | None,
-        typer.Argument(
-            help="Specific requirement ID to run",
-            autocompletion=complete_requirements,
-        ),
-    ] = None,
+@app.command(name="run")  # type: ignore[misc]
+def run_cmd(
     finding: Annotated[
         str | None,
         typer.Argument(
             help="Specific finding ID to run",
-            autocompletion=complete_findings,
+            autocompletion=complete_findings_with_all,
         ),
     ] = None,
     fact: Annotated[
@@ -295,6 +163,11 @@ def run(
         OutputFormat,
         typer.Option(help="Output format"),
     ] = OutputFormat.text,
+    experimental: bool = typer.Option(
+        True,
+        "--experimental/--no-experimental",
+        help="Enable or disable experimental facts.",
+    ),
 ) -> None:
     """
     Execute a security framework.
@@ -302,90 +175,50 @@ def run(
     \b
     Examples:
         cartography-rules run all
-        cartography-rules run mitre-attack
-        cartography-rules run mitre-attack T1190
-        cartography-rules run mitre-attack T1190 aws_rds_public_access
+        cartography-rules run mfa-missing
+        cartography-rules run mfa-missing missing-mfa-cloudflare
     """
-    # Validate framework
-    valid_frameworks = builtins.list(FRAMEWORKS.keys()) + ["all"]
-    if framework not in valid_frameworks:
+    # Validate finding
+    valid_findings = builtins.list(FINDINGS.keys()) + ["all"]
+    if finding not in valid_findings:
         typer.secho(
-            f"Error: Unknown framework '{framework}'", fg=typer.colors.RED, err=True
+            f"Error: Unknown finding '{finding}'", fg=typer.colors.RED, err=True
         )
-        typer.echo(f"Available: {', '.join(valid_frameworks)}", err=True)
+        typer.echo(f"Available: {', '.join(valid_findings)}", err=True)
         raise typer.Exit(1)
 
-    # Validate fact requires requirement
-    if fact and (not requirement or not finding):
+    # Validate fact requires finding
+    if fact and not finding:
         typer.secho(
-            "Error: Cannot specify fact without requirement and finding",
-            fg=typer.colors.RED,
-            err=True,
-        )
-        raise typer.Exit(1)
-
-    # Validate finding requires requirement
-    if finding and not requirement:
-        typer.secho(
-            "Error: Cannot specify finding without requirement",
+            "Error: Cannot specify fact without finding",
             fg=typer.colors.RED,
             err=True,
         )
         raise typer.Exit(1)
 
     # Validate filtering with 'all'
-    if framework == "all" and (requirement or fact or finding):
+    if finding == "all" and fact:
         typer.secho(
-            "Error: Cannot filter by requirement/fact when running all frameworks",
+            "Error: Cannot filter by fact when running all findings",
             fg=typer.colors.RED,
             err=True,
         )
         raise typer.Exit(1)
 
-    # Validate requirement exists
-    if requirement and framework != "all":
-        fw = FRAMEWORKS[framework]
-        req = fw.get_requirement_by_id(requirement)
-        if not req:
+    # Validate fact exists
+    if fact and finding != "all":
+        finding_obj = FINDINGS[finding]
+        fact_obj = finding_obj.get_fact_by_id(fact)
+        if not fact_obj:
             typer.secho(
-                f"Error: Requirement '{requirement}' not found",
+                f"Error: Fact '{fact}' not found in finding '{finding}'",
                 fg=typer.colors.RED,
                 err=True,
             )
-            typer.echo("\nAvailable requirements:", err=True)
-            for r in fw.requirements:
-                typer.echo(f"  {r.id}", err=True)
+            typer.echo("\nAvailable facts:", err=True)
+            for fa in finding_obj.facts:
+                typer.echo(f"  {fa.id}", err=True)
             raise typer.Exit(1)
-
-        # Validate finding exists
-        if finding:
-            finding_obj: Finding | None = fw.get_finding_by_id(requirement, finding)
-
-            if not finding_obj:
-                typer.secho(
-                    f"Error: Finding '{finding}' not found in requirement '{requirement}'",
-                    fg=typer.colors.RED,
-                    err=True,
-                )
-                typer.echo("\nAvailable findings:", err=True)
-                for f in req.findings:
-                    typer.echo(f"  {f.id}", err=True)
-                raise typer.Exit(1)
-
-            # Validate fact exists
-            if fact:
-                fact_found: Fact | None = fw.get_fact_by_id(requirement, finding, fact)
-
-                if not fact_found:
-                    typer.secho(
-                        f"Error: Fact '{fact}' not found in requirement '{requirement}'",
-                        fg=typer.colors.RED,
-                        err=True,
-                    )
-                    typer.echo("\nAvailable facts:", err=True)
-                    for fa in finding_obj.facts:
-                        typer.echo(f"  {fa.id}", err=True)
-                    raise typer.Exit(1)
 
     # Get password
     password = None
@@ -398,24 +231,23 @@ def run(
         if not password:
             password = typer.prompt("Neo4j password", hide_input=True)
 
-    # Determine frameworks to run
-    if framework == "all":
-        frameworks_to_run = builtins.list(FRAMEWORKS.keys())
+    # Determine findings to run
+    if finding == "all":
+        findings_to_run = builtins.list(FINDINGS.keys())
     else:
-        frameworks_to_run = [framework]
+        findings_to_run = [finding]
 
     # Execute
     try:
-        exit_code = run_frameworks(
-            frameworks_to_run,
+        exit_code = run_findings(
+            findings_to_run,
             uri,
             user,
             password,
             database,
             output.value,
-            requirement_filter=requirement,
-            finding_filter=finding,
             fact_filter=fact,
+            exclude_experimental=not experimental,
         )
         raise typer.Exit(exit_code)
     except KeyboardInterrupt:

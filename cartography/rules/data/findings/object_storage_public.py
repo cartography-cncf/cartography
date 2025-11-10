@@ -1,6 +1,7 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import FindingOutput
+from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 # Facts
@@ -39,6 +40,7 @@ _aws_s3_public = Fact(
     RETURN *
     """,
     module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
 )
 
 _azure_storage_public_blob_access = Fact(
@@ -68,6 +70,7 @@ _azure_storage_public_blob_access = Fact(
     RETURN *
     """,
     module=Module.AZURE,
+    maturity=Maturity.EXPERIMENTAL,
 )
 
 
@@ -93,4 +96,5 @@ object_storage_public = Finding(
     ),
     tags=("infrastructure", "attack_surface"),
     output_model=ObjectStoragePublic,
+    version="0.1.0",
 )

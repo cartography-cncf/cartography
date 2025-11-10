@@ -1,6 +1,7 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import FindingOutput
+from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 # AWS
@@ -78,6 +79,7 @@ _aws_policy_manipulation_capabilities = Fact(
     RETURN *
     """,
     module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
 )
 
 
@@ -108,4 +110,5 @@ policy_administration_privileges = Finding(
     output_model=PolicyAdministrationPrivileges,
     facts=(_aws_policy_manipulation_capabilities,),
     tags=("iam", "privilege_escalation"),
+    version="0.1.0",
 )

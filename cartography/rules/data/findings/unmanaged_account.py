@@ -1,6 +1,7 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import FindingOutput
+from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 # Facts
@@ -19,6 +20,7 @@ _unmanaged_account_ontology = Fact(
     WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User)
     return a
     """,
+    maturity=Maturity.EXPERIMENTAL,
 )
 
 
@@ -36,4 +38,5 @@ unmanaged_account = Finding(
     tags=("identity",),
     facts=(_unmanaged_account_ontology,),
     output_model=UnmanagedAccountFindingOutput,
+    version="0.1.0",
 )

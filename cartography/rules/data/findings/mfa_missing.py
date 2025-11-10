@@ -1,6 +1,7 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import FindingOutput
+from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 # Facts
@@ -19,6 +20,7 @@ _missing_mfa_cloudflare = Fact(
     WHERE m.two_factor_authentication_enabled = false
     RETURN m
     """,
+    maturity=Maturity.EXPERIMENTAL,
 )
 
 
@@ -45,4 +47,5 @@ missing_mfa_finding = Finding(
         _missing_mfa_cloudflare,
     ),
     output_model=MFAFindingOutput,
+    version="0.1.0",
 )

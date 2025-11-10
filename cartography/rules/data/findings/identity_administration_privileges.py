@@ -1,43 +1,45 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import FindingOutput
+from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 # AWS
-_aws_trust_relationship_manipulation = Fact(
-    id="aws_trust_relationship_manipulation",
-    name="Roles with Cross-Account Trust Relationship Modification Capabilities",
+_aws_account_manipulation_permissions = Fact(
+    id="aws_account_manipulation_permissions",
+    name="IAM Principals with Account Creation and Modification Permissions",
     description=(
-        "AWS IAM principals with permissions to modify role trust policies "
-        "(specifically AssumeRolePolicyDocuments)."
+        "AWS IAM users and roles with permissions to create, modify, or delete IAM "
+        "accounts and their associated policies."
     ),
     cypher_query="""
         MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
-        MATCH (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement {effect:"Allow"})
+        MATCH (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
         AND NOT principal.name CONTAINS 'QuickSetup'
         AND principal.name <> 'OrganizationAccountAccessRole'
-        WITH a, principal, policy, stmt,
+        AND stmt.effect = 'Allow'
+        WITH a, principal, stmt, policy,
             [label IN labels(principal) WHERE label <> 'AWSPrincipal'][0] AS principal_type,
-            ['iam:UpdateAssumeRolePolicy', 'iam:CreateRole'] AS patterns
+            [p IN ['iam:Create','iam:Attach','iam:Put','iam:Update','iam:Add'] | p] AS patterns
 
-        // Filter for matching Allow actions
+        // Match only Allow statements whose actions fit the patterns
         WITH a, principal, principal_type, stmt, policy,
             [action IN stmt.action
-                WHERE ANY(p IN patterns WHERE action = p)
+                WHERE ANY(prefix IN patterns WHERE action STARTS WITH prefix)
                 OR action = 'iam:*'
                 OR action = '*'
             ] AS matched_allow_actions
         WHERE size(matched_allow_actions) > 0
 
-        // Look for any explicit Deny statement on same principal that matches those actions
+        // Find explicit Deny statements for the same principal that overlap
         OPTIONAL MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(deny_stmt:AWSPolicyStatement {effect:"Deny"})
-        WHERE ANY(action IN deny_stmt.action
-                WHERE action IN matched_allow_actions
-                    OR action = 'iam:*'
-                    OR action = '*')
+        WHERE ANY(deny_action IN deny_stmt.action
+                    WHERE deny_action IN matched_allow_actions
+                    OR deny_action = 'iam:*'
+                    OR deny_action = '*')
 
-        // Exclude principals with an explicit Deny that overlaps
+        // If a deny exists, exclude those principals
         WITH a, principal, principal_type, policy, stmt, matched_allow_actions, deny_stmt
         WHERE deny_stmt IS NULL
 
@@ -48,8 +50,8 @@ _aws_trust_relationship_manipulation = Fact(
             a.name AS account,
             principal.name AS principal_name,
             principal.arn AS principal_identifier,
-            policy.name AS policy_name,
             principal_type,
+            policy.name AS policy_name,
             collect(DISTINCT action) AS actions,
             stmt.resource AS resources
         ORDER BY account, principal_name
@@ -57,18 +59,28 @@ _aws_trust_relationship_manipulation = Fact(
     cypher_visual_query="""
         MATCH p = (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
         MATCH p1 = (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-        MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
-        AND principal.name <> 'OrganizationAccountAccessRole'
+        AND NOT principal.name CONTAINS 'QuickSetup'
+        AND NOT principal.name = 'OrganizationAccountAccessRole'
         AND stmt.effect = 'Allow'
+        AND ANY(action IN stmt.action WHERE
+            action STARTS WITH 'iam:Create'
+            OR action STARTS WITH 'iam:Attach'
+            OR action STARTS WITH 'iam:Put'
+            OR action STARTS WITH 'iam:Update'
+            OR action STARTS WITH 'iam:Add'
+            OR action = 'iam:*'
+            OR action = '*'
+        )
         RETURN *
     """,
     module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
 )
 
 
 # Finding
-class DelegationBoundaryModifiable(FindingOutput):
+class IdentityAdministrationPrivileges(FindingOutput):
     account: str | None = None
     principal_name: str | None = None
     principal_identifier: str | None = None
@@ -84,14 +96,15 @@ class DelegationBoundaryModifiable(FindingOutput):
     ]
 
 
-delegation_boundary_modifiable = Finding(
-    id="delegation_boundary_modifiable",
-    name="Delegation Boundary Modifiable",
+identity_administration_privileges = Finding(
+    id="identity_administration_privileges",
+    name="Identity Administration Privileges",
     description=(
-        "Principals can edit role trust/assume policies or create roles with arbitrary trust—"
-        "allowing cross-account or lateral impersonation paths."
+        "Principals can create, attach, update, or otherwise administer identities "
+        "(users/roles/groups) and their bindings—classic escalation surface."
     ),
-    output_model=DelegationBoundaryModifiable,
-    facts=(_aws_trust_relationship_manipulation,),
-    tags=("iam", "trust", "assumerole", "privilege_escalation"),
+    output_model=IdentityAdministrationPrivileges,
+    facts=(_aws_account_manipulation_permissions,),
+    tags=("iam", "privilege_escalation"),
+    version="0.1.0",
 )

@@ -1,6 +1,7 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import FindingOutput
+from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 # AWS
@@ -28,6 +29,7 @@ _aws_rds_public_access = Fact(
     RETURN *
     """,
     module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
 )
 
 
@@ -49,4 +51,5 @@ database_instance_exposed = Finding(
     output_model=DatabaseInstanceExposed,
     facts=(_aws_rds_public_access,),
     tags=("infrastructure", "databases", "attack_surface"),
+    version="0.1.0",
 )

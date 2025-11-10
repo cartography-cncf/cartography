@@ -1,6 +1,7 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import FindingOutput
+from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 # AWS
@@ -92,6 +93,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         RETURN *
     """,
     module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
 )
 
 _aws_service_account_manipulation_via_lambda = Fact(
@@ -170,6 +172,7 @@ _aws_service_account_manipulation_via_lambda = Fact(
         RETURN *
     """,
     module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
 )
 
 
@@ -204,4 +207,5 @@ workload_identity_admin_capabilities = Finding(
         _aws_service_account_manipulation_via_lambda,
     ),
     tags=("iam", "privilege_escalation"),
+    version="0.1.0",
 )

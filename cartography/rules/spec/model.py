@@ -38,6 +38,16 @@ class Module(str, Enum):
     """Multi-cloud or provider-agnostic rules"""
 
 
+class Maturity(str, Enum):
+    """Maturity levels for Facts."""
+
+    EXPERIMENTAL = "EXPERIMENTAL"
+    """Experimental: Initial version, may be unstable or incomplete."""
+
+    STABLE = "STABLE"
+    """Stable: Well-tested and reliable for production use."""
+
+
 MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.AWS: "aws",
     Module.AZURE: "azure",
@@ -60,6 +70,9 @@ class Fact:
     """More details about the Fact. Information on details that we're querying for."""
     module: Module
     """The Module that the Fact is associated with e.g. AWS, Azure, GCP, etc."""
+    maturity: Maturity
+    """The maturity level of the Fact query."""
+
     # TODO can we lint the queries. full-on integ tests here are overkill though.
     cypher_query: str
     """The Cypher query to gather information about the environment. Returns data field by field e.g. `RETURN node.prop1, node.prop2`."""
@@ -121,10 +134,14 @@ class Finding:
     """Tags associated with the Finding for categorization and filtering."""
     description: str
     """A brief description of the Finding. Can include details about the security issue or misconfiguration."""
+    version: str
+    """The version of the Finding definition."""
     facts: tuple[Fact, ...]
     """The Facts that contribute to this Finding."""
     output_model: type[FindingOutput]
     """The output model class for the Finding."""
+    references: tuple[str, ...] = ()
+    """References or links to external resources related to the Finding."""
 
     def parse_results(self, fact_results: list[dict[str, Any]]) -> list[FindingOutput]:
         # DOC
@@ -155,93 +172,9 @@ class Finding:
         """Returns the set of modules associated with this finding."""
         return {fact.module for fact in self.facts}
 
-
-@dataclass(frozen=True)
-class Requirement:
-    """
-    A requirement within a security framework with one or more facts.
-
-    Notes:
-    - `attributes` is reserved for metadata such as tags, categories, or references.
-    - Do NOT put evaluation logic, thresholds, or org-specific preferences here.
-    """
-
-    id: str
-    """A unique identifier for the requirement, e.g. T1098 in MITRE ATT&CK."""
-    name: str
-    """A brief name for the requirement, e.g. "Account Manipulation"."""
-    description: str
-    """A brief description of the requirement."""
-    target_assets: str
-    """
-    A short description of the assets that this requirement is related to. E.g. "Cloud
-    identities that can manipulate other identities". This field is used as
-    documentation: `description` tells us information about the requirement;
-    `target_assets` tells us what specific objects in cartography we will search for to
-    find Facts related to the requirement.
-    """
-    findings: tuple[Finding, ...]
-    """The findings that are related to this requirement."""
-    attributes: dict[str, Any] | None = None
-    """
-    Metadata attributes for the requirement. Example:
-    ```json
-    {
-        "tactic": "initial_access",
-        "technique_id": "T1190",
-        "services": ["ec2", "s3", "rds", "azure_storage"],
-        "providers": ["AWS", "AZURE"],
-    }
-    ```
-    """
-    requirement_url: str | None = None
-    """A URL reference to the requirement in the framework, e.g. https://attack.mitre.org/techniques/T1098/"""
-
-
-@dataclass(frozen=True)
-class Framework:
-    """A security framework containing requirements for comprehensive assessment."""
-
-    id: str
-    name: str
-    description: str
-    version: str
-    requirements: tuple[Requirement, ...]
-    source_url: str | None = None
-
-    def get_requirement_by_id(self, requirement_id: str) -> Requirement | None:
-        """Returns a requirement by its ID, or None if not found."""
-        for req in self.requirements:
-            if req.id.lower() == requirement_id.lower():
-                return req
-        return None
-
-    def get_findings_by_requirement(self, requirement_id: str) -> list[Finding]:
-        """Returns all findings for a given requirement ID. If no requirement ID is provided, returns all findings in the framework."""
-        requirement = self.get_requirement_by_id(requirement_id)
-        if requirement:
-            return list(requirement.findings)
-        return []
-
-    def get_finding_by_id(self, requirement_id: str, finding_id: str) -> Finding | None:
-        """Returns a finding by its ID within a requirement, or None if not found."""
-        for finding in self.get_findings_by_requirement(requirement_id):
-            if finding.id.lower() == finding_id.lower():
-                return finding
-        return None
-
-    def get_facts_by_finding(self, requirement_id: str, finding_id: str) -> list[Fact]:
-        """Returns all facts for a given finding ID within a requirement."""
-        finding = self.get_finding_by_id(requirement_id, finding_id)
-        if finding:
-            return list(finding.facts)
-        return []
-
-    def get_fact_by_id(
-        self, requirement_id: str, finding_id: str, fact_id: str
-    ) -> Fact | None:
-        """Returns a fact by its ID within a finding and requirement, or None if not found."""
-        for fact in self.get_facts_by_finding(requirement_id, finding_id):
+    def get_fact_by_id(self, fact_id: str) -> Fact | None:
+        """Returns a fact by its ID, or None if not found."""
+        for fact in self.facts:
             if fact.id.lower() == fact_id.lower():
                 return fact
         return None
