@@ -43,11 +43,7 @@ def get_pool_details(proxmox_client: Any, poolid: str) -> dict[str, Any]:
     :return: Pool details dict
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.pools(poolid).get()
-    except Exception as e:
-        logger.warning(f"Could not get details for pool {poolid}: {e}")
-        return {}
+    return proxmox_client.pools(poolid).get()
 
 
 # ============================================================================

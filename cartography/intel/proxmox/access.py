@@ -33,11 +33,7 @@ def get_users(proxmox_client: Any) -> list[dict[str, Any]]:
     :return: List of user dicts
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.access.users.get()
-    except Exception as e:
-        logger.warning(f"Could not get users: {e}")
-        return []
+    return proxmox_client.access.users.get()
 
 
 @timeit
@@ -49,11 +45,7 @@ def get_groups(proxmox_client: Any) -> list[dict[str, Any]]:
     :return: List of group dicts
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.access.groups.get()
-    except Exception as e:
-        logger.warning(f"Could not get groups: {e}")
-        return []
+    return proxmox_client.access.groups.get()
 
 
 @timeit
@@ -70,6 +62,7 @@ def get_group_members(
     :param proxmox_client: Proxmox API client
     :param groups: List of group dicts from get_groups()
     :return: Dict mapping group IDs to lists of member user IDs
+    :raises: Exception if API call fails
     """
     group_members: dict[str, list[str]] = {}
 
@@ -78,17 +71,13 @@ def get_group_members(
         if not groupid:
             continue
 
-        try:
-            # Get detailed group info including members
-            group_detail = proxmox_client.access.groups(groupid).get()
-            members = group_detail.get("members", [])
-            if members:
-                # Members is a list of user IDs
-                group_members[groupid] = members
-                logger.debug(f"Group {groupid} has {len(members)} members")
-        except Exception as e:
-            logger.debug(f"Could not get members for group {groupid}: {e}")
-            continue
+        # Get detailed group info including members
+        group_detail = proxmox_client.access.groups(groupid).get()
+        members = group_detail.get("members", [])
+        if members:
+            # Members is a list of user IDs
+            group_members[groupid] = members
+            logger.debug(f"Group {groupid} has {len(members)} members")
 
     return group_members
 
@@ -102,11 +91,7 @@ def get_roles(proxmox_client: Any) -> list[dict[str, Any]]:
     :return: List of role dicts
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.access.roles.get()
-    except Exception as e:
-        logger.warning(f"Could not get roles: {e}")
-        return []
+    return proxmox_client.access.roles.get()
 
 
 @timeit
@@ -118,11 +103,7 @@ def get_acls(proxmox_client: Any) -> list[dict[str, Any]]:
     :return: List of ACL dicts
     :raises: Exception if API call fails
     """
-    try:
-        return proxmox_client.access.acl.get()
-    except Exception as e:
-        logger.warning(f"Could not get ACLs: {e}")
-        return []
+    return proxmox_client.access.acl.get()
 
 
 # ============================================================================
