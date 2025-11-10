@@ -13,6 +13,11 @@ from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp import bigtable_app_profile
+from cartography.intel.gcp import bigtable_backup
+from cartography.intel.gcp import bigtable_cluster
+from cartography.intel.gcp import bigtable_instance
+from cartography.intel.gcp import bigtable_table
 from cartography.intel.gcp import cloud_run_domain_mapping
 from cartography.intel.gcp import cloud_run_execution
 from cartography.intel.gcp import cloud_run_job
@@ -38,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "cloud_run compute storage gke dns iam")
+Services = namedtuple("Services", "cloud_run compute storage gke dns iam bigtable")
 service_names = Services(
     cloud_run="run.googleapis.com",
     compute="compute.googleapis.com",
@@ -46,6 +51,7 @@ service_names = Services(
     gke="container.googleapis.com",
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
+    bigtable="bigtableadmin.googleapis.com",
 )
 
 
@@ -165,6 +171,54 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
+        if service_names.bigtable in enabled_services:
+            logger.info(f"Syncing GCP project {project_id} for Bigtable.")
+            bigtable_client = build_client("bigtableadmin", "v2")
+            instances_raw = bigtable_instance.sync_bigtable_instances(
+                neo4j_session,
+                bigtable_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+            if instances_raw:
+                clusters_raw = bigtable_cluster.sync_bigtable_clusters(
+                    neo4j_session,
+                    bigtable_client,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                bigtable_table.sync_bigtable_tables(
+                    neo4j_session,
+                    bigtable_client,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                bigtable_app_profile.sync_bigtable_app_profiles(
+                    neo4j_session,
+                    bigtable_client,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                if clusters_raw:
+                    bigtable_backup.sync_bigtable_backups(
+                        neo4j_session,
+                        bigtable_client,
+                        clusters_raw,
+                        project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
 
         if service_names.cloud_run in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Cloud Run.")
@@ -228,9 +282,9 @@ def _sync_project_resources(
                     run_client_v2,
                     jobs_raw,
                     project_id,
-                    gcp_update_tag,
-                    common_job_parameters,
-                )
+                            gcp_update_tag,
+                            common_job_parameters,
+                        )
 
         del common_job_parameters["PROJECT_ID"]
 
