@@ -22,7 +22,7 @@ class SpaceliftWorkerPoolNodeProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     pool_type: PropertyRef = PropertyRef("pool_type")
     space_id: PropertyRef = PropertyRef("space_id")
-    account_id: PropertyRef = PropertyRef("account_id")
+    spacelift_account_id: PropertyRef = PropertyRef("spacelift_account_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -44,7 +44,7 @@ class SpaceliftWorkerPoolToAccountRel(CartographyRelSchema):
 
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("account_id", set_in_kwargs=True)},
+        {"id": PropertyRef("spacelift_account_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
