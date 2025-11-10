@@ -22,6 +22,8 @@ from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
+from cartography.intel.gcp import permission_relationships
+from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
@@ -37,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam bigtable")
+Services = namedtuple("Services", "compute storage gke dns iam bigtable cai")
 service_names = Services(
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
@@ -45,6 +47,7 @@ service_names = Services(
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
     bigtable="bigtableadmin.googleapis.com",
+    cai="cloudasset.googleapis.com",
 )
 
 
@@ -213,6 +216,23 @@ def _sync_project_resources(
                         common_job_parameters,
                     )
 
+        if service_names.cai in enabled_services:
+            logger.info("Syncing IAM policies for GCP project %s.", project_id)
+            policy_bindings.sync(
+                neo4j_session,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+                credentials=credentials,
+            )
+
+        permission_relationships.sync(
+            neo4j_session,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+
         del common_job_parameters["PROJECT_ID"]
 
 
@@ -232,6 +252,7 @@ def start_gcp_ingestion(
     """
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
+        "gcp_permission_relationships_file": config.gcp_permission_relationships_file,
     }
 
     # IMPORTANT: We defer cleanup for hierarchical resources (orgs, folders, projects) and run them
