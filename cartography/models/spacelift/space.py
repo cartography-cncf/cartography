@@ -21,12 +21,12 @@ class SpaceliftSpaceNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name", extra_index=True)
     description: PropertyRef = PropertyRef("description")
     is_root: PropertyRef = PropertyRef("is_root")
-    account_id: PropertyRef = PropertyRef(
-        "account_id"
-    )  # account_id is set for ALL spaces (root and nested) for RESOURCE relationship
-    parent_account_id: PropertyRef = PropertyRef(
-        "parent_account_id"
-    )  # parent_account_id is set ONLY for root spaces (identifies hierarchy root)
+    spacelift_account_id: PropertyRef = PropertyRef(
+        "spacelift_account_id"
+    )  # spacelift_account_id is set for ALL spaces (root and nested) for RESOURCE relationship
+    parent_spacelift_account_id: PropertyRef = PropertyRef(
+        "parent_spacelift_account_id"
+    )  # parent_spacelift_account_id is set ONLY for root spaces (identifies hierarchy root)
     parent_space_id: PropertyRef = PropertyRef(
         "parent_space_id"
     )  # parent_space_id is set ONLY for child spaces (identifies hierarchy parent)
@@ -51,7 +51,7 @@ class SpaceliftSpaceToAccountRel(CartographyRelSchema):
 
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("account_id", set_in_kwargs=True)},
+        {"id": PropertyRef("spacelift_account_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
