@@ -9,6 +9,8 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+import neo4j
+
 from cartography.client.core.tx import load
 from cartography.models.proxmox.compute import ProxmoxDiskSchema
 from cartography.models.proxmox.compute import ProxmoxNetworkInterfaceSchema
@@ -24,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_vms_for_node(proxmox_client, node_name: str) -> List[Dict[str, Any]]:
+def get_vms_for_node(proxmox_client: Any, node_name: str) -> List[Dict[str, Any]]:
     """
     Get all QEMU VMs on a node.
 
@@ -44,7 +46,9 @@ def get_vms_for_node(proxmox_client, node_name: str) -> List[Dict[str, Any]]:
 
 
 @timeit
-def get_containers_for_node(proxmox_client, node_name: str) -> List[Dict[str, Any]]:
+def get_containers_for_node(
+    proxmox_client: Any, node_name: str
+) -> List[Dict[str, Any]]:
     """
     Get all LXC containers on a node.
 
@@ -65,7 +69,7 @@ def get_containers_for_node(proxmox_client, node_name: str) -> List[Dict[str, An
 
 @timeit
 def get_vm_config(
-    proxmox_client, node_name: str, vmid: int, vm_type: str
+    proxmox_client: Any, node_name: str, vmid: int, vm_type: str
 ) -> Dict[str, Any]:
     """
     Get detailed configuration for a VM or container.
@@ -87,7 +91,9 @@ def get_vm_config(
 
 
 @timeit
-def get_guest_agent_info(proxmox_client, node_name: str, vmid: int) -> Dict[str, Any]:
+def get_guest_agent_info(
+    proxmox_client: Any, node_name: str, vmid: int
+) -> Dict[str, Any]:
     """
     Get guest agent information for a VM.
 
@@ -566,7 +572,10 @@ def enrich_interfaces_with_guest_data(
 
 
 def load_vms(
-    neo4j_session, vms: List[Dict[str, Any]], cluster_id: str, update_tag: int
+    neo4j_session: neo4j.Session,
+    vms: List[Dict[str, Any]],
+    cluster_id: str,
+    update_tag: int,
 ) -> None:
     """
     Load VM data into Neo4j using modern data model.
@@ -586,7 +595,10 @@ def load_vms(
 
 
 def load_disks(
-    neo4j_session, disks: List[Dict[str, Any]], cluster_id: str, update_tag: int
+    neo4j_session: neo4j.Session,
+    disks: List[Dict[str, Any]],
+    cluster_id: str,
+    update_tag: int,
 ) -> None:
     """
     Load disk data into Neo4j using modern data model.
@@ -609,7 +621,10 @@ def load_disks(
 
 
 def load_network_interfaces(
-    neo4j_session, interfaces: List[Dict[str, Any]], cluster_id: str, update_tag: int
+    neo4j_session: neo4j.Session,
+    interfaces: List[Dict[str, Any]],
+    cluster_id: str,
+    update_tag: int,
 ) -> None:
     """
     Load network interface data into Neo4j using modern data model.
@@ -638,8 +653,8 @@ def load_network_interfaces(
 
 @timeit
 def sync(
-    neo4j_session,
-    proxmox_client,
+    neo4j_session: neo4j.Session,
+    proxmox_client: Any,
     cluster_id: str,
     update_tag: int,
     common_job_parameters: Dict[str, Any],

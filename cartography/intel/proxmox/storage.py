@@ -9,6 +9,8 @@ from typing import Any
 from typing import Dict
 from typing import List
 
+import neo4j
+
 from cartography.client.core.tx import load
 from cartography.models.proxmox.storage import ProxmoxStorageSchema
 from cartography.util import timeit
@@ -125,7 +127,10 @@ def transform_storage_data(
 
 
 def load_storage(
-    neo4j_session: "neo4j.Session", storage_list: List[Dict[str, Any]], cluster_id: str, update_tag: int  # type: ignore[name-defined]
+    neo4j_session: neo4j.Session,
+    storage_list: List[Dict[str, Any]],
+    cluster_id: str,
+    update_tag: int,
 ) -> None:
     """
     Load storage data into Neo4j using modern data model.
@@ -145,7 +150,7 @@ def load_storage(
 
 
 def load_storage_node_relationships(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: neo4j.Session,
     storage_list: List[Dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -199,7 +204,7 @@ def load_storage_node_relationships(
 
 @timeit
 def sync(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: neo4j.Session,
     proxmox_client: Any,
     cluster_id: str,
     update_tag: int,

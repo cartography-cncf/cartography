@@ -7,6 +7,8 @@ Follows Cartography's Get → Transform → Load pattern.
 import logging
 from typing import Any
 
+import neo4j
+
 from cartography.client.core.tx import load
 from cartography.models.proxmox.backup import ProxmoxBackupJobSchema
 from cartography.util import timeit
@@ -114,7 +116,7 @@ def transform_backup_job_data(
 
 
 def load_backup_jobs(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: neo4j.Session,
     jobs: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -137,7 +139,7 @@ def load_backup_jobs(
 
 
 def load_backup_job_vm_relationships(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: neo4j.Session,
     job_vms: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -177,7 +179,7 @@ def load_backup_job_vm_relationships(
 
 @timeit
 def sync(
-    neo4j_session: "neo4j.Session",  # type: ignore[name-defined]
+    neo4j_session: neo4j.Session,
     proxmox_client: Any,
     cluster_id: str,
     update_tag: int,

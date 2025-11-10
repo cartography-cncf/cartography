@@ -7,6 +7,8 @@ Follows Cartography's Get → Transform → Load pattern.
 import logging
 from typing import Any
 
+import neo4j
+
 from cartography.client.core.tx import load
 from cartography.models.proxmox.ha import ProxmoxHAGroupSchema
 from cartography.models.proxmox.ha import ProxmoxHAResourceSchema
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_ha_groups(proxmox_client) -> list[dict[str, Any]]:
+def get_ha_groups(proxmox_client: Any) -> list[dict[str, Any]]:
     """
     Get all HA groups in the cluster.
 
@@ -37,7 +39,7 @@ def get_ha_groups(proxmox_client) -> list[dict[str, Any]]:
 
 
 @timeit
-def get_ha_resources(proxmox_client) -> list[dict[str, Any]]:
+def get_ha_resources(proxmox_client: Any) -> list[dict[str, Any]]:
     """
     Get all HA resources in the cluster.
 
@@ -132,7 +134,7 @@ def transform_ha_resource_data(
 
 
 def load_ha_groups(
-    neo4j_session,
+    neo4j_session: neo4j.Session,
     groups: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -155,7 +157,7 @@ def load_ha_groups(
 
 
 def load_ha_resources(
-    neo4j_session,
+    neo4j_session: neo4j.Session,
     resources: list[dict[str, Any]],
     cluster_id: str,
     update_tag: int,
@@ -178,7 +180,7 @@ def load_ha_resources(
 
 
 def load_ha_resource_vm_relationships(
-    neo4j_session,
+    neo4j_session: neo4j.Session,
     resources: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
@@ -232,8 +234,8 @@ def load_ha_resource_vm_relationships(
 
 @timeit
 def sync(
-    neo4j_session,
-    proxmox_client,
+    neo4j_session: neo4j.Session,
+    proxmox_client: Any,
     cluster_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],

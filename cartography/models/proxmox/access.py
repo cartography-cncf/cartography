@@ -260,11 +260,17 @@ class ProxmoxACLNodeProperties(CartographyNodeProperties):
     path: PropertyRef = PropertyRef("path", extra_index=True)
     cluster_id: PropertyRef = PropertyRef("cluster_id")
     roleid: PropertyRef = PropertyRef("roleid")
-    ugid: PropertyRef = PropertyRef("ugid", extra_index=True)  # User or group ID (indexed for queries)
+    ugid: PropertyRef = PropertyRef(
+        "ugid", extra_index=True
+    )  # User or group ID (indexed for queries)
     propagate: PropertyRef = PropertyRef("propagate")  # Propagate to children
     principal_type: PropertyRef = PropertyRef("principal_type")  # "user" or "group"
-    resource_type: PropertyRef = PropertyRef("resource_type")  # Type of resource (vm, storage, pool, node, etc.)
-    resource_id: PropertyRef = PropertyRef("resource_id")  # Specific resource ID if applicable
+    resource_type: PropertyRef = PropertyRef(
+        "resource_type"
+    )  # Type of resource (vm, storage, pool, node, etc.)
+    resource_id: PropertyRef = PropertyRef(
+        "resource_id"
+    )  # Specific resource ID if applicable
 
 
 @dataclass(frozen=True)
