@@ -140,170 +140,163 @@ def start_proxmox_ingestion(neo4j_session: neo4j.Session, config: Config) -> Non
         "UPDATE_TAG": config.update_tag,
     }
 
-    try:
-        # Get Proxmox API client
-        proxmox_client = _get_proxmox_client(config)
+    # Get Proxmox API client
+    proxmox_client = _get_proxmox_client(config)
 
-        # Sync cluster and nodes (returns cluster_id for other modules)
-        cluster_data = cluster.sync(
-            neo4j_session,
-            proxmox_client,
-            config.proxmox_host,
-            config.update_tag,
-            common_job_parameters,
-        )
+    # Sync cluster and nodes (returns cluster_id for other modules)
+    cluster_data = cluster.sync(
+        neo4j_session,
+        proxmox_client,
+        config.proxmox_host,
+        config.update_tag,
+        common_job_parameters,
+    )
 
-        cluster_id = cluster_data["cluster_id"]
+    cluster_id = cluster_data["cluster_id"]
 
-        # Add cluster_id to common_job_parameters for cleanup jobs
-        common_job_parameters["CLUSTER_ID"] = cluster_id
+    # Add cluster_id to common_job_parameters for cleanup jobs
+    common_job_parameters["CLUSTER_ID"] = cluster_id
 
-        # Sync VMs and containers
-        compute.sync(
-            neo4j_session,
-            proxmox_client,
-            cluster_id,
-            config.update_tag,
-            common_job_parameters,
-            enable_guest_agent=config.proxmox_enable_guest_agent,
-        )
+    # Sync VMs and containers
+    compute.sync(
+        neo4j_session,
+        proxmox_client,
+        cluster_id,
+        config.update_tag,
+        common_job_parameters,
+        enable_guest_agent=config.proxmox_enable_guest_agent,
+    )
 
-        # Sync storage
-        storage.sync(
-            neo4j_session,
-            proxmox_client,
-            cluster_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+    # Sync storage
+    storage.sync(
+        neo4j_session,
+        proxmox_client,
+        cluster_id,
+        config.update_tag,
+        common_job_parameters,
+    )
 
-        # Sync resource pools
-        pool.sync(
-            neo4j_session,
-            proxmox_client,
-            cluster_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+    # Sync resource pools
+    pool.sync(
+        neo4j_session,
+        proxmox_client,
+        cluster_id,
+        config.update_tag,
+        common_job_parameters,
+    )
 
-        # Sync backup jobs
-        backup.sync(
-            neo4j_session,
-            proxmox_client,
-            cluster_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+    # Sync backup jobs
+    backup.sync(
+        neo4j_session,
+        proxmox_client,
+        cluster_id,
+        config.update_tag,
+        common_job_parameters,
+    )
 
-        # Sync HA groups and resources
-        ha.sync(
-            neo4j_session,
-            proxmox_client,
-            cluster_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+    # Sync HA groups and resources
+    ha.sync(
+        neo4j_session,
+        proxmox_client,
+        cluster_id,
+        config.update_tag,
+        common_job_parameters,
+    )
 
-        # Sync access control (users, groups, roles, ACLs)
-        access.sync(
-            neo4j_session,
-            proxmox_client,
-            cluster_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+    # Sync access control (users, groups, roles, ACLs)
+    access.sync(
+        neo4j_session,
+        proxmox_client,
+        cluster_id,
+        config.update_tag,
+        common_job_parameters,
+    )
 
-        # Sync firewall rules and IP sets
-        firewall.sync(
-            neo4j_session,
-            proxmox_client,
-            cluster_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+    # Sync firewall rules and IP sets
+    firewall.sync(
+        neo4j_session,
+        proxmox_client,
+        cluster_id,
+        config.update_tag,
+        common_job_parameters,
+    )
 
-        # Sync SSL/TLS certificates
-        certificate.sync(
-            neo4j_session,
-            proxmox_client,
-            cluster_id,
-            config.update_tag,
-            common_job_parameters,
-        )
+    # Sync SSL/TLS certificates
+    certificate.sync(
+        neo4j_session,
+        proxmox_client,
+        cluster_id,
+        config.update_tag,
+        common_job_parameters,
+    )
 
-        # Run cleanup using modern GraphJob approach
-        # Per AGENTS.md: Use GraphJob.from_node_schema() instead of JSON cleanup files
-        logger.info("Running Proxmox cleanup jobs")
+    # Run cleanup using modern GraphJob approach
+    # Per AGENTS.md: Use GraphJob.from_node_schema() instead of JSON cleanup files
+    logger.info("Running Proxmox cleanup jobs")
 
-        # Cleanup all resource types scoped to this cluster
-        GraphJob.from_node_schema(ProxmoxNodeSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(
-            ProxmoxNodeNetworkInterfaceSchema(), common_job_parameters
-        ).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxVMSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(ProxmoxDiskSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(
-            ProxmoxNetworkInterfaceSchema(), common_job_parameters
-        ).run(neo4j_session)
-        GraphJob.from_node_schema(ProxmoxStorageSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(ProxmoxPoolSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(ProxmoxBackupJobSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(ProxmoxHAGroupSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(ProxmoxHAResourceSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(ProxmoxUserSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(ProxmoxGroupSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(ProxmoxRoleSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(ProxmoxACLSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(
-            ProxmoxFirewallRuleSchema(), common_job_parameters
-        ).run(neo4j_session)
-        GraphJob.from_node_schema(
-            ProxmoxFirewallIPSetSchema(), common_job_parameters
-        ).run(neo4j_session)
-        GraphJob.from_node_schema(
-            ProxmoxCertificateSchema(), common_job_parameters
-        ).run(neo4j_session)
+    # Cleanup all resource types scoped to this cluster
+    GraphJob.from_node_schema(ProxmoxNodeSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(
+        ProxmoxNodeNetworkInterfaceSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(ProxmoxVMSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxDiskSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(
+        ProxmoxNetworkInterfaceSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(ProxmoxStorageSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxPoolSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxBackupJobSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxHAGroupSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxHAResourceSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxUserSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxGroupSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxRoleSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxACLSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxFirewallRuleSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxFirewallIPSetSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(ProxmoxCertificateSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
-        # Note: ProxmoxCluster doesn't need cleanup since it's the tenant root
-        # and has no sub_resource_relationship
+    # Note: ProxmoxCluster doesn't need cleanup since it's the tenant root
+    # and has no sub_resource_relationship
 
-        merge_module_sync_metadata(
-            neo4j_session,
-            group_type="ProxmoxCluster",
-            group_id=cluster_id,
-            synced_type="ProxmoxCluster",
-            update_tag=config.update_tag,
-            stat_handler=stat_handler,
-        )
+    merge_module_sync_metadata(
+        neo4j_session,
+        group_type="ProxmoxCluster",
+        group_id=cluster_id,
+        synced_type="ProxmoxCluster",
+        update_tag=config.update_tag,
+        stat_handler=stat_handler,
+    )
 
-        logger.info("Completed Proxmox infrastructure sync")
-
-    except Exception as e:
-        logger.error(
-            f"Error syncing Proxmox cluster {config.proxmox_host}: {e}", exc_info=True
-        )
-        raise
+    logger.info("Completed Proxmox infrastructure sync")
