@@ -8,6 +8,7 @@ from unittest.mock import patch
 import cartography.intel.proxmox.access
 from tests.data.proxmox.access import MOCK_ACL_DATA
 from tests.data.proxmox.access import MOCK_GROUP_DATA
+from tests.data.proxmox.access import MOCK_GROUP_MEMBERS_DATA
 from tests.data.proxmox.access import MOCK_ROLE_DATA
 from tests.data.proxmox.access import MOCK_USER_DATA
 from tests.integration.util import check_nodes
@@ -27,8 +28,11 @@ TEST_CLUSTER_ID = "test-cluster"
     cartography.intel.proxmox.access, "get_roles", return_value=MOCK_ROLE_DATA
 )
 @patch.object(cartography.intel.proxmox.access, "get_acls", return_value=MOCK_ACL_DATA)
+@patch.object(
+    cartography.intel.proxmox.access, "get_group_members", return_value=MOCK_GROUP_MEMBERS_DATA
+)
 def test_sync_access_control(
-    mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session
+    mock_get_group_members, mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session
 ):
     """
     Test that access control (users, groups, roles, ACLs) sync correctly.
@@ -145,6 +149,9 @@ def test_sync_access_control(
     assert acl_role_rels == [
         ("/", "Administrator"),
         ("/", "Administrator"),
+        ("/nodes/node1", "PVEAuditor"),
+        ("/pool/production", "CustomRole"),
+        ("/storage/local-lvm", "PVEAuditor"),
         ("/vms", "PVEAuditor"),
         ("/vms/100", "CustomRole"),
     ]
@@ -160,6 +167,7 @@ def test_sync_access_control(
     acl_user_rels = [(r["path"], r["userid"]) for r in result]
     assert acl_user_rels == [
         ("/", "root@pam"),
+        ("/pool/production", "admin@pve"),
         ("/vms/100", "readonly@pam"),
     ]
 
@@ -174,6 +182,8 @@ def test_sync_access_control(
     acl_group_rels = [(r["path"], r["groupid"]) for r in result]
     assert acl_group_rels == [
         ("/", "admins"),
+        ("/nodes/node1", "operators"),
+        ("/storage/local-lvm", "auditors"),
         ("/vms", "auditors"),
     ]
 
@@ -199,8 +209,11 @@ def test_sync_access_control(
     cartography.intel.proxmox.access, "get_roles", return_value=MOCK_ROLE_DATA
 )
 @patch.object(cartography.intel.proxmox.access, "get_acls", return_value=MOCK_ACL_DATA)
+@patch.object(
+    cartography.intel.proxmox.access, "get_group_members", return_value=MOCK_GROUP_MEMBERS_DATA
+)
 def test_acl_resource_relationships(
-    mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session
+    mock_get_group_members, mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session
 ):
     """
     Test that ACL-to-resource relationships are created correctly.
@@ -324,8 +337,11 @@ def test_acl_resource_relationships(
     cartography.intel.proxmox.access, "get_roles", return_value=MOCK_ROLE_DATA
 )
 @patch.object(cartography.intel.proxmox.access, "get_acls", return_value=MOCK_ACL_DATA)
+@patch.object(
+    cartography.intel.proxmox.access, "get_group_members", return_value=MOCK_GROUP_MEMBERS_DATA
+)
 def test_effective_permissions(
-    mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session
+    mock_get_group_members, mock_get_acls, mock_get_roles, mock_get_groups, mock_get_users, neo4j_session
 ):
     """
     Test that effective permission relationships are created correctly.

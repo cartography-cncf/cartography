@@ -55,6 +55,41 @@ def get_groups(proxmox_client: Any) -> list[dict[str, Any]]:
 
 
 @timeit
+def get_group_members(proxmox_client: Any, groups: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """
+    Get group membership information for all groups.
+    Returns a mapping of group_id -> list of user_ids.
+
+    This is especially important for SSO users whose group memberships
+    might not be returned in the user API endpoint.
+
+    :param proxmox_client: Proxmox API client
+    :param groups: List of group dicts from get_groups()
+    :return: Dict mapping group IDs to lists of member user IDs
+    """
+    group_members: dict[str, list[str]] = {}
+
+    for group in groups:
+        groupid = group.get("groupid")
+        if not groupid:
+            continue
+
+        try:
+            # Get detailed group info including members
+            group_detail = proxmox_client.access.groups(groupid).get()
+            members = group_detail.get("members", [])
+            if members:
+                # Members is a list of user IDs
+                group_members[groupid] = members
+                logger.debug(f"Group {groupid} has {len(members)} members")
+        except Exception as e:
+            logger.debug(f"Could not get members for group {groupid}: {e}")
+            continue
+
+    return group_members
+
+
+@timeit
 def get_roles(proxmox_client: Any) -> list[dict[str, Any]]:
     """
     Get all roles in the cluster.
@@ -94,6 +129,7 @@ def get_acls(proxmox_client: Any) -> list[dict[str, Any]]:
 def transform_user_data(
     users: list[dict[str, Any]],
     cluster_id: str,
+    group_members: dict[str, list[str]] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Transform user data into standard format.
@@ -104,6 +140,8 @@ def transform_user_data(
 
     :param users: Raw user data from API
     :param cluster_id: Parent cluster ID
+    :param group_members: Optional dict mapping group IDs to member user IDs
+                         (important for SSO users)
     :return: List of transformed user dicts
     """
     transformed_users = []
@@ -112,10 +150,19 @@ def transform_user_data(
         # Required field - use direct access
         userid = user["userid"]
 
-        # Parse groups if they exist
+        # Parse groups if they exist (Proxmox returns comma-separated string)
         groups = []
-        if user.get("groups"):
-            groups = [g.strip() for g in user.get("groups", "").split(",") if g.strip()]
+        groups_str = user.get("groups", "")
+        if groups_str:
+            groups = [g.strip() for g in groups_str.split(",") if g.strip()]
+
+        # Enrich with group memberships from group_members data (important for SSO users)
+        # SSO users often don't have groups in their user record, but groups have member lists
+        if group_members:
+            for groupid, members in group_members.items():
+                if userid in members and groupid not in groups:
+                    groups.append(groupid)
+                    logger.debug(f"Enriched user {userid} with group {groupid} from group membership data")
 
         # Parse tokens if they exist (tokens field contains list)
         tokens = user.get("tokens", [])
@@ -185,10 +232,11 @@ def transform_role_data(
         # Required field
         roleid = role["roleid"]
 
-        # Parse privileges
+        # Parse privileges (Proxmox returns comma-separated string)
         privs = []
-        if role.get("privs"):
-            privs = [p.strip() for p in role.get("privs", "").split(",") if p.strip()]
+        privs_str = role.get("privs", "")
+        if privs_str:
+            privs = [p.strip() for p in privs_str.split(",") if p.strip()]
 
         transformed_roles.append(
             {
@@ -259,8 +307,15 @@ def transform_acl_data(
         # Create unique ID from path + ugid + roleid
         acl_id = f"{path}:{ugid}:{roleid}"
 
-        # Determine principal type (user has @, group doesn't)
-        principal_type = "user" if "@" in ugid else "group"
+        # Determine principal type and extract base user ID for tokens
+        # Proxmox format: groups don't have @, users are user@realm, tokens are user@realm!tokenname
+        if "@" in ugid:
+            principal_type = "user"
+            # For API tokens (user@realm!token), extract base user (user@realm)
+            base_userid = ugid.split("!")[0] if "!" in ugid else ugid
+        else:
+            principal_type = "group"
+            base_userid = ugid
 
         # Parse path to extract resource type and ID
         resource_type, resource_id = _parse_acl_path(path)
@@ -272,6 +327,7 @@ def transform_acl_data(
                 "cluster_id": cluster_id,
                 "roleid": roleid,
                 "ugid": ugid,
+                "base_userid": base_userid,  # Base user ID without token suffix
                 "propagate": bool(acl.get("propagate", True)),
                 "principal_type": principal_type,
                 "resource_type": resource_type,
@@ -406,11 +462,12 @@ def load_acl_principal_relationships(
     group_acls = [acl for acl in acls if acl["principal_type"] == "group"]
 
     # Create relationships to users with rich metadata
+    # Use base_userid to match users correctly (handles API tokens like user@realm!token)
     if user_acls:
         query = """
         UNWIND $ACLs as acl
         MATCH (a:ProxmoxACL{id: acl.id})
-        MATCH (u:ProxmoxUser{userid: acl.ugid})
+        MATCH (u:ProxmoxUser{userid: acl.base_userid})
         MERGE (a)-[r:APPLIES_TO_USER]->(u)
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $UpdateTag,
@@ -670,8 +727,11 @@ def sync(
     roles = get_roles(proxmox_client)
     acls = get_acls(proxmox_client)
 
+    # Get group membership information (important for SSO users)
+    group_members = get_group_members(proxmox_client, groups)
+
     # TRANSFORM - manipulate data for ingestion
-    transformed_users = transform_user_data(users, cluster_id)
+    transformed_users = transform_user_data(users, cluster_id, group_members)
     transformed_groups = transform_group_data(groups, cluster_id)
     transformed_roles = transform_role_data(roles, cluster_id)
     transformed_acls = transform_acl_data(acls, cluster_id)

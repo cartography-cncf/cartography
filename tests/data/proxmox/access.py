@@ -114,3 +114,9 @@ MOCK_ACL_DATA = [
         "propagate": 0,
     },
 ]
+
+MOCK_GROUP_MEMBERS_DATA = {
+    "admins": ["root@pam", "admin@pve"],
+    "operators": ["root@pam"],
+    "auditors": ["readonly@pam"],
+}

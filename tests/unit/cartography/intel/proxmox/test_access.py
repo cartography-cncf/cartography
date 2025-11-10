@@ -27,14 +27,28 @@ def test_transform_user_data():
             "expire": 1735689600,
             "email": "test@example.com",
         },
+        {
+            "userid": "sso_user@entraid",
+            "enable": 1,
+            "expire": 0,
+            "email": "sso@example.com",
+            "comment": "SSO user",
+            "groups": "",  # Empty groups for SSO users
+        },
     ]
 
+    group_members = {
+        "admins": ["root@pam"],
+        "operators": ["root@pam"],
+        "sso_group": ["sso_user@entraid"],
+    }
+
     cluster_id = "test-cluster"
-    result = transform_user_data(raw_users, cluster_id)
+    result = transform_user_data(raw_users, cluster_id, group_members)
 
-    assert len(result) == 2
+    assert len(result) == 3
 
-    # Test root user
+    # Test root user (groups from user data string)
     root = next(u for u in result if u["userid"] == "root@pam")
     assert root["id"] == "root@pam"
     assert root["enable"] is True
@@ -45,12 +59,18 @@ def test_transform_user_data():
     assert root["groups"] == ["admins", "operators"]
     assert root["cluster_id"] == cluster_id
 
-    # Test user with minimal fields
+    # Test user with minimal fields (no groups)
     test_user = next(u for u in result if u["userid"] == "test@pve")
     assert test_user["enable"] is False
     assert test_user["expire"] == 1735689600
     assert test_user["firstname"] is None
     assert test_user["groups"] == []
+
+    # Test SSO user (groups enriched from group_members)
+    sso_user = next(u for u in result if u["userid"] == "sso_user@entraid")
+    assert sso_user["enable"] is True
+    assert sso_user["groups"] == ["sso_group"]  # Enriched from group_members
+    assert sso_user["email"] == "sso@example.com"
 
 
 def test_transform_group_data():
