@@ -1,7 +1,9 @@
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
+from cartography.intel.github.repos import transform
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
+from tests.data.github.repos import GET_REPOS
 
 TEST_UPDATE_TAG = 123456789
 
@@ -120,3 +122,16 @@ def test_create_git_url_from_ssh_url():
     expected_nested = "git://github.com/user/nested/path/repo.git"
     result_nested = _create_git_url_from_ssh_url(ssh_url_nested)
     assert result_nested == expected_nested
+
+
+def test_transform_skips_null_repository_entries():
+    repo_with_collab_counts = GET_REPOS[0]
+
+    result = transform(
+        [None, repo_with_collab_counts],
+        {repo_with_collab_counts["url"]: []},
+        {repo_with_collab_counts["url"]: []},
+    )
+
+    assert len(result["repos"]) == 1
+    assert result["repos"][0]["id"] == repo_with_collab_counts["url"]

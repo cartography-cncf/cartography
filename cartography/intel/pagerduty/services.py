@@ -7,6 +7,7 @@ import dateutil.parser
 import neo4j
 from pdpyras import APISession
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -96,7 +97,8 @@ def load_service_data(
             for team in service["teams"]:
                 team_relations.append({"service": service["id"], "team": team["id"]})
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Services=data,
         update_tag=update_tag,
@@ -120,7 +122,8 @@ def _attach_teams(
         MERGE (t)-[r:ASSOCIATED_WITH]->(s)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,
@@ -162,7 +165,8 @@ def load_integration_data(
         created_at = dateutil.parser.parse(integration["created_at"])
         integration["created_at"] = int(created_at.timestamp())
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Integrations=data,
         update_tag=update_tag,
