@@ -1436,7 +1436,7 @@ Representation of an Azure Synapse [Managed Private Endpoint](https://learn.micr
   - A Managed Private Endpoint is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(AzureSynapseManagedPrivateEndpoint)
-    
+
 ### AzureSecurityAssessment
 
 Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
