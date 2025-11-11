@@ -1307,6 +1307,7 @@ Representation of a key-value tag applied to an Azure resource. Tags with the sa
 
 | Field | Description |
 |---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
 | id | Unique identifier for the tag, formatted as `{key}:{value}`. |
 | key | The tag name (e.g., `Environment`). |
 | value | The tag value (e.g., `Production`). |
