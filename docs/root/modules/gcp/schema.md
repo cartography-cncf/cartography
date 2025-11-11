@@ -855,7 +855,7 @@ Representation of a GCP [Cloud Run Domain Mapping](https://cloud.google.com/run/
     ```
     (GCPCloudRunDomainMapping)-[:POINTS_TO_SERVICE]->(GCPCloudRunService)
     ```
-    
+
 ### GCPBigtableInstance
 
 Representation of a GCP [Bigtable Instance](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances).
