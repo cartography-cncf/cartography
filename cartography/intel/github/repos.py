@@ -14,6 +14,7 @@ from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
+from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all
@@ -887,7 +888,7 @@ def load_github_repos(
             UpdateTag=update_tag,
         ).consume()
 
-    neo4j_session.execute_write(_ingest_repos_tx)
+    execute_write_with_retry(neo4j_session, _ingest_repos_tx)
 
 
 @timeit
@@ -924,7 +925,7 @@ def load_github_languages(
             UpdateTag=update_tag,
         ).consume()
 
-    neo4j_session.execute_write(_ingest_languages_tx)
+    execute_write_with_retry(neo4j_session, _ingest_languages_tx)
 
 
 @timeit
@@ -972,7 +973,8 @@ def load_github_owners(
         ).consume()
 
     for owner in repo_owners:
-        neo4j_session.execute_write(
+        execute_write_with_retry(
+            neo4j_session,
             _ingest_owner_tx,
             owner,
             account_type[owner["type"]],
@@ -1020,7 +1022,8 @@ def load_collaborators(
 
     for collab_type, collab_data in collaborators.items():
         relationship_label = f"{affiliation}_COLLAB_{collab_type}"
-        neo4j_session.execute_write(
+        execute_write_with_retry(
+            neo4j_session,
             _ingest_collaborators_tx,
             relationship_label,
             collab_data,
@@ -1056,7 +1059,7 @@ def load_python_requirements(
             UpdateTag=update_tag,
         ).consume()
 
-    neo4j_session.execute_write(_ingest_requirements_tx)
+    execute_write_with_retry(neo4j_session, _ingest_requirements_tx)
 
 
 @timeit

@@ -1,13 +1,18 @@
 import logging
+import time
+from functools import partial
 from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import TypeVar
 from typing import Union
 
 import backoff
 import neo4j
+import neo4j.exceptions
 
 from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
@@ -19,6 +24,156 @@ from cartography.util import backoff_handler
 from cartography.util import batch
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+_MAX_NETWORK_RETRIES = 5
+_MAX_ENTITY_NOT_FOUND_RETRIES = 5
+_NETWORK_EXCEPTIONS: tuple[type[BaseException], ...] = (
+    ConnectionResetError,
+    neo4j.exceptions.ServiceUnavailable,
+    neo4j.exceptions.SessionExpired,
+    neo4j.exceptions.TransientError,
+)
+
+
+def _is_retryable_client_error(exc: Exception) -> bool:
+    """
+    Determine if a ClientError should be retried.
+
+    EntityNotFound during concurrent write operations is a known transient error in Neo4j
+    that occurs due to the database's query execution pipeline design. When multiple threads
+    run concurrent MERGE/DELETE operations, one thread can delete an entity that another
+    thread has already referenced but hasn't locked yet.
+
+    Neo4j maintainers explicitly recommend retrying EntityNotFound errors during
+    multi-threaded operations, even though the driver classifies it as a non-retryable
+    ClientError. See: https://github.com/neo4j/neo4j/issues/6823
+
+    This is particularly common in Cartography when:
+    - Multiple providers sync concurrently (e.g., AWS + GCP + Okta)
+    - Large batch sizes (10,000 nodes per transaction) are used
+    - Page cache evictions occur under memory pressure (especially in Aura)
+    - Concurrent MERGE and DETACH DELETE operations overlap
+
+    :param exc: The exception to check
+    :return: True if this is a retryable ClientError (EntityNotFound), False otherwise
+    """
+    if not isinstance(exc, neo4j.exceptions.ClientError):
+        return False
+
+    # Only retry EntityNotFound errors - all other ClientErrors are permanent failures
+    # Note: exc.code can be None for locally-created errors (per neo4j driver docs)
+    code = exc.code
+    if code is None:
+        return False
+    return code == "Neo.ClientError.Statement.EntityNotFound"
+
+
+def _entity_not_found_backoff_handler(details: Dict) -> None:
+    """
+    Custom backoff handler that provides enhanced logging for EntityNotFound retries.
+
+    This handler logs additional context when retrying EntityNotFound errors to help
+    diagnose concurrent write issues and page cache pressure in Neo4j.
+
+    :param details: Backoff details dict containing 'exception', 'wait', 'tries', 'target'
+    """
+    exc = details.get("exception")
+    if isinstance(exc, Exception) and _is_retryable_client_error(exc):
+        wait = details.get("wait")
+        wait_str = f"{wait:0.1f}" if wait is not None else "unknown"
+        tries = details.get("tries", 0)
+
+        if tries == 1:
+            log_msg = (
+                f"Encountered EntityNotFound error (attempt 1/{_MAX_ENTITY_NOT_FOUND_RETRIES}). "
+                f"This is expected during concurrent write operations. "
+                f"Retrying after {wait_str} seconds backoff. "
+                f"Function: {details.get('target')}. Error: {details.get('exception')}"
+            )
+        else:
+            log_msg = (
+                f"EntityNotFound retry {tries}/{_MAX_ENTITY_NOT_FOUND_RETRIES}. "
+                f"Backing off {wait_str} seconds before next attempt. "
+                f"Function: {details.get('target')}. Error: {details.get('exception')}"
+            )
+
+        logger.warning(log_msg)
+    else:
+        # Fall back to standard backoff handler for other errors
+        backoff_handler(details)
+
+
+def _run_with_retry(operation: Callable[[], T], target: str) -> T:
+    """
+    Execute the supplied callable with retry logic for transient network errors and
+    EntityNotFound ClientErrors.
+    """
+    network_attempts = 0
+    entity_attempts = 0
+    network_wait = backoff.expo()
+    entity_wait = backoff.expo()
+
+    while True:
+        try:
+            result = operation()
+            # Log success if we recovered from errors
+            if network_attempts > 0:
+                logger.info(
+                    f"Successfully recovered from network error after {network_attempts} "
+                    f"{'retry' if network_attempts == 1 else 'retries'}. Function: {target}"
+                )
+            if entity_attempts > 0:
+                logger.info(
+                    f"Successfully recovered from EntityNotFound error after {entity_attempts} "
+                    f"{'retry' if entity_attempts == 1 else 'retries'}. Function: {target}"
+                )
+            return result
+        except _NETWORK_EXCEPTIONS as exc:
+            if network_attempts >= _MAX_NETWORK_RETRIES - 1:
+                raise
+            network_attempts += 1
+            wait = next(network_wait)
+            if wait is None:
+                logger.error(
+                    f"Unexpected: backoff generator returned None for wait time. "
+                    f"target={target}, attempts={network_attempts}, exc={exc}"
+                )
+                wait = 1.0  # Fallback to 1 second wait
+            backoff_handler(
+                {
+                    "exception": exc,
+                    "target": target,
+                    "tries": network_attempts,
+                    "wait": wait,
+                }
+            )
+            time.sleep(wait)
+            continue
+        except neo4j.exceptions.ClientError as exc:
+            if not _is_retryable_client_error(exc):
+                raise
+            if entity_attempts >= _MAX_ENTITY_NOT_FOUND_RETRIES - 1:
+                raise
+            entity_attempts += 1
+            wait = next(entity_wait)
+            if wait is None:
+                logger.error(
+                    f"Unexpected: backoff generator returned None for wait time. "
+                    f"target={target}, attempts={entity_attempts}, exc={exc}"
+                )
+                wait = 1.0  # Fallback to 1 second wait
+            _entity_not_found_backoff_handler(
+                {
+                    "exception": exc,
+                    "target": target,
+                    "tries": entity_attempts,
+                    "wait": wait,
+                }
+            )
+            time.sleep(wait)
+            continue
 
 
 @backoff.on_exception(  # type: ignore
@@ -40,15 +195,70 @@ def _run_index_query_with_retry(neo4j_session: neo4j.Session, query: str) -> Non
     neo4j_session.run(query)
 
 
+def execute_write_with_retry(
+    neo4j_session: neo4j.Session,
+    tx_func: Any,
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
+    """
+    Execute a custom transaction function with retry logic for transient errors.
+
+    This is a generic wrapper for any custom transaction function that needs retry logic
+    for EntityNotFound and other transient errors. Use this when you have complex
+    transaction logic that doesn't fit the standard load_graph_data pattern.
+
+    Example usage:
+        def my_custom_tx(tx, data_list, update_tag):
+            for item in data_list:
+                tx.run(query, **item).consume()
+
+        execute_write_with_retry(
+            neo4j_session,
+            my_custom_tx,
+            data_list,
+            update_tag
+        )
+
+    :param neo4j_session: The Neo4j session
+    :param tx_func: The transaction function to execute (takes neo4j.Transaction as first arg)
+    :param args: Positional arguments to pass to tx_func
+    :param kwargs: Keyword arguments to pass to tx_func
+    :return: The return value of tx_func
+    """
+
+    target = getattr(tx_func, "__qualname__", repr(tx_func))
+    operation = partial(neo4j_session.execute_write, tx_func, *args, **kwargs)
+    return _run_with_retry(operation, target)
+
+
 def run_write_query(
     neo4j_session: neo4j.Session, query: str, **parameters: Any
 ) -> None:
-    """Execute a write query inside a managed transaction."""
+    """
+    Execute a write query inside a managed transaction with retry logic.
+
+    This function now includes retry logic for:
+    - Network errors (ConnectionResetError)
+    - Service unavailability (ServiceUnavailable, SessionExpired)
+    - Transient database errors (TransientError)
+    - EntityNotFound errors during concurrent operations (specific ClientError)
+
+    Used by intel modules that run manual transactions (e.g., GCP firewalls, AWS resources).
+
+    :param neo4j_session: The Neo4j session
+    :param query: The Cypher query to execute
+    :param parameters: Parameters to pass to the query
+    :return: None
+    """
 
     def _run_query_tx(tx: neo4j.Transaction) -> None:
         tx.run(query, **parameters).consume()
 
-    neo4j_session.execute_write(_run_query_tx)
+    def _operation() -> None:
+        neo4j_session.execute_write(_run_query_tx)
+
+    _run_with_retry(_operation, _run_query_tx.__qualname__)
 
 
 def read_list_of_values_tx(
@@ -222,7 +432,7 @@ def write_list_of_dicts_tx(
         neo4j_driver = neo4j.driver(... args ...)
         neo4j_session = neo4j_driver.Session(... args ...)
 
-        neo4j_session.write_transaction(
+        neo4j_session.execute_write(
             write_list_of_dicts_tx,
             '''
             UNWIND $DictList as data
@@ -242,7 +452,7 @@ def write_list_of_dicts_tx(
     :param kwargs: Keyword args to be supplied to the Neo4j query.
     :return: None
     """
-    tx.run(query, kwargs)
+    tx.run(query, kwargs).consume()
 
 
 def load_graph_data(
@@ -253,7 +463,18 @@ def load_graph_data(
     **kwargs,
 ) -> None:
     """
-    Writes data to the graph.
+    Writes data to the graph with retry logic for transient errors.
+
+    This function handles retries for:
+    - Network errors (ConnectionResetError)
+    - Service unavailability (ServiceUnavailable, SessionExpired)
+    - Transient database errors (TransientError)
+    - EntityNotFound errors during concurrent operations (ClientError with specific code)
+
+    EntityNotFound errors are retried because they commonly occur during concurrent
+    write operations when multiple threads access the same node space. This is expected
+    behavior in Neo4j's query execution pipeline, not a permanent failure.
+
     :param neo4j_session: The Neo4j session
     :param query: The Neo4j write query to run. This query is not meant to be handwritten, rather it should be generated
     with cartography.graph.querybuilder.build_ingestion_query().
@@ -264,8 +485,10 @@ def load_graph_data(
     """
     if batch_size <= 0:
         raise ValueError(f"batch_size must be greater than 0, got {batch_size}")
+
     for data_batch in batch(dict_list, size=batch_size):
-        neo4j_session.write_transaction(
+        execute_write_with_retry(
+            neo4j_session,
             write_list_of_dicts_tx,
             query,
             DictList=data_batch,

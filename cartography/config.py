@@ -185,7 +185,11 @@ class Config:
     :type spacelift_api_endpoint: string
     :param spacelift_api_endpoint: Spacelift GraphQL API endpoint. Optional.
     :type spacelift_api_token: string
-    :param spacelift_api_token: Spacelift API token for authentication. Optional.
+    :param spacelift_api_token: Spacelift API token for authentication. Optional (can use API key instead).
+    :type spacelift_api_key_id: string
+    :param spacelift_api_key_id: Spacelift API key ID for token exchange authentication. Optional (alternative to token).
+    :type spacelift_api_key_secret: string
+    :param spacelift_api_key_secret: Spacelift API key secret for token exchange authentication. Optional (alternative to token).
     :type spacelift_ec2_ownership_s3_bucket: string
     :param spacelift_ec2_ownership_s3_bucket: S3 bucket name containing EC2 ownership data from Athena. Optional.
     :type spacelift_ec2_ownership_s3_prefix: string
@@ -293,6 +297,8 @@ class Config:
         sentinelone_account_ids=None,
         spacelift_api_endpoint=None,
         spacelift_api_token=None,
+        spacelift_api_key_id=None,
+        spacelift_api_key_secret=None,
         spacelift_ec2_ownership_s3_bucket=None,
         spacelift_ec2_ownership_s3_prefix=None,
         keycloak_client_id=None,
@@ -393,6 +399,8 @@ class Config:
         self.sentinelone_account_ids = sentinelone_account_ids
         self.spacelift_api_endpoint = spacelift_api_endpoint
         self.spacelift_api_token = spacelift_api_token
+        self.spacelift_api_key_id = spacelift_api_key_id
+        self.spacelift_api_key_secret = spacelift_api_key_secret
         self.spacelift_ec2_ownership_s3_bucket = spacelift_ec2_ownership_s3_bucket
         self.spacelift_ec2_ownership_s3_prefix = spacelift_ec2_ownership_s3_prefix
         self.keycloak_client_id = keycloak_client_id

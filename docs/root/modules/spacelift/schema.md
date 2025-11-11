@@ -23,6 +23,8 @@ R -- AFFECTS --> EC2(EC2Instance)
 
 U -- HAS_ROLE_IN --> S
 C -- CONFIRMED --> U
+
+GH(GitHubUser) -- PUSHED --> C
 ```
 
 ### SpaceliftAccount
@@ -34,7 +36,7 @@ Representation of a single Spacelift Account (organization). This node represent
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | id | The unique account ID within Spacelift |
-| account_id | The account identifier (same as id, included for compatibility) |
+| spacelift_account_id | The Spacelift account identifier |
 | name | Display name of the Spacelift account |
 
 #### Relationships
@@ -63,8 +65,8 @@ Representation of an organizational container within Spacelift. Spaces can conta
 | name | Name of the space |
 | description | Description of the space |
 | is_root | Whether this is a root space (belongs directly to account) |
-| account_id | ID of the account this space belongs to |
-| parent_account_id | ID of the parent account (set only for root spaces) |
+| spacelift_account_id | ID of the Spacelift account this space belongs to |
+| parent_spacelift_account_id | ID of the parent Spacelift account (set only for root spaces) |
 | parent_space_id | ID of the parent space (set only for child spaces) |
 
 #### Relationships
@@ -142,7 +144,7 @@ Representation of the fundamental building block of Spacelift infrastructure man
 | branch | Git branch the stack monitors |
 | project_root | Directory in repo containing infrastructure code |
 | space_id | ID of the space this stack belongs to |
-| account_id | ID of the account this stack belongs to |
+| spacelift_account_id | ID of the Spacelift account this stack belongs to |
 
 #### Relationships
 
@@ -177,7 +179,7 @@ Representation of a collection of workers that execute Spacelift runs. Worker po
 | description | Description of the worker pool |
 | pool_type | Type of worker pool (e.g., "public", "private") |
 | space_id | ID of the space this worker pool belongs to |
-| account_id | ID of the account this worker pool belongs to |
+| spacelift_account_id | ID of the Spacelift account this worker pool belongs to |
 
 #### Relationships
 
@@ -211,7 +213,7 @@ Representation of a logical execution unit that processes runs. Workers are comp
 | name | Name of the worker |
 | status | Current status of the worker |
 | worker_pool_id | ID of the worker pool this worker belongs to |
-| account_id | ID of the account this worker belongs to |
+| spacelift_account_id | ID of the Spacelift account this worker belongs to |
 
 #### Relationships
 
@@ -249,7 +251,7 @@ Representation of a job that can touch infrastructure. It is the execution insta
 | created_at | Timestamp when the run was created |
 | stack_id | ID of the stack this run belongs to |
 | triggered_by_user_id | ID of the user who triggered this run |
-| account_id | ID of the account this run belongs to |
+| spacelift_account_id | ID of the Spacelift account this run belongs to |
 
 #### Relationships
 
@@ -346,3 +348,11 @@ Representation of a Git commit that triggered a Spacelift run. It contains metad
     ```
     (SpaceliftGitCommit)-[COMMITTED]->(SpaceliftRun)
     ```
+
+- GitHubUsers can be linked to the commits they authored:
+
+    ```
+    (GitHubUser)-[PUSHED]->(SpaceliftGitCommit)
+    ```
+
+    This relationship links GitHub users to commits deployed via Spacelift by matching `GitHubUser.username` with `SpaceliftGitCommit.author_login`. It provides full traceability from infrastructure changes back to the developers who wrote the code.

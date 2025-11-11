@@ -872,7 +872,27 @@ class CLI:
             default="SPACELIFT_API_TOKEN",
             help=(
                 "The name of an environment variable containing the Spacelift API token. "
-                "Required if you are using the Spacelift intel module. Ignored otherwise."
+                "Alternative to using API key ID/secret. Ignored if API key credentials are provided."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-key-id-env-var",
+            type=str,
+            default="SPACELIFT_API_KEY_ID",
+            help=(
+                "The name of an environment variable containing the Spacelift API key ID. "
+                "Use with --spacelift-api-key-secret-env-var for automatic token exchange. "
+                "Alternative to providing a pre-generated token."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-key-secret-env-var",
+            type=str,
+            default="SPACELIFT_API_KEY_SECRET",
+            help=(
+                "The name of an environment variable containing the Spacelift API key secret. "
+                "Use with --spacelift-api-key-id-env-var for automatic token exchange. "
+                "Alternative to providing a pre-generated token."
             ),
         )
         parser.add_argument(
@@ -1289,15 +1309,42 @@ class CLI:
         if not config.spacelift_api_endpoint:
             config.spacelift_api_endpoint = os.environ.get("SPACELIFT_API_ENDPOINT")
 
-        if config.spacelift_api_endpoint and config.spacelift_api_token_env_var:
-            logger.debug(
-                f"Reading API token for Spacelift from environment variable {config.spacelift_api_token_env_var}",
-            )
-            config.spacelift_api_token = os.environ.get(
-                config.spacelift_api_token_env_var
-            )
+        if config.spacelift_api_endpoint:
+            # Try to read API token
+            if config.spacelift_api_token_env_var:
+                logger.debug(
+                    f"Reading API token for Spacelift from environment variable {config.spacelift_api_token_env_var}",
+                )
+                config.spacelift_api_token = os.environ.get(
+                    config.spacelift_api_token_env_var
+                )
+            else:
+                config.spacelift_api_token = None
+
+            # Try to read API key ID and secret
+            if config.spacelift_api_key_id_env_var:
+                logger.debug(
+                    f"Reading API key ID for Spacelift from environment variable {config.spacelift_api_key_id_env_var}",
+                )
+                config.spacelift_api_key_id = os.environ.get(
+                    config.spacelift_api_key_id_env_var
+                )
+            else:
+                config.spacelift_api_key_id = None
+
+            if config.spacelift_api_key_secret_env_var:
+                logger.debug(
+                    f"Reading API key secret for Spacelift from environment variable {config.spacelift_api_key_secret_env_var}",
+                )
+                config.spacelift_api_key_secret = os.environ.get(
+                    config.spacelift_api_key_secret_env_var
+                )
+            else:
+                config.spacelift_api_key_secret = None
         else:
             config.spacelift_api_token = None
+            config.spacelift_api_key_id = None
+            config.spacelift_api_key_secret = None
 
         # Run cartography
         try:

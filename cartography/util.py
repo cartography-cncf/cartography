@@ -266,12 +266,29 @@ AWSGetFunc = TypeVar("AWSGetFunc", bound=Callable[..., Iterable])
 
 def backoff_handler(details: Dict) -> None:
     """
-    Handler that will be executed on exception by backoff mechanism
+    Handler that will be executed on exception by backoff mechanism.
+
+    The backoff library may provide partial details (e.g. ``wait`` can be ``None`` when a
+    retry is triggered immediately). Format the message defensively so logging never raises.
     """
+    wait = details.get("wait")
+    if isinstance(wait, (int, float)):
+        wait_display = f"{wait:0.1f}"
+    elif wait is None:
+        wait_display = "unknown"
+    else:
+        wait_display = str(wait)
+
+    tries = details.get("tries")
+    tries_display = str(tries) if tries is not None else "unknown"
+
+    target = details.get("target", "<unknown>")
+
     logger.warning(
-        "Backing off {wait:0.1f} seconds after {tries} tries. Calling function {target}".format(
-            **details,
-        ),
+        "Backing off %s seconds after %s tries. Calling function %s",
+        wait_display,
+        tries_display,
+        target,
     )
 
 
