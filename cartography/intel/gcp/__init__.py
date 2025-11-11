@@ -18,6 +18,12 @@ from cartography.intel.gcp import bigtable_backup
 from cartography.intel.gcp import bigtable_cluster
 from cartography.intel.gcp import bigtable_instance
 from cartography.intel.gcp import bigtable_table
+from cartography.intel.gcp import cloud_run_domain_mapping
+from cartography.intel.gcp import cloud_run_execution
+from cartography.intel.gcp import cloud_run_job
+from cartography.intel.gcp import cloud_run_locations
+from cartography.intel.gcp import cloud_run_revision
+from cartography.intel.gcp import cloud_run_service
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
@@ -37,8 +43,9 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam bigtable")
+Services = namedtuple("Services", "cloud_run compute storage gke dns iam bigtable")
 service_names = Services(
+    cloud_run="run.googleapis.com",
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
     gke="container.googleapis.com",
@@ -212,6 +219,72 @@ def _sync_project_resources(
                         gcp_update_tag,
                         common_job_parameters,
                     )
+
+        if service_names.cloud_run in enabled_services:
+            logger.info(f"Syncing GCP project {project_id} for Cloud Run.")
+            run_client_v1 = build_client("run", "v1")
+            run_client_v2 = build_client("run", "v2")
+            locations = cloud_run_locations.get_cloud_run_locations(
+                run_client_v1, project_id
+            )
+            if not locations:
+                logger.info(f"No Cloud Run locations found for project {project_id}.")
+                cloud_run_service.cleanup_cloud_run_services(
+                    neo4j_session, common_job_parameters
+                )
+                cloud_run_job.cleanup_cloud_run_jobs(
+                    neo4j_session, common_job_parameters
+                )
+                cloud_run_domain_mapping.cleanup_cloud_run_domain_mappings(
+                    neo4j_session, common_job_parameters
+                )
+                cloud_run_revision.cleanup_cloud_run_revisions(
+                    neo4j_session, common_job_parameters
+                )
+                cloud_run_execution.cleanup_cloud_run_executions(
+                    neo4j_session, common_job_parameters
+                )
+            else:
+                services_raw = cloud_run_service.sync_cloud_run_services(
+                    neo4j_session,
+                    run_client_v2,
+                    locations,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+                jobs_raw = cloud_run_job.sync_cloud_run_jobs(
+                    neo4j_session,
+                    run_client_v2,
+                    locations,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+                cloud_run_domain_mapping.sync_cloud_run_domain_mappings(
+                    neo4j_session,
+                    run_client_v1,
+                    locations,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+                cloud_run_revision.sync_cloud_run_revisions(
+                    neo4j_session,
+                    run_client_v2,
+                    services_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+                cloud_run_execution.sync_cloud_run_executions(
+                    neo4j_session,
+                    run_client_v2,
+                    jobs_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         del common_job_parameters["PROJECT_ID"]
 
