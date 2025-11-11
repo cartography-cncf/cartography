@@ -2,7 +2,6 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.core.exceptions import HttpResponseError
 from azure.mgmt.network import NetworkManagementClient
 
 from cartography.client.core.tx import load
@@ -35,14 +34,7 @@ def get_virtual_networks(client: NetworkManagementClient) -> list[dict]:
     """
     Get a list of all Virtual Networks in a subscription.
     """
-    try:
-        return [vnet.as_dict() for vnet in client.virtual_networks.list_all()]
-    except HttpResponseError:
-        logger.warning(
-            "Failed to get Virtual Networks due to a transient error.",
-            exc_info=True,
-        )
-        return []
+    return [vnet.as_dict() for vnet in client.virtual_networks.list_all()]
 
 
 @timeit
@@ -52,14 +44,7 @@ def get_subnets(
     """
     Get subnets for a single Virtual Network. This is a transient, per-resource call.
     """
-    try:
-        return [subnet.as_dict() for subnet in client.subnets.list(rg_name, vnet_name)]
-    except HttpResponseError:
-        logger.warning(
-            f"Failed to get subnets for VNet {vnet_name} due to a transient error.",
-            exc_info=True,
-        )
-        return []
+    return [subnet.as_dict() for subnet in client.subnets.list(rg_name, vnet_name)]
 
 
 @timeit
@@ -67,11 +52,7 @@ def get_network_security_groups(client: NetworkManagementClient) -> list[dict]:
     """
     Get a list of all Network Security Groups in a subscription.
     """
-    try:
-        return [nsg.as_dict() for nsg in client.network_security_groups.list_all()]
-    except HttpResponseError as e:
-        logger.warning(f"Failed to get Network Security Groups: {str(e)}")
-        return []
+    return [nsg.as_dict() for nsg in client.network_security_groups.list_all()]
 
 
 def transform_virtual_networks(vnets: list[dict]) -> list[dict]:
