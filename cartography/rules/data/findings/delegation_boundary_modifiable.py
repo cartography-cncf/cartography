@@ -59,6 +59,6 @@ delegation_boundary_modifiable = Finding(
         "allowing cross-account or lateral impersonation paths."
     ),
     facts=(_aws_trust_relationship_manipulation,),
-    tags=("iam", "trust", "assumerole", "privilege_escalation"),
+    tags=("iam", "privilege_escalation"),
     version="0.1.0",
 )

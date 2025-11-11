@@ -4,8 +4,8 @@ from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
 # Facts
-_unmanaged_account_ontology = Fact(
-    id="unmanaged-account-ontology",
+_unmanaged_accounts_ontology = Fact(
+    id="unmanaged-accounts-ontology",
     name="User accounts not linked to a user identity",
     description="Finds user accounts that are not linked to an ontology user node.",
     cypher_query="""
@@ -19,11 +19,11 @@ _unmanaged_account_ontology = Fact(
 
 
 # Finding
-unmanaged_account = Finding(
+unmanaged_accounts = Finding(
     id="unmanaged-account",
     name="User accounts not linked to a user identity",
     description="Detects user accounts that do not have Multi-Factor Authentication enabled.",
-    tags=("identity",),
-    facts=(_unmanaged_account_ontology,),
+    tags=("identity", "iam", "compliance"),
+    facts=(_unmanaged_accounts_ontology,),
     version="0.1.0",
 )

@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -88,41 +87,6 @@ class Finding:
     """The Facts that contribute to this Finding."""
     references: tuple[str, ...] = ()
     """References or links to external resources related to the Finding."""
-
-    # WIP: to rework
-    def parse_results(self, fact_results: list[dict[str, Any]]) -> list:
-        # DOC
-        for row in fact_results:
-            print("Raw finding result row: %s", row)
-
-        """
-
-
-
-        # DOC
-        result: list[FindingOutput] = []
-        for result_item in fact_results:
-            parsed_output: dict[str, Any] = {"extra": {}, "source": None}
-            for key, value in result_item.items():
-                if key == "_source":
-                    parsed_output["source"] = value
-                elif key not in self.output_model.model_fields and value is not None:
-                    parsed_output["extra"][key] = value
-                else:
-                    parsed_output[key] = value
-            try:
-                # Try to parse normally
-                result.append(self.output_model(**parsed_output))
-            except ValidationError as e:
-                # Handle validation errors
-                logger.warning(
-                    "Validation error parsing finding output for finding %s: %s",
-                    self.id,
-                    e,
-                )
-        return result
-        """
-        return []
 
     @property
     def modules(self) -> set[Module]:

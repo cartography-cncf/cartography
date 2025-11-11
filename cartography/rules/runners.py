@@ -8,8 +8,8 @@ from neo4j import Driver
 from neo4j import GraphDatabase
 
 from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.models.core.model import extract_entities_from_query
 from cartography.rules.data.findings import FINDINGS
-from cartography.rules.formatters import _extract_entity_mappings
 from cartography.rules.formatters import _format_and_output_results
 from cartography.rules.formatters import _generate_neo4j_browser_url
 from cartography.rules.spec.model import Fact
@@ -51,7 +51,7 @@ def _run_fact(
         matches = session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
         matches_count = len(matches)
 
-    result_model = _extract_entity_mappings(fact.cypher_query)
+    result_model = extract_entities_from_query(fact.cypher_query)
 
     if output_format == "text":
         if matches_count > 0:

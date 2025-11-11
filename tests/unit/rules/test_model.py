@@ -1,4 +1,3 @@
-from cartography.rules.data.findings import FINDINGS
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import MODULE_TO_CARTOGRAPHY_INTEL
 from cartography.sync import TOP_LEVEL_MODULES
@@ -50,4 +49,3 @@ def test_mapping_values_exists():
         assert (
             intel_name in TOP_LEVEL_MODULES
         ), f"Value for {module} ('{intel_name}') should be a valid Cartography INTEL module"
-

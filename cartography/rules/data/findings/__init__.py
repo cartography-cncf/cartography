@@ -15,7 +15,7 @@ from cartography.rules.data.findings.object_storage_public import object_storage
 from cartography.rules.data.findings.policy_administration_privileges import (
     policy_administration_privileges,
 )
-from cartography.rules.data.findings.unmanaged_account import unmanaged_account
+from cartography.rules.data.findings.unmanaged_accounts import unmanaged_accounts
 from cartography.rules.data.findings.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
 )
@@ -29,6 +29,6 @@ FINDINGS = {
     missing_mfa_finding.id: missing_mfa_finding,
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
-    unmanaged_account.id: unmanaged_account,
+    unmanaged_accounts.id: unmanaged_accounts,
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
 }
