@@ -2,8 +2,6 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.core.exceptions import ClientAuthenticationError
-from azure.core.exceptions import HttpResponseError
 from azure.mgmt.eventgrid import EventGridManagementClient
 
 from cartography.client.core.tx import load
@@ -21,17 +19,10 @@ def get_event_grid_topics(credentials: Credentials, subscription_id: str) -> lis
     """
     Get a list of Event Grid Topics from the given Azure subscription.
     """
-    try:
-        client = EventGridManagementClient(credentials.credential, subscription_id)
-        return [topic.as_dict() for topic in client.topics.list_by_subscription()]
-    except (ClientAuthenticationError, HttpResponseError) as e:
-        logger.warning(
-            f"Failed to get Event Grid topics for subscription {subscription_id}: {str(e)}"
-        )
-        return []
+    client = EventGridManagementClient(credentials.credential, subscription_id)
+    return [topic.as_dict() for topic in client.topics.list_by_subscription()]
 
 
-@timeit
 def transform_event_grid_topics(topics_response: list[dict]) -> list[dict]:
     """
     Transform the raw API response to the dictionary structure that the model expects.
