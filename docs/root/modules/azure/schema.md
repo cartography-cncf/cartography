@@ -1363,7 +1363,7 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityGroup)
     ```
-    
+
 ### AzureSecurityAssessment
 
 Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).

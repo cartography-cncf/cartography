@@ -14,8 +14,8 @@ from . import cosmosdb
 from . import data_lake
 from . import functions
 from . import logic_apps
-from . import network
 from . import monitor
+from . import network
 from . import permission_relationships
 from . import rbac
 from . import resource_groups
