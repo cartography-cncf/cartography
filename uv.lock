@@ -487,6 +487,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-network"
+version = "30.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-mgmt-core" },
+    { name = "msrest" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/83/27/d767e68c48b46ecfa59b20c14a1a7fc32d32614e35ea6efc154bd015f53f/azure_mgmt_network-30.0.0.tar.gz", hash = "sha256:117ee4ea18668c1318c869eff2445bbad06f0f4094f83c533e0191b41dc6dd1f", size = 689658 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/f0/572d40e3bc052a18c56ec9d8ce257fcb282577212f3dd4b6004096147c35/azure_mgmt_network-30.0.0-py3-none-any.whl", hash = "sha256:df93640f9782a734a1c217bd79817eb025bf8e3b6dea5ac5ef508ed08a8dc8e1", size = 614013 },
+]
+
+[[package]]
 name = "azure-mgmt-resource"
 version = "24.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -697,7 +711,7 @@ wheels = [
 
 [[package]]
 name = "cartography"
-version = "0.120.1.dev16+g690914330"
+version = "0.120.1.dev17+g68ef4353f.d20251111"
 source = { editable = "." }
 dependencies = [
     { name = "adal" },
@@ -711,6 +725,7 @@ dependencies = [
     { name = "azure-mgmt-eventgrid" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
+    { name = "azure-mgmt-network" },
     { name = "azure-mgmt-resource" },
     { name = "azure-mgmt-security" },
     { name = "azure-mgmt-sql" },
@@ -754,6 +769,7 @@ dev = [
     { name = "azure-mgmt-eventgrid" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
+    { name = "azure-mgmt-network" },
     { name = "azure-mgmt-security" },
     { name = "azure-mgmt-web" },
     { name = "backoff" },
@@ -790,6 +806,7 @@ requires-dist = [
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
+    { name = "azure-mgmt-network", specifier = ">=25.0.0" },
     { name = "azure-mgmt-resource", specifier = ">=10.2.0" },
     { name = "azure-mgmt-security", specifier = ">=5.0.0" },
     { name = "azure-mgmt-sql", specifier = "<=1.0.0" },
@@ -833,6 +850,7 @@ dev = [
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
+    { name = "azure-mgmt-network", specifier = ">=25.0.0" },
     { name = "azure-mgmt-security", specifier = ">=5.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
     { name = "backoff", specifier = ">=2.1.2" },
@@ -2426,7 +2444,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.163.0"
+version = "2.163.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -2436,9 +2454,9 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0e/c2/2641fc9ac9c21c3c2909793e42547bf520b81b2d5bc7fea5f21ddb08badf/oci-2.163.0.tar.gz", hash = "sha256:02f4d69db74e76918709c8f7d2878edf8a931581d83fbc9238895fd0196bba81", size = 15945308 }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/58/7fdf5884eda4934e34c5e3b4591e7bfc3eed4347c739db4c7b0bcfc54f65/oci-2.163.1.tar.gz", hash = "sha256:3fedf9a2ff97de337a42358978a10a6a610bc954f53fb33601c729095fe47e41", size = 16120022 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fa/94/03a8403393149764a7864a9d90a4ebd0dc4bce5f55881e3ab21139cd2023/oci-2.163.0-py3-none-any.whl", hash = "sha256:f95dcde086879d0199c984b07296f32b18e23ac888be8243b62024c3b49258f5", size = 32518462 },
+    { url = "https://files.pythonhosted.org/packages/c1/aa/41e4e66c2780583451d533e95ec54309fbd4f1a4db082007da5f9de2c608/oci-2.163.1-py3-none-any.whl", hash = "sha256:232c51c5b39c4cbd381a48b6e61019ae592f747be07017e2f600610e9cac822c", size = 32852059 },
 ]
 
 [[package]]
