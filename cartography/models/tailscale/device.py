@@ -17,7 +17,7 @@ class TailscaleDeviceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("nodeId")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
-    hostname: PropertyRef = PropertyRef("hostname")
+    hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
     client_version: PropertyRef = PropertyRef("clientVersion")
     update_available: PropertyRef = PropertyRef("updateAvailable")
     os: PropertyRef = PropertyRef("os")

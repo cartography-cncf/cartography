@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.aws.iam
 from cartography.intel.aws.iam import sync
+from tests.data.aws.iam import GET_GROUP_MEMBERSHIPS_DATA
 from tests.data.aws.iam import LIST_GROUPS_SAMPLE
 from tests.data.aws.iam.access_keys import GET_USER_ACCESS_KEYS_DATA
 from tests.data.aws.iam.group_policies import GET_GROUP_INLINE_POLS_SAMPLE
@@ -23,6 +24,11 @@ TEST_ACCOUNT_ID = "1234"
 TEST_UPDATE_TAG = 123456789
 
 
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_group_memberships",
+    return_value=GET_GROUP_MEMBERSHIPS_DATA,
+)
 @patch.object(
     cartography.intel.aws.iam,
     "get_role_managed_policy_data",
@@ -78,6 +84,7 @@ def test_sync_iam(
     mock_get_role_list_data,
     mock_get_role_policy_data,
     mock_get_role_managed_policy_data,
+    mock_get_group_memberships,
     neo4j_session,
 ):
     """Test IAM sync end-to-end"""
@@ -195,6 +202,21 @@ def test_sync_iam(
             "arn:aws:iam::1234:group/example-group-1",
             "arn:aws:iam::aws:policy/AdministratorAccess",
         ),
+    }
+
+    # AWSUser -MEMBER_AWS_GROUP-> AWSGroup
+    assert check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "AWSGroup",
+        "arn",
+        "MEMBER_AWS_GROUP",
+        rel_direction_right=True,
+    ) == {
+        ("arn:aws:iam::1234:user/user1", "arn:aws:iam::1234:group/example-group-0"),
+        ("arn:aws:iam::1234:user/user2", "arn:aws:iam::1234:group/example-group-0"),
+        ("arn:aws:iam::1234:user/user3", "arn:aws:iam::1234:group/example-group-1"),
     }
 
     # AWSPolicy -> AWSPolicyStatement
