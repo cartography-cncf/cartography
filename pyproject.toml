@@ -77,7 +77,9 @@ dependencies = [
     "scaleway>=2.10.0",
     "google-cloud-resource-manager>=1.14.2",
     "types-aiobotocore-ecr",
-    "typer>=0.9.0"
+    "typer>=0.9.0",
+    "azure-mgmt-synapse>=2.0.0",
+    "azure-synapse-artifacts>=0.17.0",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
@@ -99,6 +101,8 @@ dev = [
     "azure-mgmt-web>=7.0.0",
     "azure-mgmt-logic>=10.0.0",
     "azure-mgmt-containerinstance>=10.0.0",
+    "azure-mgmt-synapse>=2.0.0",
+    "azure-synapse-artifacts>=0.17.0",
     "azure-mgmt-security>=5.0.0",
     "azure-mgmt-monitor>=3.0.0",
 ]
