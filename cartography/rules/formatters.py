@@ -7,8 +7,14 @@ import re
 from dataclasses import asdict
 from urllib.parse import quote
 
+from cartography.models.core.model import NODES
+from cartography.models.core.model import RELATIONSHIPS
+from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelSchema
 from cartography.rules.data.findings import FINDINGS
 from cartography.rules.spec.result import FindingResult
+
+MAPPING_REGEX = re.compile(r"[\(|\[](\w+):([\w:]+)(?:{.+})?[\)|\]]")
 
 
 def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:
@@ -82,3 +88,24 @@ def _format_and_output_results(
             )
         else:
             print("\n\033[90mFinding execution completed with no results\033[0m")
+
+
+# Typing
+def _extract_entity_mappings(
+    cypher_query: str,
+) -> dict[str, type[CartographyNodeSchema | CartographyRelSchema]]:
+    """Extract entity label to variable name mappings from a Cypher query."""
+    mappings: dict[str, type[CartographyNodeSchema | CartographyRelSchema]] = {}
+    for match in MAPPING_REGEX.finditer(cypher_query):
+        var_name = match.group(1)
+        labels = match.group(2)
+        for label in labels.split(":"):
+            node_class = NODES.get(label)
+            if node_class is not None:
+                mappings[var_name] = node_class
+                break
+            rel_class = RELATIONSHIPS.get(label)
+            if rel_class is not None:
+                mappings[var_name] = rel_class
+                break
+    return mappings

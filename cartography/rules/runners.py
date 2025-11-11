@@ -2,11 +2,14 @@
 Framework and Fact execution logic for Cartography rules.
 """
 
+from dataclasses import fields
+
 from neo4j import Driver
 from neo4j import GraphDatabase
 
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.rules.data.findings import FINDINGS
+from cartography.rules.formatters import _extract_entity_mappings
 from cartography.rules.formatters import _format_and_output_results
 from cartography.rules.formatters import _generate_neo4j_browser_url
 from cartography.rules.spec.model import Fact
@@ -39,15 +42,16 @@ def _run_fact(
         print(f"  \033[36m{'Provider:':<12}\033[0m {fact.module.value}")
 
         # Generate and display clickable Neo4j Browser URL
-        browser_url = _generate_neo4j_browser_url(neo4j_uri, fact.cypher_visual_query)
+        browser_url = _generate_neo4j_browser_url(neo4j_uri, fact.cypher_query)
         print(
             f"  \033[36m{'Neo4j Query:':<12}\033[0m \033]8;;{browser_url}\033\\Click to run visual query\033]8;;\033\\"
         )
 
     with driver.session(database=database) as session:
-        raw_matches = session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
-        matches = finding.parse_results(raw_matches)
+        matches = session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
         matches_count = len(matches)
+
+    result_model = _extract_entity_mappings(fact.cypher_query)
 
     if output_format == "text":
         if matches_count > 0:
@@ -56,15 +60,62 @@ def _run_fact(
             # Show sample findings
             print("    Sample results:")
             for idx, match in enumerate(matches[:3]):  # Show first 3
-                # Format finding nicely
+                # Format results nicely
                 formatted_items = []
-                for key, value in match.__class__.model_fields.items():
-                    if value is not None:
+
+                if not isinstance(match, dict):
+                    print(f"      {idx + 1}. {match}")
+                    continue
+
+                first_node_key = list(match.keys())[0]
+                first_node = match[first_node_key]
+
+                if not isinstance(first_node, dict):
+                    print(f"      {idx + 1}. {first_node}")
+                    continue
+
+                # Get corresponding model
+                first_node_class = result_model.get(first_node_key)
+                if first_node_class is None:
+                    field_count = 0
+                    for key, value in first_node.items():  # Limit to first 5 fields
+                        if key in (
+                            "lastupdated",
+                            "firstseen",
+                            "_module_version",
+                            "_module_name",
+                        ):
+                            continue
+                        field_count += 1
+                        if field_count > 5:
+                            break
                         # Truncate long values
                         str_value = str(value)
                         if len(str_value) > 50:
                             str_value = str_value[:47] + "..."
-                        formatted_items.append(f"{key}={getattr(match, key)}")
+                        formatted_items.append(f"{key}={str_value}")
+                # If we have a model, use its fields for more consistent output
+                else:
+                    field_count = 0
+                    for key in fields(first_node_class.properties):  # type: ignore
+                        # Skip metadata and common fields
+                        if key.name in (
+                            "lastupdated",
+                            "firstseen",
+                            "_module_version",
+                            "_module_name",
+                        ):
+                            continue
+                        field_count += 1
+                        if field_count > 5:
+                            break
+                        value = first_node.get(key.name)
+                        if value is not None:
+                            # Truncate long values
+                            str_value = str(value)
+                            if len(str_value) > 50:
+                                str_value = str_value[:47] + "..."
+                            formatted_items.append(f"{key.name}={str_value}")
 
                 if formatted_items:
                     print(f"      {idx + 1}. {', '.join(formatted_items)}")

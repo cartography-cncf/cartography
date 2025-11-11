@@ -1,10 +1,9 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
-# Facts
+# AWS Facts
 _aws_s3_public = Fact(
     id="aws_s3_public",
     name="Internet-Accessible S3 Storage Attack Surface",
@@ -18,31 +17,14 @@ _aws_s3_public = Fact(
         WHERE stmt.effect = 'Allow'
         AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
     }
-    RETURN
-        b.id as id,
-        b._module_name AS _source,
-        b.name AS name,
-        b.region AS region,
-        b.anonymous_access AS public_access,
-        b.anonymous_actions AS public_actions
-    """,
-    cypher_visual_query="""
-    MATCH (b:S3Bucket)
-    WHERE b.anonymous_access = true
-    OR (b.anonymous_actions IS NOT NULL AND size(b.anonymous_actions) > 0)
-    OR EXISTS {
-        MATCH (b)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
-        WHERE stmt.effect = 'Allow'
-        AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
-    }
-    WITH b
-    OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
-    RETURN *
+    OPTIONAL MATCH (b)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
+    RETURN b, stmt
     """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
 
+# Azure Facts
 _azure_storage_public_blob_access = Fact(
     id="azure_storage_public_blob_access",
     name="Azure Storage Accounts with Public Blob Containers",
@@ -54,36 +36,14 @@ _azure_storage_public_blob_access = Fact(
     cypher_query="""
     MATCH (sa:AzureStorageAccount)-[:USES]->(bs:AzureStorageBlobService)-[:CONTAINS]->(bc:AzureStorageBlobContainer)
     WHERE bc.publicaccess IN ['Container', 'Blob']
-    RETURN
-        sa.id AS id,
-        sa._module_name AS _source,
-        sa.name AS account,
-        sa.resourcegroup AS resource_group,
-        sa.location AS region,
-        bc.name AS name,
-        bc.publicaccess AS public_access_element,
-        bc.publicaccess IN ['Container', 'Blob'] AS public_access
-    """,
-    cypher_visual_query="""
-    MATCH p=(sa:AzureStorageAccount)-[:USES]->(bs:AzureStorageBlobService)-[:CONTAINS]->(bc:AzureStorageBlobContainer)
-    WHERE bc.publicaccess IN ['Container', 'Blob']
-    RETURN *
+    RETURN bc, bs, sa
     """,
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
 )
 
 
-# Findings
-class ObjectStoragePublic(FindingOutput):
-    name: str | None = None
-    region: str | None = None
-    public_access: bool | None = None
-    account: str | None = None
-
-    display_name_fields: list[str | tuple[str, ...]] = ["name", "id"]
-
-
+# Finding
 object_storage_public = Finding(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
@@ -95,6 +55,5 @@ object_storage_public = Finding(
         _azure_storage_public_blob_access,
     ),
     tags=("infrastructure", "attack_surface"),
-    output_model=ObjectStoragePublic,
     version="0.1.0",
 )

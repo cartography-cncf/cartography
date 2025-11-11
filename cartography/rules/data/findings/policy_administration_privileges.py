@@ -1,6 +1,5 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
@@ -49,34 +48,9 @@ _aws_policy_manipulation_capabilities = Fact(
 
         // Step 4 - Preserve (action, resource) mapping
         UNWIND allow_resources AS resource
-        RETURN DISTINCT
-            principal.id   AS id,
-            principal._module_name AS _source,
-            a.name AS account,
-            principal.name AS principal_name,
-            principal.arn  AS principal_identifier,
-            principal_type,
-            policy.name    AS policy_name,
-            allow_action   AS action,
-            resource
-        ORDER BY account, principal_name, action, resource
-    """,
-    cypher_visual_query="""
-    MATCH p1=(a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
-    MATCH p2=(principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-    WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
-    AND NOT principal.name CONTAINS 'QuickSetup'
-    AND principal.name <> 'OrganizationAccountAccessRole'
-    AND stmt.effect = 'Allow'
-    AND ANY(action IN stmt.action WHERE
-        action CONTAINS 'iam:CreatePolicy' OR action CONTAINS 'iam:CreatePolicyVersion'
-        OR action CONTAINS 'iam:AttachUserPolicy' OR action CONTAINS 'iam:AttachRolePolicy'
-        OR action CONTAINS 'iam:AttachGroupPolicy' OR action CONTAINS 'iam:DetachUserPolicy'
-        OR action CONTAINS 'iam:DetachRolePolicy' OR action CONTAINS 'iam:DetachGroupPolicy'
-        OR action CONTAINS 'iam:PutUserPolicy' OR action CONTAINS 'iam:PutRolePolicy'
-        OR action CONTAINS 'iam:PutGroupPolicy' OR action = 'iam:*' OR action = '*'
-    )
-    RETURN *
+        WITH principal, a, policy, allow_action, resource
+        RETURN DISTINCT principal, a, policy, allow_action, resource
+        ORDER BY a.name, principal.id, allow_action, resource
     """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
@@ -84,22 +58,6 @@ _aws_policy_manipulation_capabilities = Fact(
 
 
 # Findings
-class PolicyAdministrationPrivileges(FindingOutput):
-    account: str | None = None
-    principal_name: str | None = None
-    principal_identifier: str | None = None
-    principal_type: str | None = None
-    policy_name: str | None = None
-    action: str | None = None
-    resource: str | None = None
-
-    display_name_fields: list[str | tuple[str, ...]] = [
-        "principal_name",
-        "principal_identifier",
-        "id",
-    ]
-
-
 policy_administration_privileges = Finding(
     id="policy_administration_privileges",
     name="Policy Administration Privileges",
@@ -107,7 +65,6 @@ policy_administration_privileges = Finding(
         "Principals can create, attach/detach, or write IAM policies—often enabling "
         "indirect privilege escalation."
     ),
-    output_model=PolicyAdministrationPrivileges,
     facts=(_aws_policy_manipulation_capabilities,),
     tags=("iam", "privilege_escalation"),
     version="0.1.0",

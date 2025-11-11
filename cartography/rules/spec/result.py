@@ -1,8 +1,7 @@
 # Execution result classes
 from dataclasses import dataclass
 from dataclasses import field
-
-from cartography.rules.spec.model import FindingOutput
+from typing import Any
 
 
 @dataclass
@@ -22,7 +21,7 @@ class FactResult:
     fact_name: str
     fact_description: str
     fact_provider: str
-    matches: list[FindingOutput] | None = None
+    matches: list[dict[str, Any]] | None = None
 
 
 @dataclass

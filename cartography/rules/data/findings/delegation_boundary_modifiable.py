@@ -1,6 +1,5 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
@@ -43,26 +42,8 @@ _aws_trust_relationship_manipulation = Fact(
         WHERE deny_stmt IS NULL
 
         UNWIND matched_allow_actions AS action
-        RETURN DISTINCT
-            principal.id AS id,
-            principal._module_name AS _source,
-            a.name AS account,
-            principal.name AS principal_name,
-            principal.arn AS principal_identifier,
-            policy.name AS policy_name,
-            principal_type,
-            collect(DISTINCT action) AS actions,
-            stmt.resource AS resources
-        ORDER BY account, principal_name
-    """,
-    cypher_visual_query="""
-        MATCH p = (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
-        MATCH p1 = (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-        MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-        WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
-        AND principal.name <> 'OrganizationAccountAccessRole'
-        AND stmt.effect = 'Allow'
-        RETURN *
+        RETURN DISTINCT principal, a, policy, stmt, action
+        ORDER BY a.name, principal.id
     """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
@@ -70,22 +51,6 @@ _aws_trust_relationship_manipulation = Fact(
 
 
 # Finding
-class DelegationBoundaryModifiable(FindingOutput):
-    account: str | None = None
-    principal_name: str | None = None
-    principal_identifier: str | None = None
-    principal_type: str | None = None
-    policy_name: str | None = None
-    actions: list[str] = []
-    resources: list[str] = []
-
-    display_name_fields: list[str | tuple[str, ...]] = [
-        "principal_name",
-        "principal_identifier",
-        "id",
-    ]
-
-
 delegation_boundary_modifiable = Finding(
     id="delegation_boundary_modifiable",
     name="Delegation Boundary Modifiable",
@@ -93,7 +58,6 @@ delegation_boundary_modifiable = Finding(
         "Principals can edit role trust/assume policies or create roles with arbitrary trust—"
         "allowing cross-account or lateral impersonation paths."
     ),
-    output_model=DelegationBoundaryModifiable,
     facts=(_aws_trust_relationship_manipulation,),
     tags=("iam", "trust", "assumerole", "privilege_escalation"),
     version="0.1.0",

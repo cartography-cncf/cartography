@@ -1,6 +1,5 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
@@ -44,35 +43,8 @@ _aws_account_manipulation_permissions = Fact(
         WHERE deny_stmt IS NULL
 
         UNWIND matched_allow_actions AS action
-        RETURN DISTINCT
-            principal.id AS id,
-            principal._module_name AS _source,
-            a.name AS account,
-            principal.name AS principal_name,
-            principal.arn AS principal_identifier,
-            principal_type,
-            policy.name AS policy_name,
-            collect(DISTINCT action) AS actions,
-            stmt.resource AS resources
-        ORDER BY account, principal_name
-    """,
-    cypher_visual_query="""
-        MATCH p = (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
-        MATCH p1 = (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-        WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
-        AND NOT principal.name CONTAINS 'QuickSetup'
-        AND NOT principal.name = 'OrganizationAccountAccessRole'
-        AND stmt.effect = 'Allow'
-        AND ANY(action IN stmt.action WHERE
-            action STARTS WITH 'iam:Create'
-            OR action STARTS WITH 'iam:Attach'
-            OR action STARTS WITH 'iam:Put'
-            OR action STARTS WITH 'iam:Update'
-            OR action STARTS WITH 'iam:Add'
-            OR action = 'iam:*'
-            OR action = '*'
-        )
-        RETURN *
+        RETURN DISTINCT principal, a, policy, stmt, action
+        ORDER BY a.name, principal.id
     """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
@@ -80,22 +52,6 @@ _aws_account_manipulation_permissions = Fact(
 
 
 # Finding
-class IdentityAdministrationPrivileges(FindingOutput):
-    account: str | None = None
-    principal_name: str | None = None
-    principal_identifier: str | None = None
-    principal_type: str | None = None
-    policy_name: str | None = None
-    actions: list[str] = []
-    resources: list[str] = []
-
-    display_name_fields: list[str | tuple[str, ...]] = [
-        "principal_name",
-        "principal_identifier",
-        "id",
-    ]
-
-
 identity_administration_privileges = Finding(
     id="identity_administration_privileges",
     name="Identity Administration Privileges",
@@ -103,7 +59,6 @@ identity_administration_privileges = Finding(
         "Principals can create, attach, update, or otherwise administer identities "
         "(users/roles/groups) and their bindings—classic escalation surface."
     ),
-    output_model=IdentityAdministrationPrivileges,
     facts=(_aws_account_manipulation_permissions,),
     tags=("iam", "privilege_escalation"),
     version="0.1.0",

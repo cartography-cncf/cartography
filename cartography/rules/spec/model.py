@@ -1,14 +1,7 @@
-import json
 import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-from typing import no_type_check
-
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import model_validator
-from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -72,54 +65,9 @@ class Fact:
     """The Module that the Fact is associated with e.g. AWS, Azure, GCP, etc."""
     maturity: Maturity
     """The maturity level of the Fact query."""
-
     # TODO can we lint the queries. full-on integ tests here are overkill though.
     cypher_query: str
     """The Cypher query to gather information about the environment. Returns data field by field e.g. `RETURN node.prop1, node.prop2`."""
-    cypher_visual_query: str
-    """
-    Same as `cypher_query`, returns it in a visual format for the web interface with `.. RETURN *`.
-    Often includes additional relationships to help give context.
-    """
-
-
-# Finding output model base class
-class FindingOutput(BaseModel):
-    """Base class for Finding output models."""
-
-    id: str
-    # TODO: make this property mandatory one all modules have been updated to new datamodel
-    source: str | None = None
-    """The source of the Fact data, e.g. the specific Cartography module that ingested the data. This field is useful especially for CROSS_CLOUD facts."""
-    extra: dict[str, Any] = {}
-    """A dictionary to hold any extra fields returned by the Fact query that are not explicitly defined in the output model."""
-
-    display_name_fields: list[str | tuple[str, ...]] = ["id"]
-    """List of field names to use for display purposes."""
-
-    # Config to coerce numbers to strings during instantiation
-    model_config = ConfigDict(coerce_numbers_to_str=True)
-
-    # Coerce to strings
-    @no_type_check
-    @model_validator(mode="before")
-    @classmethod
-    def coerce_to_string(cls, data: Any):
-        if not isinstance(data, dict):
-            return data
-
-        for name, field in cls.model_fields.items():
-            if field.annotation is not str:
-                continue
-            if name not in data:
-                continue
-            v = data[name]
-            if isinstance(v, (list, tuple, set)):
-                data[name] = ", ".join(v)
-            if isinstance(v, dict):
-                data[name] = json.dumps(v)
-
-        return data
 
 
 @dataclass(frozen=True)
@@ -138,12 +86,19 @@ class Finding:
     """The version of the Finding definition."""
     facts: tuple[Fact, ...]
     """The Facts that contribute to this Finding."""
-    output_model: type[FindingOutput]
-    """The output model class for the Finding."""
     references: tuple[str, ...] = ()
     """References or links to external resources related to the Finding."""
 
-    def parse_results(self, fact_results: list[dict[str, Any]]) -> list[FindingOutput]:
+    # WIP: to rework
+    def parse_results(self, fact_results: list[dict[str, Any]]) -> list:
+        # DOC
+        for row in fact_results:
+            print("Raw finding result row: %s", row)
+
+        """
+
+
+
         # DOC
         result: list[FindingOutput] = []
         for result_item in fact_results:
@@ -166,6 +121,8 @@ class Finding:
                     e,
                 )
         return result
+        """
+        return []
 
     @property
     def modules(self) -> set[Module]:

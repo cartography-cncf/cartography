@@ -1,6 +1,5 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
@@ -58,39 +57,8 @@ _aws_service_account_manipulation_via_ec2 = Fact(
 
         UNWIND effective_actions AS action
         WITH a, ec2, role, sg, ip, COLLECT(DISTINCT action) AS actions
-        RETURN DISTINCT
-            ec2.id AS workload_id,
-            ec2._module_name AS _source,
-            a.name AS account,
-            a.id AS account_id,
-            role.name AS role_name,
-            actions,
-            ec2.exposed_internet AS internet_accessible,
-            ec2.publicipaddress AS public_ip_address,
-            ec2.instanceid AS instance_id,
-            ip.fromport AS from_port,
-            ip.toport AS to_port
-        ORDER BY account, workload_id, internet_accessible, from_port
-    """,
-    cypher_visual_query="""
-        MATCH p = (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
-        MATCH p1 = (ec2)-[:INSTANCE_PROFILE]->(profile:AWSInstanceProfile)
-        MATCH p2 = (profile)-[:ASSOCIATED_WITH]->(role:AWSRole)
-        MATCH p3 = (role)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-        WHERE stmt.effect = 'Allow'
-        AND ANY(action IN stmt.action WHERE
-            action STARTS WITH 'iam:Create'
-            OR action STARTS WITH 'iam:Attach'
-            OR action STARTS WITH 'iam:Put'
-            OR action STARTS WITH 'iam:Update'
-            OR action STARTS WITH 'iam:Add'
-            OR action = 'iam:*'
-            OR action = '*'
-        )
-        WITH p, p1, p2, p3, ec2
-        // Include the SG and rules for the instances that are internet open
-        MATCH p4=(ec2{exposed_internet: true})-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:IpPermissionInbound)
-        RETURN *
+        RETURN DISTINCT ec2, a, role, ip, actions
+        ORDER BY a.name, ec2.instanceid, ec2.exposed_internet, ip.fromport
     """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
@@ -143,33 +111,8 @@ _aws_service_account_manipulation_via_lambda = Fact(
         // Step 4: Return only Lambdas with effective IAM modification capabilities
         UNWIND effective_actions AS action
         WITH a, lambda, role, COLLECT(DISTINCT action) AS actions
-        RETURN DISTINCT
-            lambda.id AS id,
-            lambda._module_name AS _source,
-            lambda.arn AS workload_id,
-            a.name AS account,
-            a.id AS account_id,
-            role.name AS role_name,
-            actions,
-            lambda.anonymous_access AS internet_accessible,
-            lambda.description AS description
-        ORDER BY account, workload_id, internet_accessible
-    """,
-    cypher_visual_query="""
-        MATCH p = (a:AWSAccount)-[:RESOURCE]->(lambda:AWSLambda)
-        MATCH p1 = (lambda)-[:STS_ASSUMEROLE_ALLOW]->(role:AWSRole)
-        MATCH p2 = (role)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-        WHERE stmt.effect = 'Allow'
-        AND ANY(action IN stmt.action WHERE
-            action STARTS WITH 'iam:Create'
-            OR action STARTS WITH 'iam:Attach'
-            OR action STARTS WITH 'iam:Put'
-            OR action STARTS WITH 'iam:Update'
-            OR action STARTS WITH 'iam:Add'
-            OR action = 'iam:*'
-            OR action = '*'
-        )
-        RETURN *
+        RETURN DISTINCT lambda, a, role, actions
+        ORDER BY a.name, lambda.arn, lambda.anonymous_access
     """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
@@ -177,23 +120,6 @@ _aws_service_account_manipulation_via_lambda = Fact(
 
 
 # Finding
-class WorkloadIdentityAdminCapabilities(FindingOutput):
-    instance_id: str | None = None
-    account: str | None = None
-    account_id: str | None = None
-    workload_id: str | None = None
-    role_name: str | None = None
-    actions: list[str] | None = None
-    internet_accessible: bool | None = None
-    public_ip_address: str | None = None
-
-    display_name_fields: list[str | tuple[str, ...]] = [
-        "workload_id",
-        "instance_id",
-        "id",
-    ]
-
-
 workload_identity_admin_capabilities = Finding(
     id="workload_identity_admin_capabilities",
     name="Workload Identity-Admin Capabilities",
@@ -201,7 +127,6 @@ workload_identity_admin_capabilities = Finding(
         "A compute workload (VM or function) holds permissions to administer identities/policies. "
         "If internet-exposed, the blast radius is higher."
     ),
-    output_model=WorkloadIdentityAdminCapabilities,
     facts=(
         _aws_service_account_manipulation_via_ec2,
         _aws_service_account_manipulation_via_lambda,
