@@ -443,21 +443,6 @@ wheels = [
 ]
 
 [[package]]
-name = "azure-mgmt-eventgrid"
-version = "10.4.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-common" },
-    { name = "azure-mgmt-core" },
-    { name = "isodate" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/bb/68/24a2921b66827a571a3da75cc12289b7029a7c436087c0c5b2b4ca387aa3/azure_mgmt_eventgrid-10.4.0.tar.gz", hash = "sha256:303e5e27cf4bb5ec833ba4e5a9ef70b5bc410e190412ec47cde59d82e413fb7e", size = 258796 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8d/c7/6dfac325b4b081038aa3495e048740b44d0a68b7da97d922e0aa47a67351/azure_mgmt_eventgrid-10.4.0-py3-none-any.whl", hash = "sha256:5e4637245bbff33298d5f427971b870dbb03d873a3ef68f328190a7b7a38c56f", size = 353207 },
-]
-
-[[package]]
 name = "azure-mgmt-logic"
 version = "10.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -697,7 +682,7 @@ wheels = [
 
 [[package]]
 name = "cartography"
-version = "0.120.1.dev13+g020eaf364"
+version = "0.120.1.dev7+g39925810c.d20251111"
 source = { editable = "." }
 dependencies = [
     { name = "adal" },
@@ -708,7 +693,6 @@ dependencies = [
     { name = "azure-mgmt-compute" },
     { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-cosmosdb" },
-    { name = "azure-mgmt-eventgrid" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
     { name = "azure-mgmt-resource" },
@@ -751,7 +735,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "azure-mgmt-containerinstance" },
-    { name = "azure-mgmt-eventgrid" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
     { name = "azure-mgmt-security" },
@@ -787,7 +770,6 @@ requires-dist = [
     { name = "azure-mgmt-compute", specifier = ">=5.0.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
-    { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
     { name = "azure-mgmt-resource", specifier = ">=10.2.0" },
@@ -830,7 +812,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
-    { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
     { name = "azure-mgmt-security", specifier = ">=5.0.0" },
