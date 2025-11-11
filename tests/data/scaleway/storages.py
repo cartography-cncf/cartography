@@ -14,7 +14,6 @@ SCALEWAY_VOLUMES = [
         volume_type="l_ssd",
         organization="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
         project="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
-        export_uri=None,
         creation_date=datetime(2025, 3, 20, 14, 49, 48, 107731, tzinfo=tzutc()),
         modification_date=datetime(2025, 3, 20, 14, 49, 48, 107731, tzinfo=tzutc()),
         tags=[],

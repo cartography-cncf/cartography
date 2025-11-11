@@ -33,23 +33,18 @@ def _ensure_local_neo4j_has_test_ecr_repo_data(neo4j_session):
 @patch.object(
     cartography.intel.aws.ecr,
     "get_ecr_repository_images",
-    side_effect=[
-        tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
-        ],
-        tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/sample-repository"
-        ],
-        tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repository"
-        ],
-    ],
 )
 def test_sync_ecr(mock_get_images, mock_get_repos, neo4j_session):
     """
     Ensure that ECR repositories and images are properly synced and connected
     """
-    # Arrange
+    # Arrange - Configure mock to return correct data based on repository name
+    def get_images_side_effect(boto3_session, region, repository_name):
+        repo_uri = f"{TEST_ACCOUNT_ID}.dkr.ecr.{region}.amazonaws.com/{repository_name}"
+        return tests.data.aws.ecr.LIST_REPOSITORY_IMAGES[repo_uri]
+    
+    mock_get_images.side_effect = get_images_side_effect
+    
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 

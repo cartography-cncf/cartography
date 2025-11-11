@@ -90,6 +90,9 @@
 ```{include} ../modules/pagerduty/schema.md
 ```
 
+```{include} ../modules/proxmox/schema.md
+```
+
 ```{include} ../modules/scaleway/schema.md
 ```
 

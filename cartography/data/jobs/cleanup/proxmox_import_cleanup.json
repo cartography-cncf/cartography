@@ -1,0 +1,29 @@
+{
+  "statements": [
+    {
+      "query": "MATCH (c:ProxmoxCluster) WHERE c.lastupdated <> $UPDATE_TAG WITH c DETACH DELETE c",
+      "iterative": false
+    },
+    {
+      "query": "MATCH (n:ProxmoxNode) WHERE n.lastupdated <> $UPDATE_TAG WITH n DETACH DELETE n",
+      "iterative": false
+    },
+    {
+      "query": "MATCH (v:ProxmoxVM) WHERE v.lastupdated <> $UPDATE_TAG WITH v DETACH DELETE v",
+      "iterative": false
+    },
+    {
+      "query": "MATCH (d:ProxmoxDisk) WHERE d.lastupdated <> $UPDATE_TAG WITH d DETACH DELETE d",
+      "iterative": false
+    },
+    {
+      "query": "MATCH (i:ProxmoxNetworkInterface) WHERE i.lastupdated <> $UPDATE_TAG WITH i DETACH DELETE i",
+      "iterative": false
+    },
+    {
+      "query": "MATCH (s:ProxmoxStorage) WHERE s.lastupdated <> $UPDATE_TAG WITH s DETACH DELETE s",
+      "iterative": false
+    }
+  ],
+  "name": "cleanup Proxmox resources"
+}

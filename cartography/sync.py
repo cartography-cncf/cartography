@@ -39,6 +39,7 @@ import cartography.intel.okta
 import cartography.intel.ontology
 import cartography.intel.openai
 import cartography.intel.pagerduty
+import cartography.intel.proxmox
 import cartography.intel.scaleway
 import cartography.intel.semgrep
 import cartography.intel.sentinelone
@@ -72,6 +73,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "openai": cartography.intel.openai.start_openai_ingestion,
         "github": cartography.intel.github.start_github_ingestion,
         "digitalocean": cartography.intel.digitalocean.start_digitalocean_ingestion,
+        "proxmox": cartography.intel.proxmox.start_proxmox_ingestion,
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
         "keycloak": cartography.intel.keycloak.start_keycloak_ingestion,
         "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
