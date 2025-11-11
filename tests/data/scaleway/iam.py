@@ -23,6 +23,10 @@ SCALEWAY_USERS = [
         locked=False,
         last_login_at=datetime(2025, 6, 20, 9, 19, 54, 502555, tzinfo=tzutc()),
         two_factor_enabled=True,
+        first_name="Marge",
+        last_name="Simpson",
+        phone_number="",
+        locale="en_US",
     ),
     User(
         id="b49932b2-2faa-4c56-905e-ffac52f063dc",
@@ -40,6 +44,10 @@ SCALEWAY_USERS = [
         locked=False,
         last_login_at=datetime(2025, 6, 20, 9, 19, 54, 502555, tzinfo=tzutc()),
         two_factor_enabled=True,
+        first_name="Homer",
+        last_name="Simpson",
+        phone_number="",
+        locale="en_US",
     ),
 ]
 

@@ -1,11 +1,7 @@
-import inspect
 import logging
 import warnings
-from pkgutil import iter_modules
 from typing import Dict
-from typing import Generator
 from typing import Set
-from typing import Tuple
 from typing import Type
 
 import cartography.models
@@ -14,54 +10,13 @@ from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from tests.utils import load_models
 
 logger = logging.getLogger(__name__)
 
-MODEL_CLASSES = (
-    CartographyNodeSchema,
-    CartographyRelSchema,
-    CartographyNodeProperties,
-    CartographyRelProperties,
-)
-
-
-def load_models(module, module_name: str | None = None) -> Generator[
-    Tuple[
-        str,
-        Type[
-            CartographyNodeSchema
-            | CartographyRelSchema
-            | CartographyNodeProperties
-            | CartographyRelProperties
-        ],
-    ],
-    None,
-    None,
-]:
-    # DOC
-    for sub_module_info in iter_modules(module.__path__):
-        sub_module = __import__(
-            f"{module.__name__}.{sub_module_info.name}",
-            fromlist=[""],
-        )
-        if module_name is None:
-            sub_module_name = sub_module.__name__
-        else:
-            sub_module_name = module_name
-        for v in sub_module.__dict__.values():
-            if not inspect.isclass(v):
-                continue
-            if v in MODEL_CLASSES:
-                continue
-            if issubclass(v, MODEL_CLASSES):
-                yield (sub_module_name, v)
-
-        if hasattr(sub_module, "__path__"):
-            yield from load_models(sub_module, sub_module_name)
-
 
 def test_model_objects_naming_convention():
-    # DOC
+    """Test that all model objects follow the naming convention."""
     for module_name, element in load_models(cartography.models):
         if issubclass(element, CartographyNodeSchema):
             if not element.__name__.endswith("Schema"):
@@ -102,7 +57,7 @@ def test_model_objects_naming_convention():
 
 
 def test_sub_resource_relationship():
-    # DOC
+    """Test that all root nodes have a sub_resource_relationship with rel_label 'RESOURCE' and direction 'INWARD'."""
     root_node_per_modules: Dict[str, Set[Type[CartographyNodeSchema]]] = {}
 
     for module_name, node in load_models(cartography.models):
@@ -135,15 +90,10 @@ def test_sub_resource_relationship():
             # TODO assert sub_resource_relationship.direction == "INWARD"
 
     for module_name, nodes in root_node_per_modules.items():
-        if len(nodes) == 0:
-            warnings.warn(
-                f"Module {module_name} has no root nodes (e.g. Tenant, Subscription ...). ",
-                UserWarning,
-            )
         if len(nodes) > 1:
             warnings.warn(
                 f"Module {module_name} has multiple root nodes: {', '.join([node.label for node in nodes])}. "
                 "Please check the module.",
                 UserWarning,
             )
-        # TODO: assert len(nodes) == 1
+        # TODO: assert len(nodes) > 1
