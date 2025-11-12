@@ -2,6 +2,9 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.azure.data_factory as data_factory
+import cartography.intel.azure.data_factory_dataset as data_factory_dataset
+import cartography.intel.azure.data_factory_linked_service as data_factory_linked_service
+import cartography.intel.azure.data_factory_pipeline as data_factory_pipeline
 from tests.data.azure.data_factory import MOCK_DATASETS
 from tests.data.azure.data_factory import MOCK_FACTORIES
 from tests.data.azure.data_factory import MOCK_LINKED_SERVICES
@@ -13,9 +16,9 @@ TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
 
 
-@patch("cartography.intel.azure.data_factory.get_linked_services")
-@patch("cartography.intel.azure.data_factory.get_datasets")
-@patch("cartography.intel.azure.data_factory.get_pipelines")
+@patch("cartography.intel.azure.data_factory_linked_service.get_linked_services")
+@patch("cartography.intel.azure.data_factory_dataset.get_datasets")
+@patch("cartography.intel.azure.data_factory_pipeline.get_pipelines")
 @patch("cartography.intel.azure.data_factory.get_factories")
 def test_sync_data_factory_internal_rels(
     mock_get_factories,
@@ -45,10 +48,46 @@ def test_sync_data_factory_internal_rels(
         "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
     }
 
-    # Act
-    data_factory.sync(
+    mock_client = MagicMock()
+
+    # 1. Sync Factories
+    factories_raw = data_factory.sync_data_factories(
         neo4j_session,
-        MagicMock(),
+        mock_client,
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # 2. Sync Linked Services
+    linked_services_by_factory = (
+        data_factory_linked_service.sync_data_factory_linked_services(
+            neo4j_session,
+            mock_client,
+            factories_raw,
+            TEST_SUBSCRIPTION_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
+    )
+
+    # 3. Sync Datasets
+    datasets_by_factory = data_factory_dataset.sync_data_factory_datasets(
+        neo4j_session,
+        mock_client,
+        factories_raw,
+        linked_services_by_factory,
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # 4. Sync Pipelines
+    data_factory_pipeline.sync_data_factory_pipelines(
+        neo4j_session,
+        mock_client,
+        factories_raw,
+        datasets_by_factory,
         TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
@@ -74,52 +113,65 @@ def test_sync_data_factory_internal_rels(
     dataset_id = MOCK_DATASETS[0]["id"]
     ls_id = MOCK_LINKED_SERVICES[0]["id"]
 
-    # Test :RESOURCE and :CONTAINS relationships
-    expected_hierarchy = {
-        (TEST_SUBSCRIPTION_ID, factory_id),
-        (factory_id, pipeline_id),
-        (factory_id, dataset_id),
-        (factory_id, ls_id),
-    }
-    actual_hierarchy = check_rels(
+    # Test :RESOURCE relationships to Subscription
+    assert check_rels(
+        neo4j_session, "AzureSubscription", "id", "AzureDataFactory", "id", "RESOURCE"
+    ) == {(TEST_SUBSCRIPTION_ID, factory_id)}
+
+    assert check_rels(
         neo4j_session,
         "AzureSubscription",
         "id",
-        "AzureDataFactory",
+        "AzureDataFactoryPipeline",
         "id",
         "RESOURCE",
-    )
-    actual_hierarchy.update(
-        check_rels(
-            neo4j_session,
-            "AzureDataFactory",
-            "id",
-            "AzureDataFactoryPipeline",
-            "id",
-            "CONTAINS",
-        ),
-    )
-    actual_hierarchy.update(
-        check_rels(
-            neo4j_session,
-            "AzureDataFactory",
-            "id",
-            "AzureDataFactoryDataset",
-            "id",
-            "CONTAINS",
-        ),
-    )
-    actual_hierarchy.update(
-        check_rels(
-            neo4j_session,
-            "AzureDataFactory",
-            "id",
-            "AzureDataFactoryLinkedService",
-            "id",
-            "CONTAINS",
-        ),
-    )
-    assert actual_hierarchy == expected_hierarchy
+    ) == {(TEST_SUBSCRIPTION_ID, pipeline_id)}
+
+    assert check_rels(
+        neo4j_session,
+        "AzureSubscription",
+        "id",
+        "AzureDataFactoryDataset",
+        "id",
+        "RESOURCE",
+    ) == {(TEST_SUBSCRIPTION_ID, dataset_id)}
+
+    assert check_rels(
+        neo4j_session,
+        "AzureSubscription",
+        "id",
+        "AzureDataFactoryLinkedService",
+        "id",
+        "RESOURCE",
+    ) == {(TEST_SUBSCRIPTION_ID, ls_id)}
+
+    # Test :CONTAINS relationships to Factory
+    assert check_rels(
+        neo4j_session,
+        "AzureDataFactory",
+        "id",
+        "AzureDataFactoryPipeline",
+        "id",
+        "CONTAINS",
+    ) == {(factory_id, pipeline_id)}
+
+    assert check_rels(
+        neo4j_session,
+        "AzureDataFactory",
+        "id",
+        "AzureDataFactoryDataset",
+        "id",
+        "CONTAINS",
+    ) == {(factory_id, dataset_id)}
+
+    assert check_rels(
+        neo4j_session,
+        "AzureDataFactory",
+        "id",
+        "AzureDataFactoryLinkedService",
+        "id",
+        "CONTAINS",
+    ) == {(factory_id, ls_id)}
 
     # Test internal data flow relationships
     assert check_rels(

@@ -12,6 +12,9 @@ from . import compute
 from . import container_instances
 from . import cosmosdb
 from . import data_factory
+from . import data_factory_dataset
+from . import data_factory_linked_service
+from . import data_factory_pipeline
 from . import data_lake
 from . import functions
 from . import logic_apps
@@ -96,9 +99,44 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
-    data_factory.sync(
+    data_factory.sync_data_factories(
         neo4j_session,
         credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    factories_raw = data_factory.sync_data_factories(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    linked_services_by_factory = (
+        data_factory_linked_service.sync_data_factory_linked_services(
+            neo4j_session,
+            credentials,
+            factories_raw,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    )
+    datasets_by_factory = data_factory_dataset.sync_data_factory_datasets(
+        neo4j_session,
+        credentials,
+        factories_raw,
+        linked_services_by_factory,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    data_factory_pipeline.sync_data_factory_pipelines(
+        neo4j_session,
+        credentials,
+        factories_raw,
+        datasets_by_factory,
         subscription_id,
         update_tag,
         common_job_parameters,
