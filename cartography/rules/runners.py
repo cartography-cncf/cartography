@@ -76,7 +76,7 @@ def _run_fact(
 
                 # Get corresponding model
                 first_node_class = result_model.get(first_node_key)
-                if first_node_class is None:
+                if first_node_class is None or isinstance(first_node_class, str):
                     field_count = 0
                     for key, value in first_node.items():  # Limit to first 5 fields
                         if key in (
