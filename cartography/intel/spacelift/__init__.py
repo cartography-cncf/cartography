@@ -10,6 +10,7 @@ from cartography.intel.spacelift.ec2_ownership import sync_ec2_ownership
 from cartography.intel.spacelift.runs import sync_runs
 from cartography.intel.spacelift.spaces import sync_spaces
 from cartography.intel.spacelift.stacks import sync_stacks
+from cartography.intel.spacelift.util import get_spacelift_token
 from cartography.intel.spacelift.workerpools import sync_worker_pools
 from cartography.intel.spacelift.workers import sync_workers
 from cartography.stats import get_stats_client
@@ -28,8 +29,37 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     :param config: A cartography.config object
     :return: None
     """
-    if not config.spacelift_api_token or not config.spacelift_api_endpoint:
-        logger.info("Spacelift API configuration not found - skipping this module.")
+    # Validate configuration
+    if not config.spacelift_api_endpoint:
+        logger.info("Spacelift API endpoint not configured - skipping this module.")
+        return
+
+    # Determine authentication method and obtain token
+    token = None
+    if config.spacelift_api_token:
+        # Method 1: Use provided token directly
+        logger.info("Using provided Spacelift API token for authentication")
+        token = config.spacelift_api_token
+    elif config.spacelift_api_key_id and config.spacelift_api_key_secret:
+        # Method 2: Exchange API key ID and secret for a token
+        logger.info("Exchanging Spacelift API key for authentication token")
+        try:
+            token = get_spacelift_token(
+                config.spacelift_api_endpoint,
+                config.spacelift_api_key_id,
+                config.spacelift_api_key_secret,
+            )
+        except Exception as e:
+            logger.error(f"Failed to obtain Spacelift authentication token: {e}")
+            logger.info("Skipping Spacelift module due to authentication failure.")
+            return
+    else:
+        logger.info(
+            "Spacelift authentication not configured. "
+            "Provide either --spacelift-api-token-env-var or both "
+            "--spacelift-api-key-id-env-var and --spacelift-api-key-secret-env-var. "
+            "Skipping this module."
+        )
         return
 
     logger.info("Starting Spacelift ingestion")
@@ -43,7 +73,7 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     spacelift_session = requests.Session()
     spacelift_session.headers.update(
         {
-            "Authorization": f"Bearer {config.spacelift_api_token}",
+            "Authorization": f"Bearer {token}",
         }
     )
 
@@ -53,8 +83,7 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         common_job_parameters,
     )
 
-    common_job_parameters["SPACELIFT_ACCOUNT_ID"] = account_id
-    common_job_parameters["account_id"] = account_id
+    common_job_parameters["spacelift_account_id"] = account_id
 
     sync_spaces(
         neo4j_session,
@@ -102,7 +131,7 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         hasattr(config, attr)
         for attr in [
             "spacelift_ec2_ownership_s3_bucket",
-            "spacelift_ec2_ownership_s3_key",
+            "spacelift_ec2_ownership_s3_prefix",
         ]
     ):
         if hasattr(config, "spacelift_ec2_ownership_aws_profile"):
@@ -115,7 +144,7 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
             neo4j_session,
             aws_session,
             config.spacelift_ec2_ownership_s3_bucket,
-            config.spacelift_ec2_ownership_s3_key,
+            config.spacelift_ec2_ownership_s3_prefix,
             config.update_tag,
             account_id,
         )

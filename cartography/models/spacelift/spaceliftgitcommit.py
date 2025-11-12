@@ -45,7 +45,7 @@ class SpaceliftGitCommitToAccountRel(CartographyRelSchema):
 
     target_node_label: str = "SpaceliftAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("account_id", set_in_kwargs=True)},
+        {"id": PropertyRef("spacelift_account_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -81,6 +81,32 @@ class SpaceliftGitCommitToAuthorRel(CartographyRelSchema):
     rel_label: str = "CONFIRMED"
     properties: SpaceliftGitCommitToAuthorRelProperties = (
         SpaceliftGitCommitToAuthorRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GitHubUserToSpaceliftGitCommitRelProperties(CartographyRelProperties):
+    """
+    Properties for the PUSHED relationship between a GitHub User and a Spacelift Git Commit.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubUserToSpaceliftGitCommitRel(CartographyRelSchema):
+    """
+    PUSHED relationship from a GitHub User to a Spacelift Git Commit.
+    """
+
+    target_node_label: str = "GitHubUser"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"username": PropertyRef("author_login")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "PUSHED"
+    properties: GitHubUserToSpaceliftGitCommitRelProperties = (
+        GitHubUserToSpaceliftGitCommitRelProperties()
     )
 
 
@@ -126,5 +152,6 @@ class SpaceliftGitCommitSchema(CartographyNodeSchema):
         [
             SpaceliftGitCommitToAuthorRel(),
             SpaceliftGitCommitToRunRel(),
+            GitHubUserToSpaceliftGitCommitRel(),
         ],
     )

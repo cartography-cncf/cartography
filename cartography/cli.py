@@ -366,6 +366,15 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--azure-permission-relationships-file",
+            type=str,
+            default="cartography/data/azure_permission_relationships.yaml",
+            help=(
+                "The path to the Azure permission relationships mapping file."
+                "If omitted the default Azure permission relationships will be created"
+            ),
+        )
+        parser.add_argument(
             "--jamf-base-uri",
             type=str,
             default=None,
@@ -863,7 +872,27 @@ class CLI:
             default="SPACELIFT_API_TOKEN",
             help=(
                 "The name of an environment variable containing the Spacelift API token. "
-                "Required if you are using the Spacelift intel module. Ignored otherwise."
+                "Alternative to using API key ID/secret. Ignored if API key credentials are provided."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-key-id-env-var",
+            type=str,
+            default="SPACELIFT_API_KEY_ID",
+            help=(
+                "The name of an environment variable containing the Spacelift API key ID. "
+                "Use with --spacelift-api-key-secret-env-var for automatic token exchange. "
+                "Alternative to providing a pre-generated token."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-key-secret-env-var",
+            type=str,
+            default="SPACELIFT_API_KEY_SECRET",
+            help=(
+                "The name of an environment variable containing the Spacelift API key secret. "
+                "Use with --spacelift-api-key-id-env-var for automatic token exchange. "
+                "Alternative to providing a pre-generated token."
             ),
         )
         parser.add_argument(
@@ -881,15 +910,16 @@ class CLI:
             default=None,
             help=(
                 "S3 bucket name containing CloudTrail data for EC2 ownership relationships. "
-                "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-key)."
+                "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-prefix)."
             ),
         )
         parser.add_argument(
-            "--spacelift-ec2-ownership-s3-key",
+            "--spacelift-ec2-ownership-s3-prefix",
             type=str,
             default=None,
             help=(
-                "S3 object key for CloudTrail data for EC2 ownership relationships. "
+                "S3 prefix for CloudTrail data for EC2 ownership relationships. "
+                "All JSON files under this prefix will be processed. "
                 "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-bucket)."
             ),
         )
@@ -1279,15 +1309,42 @@ class CLI:
         if not config.spacelift_api_endpoint:
             config.spacelift_api_endpoint = os.environ.get("SPACELIFT_API_ENDPOINT")
 
-        if config.spacelift_api_endpoint and config.spacelift_api_token_env_var:
-            logger.debug(
-                f"Reading API token for Spacelift from environment variable {config.spacelift_api_token_env_var}",
-            )
-            config.spacelift_api_token = os.environ.get(
-                config.spacelift_api_token_env_var
-            )
+        if config.spacelift_api_endpoint:
+            # Try to read API token
+            if config.spacelift_api_token_env_var:
+                logger.debug(
+                    f"Reading API token for Spacelift from environment variable {config.spacelift_api_token_env_var}",
+                )
+                config.spacelift_api_token = os.environ.get(
+                    config.spacelift_api_token_env_var
+                )
+            else:
+                config.spacelift_api_token = None
+
+            # Try to read API key ID and secret
+            if config.spacelift_api_key_id_env_var:
+                logger.debug(
+                    f"Reading API key ID for Spacelift from environment variable {config.spacelift_api_key_id_env_var}",
+                )
+                config.spacelift_api_key_id = os.environ.get(
+                    config.spacelift_api_key_id_env_var
+                )
+            else:
+                config.spacelift_api_key_id = None
+
+            if config.spacelift_api_key_secret_env_var:
+                logger.debug(
+                    f"Reading API key secret for Spacelift from environment variable {config.spacelift_api_key_secret_env_var}",
+                )
+                config.spacelift_api_key_secret = os.environ.get(
+                    config.spacelift_api_key_secret_env_var
+                )
+            else:
+                config.spacelift_api_key_secret = None
         else:
             config.spacelift_api_token = None
+            config.spacelift_api_key_id = None
+            config.spacelift_api_key_secret = None
 
         # Run cartography
         try:
