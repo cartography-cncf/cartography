@@ -392,6 +392,18 @@ This will show you all available findings and facts.
 
 Want to add your own security findings? Here's how:
 
+### Remarks regarding cypher queries
+
+- Ensure your queries are efficient and optimized for performance on large graphs.
+- Test your queries against realistic datasets to minimize false positives/negatives.
+- Follow existing code style and conventions for consistency.
+
+```{important}
+Queries **MUST** only return nodes and relationships and they must explicity return them. Do not use `RETURN *` or `RETURN n.name` only. This is to ensure that the output model can be properly constructed.
+```
+
+### Steps to add a new finding
+
 1. **Create a new finding file** in `cartography/rules/data/findings/`:
    ```python
    from cartography.rules.spec.model import Fact, Finding, Maturity, Module
