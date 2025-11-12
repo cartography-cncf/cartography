@@ -1218,14 +1218,31 @@ Representation of an [Azure App Service](https://learn.microsoft.com/en-us/rest/
     (AzureSubscription)-[RESOURCE]->(AzureAppService)
     ```
 
-### AzureLogicApp
+### AzureEventGridTopic
 
-Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).
+Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/rest/api/eventgrid/controlplane-stable/topics/get).
 
 | Field | Description |
 |---|---|
 |firstseen| Timestamp of when a sync job discovered this node|
 |lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Event Grid Topic. |
+|name| The name of the Event Grid Topic. |
+|location| The Azure region where the Topic is deployed. |
+|provisioning_state| The deployment status of the Topic (e.g., Succeeded). |
+|public_network_access| Indicates if the topic can be accessed from the public internet. |
+
+#### Relationships
+
+- An Azure Event Grid Topic is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureEventGridTopic)
+    ```
+
+### AzureLogicApp
+
+Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).
+
 |**id**| The full resource ID of the Logic App. |
 |name| The name of the Logic App. |
 |location| The Azure region where the Logic App is deployed. |
@@ -1313,6 +1330,68 @@ Representation of a key-value tag applied to an Azure resource. Tags with the sa
 | value | The tag value (e.g., `Production`). |
 | lastupdated | The timestamp of the last time this tag was seen on any resource. |
 
+### AzureVirtualNetwork
+
+Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/virtual-networks/get).
+
+| Field                | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| firstseen            | Timestamp of when a sync job discovered this node                 |
+| lastupdated          | Timestamp of the last time the node was updated                   |
+| **id** | The full resource ID of the Virtual Network.                      |
+| name                 | The name of the Virtual Network.                                  |
+| location             | The Azure region where the Virtual Network is deployed.           |
+| provisioning_state   | The deployment status of the Virtual Network (e.g., Succeeded).   |
+
+#### Relationships
+
+- An Azure Virtual Network is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureVirtualNetwork)
+    ```
+
+- An Azure Virtual Network contains one or more Subnets.
+    ```cypher
+    (AzureVirtualNetwork)-[:CONTAINS]->(:AzureSubnet)
+    ```
+
+### AzureSubnet
+
+Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
+
+| Field          | Description                                         |
+| -------------- | --------------------------------------------------- |
+| firstseen      | Timestamp of when a sync job discovered this node   |
+| lastupdated    | Timestamp of the last time the node was updated     |
+| **id** | The full resource ID of the Subnet.                 |
+| name           | The name of the Subnet.                             |
+| address\_prefix | The address prefix of the Subnet in CIDR notation.  |
+
+#### Relationships
+
+  - A Subnet can be associated with a Network Security Group.
+    ```cypher
+    (AzureSubnet)-[:ASSOCIATED_WITH]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureNetworkSecurityGroup
+
+Representation of an [Azure Network Security Group (NSG)](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-security-groups/get).
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the Network Security Group.   |
+| name        | The name of the Network Security Group.               |
+| location    | The Azure region where the NSG is deployed.           |
+
+#### Relationships
+
+  - An Azure Network Security Group is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityGroup)
+    ```
 
 ### AzureSecurityAssessment
 
