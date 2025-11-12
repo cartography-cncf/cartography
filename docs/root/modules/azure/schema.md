@@ -577,6 +577,11 @@ Representation of an [AzureStorageAccount](https://docs.microsoft.com/en-us/rest
     ```cypher
     (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
     ```
+- Azure Storage Accounts can be tagged with Azure Tags.
+
+    ```cypher
+    (:AzureStorageAccount)-[:TAGGED]->(:AzureTag)
+    ```
 
 ### AzureStorageQueueService
 
@@ -1329,6 +1334,14 @@ Representation of a key-value tag applied to an Azure resource. Tags with the sa
 | key | The tag name (e.g., `Environment`). |
 | value | The tag value (e.g., `Production`). |
 | lastupdated | The timestamp of the last time this tag was seen on any resource. |
+
+#### Relationships
+
+- Azure Storage Accounts can be tagged with Azure Tags.
+
+    ```cypher
+    (:AzureStorageAccount)-[:TAGGED]->(:AzureTag)
+    ```
 
 ### AzureVirtualNetwork
 
