@@ -2,8 +2,6 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.core.exceptions import ClientAuthenticationError
-from azure.core.exceptions import HttpResponseError
 from azure.mgmt.network import NetworkManagementClient
 
 from cartography.client.core.tx import load
@@ -39,20 +37,7 @@ def get_load_balancers(client: NetworkManagementClient) -> list[dict]:
     """
     Get a list of all Load Balancers in a subscription.
     """
-    try:
-        return [lb.as_dict() for lb in client.load_balancers.list_all()]
-    except ClientAuthenticationError:
-        logger.warning(
-            "Failed to get Load Balancers due to a client authentication error.",
-            exc_info=True,
-        )
-        raise
-    except HttpResponseError:
-        logger.warning(
-            "Failed to get Load Balancers due to a transient error.",
-            exc_info=True,
-        )
-        return []
+    return [lb.as_dict() for lb in client.load_balancers.list_all()]
 
 
 def transform_load_balancers(load_balancers: list[dict]) -> list[dict]:
