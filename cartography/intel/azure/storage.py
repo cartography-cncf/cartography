@@ -11,6 +11,11 @@ from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
 from azure.mgmt.storage import StorageManagementClient
 
+from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
+from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
+from cartography.models.azure.tags.storage_tag import AzureStorageTagsSchema
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -99,11 +104,32 @@ def load_storage_account_data(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_storage_account,
         storage_accounts_list=storage_account_list,
         AZURE_SUBSCRIPTION_ID=subscription_id,
         azure_update_tag=azure_update_tag,
+    )
+
+
+@timeit
+def load_storage_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    storage_accounts: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Sync tags for storage accounts.
+    """
+    tags = transform_tags(storage_accounts, subscription_id)
+    load(
+        neo4j_session,
+        AzureStorageTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -395,7 +421,8 @@ def _load_queue_services(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_queue_services,
         queue_services_list=queue_services,
         azure_update_tag=update_tag,
@@ -424,7 +451,8 @@ def _load_table_services(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_table_services,
         table_services_list=table_services,
         azure_update_tag=update_tag,
@@ -453,7 +481,8 @@ def _load_file_services(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_file_services,
         file_services_list=file_services,
         azure_update_tag=update_tag,
@@ -482,7 +511,8 @@ def _load_blob_services(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_blob_services,
         blob_services_list=blob_services,
         azure_update_tag=update_tag,
@@ -595,7 +625,8 @@ def _load_queues(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_queues,
         queues_list=queues,
         azure_update_tag=update_tag,
@@ -709,7 +740,8 @@ def _load_tables(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_tables,
         tables_list=tables,
         azure_update_tag=update_tag,
@@ -833,7 +865,8 @@ def _load_shares(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_shares,
         shares_list=shares,
         azure_update_tag=update_tag,
@@ -964,7 +997,8 @@ def _load_blob_containers(
     SET r.lastupdated = $azure_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_blob_containers,
         blob_containers_list=blob_containers,
         azure_update_tag=update_tag,
@@ -984,6 +1018,20 @@ def cleanup_azure_storage_accounts(
 
 
 @timeit
+def cleanup_azure_storage_tags(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    """
+    Delete stale Azure Storage Tags that are scoped to the current subscription.
+    Uses the sub-resource relationship to only clean tags belonging to this subscription.
+    """
+    GraphJob.from_node_schema(AzureStorageTagsSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -999,6 +1047,7 @@ def sync(
         storage_account_list,
         sync_tag,
     )
+    load_storage_tags(neo4j_session, subscription_id, storage_account_list, sync_tag)
     sync_storage_account_details(
         neo4j_session,
         credentials,
@@ -1007,3 +1056,4 @@ def sync(
         sync_tag,
     )
     cleanup_azure_storage_accounts(neo4j_session, common_job_parameters)
+    cleanup_azure_storage_tags(neo4j_session, common_job_parameters)

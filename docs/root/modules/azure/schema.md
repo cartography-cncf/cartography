@@ -577,6 +577,11 @@ Representation of an [AzureStorageAccount](https://docs.microsoft.com/en-us/rest
     ```cypher
     (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
     ```
+- Azure Storage Accounts can be tagged with Azure Tags.
+
+    ```cypher
+    (:AzureStorageAccount)-[:TAGGED]->(:AzureTag)
+    ```
 
 ### AzureStorageQueueService
 
@@ -1218,14 +1223,31 @@ Representation of an [Azure App Service](https://learn.microsoft.com/en-us/rest/
     (AzureSubscription)-[RESOURCE]->(AzureAppService)
     ```
 
-### AzureLogicApp
+### AzureEventGridTopic
 
-Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).
+Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/rest/api/eventgrid/controlplane-stable/topics/get).
 
 | Field | Description |
 |---|---|
 |firstseen| Timestamp of when a sync job discovered this node|
 |lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Event Grid Topic. |
+|name| The name of the Event Grid Topic. |
+|location| The Azure region where the Topic is deployed. |
+|provisioning_state| The deployment status of the Topic (e.g., Succeeded). |
+|public_network_access| Indicates if the topic can be accessed from the public internet. |
+
+#### Relationships
+
+- An Azure Event Grid Topic is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureEventGridTopic)
+    ```
+
+### AzureLogicApp
+
+Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).
+
 |**id**| The full resource ID of the Logic App. |
 |name| The name of the Logic App. |
 |location| The Azure region where the Logic App is deployed. |
@@ -1325,17 +1347,149 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
     ```
 
+### AzureTag
+
+Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| id | Unique identifier for the tag, formatted as `{subscription_id}|{key}:{value}`. |
+| key | The tag name (e.g., `Environment`). |
+| value | The tag value (e.g., `Production`). |
+| lastupdated | The timestamp of the last time this tag was seen on any resource. |
+
+#### Relationships
+
+- Azure Storage Accounts can be tagged with Azure Tags.
+
+    ```cypher
+    (:AzureStorageAccount)-[:TAGGED]->(:AzureTag)
+    ```
+
+### AzureVirtualNetwork
+
+Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/virtual-networks/get).
+
+| Field                | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| firstseen            | Timestamp of when a sync job discovered this node                 |
+| lastupdated          | Timestamp of the last time the node was updated                   |
+| **id** | The full resource ID of the Virtual Network.                      |
+| name                 | The name of the Virtual Network.                                  |
+| location             | The Azure region where the Virtual Network is deployed.           |
+| provisioning_state   | The deployment status of the Virtual Network (e.g., Succeeded).   |
+
+#### Relationships
+
+- An Azure Virtual Network is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureVirtualNetwork)
+    ```
+
+- An Azure Virtual Network contains one or more Subnets.
+    ```cypher
+    (AzureVirtualNetwork)-[:CONTAINS]->(:AzureSubnet)
+    ```
+
+### AzureSubnet
+
+Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
+
+| Field          | Description                                         |
+| -------------- | --------------------------------------------------- |
+| firstseen      | Timestamp of when a sync job discovered this node   |
+| lastupdated    | Timestamp of the last time the node was updated     |
+| **id** | The full resource ID of the Subnet.                 |
+| name           | The name of the Subnet.                             |
+| address\_prefix | The address prefix of the Subnet in CIDR notation.  |
+
+#### Relationships
+
+  - A Subnet can be associated with a Network Security Group.
+    ```cypher
+    (AzureSubnet)-[:ASSOCIATED_WITH]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureNetworkSecurityGroup
+
+Representation of an [Azure Network Security Group (NSG)](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-security-groups/get).
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the Network Security Group.   |
+| name        | The name of the Network Security Group.               |
+| location    | The Azure region where the NSG is deployed.           |
+
+#### Relationships
+
+  - An Azure Network Security Group is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureSecurityAssessment
+
+Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Assessment.|
+|name| The name of the Assessment.|
+|display\_name| The user-friendly display name of the Assessment.|
+|description| The description of the security issue identified by the assessment.|
+|remediation\_description| The description of the steps required to remediate the issue.|
+
+#### Relationships
+
+  - An Azure Security Assessment is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[HAS_ASSESSMENT]->(AzureSecurityAssessment)
+    ```
+
+### AzureMonitorMetricAlert
+
+Representation of an Azure Monitor [Metric Alert](https://learn.microsoft.com/en-us/rest/api/monitor/metricalerts/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Metric Alert.|
+|name| The name of the Metric Alert.|
+|location| The Azure region where the Metric Alert is deployed.|
+|description| The description of the Metric Alert.|
+|severity| The severity of the alert, from 0 (critical) to 4 (verbose).|
+|enabled| A boolean indicating if the alert rule is enabled.|
+|window\_size| The period of time (in ISO 8601 duration format) that is used to monitor alert activity.|
+|evaluation\_frequency| The frequency (in ISO 8601 duration format) with which the metric data is collected.|
+|last\_updated\_time| The timestamp of when the alert rule was last modified.|
+
+#### Relationships
+
+  - An Azure Monitor Metric Alert is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:HAS_METRIC_ALERT]->(AzureMonitorMetricAlert)
+    ```
+
 ### AzureDataLakeFileSystem
 
 Representation of an [Azure Data Lake File System](https://learn.microsoft.com/en-us/rest/api/storagerp/blob-containers/get), which is a container within a Data Lake enabled Storage Account.
 
-
-|**id**| The full resource ID of the File System. |
-|name| The name of the File System. |
-|public_access| The public access level of the File System (e.g., None). |
-|last_modified_time| The timestamp of when the File System was last modified. |
-|has_immutability_policy| A boolean indicating if the data is protected from being changed or deleted. |
-|has_legal_hold| A boolean indicating if the data is locked for legal reasons. |
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the File System. |
+| name | The name of the File System. |
+| public_access | The public access level of the File System (e.g., None). |
+| last_modified_time | The timestamp of when the File System was last modified. |
+| has_immutability_policy | A boolean indicating if the data is protected from being changed or deleted. |
+| has_legal_hold | A boolean indicating if the data is locked for legal reasons. |
 
 #### Relationships
 

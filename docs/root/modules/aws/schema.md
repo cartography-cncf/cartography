@@ -1705,7 +1705,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
     (NetworkInterface)-[PRIVATE_IP_ADDRESS]->(EC2PrivateIp)
     ```
 
-- EC2RouteTableAssociation is associated with a subnet.
+- EC2RouteTableAssociation links a subnet to a route table. The subnet uses this route table for egress routing decisions.
     ```
     (EC2RouteTableAssociation)-[ASSOCIATED_SUBNET]->(EC2Subnet)
     ```
@@ -1890,7 +1890,7 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 |--------|-----------|
 | digest | The hash of this ECR image |
 | **id** | Same as digest |
-| layer_diff_ids | Ordered list of image layer digests for this image. Mirrors the manifest order and includes duplicates (for example, the Docker empty layer). |
+| layer_diff_ids | Ordered list of image layer digests for this image. Only set for `type="image"` nodes. `null` for manifest lists and attestations. |
 | type | Type of image: `"image"` (platform-specific or single-arch image), `"manifest_list"` (multi-arch index), or `"attestation"` (attestation manifest) |
 | architecture | CPU architecture (e.g., `"amd64"`, `"arm64"`). Set to `"unknown"` for attestations, `null` for manifest lists. |
 | os | Operating system (e.g., `"linux"`, `"windows"`). Set to `"unknown"` for attestations, `null` for manifest lists. |
@@ -1899,6 +1899,7 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 | attests_digest | For attestations only: the digest of the image this attestation is for. `null` for regular images. |
 | media_type | The OCI/Docker media type of this manifest (e.g., `"application/vnd.oci.image.manifest.v1+json"`) |
 | artifact_media_type | The artifact media type if this is an OCI artifact. Optional field. |
+| child_image_digests | For manifest lists only: list of platform-specific image digests contained in this manifest list. Excludes attestations. `null` for regular images and attestations. |
 
 #### Relationships
 
@@ -1912,7 +1913,7 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:Package)-[:DEPLOYED]->(:ECRImage)
     ```
 
-- An ECRImage references its layers
+- An ECRImage references its layers (only applies to `type="image"` nodes)
     ```
     (:ECRImage)-[:HAS_LAYER]->(:ECRImageLayer)
     ```
@@ -1938,6 +1939,16 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     - `from_attestation`: Boolean flag indicating the relationship was derived from provenance attestation (always `true`)
     - `confidence`: Confidence level of the relationship (always `"explicit"` for attestation-based relationships)
 
+- A manifest list ECRImage contains platform-specific ECRImages (only applies to `type="manifest_list"` nodes)
+    ```
+    (:ECRImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(:ECRImage {type: "image"})
+    ```
+
+- An attestation ECRImage attests/validates another ECRImage (only applies to `type="attestation"` nodes)
+    ```
+    (:ECRImage {type: "attestation"})-[:ATTESTS]->(:ECRImage)
+    ```
+
 
 ### ECRImageLayer
 
@@ -1962,19 +1973,19 @@ Representation of an individual Docker image layer discovered while processing E
     (:ECRImageLayer)-[:NEXT]->(:ECRImageLayer)
     ```
 
-- A layer can be the head of an image
+- A layer can be the head of a platform-specific image (only `type="image"` nodes have layer relationships)
     ```
-    (:ECRImageLayer)-[:HEAD]->(:ECRImage)
-    ```
-
-- A layer can be the tail of an image
-    ```
-    (:ECRImageLayer)-[:TAIL]->(:ECRImage)
+    (:ECRImage {type: "image"})-[:HEAD]->(:ECRImageLayer)
     ```
 
-- Images reference all of their layers
+- A layer can be the tail of a platform-specific image
     ```
-    (:ECRImage)-[:HAS_LAYER]->(:ECRImageLayer)
+    (:ECRImage {type: "image"})-[:TAIL]->(:ECRImageLayer)
+    ```
+
+- Platform-specific images reference all of their layers
+    ```
+    (:ECRImage {type: "image"})-[:HAS_LAYER]->(:ECRImageLayer)
     ```
 
 #### Query Examples
@@ -2054,6 +2065,25 @@ Representation of an individual Docker image layer discovered while processing E
         SIZE(base_diff_ids) as base_layer_count, lcp_length
     ORDER BY lcp_length DESC, base_img.image_pushed_at DESC
     LIMIT 1
+    ```
+
+- Find all platform-specific images in a multi-architecture manifest list:
+    ```cypher
+    MATCH (manifest_list:ECRImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(platform_image:ECRImage)
+    RETURN platform_image.architecture, platform_image.os, platform_image.variant, platform_image.digest
+    ORDER BY platform_image.architecture;
+    ```
+
+- Find which image an attestation validates:
+    ```cypher
+    MATCH (attestation:ECRImage {type: "attestation"})-[:ATTESTS]->(image:ECRImage)
+    RETURN attestation.digest AS attestation_digest, image.digest AS validated_image_digest;
+    ```
+
+- Find all attestations for a specific image:
+    ```cypher
+    MATCH (attestation:ECRImage {type: "attestation"})-[:ATTESTS]->(image:ECRImage {digest: $digest})
+    RETURN attestation.digest, attestation.attestation_type;
     ```
 
 
@@ -2525,7 +2555,25 @@ Representation of a generic Network Interface.  Currently however, we only creat
 | requester_managed  |  Indicates whether the interface is managed by the requester |
 | source_dest_check   | Indicates whether to validate network traffic to or from this network interface.  |
 | public_ip   | Public IPv4 address attached to the interface  |
+| attach_time | The timestamp when the network interface was attached to an EC2 instance. For primary interfaces (device_index=0), this reveals the first launch time of the instance [according to AWS](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html). |
+| device_index | The index of the device on the instance for the network interface attachment. A value of `0` indicates the primary (eth0) network interface, which is created when the instance is launched. |
 
+#### Usage Notes
+
+**Finding the True First Launch Time:**
+
+The `LaunchTime` field on EC2Instance nodes shows the *last* launch time (e.g., if an instance was stopped and restarted). To find when an instance was *originally* created, use the `attach_time` of the primary network interface (`device_index: 0`):
+
+```cypher
+// Get the true first launch time for EC2 instances
+MATCH (i:EC2Instance)-[:NETWORK_INTERFACE]->(ni:NetworkInterface {device_index: 0})
+WHERE ni.attach_time IS NOT NULL
+RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
+```
+
+**Primary vs Secondary Interfaces:**
+- **Primary interfaces** (`device_index: 0`): Created when the instance is launched, cannot be detached. The `attach_time` represents the instance's original creation time.
+- **Secondary interfaces** (`device_index: 1+`): Can be attached and detached at any time. The `attach_time` represents when the secondary interface was attached, not when the instance was created.
 
 #### Relationships
 

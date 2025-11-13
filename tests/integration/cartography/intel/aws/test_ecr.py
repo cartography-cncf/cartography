@@ -659,3 +659,43 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
         tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST,
         tests.data.aws.ecr.MANIFEST_LIST_ATTESTATION_DIGEST,
     }
+
+    # Assert - Check that manifest list has CONTAINS_IMAGE relationships to platform images (not attestations)
+    contains_rels = check_rels(
+        neo4j_session,
+        "ECRImage",
+        "digest",
+        "ECRImage",
+        "digest",
+        "CONTAINS_IMAGE",
+        rel_direction_right=True,
+    )
+
+    manifest_list_contains = {
+        img_digest
+        for (ml_digest, img_digest) in contains_rels
+        if ml_digest == tests.data.aws.ecr.MANIFEST_LIST_DIGEST
+    }
+
+    # Manifest list should point to platform images (AMD64, ARM64) but NOT attestations
+    assert manifest_list_contains == {
+        tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST,
+        tests.data.aws.ecr.MANIFEST_LIST_ARM64_DIGEST,
+    }
+
+    # Assert - Check that attestation has ATTESTS relationship to the image it validates
+    attests_rels = check_rels(
+        neo4j_session,
+        "ECRImage",
+        "digest",
+        "ECRImage",
+        "digest",
+        "ATTESTS",
+        rel_direction_right=True,
+    )
+
+    # Attestation should point to the AMD64 image
+    assert (
+        tests.data.aws.ecr.MANIFEST_LIST_ATTESTATION_DIGEST,
+        tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST,
+    ) in attests_rels
