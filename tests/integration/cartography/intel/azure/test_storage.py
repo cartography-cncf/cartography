@@ -8,6 +8,8 @@ from tests.data.azure.storage import DESCRIBE_QUEUE_SERVICES
 from tests.data.azure.storage import DESCRIBE_STORAGE_ACCOUNTS
 from tests.data.azure.storage import DESCRIBE_TABLE_SERVICES
 from tests.data.azure.storage import DESCRIBE_TABLES
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_RESOURCE_GROUP = "TestRG"
@@ -54,12 +56,17 @@ def test_load_storage_tags(neo4j_session):
     # 2. Act: Load the tags
     storage.load_storage_tags(
         neo4j_session,
+        TEST_SUBSCRIPTION_ID,
         DESCRIBE_STORAGE_ACCOUNTS,
         TEST_UPDATE_TAG,
     )
 
-    # 3. Assert: Check that the AzureTag nodes exist
-    expected_tags = {"env:prod", "dept:finance", "dept:engineering"}
+    # 3. Assert: Check that the AzureTag nodes exist with subscription-scoped IDs
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|dept:finance",
+        f"{TEST_SUBSCRIPTION_ID}|dept:engineering",
+    }
     tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
     actual_tags = {n["t.id"] for n in tag_nodes}
     assert actual_tags == expected_tags
@@ -67,23 +74,81 @@ def test_load_storage_tags(neo4j_session):
     # 4. Assert: Check the relationships
     shared_tag_rels = neo4j_session.run(
         """
-        MATCH (sa:AzureStorageAccount)-[:TAGGED]->(t:AzureTag {id: 'env:prod'})
+        MATCH (sa:AzureStorageAccount)-[:TAGGED]->(t:AzureTag {id: $tag_id})
         RETURN sa.id
-        """
+        """,
+        tag_id=f"{TEST_SUBSCRIPTION_ID}|env:prod",
     )
     actual_shared_rels = {r["sa.id"] for r in shared_tag_rels}
     assert actual_shared_rels == {sa1, sa2}
 
     # We verify the unique 'dept' tags are connected to the right accounts
     finance_rel = neo4j_session.run(
-        "MATCH (sa:AzureStorageAccount)-[:TAGGED]->(t:AzureTag {id: 'dept:finance'}) RETURN sa.id"
+        "MATCH (sa:AzureStorageAccount)-[:TAGGED]->(t:AzureTag {id: $tag_id}) RETURN sa.id",
+        tag_id=f"{TEST_SUBSCRIPTION_ID}|dept:finance",
     ).single()
     assert finance_rel["sa.id"] == sa1
 
     eng_rel = neo4j_session.run(
-        "MATCH (sa:AzureStorageAccount)-[:TAGGED]->(t:AzureTag {id: 'dept:engineering'}) RETURN sa.id"
+        "MATCH (sa:AzureStorageAccount)-[:TAGGED]->(t:AzureTag {id: $tag_id}) RETURN sa.id",
+        tag_id=f"{TEST_SUBSCRIPTION_ID}|dept:engineering",
     ).single()
     assert eng_rel["sa.id"] == sa2
+
+
+def test_storage_tags_subscription_relationship(neo4j_session):
+    """
+    Test that AzureTags have a RESOURCE relationship to their subscription.
+    """
+    # 1. Arrange: Create a subscription
+    neo4j_session.run(
+        """
+        MERGE (as:AzureSubscription{id: $subscription_id})
+        ON CREATE SET as.firstseen = timestamp()
+        SET as.lastupdated = $update_tag
+        """,
+        subscription_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Act: Load storage accounts and tags
+    storage.load_storage_account_data(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        DESCRIBE_STORAGE_ACCOUNTS,
+        TEST_UPDATE_TAG,
+    )
+    storage.load_storage_tags(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        DESCRIBE_STORAGE_ACCOUNTS,
+        TEST_UPDATE_TAG,
+    )
+
+    # 2. Assert: Check that all tags have a RESOURCE relationship to the subscription
+    expected_rels = {
+        (TEST_SUBSCRIPTION_ID, f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (TEST_SUBSCRIPTION_ID, f"{TEST_SUBSCRIPTION_ID}|dept:finance"),
+        (TEST_SUBSCRIPTION_ID, f"{TEST_SUBSCRIPTION_ID}|dept:engineering"),
+    }
+    actual_rels = check_rels(
+        neo4j_session,
+        "AzureSubscription",
+        "id",
+        "AzureTag",
+        "id",
+        "RESOURCE",
+    )
+    assert actual_rels == expected_rels
+
+    # 3. Assert: Verify that tags have subscription_id property
+    expected_nodes = {
+        (f"{TEST_SUBSCRIPTION_ID}|env:prod", TEST_SUBSCRIPTION_ID),
+        (f"{TEST_SUBSCRIPTION_ID}|dept:finance", TEST_SUBSCRIPTION_ID),
+        (f"{TEST_SUBSCRIPTION_ID}|dept:engineering", TEST_SUBSCRIPTION_ID),
+    }
+    actual_nodes = check_nodes(neo4j_session, "AzureTag", ["id", "subscription_id"])
+    assert actual_nodes == expected_nodes
 
 
 def test_load_storage_account_data_relationships(neo4j_session):

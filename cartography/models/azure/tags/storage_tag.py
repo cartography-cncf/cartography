@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from cartography.models.azure.tags.tag import AzureTagProperties
+from cartography.models.azure.tags.tag import AzureTagToSubscriptionRel
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelProperties
@@ -31,6 +32,7 @@ class StorageAccountToTagRel(CartographyRelSchema):
 class AzureStorageTagsSchema(CartographyNodeSchema):
     label: str = "AzureTag"
     properties: AzureTagProperties = AzureTagProperties()
+    sub_resource_relationship: AzureTagToSubscriptionRel = AzureTagToSubscriptionRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
             StorageAccountToTagRel(),

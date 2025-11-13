@@ -13,6 +13,7 @@ from azure.mgmt.storage import StorageManagementClient
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
+from cartography.graph.job import GraphJob
 from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.tags.storage_tag import AzureStorageTagsSchema
 from cartography.util import run_cleanup_job
@@ -115,18 +116,20 @@ def load_storage_account_data(
 @timeit
 def load_storage_tags(
     neo4j_session: neo4j.Session,
+    subscription_id: str,
     storage_accounts: List[Dict],
     update_tag: int,
 ) -> None:
     """
     Sync tags for storage accounts.
     """
-    tags = transform_tags(storage_accounts)
+    tags = transform_tags(storage_accounts, subscription_id)
     load(
         neo4j_session,
         AzureStorageTagsSchema(),
         tags,
         lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -1015,6 +1018,20 @@ def cleanup_azure_storage_accounts(
 
 
 @timeit
+def cleanup_azure_storage_tags(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    """
+    Delete stale Azure Storage Tags that are scoped to the current subscription.
+    Uses the sub-resource relationship to only clean tags belonging to this subscription.
+    """
+    GraphJob.from_node_schema(AzureStorageTagsSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -1030,7 +1047,7 @@ def sync(
         storage_account_list,
         sync_tag,
     )
-    load_storage_tags(neo4j_session, storage_account_list, sync_tag)
+    load_storage_tags(neo4j_session, subscription_id, storage_account_list, sync_tag)
     sync_storage_account_details(
         neo4j_session,
         credentials,
@@ -1039,3 +1056,4 @@ def sync(
         sync_tag,
     )
     cleanup_azure_storage_accounts(neo4j_session, common_job_parameters)
+    cleanup_azure_storage_tags(neo4j_session, common_job_parameters)
