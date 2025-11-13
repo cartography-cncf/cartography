@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Cartography Rules - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Usage Tutorial" href="tutorial.html" /><link rel="prev" title="Usage" href="index.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=14737038" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Cartography Rules"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Usage</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html#example-queries">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">Github Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Config</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#design">Design</a></li>
+<li><a class="reference internal" href="#rationale">Rationale</a></li>
+<li><a class="reference internal" href="#supported-rules">Supported Rules</a></li>
+<li><a class="reference internal" href="#setup">Setup</a></li>
+<li><a class="reference internal" href="#quick-start">Quick start</a></li>
+<li><a class="reference internal" href="#usage">Usage</a><ul>
+<li><a class="reference internal" href="#list"><code class="docutils literal notranslate"><span class="pre">list</span></code></a><ul>
+<li><a class="reference internal" href="#see-available-frameworks">See available frameworks</a></li>
+<li><a class="reference internal" href="#see-available-requirements-for-a-framework">See available requirements for a framework</a></li>
+<li><a class="reference internal" href="#see-available-facts-for-a-requirement">See available facts for a requirement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#run"><code class="docutils literal notranslate"><span class="pre">run</span></code></a><ul>
+<li><a class="reference internal" href="#run-all-frameworks-in-text-mode">Run all frameworks in text mode</a></li>
+<li><a class="reference internal" href="#run-all-frameworks-in-json-mode">Run all frameworks in JSON mode</a></li>
+<li><a class="reference internal" href="#run-a-specific-framework">Run a specific framework</a></li>
+<li><a class="reference internal" href="#run-a-specific-requirement-on-a-framework">Run a specific requirement on a framework</a></li>
+<li><a class="reference internal" href="#run-a-specific-fact-on-a-requirement">Run a specific fact on a requirement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#authentication-options">Authentication Options</a><ul>
+<li><a class="reference internal" href="#use-a-custom-environment-variable-for-the-password">Use a custom environment variable for the password:</a></li>
+<li><a class="reference internal" href="#use-interactive-password-prompt">Use interactive password prompt:</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tab-completion">Tab completion</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#next-steps">Next steps</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/usage/rules.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Usage</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Cartography Rules</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+        <article class="yue" role="main">
+          <section id="cartography-rules">
+<h1>Cartography Rules<a class="headerlink" href="#cartography-rules" title="Link to this heading">¶</a></h1>
+<p>Cartography Rules is a query library for your Cartography graph.</p>
+<p>With the <code class="docutils literal notranslate"><span class="pre">cartography-rules</span></code> CLI, you can:</p>
+<ul class="simple">
+<li><p>Run pre-defined queries based on frameworks like <a class="reference external" href="https://attack.mitre.org/">MITRE ATT&amp;CK</a></p></li>
+<li><p>Explore and contribute community rules</p></li>
+<li><p>Build custom queries for your own environment</p></li>
+</ul>
+<section id="design">
+<h2>Design<a class="headerlink" href="#design" title="Link to this heading">¶</a></h2>
+<p>These rules are designed from an attacker’s perspective. For each framework technique, we ask: “What does an attacker actually need to execute this technique?”</p>
+<p>The queries surface opportunities across the entire kill chain: initial access, lateral movement, privilege escalation, data exfiltration, persistence.</p>
+<p>We don’t impose arbitrary thresholds like “no more than 5 admins” because every organization has different risk tolerances. Instead, we surface facts:</p>
+<ul class="simple">
+<li><p>If a query returns no results, you’ve eliminated obvious attack paths for that technique.</p></li>
+<li><p>If it returns findings, you now have a clear list of potential attacker targets.</p></li>
+</ul>
+</section>
+<section id="rationale">
+<h2>Rationale<a class="headerlink" href="#rationale" title="Link to this heading">¶</a></h2>
+<p>Security isn’t one-size-fits-all. For example, an EC2 security group open to the internet may be risky for some orgs even if it isn’t attached to an instance (someone could attach one later). For other orgs, that’s irrelevant noise.</p>
+<p>Similarly, IAM roles trusted across multiple accounts or S3 buckets with public access may or may not be material risks depending on your use case.</p>
+<p>Our goal is to surface facts in context so you can decide what matters for your environment.</p>
+</section>
+<section id="supported-rules">
+<h2>Supported Rules<a class="headerlink" href="#supported-rules" title="Link to this heading">¶</a></h2>
+<p>Currently rules cover:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://attack.mitre.org/">MITRE ATT&amp;CK</a></p></li>
+</ul>
+<p>You can list all available frameworks and techniques from the CLI, see <a class="reference internal" href="#list"><span class="xref myst">below</span></a>.</p>
+<p>.. note::
+Rules query against the existing Cartography graph. They don’t write data; they return findings you can view in text, JSON, or the Neo4j Browser.</p>
+</section>
+<section id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Link to this heading">¶</a></h2>
+<p>Make sure you’ve run Cartography and have data in Neo4j.</p>
+<p>Then configure your Neo4j connection:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">export</span><span class="w"> </span><span class="nv">NEO4J_URI</span><span class="o">=</span>bolt://localhost:7687<span class="w"> </span><span class="c1"># or your Neo4j URI</span>
+</span><span data-line="2"><span class="nb">export</span><span class="w"> </span><span class="nv">NEO4J_USER</span><span class="o">=</span>neo4j<span class="w"> </span><span class="c1"># or your username</span>
+</span><span data-line="3"><span class="nb">export</span><span class="w"> </span><span class="nv">NEO4J_DATABASE</span><span class="o">=</span>neo4j<span class="w"> </span><span class="c1"># or your database name</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="c1"># Store the Neo4j password in an environment variable. You can name this anything you want.</span>
+</span><span data-line="6">
+</span><span data-line="7"><span class="nb">set</span><span class="w"> </span>+o<span class="w"> </span><span class="nb">history</span><span class="w"> </span><span class="c1"># avoid storing the password in the shell history; can also use something like 1password CLI.</span>
+</span><span data-line="8"><span class="nb">export</span><span class="w"> </span><span class="nv">NEO4J_PASSWORD</span><span class="o">=</span>password
+</span><span data-line="9"><span class="nb">set</span><span class="w"> </span>-o<span class="w"> </span><span class="nb">history</span><span class="w"> </span><span class="c1"># turn shell history back on</span>
+</span></pre></div>
+</div>
+</section>
+<section id="quick-start">
+<h2>Quick start<a class="headerlink" href="#quick-start" title="Link to this heading">¶</a></h2>
+<ol class="arabic">
+<li><p>List all frameworks</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list
+</span></pre></div>
+</div>
+</li>
+<li><p>List techniques for MITRE ATT&amp;CK</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list<span class="w"> </span>mitre-attack
+</span></pre></div>
+</div>
+</li>
+<li><p>Run a specific technique</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>mitre-attack<span class="w"> </span>t1190
+</span></pre></div>
+</div>
+<p>Sample output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">Fact</span> <span class="mi">1</span><span class="o">/</span><span class="mi">4</span><span class="p">:</span> <span class="n">Internet</span><span class="o">-</span><span class="n">Exposed</span> <span class="n">EC2</span> <span class="n">Instances</span> <span class="n">on</span> <span class="n">Common</span> <span class="n">Management</span> <span class="n">Ports</span>
+</span><span data-line="2"><span class="n">Framework</span><span class="p">:</span>   <span class="n">MITRE</span> <span class="n">ATT</span><span class="o">&amp;</span><span class="n">CK</span>
+</span><span data-line="3"><span class="n">Requirement</span><span class="p">:</span> <span class="n">t1190</span> <span class="o">-</span> <span class="n">Exploit</span> <span class="n">Public</span><span class="o">-</span><span class="n">Facing</span> <span class="n">Application</span>
+</span><span data-line="4"><span class="n">Fact</span> <span class="n">ID</span><span class="p">:</span>     <span class="n">aws_ec2_instance_internet_exposed</span>
+</span><span data-line="5"><span class="n">Description</span><span class="p">:</span> <span class="n">EC2</span> <span class="n">instances</span> <span class="n">exposed</span> <span class="n">to</span> <span class="n">the</span> <span class="n">internet</span> <span class="n">on</span> <span class="n">ports</span> <span class="mi">22</span><span class="p">,</span> <span class="mi">3389</span><span class="p">,</span> <span class="mi">3306</span><span class="p">,</span> <span class="mi">5432</span><span class="p">,</span> <span class="mi">6379</span><span class="p">,</span> <span class="mi">9200</span><span class="p">,</span> <span class="mi">27017</span>
+</span><span data-line="6"><span class="n">Provider</span><span class="p">:</span>    <span class="n">AWS</span>
+</span><span data-line="7"><span class="n">Neo4j</span> <span class="n">Query</span><span class="p">:</span> <span class="n">Click</span> <span class="n">to</span> <span class="n">run</span> <span class="n">visual</span> <span class="n">query</span>
+</span><span data-line="8"><span class="n">Results</span><span class="p">:</span>     <span class="n">No</span> <span class="n">items</span> <span class="n">found</span>
+</span><span data-line="9">
+</span><span data-line="10"><span class="n">Fact</span> <span class="mi">2</span><span class="o">/</span><span class="mi">4</span><span class="p">:</span> <span class="n">Internet</span><span class="o">-</span><span class="n">Accessible</span> <span class="n">S3</span> <span class="n">Storage</span> <span class="n">Attack</span> <span class="n">Surface</span>
+</span><span data-line="11"><span class="n">Framework</span><span class="p">:</span>   <span class="n">MITRE</span> <span class="n">ATT</span><span class="o">&amp;</span><span class="n">CK</span>
+</span><span data-line="12"><span class="n">Requirement</span><span class="p">:</span> <span class="n">t1190</span> <span class="o">-</span> <span class="n">Exploit</span> <span class="n">Public</span><span class="o">-</span><span class="n">Facing</span> <span class="n">Application</span>
+</span><span data-line="13"><span class="n">Fact</span> <span class="n">ID</span><span class="p">:</span>     <span class="n">aws_s3_public</span>
+</span><span data-line="14"><span class="n">Description</span><span class="p">:</span> <span class="n">AWS</span> <span class="n">S3</span> <span class="n">buckets</span> <span class="n">accessible</span> <span class="kn">from</span><span class="w"> </span><span class="nn">the</span> <span class="n">internet</span>
+</span><span data-line="15"><span class="n">Provider</span><span class="p">:</span>    <span class="n">AWS</span>
+</span><span data-line="16"><span class="n">Neo4j</span> <span class="n">Query</span><span class="p">:</span> <span class="n">Click</span> <span class="n">to</span> <span class="n">run</span> <span class="n">visual</span> <span class="n">query</span>
+</span><span data-line="17"><span class="n">Results</span><span class="p">:</span>     <span class="mi">7</span> <span class="n">item</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="n">found</span>
+</span><span data-line="18">    <span class="n">Sample</span> <span class="n">results</span><span class="p">:</span>
+</span><span data-line="19">    <span class="mf">1.</span> <span class="n">bucket</span><span class="o">=</span><span class="n">cdn</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="n">us</span><span class="o">-</span><span class="n">east</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">public_access</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">public_actions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;s3:ListBucket&#39;</span><span class="p">]</span>
+</span><span data-line="20">    <span class="mf">2.</span> <span class="n">bucket</span><span class="o">=</span><span class="n">mybucket</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="n">us</span><span class="o">-</span><span class="n">east</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">public_access</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">public_actions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;s3:ListBucket&#39;</span><span class="p">,</span> <span class="s1">&#39;s3:ListBucketVersions&#39;</span><span class="p">,</span> <span class="s1">&#39;s3:...</span>
+</span><span data-line="21">    <span class="mf">3.</span> <span class="n">bucket</span><span class="o">=</span><span class="n">static</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="n">us</span><span class="o">-</span><span class="n">east</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">public_access</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">public_actions</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;s3:GetBucketAcl&#39;</span><span class="p">,</span> <span class="s1">&#39;s3:GetBucketAcl&#39;</span><span class="p">,</span> <span class="s1">&#39;s3:GetO...</span>
+</span><span data-line="22">    <span class="o">...</span> <span class="ow">and</span> <span class="mi">4</span> <span class="n">more</span> <span class="p">(</span><span class="n">use</span> <span class="o">--</span><span class="n">output</span> <span class="n">json</span> <span class="n">to</span> <span class="n">see</span> <span class="nb">all</span><span class="p">)</span>
+</span><span data-line="23"><span class="o">...</span>
+</span></pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h2>
+<section id="list">
+<h3><code class="docutils literal notranslate"><span class="pre">list</span></code><a class="headerlink" href="#list" title="Link to this heading">¶</a></h3>
+<section id="see-available-frameworks">
+<h4>See available frameworks<a class="headerlink" href="#see-available-frameworks" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list
+</span></pre></div>
+</div>
+</section>
+<section id="see-available-requirements-for-a-framework">
+<h4>See available requirements for a framework<a class="headerlink" href="#see-available-requirements-for-a-framework" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list<span class="w"> </span>mitre-attack
+</span></pre></div>
+</div>
+</section>
+<section id="see-available-facts-for-a-requirement">
+<h4>See available facts for a requirement<a class="headerlink" href="#see-available-facts-for-a-requirement" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list<span class="w"> </span>mitre-attack<span class="w"> </span>t1190
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="run">
+<h3><code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#run" title="Link to this heading">¶</a></h3>
+<section id="run-all-frameworks-in-text-mode">
+<h4>Run all frameworks in text mode<a class="headerlink" href="#run-all-frameworks-in-text-mode" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>all
+</span><span data-line="2"><span class="c1"># or</span>
+</span><span data-line="3">cartography-rules<span class="w"> </span>run<span class="w"> </span>all<span class="w"> </span>--output<span class="w"> </span>text
+</span></pre></div>
+</div>
+<p><img alt="cartography-rules-run-all-text.png" src="../_images/rules-text-output.png" /></p>
+</section>
+<section id="run-all-frameworks-in-json-mode">
+<h4>Run all frameworks in JSON mode<a class="headerlink" href="#run-all-frameworks-in-json-mode" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>all<span class="w"> </span>--output<span class="w"> </span>json
+</span></pre></div>
+</div>
+<p><img alt="cartography-rules-run-all-json.png" src="../_images/rules-json-output.png" /></p>
+</section>
+<section id="run-a-specific-framework">
+<h4>Run a specific framework<a class="headerlink" href="#run-a-specific-framework" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>mitre-attack
+</span></pre></div>
+</div>
+</section>
+<section id="run-a-specific-requirement-on-a-framework">
+<h4>Run a specific requirement on a framework<a class="headerlink" href="#run-a-specific-requirement-on-a-framework" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>mitre-attack<span class="w"> </span>t1190
+</span></pre></div>
+</div>
+</section>
+<section id="run-a-specific-fact-on-a-requirement">
+<h4>Run a specific fact on a requirement<a class="headerlink" href="#run-a-specific-fact-on-a-requirement" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>mitre-attack<span class="w"> </span>t1190<span class="w"> </span>aws_rds_public_access
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="authentication-options">
+<h3>Authentication Options<a class="headerlink" href="#authentication-options" title="Link to this heading">¶</a></h3>
+<section id="use-a-custom-environment-variable-for-the-password">
+<h4>Use a custom environment variable for the password:<a class="headerlink" href="#use-a-custom-environment-variable-for-the-password" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>mitre-attack<span class="w"> </span>--neo4j-password-env-var<span class="w"> </span>MY_NEO4J_PASSWORD
+</span></pre></div>
+</div>
+</section>
+<section id="use-interactive-password-prompt">
+<h4>Use interactive password prompt:<a class="headerlink" href="#use-interactive-password-prompt" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>mitre-attack<span class="w"> </span>--neo4j-password-prompt
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="tab-completion">
+<h3>Tab completion<a class="headerlink" href="#tab-completion" title="Link to this heading">¶</a></h3>
+<p>Note that you can TAB complete. Install it with</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>--install-completion
+</span></pre></div>
+</div>
+<p>and then restart your shell and then you can get TAB completion like:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>&lt;TAB&gt;
+</span></pre></div>
+</div>
+<p>and then it will show you all the available frameworks.</p>
+</section>
+</section>
+<section id="next-steps">
+<h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Explore the rules against your graph</p></li>
+<li><p>Submit a pull request to contribute your own rules to the community; PRs welcome ❤️</p></li>
+<li><p>Use JSON output to integrate this with your existing tools</p></li>
+</ul>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="index.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Usage</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="tutorial.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Usage Tutorial</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2025, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=c1cf1a6b"></script></body>
+</html>
