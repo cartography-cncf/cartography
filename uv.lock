@@ -425,9 +425,9 @@ dependencies = [
     { name = "isodate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/eb/db/0b0263f3fe50d8c5f1adb1b8e1575fc9010dc36a08e5527ffe43a8b6a1d0/azure_mgmt_containerservice-39.1.0.tar.gz", hash = "sha256:6f0c3fe44e937e8efd0b6037be1023923599a52ce57b811e3056d80b7f9738d0", size = 188641, upload-time = "2025-08-21T04:09:18.75Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/eb/db/0b0263f3fe50d8c5f1adb1b8e1575fc9010dc36a08e5527ffe43a8b6a1d0/azure_mgmt_containerservice-39.1.0.tar.gz", hash = "sha256:6f0c3fe44e937e8efd0b6037be1023923599a52ce57b811e3056d80b7f9738d0", size = 188641 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/d5/a8076a4e665687f040fe2eb4547a74314a6bd0634ecdaa38bfd1fcb773ae/azure_mgmt_containerservice-39.1.0-py3-none-any.whl", hash = "sha256:b46d0eac51a4cfb80533e41b266246ccbe7607d21c4ae6bfbb1f9fb90c6e1244", size = 207739, upload-time = "2025-08-21T04:09:20.621Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/d5/a8076a4e665687f040fe2eb4547a74314a6bd0634ecdaa38bfd1fcb773ae/azure_mgmt_containerservice-39.1.0-py3-none-any.whl", hash = "sha256:b46d0eac51a4cfb80533e41b266246ccbe7607d21c4ae6bfbb1f9fb90c6e1244", size = 207739 },
 ]
 
 [[package]]
@@ -726,7 +726,7 @@ wheels = [
 
 [[package]]
 name = "cartography"
-version = "0.120.1.dev17+g68ef4353f.d20251111"
+version = "0.120.1.dev18+gedc85a0c5.d20251113"
 source = { editable = "." }
 dependencies = [
     { name = "adal" },
@@ -735,8 +735,8 @@ dependencies = [
     { name = "azure-identity" },
     { name = "azure-mgmt-authorization" },
     { name = "azure-mgmt-compute" },
-    { name = "azure-mgmt-containerservice" },
     { name = "azure-mgmt-containerinstance" },
+    { name = "azure-mgmt-containerservice" },
     { name = "azure-mgmt-cosmosdb" },
     { name = "azure-mgmt-eventgrid" },
     { name = "azure-mgmt-logic" },
@@ -781,8 +781,8 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "azure-mgmt-containerservice" },
     { name = "azure-mgmt-containerinstance" },
+    { name = "azure-mgmt-containerservice" },
     { name = "azure-mgmt-eventgrid" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
@@ -818,8 +818,8 @@ requires-dist = [
     { name = "azure-identity", specifier = ">=1.5.0" },
     { name = "azure-mgmt-authorization", specifier = ">=0.60.0" },
     { name = "azure-mgmt-compute", specifier = ">=5.0.0" },
-    { name = "azure-mgmt-containerservice", specifier = ">=30.0.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-containerservice", specifier = ">=30.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
@@ -864,8 +864,8 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "azure-mgmt-containerservice", specifier = ">=30.0.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-containerservice", specifier = ">=30.0.0" },
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
