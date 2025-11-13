@@ -417,16 +417,17 @@ wheels = [
 
 [[package]]
 name = "azure-mgmt-containerservice"
-version = "40.1.0"
+version = "39.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "azure-common" },
     { name = "azure-mgmt-core" },
-    { name = "msrest" },
+    { name = "isodate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c2/c5/b85f3b1e1432cc031fd1cd22b5963a648ddee88c637e57c43936be39d369/azure_mgmt_containerservice-40.1.0.tar.gz", hash = "sha256:89a6caf507d340df472dc8dcfe217c1e098cdd8e71353db892efc284330e2f8e", size = 205683 }
+sdist = { url = "https://files.pythonhosted.org/packages/eb/db/0b0263f3fe50d8c5f1adb1b8e1575fc9010dc36a08e5527ffe43a8b6a1d0/azure_mgmt_containerservice-39.1.0.tar.gz", hash = "sha256:6f0c3fe44e937e8efd0b6037be1023923599a52ce57b811e3056d80b7f9738d0", size = 188641 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/44/1764bbbb0de34e8b1d687af29bb0e625a65f965c6663cea858626eb9412e/azure_mgmt_containerservice-40.1.0-py3-none-any.whl", hash = "sha256:c09a6237624505a121af1ef5a939466b410d47f1d4987c95187651aca15522a7", size = 225920 },
+    { url = "https://files.pythonhosted.org/packages/8b/d5/a8076a4e665687f040fe2eb4547a74314a6bd0634ecdaa38bfd1fcb773ae/azure_mgmt_containerservice-39.1.0-py3-none-any.whl", hash = "sha256:b46d0eac51a4cfb80533e41b266246ccbe7607d21c4ae6bfbb1f9fb90c6e1244", size = 207739 },
 ]
 
 [[package]]
@@ -457,21 +458,6 @@ wheels = [
 ]
 
 [[package]]
-name = "azure-mgmt-datafactory"
-version = "9.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-common" },
-    { name = "azure-mgmt-core" },
-    { name = "isodate" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fc/7a/253f8d0b4c3971ad0f11408b80c3429dc75408834e219ed2f0d928b4a586/azure_mgmt_datafactory-9.2.0.tar.gz", hash = "sha256:5132e9c24c441ac225f2a60225924baa55079ca81eff7db99a70d661d64bb0d7", size = 484275 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/dd/2e7b6bac7420a05bc4ad17cb64099948117b12ca50ea68d6d4665867085e/azure_mgmt_datafactory-9.2.0-py3-none-any.whl", hash = "sha256:d870a7a6099227e91d1c258a956c2aa32c2ea4c0a4409913d8f215887349f128", size = 554231 },
-]
-
-[[package]]
 name = "azure-mgmt-eventgrid"
 version = "10.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -484,6 +470,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/bb/68/24a2921b66827a571a3da75cc12289b7029a7c436087c0c5b2b4ca387aa3/azure_mgmt_eventgrid-10.4.0.tar.gz", hash = "sha256:303e5e27cf4bb5ec833ba4e5a9ef70b5bc410e190412ec47cde59d82e413fb7e", size = 258796 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8d/c7/6dfac325b4b081038aa3495e048740b44d0a68b7da97d922e0aa47a67351/azure_mgmt_eventgrid-10.4.0-py3-none-any.whl", hash = "sha256:5e4637245bbff33298d5f427971b870dbb03d873a3ef68f328190a7b7a38c56f", size = 353207 },
+]
+
+[[package]]
+name = "azure-mgmt-datafactory"
+version = "9.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fc/7a/253f8d0b4c3971ad0f11408b80c3429dc75408834e219ed2f0d928b4a586/azure_mgmt_datafactory-9.2.0.tar.gz", hash = "sha256:5132e9c24c441ac225f2a60225924baa55079ca81eff7db99a70d661d64bb0d7", size = 484275, upload-time = "2025-04-21T04:21:28.539Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/dd/2e7b6bac7420a05bc4ad17cb64099948117b12ca50ea68d6d4665867085e/azure_mgmt_datafactory-9.2.0-py3-none-any.whl", hash = "sha256:d870a7a6099227e91d1c258a956c2aa32c2ea4c0a4409913d8f215887349f128", size = 554231, upload-time = "2025-04-21T04:21:30.956Z" },
 ]
 
 [[package]]
@@ -740,7 +741,7 @@ wheels = [
 
 [[package]]
 name = "cartography"
-version = "0.120.1.dev12+g009ba6ace.d20251113"
+version = "0.120.1.dev18+gedc85a0c5.d20251113"
 source = { editable = "." }
 dependencies = [
     { name = "adal" },
@@ -796,9 +797,9 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-containerservice" },
-    { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-eventgrid" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
@@ -881,9 +882,9 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
     { name = "azure-mgmt-containerservice", specifier = ">=30.0.0" },
-    { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
@@ -912,11 +913,11 @@ doc = [
 
 [[package]]
 name = "certifi"
-version = "2025.11.12"
+version = "2025.10.5"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a2/8c/58f469717fa48465e4a50c014a0400602d3c437d7c0c468e17ada824da3a/certifi-2025.11.12.tar.gz", hash = "sha256:d8ab5478f2ecd78af242878415affce761ca6bc54a22a27e026d7c25357c3316", size = 160538 }
+sdist = { url = "https://files.pythonhosted.org/packages/4c/5b/b6ce21586237c77ce67d01dc5507039d444b630dd76611bbca2d8e5dcd91/certifi-2025.10.5.tar.gz", hash = "sha256:47c09d31ccf2acf0be3f701ea53595ee7e0b8fa08801c6624be771df09ae7b43", size = 164519 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/7d/9bc192684cea499815ff478dfcdc13835ddf401365057044fb721ec6bddb/certifi-2025.11.12-py3-none-any.whl", hash = "sha256:97de8790030bbd5c2d96b7ec782fc2f7820ef8dba6db909ccf95449f2d062d4b", size = 159438 },
+    { url = "https://files.pythonhosted.org/packages/e4/37/af0d2ef3967ac0d6113837b44a4f0bfe1328c2b9763bd5b1744520e5cfed/certifi-2025.10.5-py3-none-any.whl", hash = "sha256:0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de", size = 163286 },
 ]
 
 [[package]]
@@ -3077,7 +3078,7 @@ wheels = [
 
 [[package]]
 name = "pytest"
-version = "9.0.1"
+version = "9.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
@@ -3088,9 +3089,9 @@ dependencies = [
     { name = "pygments" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/07/56/f013048ac4bc4c1d9be45afd4ab209ea62822fb1598f40687e6bf45dcea4/pytest-9.0.1.tar.gz", hash = "sha256:3e9c069ea73583e255c3b21cf46b8d3c56f6e3a1a8f6da94ccb0fcf57b9d73c8", size = 1564125 }
+sdist = { url = "https://files.pythonhosted.org/packages/da/1d/eb34f286b164c5e431a810a38697409cca1112cee04b287bb56ac486730b/pytest-9.0.0.tar.gz", hash = "sha256:8f44522eafe4137b0f35c9ce3072931a788a21ee40a2ed279e817d3cc16ed21e", size = 1562764 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/8b/6300fb80f858cda1c51ffa17075df5d846757081d11ab4aa35cef9e6258b/pytest-9.0.1-py3-none-any.whl", hash = "sha256:67be0030d194df2dfa7b556f2e56fb3c3315bd5c8822c6951162b92b32ce7dad", size = 373668 },
+    { url = "https://files.pythonhosted.org/packages/72/99/cafef234114a3b6d9f3aaed0723b437c40c57bdb7b3e4c3a575bc4890052/pytest-9.0.0-py3-none-any.whl", hash = "sha256:e5ccdf10b0bac554970ee88fc1a4ad0ee5d221f8ef22321f9b7e4584e19d7f96", size = 373364 },
 ]
 
 [[package]]
@@ -3696,14 +3697,14 @@ wheels = [
 
 [[package]]
 name = "types-aiobotocore-ecr"
-version = "2.25.2"
+version = "2.25.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/3d/6404dfb6ca534935de032ec70c44535f8e2ff663371941f9828b112fe5b0/types_aiobotocore_ecr-2.25.2.tar.gz", hash = "sha256:2d7e53017ba77101df5e24542ef6ef5a10ca70b79b78f515b63c8e36318470c1", size = 34339 }
+sdist = { url = "https://files.pythonhosted.org/packages/d6/f3/51462ad3ab3beaffd59fba7d27c687f520252bdf263b98ac80d484d26504/types_aiobotocore_ecr-2.25.1.tar.gz", hash = "sha256:31e909802d2cea93fcde8b8fa9f22d5533f573a06ce4c9e37c0d292d66a26099", size = 34691 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/10/2b/bb6bc2281ed3044dc098f2e3879c8399bb2f4b726b6637c58c0dde0c35fc/types_aiobotocore_ecr-2.25.2-py3-none-any.whl", hash = "sha256:dcb3bb305f60eede08669ed06cf052e25f0cfa157bd2908e4c343eaee62b77ac", size = 40662 },
+    { url = "https://files.pythonhosted.org/packages/f6/b6/e5696306e744f576d5ede7e8f01d59165596727016ad15a237974b1c2259/types_aiobotocore_ecr-2.25.1-py3-none-any.whl", hash = "sha256:c2f7fa1bf98b112c09de45e0223dc8c1e8faaa80915b7778fecea0158db0eb36", size = 40899 },
 ]
 
 [[package]]
