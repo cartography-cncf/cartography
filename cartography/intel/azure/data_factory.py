@@ -2,7 +2,6 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.core.exceptions import ClientAuthenticationError
 from azure.mgmt.datafactory import DataFactoryManagementClient
 
 from cartography.client.core.tx import load
@@ -20,14 +19,7 @@ def get_factories(client: DataFactoryManagementClient) -> list[Any]:
     """
     Gets Data Factories for the subscription.
     """
-    try:
-        return [f.as_dict() for f in client.factories.list()]
-    except ClientAuthenticationError:
-        logger.warning(
-            "Failed to get Data Factories due to permissions or auth error.",
-            exc_info=True,
-        )
-        raise
+    return [f.as_dict() for f in client.factories.list()]
 
 
 def transform_factories(factories_raw: list[Any]) -> list[dict[str, Any]]:
