@@ -7,6 +7,7 @@ import neo4j
 from cartography.config import Config
 from cartography.util import timeit
 
+from . import aks
 from . import app_service
 from . import compute
 from . import container_instances
@@ -119,7 +120,7 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
-    data_factory.sync_data_factories(
+    aks.sync(
         neo4j_session,
         credentials,
         subscription_id,

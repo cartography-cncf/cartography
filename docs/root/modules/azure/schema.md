@@ -577,6 +577,11 @@ Representation of an [AzureStorageAccount](https://docs.microsoft.com/en-us/rest
     ```cypher
     (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
     ```
+- Azure Storage Accounts can be tagged with Azure Tags.
+
+    ```cypher
+    (:AzureStorageAccount)-[:TAGGED]->(:AzureTag)
+    ```
 
 ### AzureStorageQueueService
 
@@ -1383,26 +1388,48 @@ Representation of a [Linked Service within an Azure Data Factory](https://www.go
 
 *(External `[:CONNECTS_TO]` relationships will be added in a future PR.)*
 
-### AzureDataLakeFileSystem
+### AzureKubernetesCluster
 
-Representation of an [Azure Data Lake File System](https://learn.microsoft.com/en-us/rest/api/storagerp/blob-containers/get), which is a container within a Data Lake enabled Storage Account.
+Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
 
 | Field | Description |
 |---|---|
 |firstseen| Timestamp of when a sync job discovered this node|
 |lastupdated| Timestamp of the last time the node was updated|
-|**id**| The full resource ID of the File System. |
-|name| The name of the File System. |
-|public_access| The public access level of the File System (e.g., None). |
-|last_modified_time| The timestamp of when the File System was last modified. |
-|has_immutability_policy| A boolean indicating if the data is protected from being changed or deleted. |
-|has_legal_hold| A boolean indicating if the data is locked for legal reasons. |
+|**id**| The full resource ID of the AKS Cluster. |
+|name| The name of the AKS Cluster. |
+|location| The Azure region where the Cluster is deployed. |
+|provisioning_state| The deployment status of the Cluster (e.g., Succeeded). |
+|kubernetes_version| The version of Kubernetes the Cluster is running. |
+|fqdn| The fully qualified domain name of the Cluster's API server. |
 
 #### Relationships
 
-- An Azure Storage Account contains one or more File Systems.
+- An Azure Kubernetes Cluster is a resource within an Azure Subscription.
     ```cypher
-    (AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
+    (AzureSubscription)-[:RESOURCE]->(:AzureKubernetesCluster)
+    ```
+
+### AzureKubernetesAgentPool
+
+Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microsoft.com/en-us/rest/api/aks/agent-pools/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Agent Pool. |
+|name| The name of the Agent Pool. |
+|provisioning_state| The deployment status of the Agent Pool (e.g., Succeeded). |
+|vm_size| The size of the virtual machines in the pool. |
+|os_type| The operating system of the nodes (e.g., Linux). |
+|count| The number of virtual machines in the pool. |
+
+#### Relationships
+
+- An Azure Kubernetes Cluster has one or more Agent Pools.
+    ```cypher
+    (AzureKubernetesCluster)-[:HAS_AGENT_POOL]->(:AzureKubernetesAgentPool)
     ```
 
 ### AzureContainerInstance
@@ -1422,6 +1449,26 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 - An Azure Container Instance is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
+    ```
+
+### AzureTag
+
+Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| id | Unique identifier for the tag, formatted as `{subscription_id}|{key}:{value}`. |
+| key | The tag name (e.g., `Environment`). |
+| value | The tag value (e.g., `Production`). |
+| lastupdated | The timestamp of the last time this tag was seen on any resource. |
+
+#### Relationships
+
+- Azure Storage Accounts can be tagged with Azure Tags.
+
+    ```cypher
+    (:AzureStorageAccount)-[:TAGGED]->(:AzureTag)
     ```
 
 ### AzureVirtualNetwork
@@ -1531,4 +1578,26 @@ Representation of an Azure Monitor [Metric Alert](https://learn.microsoft.com/en
   - An Azure Monitor Metric Alert is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:HAS_METRIC_ALERT]->(AzureMonitorMetricAlert)
+    ```
+
+### AzureDataLakeFileSystem
+
+Representation of an [Azure Data Lake File System](https://learn.microsoft.com/en-us/rest/api/storagerp/blob-containers/get), which is a container within a Data Lake enabled Storage Account.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the File System. |
+| name | The name of the File System. |
+| public_access | The public access level of the File System (e.g., None). |
+| last_modified_time | The timestamp of when the File System was last modified. |
+| has_immutability_policy | A boolean indicating if the data is protected from being changed or deleted. |
+| has_legal_hold | A boolean indicating if the data is locked for legal reasons. |
+
+#### Relationships
+
+- An Azure Storage Account contains one or more File Systems.
+    ```cypher
+    (AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
     ```
