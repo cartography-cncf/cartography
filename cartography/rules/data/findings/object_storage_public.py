@@ -55,10 +55,11 @@ _azure_storage_public_blob_access = Fact(
     MATCH (sa:AzureStorageAccount)-[:USES]->(bs:AzureStorageBlobService)-[:CONTAINS]->(bc:AzureStorageBlobContainer)
     WHERE bc.publicaccess IN ['Container', 'Blob']
     RETURN
-        sa.id AS id,
+        sa.id AS account_id,
         sa.name AS account,
         sa.resourcegroup AS resource_group,
         sa.location AS region,
+        bc.id as id,
         bc.name AS name,
         bc.publicaccess AS public_access_element,
         bc.publicaccess IN ['Container', 'Blob'] AS public_access
@@ -77,9 +78,10 @@ _azure_storage_public_blob_access = Fact(
 class ObjectStoragePublic(FindingOutput):
     name: str | None = None
     id: str | None = None
+    account: str | None = None
+    account_id: str | None = None
     region: str | None = None
     public_access: bool | None = None
-    account: str | None = None
 
 
 object_storage_public = Finding(

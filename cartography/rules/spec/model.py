@@ -169,6 +169,6 @@ class Finding:
                 logger.warning(
                     "Validation error parsing finding output for finding %s: %s",
                     self.id,
-                    e,
+                    type(e).__name__,
                 )
         return result
