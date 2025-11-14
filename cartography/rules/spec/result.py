@@ -1,6 +1,15 @@
 # Execution result classes
 from dataclasses import dataclass
-from typing import Any
+from dataclasses import field
+
+from cartography.rules.spec.model import FindingOutput
+
+
+@dataclass
+class CounterResult:
+    current_fact: int = 0
+    total_facts: int = 0
+    total_matches: int = 0
 
 
 @dataclass
@@ -13,34 +22,17 @@ class FactResult:
     fact_name: str
     fact_description: str
     fact_provider: str
-    finding_count: int = 0
-    findings: list[dict[str, Any]] | None = None
+    matches: list[FindingOutput] = field(default_factory=list)
 
 
 @dataclass
-class RequirementResult:
+class FindingResult:
     """
-    Results for a single requirement, containing all its Facts.
-    """
-
-    requirement_id: str
-    requirement_name: str
-    requirement_url: str | None
-    facts: list[FactResult]
-    total_facts: int
-    total_findings: int
-
-
-@dataclass
-class FrameworkResult:
-    """
-    The formal object output by `--output json` from the `cartography-rules` CLI.
+    Results for a single Finding.
     """
 
-    framework_id: str
-    framework_name: str
-    framework_version: str
-    requirements: list[RequirementResult]
-    total_requirements: int
-    total_facts: int
-    total_findings: int
+    finding_id: str
+    finding_name: str
+    finding_description: str
+    counter: CounterResult
+    facts: list[FactResult] = field(default_factory=list)
