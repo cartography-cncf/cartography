@@ -1,31 +1,33 @@
-## GSuite Configuration
-
-:::{important} Deprecated Module
-This module has been deprecated and replaced by the [Google Workspace](../googleworkspace/) module. Please refer to the Google Workspace module for the latest features and updates.
-:::
+## Google Workspace Configuration
 
 This module allows authentication from a service account or via OAuth tokens.
 
-Method 1: Using service account (legacy)
 
-Ingesting GSuite Users and Groups utilizes the [Google Admin SDK](https://developers.google.com/admin-sdk/).
-
-1. [Enable Google API access](https://support.google.com/a/answer/60757?hl=en)
-1. Create a new G Suite user account and accept the Terms of Service. This account will be used as the domain-wide delegated access.
-1. [Perform G Suite Domain-Wide Delegation of Authority](https://developers.google.com/admin-sdk/directory/v1/guides/delegation)
-1.  Download the service account's credentials
-1.  Export the environmental variables:
-    1. `GSUITE_GOOGLE_APPLICATION_CREDENTIALS` - location of the credentials file.
-    1. `GSUITE_DELEGATED_ADMIN` - email address that you created in step 2
-
-## Method 2: Using OAuth
+### Create a Google Cloud Project and Service Account
 
 1. Create an App on [Google Cloud Console](https://console.cloud.google.com/)
-1. Refer to follow documentation if needed:
-    1. https://developers.google.com/admin-sdk/directory/v1/quickstart/python
-    1. https://developers.google.com/workspace/guides/get-started
-    1. https://support.google.com/a/answer/7281227?hl=fr
-1. Download credentials file
+1. Enable the **Admin SDK API** for your project and the **Cloud Identity API**.
+1. Create a Service Account
+
+### Create credentials
+
+#### Method 1: Using service account and domain-wide delegation (legacy)
+
+1. [Perform Google Workspace Domain-Wide Delegation of Authority](https://developers.google.com/admin-sdk/directory/v1/guides/delegation) with following scopes:
+    - `https://www.googleapis.com/auth/admin.directory.customer.readonly`
+    - `https://www.googleapis.com/auth/admin.directory.user.readonly`
+    - `https://www.googleapis.com/auth/admin.directory.group.readonly`
+    - `https://www.googleapis.com/auth/cloud-identity.devices.readonly`
+    - `https://www.googleapis.com/auth/cloud-platform`
+1. Download the service account's credentials (JSON file).
+1. Export the environmental variables:
+    1. `GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS` - location of the credentials file.
+    1. `GOOGLE_DELEGATED_ADMIN` - email address that you created in step 2
+
+#### Method 2: Using OAuth
+
+
+1. Create an OAuth Client ID in the Google Cloud Console with application type "Desktop app".
 1. Use helper script below for OAuth flow to obtain refresh_token
 1. Serialize needed secret
     ```python
@@ -35,7 +37,7 @@ Ingesting GSuite Users and Groups utilizes the [Google Admin SDK](https://develo
     base64.b64encode(auth_json.encode())
     ```
 1. Populate an environment variable of your choice with the contents of the base64 output from the previous step.
-1. Call the `cartography` CLI with `--gsuite-tokens-env-var YOUR_ENV_VAR_HERE` and `--gsuite-auth-method oauth`.
+1. Call the `cartography` CLI with `--googleworkspace-tokens-env-var YOUR_ENV_VAR_HERE` and `--googleworkspace-auth-method oauth`.
 
 
 
@@ -50,7 +52,12 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 
-scopes = ["https://www.googleapis.com/auth/admin.directory.userreadonly", "https://www.googleapis.com/auth/admin.directory.group.readonly", "https://www.googleapis.com/auth/admin.directory.group.member"]
+scopes = [
+    "https://www.googleapis.com/auth/admin.directory.customer.readonly",
+    "https://www.googleapis.com/auth/admin.directory.user.readonly",
+    "https://www.googleapis.com/auth/cloud-identity.devices.readonly",
+    "https://www.googleapis.com/auth/cloud-identity.groups.readonly"
+]
 
 print('Go to https://console.cloud.google.com/ > API & Services > Credentials and download secrets')
 project_id = input('Provide your project ID:')

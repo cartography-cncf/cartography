@@ -28,6 +28,7 @@ import cartography.intel.duo
 import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
+import cartography.intel.googleworkspace
 import cartography.intel.gsuite
 import cartography.intel.jamf
 import cartography.intel.kandji
@@ -65,6 +66,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "cloudflare": cartography.intel.cloudflare.start_cloudflare_ingestion,
         "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
         "gcp": cartography.intel.gcp.start_gcp_ingestion,
+        "googleworkspace": cartography.intel.googleworkspace.start_googleworkspace_ingestion,
         "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
         "cve": cartography.intel.cve.start_cve_ingestion,
         "oci": cartography.intel.oci.start_oci_ingestion,

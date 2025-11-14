@@ -90,6 +90,7 @@ entra_mapping = OntologyMapping(
         ),
     ],
 )
+
 github_mapping = OntologyMapping(
     module_name="github",
     nodes=[
@@ -105,6 +106,7 @@ github_mapping = OntologyMapping(
         ),
     ],
 )
+
 gsuite_mapping = OntologyMapping(
     module_name="gsuite",
     nodes=[
@@ -125,6 +127,7 @@ gsuite_mapping = OntologyMapping(
         ),
     ],
 )
+
 keycloak_mapping = OntologyMapping(
     module_name="keycloak",
     nodes=[
@@ -143,6 +146,7 @@ keycloak_mapping = OntologyMapping(
         ),
     ],
 )
+
 lastpass_mapping = OntologyMapping(
     module_name="lastpass",
     nodes=[
@@ -157,6 +161,7 @@ lastpass_mapping = OntologyMapping(
         ),
     ],
 )
+
 openai_mapping = OntologyMapping(
     module_name="openai",
     nodes=[
@@ -171,6 +176,7 @@ openai_mapping = OntologyMapping(
         ),
     ],
 )
+
 scaleway_mapping = OntologyMapping(
     module_name="scaleway",
     nodes=[
@@ -189,6 +195,7 @@ scaleway_mapping = OntologyMapping(
         ),
     ],
 )
+
 snipeit_mapping = OntologyMapping(
     module_name="snipeit",
     nodes=[
@@ -203,6 +210,7 @@ snipeit_mapping = OntologyMapping(
         ),
     ],
 )
+
 tailscale_mapping = OntologyMapping(
     module_name="tailscale",
     nodes=[
@@ -261,6 +269,27 @@ aws_mapping = OntologyMapping(
     ],
 )
 
+googleworkspace_mapping = OntologyMapping(
+    module_name="googleworkspace",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GoogleWorkspaceUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="primary_email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="given_name"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastname", node_field="family_name"
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+            ],
+        ),
+    ],
+)
+
 
 USERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "anthropic": anthropic_mapping,
@@ -276,6 +305,7 @@ USERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "scaleway": scaleway_mapping,
     "snipeit": snipeit_mapping,
     "tailscale": tailscale_mapping,
+    "googleworkspace": googleworkspace_mapping,
     "okta": okta_mapping,
     "aws": aws_mapping,
 }
