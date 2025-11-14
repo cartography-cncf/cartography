@@ -108,6 +108,7 @@ _new_attack_surface = Fact(
     name="New AWS Vulnerability Pattern",
     description="Recently discovered attack pattern",
     cypher_query="...",
+    cypher_visual_query="...",
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,  # New, needs testing
 )
@@ -130,6 +131,7 @@ _proven_check = Fact(
     name="Internet-Accessible S3 Storage Attack Surface",
     description="AWS S3 buckets accessible from the internet",
     cypher_query="...",
+    cypher_visual_query="...",
     module=Module.AWS,
     maturity=Maturity.STABLE,  # Battle-tested in production
 )
@@ -180,6 +182,7 @@ Findings evolve over time. Here's how versioning and maturity work together:
 object_storage_public = Finding(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
+    output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,        # EXPERIMENTAL - new query
     ),
@@ -190,6 +193,7 @@ object_storage_public = Finding(
 object_storage_public = Finding(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
+    output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,        # EXPERIMENTAL
         _azure_storage_public, # EXPERIMENTAL - newly added
@@ -204,6 +208,7 @@ object_storage_public = Finding(
 object_storage_public = Finding(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
+    output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,        # STABLE - promoted after extensive testing
         _azure_storage_public, # STABLE - promoted after extensive testing
@@ -392,27 +397,127 @@ This will show you all available findings and facts.
 
 Want to add your own security findings? Here's how:
 
-### Remarks regarding cypher queries
+### Query Structure: cypher_query vs cypher_visual_query
+
+Each Fact requires two distinct Cypher queries:
+
+#### `cypher_query` - Data Query
+Returns specific fields used to populate the output model. This query should:
+- Use explicit field selection with aliases (e.g., `RETURN n.id AS id, n.name AS name`)
+- Return only the data fields needed for the finding's output model
+- Be optimized for data extraction and processing
+
+**Example:**
+```cypher
+MATCH (m:CloudflareMember)
+WHERE m.two_factor_authentication_enabled = false
+RETURN m.id AS id, m.email AS email, m.firstname AS firstname
+```
+
+#### `cypher_visual_query` - Visualization Query
+Returns nodes and relationships for Neo4j Browser visualization. This query should:
+- Use `RETURN *` or explicit node/relationship returns (e.g., `RETURN m` or `RETURN *`)
+- Include relevant relationships and context for visual exploration
+- Help users understand the graph structure and connections
+
+**Example:**
+```cypher
+MATCH (m:CloudflareMember)
+WHERE m.two_factor_authentication_enabled = false
+RETURN m
+```
+
+Or with relationships:
+```cypher
+MATCH (b:S3Bucket)
+WHERE b.anonymous_access = true
+WITH b
+OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
+RETURN *
+```
+
+### General Query Guidelines
 
 - Ensure your queries are efficient and optimized for performance on large graphs.
 - Test your queries against realistic datasets to minimize false positives/negatives.
 - Follow existing code style and conventions for consistency.
 
-```{important}
-Queries **MUST** only return nodes and relationships and they must explicity return them. Do not use `RETURN *` or `RETURN n.name` only. This is to ensure that the output model can be properly constructed.
+### Output Models with Pydantic
+
+Each Finding must define an output model that extends `FindingOutput`. This Pydantic model defines the structure of the data returned by the finding's facts.
+
+#### Creating an Output Model
+
+```python
+from cartography.rules.spec.model import FindingOutput
+
+class MyFindingOutput(FindingOutput):
+    """Output model for my custom finding."""
+
+    # Define the fields that will be populated from cypher_query results
+    id: str | None = None           # Resource identifier
+    name: str | None = None         # Resource name
+    email: str | None = None        # User email (if applicable)
+    region: str | None = None       # Cloud region
+    public_access: bool | None = None  # Access level
+
+    # Add any other fields relevant to your finding
+```
+
+#### Key Points
+
+- **Inherit from `FindingOutput`**: Your model must extend the base `FindingOutput` class
+- **Use Optional Fields**: All fields should be optional (`| None = None`) as different facts may return different subsets of data
+- **Match Query Aliases**: Field names should match the aliases used in your `cypher_query` (e.g., if query returns `n.id AS id`, model should have `id` field)
+- **Automatic Handling**:
+  - The `source` field is automatically populated with the module name (e.g., "AWS", "Azure")
+  - Fields not defined in the model are stored in the `extra` dictionary
+  - Number values are automatically coerced to strings
+  - Lists, tuples, and sets are joined into comma-separated strings
+  - Dictionaries are serialized to JSON strings
+
+#### Example from object_storage_public
+
+```python
+class ObjectStoragePublic(FindingOutput):
+    name: str | None = None
+    id: str | None = None
+    region: str | None = None
+    public_access: bool | None = None
+    account: str | None = None  # For Azure storage accounts
+
+object_storage_public = Finding(
+    id="object_storage_public",
+    name="Public Object Storage Attack Surface",
+    description="Publicly accessible object storage services",
+    output_model=ObjectStoragePublic,  # Reference the output model class
+    facts=(...),
+    tags=("infrastructure", "attack_surface"),
+    version="0.1.0",
+)
 ```
 
 ### Steps to add a new finding
 
 1. **Create a new finding file** in `cartography/rules/data/findings/`:
    ```python
-   from cartography.rules.spec.model import Fact, Finding, Maturity, Module
+   from cartography.rules.spec.model import Fact, Finding, FindingOutput, Maturity, Module
 
+   # Define facts with both data and visualization queries
    _my_aws_check = Fact(
        id="my_aws_security_check",
        name="My AWS Security Check",
        description="What this checks for",
-       cypher_query="MATCH (n:SomeNode) WHERE <condition> RETURN n",
+       cypher_query="""
+       MATCH (n:SomeNode)
+       WHERE <condition>
+       RETURN n.id AS id, n.name AS name, n.region AS region
+       """,
+       cypher_visual_query="""
+       MATCH (n:SomeNode)
+       WHERE <condition>
+       RETURN n
+       """,
        module=Module.AWS,
        maturity=Maturity.EXPERIMENTAL,
    )
@@ -421,15 +526,33 @@ Queries **MUST** only return nodes and relationships and they must explicity ret
        id="my_azure_security_check",
        name="My Azure Security Check",
        description="What this checks for in Azure",
-       cypher_query="MATCH (n:SomeAzureNode) WHERE <condition> RETURN n",
+       cypher_query="""
+       MATCH (n:SomeAzureNode)
+       WHERE <condition>
+       RETURN n.id AS id, n.name AS name, n.location AS region
+       """,
+       cypher_visual_query="""
+       MATCH (n:SomeAzureNode)
+       WHERE <condition>
+       RETURN n
+       """,
        module=Module.AZURE,
        maturity=Maturity.EXPERIMENTAL,
    )
 
+   # Define output model
+   class MyFindingOutput(FindingOutput):
+       """Output model for my custom finding."""
+       id: str | None = None
+       name: str | None = None
+       region: str | None = None
+
+   # Define finding
    my_finding = Finding(
        id="my-finding",
        name="My Security Finding",
        description="Detects a security issue",
+       output_model=MyFindingOutput,
        facts=(_my_aws_check, _my_azure_check),
        tags=("category",),
        version="0.1.0",
