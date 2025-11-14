@@ -1,5 +1,6 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
@@ -11,6 +12,11 @@ _unmanaged_accounts_ontology = Fact(
     cypher_query="""
     MATCH (a:UserAccount)
     WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User)
+    return a.id as id, a.email AS email
+    """,
+    cypher_visual_query="""
+    MATCH (a:UserAccount)
+    WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User)
     return a
     """,
     module=Module.CROSS_CLOUD,
@@ -19,10 +25,16 @@ _unmanaged_accounts_ontology = Fact(
 
 
 # Finding
+class UnmanagedAccountFindingOutput(FindingOutput):
+    id: str | None = None
+    email: str | None = None
+
+
 unmanaged_accounts = Finding(
     id="unmanaged-account",
     name="User accounts not linked to a user identity",
     description="Detects user accounts that do not have Multi-Factor Authentication enabled.",
+    output_model=UnmanagedAccountFindingOutput,
     tags=("identity", "iam", "compliance"),
     facts=(_unmanaged_accounts_ontology,),
     version="0.1.0",

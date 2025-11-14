@@ -1,6 +1,14 @@
+import json
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
+from typing import no_type_check
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import model_validator
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +34,7 @@ class Module(str, Enum):
     CLOUDFLARE = "Cloudflare"
     """Cloudflare services"""
 
-    CROSS_CLOUD = "CROSS_CLOUD"
+    CROSS_CLOUD = "Cross-Cloud"
     """Multi-cloud or provider-agnostic rules"""
 
 
@@ -67,6 +75,45 @@ class Fact:
     # TODO can we lint the queries. full-on integ tests here are overkill though.
     cypher_query: str
     """The Cypher query to gather information about the environment. Returns data field by field e.g. `RETURN node.prop1, node.prop2`."""
+    cypher_visual_query: str
+    """
+    Same as `cypher_query`, returns it in a visual format for the web interface with `.. RETURN *`.
+    Often includes additional relationships to help give context.
+    """
+
+
+class FindingOutput(BaseModel):
+    """Base class for Finding output models."""
+
+    # TODO: make this property mandatory one all modules have been updated to new datamodel
+    source: str | None = None
+    """The source of the Fact data, e.g. the specific Cartography module that ingested the data. This field is useful especially for CROSS_CLOUD facts."""
+    extra: dict[str, Any] = {}
+    """A dictionary to hold any extra fields returned by the Fact query that are not explicitly defined in the output model."""
+
+    # Config to coerce numbers to strings during instantiation
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+
+    # Coerce o strings
+    @no_type_check
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_to_string(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        for name, field in cls.model_fields.items():
+            if field.annotation is not str:
+                continue
+            if name not in data:
+                continue
+            v = data[name]
+            if isinstance(v, (list, tuple, set)):
+                data[name] = ", ".join(v)
+            if isinstance(v, dict):
+                data[name] = json.dumps(v)
+
+        return data
 
 
 @dataclass(frozen=True)
@@ -85,6 +132,8 @@ class Finding:
     """The version of the Finding definition."""
     facts: tuple[Fact, ...]
     """The Facts that contribute to this Finding."""
+    output_model: type[FindingOutput]
+    """The output model class for the Finding."""
     references: tuple[str, ...] = ()
     """References or links to external resources related to the Finding."""
 
@@ -99,3 +148,27 @@ class Finding:
             if fact.id.lower() == fact_id.lower():
                 return fact
         return None
+
+    def parse_results(
+        self, fact: Fact, fact_results: list[dict[str, Any]]
+    ) -> list[FindingOutput]:
+        # DOC
+        result: list[FindingOutput] = []
+        for result_item in fact_results:
+            parsed_output: dict[str, Any] = {"extra": {}, "source": fact.module.value}
+            for key, value in result_item.items():
+                if key not in self.output_model.model_fields and value is not None:
+                    parsed_output["extra"][key] = value
+                else:
+                    parsed_output[key] = value
+            try:
+                # Try to parse normally
+                result.append(self.output_model(**parsed_output))
+            except ValidationError as e:
+                # Handle validation errors
+                logger.warning(
+                    "Validation error parsing finding output for finding %s: %s",
+                    self.id,
+                    e,
+                )
+        return result

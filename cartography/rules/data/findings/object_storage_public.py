@@ -1,5 +1,6 @@
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
@@ -17,8 +18,25 @@ _aws_s3_public = Fact(
         WHERE stmt.effect = 'Allow'
         AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
     }
-    OPTIONAL MATCH (b)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
-    RETURN b, stmt
+    RETURN
+        b.id as id,
+        b.name AS name,
+        b.region AS region,
+        b.anonymous_access AS public_access,
+        b.anonymous_actions AS public_actions
+    """,
+    cypher_visual_query="""
+    MATCH (b:S3Bucket)
+    WHERE b.anonymous_access = true
+    OR (b.anonymous_actions IS NOT NULL AND size(b.anonymous_actions) > 0)
+    OR EXISTS {
+        MATCH (b)-[:POLICY_STATEMENT]->(stmt:S3PolicyStatement)
+        WHERE stmt.effect = 'Allow'
+        AND (stmt.principal = '*' OR stmt.principal CONTAINS 'AllUsers')
+    }
+    WITH b
+    OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
+    RETURN *
     """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
@@ -36,7 +54,19 @@ _azure_storage_public_blob_access = Fact(
     cypher_query="""
     MATCH (sa:AzureStorageAccount)-[:USES]->(bs:AzureStorageBlobService)-[:CONTAINS]->(bc:AzureStorageBlobContainer)
     WHERE bc.publicaccess IN ['Container', 'Blob']
-    RETURN bc, bs, sa
+    RETURN
+        sa.id AS id,
+        sa.name AS account,
+        sa.resourcegroup AS resource_group,
+        sa.location AS region,
+        bc.name AS name,
+        bc.publicaccess AS public_access_element,
+        bc.publicaccess IN ['Container', 'Blob'] AS public_access
+    """,
+    cypher_visual_query="""
+    MATCH p=(sa:AzureStorageAccount)-[:USES]->(bs:AzureStorageBlobService)-[:CONTAINS]->(bc:AzureStorageBlobContainer)
+    WHERE bc.publicaccess IN ['Container', 'Blob']
+    RETURN *
     """,
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,
@@ -44,12 +74,21 @@ _azure_storage_public_blob_access = Fact(
 
 
 # Finding
+class ObjectStoragePublic(FindingOutput):
+    name: str | None = None
+    id: str | None = None
+    region: str | None = None
+    public_access: bool | None = None
+    account: str | None = None
+
+
 object_storage_public = Finding(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
     description=(
         "Publicly accessible object storage services such as AWS S3 buckets and Azure Storage Blob Containers"
     ),
+    output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,
         _azure_storage_public_blob_access,
