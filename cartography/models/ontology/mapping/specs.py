@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -31,7 +32,7 @@ class OntologyFieldMapping:
     # WIP: add unit tests for special_handling
     special_handling: str | None = None
     # WIP: add unit tests for extra
-    extra: dict[str, str] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

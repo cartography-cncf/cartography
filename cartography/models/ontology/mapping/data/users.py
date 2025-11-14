@@ -3,7 +3,6 @@ from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 from cartography.models.ontology.mapping.specs import OntologyRelMapping
 
-
 useraccount_mapping = OntologyMapping(
     module_name="ontology",
     nodes=[

@@ -44,6 +44,9 @@ def test_ontology_mapping_fields():
     # in the corresponding module's model.
     for _, mappings in ONTOLOGY_MAPPING.items():
         for module_name, mapping in mappings.items():
+            # Skip ontology module as it does not have a corresponding model
+            if module_name == "ontology":
+                continue
             for node in mapping.nodes:
                 # TODO: Remove that uggly exception once all models are migrated to the new data model system
                 if node.node_label in OLD_FORMAT_NODES:
@@ -71,8 +74,11 @@ def test_ontology_mapping_required_fields():
     for category, category_mappings in ONTOLOGY_MAPPING.items():
         assert (
             category in ONTOLOGY_MODELS
-        ), f"Module '{category}' not found in ONTOLOGY_MODELS, please update the unit test."
+        ), f"Module '{category}' not found in ONTOLOGY_MODELS."
         model_class = ONTOLOGY_MODELS[category]
+        if model_class is None:
+            # No model class for Ontology extra labels
+            continue
         data_dict_id_field = model_class().properties.id.name
         for module, mapping in category_mappings.items():
             for node in mapping.nodes:

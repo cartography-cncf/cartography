@@ -76,7 +76,16 @@ def get_source_nodes_from_graph(
                     continue
 
                 # Merge results based on the node's id field to avoid duplicates
-                id_field = ONTOLOGY_MODELS[module_name]().properties.id.name
+                ontology_model = ONTOLOGY_MODELS[module_name]
+                if ontology_model is None:
+                    # Should not happen as we skip non-eligible nodes above
+                    logger.warning(
+                        "No ontology model found for module '%s'. Skipping node label '%s'.",
+                        module_name,
+                        node.node_label,
+                    )
+                    continue
+                id_field = ontology_model().properties.id.name
                 existing = results.get(result[id_field])
                 if existing:
                     logger.debug(
