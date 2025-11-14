@@ -24,7 +24,20 @@ _aws_trust_relationship_manipulation = Fact(
         // Filter for matching Allow actions
         WITH a, principal, principal_type, stmt, policy,
             [action IN stmt.action
-@@ -44,26 +45,27 @@
+                WHERE ANY(p IN patterns WHERE action = p)
+                OR action = 'iam:*'
+                OR action = '*'
+            ] AS matched_allow_actions
+        WHERE size(matched_allow_actions) > 0
+        // Look for any explicit Deny statement on same principal that matches those actions
+        OPTIONAL MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(deny_stmt:AWSPolicyStatement {effect:"Deny"})
+        WHERE ANY(action IN deny_stmt.action
+                WHERE action IN matched_allow_actions
+                    OR action = 'iam:*'
+                    OR action = '*')
+        // Exclude principals with an explicit Deny that overlaps
+        WITH a, principal, principal_type, policy, stmt, matched_allow_actions, deny_stmt
+        WHERE deny_stmt IS NULL
         UNWIND matched_allow_actions AS action
         RETURN DISTINCT
             a.name AS account,

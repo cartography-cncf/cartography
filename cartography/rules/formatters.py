@@ -5,7 +5,10 @@ Output formatting utilities for Cartography rules.
 import json
 import re
 from dataclasses import asdict
+from dataclasses import is_dataclass
 from urllib.parse import quote
+
+from pydantic import BaseModel
 
 from cartography.rules.data.findings import FINDINGS
 from cartography.rules.spec.result import FindingResult
@@ -51,6 +54,27 @@ def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:
     return f"{browser_uri}browser/?cmd=edit&arg={encoded_query}"
 
 
+def to_serializable(obj):
+    # Pydantic model (v2)
+    if isinstance(obj, BaseModel):
+        return to_serializable(obj.model_dump())
+
+    # Dataclass
+    if is_dataclass(obj):
+        return to_serializable(asdict(obj))
+
+    # Dict
+    if isinstance(obj, dict):
+        return {k: to_serializable(v) for k, v in obj.items()}
+
+    # List / Tuple / Set
+    if isinstance(obj, (list, tuple, set)):
+        return [to_serializable(v) for v in obj]
+
+    # Primitive
+    return obj
+
+
 def _format_and_output_results(
     all_results: list[FindingResult],
     finding_names: list[str],
@@ -61,7 +85,7 @@ def _format_and_output_results(
     """Format and output the results of framework execution."""
     if output_format == "json":
         combined_output = [asdict(result) for result in all_results]
-        print(json.dumps(combined_output, indent=2))
+        print(json.dumps(to_serializable(combined_output), indent=2))
     else:
         # Text summary
         print("\n" + "=" * 60)

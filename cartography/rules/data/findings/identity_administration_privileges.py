@@ -24,7 +24,12 @@ _aws_account_manipulation_permissions = Fact(
             [p IN ['iam:Create','iam:Attach','iam:Put','iam:Update','iam:Add'] | p] AS patterns
         // Match only Allow statements whose actions fit the patterns
         WITH a, principal, principal_type, stmt, policy,
-@@ -34,46 +35,47 @@
+            [action IN stmt.action
+                WHERE ANY(prefix IN patterns WHERE action STARTS WITH prefix)
+                OR action = 'iam:*'
+                OR action = '*'
+            ] AS matched_allow_actions
+        WHERE size(matched_allow_actions) > 0
         // Find explicit Deny statements for the same principal that overlap
         OPTIONAL MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(deny_stmt:AWSPolicyStatement {effect:"Deny"})
         WHERE ANY(deny_action IN deny_stmt.action
