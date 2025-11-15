@@ -23,7 +23,6 @@ def _build_ontology_field_statement_invert_boolean(
     mapping_field: OntologyFieldMapping,
     property_ref: PropertyRef,
 ) -> str:
-    # TESTS: unit tests
     # toBooleanOrNull will return a boolean or null if it can't be converted
     # coalesce will return the first non-null value, so if toBooleanOrNull returns null,
     # we invert the boolean value of the property_ref existence
@@ -41,7 +40,6 @@ def _build_ontology_field_statement_to_boolean(
     mapping_field: OntologyFieldMapping,
     property_ref: PropertyRef,
 ) -> str:
-    # TESTS: unit tests
     # toBoleanOrNull will return a boolean or null if it can't be converted
     # coalesce will return the first non-null value, so if toBooleanOrNull returns null,
     # it will return whether the property_ref is not null (i.e., true if property_ref exists)
@@ -60,25 +58,22 @@ def _build_ontology_field_statement_equal_boolean(
     mapping_field: OntologyFieldMapping,
     property_ref: PropertyRef,
 ) -> str | None:
-    # TESTS: unit tests
-    # toBooleanOrNull will return a boolean or null if it can't be converted
-    # WIP: check if coalesce is needed
-    # coalesce will return the first non-null value, so if toBooleanOrNull returns null,
-    # we compare the boolean value of the property_ref to a list of expected boolean values
+    # we check if the property_ref is in the list of expected boolean values
     equal_boolean_template = Template(
-        "i.$node_property = (coalesce($property_ref, false) IN $property_values)"
+        "i.$node_property = ($property_ref IN $property_values)"
     )
     extra_field_values = mapping_field.extra.get("values")
     if extra_field_values is None:
         # should not occure due to unit test but failing gracefully
         logger.warning(
-            f"equal_boolean special handling requires 'values' in extra for field {mapping_field.ontology_field}"
+            "equal_boolean special handling requires 'values' in extra for field %s",
+            mapping_field.ontology_field,
         )
         return None
     if not isinstance(extra_field_values, list):
-        # should not occure due to unit test but failing gracefully
         logger.warning(
-            f"equal_boolean special handling 'values' in extra for field {mapping_field.ontology_field} must be a list"
+            "equal_boolean special handling 'values' in extra for field %s must be a list",
+            mapping_field.ontology_field,
         )
         return None
     return equal_boolean_template.substitute(
@@ -88,11 +83,10 @@ def _build_ontology_field_statement_equal_boolean(
     )
 
 
-def _build_ontology_field_statement_or_bolean(
+def _build_ontology_field_statement_or_boolean(
     mapping_field: OntologyFieldMapping,
     node_property_map: dict[str, PropertyRef],
 ) -> str | None:
-    # TESTS: unit tests
     # The or_clause is needed to avoid comparing nulls to boolean values
     # See: https://neo4j.com/docs/cypher-manual/current/values-and-types/working-with-null/#cypher-null-logical-operators
     or_clause = Template("coalesce(toBooleanOrNull($property_ref), false)")
@@ -101,13 +95,15 @@ def _build_ontology_field_statement_or_bolean(
     if extra_fields is None:
         # should not occure due to unit test but failing gracefully
         logger.warning(
-            f"or_boolean special handling requires 'fields' in extra for field {mapping_field.ontology_field}"
+            "or_boolean special handling requires 'fields' in extra for field %s",
+            mapping_field.ontology_field,
         )
         return None
     if not isinstance(extra_fields, list):
         # should not occure due to unit test but failing gracefully
         logger.warning(
-            f"or_boolean special handling 'fields' in extra for field {mapping_field.ontology_field} must be a list"
+            "or_boolean special handling 'fields' in extra for field %s must be a list",
+            mapping_field.ontology_field,
         )
         return None
 
@@ -121,7 +117,9 @@ def _build_ontology_field_statement_or_bolean(
         if not extra_property_ref:
             # should not occure due to unit test but failing gracefully
             logger.warning(
-                f"Extra field '{extra_field}' not found in node properties for or_boolean special handling of field {mapping_field.ontology_field}"
+                "Extra field '%s' not found in node properties for or_boolean special handling of field %s",
+                extra_field,
+                mapping_field.ontology_field,
             )
             continue
         property_conditions.append(
@@ -136,10 +134,9 @@ def _build_ontology_field_statement_or_bolean(
     )
 
 
-def _build_ontolotgy_node_properties_statement(
+def _build_ontology_node_properties_statement(
     node_schema: CartographyNodeSchema,
     node_property_map: dict[str, PropertyRef],
-    extra_node_labels: ExtraNodeLabels | None = None,
 ) -> str:
     # DOC
     # Try to get the mapping for the given node schema
@@ -149,7 +146,6 @@ def _build_ontolotgy_node_properties_statement(
 
     set_clauses = []
     for mapping_field in ontology_mapping.fields:
-        # TESTS: add unit test to check that people do no use the prefix on the mapping
         ontology_field_name = f"_ont_{mapping_field.ontology_field}"
         node_propertyref = node_property_map.get(mapping_field.node_field)
         if not node_propertyref:
@@ -182,7 +178,7 @@ def _build_ontolotgy_node_properties_statement(
             if equal_boolean_statement:
                 set_clauses.append(equal_boolean_statement)
         elif mapping_field.special_handling == "or_boolean":
-            or_boolean_statement = _build_ontology_field_statement_or_bolean(
+            or_boolean_statement = _build_ontology_field_statement_or_boolean(
                 mapping_field, node_property_map
             )
             if or_boolean_statement:
@@ -673,10 +669,9 @@ def build_ingestion_query(
             node_props_as_dict,
             node_schema.extra_node_labels,
         ),
-        set_ontology_node_properties_statement=_build_ontolotgy_node_properties_statement(
+        set_ontology_node_properties_statement=_build_ontology_node_properties_statement(
             node_schema,
             node_props_as_dict,
-            node_schema.extra_node_labels,
         ),
         attach_relationships_statement=_build_attach_relationships_statement(
             sub_resource_rel,
