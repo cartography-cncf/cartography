@@ -1,4 +1,3 @@
-# See https://d3fend.mitre.org/dao/artifact/d3f:User/
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
@@ -18,7 +17,6 @@ class UserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("email")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     email: PropertyRef = PropertyRef("email", extra_index=True)
-    username: PropertyRef = PropertyRef("username")
     fullname: PropertyRef = PropertyRef("fullname")
     firstname: PropertyRef = PropertyRef("firstname")
     lastname: PropertyRef = PropertyRef("lastname")
