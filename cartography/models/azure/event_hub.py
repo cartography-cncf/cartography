@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 logger = logging.getLogger(__name__)
@@ -24,15 +25,34 @@ class AzureEventHubProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureEventHubToNamespaceRelProperties(CartographyRelProperties):
+class AzureEventHubToSubscriptionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
+class AzureEventHubToSubscriptionRel(CartographyRelSchema):
+    target_node_label: str = "AzureSubscription"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AzureEventHubToSubscriptionRelProperties = (
+        AzureEventHubToSubscriptionRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AzureEventHubToNamespaceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+# Other relationship to Namespace
+@dataclass(frozen=True)
 class AzureEventHubToNamespaceRel(CartographyRelSchema):
     target_node_label: str = "AzureEventHubsNamespace"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("NAMESPACE_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("namespace_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
@@ -45,6 +65,11 @@ class AzureEventHubToNamespaceRel(CartographyRelSchema):
 class AzureEventHubSchema(CartographyNodeSchema):
     label: str = "AzureEventHub"
     properties: AzureEventHubProperties = AzureEventHubProperties()
-    sub_resource_relationship: AzureEventHubToNamespaceRel = (
-        AzureEventHubToNamespaceRel()
+    sub_resource_relationship: AzureEventHubToSubscriptionRel = (
+        AzureEventHubToSubscriptionRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            AzureEventHubToNamespaceRel(),
+        ],
     )

@@ -2,14 +2,11 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.core.exceptions import ClientAuthenticationError
-from azure.core.exceptions import HttpResponseError
 from azure.mgmt.eventhub import EventHubManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.azure.event_hub import AzureEventHubSchema
-from cartography.models.azure.event_hub_namespace import AzureEventHubsNamespaceSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -17,75 +14,27 @@ from .util.credentials import Credentials
 logger = logging.getLogger(__name__)
 
 
-def _get_resource_group_from_id(resource_id: str) -> str:
-    """
-    Helper function to parse the resource group name from a full resource ID string.
-    """
+def get_resource_group_from_id(resource_id: str) -> str:
     parts = resource_id.lower().split("/")
-    try:
-        rg_index = parts.index("resourcegroups")
-        return parts[rg_index + 1]
-    except (ValueError, IndexError):
-        logger.warning("Could not parse resource group name from a resource ID.")
-        return ""
-
-
-@timeit
-def get_event_hub_namespaces(client: EventHubManagementClient) -> list[dict]:
-    try:
-        return [n.as_dict() for n in client.namespaces.list()]
-    except (ClientAuthenticationError, HttpResponseError) as e:
-        logger.warning(f"Failed to get Event Hub Namespaces: {str(e)}")
-        return []
+    rg_index = parts.index("resourcegroups")
+    return parts[rg_index + 1]
 
 
 @timeit
 def get_event_hubs(
     client: EventHubManagementClient, resource_group_name: str, namespace_name: str
-) -> list[dict]:
-    try:
-        return [
-            eh.as_dict()
-            for eh in client.event_hubs.list_by_namespace(
-                resource_group_name, namespace_name
-            )
-        ]
-    except (ClientAuthenticationError, HttpResponseError) as e:
-        logger.warning(
-            f"Failed to get Event Hubs for namespace {namespace_name}: {str(e)}"
-        )
-        return []
+) -> list[Any]:
+    return list(
+        client.event_hubs.list_by_namespace(resource_group_name, namespace_name)
+    )
 
 
-@timeit
-def transform_namespaces(namespaces: list[dict]) -> list[dict]:
+def transform_event_hubs(
+    event_hubs_raw: list[Any], namespace_id: str
+) -> list[dict[str, Any]]:
     transformed: list[dict[str, Any]] = []
-    for ns in namespaces:
-        transformed.append(
-            {
-                "id": ns.get("id"),
-                "name": ns.get("name"),
-                "location": ns.get("location"),
-                "sku_name": ns.get("sku", {}).get("name"),
-                "sku_tier": ns.get("sku", {}).get("tier"),
-                "provisioning_state": ns.get("properties", {}).get(
-                    "provisioning_state"
-                ),
-                "is_auto_inflate_enabled": ns.get("properties", {}).get(
-                    "is_auto_inflate_enabled"
-                ),
-                "maximum_throughput_units": ns.get("properties", {}).get(
-                    "maximum_throughput_units"
-                ),
-            }
-        )
-    return transformed
-
-
-@timeit
-def transform_event_hubs(event_hubs: list[dict], namespace_id: str) -> list[dict]:
-    transformed: list[dict[str, Any]] = []
-    for eh in event_hubs:
+    for eh_raw in event_hubs_raw:
+        eh = eh_raw.as_dict()
         transformed.append(
             {
                 "id": eh.get("id"),
@@ -95,32 +44,17 @@ def transform_event_hubs(event_hubs: list[dict], namespace_id: str) -> list[dict
                 "message_retention_in_days": eh.get("properties", {}).get(
                     "message_retention_in_days"
                 ),
-                "NAMESPACE_ID": namespace_id,
+                "namespace_id": namespace_id,
             }
         )
     return transformed
 
 
 @timeit
-def load_namespaces(
-    neo4j_session: neo4j.Session,
-    data: list[dict[str, Any]],
-    subscription_id: str,
-    update_tag: int,
-) -> None:
-    load(
-        neo4j_session,
-        AzureEventHubsNamespaceSchema(),
-        data,
-        lastupdated=update_tag,
-        AZURE_SUBSCRIPTION_ID=subscription_id,
-    )
-
-
-@timeit
 def load_event_hubs(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
+    subscription_id: str,
     namespace_id: str,
     update_tag: int,
 ) -> None:
@@ -129,49 +63,54 @@ def load_event_hubs(
         AzureEventHubSchema(),
         data,
         lastupdated=update_tag,
-        NAMESPACE_ID=namespace_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+        namespace_id=namespace_id,
     )
 
 
 @timeit
-def cleanup_namespaces(
-    neo4j_session: neo4j.Session, common_job_parameters: dict
+def cleanup_event_hubs(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    GraphJob.from_node_schema(
-        AzureEventHubsNamespaceSchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(AzureEventHubSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
-def sync(
+def sync_event_hubs(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
+    namespaces: list[Any],
     subscription_id: str,
     update_tag: int,
-    common_job_parameters: dict,
+    common_job_parameters: dict[str, Any],
 ) -> None:
-    logger.info("Syncing Azure Event Hub.")
+    logger.info("Syncing Azure Event Hubs for subscription %s.", subscription_id)
+
     client = EventHubManagementClient(credentials.credential, subscription_id)
 
-    namespaces = get_event_hub_namespaces(client)
-    transformed_namespaces = transform_namespaces(namespaces)
-    load_namespaces(neo4j_session, transformed_namespaces, subscription_id, update_tag)
+    for ns_raw in namespaces:
+        try:
+            ns_id = ns_raw.id
+            ns_name = ns_raw.name
+        except AttributeError:
+            ns_id = ns_raw.get("id")
+            ns_name = ns_raw.get("name")
 
-    for ns in namespaces:
-        ns_id = ns.get("id")
         if not ns_id:
             continue
 
-        rg_name = _get_resource_group_from_id(ns_id)
-        if rg_name:
-            event_hubs = get_event_hubs(client, rg_name, ns["name"])
-            transformed_event_hubs = transform_event_hubs(event_hubs, ns_id)
-            load_event_hubs(neo4j_session, transformed_event_hubs, ns_id, update_tag)
+        rg_name = get_resource_group_from_id(ns_id)
 
-            eh_cleanup_params = common_job_parameters.copy()
-            eh_cleanup_params["NAMESPACE_ID"] = ns_id
-            GraphJob.from_node_schema(AzureEventHubSchema(), eh_cleanup_params).run(
-                neo4j_session
+        if rg_name:
+            event_hubs_raw = get_event_hubs(client, rg_name, ns_name)
+            transformed_hubs = transform_event_hubs(event_hubs_raw, ns_id)
+
+            load_event_hubs(
+                neo4j_session, transformed_hubs, subscription_id, ns_id, update_tag
             )
 
-    cleanup_namespaces(neo4j_session, common_job_parameters)
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["AZURE_SUBSCRIPTION_ID"] = subscription_id
+    cleanup_event_hubs(neo4j_session, cleanup_job_params)

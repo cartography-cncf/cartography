@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.azure.event_hub as event_hub
+import cartography.intel.azure.event_hub_namespace as event_hub_namespace
 from tests.data.azure.event_hub import MOCK_EVENT_HUBS
 from tests.data.azure.event_hub import MOCK_NAMESPACES
 from tests.integration.util import check_nodes
@@ -11,15 +12,29 @@ TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
 
 
+def create_mock_sdk_object(data_dict):
+    """
+    Creates a MagicMock that simulates an Azure SDK object.
+    It has a .as_dict() method and also has attributes for each key.
+    """
+    mock = MagicMock()
+    mock.as_dict.return_value = data_dict
+
+    # Add attributes to the mock
+    for key, value in data_dict.items():
+        setattr(mock, key, value)
+    return mock
+
+
 @patch("cartography.intel.azure.event_hub.get_event_hubs")
-@patch("cartography.intel.azure.event_hub.get_event_hub_namespaces")
+@patch("cartography.intel.azure.event_hub_namespace.get_event_hub_namespaces")
 def test_sync_event_hub(mock_get_ns, mock_get_eh, neo4j_session):
     """
     Test that we can correctly sync Event Hub Namespace and Event Hub data.
     """
     # Arrange
-    mock_get_ns.return_value = MOCK_NAMESPACES
-    mock_get_eh.return_value = MOCK_EVENT_HUBS
+    mock_get_ns.return_value = [create_mock_sdk_object(ns) for ns in MOCK_NAMESPACES]
+    mock_get_eh.return_value = [create_mock_sdk_object(eh) for eh in MOCK_EVENT_HUBS]
 
     # Create the prerequisite AzureSubscription node
     neo4j_session.run(
@@ -36,19 +51,33 @@ def test_sync_event_hub(mock_get_ns, mock_get_eh, neo4j_session):
         "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
     }
 
-    # Act
-    event_hub.sync(
+    mock_client = MagicMock()
+
+    # Act:
+    # 1. Sync Namespaces
+    namespaces = event_hub_namespace.sync_event_hub_namespaces(
         neo4j_session,
-        MagicMock(),
+        mock_client,
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # 2. Sync Event Hubs
+    event_hub.sync_event_hubs(
+        neo4j_session,
+        mock_client,
+        namespaces,
         TEST_SUBSCRIPTION_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
 
     # Assert Namespaces
+    namespace_id = MOCK_NAMESPACES[0]["id"]
     expected_ns_nodes = {
         (
-            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.EventHub/namespaces/my-test-ns",
+            namespace_id,
             "my-test-ns",
         ),
     }
@@ -60,7 +89,7 @@ def test_sync_event_hub(mock_get_ns, mock_get_eh, neo4j_session):
     expected_ns_rels = {
         (
             TEST_SUBSCRIPTION_ID,
-            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.EventHub/namespaces/my-test-ns",
+            namespace_id,
         ),
     }
     actual_ns_rels = check_rels(
@@ -74,15 +103,15 @@ def test_sync_event_hub(mock_get_ns, mock_get_eh, neo4j_session):
     assert actual_ns_rels == expected_ns_rels
 
     # Assert Event Hubs
-    namespace_id = MOCK_NAMESPACES[0]["id"]
     event_hub_id = MOCK_EVENT_HUBS[0]["id"]
 
     expected_eh_nodes = {(event_hub_id, "my-test-eh")}
     actual_eh_nodes = check_nodes(neo4j_session, "AzureEventHub", ["id", "name"])
     assert actual_eh_nodes == expected_eh_nodes
 
-    expected_eh_rels = {(namespace_id, event_hub_id)}
-    actual_eh_rels = check_rels(
+    # Test relationship: (Namespace)-[:CONTAINS]->(EventHub)
+    expected_eh_contains_rels = {(namespace_id, event_hub_id)}
+    actual_eh_contains_rels = check_rels(
         neo4j_session,
         "AzureEventHubsNamespace",
         "id",
@@ -90,4 +119,16 @@ def test_sync_event_hub(mock_get_ns, mock_get_eh, neo4j_session):
         "id",
         "CONTAINS",
     )
-    assert actual_eh_rels == expected_eh_rels
+    assert actual_eh_contains_rels == expected_eh_contains_rels
+
+    # Test relationship: (Subscription)-[:RESOURCE]->(EventHub)
+    expected_eh_resource_rels = {(TEST_SUBSCRIPTION_ID, event_hub_id)}
+    actual_eh_resource_rels = check_rels(
+        neo4j_session,
+        "AzureSubscription",
+        "id",
+        "AzureEventHub",
+        "id",
+        "RESOURCE",
+    )
+    assert actual_eh_resource_rels == expected_eh_resource_rels

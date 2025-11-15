@@ -13,6 +13,7 @@ from . import container_instances
 from . import cosmosdb
 from . import data_lake
 from . import event_hub
+from . import event_hub_namespace
 from . import functions
 from . import logic_apps
 from . import resource_groups
@@ -96,9 +97,17 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
-    event_hub.sync(
+    namespaces = event_hub_namespace.sync_event_hub_namespaces(
         neo4j_session,
         credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    event_hub.sync_event_hubs(
+        neo4j_session,
+        credentials,
+        namespaces,
         subscription_id,
         update_tag,
         common_job_parameters,
