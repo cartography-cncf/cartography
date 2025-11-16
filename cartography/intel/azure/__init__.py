@@ -17,9 +17,9 @@ from . import data_factory_dataset
 from . import data_factory_linked_service
 from . import data_factory_pipeline
 from . import data_lake
+from . import event_grid
 from . import event_hub
 from . import event_hub_namespace
-from . import event_grid
 from . import functions
 from . import load_balancers
 from . import logic_apps
