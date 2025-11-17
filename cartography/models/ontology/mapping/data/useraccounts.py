@@ -21,6 +21,7 @@ entra_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="email",
                     node_field="email",
+                    required=True,
                 ),
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="given_name"
@@ -187,7 +188,7 @@ github_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="fullname"),
-                # TODO: has_2fa_enabled ony on rel
+                # TODO: has_2fa_enabled only on rel
             ],
         ),
     ],

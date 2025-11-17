@@ -832,7 +832,7 @@ your_service_mapping = OntologyMapping(
                 # Special handling examples:
                 OntologyFieldMapping(
                     ontology_field="inactive",
-                    node_field="account_enabled", 
+                    node_field="account_enabled",
                     special_handling="invert_boolean",
                 ),
                 OntologyFieldMapping(
@@ -1208,27 +1208,27 @@ fields=[
 fields=[
     # Invert boolean values
     OntologyFieldMapping(
-        ontology_field="inactive", 
-        node_field="account_enabled", 
+        ontology_field="inactive",
+        node_field="account_enabled",
         special_handling="invert_boolean"
     ),
     # Convert to boolean
     OntologyFieldMapping(
-        ontology_field="has_mfa", 
-        node_field="mfa_devices", 
+        ontology_field="has_mfa",
+        node_field="mfa_devices",
         special_handling="to_boolean"
     ),
     # Combine multiple fields with OR
     OntologyFieldMapping(
-        ontology_field="inactive", 
-        node_field="suspended", 
+        ontology_field="inactive",
+        node_field="suspended",
         special_handling="or_boolean",
         extra={"fields": ["archived", "deleted"]}
     ),
     # Check against specific values
     OntologyFieldMapping(
-        ontology_field="inactive", 
-        node_field="status", 
+        ontology_field="inactive",
+        node_field="status",
         special_handling="equal_boolean",
         extra={"values": ["disabled", "locked"]}
     ),

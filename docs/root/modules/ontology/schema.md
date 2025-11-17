@@ -31,8 +31,8 @@ When ontology mappings are applied, source nodes automatically receive `_ont_*` 
 **Example:**
 ```cypher
 // Find all inactive users across all modules
-MATCH (n:UserAccount) 
-WHERE n._ont_inactive = true 
+MATCH (n:UserAccount)
+WHERE n._ont_inactive = true
 RETURN n._ont_email, n._ont_source
 
 // Find users with MFA enabled from any source

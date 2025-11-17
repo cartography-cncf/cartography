@@ -17,20 +17,49 @@ EXISTING_DUO_USERS = _transform_users(tests.data.duo.users.GET_USERS_RESPONSE)
 
 
 def test_sync_with_empty_source_list(neo4j_session):
-    """Test sync behavior with empty source of truth list"""
-    # Arrange
-    _ensure_local_neo4j_has_test_duo_users(neo4j_session)
-    _ensure_local_neo4j_has_test_tailscale_users(neo4j_session)
+    """Test sync behavior with empty source of truth list - should default to 'ontology' source"""
+    # Arrange - Create UserAccount nodes with the fields expected by the 'ontology' source mapping
+    neo4j_session.run(
+        """
+        UNWIND $users as user
+        CREATE (u:UserAccount {
+            id: user.id,
+            email_address: user.email_address,
+            full_name: user.full_name,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            lastupdated: $update_tag
+        })
+        """,
+        users=[
+            {
+                "id": "user1",
+                "email_address": "homer@simpson.corp",
+                "full_name": "Homer Simpson",
+                "first_name": "Homer",
+                "last_name": "Simpson",
+            },
+            {
+                "id": "user2",
+                "email_address": "marge@simpson.corp",
+                "full_name": "Marge Simpson",
+                "first_name": "Marge",
+                "last_name": "Simpson",
+            },
+        ],
+        update_tag=TEST_UPDATE_TAG,
+    )
 
-    # Act
+    # Act - Empty source list should default to 'ontology' source
     cartography.intel.ontology.users.sync(
         neo4j_session, [], TEST_UPDATE_TAG, {"UPDATE_TAG": TEST_UPDATE_TAG}
     )
 
+    # Assert - Check that User nodes were created from UserAccount nodes
     user_count = neo4j_session.run("MATCH (u:User) RETURN count(u) as count").single()[
         "count"
     ]
-    assert user_count == 4
+    assert user_count == 2
 
 
 @patch.object(
@@ -42,6 +71,7 @@ def test_load_ontology_users_integration(mock_get_source_nodes, neo4j_session):
     """Test end-to-end loading of ontology users"""
 
     # Arrange
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")  # Clean the database
     _ensure_local_neo4j_has_test_duo_users(neo4j_session)
     _ensure_local_neo4j_has_test_tailscale_users(neo4j_session)
 
