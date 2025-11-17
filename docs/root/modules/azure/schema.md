@@ -88,6 +88,11 @@ Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/re
     (AzureSubscription)-[RESOURCE]->(VirtualMachine)
     ```
 
+- An Azure Virtual Machine can be tagged with Azure Tags.
+    ```cypher
+    (VirtualMachine)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureDataDisk
 
 Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines/get#datadisk).
@@ -1223,6 +1228,11 @@ Representation of an [Azure App Service](https://learn.microsoft.com/en-us/rest/
     (AzureSubscription)-[RESOURCE]->(AzureAppService)
     ```
 
+- An Azure App Service can be tagged with Azure Tags.
+    ```cypher
+    (AzureAppService)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureEventGridTopic
 
 Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/rest/api/eventgrid/controlplane-stable/topics/get).
@@ -1408,6 +1418,11 @@ Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.
 - An Azure Kubernetes Cluster is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureKubernetesCluster)
+    ```
+
+- An Azure Kubernetes Cluster can be tagged with Azure Tags.
+    ```cypher
+    (AzureKubernetesCluster)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureKubernetesAgentPool
