@@ -108,7 +108,6 @@ def test_ontology_mapping_required_fields():
                     )
 
 
-# TODO: add unit test to check that people do no use the prefix on the mapping
 def test_ontology_mapping_prefix_usage():
     # Verify that no mapping field uses the 'prefix' attribute
     for _, mappings in ONTOLOGY_MAPPING.items():
