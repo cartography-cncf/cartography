@@ -144,7 +144,7 @@ def _build_ontology_node_properties_statement(
     if not ontology_mapping:
         return ""
 
-    source = _get_module_from_schema(node_schema).rsplit(':', maxsplit=1)[-1]
+    source = _get_module_from_schema(node_schema).rsplit(":", maxsplit=1)[-1]
     set_clauses = [f"i._ont_source = '{source}'"]
     for mapping_field in ontology_mapping.fields:
         ontology_field_name = f"_ont_{mapping_field.ontology_field}"
