@@ -61,10 +61,11 @@ def _run_fact(
                 for key, value in finding.__class__.model_fields.items():
                     if value is not None:
                         # Truncate long values
-                        str_value = str(value)
+                        actual_value = getattr(finding, key)
+                        str_value = str(actual_value)
                         if len(str_value) > 50:
                             str_value = str_value[:47] + "..."
-                        formatted_items.append(f"{key}={getattr(finding, key)}")
+                        formatted_items.append(f"{key}={str_value}")
                 if formatted_items:
                     print(f"      {idx + 1}. {', '.join(formatted_items)}")
 

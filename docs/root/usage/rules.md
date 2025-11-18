@@ -182,6 +182,8 @@ Rules evolve over time. Here's how versioning and maturity work together:
 object_storage_public = Rule(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
+    description="Publicly accessible object storage services such as AWS S3 buckets and Azure Storage Blob Containers",
+    tags=("infrastructure", "attack_surface"),
     output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,        # EXPERIMENTAL - new query
@@ -193,6 +195,8 @@ object_storage_public = Rule(
 object_storage_public = Rule(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
+    description="Publicly accessible object storage services such as AWS S3 buckets and Azure Storage Blob Containers",
+    tags=("infrastructure", "attack_surface"),
     output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,        # EXPERIMENTAL
@@ -208,6 +212,8 @@ object_storage_public = Rule(
 object_storage_public = Rule(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
+    description="Publicly accessible object storage services such as AWS S3 buckets and Azure Storage Blob Containers",
+    tags=("infrastructure", "attack_surface"),
     output_model=ObjectStoragePublic,
     facts=(
         _aws_s3_public,        # STABLE - promoted after extensive testing
