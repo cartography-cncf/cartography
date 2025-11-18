@@ -24,27 +24,27 @@ def test_sync_with_empty_source_list(neo4j_session):
         UNWIND $users as user
         CREATE (u:UserAccount {
             id: user.id,
-            email_address: user.email_address,
-            full_name: user.full_name,
-            first_name: user.first_name,
-            last_name: user.last_name,
+            _ont_email: user.email,
+            _ont_fullname: user.fullname,
+            _ont_firstname: user.firstname,
+            _ont_lastname: user.lastname,
             lastupdated: $update_tag
         })
         """,
         users=[
             {
                 "id": "user1",
-                "email_address": "homer@simpson.corp",
-                "full_name": "Homer Simpson",
-                "first_name": "Homer",
-                "last_name": "Simpson",
+                "email": "homer@simpson.corp",
+                "fullname": "Homer Simpson",
+                "firstname": "Homer",
+                "lastname": "Simpson",
             },
             {
                 "id": "user2",
-                "email_address": "marge@simpson.corp",
-                "full_name": "Marge Simpson",
-                "first_name": "Marge",
-                "last_name": "Simpson",
+                "email": "marge@simpson.corp",
+                "fullname": "Marge Simpson",
+                "firstname": "Marge",
+                "lastname": "Simpson",
             },
         ],
         update_tag=TEST_UPDATE_TAG,

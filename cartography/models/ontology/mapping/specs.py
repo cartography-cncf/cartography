@@ -29,9 +29,7 @@ class OntologyFieldMapping:
     ontology_field: str
     node_field: str
     required: bool = False
-    # WIP: add unit tests for special_handling
     special_handling: str | None = None
-    # WIP: add unit tests for extra
     extra: dict[str, Any] = field(default_factory=dict)
 
 

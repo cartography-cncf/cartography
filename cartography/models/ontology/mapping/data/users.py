@@ -10,13 +10,17 @@ useraccount_mapping = OntologyMapping(
             node_label="UserAccount",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="email", node_field="email_address", required=True
+                    ontology_field="email", node_field="_ont_email", required=True
                 ),
-                OntologyFieldMapping(ontology_field="fullname", node_field="full_name"),
                 OntologyFieldMapping(
-                    ontology_field="firstname", node_field="first_name"
+                    ontology_field="fullname", node_field="_ont_fullname"
                 ),
-                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="_ont_firstname"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastname", node_field="_ont_lastname"
+                ),
             ],
         ),
     ],
