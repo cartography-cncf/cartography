@@ -23,7 +23,7 @@ ONTOLOGY_NODES_MAPPING: dict[str, dict[str, OntologyMapping]] = {
 
 # Following mapping are used to normalize fields for semantic labels
 # They are leveraged directly by the load functions of each module at ingestion time
-SEMEANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
+SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "useraccounts": USERACCOUNTS_ONTOLOGY_MAPPING,
 }
 
@@ -44,7 +44,7 @@ def get_semantic_label_mapping_from_node_schema(
     Returns:
         The corresponding OntologyNodeMapping if found, else None.
     """
-    for module_name, module_mappings in SEMEANTIC_LABELS_MAPPING.items():
+    for module_name, module_mappings in SEMANTIC_LABELS_MAPPING.items():
         if module_name == "ontology":
             continue
         for ontology_mapping in module_mappings.values():

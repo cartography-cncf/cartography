@@ -5,14 +5,14 @@ import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
-from cartography.models.ontology.mapping import SEMEANTIC_LABELS_MAPPING
+from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
 from cartography.sync import TOP_LEVEL_MODULES
 from tests.utils import load_models
 
 MODELS = list(load_models(cartography.models))
 ALL_MAPPINGS = {
     **ONTOLOGY_NODES_MAPPING,
-    **SEMEANTIC_LABELS_MAPPING,
+    **SEMANTIC_LABELS_MAPPING,
 }
 
 # Unfortunately, some nodes are not yet migrated to the new data model system.
@@ -112,7 +112,7 @@ def test_ontology_mapping_required_fields():
 
 def test_ontology_mapping_prefix_usage():
     # Verify that no mapping field uses the 'prefix' attribute
-    for _, mappings in SEMEANTIC_LABELS_MAPPING.items():
+    for _, mappings in SEMANTIC_LABELS_MAPPING.items():
         for module_name, mapping in mappings.items():
             for node in mapping.nodes:
                 for mapping_field in node.fields:
@@ -125,7 +125,7 @@ def test_ontology_mapping_prefix_usage():
 def test_ontology_mapping_or_boolean_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.
-    for _, mappings in SEMEANTIC_LABELS_MAPPING.items():
+    for _, mappings in SEMANTIC_LABELS_MAPPING.items():
         for module_name, mapping in mappings.items():
             for node in mapping.nodes:
                 for mapping_field in node.fields:
@@ -157,7 +157,7 @@ def test_ontology_mapping_or_boolean_fields():
 def test_omtology_mapping_equal_boolean_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.
-    for _, mappings in SEMEANTIC_LABELS_MAPPING.items():
+    for _, mappings in SEMANTIC_LABELS_MAPPING.items():
         for module_name, mapping in mappings.items():
             for node in mapping.nodes:
                 for mapping_field in node.fields:
