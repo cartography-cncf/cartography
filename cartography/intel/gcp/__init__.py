@@ -25,6 +25,7 @@ from cartography.intel.gcp import iam
 from cartography.intel.gcp import permission_relationships
 from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import storage
+from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
@@ -218,12 +219,13 @@ def _sync_project_resources(
 
         if service_names.cai in enabled_services:
             logger.info("Syncing IAM policies for GCP project %s.", project_id)
+            asset_client = build_asset_client(credentials=credentials)
             policy_bindings.sync(
                 neo4j_session,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
-                credentials=credentials,
+                asset_client,
             )
 
         permission_relationships.sync(

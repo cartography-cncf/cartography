@@ -1,8 +1,8 @@
+import hashlib
 import logging
 from typing import Any
 
 import neo4j
-from google.auth.credentials import Credentials as GoogleCredentials
 from google.cloud.asset_v1 import AssetServiceClient
 from google.cloud.asset_v1.types import BatchGetEffectiveIamPoliciesRequest
 from google.cloud.asset_v1.types import SearchAllIamPoliciesRequest
@@ -20,9 +20,8 @@ logger = logging.getLogger(__name__)
 def get_policy_bindings(
     project_id: str,
     common_job_parameters: dict[str, Any],
-    credentials: GoogleCredentials | None = None,
+    client: AssetServiceClient,
 ) -> dict[str, Any]:
-    client = AssetServiceClient(credentials=credentials)
     org_id = common_job_parameters.get("ORG_RESOURCE_NAME")
     project_resource_name = (
         f"//cloudresourcemanager.googleapis.com/projects/{project_id}"
@@ -75,10 +74,9 @@ def get_policy_bindings(
     }
 
 
-@timeit
 def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
     project_id = data["project_id"]
-    bindings: dict[tuple[str, str], dict[str, Any]] = {}
+    bindings: dict[tuple[str, str, str | None], dict[str, Any]] = {}
 
     for policy_result in data["policy_results"]:
         for policy in policy_result.get("policies", []):
@@ -119,16 +117,36 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                 if not filtered_members:
                     continue
 
-                # Deduplicate bindings by (resource, role)
-                key = (resource, role)
+                # Extract condition expression for deduplication key
+                # Include condition expression in key so conditional bindings stay distinct
+                condition_expression = (
+                    condition.get("expression") if condition else None
+                )
+
+                # Deduplicate bindings by (resource, role, condition_expression)
+                # This ensures conditional bindings with different expressions are kept separate
+                key = (resource, role, condition_expression)
 
                 if key in bindings:
                     existing_members = set(bindings[key]["members"])
                     existing_members.update(filtered_members)
                     bindings[key]["members"] = list(existing_members)
                 else:
+                    # Generate unique ID that includes condition expression hash
+                    condition_hash = ""
+                    if condition_expression:
+                        condition_hash = hashlib.sha256(
+                            condition_expression.encode("utf-8")
+                        ).hexdigest()[
+                            :8
+                        ]  # Use first 8 chars of hash for brevity
+
+                    binding_id = f"{resource}_{role}"
+                    if condition_hash:
+                        binding_id = f"{binding_id}_{condition_hash}"
+
                     bindings[key] = {
-                        "id": f"{resource}_{role}",
+                        "id": binding_id,
                         "role": role,
                         "resource": resource,
                         "resource_type": resource_type,
@@ -137,9 +155,7 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "condition_title": (
                             condition.get("title") if condition else None
                         ),
-                        "condition_expression": (
-                            condition.get("expression") if condition else None
-                        ),
+                        "condition_expression": condition_expression,
                     }
 
     return list(bindings.values())
@@ -180,10 +196,10 @@ def sync(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-    credentials: GoogleCredentials | None = None,
+    client: AssetServiceClient,
 ) -> None:
     bindings_data = get_policy_bindings(
-        project_id, common_job_parameters=common_job_parameters, credentials=credentials
+        project_id, common_job_parameters=common_job_parameters, client=client
     )  # Why pass common_job_parameters here? Because we need to get the org_id for getting inherited policies.
 
     transformed_bindings_data = transform_bindings(bindings_data)

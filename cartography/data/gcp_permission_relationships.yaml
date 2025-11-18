@@ -19,8 +19,3 @@
   permissions:
   - storage.objects.delete
   relationship_name: CAN_DELETE
-
-- target_label: GCPInstance
-  permissions:
-  - compute.acceleratorTypes.get
-  relationship_name: CAN_GET_ACCELERATOR_TYPES

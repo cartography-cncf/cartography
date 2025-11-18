@@ -81,8 +81,8 @@ def test_sync_gcp_policy_bindings(
     _create_test_project(neo4j_session)
     mock_iam_client = MagicMock()
     mock_admin_resource = MagicMock()
+    mock_asset_client = MagicMock()
 
-    # ACT
     cartography.intel.gcp.iam.sync(
         neo4j_session,
         mock_iam_client,
@@ -105,11 +105,13 @@ def test_sync_gcp_policy_bindings(
         GSUITE_COMMON_PARAMS,
     )
 
+    # ACT
     cartography.intel.gcp.policy_bindings.sync(
         neo4j_session,
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
+        mock_asset_client,
     )
 
     # ASSERT

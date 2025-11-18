@@ -6,6 +6,7 @@ import httplib2
 from google.auth import default
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.exceptions import DefaultCredentialsError
+from google.cloud.asset_v1 import AssetServiceClient
 from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import Resource
 
@@ -40,6 +41,20 @@ def build_client(
         cache_discovery=False,
     )
     return client
+
+
+def build_asset_client(
+    credentials: Optional[GoogleCredentials] = None,
+) -> AssetServiceClient:
+    """
+    Build an AssetServiceClient for the Cloud Asset API.
+    """
+    resolved_credentials = credentials or get_gcp_credentials()
+    if resolved_credentials is None:
+        raise RuntimeError(
+            "GCP credentials are not available; cannot build asset client."
+        )
+    return AssetServiceClient(credentials=resolved_credentials)
 
 
 def get_gcp_credentials() -> Optional[GoogleCredentials]:

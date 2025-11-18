@@ -10,6 +10,7 @@ MOCK_IAM_ROLES = [
             "storage.buckets.update",
             "storage.objects.create",
             "storage.objects.delete",
+            "compute.acceleratorTypes.get",
         ],
         "stage": "GA",
         "etag": "etag_456",

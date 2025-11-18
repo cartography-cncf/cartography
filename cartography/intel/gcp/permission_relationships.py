@@ -8,6 +8,8 @@ import neo4j
 import yaml
 
 from cartography.client.core.tx import load_matchlinks
+from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.permission_relationships import GCPPermissionMatchLink
 from cartography.util import timeit
@@ -37,32 +39,29 @@ def resolve_gcp_scope(scope: str, project_id: str) -> str:
 
 
 def compile_gcp_regex(item: str) -> re.Pattern:
-    if isinstance(item, str):
-        # Escape special regex characters
-        item = item.replace(".", "\\.").replace("*", ".*")
-        try:
-            return re.compile(item, flags=re.IGNORECASE)
-        except re.error:
-            logger.warning(f"GCP regex did not compile for {item}")
-            # Return a regex that matches nothing -> no false positives
-            return re.compile("", flags=re.IGNORECASE)
-    else:
-        return item
+    # Escape special regex characters
+    item = item.replace(".", "\\.").replace("*", ".*")
+    try:
+        return re.compile(item, flags=re.IGNORECASE)
+    except re.error:
+        logger.warning(f"GCP regex did not compile for {item}")
+        # Return a regex that matches nothing -> no false positives
+        return re.compile("", flags=re.IGNORECASE)
 
 
-def evaluate_clause(clause: str, match: str) -> bool:
+def evaluate_clause(clause: re.Pattern, match: str) -> bool:
     """
     Evaluates a clause in GCP IAM. Clauses can be permissions, denied permissions, or scopes.
 
     Arguments:
-        clause {str, re.Pattern} -- The clause you are evaluating against. Clauses can use
+        clause {re.Pattern} -- The compiled regex pattern to evaluate against. Clauses can use
             variable length wildcards (*)
         match {str} -- The item to match against.
 
     Returns:
         [bool] -- True if the clause matched, False otherwise
     """
-    result = compile_gcp_regex(clause).fullmatch(match)
+    result = clause.fullmatch(match)
     return result is not None
 
 
@@ -75,8 +74,6 @@ def evaluate_scope_for_resource(assignment: dict, resource_scope: str) -> bool:
 def evaluate_denied_permission_for_permission(
     permissions: dict, permission: str
 ) -> bool:
-    if not permissions.get("denied_permissions"):
-        return False
     for clause in permissions["denied_permissions"]:
         if evaluate_clause(clause, permission):
             return True
@@ -84,8 +81,6 @@ def evaluate_denied_permission_for_permission(
 
 
 def evaluate_permission_for_permission(permissions: dict, permission: str) -> bool:
-    if not permissions.get("permissions"):
-        return False
     for clause in permissions["permissions"]:
         if evaluate_clause(clause, permission):
             return True
@@ -119,9 +114,6 @@ def principal_allowed_on_resource(
     resource_scope: str,
     permissions: list[str],
 ) -> bool:
-    if not isinstance(permissions, list):
-        raise ValueError("permissions is not a list")
-
     for _, assignment_data in policy_bindings.items():
         if evaluate_policy_binding_for_permissions(
             assignment_data, permissions, resource_scope
@@ -166,12 +158,17 @@ def get_principals_for_project(
     (role:GCPRole)
     MATCH
     (principal:GCPPrincipal)-[:HAS_ALLOW_POLICY]->(binding)
+    WHERE binding.has_condition = false
     RETURN
     DISTINCT principal.email as principal_email, binding.id as binding_id,
     binding.resource as binding_resource, role.permissions as role_permissions
     """
 
-    results = neo4j_session.run(get_principals_query, ProjectId=project_id)
+    results = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        get_principals_query,
+        ProjectId=project_id,
+    )
 
     principals: dict[str, Any] = {}
     for r in results:
@@ -240,17 +237,16 @@ def get_resource_ids(
     get_resource_query_template = get_resource_query.safe_substitute(
         node_label=target_label,
     )
-    results = neo4j_session.run(
+    resource_ids = neo4j_session.execute_read(
+        read_list_of_values_tx,
         get_resource_query_template,
         ProjectId=project_id,
     )
     resource_dict = {
-        r[
-            "resource_id"
-        ]: f'project/{project_id}/resource/{r["resource_id"].split("/")[-1]}'
+        resource_id: f'project/{project_id}/resource/{resource_id.split("/")[-1]}'
         # Resource scope is project/{project_id}/resource/{last part of resource_id when separated by /}
         # Resource_id as key for loading and resource scope as value for scope evaluation
-        for r in results
+        for resource_id in resource_ids
     }
     return resource_dict
 
@@ -258,13 +254,14 @@ def get_resource_ids(
 def parse_permission_relationships_file(file_path: str) -> list[dict[str, Any]]:
     try:
         if not os.path.isabs(file_path):
-            file_path = os.path.join(os.getcwd(), file_path)
-        with open(file_path) as f:
+            resolved_file_path = os.path.join(os.getcwd(), file_path)
+        with open(resolved_file_path) as f:
             relationship_mapping = yaml.load(f, Loader=yaml.FullLoader)
         return relationship_mapping or []
     except FileNotFoundError:
         logger.warning(
-            f"GCP permission relationships file {file_path} not found, skipping sync stage {__name__}. "
+            f"GCP permission relationships file not found. Original filename passed to sync: '{file_path}', "
+            f"resolved full path: '{resolved_file_path}'. Skipping sync stage {__name__}. "
             f"If you want to run this sync, please explicitly set a value for --gcp-permission-relationships-file in the "
             f"command line interface."
         )
