@@ -21,9 +21,10 @@ def _run_source_node_single_query(
     neo4j_session: neo4j.Session,
     query: str,
     results: dict[str, dict[str, Any]],
+    **kwargs: Any,
 ) -> dict[str, dict[str, Any]]:
     # DOC
-    for row in neo4j_session.execute_read(read_list_of_dicts_tx, query):
+    for row in neo4j_session.execute_read(read_list_of_dicts_tx, query, **kwargs):
         node_data = row["n"]
         result: dict[str, Any] = {}
         skip_node: bool = False
@@ -107,11 +108,10 @@ def get_source_nodes_from_graph(
                 continue
             # Run the query for every source
             for source in source_of_truth:
-                query = (
-                    f"MATCH (n:{node.node_label} {{_ont_source: '{source}'}}) RETURN n"
-                )
+                # Use parameterized query to prevent Cypher injection attacks
+                query = f"MATCH (n:{node.node_label} {{_ont_source: $source}}) RETURN n"
                 results = _run_source_node_single_query(
-                    module_name, node, neo4j_session, query, results
+                    module_name, node, neo4j_session, query, results, source=source
                 )
 
     # Run queries for each source of truth
