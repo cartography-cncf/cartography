@@ -7,10 +7,67 @@ import neo4j
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
-from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
+from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING, OntologyMapping
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+
+@timeit
+def _run_source_node_single_query(
+    module_name: str,
+    node: OntologyMapping,
+    neo4j_session: neo4j.Session,
+    query: str,
+    results: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    # DOC
+    for row in neo4j_session.execute_read(read_list_of_dicts_tx, query):
+        node_data = row["n"]
+        result: dict[str, Any] = {}
+        skip_node: bool = False
+
+        # Extract only the fields defined in the ontology mapping
+        for field in node.fields:
+            value = node_data.get(field.node_field)
+            # Skip nodes missing required fields
+            if field.required and not value:
+                logger.debug(
+                    "Skipping node with label '%s' due to missing required field '%s'.",
+                    node.node_label,
+                    field.node_field,
+                )
+                skip_node = True
+                break
+            result[field.ontology_field] = value
+        if skip_node:
+            continue
+
+        # Merge results based on the node's id field to avoid duplicates
+        ontology_model = ONTOLOGY_MODELS[module_name]
+        if ontology_model is None:
+            # Should not happen as we skip non-eligible nodes above
+            logger.warning(
+                "No ontology model found for module '%s'. Skipping node label '%s'.",
+                module_name,
+                node.node_label,
+            )
+            continue
+        id_field = ontology_model().properties.id.name
+        existing = results.get(result[id_field])
+        if existing:
+            logger.debug(
+                "Merging node: %s to %s", result[id_field], existing[id_field]
+            )
+            # Merge existing data with new data, prioritizing non-None values
+            for key, value in result.items():
+                if existing.get(key) is None and value is not None:
+                    existing[key] = value
+        else:
+            logger.debug("Adding new node: %s", result[id_field])
+            results[result[id_field]] = result
+    return results
 
 
 @timeit
@@ -39,11 +96,29 @@ def get_source_nodes_from_graph(
     modules_mapping = ONTOLOGY_NODES_MAPPING[module_name]
     if len(source_of_truth) == 0:
         source_of_truth = list(modules_mapping.keys())
+    # Check if ontology nodes are used in mapping
+    _has_ontology = False
+    if modules_mapping.get('ontology') is not None:
+        _has_ontology = True
+        for node in modules_mapping['ontology'].nodes:
+            if not node.eligible_for_source:
+                logger.debug(
+                    "Skipping ontology node with label '%s' as it is not eligible for source of truth.",
+                    node.node_label,
+                )
+                continue
+            # Run the query for every source
+            for source in source_of_truth:
+                query = f"MATCH (n:{node.node_label} {{_ont_source: '{source}'}}) RETURN n"
+                results = _run_source_node_single_query(module_name, node, neo4j_session, query, results)
+
+    # Run queries for each source of truth
     for source in source_of_truth:
         if source not in modules_mapping:
-            logger.warning(
-                "Source of truth '%s' is not supported for '%s'.", source, module_name
-            )
+            if not _has_ontology:
+                logger.warning(
+                    "Source of truth '%s' is not supported for '%s'.", source, module_name
+                )
             continue
         for node in modules_mapping[source].nodes:
             if not node.eligible_for_source:
@@ -54,50 +129,8 @@ def get_source_nodes_from_graph(
                 )
                 continue
             query = f"MATCH (n:{node.node_label}) RETURN n"
-            for row in neo4j_session.execute_read(read_list_of_dicts_tx, query):
-                node_data = row["n"]
-                result: dict[str, Any] = {}
-                skip_node: bool = False
+            results = _run_source_node_single_query(module_name, node, neo4j_session, query, results)
 
-                # Extract only the fields defined in the ontology mapping
-                for field in node.fields:
-                    value = node_data.get(field.node_field)
-                    # Skip nodes missing required fields
-                    if field.required and not value:
-                        logger.debug(
-                            "Skipping node with label '%s' due to missing required field '%s'.",
-                            node.node_label,
-                            field.node_field,
-                        )
-                        skip_node = True
-                        break
-                    result[field.ontology_field] = value
-                if skip_node:
-                    continue
-
-                # Merge results based on the node's id field to avoid duplicates
-                ontology_model = ONTOLOGY_MODELS[module_name]
-                if ontology_model is None:
-                    # Should not happen as we skip non-eligible nodes above
-                    logger.warning(
-                        "No ontology model found for module '%s'. Skipping node label '%s'.",
-                        module_name,
-                        node.node_label,
-                    )
-                    continue
-                id_field = ontology_model().properties.id.name
-                existing = results.get(result[id_field])
-                if existing:
-                    logger.debug(
-                        "Merging node: %s to %s", result[id_field], existing[id_field]
-                    )
-                    # Merge existing data with new data, prioritizing non-None values
-                    for key, value in result.items():
-                        if existing.get(key) is None and value is not None:
-                            existing[key] = value
-                else:
-                    logger.debug("Adding new node: %s", result[id_field])
-                    results[result[id_field]] = result
     return list(results.values())
 
 
