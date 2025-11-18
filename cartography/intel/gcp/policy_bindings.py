@@ -120,7 +120,6 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                     continue
 
                 # Deduplicate bindings by (resource, role)
-                condition_expr = condition.get("expression") if condition else None
                 key = (resource, role)
 
                 if key in bindings:
@@ -138,7 +137,9 @@ def transform_bindings(data: dict[str, Any]) -> list[dict[str, Any]]:
                         "condition_title": (
                             condition.get("title") if condition else None
                         ),
-                        "condition_expression": condition_expr,
+                        "condition_expression": (
+                            condition.get("expression") if condition else None
+                        ),
                     }
 
     return list(bindings.values())
