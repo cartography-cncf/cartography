@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
-from cartography.rules.spec.model import RuleOutput
 
 # AWS Facts
 _aws_s3_public = Fact(
@@ -75,7 +75,7 @@ _azure_storage_public_blob_access = Fact(
 
 
 # Rule
-class ObjectStoragePublic(RuleOutput):
+class ObjectStoragePublic(Finding):
     name: str | None = None
     id: str | None = None
     account: str | None = None

@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
-from cartography.rules.spec.model import RuleOutput
 
 # AWS
 _aws_account_manipulation_permissions = Fact(
@@ -75,7 +75,7 @@ _aws_account_manipulation_permissions = Fact(
 
 
 # Rule
-class IdentityAdministrationPrivileges(RuleOutput):
+class IdentityAdministrationPrivileges(Finding):
     principal_name: str | None = None
     principal_identifier: str | None = None
     account: str | None = None

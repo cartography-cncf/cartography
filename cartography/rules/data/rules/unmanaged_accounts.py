@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
-from cartography.rules.spec.model import RuleOutput
 
 # Facts
 _unmanaged_accounts_ontology = Fact(
@@ -25,7 +25,7 @@ _unmanaged_accounts_ontology = Fact(
 
 
 # Rule
-class UnmanagedAccountRuleOutput(RuleOutput):
+class UnmanagedAccountRuleOutput(Finding):
     id: str | None = None
     email: str | None = None
 

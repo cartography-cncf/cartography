@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
-from cartography.rules.spec.model import RuleOutput
 
 # AWS
 _aws_service_account_manipulation_via_ec2 = Fact(
@@ -165,7 +165,7 @@ _aws_service_account_manipulation_via_lambda = Fact(
 
 
 # Rule
-class WorkloadIdentityAdminCapabilities(RuleOutput):
+class WorkloadIdentityAdminCapabilities(Finding):
     workload_name: str | None = None
     workload_id: str | None = None
     account: str | None = None

@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
-from cartography.rules.spec.model import RuleOutput
 
 # AWS Facts
 _aws_ec2_instance_internet_exposed = Fact(
@@ -29,7 +29,7 @@ _aws_ec2_instance_internet_exposed = Fact(
 
 
 # Rule
-class ComputeInstanceExposed(RuleOutput):
+class ComputeInstanceExposed(Finding):
     instance: str | None = None
     instance_id: str | None = None
     account: str | None = None

@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from dataclasses import field
 
-from cartography.rules.spec.model import RuleOutput
+from cartography.rules.spec.model import Finding
 
 
 @dataclass
@@ -22,7 +22,7 @@ class FactResult:
     fact_name: str
     fact_description: str
     fact_provider: str
-    findings: list[RuleOutput] = field(default_factory=list)
+    findings: list[Finding] = field(default_factory=list)
 
 
 @dataclass

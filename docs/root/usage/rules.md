@@ -444,14 +444,14 @@ RETURN *
 
 ### Output Models with Pydantic
 
-Each Rule must define an output model that extends `RuleOutput`. This Pydantic model defines the structure of the data returned by the rule's facts.
+Each Rule must define an output model that extends `Finding`. This Pydantic model defines the structure of the data returned by the rule's facts.
 
 #### Creating an Output Model
 
 ```python
-from cartography.rules.spec.model import RuleOutput
+from cartography.rules.spec.model import Finding
 
-class MyRuleOutput(RuleOutput):
+class MyRuleOutput(Finding):
     """Output model for my custom rule."""
 
     # Define the fields that will be populated from cypher_query results
@@ -466,7 +466,7 @@ class MyRuleOutput(RuleOutput):
 
 #### Key Points
 
-- **Inherit from `RuleOutput`**: Your model must extend the base `RuleOutput` class
+- **Inherit from `Finding`**: Your model must extend the base `Finding` class
 - **Use Optional Fields**: All fields should be optional (`| None = None`) as different facts may return different subsets of data
 - **Match Query Aliases**: Field names should match the aliases used in your `cypher_query` (e.g., if query returns `n.id AS id`, model should have `id` field)
 - **Automatic Handling**:
@@ -479,7 +479,7 @@ class MyRuleOutput(RuleOutput):
 #### Example from object_storage_public
 
 ```python
-class ObjectStoragePublic(RuleOutput):
+class ObjectStoragePublic(Finding):
     name: str | None = None
     id: str | None = None
     region: str | None = None
@@ -501,7 +501,7 @@ object_storage_public = Rule(
 
 1. **Create a new rule file** in `cartography/rules/data/rules/`:
    ```python
-   from cartography.rules.spec.model import Fact, Rule, RuleOutput, Maturity, Module
+   from cartography.rules.spec.model import Fact, Rule, Finding, Maturity, Module
 
    # Define facts with both data and visualization queries
    _my_aws_check = Fact(
@@ -541,7 +541,7 @@ object_storage_public = Rule(
    )
 
    # Define output model
-   class MyRuleOutput(RuleOutput):
+   class MyRuleOutput(Finding):
        """Output model for my custom rule."""
        id: str | None = None
        name: str | None = None

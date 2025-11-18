@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
-from cartography.rules.spec.model import RuleOutput
 
 # Facts
 _missing_mfa_cloudflare = Fact(
@@ -25,7 +25,7 @@ _missing_mfa_cloudflare = Fact(
 
 
 # Rule
-class MFARuleOutput(RuleOutput):
+class MFARuleOutput(Finding):
     email: str | None = None
     id: str | None = None
     firstname: str | None = None

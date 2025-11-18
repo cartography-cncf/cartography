@@ -82,8 +82,8 @@ class Fact:
     """
 
 
-class RuleOutput(BaseModel):
-    """Base class for Rule output models."""
+class Finding(BaseModel):
+    """Base class for Rule finding models."""
 
     # TODO: make this property mandatory one all modules have been updated to new datamodel
     source: str | None = None
@@ -132,7 +132,7 @@ class Rule:
     """The version of the Rule definition."""
     facts: tuple[Fact, ...]
     """The Facts that contribute to this Rule."""
-    output_model: type[RuleOutput]
+    output_model: type[Finding]
     """The output model class for the Rule."""
     references: tuple[str, ...] = ()
     """References or links to external resources related to the Rule."""
@@ -151,9 +151,9 @@ class Rule:
 
     def parse_results(
         self, fact: Fact, fact_results: list[dict[str, Any]]
-    ) -> list[RuleOutput]:
+    ) -> list[Finding]:
         # DOC
-        result: list[RuleOutput] = []
+        result: list[Finding] = []
         for result_item in fact_results:
             parsed_output: dict[str, Any] = {"extra": {}, "source": fact.module.value}
             for key, value in result_item.items():
