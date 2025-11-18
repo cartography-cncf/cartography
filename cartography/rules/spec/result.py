@@ -9,7 +9,7 @@ from cartography.rules.spec.model import RuleOutput
 class CounterResult:
     current_fact: int = 0
     total_facts: int = 0
-    total_matches: int = 0
+    total_findings: int = 0
 
 
 @dataclass
@@ -22,7 +22,7 @@ class FactResult:
     fact_name: str
     fact_description: str
     fact_provider: str
-    matches: list[RuleOutput] = field(default_factory=list)
+    findings: list[RuleOutput] = field(default_factory=list)
 
 
 @dataclass

@@ -80,7 +80,7 @@ def _format_and_output_results(
     rule_names: list[str],
     output_format: str,
     total_facts: int,
-    total_matches: int,
+    total_findings: int,
 ):
     """Format and output the results of framework execution."""
     if output_format == "json":
@@ -98,11 +98,11 @@ def _format_and_output_results(
         if len(rule_names) > 1:
             print(f"Rules executed: {len(rule_names)}")
         print(f"Total facts: {total_facts}")
-        print(f"Total results: {total_matches}")
+        print(f"Total findings: {total_findings}")
 
-        if total_matches > 0:
+        if total_findings > 0:
             print(
-                f"\n\033[36mRule execution completed with {total_matches} total results\033[0m"
+                f"\n\033[36mRule execution completed with {total_findings} total findings\033[0m"
             )
         else:
-            print("\n\033[90mRule execution completed with no results\033[0m")
+            print("\n\033[90mRule execution completed with no findings\033[0m")

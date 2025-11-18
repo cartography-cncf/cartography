@@ -18,7 +18,7 @@ from cartography.rules.spec.result import FactResult
 @patch("cartography.rules.runners._run_fact")
 @patch.dict("cartography.rules.runners.RULES")
 def test_run_single_rule_aggregates_facts_correctly(mock_run_fact):
-    """Test that _run_single_rule correctly aggregates matches from facts."""
+    """Test that _run_single_rule correctly aggregates findings from facts."""
     # Arrange
     # Create mock facts
     mock_fact1 = MagicMock(spec=Fact)
@@ -48,30 +48,30 @@ def test_run_single_rule_aggregates_facts_correctly(mock_run_fact):
 
     RULES["rule-1"] = mock_rule
 
-    # Mock _run_fact to return FactResults with known match counts
-    # Fact 1: 5 matches, Fact 2: 3 matches, Fact 3: 7 matches
-    # Total should be: 15 matches
+    # Mock _run_fact to return FactResults with known finding counts
+    # Fact 1: 5 findings, Fact 2: 3 findings, Fact 3: 7 findings
+    # Total should be: 15 findings
     mock_run_fact.side_effect = [
         FactResult(
             fact_id="fact-1",
             fact_name="Fact 1",
             fact_description="Description 1",
             fact_provider="aws",
-            matches=[MagicMock() for _ in range(5)],
+            findings=[MagicMock() for _ in range(5)],
         ),
         FactResult(
             fact_id="fact-2",
             fact_name="Fact 2",
             fact_description="Description 2",
             fact_provider="aws",
-            matches=[MagicMock() for _ in range(3)],
+            findings=[MagicMock() for _ in range(3)],
         ),
         FactResult(
             fact_id="fact-3",
             fact_name="Fact 3",
             fact_description="Description 3",
             fact_provider="aws",
-            matches=[MagicMock() for _ in range(7)],
+            findings=[MagicMock() for _ in range(7)],
         ),
     ]
 
@@ -94,16 +94,16 @@ def test_run_single_rule_aggregates_facts_correctly(mock_run_fact):
         len(rule_result.facts) == 3
     ), f"Expected 3 fact results, got {len(rule_result.facts)}"
 
-    # Verify individual fact matches are preserved
-    assert len(rule_result.facts[0].matches) == 5
-    assert len(rule_result.facts[1].matches) == 3
-    assert len(rule_result.facts[2].matches) == 7
+    # Verify individual fact findings are preserved
+    assert len(rule_result.facts[0].findings) == 5
+    assert len(rule_result.facts[1].findings) == 3
+    assert len(rule_result.facts[2].findings) == 7
 
 
 @patch("cartography.rules.runners._run_fact")
 @patch.dict("cartography.rules.runners.RULES")
-def test_run_single_rule_with_zero_matches(mock_run_fact):
-    """Test that _run_single_rule correctly handles zero matches."""
+def test_run_single_rule_with_zero_findings(mock_run_fact):
+    """Test that _run_single_rule correctly handles zero findings."""
     # Arrange
     mock_fact = MagicMock(spec=Fact)
     mock_fact.id = "fact-empty"
@@ -120,13 +120,13 @@ def test_run_single_rule_with_zero_matches(mock_run_fact):
 
     RULES["rule-empty"] = mock_rule
 
-    # Mock fact with zero matches
+    # Mock fact with zero findings
     mock_run_fact.return_value = FactResult(
         fact_id="fact-empty",
         fact_name="Empty Fact",
         fact_description="No results",
         fact_provider="aws",
-        matches=[],
+        findings=[],
     )
 
     # Act
@@ -141,7 +141,7 @@ def test_run_single_rule_with_zero_matches(mock_run_fact):
 
     # Assert
     assert len(rule_result.facts) == 1
-    assert len(rule_result.facts[0].matches) == 0
+    assert len(rule_result.facts[0].findings) == 0
 
 
 @patch("cartography.rules.runners._run_fact")
@@ -172,7 +172,7 @@ def test_run_single_rule_with_fact_filter(mock_run_fact):
     def mock_run_fact_impl(
         fact, rule, driver, database, counter, output_format, neo4j_uri
     ):
-        counter.total_matches += 7
+        counter.total_findings += 7
         return FactResult(
             "KEEP-FACT", "Kept", "Desc", "aws", [MagicMock() for _ in range(7)]
         )
@@ -193,4 +193,4 @@ def test_run_single_rule_with_fact_filter(mock_run_fact):
     # Verify only the filtered fact was executed
     assert len(rule_result.facts) == 1
     assert rule_result.facts[0].fact_id == "KEEP-FACT"
-    assert rule_result.counter.total_matches == 7
+    assert rule_result.counter.total_findings == 7

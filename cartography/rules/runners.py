@@ -45,45 +45,45 @@ def _run_fact(
         )
 
     with driver.session(database=database) as session:
-        raw_matches = session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
-        matches = rule.parse_results(fact, raw_matches)
-        matches_count = len(matches)
+        raw_findings = session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
+        findings = rule.parse_results(fact, raw_findings)
+        findings_count = len(findings)
 
     if output_format == "text":
-        if matches_count > 0:
-            print(f"  \033[36m{'Results:':<12}\033[0m {matches_count} item(s) found")
+        if findings_count > 0:
+            print(f"  \033[36m{'Results:':<12}\033[0m {findings_count} item(s) found")
 
             # Show sample findings
             print("    Sample results:")
-            for idx, match in enumerate(matches[:3]):  # Show first 3
+            for idx, finding in enumerate(findings[:3]):  # Show first 3
                 # Format rule output nicely
                 formatted_items = []
-                for key, value in match.__class__.model_fields.items():
+                for key, value in finding.__class__.model_fields.items():
                     if value is not None:
                         # Truncate long values
                         str_value = str(value)
                         if len(str_value) > 50:
                             str_value = str_value[:47] + "..."
-                        formatted_items.append(f"{key}={getattr(match, key)}")
+                        formatted_items.append(f"{key}={getattr(finding, key)}")
                 if formatted_items:
                     print(f"      {idx + 1}. {', '.join(formatted_items)}")
 
-            if matches_count > 3:
+            if findings_count > 3:
                 print(
-                    f"      ... and {matches_count - 3} more (use --output json to see all)"
+                    f"      ... and {findings_count - 3} more (use --output json to see all)"
                 )
         else:
             print(f"  \033[36m{'Results:':<12}\033[0m No items found")
 
     # Create and return fact result
-    counter.total_matches += matches_count
+    counter.total_findings += findings_count
 
     return FactResult(
         fact_id=fact.id,
         fact_name=fact.name,
         fact_description=fact.description,
         fact_provider=fact.module.value,
-        matches=matches,
+        findings=findings,
     )
 
 
@@ -184,7 +184,7 @@ def run_rules(
         # Execute rules
         all_results = []
         total_facts = 0
-        total_matches = 0
+        total_findings = 0
 
         for i, rule_name in enumerate(rule_names):
             if output_format == "text" and len(rule_names) > 1:
@@ -203,11 +203,11 @@ def run_rules(
             )
             all_results.append(rule_result)
             total_facts += rule_result.counter.total_facts
-            total_matches += rule_result.counter.total_matches
+            total_findings += rule_result.counter.total_findings
 
         # Output results
         _format_and_output_results(
-            all_results, rule_names, output_format, total_facts, total_matches
+            all_results, rule_names, output_format, total_facts, total_findings
         )
 
         return 0

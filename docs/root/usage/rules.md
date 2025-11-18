@@ -32,8 +32,8 @@ These rules are designed from an attacker's perspective. We ask: "What does an a
 The queries surface opportunities across the entire attack lifecycle: initial access, lateral movement, privilege escalation, data exfiltration, and persistence.
 
 We don't impose arbitrary thresholds like "no more than 5 admins" because every organization has different risk tolerances. Instead, we surface facts:
-- If a query returns no results, you've eliminated obvious attack paths
-- If it returns results, you now have a clear list of potential attacker targets and security gaps
+- If a query returns no findings, you've eliminated obvious attack paths
+- If it returns findings, you now have a clear list of potential attacker targets and security gaps
 
 
 ## Rationale
@@ -73,7 +73,7 @@ Rules query against the existing Cartography graph. They don't write data; they 
 
 Each rule has a semantic version number (e.g., `0.1.0`, `1.0.0`) that helps track changes over time:
 
-- **Major version** (X.0.0): Breaking changes - query structure significantly altered, results format changed
+- **Major version** (X.0.0): Breaking changes - query structure significantly altered, findings format changed
 - **Minor version** (0.X.0): Additive changes - new facts added, expanded coverage to additional providers
 - **Patch version** (0.0.X): Bug fixes - query improvements, description updates
 
@@ -262,7 +262,7 @@ set -o history # turn shell history back on
     Provider:    AWS
     Neo4j Query: http://localhost:7474/browser/?cmd=play&arg=<encoded-query>
     Results:     3 item(s) found
-        Sample results:
+        Sample findings:
         1. bucket=cdn.example.com, region=us-east-1, anonymous_access=True
         2. bucket=mybucket.example.com, region=us-east-1, anonymous_actions=['s3:ListBucket', 's3:ListBucketVersions']
         3. bucket=static.example.com, region=us-east-1, public_access=True
@@ -280,9 +280,9 @@ set -o history # turn shell history back on
     EXECUTION SUMMARY
     ============================================================
     Total facts: 2
-    Total results: 3
+    Total findings: 3
 
-    Rule execution completed with 3 total results
+    Rule execution completed with 3 total findings
     ```
 
 
