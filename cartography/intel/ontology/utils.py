@@ -6,8 +6,8 @@ import neo4j
 
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
-from cartography.models.ontology.mapping import ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
+from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def get_source_nodes_from_graph(
         list[dict[str, Any]]: A list of dictionaries, each containing a node details formatted according to the ontology mapping.
     """
     results: dict[str, dict[str, Any]] = {}
-    modules_mapping = ONTOLOGY_MAPPING[module_name]
+    modules_mapping = ONTOLOGY_NODES_MAPPING[module_name]
     if len(source_of_truth) == 0:
         source_of_truth = list(modules_mapping.keys())
     for source in source_of_truth:
@@ -118,7 +118,7 @@ def link_ontology_nodes(
         module_name (str): The name of the ontology module for which to link nodes (eg. users, devices, etc.).
         update_tag (int): The update tag of the current run, used to tag the changes in the graph.
     """
-    modules_mapping = ONTOLOGY_MAPPING.get(module_name)
+    modules_mapping = ONTOLOGY_NODES_MAPPING.get(module_name)
     if modules_mapping is None:
         logger.warning("No ontology mapping found for module '%s'.", module_name)
         return

@@ -13,7 +13,9 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from cartography.models.ontology.mapping import get_mapping_from_node_schema
+from cartography.models.ontology.mapping import (
+    get_semantic_label_mapping_from_node_schema,
+)
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 
 logger = logging.getLogger(__name__)
@@ -140,7 +142,7 @@ def _build_ontology_node_properties_statement(
 ) -> str:
     # DOC
     # Try to get the mapping for the given node schema
-    ontology_mapping = get_mapping_from_node_schema(node_schema)
+    ontology_mapping = get_semantic_label_mapping_from_node_schema(node_schema)
     if not ontology_mapping:
         return ""
 

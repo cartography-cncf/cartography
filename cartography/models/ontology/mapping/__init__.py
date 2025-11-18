@@ -13,22 +13,27 @@ from cartography.models.ontology.user import UserSchema
 
 logger = logging.getLogger(__name__)
 
-ONTOLOGY_MAPPING: dict[str, dict[str, OntologyMapping]] = {
+
+# Following mapping are used to create ontology nodes and relationships from module nodes
+# They are leveraged in the ontology module to perform the actual mapping
+ONTOLOGY_NODES_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "users": USERS_ONTOLOGY_MAPPING,
     "devices": DEVICES_ONTOLOGY_MAPPING,
+}
+
+# Following mapping are used to normalize fields for semantic labels
+# They are leveraged directly by the load functions of each module at ingestion time
+SEMEANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "useraccounts": USERACCOUNTS_ONTOLOGY_MAPPING,
 }
 
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
     "users": UserSchema,
     "devices": DeviceSchema,
-    # Following labels are only semantic labels no independent nodes exist
-    # So there is no corresponding model class
-    "useraccounts": None,
 }
 
 
-def get_mapping_from_node_schema(
+def get_semantic_label_mapping_from_node_schema(
     node_schema: CartographyNodeSchema,
 ) -> OntologyNodeMapping | None:
     """Retrieve the OntologyNodeMapping for a given CartographyNodeSchema.
@@ -39,14 +44,15 @@ def get_mapping_from_node_schema(
     Returns:
         The corresponding OntologyNodeMapping if found, else None.
     """
-    for module_name, module_mappings in ONTOLOGY_MAPPING.items():
+    for module_name, module_mappings in SEMEANTIC_LABELS_MAPPING.items():
         if module_name == "ontology":
             continue
         for ontology_mapping in module_mappings.values():
             for mapping_node in ontology_mapping.nodes:
                 if mapping_node.node_label == node_schema.label:
                     logging.debug(
-                        "Found mapping for node label: %s", mapping_node.node_label
+                        "Found semantic label mapping for node label: %s",
+                        mapping_node.node_label,
                     )
                     return mapping_node
     return None

@@ -3,12 +3,17 @@ from typing import Type
 
 import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.ontology.mapping import ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
+from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
+from cartography.models.ontology.mapping import SEMEANTIC_LABELS_MAPPING
 from cartography.sync import TOP_LEVEL_MODULES
 from tests.utils import load_models
 
 MODELS = list(load_models(cartography.models))
+ALL_MAPPINGS = {
+    **ONTOLOGY_NODES_MAPPING,
+    **SEMEANTIC_LABELS_MAPPING,
+}
 
 # Unfortunately, some nodes are not yet migrated to the new data model system.
 # We need to ignore them in this test for now as we are not able to load their model class.
@@ -30,7 +35,7 @@ def _get_model_by_node_label(node_label: str) -> Type[CartographyNodeSchema] | N
 def test_ontology_mapping_modules():
     # Verify that all modules defined in the ontology mapping exist in TOP_LEVEL_MODULES
     # and that module names match between the mapping and the key.
-    for mappings in ONTOLOGY_MAPPING.values():
+    for mappings in ONTOLOGY_NODES_MAPPING.values():
         for category, mapping in mappings.items():
             assert (
                 category in TOP_LEVEL_MODULES
@@ -42,7 +47,7 @@ def test_ontology_mapping_modules():
 
 def test_ontology_mapping_categories():
     # Verify that field used as id by the ontology model are marked as required in the mapping.
-    for category, category_mappings in ONTOLOGY_MAPPING.items():
+    for category, category_mappings in ONTOLOGY_NODES_MAPPING.items():
         assert (
             category in ONTOLOGY_MODELS
         ), f"Module '{category}' not found in ONTOLOGY_MODELS."
@@ -51,7 +56,7 @@ def test_ontology_mapping_categories():
 def test_ontology_mapping_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.
-    for _, mappings in ONTOLOGY_MAPPING.items():
+    for _, mappings in ALL_MAPPINGS.items():
         for module_name, mapping in mappings.items():
             # Skip ontology module as it does not have a corresponding model
             if module_name == "ontology":
@@ -80,14 +85,11 @@ def test_ontology_mapping_fields():
 
 def test_ontology_mapping_required_fields():
     # Verify that field used as id by the ontology model are marked as required in the mapping.
-    for category, category_mappings in ONTOLOGY_MAPPING.items():
+    for category, category_mappings in ONTOLOGY_NODES_MAPPING.items():
         assert (
             category in ONTOLOGY_MODELS
         ), f"Module '{category}' not found in ONTOLOGY_MODELS."
         model_class = ONTOLOGY_MODELS[category]
-        if model_class is None:
-            # No model class for Ontology extra labels
-            continue
         data_dict_id_field = model_class().properties.id.name
         for module, mapping in category_mappings.items():
             for node in mapping.nodes:
@@ -110,7 +112,7 @@ def test_ontology_mapping_required_fields():
 
 def test_ontology_mapping_prefix_usage():
     # Verify that no mapping field uses the 'prefix' attribute
-    for _, mappings in ONTOLOGY_MAPPING.items():
+    for _, mappings in SEMEANTIC_LABELS_MAPPING.items():
         for module_name, mapping in mappings.items():
             for node in mapping.nodes:
                 for mapping_field in node.fields:
@@ -123,7 +125,7 @@ def test_ontology_mapping_prefix_usage():
 def test_ontology_mapping_or_boolean_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.
-    for _, mappings in ONTOLOGY_MAPPING.items():
+    for _, mappings in SEMEANTIC_LABELS_MAPPING.items():
         for module_name, mapping in mappings.items():
             for node in mapping.nodes:
                 for mapping_field in node.fields:
@@ -155,7 +157,7 @@ def test_ontology_mapping_or_boolean_fields():
 def test_omtology_mapping_equal_boolean_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.
-    for _, mappings in ONTOLOGY_MAPPING.items():
+    for _, mappings in SEMEANTIC_LABELS_MAPPING.items():
         for module_name, mapping in mappings.items():
             for node in mapping.nodes:
                 for mapping_field in node.fields:
