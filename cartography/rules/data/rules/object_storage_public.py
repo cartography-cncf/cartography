@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
+from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleOutput
 
 # AWS Facts
 _aws_s3_public = Fact(
@@ -74,8 +74,8 @@ _azure_storage_public_blob_access = Fact(
 )
 
 
-# Finding
-class ObjectStoragePublic(FindingOutput):
+# Rule
+class ObjectStoragePublic(RuleOutput):
     name: str | None = None
     id: str | None = None
     account: str | None = None
@@ -84,7 +84,7 @@ class ObjectStoragePublic(FindingOutput):
     public_access: bool | None = None
 
 
-object_storage_public = Finding(
+object_storage_public = Rule(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
     description=(

@@ -6,20 +6,20 @@ from neo4j import Driver
 from neo4j import GraphDatabase
 
 from cartography.client.core.tx import read_list_of_dicts_tx
-from cartography.rules.data.findings import FINDINGS
+from cartography.rules.data.rules import RULES
 from cartography.rules.formatters import _format_and_output_results
 from cartography.rules.formatters import _generate_neo4j_browser_url
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
+from cartography.rules.spec.model import Rule
 from cartography.rules.spec.result import CounterResult
 from cartography.rules.spec.result import FactResult
-from cartography.rules.spec.result import FindingResult
+from cartography.rules.spec.result import RuleResult
 
 
 def _run_fact(
     fact: Fact,
-    finding: Finding,
+    rule: Rule,
     driver: Driver,
     database: str,
     counter: CounterResult,
@@ -31,8 +31,8 @@ def _run_fact(
         print(
             f"\n\033[1mFact {counter.current_fact}/{counter.total_facts}: {fact.name}\033[0m"
         )
-        # Display finding
-        print(f"  \033[36m{'Finding:':<12}\033[0m {finding.id} - {finding.name}")
+        # Display rule
+        print(f"  \033[36m{'Rule:':<12}\033[0m {rule.id} - {rule.name}")
         # Display fact details
         print(f"  \033[36m{'Fact ID:':<12}\033[0m {fact.id}")
         print(f"  \033[36m{'Description:':<12}\033[0m {fact.description}")
@@ -46,7 +46,7 @@ def _run_fact(
 
     with driver.session(database=database) as session:
         raw_matches = session.execute_read(read_list_of_dicts_tx, fact.cypher_query)
-        matches = finding.parse_results(fact, raw_matches)
+        matches = rule.parse_results(fact, raw_matches)
         matches_count = len(matches)
 
     if output_format == "text":
@@ -56,7 +56,7 @@ def _run_fact(
             # Show sample findings
             print("    Sample results:")
             for idx, match in enumerate(matches[:3]):  # Show first 3
-                # Format finding nicely
+                # Format rule output nicely
                 formatted_items = []
                 for key, value in match.__class__.model_fields.items():
                     if value is not None:
@@ -87,21 +87,21 @@ def _run_fact(
     )
 
 
-def _run_single_finding(
-    finding_name: str,
+def _run_single_rule(
+    rule_name: str,
     driver: GraphDatabase.driver,
     database: str,
     output_format: str,
     neo4j_uri: str,
     fact_filter: str | None = None,
     exclude_experimental: bool = False,
-) -> FindingResult:
-    """Execute a single finding and return results."""
-    finding = FINDINGS[finding_name]
+) -> RuleResult:
+    """Execute a single rule and return results."""
+    rule = RULES[rule_name]
     counter = CounterResult()
 
     filtered_facts: list[Fact] = []
-    for fact in finding.facts:
+    for fact in rule.facts:
         if exclude_experimental and fact.maturity != Maturity.STABLE:
             continue
         if fact_filter:
@@ -111,39 +111,39 @@ def _run_single_finding(
         filtered_facts.append(fact)
 
     if output_format == "text":
-        print(f"Executing {finding.name} finding")
+        print(f"Executing {rule.name} rule")
         if fact_filter:
             print(f"Filtered to fact: {fact_filter}")
         print(f"Total facts: {counter.total_facts}")
 
     # Execute requirements and collect results
-    finding_results = []
+    rule_results = []
 
     for fact in filtered_facts:
         counter.current_fact += 1
         fact_result = _run_fact(
             fact,
-            finding,
+            rule,
             driver,
             database,
             counter,
             output_format,
             neo4j_uri,
         )
-        finding_results.append(fact_result)
+        rule_results.append(fact_result)
 
-    # Create and return finding result
-    return FindingResult(
-        finding_id=finding.id,
-        finding_name=finding.name,
-        finding_description=finding.description,
-        facts=finding_results,
+    # Create and return rule result
+    return RuleResult(
+        rule_id=rule.id,
+        rule_name=rule.name,
+        rule_description=rule.description,
+        facts=rule_results,
         counter=counter,
     )
 
 
-def run_findings(
-    finding_names: list[str],
+def run_rules(
+    rule_names: list[str],
     uri: str,
     neo4j_user: str,
     neo4j_password: str,
@@ -153,9 +153,9 @@ def run_findings(
     exclude_experimental: bool = False,
 ):
     """
-    Execute the specified findings and present results.
+    Execute the specified rules and present results.
 
-    :param finding_names: The names of the findings to execute.
+    :param rule_names: The names of the rules to execute.
     :param uri: The URI of the Neo4j database. E.g. "bolt://localhost:7687" or "neo4j+s://tenant123.databases.neo4j.io:7687"
     :param neo4j_user: The username for the Neo4j database.
     :param neo4j_password: The password for the Neo4j database.
@@ -165,12 +165,12 @@ def run_findings(
     :param exclude_experimental: Whether to exclude experimental facts from execution.
     :return: The exit code.
     """
-    # Validate all findings exist
-    for finding_name in finding_names:
-        if finding_name not in FINDINGS:
+    # Validate all rules exist
+    for rule_name in rule_names:
+        if rule_name not in RULES:
             if output_format == "text":
-                print(f"Unknown finding: {finding_name}")
-                print(f"Available findings: {', '.join(FINDINGS.keys())}")
+                print(f"Unknown rule: {rule_name}")
+                print(f"Available rules: {', '.join(RULES.keys())}")
             return 1
 
     # Connect to Neo4j
@@ -181,19 +181,19 @@ def run_findings(
     try:
         driver.verify_connectivity()
 
-        # Execute findings
+        # Execute rules
         all_results = []
         total_facts = 0
         total_matches = 0
 
-        for i, finding_name in enumerate(finding_names):
-            if output_format == "text" and len(finding_names) > 1:
+        for i, rule_name in enumerate(rule_names):
+            if output_format == "text" and len(rule_names) > 1:
                 if i > 0:
                     print("\n" + "=" * 60)
-                print(f"Executing finding {i + 1}/{len(finding_names)}: {finding_name}")
+                print(f"Executing rule {i + 1}/{len(rule_names)}: {rule_name}")
 
-            finding_result = _run_single_finding(
-                finding_name,
+            rule_result = _run_single_rule(
+                rule_name,
                 driver,
                 neo4j_database,
                 output_format,
@@ -201,13 +201,13 @@ def run_findings(
                 fact_filter,
                 exclude_experimental,
             )
-            all_results.append(finding_result)
-            total_facts += finding_result.counter.total_facts
-            total_matches += finding_result.counter.total_matches
+            all_results.append(rule_result)
+            total_facts += rule_result.counter.total_facts
+            total_matches += rule_result.counter.total_matches
 
         # Output results
         _format_and_output_results(
-            all_results, finding_names, output_format, total_facts, total_matches
+            all_results, rule_names, output_format, total_facts, total_matches
         )
 
         return 0

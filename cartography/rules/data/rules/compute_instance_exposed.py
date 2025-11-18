@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
+from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleOutput
 
 # AWS Facts
 _aws_ec2_instance_internet_exposed = Fact(
@@ -28,8 +28,8 @@ _aws_ec2_instance_internet_exposed = Fact(
 )
 
 
-# Finding
-class ComputeInstanceExposed(FindingOutput):
+# Rule
+class ComputeInstanceExposed(RuleOutput):
     instance: str | None = None
     instance_id: str | None = None
     account: str | None = None
@@ -38,7 +38,7 @@ class ComputeInstanceExposed(FindingOutput):
     security_group: str | None = None
 
 
-compute_instance_exposed = Finding(
+compute_instance_exposed = Rule(
     id="compute_instance_exposed",
     name="Internet-Exposed Compute Instances on Common Management Ports",
     description=(

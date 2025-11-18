@@ -10,8 +10,8 @@ from urllib.parse import quote
 
 from pydantic import BaseModel
 
-from cartography.rules.data.findings import FINDINGS
-from cartography.rules.spec.result import FindingResult
+from cartography.rules.data.rules import RULES
+from cartography.rules.spec.result import RuleResult
 
 
 def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:
@@ -76,8 +76,8 @@ def to_serializable(obj):
 
 
 def _format_and_output_results(
-    all_results: list[FindingResult],
-    finding_names: list[str],
+    all_results: list[RuleResult],
+    rule_names: list[str],
     output_format: str,
     total_facts: int,
     total_matches: int,
@@ -89,20 +89,20 @@ def _format_and_output_results(
     else:
         # Text summary
         print("\n" + "=" * 60)
-        if len(finding_names) == 1:
-            print(f"EXECUTION SUMMARY - {FINDINGS[finding_names[0]].name}")
+        if len(rule_names) == 1:
+            print(f"EXECUTION SUMMARY - {RULES[rule_names[0]].name}")
         else:
             print("OVERALL SUMMARY")
         print("=" * 60)
 
-        if len(finding_names) > 1:
-            print(f"Findings executed: {len(finding_names)}")
+        if len(rule_names) > 1:
+            print(f"Rules executed: {len(rule_names)}")
         print(f"Total facts: {total_facts}")
         print(f"Total results: {total_matches}")
 
         if total_matches > 0:
             print(
-                f"\n\033[36mFinding execution completed with {total_matches} total results\033[0m"
+                f"\n\033[36mRule execution completed with {total_matches} total results\033[0m"
             )
         else:
-            print("\n\033[90mFinding execution completed with no results\033[0m")
+            print("\n\033[90mRule execution completed with no results\033[0m")

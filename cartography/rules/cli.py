@@ -13,8 +13,8 @@ from typing import Generator
 import typer
 from typing_extensions import Annotated
 
-from cartography.rules.data.findings import FINDINGS
-from cartography.rules.runners import run_findings
+from cartography.rules.data.rules import RULES
+from cartography.rules.runners import run_rules
 
 app = typer.Typer(
     help="Execute Cartography security frameworks",
@@ -34,16 +34,16 @@ class OutputFormat(str, Enum):
 # ----------------------------
 
 
-def complete_findings(incomplete: str) -> Generator[str, None, None]:
-    """Autocomplete findings names."""
-    for name in FINDINGS.keys():
+def complete_rules(incomplete: str) -> Generator[str, None, None]:
+    """Autocomplete rules names."""
+    for name in RULES.keys():
         if name.startswith(incomplete):
             yield name
 
 
-def complete_findings_with_all(incomplete: str) -> Generator[str, None, None]:
-    """Autocomplete findings names plus 'all'."""
-    for name in builtins.list(FINDINGS.keys()) + ["all"]:
+def complete_rules_with_all(incomplete: str) -> Generator[str, None, None]:
+    """Autocomplete rules names plus 'all'."""
+    for name in builtins.list(RULES.keys()) + ["all"]:
         if name.startswith(incomplete):
             yield name
 
@@ -51,12 +51,12 @@ def complete_findings_with_all(incomplete: str) -> Generator[str, None, None]:
 def complete_facts(
     ctx: typer.Context, incomplete: str
 ) -> Generator[tuple[str, str], None, None]:
-    """Autocomplete facts IDs with descriptions based on selected finding."""
-    finding = ctx.params.get("finding")
-    if not finding or finding not in FINDINGS:
+    """Autocomplete facts IDs with descriptions based on selected rule."""
+    rule = ctx.params.get("rule")
+    if not rule or rule not in RULES:
         return
 
-    for fact in FINDINGS[finding].facts:
+    for fact in RULES[rule].facts:
         if fact.id.lower().startswith(incomplete.lower()):
             yield (fact.id, fact.name)
 
@@ -68,16 +68,16 @@ def complete_facts(
 
 @app.command(name="list")  # type: ignore[misc]
 def list_cmd(
-    finding: Annotated[
+    rule: Annotated[
         str | None,
         typer.Argument(
-            help="Finding name (e.g., mfa-missing)",
-            autocompletion=complete_findings,
+            help="Rule name (e.g., mfa-missing)",
+            autocompletion=complete_rules,
         ),
     ] = None,
 ) -> None:
     """
-    List available findings and facts.
+    List available rules and facts.
 
     \b
     Examples:
@@ -86,35 +86,33 @@ def list_cmd(
         cartography-rules list mfa-missing missing-mfa-cloudflare
     """
     # List all frameworks
-    if not finding:
-        typer.secho("\nAvailable Findings\n", bold=True)
-        for finding_name, finding_obj in FINDINGS.items():
-            typer.secho(f"{finding_name}", fg=typer.colors.CYAN)
-            typer.echo(f"  Name:         {finding_obj.name}")
-            typer.echo(f"  Version:      {finding_obj.version}")
-            typer.echo(f"  Facts:        {len(finding_obj.facts)}")
-            if finding_obj.references:
+    if not rule:
+        typer.secho("\nAvailable Rules\n", bold=True)
+        for rule_name, rule_obj in RULES.items():
+            typer.secho(f"{rule_name}", fg=typer.colors.CYAN)
+            typer.echo(f"  Name:         {rule_obj.name}")
+            typer.echo(f"  Version:      {rule_obj.version}")
+            typer.echo(f"  Facts:        {len(rule_obj.facts)}")
+            if rule_obj.references:
                 typer.echo("  References:")
-                for ref in finding_obj.references:
+                for ref in rule_obj.references:
                     typer.echo(f"    - {ref}")
             typer.echo()
         return
 
-    # Validate finding
-    if finding not in FINDINGS:
-        typer.secho(
-            f"Error: Unknown finding '{finding}'", fg=typer.colors.RED, err=True
-        )
-        typer.echo(f"Available: {', '.join(FINDINGS.keys())}", err=True)
+    # Validate rule
+    if rule not in RULES:
+        typer.secho(f"Error: Unknown rule '{rule}'", fg=typer.colors.RED, err=True)
+        typer.echo(f"Available: {', '.join(RULES.keys())}", err=True)
         raise typer.Exit(1)
 
-    finding_obj = FINDINGS[finding]
+    rule_obj = RULES[rule]
 
-    typer.secho(f"\n{finding_obj.name}", bold=True)
-    typer.echo(f"ID:  {finding_obj.id}")
-    typer.secho(f"\nFacts ({len(finding_obj.facts)})\n", bold=True)
+    typer.secho(f"\n{rule_obj.name}", bold=True)
+    typer.echo(f"ID:  {rule_obj.id}")
+    typer.secho(f"\nFacts ({len(rule_obj.facts)})\n", bold=True)
 
-    for fact in finding_obj.facts:
+    for fact in rule_obj.facts:
         typer.secho(f"{fact.id}", fg=typer.colors.CYAN)
         typer.echo(f"  Name:        {fact.name}")
         typer.echo(f"  Description: {fact.description}")
@@ -125,11 +123,11 @@ def list_cmd(
 
 @app.command(name="run")  # type: ignore[misc]
 def run_cmd(
-    finding: Annotated[
+    rule: Annotated[
         str | None,
         typer.Argument(
-            help="Specific finding ID to run",
-            autocompletion=complete_findings_with_all,
+            help="Specific rule ID to run",
+            autocompletion=complete_rules_with_all,
         ),
     ] = None,
     fact: Annotated[
@@ -178,45 +176,43 @@ def run_cmd(
         cartography-rules run mfa-missing
         cartography-rules run mfa-missing missing-mfa-cloudflare
     """
-    # Validate finding
-    valid_findings = builtins.list(FINDINGS.keys()) + ["all"]
-    if finding not in valid_findings:
-        typer.secho(
-            f"Error: Unknown finding '{finding}'", fg=typer.colors.RED, err=True
-        )
-        typer.echo(f"Available: {', '.join(valid_findings)}", err=True)
+    # Validate rule
+    valid_rules = builtins.list(RULES.keys()) + ["all"]
+    if rule not in valid_rules:
+        typer.secho(f"Error: Unknown rule '{rule}'", fg=typer.colors.RED, err=True)
+        typer.echo(f"Available: {', '.join(valid_rules)}", err=True)
         raise typer.Exit(1)
 
-    # Validate fact requires finding
-    if fact and not finding:
+    # Validate fact requires rule
+    if fact and not rule:
         typer.secho(
-            "Error: Cannot specify fact without finding",
+            "Error: Cannot specify fact without rule",
             fg=typer.colors.RED,
             err=True,
         )
         raise typer.Exit(1)
 
     # Validate filtering with 'all'
-    if finding == "all" and fact:
+    if rule == "all" and fact:
         typer.secho(
-            "Error: Cannot filter by fact when running all findings",
+            "Error: Cannot filter by fact when running all rules",
             fg=typer.colors.RED,
             err=True,
         )
         raise typer.Exit(1)
 
     # Validate fact exists
-    if fact and finding != "all":
-        finding_obj = FINDINGS[finding]
-        fact_obj = finding_obj.get_fact_by_id(fact)
+    if fact and rule != "all":
+        rule_obj = RULES[rule]
+        fact_obj = rule_obj.get_fact_by_id(fact)
         if not fact_obj:
             typer.secho(
-                f"Error: Fact '{fact}' not found in finding '{finding}'",
+                f"Error: Fact '{fact}' not found in rule '{rule}'",
                 fg=typer.colors.RED,
                 err=True,
             )
             typer.echo("\nAvailable facts:", err=True)
-            for fa in finding_obj.facts:
+            for fa in rule_obj.facts:
                 typer.echo(f"  {fa.id}", err=True)
             raise typer.Exit(1)
 
@@ -231,16 +227,16 @@ def run_cmd(
         if not password:
             password = typer.prompt("Neo4j password", hide_input=True)
 
-    # Determine findings to run
-    if finding == "all":
-        findings_to_run = builtins.list(FINDINGS.keys())
+    # Determine rules to run
+    if rule == "all":
+        rules_to_run = builtins.list(RULES.keys())
     else:
-        findings_to_run = [finding]
+        rules_to_run = [rule]
 
     # Execute
     try:
-        exit_code = run_findings(
-            findings_to_run,
+        exit_code = run_rules(
+            rules_to_run,
             uri,
             user,
             password,

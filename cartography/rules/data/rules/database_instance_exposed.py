@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
+from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleOutput
 
 # AWS Facts
 _aws_rds_public_access = Fact(
@@ -32,8 +32,8 @@ _aws_rds_public_access = Fact(
 )
 
 
-# Finding
-class DatabaseInstanceExposed(FindingOutput):
+# Rule
+class DatabaseInstanceExposed(RuleOutput):
     host: str | None = None
     id: str | None = None
     engine: str | None = None
@@ -42,7 +42,7 @@ class DatabaseInstanceExposed(FindingOutput):
     encrypted: bool | None = None
 
 
-database_instance_exposed = Finding(
+database_instance_exposed = Rule(
     id="database_instance_exposed",
     name="Internet-Exposed Databases",
     description=("Database instances accessible from the internet"),

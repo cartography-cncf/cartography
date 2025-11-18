@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
+from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleOutput
 
 # AWS
 _aws_trust_relationship_manipulation = Fact(
@@ -64,8 +64,8 @@ _aws_trust_relationship_manipulation = Fact(
 )
 
 
-# Finding
-class DelegationBoundaryModifiable(FindingOutput):
+# Rule
+class DelegationBoundaryModifiable(RuleOutput):
     principal_name: str | None = None
     principal_identifier: str | None = None
     principal_type: str | None = None
@@ -76,7 +76,7 @@ class DelegationBoundaryModifiable(FindingOutput):
     resources: list[str] = []
 
 
-delegation_boundary_modifiable = Finding(
+delegation_boundary_modifiable = Rule(
     id="delegation_boundary_modifiable",
     name="Delegation Boundary Modifiable",
     description=(

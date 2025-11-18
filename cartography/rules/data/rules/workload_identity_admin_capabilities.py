@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
+from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleOutput
 
 # AWS
 _aws_service_account_manipulation_via_ec2 = Fact(
@@ -164,8 +164,8 @@ _aws_service_account_manipulation_via_lambda = Fact(
 )
 
 
-# Finding
-class WorkloadIdentityAdminCapabilities(FindingOutput):
+# Rule
+class WorkloadIdentityAdminCapabilities(RuleOutput):
     workload_name: str | None = None
     workload_id: str | None = None
     account: str | None = None
@@ -176,7 +176,7 @@ class WorkloadIdentityAdminCapabilities(FindingOutput):
     public_ip_address: str | None = None
 
 
-workload_identity_admin_capabilities = Finding(
+workload_identity_admin_capabilities = Rule(
     id="workload_identity_admin_capabilities",
     name="Workload Identity-Admin Capabilities",
     description=(

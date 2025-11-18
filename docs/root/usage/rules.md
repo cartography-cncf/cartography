@@ -14,11 +14,11 @@ With the `cartography-rules` CLI, you can:
 The rules system uses a simple two-level hierarchy:
 
 ```
-Finding (e.g., mfa-missing, object_storage_public)
+Rule (e.g., mfa-missing, object_storage_public)
   └─ Fact (e.g., aws_s3_public, missing-mfa-cloudflare)
 ```
 
-**Findings** represent security issues or attack surfaces you want to detect (e.g., "Public Object Storage exposed on internet").
+**Rules** represent security issues or attack surfaces you want to detect (e.g., "Public Object Storage exposed on internet").
 
 **Facts** are individual Cypher queries that gather evidence about your environment across different cloud providers and services.
 
@@ -33,7 +33,7 @@ The queries surface opportunities across the entire attack lifecycle: initial ac
 
 We don't impose arbitrary thresholds like "no more than 5 admins" because every organization has different risk tolerances. Instead, we surface facts:
 - If a query returns no results, you've eliminated obvious attack paths
-- If it returns findings, you now have a clear list of potential attacker targets and security gaps
+- If it returns results, you now have a clear list of potential attacker targets and security gaps
 
 
 ## Rationale
@@ -46,9 +46,9 @@ Security isn't one-size-fits-all. For example:
 Our goal is to surface facts in context so you can decide what matters for your environment.
 
 
-## Available Findings
+## Available Rules
 
-Current findings include:
+Current rules include:
 
 - **mfa-missing** - User accounts missing multi-factor authentication
 - **object_storage_public** - Publicly accessible object storage (S3, Azure Storage)
@@ -60,18 +60,18 @@ Current findings include:
 - **unmanaged_accounts** - Unmanaged cloud accounts
 - **workload_identity_admin_capabilities** - Workload identity escalation surface
 
-You can list all available findings and their details from the CLI, see [below](#list).
+You can list all available rules and their details from the CLI, see [below](#list).
 
 
 ```{note}
-Rules query against the existing Cartography graph. They don't write data; they return findings you can view in text, JSON, or the Neo4j Browser.
+Rules query against the existing Cartography graph. They don't write data; they return results you can view in text, JSON, or the Neo4j Browser.
 ```
 
 ## Rules Lifecycle
 
-### Finding Versioning
+### Rule Versioning
 
-Each finding has a semantic version number (e.g., `0.1.0`, `1.0.0`) that helps track changes over time:
+Each rule has a semantic version number (e.g., `0.1.0`, `1.0.0`) that helps track changes over time:
 
 - **Major version** (X.0.0): Breaking changes - query structure significantly altered, results format changed
 - **Minor version** (0.X.0): Additive changes - new facts added, expanded coverage to additional providers
@@ -85,7 +85,7 @@ Each finding has a semantic version number (e.g., `0.1.0`, `1.0.0`) that helps t
 1.0.0 → Promoted to stable, all facts tested in production
 ```
 
-When a finding's version changes, you can review the changes in the git history to understand what was modified and assess impact on your existing workflows.
+When a rule's version changes, you can review the changes in the git history to understand what was modified and assess impact on your existing workflows.
 
 ### Fact Maturity Levels
 
@@ -175,11 +175,11 @@ cartography-rules run object_storage_public
 
 ### Version and Maturity Together
 
-Findings evolve over time. Here's how versioning and maturity work together:
+Rules evolve over time. Here's how versioning and maturity work together:
 
 ```python
 # Version 0.1.0 - Initial release
-object_storage_public = Finding(
+object_storage_public = Rule(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
     output_model=ObjectStoragePublic,
@@ -190,7 +190,7 @@ object_storage_public = Finding(
 )
 
 # Version 0.2.0 - Added Azure support
-object_storage_public = Finding(
+object_storage_public = Rule(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
     output_model=ObjectStoragePublic,
@@ -205,7 +205,7 @@ object_storage_public = Finding(
 # AWS query fixed, no version bump for facts themselves
 
 # Version 1.0.0 - Production ready
-object_storage_public = Finding(
+object_storage_public = Rule(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
     output_model=ObjectStoragePublic,
@@ -238,25 +238,25 @@ set -o history # turn shell history back on
 
 ## Quick start
 
-1. List all available findings
+1. List all available rules
     ```bash
     cartography-rules list
     ```
-1. View details of a specific finding
+1. View details of a specific rule
     ```bash
     cartography-rules list object_storage_public
     ```
-1. Run a specific finding
+1. Run a specific rule
     ```bash
     cartography-rules run object_storage_public
     ```
     Sample output:
     ```
-    Executing object_storage_public finding
+    Executing object_storage_public rule
     Total facts: 2
 
     Fact 1/2: Internet-Accessible S3 Storage Attack Surface
-    Finding:     object_storage_public - Public Object Storage Attack Surface
+    Rule:     object_storage_public - Public Object Storage Attack Surface
     Fact ID:     aws_s3_public
     Description: AWS S3 buckets accessible from the internet
     Provider:    AWS
@@ -269,7 +269,7 @@ set -o history # turn shell history back on
         ... (use --output json to see all)
 
     Fact 2/2: Azure Storage Public Blob Access
-    Finding:     object_storage_public - Public Object Storage Attack Surface
+    Rule:     object_storage_public - Public Object Storage Attack Surface
     Fact ID:     azure_storage_public_blob_access
     Description: Azure Storage accounts with public blob access
     Provider:    Azure
@@ -282,21 +282,21 @@ set -o history # turn shell history back on
     Total facts: 2
     Total results: 3
 
-    Finding execution completed with 3 total results
+    Rule execution completed with 3 total results
     ```
 
 
 ## Usage
 
 ### `list`
-#### See all available findings
+#### See all available rules
 ```bash
 cartography-rules list
 ```
 
-Output shows all findings with their IDs, names, and fact counts:
+Output shows all rules with their IDs, names, and fact counts:
 ```
-Available findings:
+Available rules:
   - compute_instance_exposed (3 facts)
   - database_instance_exposed (2 facts)
   - mfa-missing (1 fact)
@@ -304,14 +304,14 @@ Available findings:
   ...
 ```
 
-#### See details of a specific finding
+#### See details of a specific rule
 ```bash
 cartography-rules list mfa-missing
 ```
 
-Output shows finding metadata and all associated facts:
+Output shows rule metadata and all associated facts:
 ```
-Finding: mfa-missing
+Rule: mfa-missing
 Name: User accounts missing MFA
 Description: Detects user accounts without multi-factor authentication
 Facts: 1
@@ -330,7 +330,7 @@ cartography-rules list mfa-missing missing-mfa-cloudflare
 
 ### `run`
 
-#### Run all findings in text mode
+#### Run all rules in text mode
 ```bash
 cartography-rules run all
 # or
@@ -339,19 +339,19 @@ cartography-rules run all --output text
 ![cartography-rules-run-all-text.png](../images/rules-text-output.png)
 
 
-#### Run all findings in JSON mode
+#### Run all rules in JSON mode
 ```bash
 cartography-rules run all --output json
 ```
 
 ![cartography-rules-run-all-json.png](../images/rules-json-output.png)
 
-#### Run a specific finding
+#### Run a specific rule
 ```bash
 cartography-rules run mfa-missing
 ```
 
-#### Run a specific fact within a finding
+#### Run a specific fact within a rule
 
 ```bash
 cartography-rules run object_storage_public aws_s3_public
@@ -391,11 +391,11 @@ cartography-rules list <TAB>
 cartography-rules run <TAB>
 ```
 
-This will show you all available findings and facts.
+This will show you all available rules and facts.
 
-## Contributing New Findings
+## Contributing New Rules
 
-Want to add your own security findings? Here's how:
+Want to add your own security rules? Here's how:
 
 ### Query Structure: cypher_query vs cypher_visual_query
 
@@ -404,7 +404,7 @@ Each Fact requires two distinct Cypher queries:
 #### `cypher_query` - Data Query
 Returns specific fields used to populate the output model. This query should:
 - Use explicit field selection with aliases (e.g., `RETURN n.id AS id, n.name AS name`)
-- Return only the data fields needed for the finding's output model
+- Return only the data fields needed for the rule's output model
 - Be optimized for data extraction and processing
 
 **Example:**
@@ -444,15 +444,15 @@ RETURN *
 
 ### Output Models with Pydantic
 
-Each Finding must define an output model that extends `FindingOutput`. This Pydantic model defines the structure of the data returned by the finding's facts.
+Each Rule must define an output model that extends `RuleOutput`. This Pydantic model defines the structure of the data returned by the rule's facts.
 
 #### Creating an Output Model
 
 ```python
-from cartography.rules.spec.model import FindingOutput
+from cartography.rules.spec.model import RuleOutput
 
-class MyFindingOutput(FindingOutput):
-    """Output model for my custom finding."""
+class MyRuleOutput(RuleOutput):
+    """Output model for my custom rule."""
 
     # Define the fields that will be populated from cypher_query results
     id: str | None = None           # Resource identifier
@@ -461,12 +461,12 @@ class MyFindingOutput(FindingOutput):
     region: str | None = None       # Cloud region
     public_access: bool | None = None  # Access level
 
-    # Add any other fields relevant to your finding
+    # Add any other fields relevant to your rule
 ```
 
 #### Key Points
 
-- **Inherit from `FindingOutput`**: Your model must extend the base `FindingOutput` class
+- **Inherit from `RuleOutput`**: Your model must extend the base `RuleOutput` class
 - **Use Optional Fields**: All fields should be optional (`| None = None`) as different facts may return different subsets of data
 - **Match Query Aliases**: Field names should match the aliases used in your `cypher_query` (e.g., if query returns `n.id AS id`, model should have `id` field)
 - **Automatic Handling**:
@@ -479,14 +479,14 @@ class MyFindingOutput(FindingOutput):
 #### Example from object_storage_public
 
 ```python
-class ObjectStoragePublic(FindingOutput):
+class ObjectStoragePublic(RuleOutput):
     name: str | None = None
     id: str | None = None
     region: str | None = None
     public_access: bool | None = None
     account: str | None = None  # For Azure storage accounts
 
-object_storage_public = Finding(
+object_storage_public = Rule(
     id="object_storage_public",
     name="Public Object Storage Attack Surface",
     description="Publicly accessible object storage services",
@@ -497,11 +497,11 @@ object_storage_public = Finding(
 )
 ```
 
-### Steps to add a new finding
+### Steps to add a new rule
 
-1. **Create a new finding file** in `cartography/rules/data/findings/`:
+1. **Create a new rule file** in `cartography/rules/data/rules/`:
    ```python
-   from cartography.rules.spec.model import Fact, Finding, FindingOutput, Maturity, Module
+   from cartography.rules.spec.model import Fact, Rule, RuleOutput, Maturity, Module
 
    # Define facts with both data and visualization queries
    _my_aws_check = Fact(
@@ -541,38 +541,38 @@ object_storage_public = Finding(
    )
 
    # Define output model
-   class MyFindingOutput(FindingOutput):
-       """Output model for my custom finding."""
+   class MyRuleOutput(RuleOutput):
+       """Output model for my custom rule."""
        id: str | None = None
        name: str | None = None
        region: str | None = None
 
-   # Define finding
-   my_finding = Finding(
+   # Define rule
+   my_rule = Rule(
        id="my-finding",
-       name="My Security Finding",
+       name="My Security Rule",
        description="Detects a security issue",
-       output_model=MyFindingOutput,
+       output_model=MyRuleOutput,
        facts=(_my_aws_check, _my_azure_check),
        tags=("category",),
        version="0.1.0",
    )
    ```
 
-2. **Register your finding** in `cartography/rules/data/findings/__init__.py`:
+2. **Register your rule** in `cartography/rules/data/rules/__init__.py`:
    ```python
-   from cartography.rules.data.findings.my_finding import my_finding
+   from cartography.rules.data.rules.my_rule import my_rule
 
-   FINDINGS = {
-       # ... existing findings
-       my_finding.id: my_finding,
+   RULES = {
+       # ... existing rules
+       my_rule.id: my_rule,
    }
    ```
 
 3. **Test it**:
    ```bash
-   cartography-rules list my-finding
-   cartography-rules run my-finding
+   cartography-rules list my-rule
+   cartography-rules run my-rule
    ```
 
 4. **Submit a PR** - PRs welcome! ❤️

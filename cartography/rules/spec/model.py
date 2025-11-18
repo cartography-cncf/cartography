@@ -63,7 +63,7 @@ class Fact:
     """A Fact gathers information about the environment using a Cypher query."""
 
     id: str
-    """A descriptive identifier for the Fact. By convention, should be lowercase and use underscores like `finding-name-module`."""
+    """A descriptive identifier for the Fact. By convention, should be lowercase and use underscores like `rule-name-module`."""
     name: str
     """A descriptive name for the Fact."""
     description: str
@@ -82,8 +82,8 @@ class Fact:
     """
 
 
-class FindingOutput(BaseModel):
-    """Base class for Finding output models."""
+class RuleOutput(BaseModel):
+    """Base class for Rule output models."""
 
     # TODO: make this property mandatory one all modules have been updated to new datamodel
     source: str | None = None
@@ -117,29 +117,29 @@ class FindingOutput(BaseModel):
 
 
 @dataclass(frozen=True)
-class Finding:
-    """A Finding represents a security issue or misconfiguration detected in the environment."""
+class Rule:
+    """A Rule represents a security issue or misconfiguration detected in the environment."""
 
     id: str
-    """A unique identifier for the Finding. Should be globally unique within Cartography."""
+    """A unique identifier for the Rule. Should be globally unique within Cartography."""
     name: str
-    """A brief name for the Finding."""
+    """A brief name for the Rule."""
     tags: tuple[str, ...]
-    """Tags associated with the Finding for categorization and filtering."""
+    """Tags associated with the Rule for categorization and filtering."""
     description: str
-    """A brief description of the Finding. Can include details about the security issue or misconfiguration."""
+    """A brief description of the Rule. Can include details about the security issue or misconfiguration."""
     version: str
-    """The version of the Finding definition."""
+    """The version of the Rule definition."""
     facts: tuple[Fact, ...]
-    """The Facts that contribute to this Finding."""
-    output_model: type[FindingOutput]
-    """The output model class for the Finding."""
+    """The Facts that contribute to this Rule."""
+    output_model: type[RuleOutput]
+    """The output model class for the Rule."""
     references: tuple[str, ...] = ()
-    """References or links to external resources related to the Finding."""
+    """References or links to external resources related to the Rule."""
 
     @property
     def modules(self) -> set[Module]:
-        """Returns the set of modules associated with this finding."""
+        """Returns the set of modules associated with this rule."""
         return {fact.module for fact in self.facts}
 
     def get_fact_by_id(self, fact_id: str) -> Fact | None:
@@ -151,9 +151,9 @@ class Finding:
 
     def parse_results(
         self, fact: Fact, fact_results: list[dict[str, Any]]
-    ) -> list[FindingOutput]:
+    ) -> list[RuleOutput]:
         # DOC
-        result: list[FindingOutput] = []
+        result: list[RuleOutput] = []
         for result_item in fact_results:
             parsed_output: dict[str, Any] = {"extra": {}, "source": fact.module.value}
             for key, value in result_item.items():
@@ -167,7 +167,7 @@ class Finding:
             except ValidationError as e:
                 # Handle validation errors
                 logger.warning(
-                    "Validation error parsing finding output for finding %s: %s",
+                    "Validation error parsing rule output for rule %s: %s",
                     self.id,
                     type(e).__name__,
                 )

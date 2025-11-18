@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
+from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleOutput
 
 # Facts
 _missing_mfa_cloudflare = Fact(
@@ -24,19 +24,19 @@ _missing_mfa_cloudflare = Fact(
 )
 
 
-# Finding
-class MFAFindingOutput(FindingOutput):
+# Rule
+class MFARuleOutput(RuleOutput):
     email: str | None = None
     id: str | None = None
     firstname: str | None = None
     lastname: str | None = None
 
 
-missing_mfa_finding = Finding(
+missing_mfa_rule = Rule(
     id="mfa-missing",
     name="User accounts missing MFA",
     description="Detects user accounts that do not have Multi-Factor Authentication enabled.",
-    output_model=MFAFindingOutput,
+    output_model=MFARuleOutput,
     tags=("identity",),
     facts=(
         # TODO: _missing_mfa_slack,

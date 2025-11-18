@@ -1,8 +1,8 @@
 from cartography.rules.spec.model import Fact
-from cartography.rules.spec.model import Finding
-from cartography.rules.spec.model import FindingOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
+from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleOutput
 
 # Facts
 _unmanaged_accounts_ontology = Fact(
@@ -24,17 +24,17 @@ _unmanaged_accounts_ontology = Fact(
 )
 
 
-# Finding
-class UnmanagedAccountFindingOutput(FindingOutput):
+# Rule
+class UnmanagedAccountRuleOutput(RuleOutput):
     id: str | None = None
     email: str | None = None
 
 
-unmanaged_accounts = Finding(
+unmanaged_accounts = Rule(
     id="unmanaged-account",
     name="User accounts not linked to a user identity",
     description="Detects user accounts that do not have Multi-Factor Authentication enabled.",
-    output_model=UnmanagedAccountFindingOutput,
+    output_model=UnmanagedAccountRuleOutput,
     tags=("identity", "iam", "compliance"),
     facts=(_unmanaged_accounts_ontology,),
     version="0.1.0",
