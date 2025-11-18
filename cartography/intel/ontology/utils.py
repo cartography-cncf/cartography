@@ -7,17 +7,17 @@ import neo4j
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
-from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING, OntologyMapping
+from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
+from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
-
 @timeit
 def _run_source_node_single_query(
     module_name: str,
-    node: OntologyMapping,
+    node: OntologyNodeMapping,
     neo4j_session: neo4j.Session,
     query: str,
     results: dict[str, dict[str, Any]],
@@ -57,9 +57,7 @@ def _run_source_node_single_query(
         id_field = ontology_model().properties.id.name
         existing = results.get(result[id_field])
         if existing:
-            logger.debug(
-                "Merging node: %s to %s", result[id_field], existing[id_field]
-            )
+            logger.debug("Merging node: %s to %s", result[id_field], existing[id_field])
             # Merge existing data with new data, prioritizing non-None values
             for key, value in result.items():
                 if existing.get(key) is None and value is not None:
@@ -98,9 +96,9 @@ def get_source_nodes_from_graph(
         source_of_truth = list(modules_mapping.keys())
     # Check if ontology nodes are used in mapping
     _has_ontology = False
-    if modules_mapping.get('ontology') is not None:
+    if modules_mapping.get("ontology") is not None:
         _has_ontology = True
-        for node in modules_mapping['ontology'].nodes:
+        for node in modules_mapping["ontology"].nodes:
             if not node.eligible_for_source:
                 logger.debug(
                     "Skipping ontology node with label '%s' as it is not eligible for source of truth.",
@@ -109,15 +107,21 @@ def get_source_nodes_from_graph(
                 continue
             # Run the query for every source
             for source in source_of_truth:
-                query = f"MATCH (n:{node.node_label} {{_ont_source: '{source}'}}) RETURN n"
-                results = _run_source_node_single_query(module_name, node, neo4j_session, query, results)
+                query = (
+                    f"MATCH (n:{node.node_label} {{_ont_source: '{source}'}}) RETURN n"
+                )
+                results = _run_source_node_single_query(
+                    module_name, node, neo4j_session, query, results
+                )
 
     # Run queries for each source of truth
     for source in source_of_truth:
         if source not in modules_mapping:
             if not _has_ontology:
                 logger.warning(
-                    "Source of truth '%s' is not supported for '%s'.", source, module_name
+                    "Source of truth '%s' is not supported for '%s'.",
+                    source,
+                    module_name,
                 )
             continue
         for node in modules_mapping[source].nodes:
@@ -129,7 +133,9 @@ def get_source_nodes_from_graph(
                 )
                 continue
             query = f"MATCH (n:{node.node_label}) RETURN n"
-            results = _run_source_node_single_query(module_name, node, neo4j_session, query, results)
+            results = _run_source_node_single_query(
+                module_name, node, neo4j_session, query, results
+            )
 
     return list(results.values())
 
