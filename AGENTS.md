@@ -770,14 +770,14 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any])
 
 ## 🌐 Ontology Integration: Mapping Users and Devices {#ontology-integration}
 
-Cartography includes an **Ontology system** that creates normalized `User` and `Device` nodes that aggregate data from multiple sources. This provides a unified view of identity and device management across your infrastructure.
+Cartography includes an **Ontology system** that provides both semantic labels and canonical nodes to unify data from multiple sources. This enables cross-module querying and provides a normalized view of identity and device management across your infrastructure.
 
 ### Overview of Ontology System
 
-The Ontology system works by:
-1. **Creating canonical nodes**: `(:User:Ontology)` and `(:Device:Ontology)` nodes that represent unified entities
-2. **Mapping source data**: Your module's user/device nodes get connected to these canonical nodes
-3. **Enabling unified queries**: Users can query across all systems through common ontology nodes
+The Ontology system works in two ways:
+1. **Semantic Labels**: Adds `UserAccount` labels and `_ont_*` properties directly to source nodes for cross-module querying
+2. **Canonical Nodes**: Creates `(:User:Ontology)` and `(:Device:Ontology)` nodes that represent unified entities
+3. **Cross-Module Queries**: Enables querying across all systems using consistent field names and labels
 
 ### When to Use Ontology Integration
 
@@ -791,19 +791,72 @@ Add ontology integration to your module when it manages:
 - Infrastructure (AWS EC2, Azure VMs, GCP instances)
 - Security tools (endpoint protection, mobile device management)
 
+### Types of Ontology Integration
+
+**Semantic Labels (Recommended)**: Adds `UserAccount` labels and `_ont_*` properties to existing nodes:
+- ✅ Simpler implementation - no additional node creation
+- ✅ Direct querying of source nodes with normalized properties
+- ✅ Automatic property mapping with special handling for data transformations
+- ✅ Source tracking via `_ont_source` property
+
+**Canonical Nodes (Legacy)**: Creates separate abstract `User`/`Device` nodes:
+- ⚠️ More complex - requires separate node creation and relationship management
+- ⚠️ Additional storage overhead
+- ✅ Useful when you need to aggregate data from multiple sources into single entities
+
 ### Step 1: Add Ontology Mapping Configuration
 
 Create mapping configurations in `cartography/models/ontology/mapping/data/`:
 
-#### For User Entities
+#### For User Entities (Semantic Labels - Recommended)
 
 ```python
-# cartography/models/ontology/mapping/data/users.py
+# cartography/models/ontology/mapping/data/useraccounts.py
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
 # Add your mapping to the file
+your_service_mapping = OntologyMapping(
+    module_name="your_service",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="YourServiceUser",  # Your node label
+            fields=[
+                # Map your node fields to ontology fields with special handling
+                OntologyFieldMapping(ontology_field="email", node_field="email", required=True),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="display_name"),
+                OntologyFieldMapping(ontology_field="firstname", node_field="first_name"),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+                # Special handling examples:
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="account_enabled",
+                    special_handling="invert_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa",
+                    node_field="multifactor",
+                    special_handling="to_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="suspended",
+                    special_handling="or_boolean",
+                    extra={"fields": ["archived"]},
+                ),
+            ],
+        ),
+    ],
+)
+```
+
+#### For User Entities (Legacy Canonical Nodes)
+
+```python
+# cartography/models/ontology/mapping/data/users.py
+# Use this approach only if you need canonical User nodes
 your_service_mapping = OntologyMapping(
     module_name="your_service",
     nodes=[
@@ -864,11 +917,30 @@ your_service_mapping = OntologyMapping(
 )
 ```
 
-### Step 2: Add Ontology Relationship to Your Node Schema
+### Step 2: Add Ontology Configuration to Your Node Schema
 
-Update your node schema to include the relationship to ontology nodes.
+#### For Semantic Labels (Recommended)
 
-#### For User Nodes
+Simply add the `UserAccount` label - the ontology system will automatically add `_ont_*` properties:
+
+```python
+from cartography.models.core.nodes import ExtraNodeLabels
+
+@dataclass(frozen=True)
+class YourServiceUserSchema(CartographyNodeSchema):
+    label: str = "YourServiceUser"
+    # Add UserAccount label for semantic ontology integration
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
+    properties: YourServiceUserNodeProperties = YourServiceUserNodeProperties()
+    sub_resource_relationship: YourServiceTenantToUserRel = YourServiceTenantToUserRel()
+```
+
+That's it! The ontology system will automatically:
+- Add `_ont_email`, `_ont_fullname`, etc. properties to your nodes
+- Apply any special handling (boolean conversion, inversion, etc.)
+- Add `_ont_source` property to track which module provided the data
+
+#### For Canonical Nodes (Legacy)
 
 Add `UserAccount` label and relationship to the canonical `User` node:
 
@@ -989,27 +1061,70 @@ The ontology `Device` node supports these fields:
 
 Ensure your mappings are imported and available to the ontology system:
 
+#### For Semantic Labels (UserAccount)
+```python
+# cartography/models/ontology/mapping/data/useraccounts.py
+# Add to the end of the file after all mappings:
+USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    # ... existing mappings ...
+    "your_service": your_service_mapping,  # Add your mapping here
+}
+```
+
+#### For Canonical Nodes (Legacy)
 ```python
 # cartography/models/ontology/mapping/data/users.py
 # Add to the end of the file after all mappings:
-ALL_USER_MAPPINGS = [
+USERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     # ... existing mappings ...
-    your_service_mapping,  # Add your mapping here
-]
+    "your_service": your_service_mapping,  # Add your mapping here
+}
 ```
 
 ```python
 # cartography/models/ontology/mapping/data/devices.py
 # Add to the end of the file after all mappings:
-ALL_DEVICE_MAPPINGS = [
+DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     # ... existing mappings ...
-    your_service_mapping,  # Add your mapping here
-]
+    "your_service": your_service_mapping,  # Add your mapping here
+}
 ```
 
 ### Step 5: Testing Ontology Integration
 
-Test that your ontology integration works correctly:
+#### For Semantic Labels (Recommended)
+
+Test that ontology properties are automatically added:
+
+```python
+# tests/integration/cartography/intel/your_service/test_users.py
+def test_ontology_integration(neo4j_session):
+    # Run your module sync - ontology properties are added automatically!
+    your_service.users.sync(neo4j_session, ...)
+
+    # Verify UserAccount nodes have ontology properties
+    result = neo4j_session.run("""
+        MATCH (ua:YourServiceUser:UserAccount)
+        RETURN ua._ont_email, ua._ont_fullname, ua._ont_source, ua.email
+    """)
+    users = result.data()
+    assert len(users) > 0
+    # Verify ontology properties match source properties
+    assert users[0]["ua._ont_email"] == users[0]["ua.email"]
+    assert users[0]["ua._ont_source"] == "your_service"
+
+    # Test cross-module querying capabilities
+    result = neo4j_session.run("""
+        MATCH (ua:UserAccount)
+        WHERE ua._ont_email = $email
+        RETURN ua._ont_fullname, labels(ua)
+    """, email="test@example.com")
+    assert len(result.data()) > 0
+```
+
+#### For Canonical Nodes (Legacy)
+
+Test that ontology integration works correctly:
 
 ```python
 # tests/integration/cartography/intel/your_service/test_users.py
@@ -1058,7 +1173,12 @@ rels=[
 
 ### Best Practices for Ontology Integration
 
-#### 1. Choose the Right Primary Identifier and Mark as Required
+#### 1. Prefer Semantic Labels Over Canonical Nodes
+- **✅ Use semantic labels** (UserAccount) for new integrations - simpler and more efficient
+- **⚠️ Use canonical nodes** (User/Device) only when you need to aggregate data from multiple sources
+- **Consistent querying**: Semantic labels enable cross-module queries with `_ont_*` properties
+
+#### 2. Choose the Right Primary Identifier and Mark as Required
 - **Users**: Use `email` as the primary identifier when available (most reliable across systems) and mark as `required=True`
 - **Devices**: Use `hostname` as the primary identifier when available and mark as `required=True`
 
@@ -1082,7 +1202,40 @@ fields=[
 ]
 ```
 
-#### 3. Handle Missing Data Gracefully
+#### 3. Use Special Handling for Data Transformations
+```python
+# ✅ DO: Use special handling for complex field mappings
+fields=[
+    # Invert boolean values
+    OntologyFieldMapping(
+        ontology_field="inactive",
+        node_field="account_enabled",
+        special_handling="invert_boolean"
+    ),
+    # Convert to boolean
+    OntologyFieldMapping(
+        ontology_field="has_mfa",
+        node_field="mfa_devices",
+        special_handling="to_boolean"
+    ),
+    # Combine multiple fields with OR
+    OntologyFieldMapping(
+        ontology_field="inactive",
+        node_field="suspended",
+        special_handling="or_boolean",
+        extra={"fields": ["archived", "deleted"]}
+    ),
+    # Check against specific values
+    OntologyFieldMapping(
+        ontology_field="inactive",
+        node_field="status",
+        special_handling="equal_boolean",
+        extra={"values": ["disabled", "locked"]}
+    ),
+]
+```
+
+#### 4. Handle Missing Data Gracefully
 ```python
 # In your transform function, handle optional ontology fields
 def transform_users(api_data):
@@ -1093,6 +1246,7 @@ def transform_users(api_data):
             "display_name": user.get("full_name") or user.get("name"),  # Fallback logic
             "first_name": user.get("firstName"),  # Optional
             "last_name": user.get("lastName"),   # Optional
+            "account_enabled": user.get("enabled", True),  # Will be inverted to inactive
         }
         for user in api_data["users"]
     ]
@@ -1127,37 +1281,55 @@ your_service_mapping = OntologyMapping(
 
 #### Common Issues
 
-**Issue**: Ontology nodes not created
+**Issue**: Ontology properties (`_ont_*`) not added to nodes
 **Solution**: Verify that:
-- Your mapping is registered in `ALL_USER_MAPPINGS` or `ALL_DEVICE_MAPPINGS`
+- Your mapping is registered in `USERACCOUNTS_ONTOLOGY_MAPPING` (for semantic labels) or `USERS_ONTOLOGY_MAPPING`/`DEVICES_ONTOLOGY_MAPPING` (for canonical nodes)
+- Your source nodes have the correct labels (`UserAccount` for users)
+- Field mappings match your actual node properties exactly
+- The ontology mapping module name matches your intel module name
+
+**Issue**: Special handling not working correctly
+**Solution**: Check that:
+- `special_handling` value is one of: `invert_boolean`, `to_boolean`, `or_boolean`, `equal_boolean`
+- For `or_boolean`: `extra["fields"]` contains valid field names that exist in your node properties
+- For `equal_boolean`: `extra["values"]` is a list of values to compare against
+- Field names in `extra["fields"]` match exactly what's in your node schema
+
+**Issue**: Ontology nodes not created (canonical nodes)
+**Solution**: Verify that:
+- Your mapping is registered in `USERS_ONTOLOGY_MAPPING` or `DEVICES_ONTOLOGY_MAPPING`
 - Your source nodes have the correct labels (`UserAccount` for users)
 - Field mappings match your actual node properties
 - **Check required fields**: Ensure source nodes have all required fields populated (not `None`)
 - **Check eligible_for_source**: Ensure the node mapping has `eligible_for_source=True` (default) if it should create new ontology nodes
 
-**Issue**: Fewer ontology nodes created than expected
+**Issue**: Fewer ontology nodes/properties created than expected
 **Solution**: Check if:
 - **Required fields are missing**: Source nodes lacking required fields are filtered out completely
 - Required fields are marked appropriately (primary identifiers should be required)
 - **Node eligibility**: Verify `eligible_for_source=True` for mappings that should create new ontology nodes
 - Your source data has the expected completeness
+- Field names match exactly between mapping and node properties
 
-**Issue**: Relationships not created between ontology and source nodes
-**Solution**: Check that:
-- The ontology field used for matching has data
-- Your source nodes are loaded before running ontology sync
-- The target node matcher uses the correct field names
+**Issue**: Boolean special handling not working
+**Solution**: Verify that:
+- `invert_boolean`: Source field contains actual boolean values or values that `toBooleanOrNull()` can convert
+- `to_boolean`: Any non-null value should become `true`, null/missing should become `false`
+- `or_boolean`: All fields in `extra["fields"]` exist in your node properties
+- `equal_boolean`: `extra["values"]` contains the exact values you want to match (case-sensitive)
 
-**Issue**: User-Device relationships not working
+**Issue**: Cross-module queries not working
 **Solution**: Ensure that:
-- Both user and device ontology integrations are working
-- Your relationship query correctly traverses the path between source nodes
-- The relationship query includes proper `UPDATE_TAG` handling
+- Multiple modules have `UserAccount` labels on their user nodes
+- Each module has ontology mappings that use consistent `ontology_field` names
+- Nodes have `_ont_*` properties populated (check that mappings are registered correctly)
+- Use `_ont_*` properties in your queries, not the original source field names
 
-**Issue**: Unit tests failing on required field validation
+**Issue**: Unit tests failing on ontology integration
 **Solution**: Ensure that:
 - Primary identifier fields (`email` for users, `hostname` for devices) are marked as `required=True`
 - The field names match exactly between your ontology mapping and node properties
+- Test for `_ont_*` properties on semantic label nodes, not separate ontology nodes
 
 ## ⚙️ Configuration and Credentials {#configuration}
 

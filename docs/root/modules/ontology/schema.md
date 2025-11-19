@@ -20,6 +20,27 @@ In this schema, `squares` represent `Abstract Nodes` and `hexagons` represent `S
 | -------- | --------------- | ------- |
 | UserAccount | Represents a user account on a system or service. This label is used to unify accounts from different sources (e.g., Duo, Okta, Tailscale). | [d3f:UserAccount](https://d3fend.mitre.org/dao/artifact/d3f:UserAccount/) |
 
+### Ontology Properties on Nodes
+
+When ontology mappings are applied, source nodes automatically receive `_ont_*` properties that contain normalized ontology field values. These properties enable:
+
+- **Cross-module querying**: Query users across different modules using consistent field names
+- **Data normalization**: Access standardized versions of fields regardless of source format
+- **Source tracking**: The `_ont_source` property indicates which module provided the ontology data
+
+**Example:**
+```cypher
+// Find all inactive users across all modules
+MATCH (n:UserAccount)
+WHERE n._ont_inactive = true
+RETURN n._ont_email, n._ont_source
+
+// Find users with MFA enabled from any source
+MATCH (n:UserAccount)
+WHERE n._ont_has_mfa = true
+RETURN n._ont_fullname, labels(n)
+```
+
 ### Field Requirements
 
 When defining ontology mappings, certain fields can be marked as **required**. This serves two important purposes:

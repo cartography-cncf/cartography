@@ -68,6 +68,56 @@ This prevents creating ontology nodes that cannot be properly identified or matc
 OntologyFieldMapping(ontology_field="email", node_field="email", required=True)
 ```
 
+### Special Field Handling
+
+Ontology field mappings support special handling for complex data transformations using the `special_handling` parameter:
+
+#### `invert_boolean`
+Inverts boolean values - useful when a source field represents the opposite of the ontology field:
+```python
+OntologyFieldMapping(
+    ontology_field="inactive",
+    node_field="account_enabled",
+    special_handling="invert_boolean",
+)
+# account_enabled=True becomes inactive=False
+```
+
+#### `to_boolean`
+Converts any non-null value to `True`, null/missing values to `False`:
+```python
+OntologyFieldMapping(
+    ontology_field="has_mfa",
+    node_field="multifactor",
+    special_handling="to_boolean",
+)
+# Any non-null multifactor value becomes has_mfa=True
+```
+
+#### `or_boolean`
+Combines multiple boolean fields using logical OR - useful when a concept spans multiple source fields:
+```python
+OntologyFieldMapping(
+    ontology_field="inactive",
+    node_field="suspended",
+    special_handling="or_boolean",
+    extra={"fields": ["archived"]},
+)
+# inactive = suspended OR archived
+```
+
+#### `equal_boolean`
+Checks if the field value equals any of the specified values:
+```python
+OntologyFieldMapping(
+    ontology_field="inactive",
+    node_field="status",
+    special_handling="equal_boolean",
+    extra={"values": ["disabled", "locked out", "pending deletion"]},
+)
+# inactive=True if status is "disabled", "locked out", or "pending deletion"
+```
+
 ### Node Eligibility
 
 The `eligible_for_source` parameter in `OntologyNodeMapping` controls whether a node mapping can create new ontology nodes (default: `True`).
