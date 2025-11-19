@@ -146,3 +146,23 @@ API keys are used across different cloud providers and SaaS platforms for authen
 | _ont_expires_at | Timestamp when the API key expires (if applicable). |
 | _ont_last_used_at | Timestamp when the API key was last used. |
 
+
+### ComputeInstance
+
+```{note}
+ComputeInstance is a semantic label.
+```
+
+A compute instance represents a virtual machine or server instance running in a cloud environment.
+It generalizes concepts like EC2 Instances, DigitalOcean Droplets, and Scaleway Instances.
+
+| Field | Description |
+|-------|-------------|
+| _ont_id | The unique identifier for the instance. |
+| _ont_name | The name of the instance. |
+| _ont_region | The region or zone where the instance is located. |
+| _ont_public_ip_address | The public IP address of the instance. |
+| _ont_private_ip_address | The private IP address of the instance. |
+| _ont_state | The current state of the instance (e.g., running, stopped). |
+| _ont_type | The type or size of the instance (e.g., t2.micro, s-1vcpu-1gb). |
+| _ont_created_at | Timestamp when the instance was created. |
