@@ -8,7 +8,6 @@ from typing import no_type_check
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import model_validator
-from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 

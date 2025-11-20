@@ -1,11 +1,11 @@
 from typing import Type
 
 import cartography.models
-from cartography.models.core.model import load_models
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.mapping import ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.sync import TOP_LEVEL_MODULES
+from tests.utils import load_models
 
 MODELS = list(load_models(cartography.models))
 
