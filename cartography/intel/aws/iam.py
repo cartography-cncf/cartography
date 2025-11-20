@@ -9,7 +9,6 @@ from typing import Tuple
 
 import boto3
 import neo4j
-import time
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
@@ -26,13 +25,13 @@ from cartography.models.aws.iam.managed_policy import AWSManagedPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
 from cartography.models.aws.iam.role import AWSRoleSchema
 from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
+from cartography.models.aws.iam.server_certificate import AWSServerCertificateSchema
 from cartography.models.aws.iam.service_principal import AWSServicePrincipalSchema
 from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMatchLink
 from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
-from cartography.util import aws_handle_regions
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
@@ -1326,6 +1325,13 @@ def sync(
         update_tag,
         common_job_parameters,
     )
+    sync_server_certificates(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
+        common_job_parameters,
+    )
     cleanup_iam(neo4j_session, common_job_parameters)
     merge_module_sync_metadata(
         neo4j_session,
@@ -1352,29 +1358,99 @@ def get_account_from_arn(arn: str) -> str:
     else:
         return parts[4]
 
-@timeit
-@aws_handle_regions
-def sync_server_certificates(neo4j_session, boto3_session: boto3.Session, aws_account_id: str, regions: List[str], update_tag: int = None) -> None:
-    if update_tag is None:
-        update_tag = int(time.time())
 
+@timeit
+def get_server_certificates(
+    boto3_session: boto3.session.Session,
+) -> list[dict[str, Any]]:
+    """
+    Fetch server certificates from AWS IAM.
+    IAM is a global service, so no region parameter needed.
+    """
     client = boto3_session.client("iam")
     paginator = client.get_paginator("list_server_certificates")
+    certificates = []
     for page in paginator.paginate():
-        for cert in page.get("ServerCertificateMetadataList", []):
-            neo4j_session.run(
-                """
-                MERGE (c:AWSServerCertificate {arn: $arn})
-                SET c.name = $name,
-                    c.path = $path,
-                    c.upload_date = $upload_date,
-                    c.update_tag = $update_tag,
-                    c.aws_account_id = $aws_account_id
-                """,
-                arn=cert["Arn"],
-                name=cert["ServerCertificateName"],
-                path=cert["Path"],
-                upload_date=cert["UploadDate"].isoformat(),
-                update_tag=update_tag,
-                aws_account_id=aws_account_id,
-            )
+        certificates.extend(page.get("ServerCertificateMetadataList", []))
+    return certificates
+
+
+def transform_server_certificates(
+    certificates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Transform server certificate data for Neo4j ingestion.
+    """
+    result = []
+    for cert in certificates:
+        transformed = {
+            "arn": cert["Arn"],
+            "name": cert["ServerCertificateName"],
+            "ServerCertificateId": cert["ServerCertificateId"],
+            "path": cert.get("Path"),
+            "upload_date": (
+                cert["UploadDate"].isoformat() if cert.get("UploadDate") else None
+            ),
+        }
+        result.append(transformed)
+    return result
+
+
+def load_server_certificates(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Load server certificates into Neo4j.
+    """
+    load(
+        neo4j_session,
+        AWSServerCertificateSchema(),
+        data,
+        lastupdated=update_tag,
+        AWS_ID=aws_account_id,
+    )
+
+
+def cleanup_server_certificates(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    """
+    Remove stale server certificates.
+    """
+    GraphJob.from_node_schema(AWSServerCertificateSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def sync_server_certificates(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Sync AWS IAM server certificates.
+    Note: IAM is a global service, so regions parameter is not used.
+    """
+    logger.info(
+        "Syncing IAM server certificates for account '%s'.", current_aws_account_id
+    )
+
+    # 1. GET
+    certificates = get_server_certificates(boto3_session)
+
+    # 2. TRANSFORM
+    transformed = transform_server_certificates(certificates)
+
+    # 3. LOAD
+    load_server_certificates(
+        neo4j_session, transformed, current_aws_account_id, update_tag
+    )
+
+    # 4. CLEANUP
+    cleanup_server_certificates(neo4j_session, common_job_parameters)
