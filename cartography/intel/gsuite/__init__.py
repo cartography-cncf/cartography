@@ -147,6 +147,11 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             )
             return
 
+    logger.warning(
+        "The GSuite module is deprecated and will no longer receive updates. It will be completely removed in the 1.0.0 release. "
+        "For migration, please refer to the Google Workspace module configuration."
+    )
+
     resources = _initialize_resources(creds)
     customer_ids = users.sync_gsuite_users(
         neo4j_session,
