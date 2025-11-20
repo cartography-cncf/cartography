@@ -174,6 +174,13 @@ googleworkspace_mapping = OntologyMapping(
             ],
         ),
     ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link Device to User based on GoogleWorkspaceUser-GoogleWorkspaceDevice relationship",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:GoogleWorkspaceUser)-[:OWNS]-(:GoogleWorkspaceDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
+        )
+    ],
 )
 
 DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {

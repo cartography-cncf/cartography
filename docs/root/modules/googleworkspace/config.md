@@ -16,7 +16,7 @@ This module allows authentication from a service account or via OAuth tokens.
 1. [Perform Google Workspace Domain-Wide Delegation of Authority](https://developers.google.com/admin-sdk/directory/v1/guides/delegation) with following scopes:
     - `https://www.googleapis.com/auth/admin.directory.customer.readonly`
     - `https://www.googleapis.com/auth/admin.directory.user.readonly`
-    - `https://www.googleapis.com/auth/admin.directory.group.readonly`
+    - `https://www.googleapis.com/auth/cloud-identity.groups.readonly`
     - `https://www.googleapis.com/auth/cloud-identity.devices.readonly`
     - `https://www.googleapis.com/auth/cloud-platform`
 1. Download the service account's credentials (JSON file).
@@ -100,3 +100,25 @@ print('Your credentials:')
 print(json.dumps(creds.to_json(), indent=2))
 os.remove('credentials.json')
 ```
+
+### Migration from GSuite module
+
+If you are migrating from the deprecated `gsuite` module, here are the key changes to configuration:
+
+1. **Environment Variables**:
+   - `GSUITE_GOOGLE_APPLICATION_CREDENTIALS` -> `GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS`
+   - `GSUITE_DELEGATED_ADMIN` -> `GOOGLE_DELEGATED_ADMIN`
+   - `GSUITE_TOKENS_ENV_VAR` -> `GOOGLEWORKSPACE_TOKENS_ENV_VAR`
+   - `GSUITE_AUTH_METHOD` -> `GOOGLEWORKSPACE_AUTH_METHOD`
+
+2. **APIs**:
+   - Ensure the **Cloud Identity API** is enabled in addition to the Admin SDK API.
+
+3. **Scopes**:
+   - The new module requires additional scopes. Ensure your service account or OAuth app has the following:
+     - `https://www.googleapis.com/auth/admin.directory.customer.readonly` (New)
+     - `https://www.googleapis.com/auth/admin.directory.user.readonly`
+     - `https://www.googleapis.com/auth/cloud-identity.groups.readonly` (New)
+     - `https://www.googleapis.com/auth/cloud-identity.devices.readonly` (New)
+     - `https://www.googleapis.com/auth/cloud-platform`
+   - You can also delete the `https://www.googleapis.com/auth/admin.directory.group.readonly` scope that is no longer needed.

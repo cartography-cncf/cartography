@@ -505,9 +505,7 @@ def sync_googleworkspace_groups(
 
     :param neo4j_session: The Neo4j session
     :param cloudidentity: Google Cloud Identity resource object created by `googleapiclient.discovery.build()`.
-    Used for fetching groups via Cloud Identity API.
-    :param cloudidentity: Google CloudIdentity resource object created by `googleapiclient.discovery.build()`.
-    Used for fetching group members via Admin Directory API.
+    Used for fetching groups and memberships via Cloud Identity API.
     See https://googleapis.github.io/google-api-python-client/docs/epy/googleapiclient.discovery-module.html#build.
     :param googleworkspace_update_tag: The timestamp value to set our new Neo4j nodes with
     :param common_job_parameters: Parameters to carry to the Neo4j jobs
