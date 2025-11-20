@@ -220,7 +220,9 @@ github_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="fullname"),
-                # TODO: has_2fa_enabled only on rel
+                OntologyFieldMapping(
+                    ontology_field="has_mfa", node_field="has_2fa_enabled"
+                ),
             ],
         ),
     ],

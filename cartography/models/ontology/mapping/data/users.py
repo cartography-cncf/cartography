@@ -30,6 +30,11 @@ useraccount_mapping = OntologyMapping(
             query="MATCH (sso:AWSSSOUser) MATCH (u:User)-[:HAS_ACCOUNT]->(:UserAccount {id: sso.external_id}) MERGE (u)-[r:HAS_ACCOUNT]->(sso) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
             iterative=False,
         ),
+        OntologyRelMapping(
+            __comment__="Link GitHubUser to User based on organization_verified_domain_emails on GitHubUser node",
+            query="MATCH (u:User) WHERE u.email is not NULL MATCH (g:GitHubUser) WHERE u.email in g.organization_verified_domain_emails MERGE (u)-[r:HAS_ACCOUNT]->(g) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
+        ),
     ],
 )
 
