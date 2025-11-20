@@ -63,6 +63,9 @@
 ```{include} ../modules/github/schema.md
 ```
 
+```{include} ../modules/googleworkspace/schema.md
+```
+
 ```{include} ../modules/gsuite/schema.md
 ```
 

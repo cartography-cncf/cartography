@@ -53,6 +53,9 @@ class BaseGitHubUserNodeProperties(CartographyNodeProperties):
     is_enterprise_owner: PropertyRef = PropertyRef("isEnterpriseOwner")
     email: PropertyRef = PropertyRef("email")
     company: PropertyRef = PropertyRef("company")
+    organization_verified_domain_emails: PropertyRef = PropertyRef(
+        "organizationVerifiedDomainEmails"
+    )
 
 
 @dataclass(frozen=True)

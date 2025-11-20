@@ -416,6 +416,21 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-containerservice"
+version = "39.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/eb/db/0b0263f3fe50d8c5f1adb1b8e1575fc9010dc36a08e5527ffe43a8b6a1d0/azure_mgmt_containerservice-39.1.0.tar.gz", hash = "sha256:6f0c3fe44e937e8efd0b6037be1023923599a52ce57b811e3056d80b7f9738d0", size = 188641 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8b/d5/a8076a4e665687f040fe2eb4547a74314a6bd0634ecdaa38bfd1fcb773ae/azure_mgmt_containerservice-39.1.0-py3-none-any.whl", hash = "sha256:b46d0eac51a4cfb80533e41b266246ccbe7607d21c4ae6bfbb1f9fb90c6e1244", size = 207739 },
+]
+
+[[package]]
 name = "azure-mgmt-core"
 version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -455,6 +470,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/bb/68/24a2921b66827a571a3da75cc12289b7029a7c436087c0c5b2b4ca387aa3/azure_mgmt_eventgrid-10.4.0.tar.gz", hash = "sha256:303e5e27cf4bb5ec833ba4e5a9ef70b5bc410e190412ec47cde59d82e413fb7e", size = 258796 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8d/c7/6dfac325b4b081038aa3495e048740b44d0a68b7da97d922e0aa47a67351/azure_mgmt_eventgrid-10.4.0-py3-none-any.whl", hash = "sha256:5e4637245bbff33298d5f427971b870dbb03d873a3ef68f328190a7b7a38c56f", size = 353207 },
+]
+
+[[package]]
+name = "azure-mgmt-datafactory"
+version = "9.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fc/7a/253f8d0b4c3971ad0f11408b80c3429dc75408834e219ed2f0d928b4a586/azure_mgmt_datafactory-9.2.0.tar.gz", hash = "sha256:5132e9c24c441ac225f2a60225924baa55079ca81eff7db99a70d661d64bb0d7", size = 484275, upload-time = "2025-04-21T04:21:28.539Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/dd/2e7b6bac7420a05bc4ad17cb64099948117b12ca50ea68d6d4665867085e/azure_mgmt_datafactory-9.2.0-py3-none-any.whl", hash = "sha256:d870a7a6099227e91d1c258a956c2aa32c2ea4c0a4409913d8f215887349f128", size = 554231, upload-time = "2025-04-21T04:21:30.956Z" },
 ]
 
 [[package]]
@@ -711,7 +741,7 @@ wheels = [
 
 [[package]]
 name = "cartography"
-version = "0.120.1.dev17+g68ef4353f.d20251111"
+version = "0.120.1.dev18+gedc85a0c5.d20251113"
 source = { editable = "." }
 dependencies = [
     { name = "adal" },
@@ -721,7 +751,9 @@ dependencies = [
     { name = "azure-mgmt-authorization" },
     { name = "azure-mgmt-compute" },
     { name = "azure-mgmt-containerinstance" },
+    { name = "azure-mgmt-containerservice" },
     { name = "azure-mgmt-cosmosdb" },
+    { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-eventgrid" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
@@ -765,7 +797,9 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-containerinstance" },
+    { name = "azure-mgmt-containerservice" },
     { name = "azure-mgmt-eventgrid" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
@@ -802,7 +836,9 @@ requires-dist = [
     { name = "azure-mgmt-authorization", specifier = ">=0.60.0" },
     { name = "azure-mgmt-compute", specifier = ">=5.0.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-containerservice", specifier = ">=30.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
+    { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
@@ -846,7 +882,9 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-containerservice", specifier = ">=30.0.0" },
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },

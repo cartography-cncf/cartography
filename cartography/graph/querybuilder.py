@@ -3,11 +3,6 @@ from dataclasses import asdict
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version
 from string import Template
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Set
-from typing import Tuple
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
@@ -18,20 +13,203 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
+from cartography.models.ontology.mapping import (
+    get_semantic_label_mapping_from_node_schema,
+)
+from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 
 logger = logging.getLogger(__name__)
 
 
+def _build_ontology_field_statement_invert_boolean(
+    mapping_field: OntologyFieldMapping,
+    property_ref: PropertyRef,
+) -> str:
+    # toBooleanOrNull will return a boolean or null if it can't be converted
+    # coalesce will return the first non-null value, so if toBooleanOrNull returns null,
+    # we invert the boolean value of the property_ref existence
+    # ex: "false", "0", "no" => false; anything else => true; null/absent => true
+    invert_boolean_template = Template(
+        "i.$node_property = (NOT(coalesce(toBooleanOrNull($property_ref), false)))"
+    )
+    return invert_boolean_template.safe_substitute(
+        node_property=f"_ont_{mapping_field.ontology_field}",
+        property_ref=property_ref,
+    )
+
+
+def _build_ontology_field_statement_to_boolean(
+    mapping_field: OntologyFieldMapping,
+    property_ref: PropertyRef,
+) -> str:
+    # toBoleanOrNull will return a boolean or null if it can't be converted
+    # coalesce will return the first non-null value, so if toBooleanOrNull returns null,
+    # it will return whether the property_ref is not null (i.e., true if property_ref exists)
+    # this way, any non-null value is treated as true
+    # ex: "true", "1", "yes" => true; anything else => true; null/absent => false
+    to_boolean_template = Template(
+        "i.$node_property = coalesce(toBooleanOrNull($property_ref), ($property_ref IS NOT NULL))"
+    )
+    return to_boolean_template.safe_substitute(
+        node_property=f"_ont_{mapping_field.ontology_field}",
+        property_ref=property_ref,
+    )
+
+
+def _build_ontology_field_statement_equal_boolean(
+    mapping_field: OntologyFieldMapping,
+    property_ref: PropertyRef,
+) -> str | None:
+    # we check if the property_ref is in the list of expected boolean values
+    equal_boolean_template = Template(
+        "i.$node_property = ($property_ref IN $property_values)"
+    )
+    extra_field_values = mapping_field.extra.get("values")
+    if extra_field_values is None:
+        # should not occure due to unit test but failing gracefully
+        logger.warning(
+            "equal_boolean special handling requires 'values' in extra for field %s",
+            mapping_field.ontology_field,
+        )
+        return None
+    if not isinstance(extra_field_values, list):
+        logger.warning(
+            "equal_boolean special handling 'values' in extra for field %s must be a list",
+            mapping_field.ontology_field,
+        )
+        return None
+    return equal_boolean_template.substitute(
+        node_property=f"_ont_{mapping_field.ontology_field}",
+        property_ref=property_ref,
+        property_values=extra_field_values,
+    )
+
+
+def _build_ontology_field_statement_or_boolean(
+    mapping_field: OntologyFieldMapping,
+    node_property_map: dict[str, PropertyRef],
+) -> str | None:
+    # The or_clause is needed to avoid comparing nulls to boolean values
+    # See: https://neo4j.com/docs/cypher-manual/current/values-and-types/working-with-null/#cypher-null-logical-operators
+    or_clause = Template("coalesce(toBooleanOrNull($property_ref), false)")
+    or_boolean_template = Template("i.$node_property = ($property_condition)")
+    extra_fields = mapping_field.extra.get("fields")
+    if extra_fields is None:
+        # should not occure due to unit test but failing gracefully
+        logger.warning(
+            "or_boolean special handling requires 'fields' in extra for field %s",
+            mapping_field.ontology_field,
+        )
+        return None
+    if not isinstance(extra_fields, list):
+        # should not occure due to unit test but failing gracefully
+        logger.warning(
+            "or_boolean special handling 'fields' in extra for field %s must be a list",
+            mapping_field.ontology_field,
+        )
+        return None
+
+    property_conditions = [
+        or_clause.substitute(
+            property_ref=node_property_map.get(mapping_field.node_field),
+        )
+    ]
+    for extra_field in mapping_field.extra.get("fields", []):
+        extra_property_ref = node_property_map.get(extra_field)
+        if not extra_property_ref:
+            # should not occure due to unit test but failing gracefully
+            logger.warning(
+                "Extra field '%s' not found in node properties for or_boolean special handling of field %s",
+                extra_field,
+                mapping_field.ontology_field,
+            )
+            continue
+        property_conditions.append(
+            or_clause.substitute(
+                property_ref=extra_property_ref,
+            )
+        )
+    full_property_condition = " OR ".join(property_conditions)
+    return or_boolean_template.substitute(
+        node_property=f"_ont_{mapping_field.ontology_field}",
+        property_condition=full_property_condition,
+    )
+
+
+def _build_ontology_node_properties_statement(
+    node_schema: CartographyNodeSchema,
+    node_property_map: dict[str, PropertyRef],
+) -> str:
+    # DOC
+    # Try to get the mapping for the given node schema
+    ontology_mapping = get_semantic_label_mapping_from_node_schema(node_schema)
+    if not ontology_mapping:
+        return ""
+
+    source = _get_module_from_schema(node_schema).rsplit(":", maxsplit=1)[-1]
+    set_clauses = [f"i._ont_source = '{source}'"]
+    for mapping_field in ontology_mapping.fields:
+        ontology_field_name = f"_ont_{mapping_field.ontology_field}"
+        node_propertyref = node_property_map.get(mapping_field.node_field)
+        if not node_propertyref:
+            # This should not occure due to unit test but failing gracefully
+            logger.warning(
+                "Field '%s' not found in node properties for node schema %s",
+                mapping_field.node_field,
+                node_schema.__class__.__name__,
+            )
+            continue
+        if mapping_field.special_handling == "invert_boolean":
+            set_clauses.append(
+                _build_ontology_field_statement_invert_boolean(
+                    mapping_field,
+                    node_propertyref,
+                )
+            )
+        elif mapping_field.special_handling == "to_boolean":
+            set_clauses.append(
+                _build_ontology_field_statement_to_boolean(
+                    mapping_field,
+                    node_propertyref,
+                )
+            )
+        elif mapping_field.special_handling == "equal_boolean":
+            equal_boolean_statement = _build_ontology_field_statement_equal_boolean(
+                mapping_field,
+                node_propertyref,
+            )
+            if equal_boolean_statement:
+                set_clauses.append(equal_boolean_statement)
+        elif mapping_field.special_handling == "or_boolean":
+            or_boolean_statement = _build_ontology_field_statement_or_boolean(
+                mapping_field, node_property_map
+            )
+            if or_boolean_statement:
+                set_clauses.append(or_boolean_statement)
+        else:
+            simple_field_template = Template("i.$node_property = $property_ref")
+            set_clauses.append(
+                simple_field_template.substitute(
+                    node_property=ontology_field_name,
+                    property_ref=node_propertyref,
+                )
+            )
+    if len(set_clauses) == 0:
+        return ""
+    # Add initial newline
+    return ",\n" + ",\n".join(set_clauses)
+
+
 def _build_node_properties_statement(
-    node_property_map: Dict[str, PropertyRef],
-    extra_node_labels: Optional[ExtraNodeLabels] = None,
+    node_property_map: dict[str, PropertyRef],
+    extra_node_labels: ExtraNodeLabels | None = None,
 ) -> str:
     """
     Generate a Neo4j clause that sets node properties using the given mapping of attribute names to PropertyRefs.
 
     As seen in this example,
 
-        node_property_map: Dict[str, PropertyRef] = {
+        node_property_map: dict[str, PropertyRef] = {
             'id': PropertyRef("Id"),
             'node_prop_1': PropertyRef("Prop1"),
             'node_prop_2': PropertyRef("Prop2", set_in_kwargs=True),
@@ -72,7 +250,7 @@ def _build_node_properties_statement(
 
 def _build_rel_properties_statement(
     rel_var: str,
-    rel_property_map: Optional[Dict[str, PropertyRef]] = None,
+    rel_property_map: dict[str, PropertyRef] | None = None,
 ) -> str:
     """
     Generate a Neo4j clause that sets relationship properties using the given mapping of attribute names to
@@ -80,7 +258,7 @@ def _build_rel_properties_statement(
 
     In this code example:
 
-        rel_property_map: Dict[str, PropertyRef] = {
+        rel_property_map: dict[str, PropertyRef] = {
             'rel_prop_1': PropertyRef("Prop1"),
             'rel_prop_2': PropertyRef("Prop2", static=True),
         }
@@ -176,13 +354,13 @@ def _build_where_clause_for_rel_match(
 
 def _asdict_with_validate_relprops(
     link: CartographyRelSchema,
-) -> Dict[str, PropertyRef]:
+) -> dict[str, PropertyRef]:
     """
     Give a helpful error message when forgetting to put `()` when instantiating a CartographyRelSchema, as this
     isn't always caught by IDEs.
     """
     try:
-        rel_props_as_dict: Dict[str, PropertyRef] = asdict(link.properties)
+        rel_props_as_dict: dict[str, PropertyRef] = asdict(link.properties)
     except TypeError as e:
         if (
             e.args
@@ -200,7 +378,7 @@ def _asdict_with_validate_relprops(
 
 
 def _build_attach_sub_resource_statement(
-    sub_resource_link: Optional[CartographyRelSchema] = None,
+    sub_resource_link: CartographyRelSchema | None = None,
 ) -> str:
     """
     Generates a Neo4j statement to attach a sub resource to a node. A 'sub resource' is a term we made up to describe
@@ -240,7 +418,7 @@ def _build_attach_sub_resource_statement(
         SubResourceRelLabel=sub_resource_link.rel_label,
     )
 
-    rel_props_as_dict: Dict[str, PropertyRef] = _asdict_with_validate_relprops(
+    rel_props_as_dict: dict[str, PropertyRef] = _asdict_with_validate_relprops(
         sub_resource_link,
     )
 
@@ -260,7 +438,7 @@ def _build_attach_sub_resource_statement(
 
 
 def _build_attach_additional_links_statement(
-    additional_relationships: Optional[OtherRelationships] = None,
+    additional_relationships: OtherRelationships | None = None,
 ) -> str:
     """
     Generates a Neo4j statement to attach one or more CartographyRelSchemas to node(s) previously mentioned in the
@@ -333,8 +511,8 @@ def _build_attach_additional_links_statement(
 
 
 def _build_attach_relationships_statement(
-    sub_resource_relationship: Optional[CartographyRelSchema],
-    other_relationships: Optional[OtherRelationships],
+    sub_resource_relationship: CartographyRelSchema | None,
+    other_relationships: OtherRelationships | None,
 ) -> str:
     """
     Use Neo4j subqueries to attach sub resource and/or other relationships.
@@ -392,8 +570,8 @@ def rel_present_on_node_schema(
 
 def filter_selected_relationships(
     node_schema: CartographyNodeSchema,
-    selected_relationships: Set[CartographyRelSchema],
-) -> Tuple[Optional[CartographyRelSchema], Optional[OtherRelationships]]:
+    selected_relationships: set[CartographyRelSchema],
+) -> tuple[CartographyRelSchema | None, OtherRelationships | None]:
     """
     Ensures that selected relationships specified to build_ingestion_query() are actually present on
     node_schema.sub_resource_relationship and node_schema.other_relationships.
@@ -436,7 +614,7 @@ def filter_selected_relationships(
 
 def build_ingestion_query(
     node_schema: CartographyNodeSchema,
-    selected_relationships: Optional[Set[CartographyRelSchema]] = None,
+    selected_relationships: set[CartographyRelSchema] | None = None,
 ) -> str:
     """
     Generates a Neo4j query from the given CartographyNodeSchema to ingest the specified nodes and relationships so that
@@ -466,18 +644,19 @@ def build_ingestion_query(
                 i._module_name = "$module_name",
                 i._module_version = "$module_version",
                 $set_node_properties_statement
+                $set_ontology_node_properties_statement
             $attach_relationships_statement
         """,
     )
 
     node_props: CartographyNodeProperties = node_schema.properties
-    node_props_as_dict: Dict[str, PropertyRef] = asdict(node_props)
+    node_props_as_dict: dict[str, PropertyRef] = asdict(node_props)
 
     # Handle selected relationships
-    sub_resource_rel: Optional[CartographyRelSchema] = (
+    sub_resource_rel: CartographyRelSchema | None = (
         node_schema.sub_resource_relationship
     )
-    other_rels: Optional[OtherRelationships] = node_schema.other_relationships
+    other_rels: OtherRelationships | None = node_schema.other_relationships
     if selected_relationships or selected_relationships == set():
         sub_resource_rel, other_rels = filter_selected_relationships(
             node_schema,
@@ -493,6 +672,10 @@ def build_ingestion_query(
             node_props_as_dict,
             node_schema.extra_node_labels,
         ),
+        set_ontology_node_properties_statement=_build_ontology_node_properties_statement(
+            node_schema,
+            node_props_as_dict,
+        ),
         attach_relationships_statement=_build_attach_relationships_statement(
             sub_resource_rel,
             other_rels,
@@ -501,7 +684,7 @@ def build_ingestion_query(
     return ingest_query
 
 
-def build_create_index_queries(node_schema: CartographyNodeSchema) -> List[str]:
+def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
     """
     Generate queries to create indexes for the given CartographyNodeSchema and all node types attached to it via its
     relationships.
@@ -551,7 +734,7 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> List[str]:
             )
 
     # Now, include extra indexes defined by the module author on the node schema's property refs.
-    node_props_as_dict: Dict[str, PropertyRef] = asdict(node_schema.properties)
+    node_props_as_dict: dict[str, PropertyRef] = asdict(node_schema.properties)
     result.extend(
         [
             index_template.safe_substitute(

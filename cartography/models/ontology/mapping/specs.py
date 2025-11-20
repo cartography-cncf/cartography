@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -10,6 +11,14 @@ class OntologyFieldMapping:
         ontology_field: The field name in the ontology.
         node_field: The corresponding field name in the module's node.
         required: Whether this field is required to create an ontology node or not.
+        special_handling: Any special handling required for this field (e.g., "invert_boolean").
+        extra: Additional info that may be relevant for this mapping (only used for specific special_handling).
+
+    Available special_handling options:
+        - "invert_boolean": Inverts the boolean value of the field (e.g., True becomes False and vice versa).
+        - "to_boolean": Converts the field value to a boolean, treating any non-null value as True.
+        - "or_boolean": Combines multiple boolean fields (provided in extra['fields']) using a logical OR operation .
+        - "equal_boolean": Compares the field value to a specified boolean value (True/False) provided in extra['value'].
 
     Example:
         OntologyFieldMapping(ontology_field="email", node_field="email_address", required=True)
@@ -20,6 +29,8 @@ class OntologyFieldMapping:
     ontology_field: str
     node_field: str
     required: bool = False
+    special_handling: str | None = None
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
