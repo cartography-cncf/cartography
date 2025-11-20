@@ -33,27 +33,6 @@ useraccount_mapping = OntologyMapping(
     ],
 )
 
-googleworkspace_mapping = OntologyMapping(
-    module_name="googleworkspace",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="GoogleWorkspaceUser",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="email", node_field="primary_email", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="firstname", node_field="given_name"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="lastname", node_field="family_name"
-                ),
-                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
-            ],
-        ),
-    ],
-)
-
 
 USERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "ontology": useraccount_mapping,
