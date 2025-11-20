@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -87,6 +88,7 @@ class ECSContainerToECRImageRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSContainerSchema(CartographyNodeSchema):
     label: str = "ECSContainer"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
     properties: ECSContainerNodeProperties = ECSContainerNodeProperties()
     sub_resource_relationship: ECSContainerToAWSAccountRel = (
         ECSContainerToAWSAccountRel()
