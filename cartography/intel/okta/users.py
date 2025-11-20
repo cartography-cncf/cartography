@@ -162,7 +162,12 @@ def _load_okta_users(
     new_user.transition_to_status = user_data.transition_to_status,
     new_user.lastupdated = $okta_update_tag,
     new_user:UserAccount,
-    new_user._module_name = "cartography:okta"
+    new_user._module_name = "cartography:okta",
+    new_user._ont_email = user_data.email,
+    new_user._ont_firstname = user_data.first_name,
+    new_user._ont_lastname = user_data.last_name,
+    new_user._ont_lastactivity = user_data.last_login,
+    new_user._ont_source = "okta"
     WITH new_user, org
     MERGE (org)-[org_r:RESOURCE]->(new_user)
     ON CREATE SET org_r.firstseen = timestamp()

@@ -149,11 +149,45 @@ tailscale_mapping = OntologyMapping(
     ],
 )
 
+googleworkspace_mapping = OntologyMapping(
+    module_name="googleworkspace",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GoogleWorkspaceDevice",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="hostname", node_field="hostname", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os_version", node_field="os_version"
+                ),
+                OntologyFieldMapping(ontology_field="model", node_field="model"),
+                OntologyFieldMapping(
+                    ontology_field="manufacturer", node_field="manufacturer"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="serial_number", node_field="serial_number"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="platform", node_field="device_type"
+                ),
+            ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link Device to User based on GoogleWorkspaceUser-GoogleWorkspaceDevice relationship",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:GoogleWorkspaceUser)-[:OWNS]-(:GoogleWorkspaceDevice)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
+        )
+    ],
+)
 
 DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bigfix": bigfix_mapping,
     "crowdstrike": crowdstrike_mapping,
     "duo": duo_mapping,
+    "googleworkspace": googleworkspace_mapping,
     "kandji": kandji_mapping,
     "snipeit": snipeit_mapping,
     "tailscale": tailscale_mapping,

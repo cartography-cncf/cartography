@@ -12,7 +12,9 @@ class SpaceliftAccountNodeProperties(CartographyNodeProperties):
     """
 
     id: PropertyRef = PropertyRef("id")
-    account_id: PropertyRef = PropertyRef("account_id", extra_index=True)
+    spacelift_account_id: PropertyRef = PropertyRef(
+        "spacelift_account_id", extra_index=True
+    )
     name: PropertyRef = PropertyRef("name")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

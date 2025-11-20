@@ -79,6 +79,8 @@ class Config:
     :param digitalocean_token: DigitalOcean access token. Optional.
     :type permission_relationships_file: str
     :param permission_relationships_file: File path for the resource permission relationships file. Optional.
+    :type azure_permission_relationships_file: str
+    :param azure_permission_relationships_file: File path for the Azure permission relationships file. Optional.
     :type jamf_base_uri: string
     :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.com/JSSResource. Optional.
     :type jamf_user: string
@@ -111,6 +113,10 @@ class Config:
     :param gsuite_auth_method: Auth method (delegated, oauth) used for Google Workspace. Optional.
     :type gsuite_config: str
     :param gsuite_config: Base64 encoded config object or config file path for Google Workspace. Optional.
+    :type googleworkspace_auth_method: str
+    :param googleworkspace_auth_method: Auth method (delegated, oauth, default) used for Google Workspace. Optional.
+    :type googleworkspace_config: str
+    :param googleworkspace_config: Base64 encoded config object or config file path for Google Workspace. Optional.
     :type lastpass_cid: str
     :param lastpass_cid: Lastpass account ID. Optional.
     :type lastpass_provhash: str
@@ -183,11 +189,15 @@ class Config:
     :type spacelift_api_endpoint: string
     :param spacelift_api_endpoint: Spacelift GraphQL API endpoint. Optional.
     :type spacelift_api_token: string
-    :param spacelift_api_token: Spacelift API token for authentication. Optional.
+    :param spacelift_api_token: Spacelift API token for authentication. Optional (can use API key instead).
+    :type spacelift_api_key_id: string
+    :param spacelift_api_key_id: Spacelift API key ID for token exchange authentication. Optional (alternative to token).
+    :type spacelift_api_key_secret: string
+    :param spacelift_api_key_secret: Spacelift API key secret for token exchange authentication. Optional (alternative to token).
     :type spacelift_ec2_ownership_s3_bucket: string
     :param spacelift_ec2_ownership_s3_bucket: S3 bucket name containing EC2 ownership data from Athena. Optional.
-    :type spacelift_ec2_ownership_s3_key: string
-    :param spacelift_ec2_ownership_s3_key: S3 object key containing EC2 ownership data from Athena. Optional.
+    :type spacelift_ec2_ownership_s3_prefix: string
+    :param spacelift_ec2_ownership_s3_prefix: S3 prefix for EC2 ownership data from Athena. All JSON files under this prefix will be processed. Optional.
     :type keycloak_client_id: str
     :param keycloak_client_id: Keycloak client ID for API authentication. Optional.
     :type keycloak_client_secret: str
@@ -238,6 +248,7 @@ class Config:
         github_commit_lookback_days=30,
         digitalocean_token=None,
         permission_relationships_file=None,
+        azure_permission_relationships_file=None,
         jamf_base_uri=None,
         jamf_user=None,
         jamf_password=None,
@@ -260,6 +271,8 @@ class Config:
         crowdstrike_api_url=None,
         gsuite_auth_method=None,
         gsuite_config=None,
+        googleworkspace_auth_method=None,
+        googleworkspace_config=None,
         lastpass_cid=None,
         lastpass_provhash=None,
         bigfix_username=None,
@@ -296,8 +309,10 @@ class Config:
         sentinelone_account_ids=None,
         spacelift_api_endpoint=None,
         spacelift_api_token=None,
+        spacelift_api_key_id=None,
+        spacelift_api_key_secret=None,
         spacelift_ec2_ownership_s3_bucket=None,
-        spacelift_ec2_ownership_s3_key=None,
+        spacelift_ec2_ownership_s3_prefix=None,
         keycloak_client_id=None,
         keycloak_client_secret=None,
         keycloak_realm=None,
@@ -340,6 +355,7 @@ class Config:
         self.github_commit_lookback_days = github_commit_lookback_days
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
+        self.azure_permission_relationships_file = azure_permission_relationships_file
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
         self.jamf_password = jamf_password
@@ -362,6 +378,8 @@ class Config:
         self.crowdstrike_api_url = crowdstrike_api_url
         self.gsuite_auth_method = gsuite_auth_method
         self.gsuite_config = gsuite_config
+        self.googleworkspace_auth_method = googleworkspace_auth_method
+        self.googleworkspace_config = googleworkspace_config
         self.lastpass_cid = lastpass_cid
         self.lastpass_provhash = lastpass_provhash
         self.bigfix_username = bigfix_username
@@ -398,8 +416,10 @@ class Config:
         self.sentinelone_account_ids = sentinelone_account_ids
         self.spacelift_api_endpoint = spacelift_api_endpoint
         self.spacelift_api_token = spacelift_api_token
+        self.spacelift_api_key_id = spacelift_api_key_id
+        self.spacelift_api_key_secret = spacelift_api_key_secret
         self.spacelift_ec2_ownership_s3_bucket = spacelift_ec2_ownership_s3_bucket
-        self.spacelift_ec2_ownership_s3_key = spacelift_ec2_ownership_s3_key
+        self.spacelift_ec2_ownership_s3_prefix = spacelift_ec2_ownership_s3_prefix
         self.keycloak_client_id = keycloak_client_id
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm

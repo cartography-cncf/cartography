@@ -1,13 +1,19 @@
+from dataclasses import asdict
 from typing import Type
 
 import cartography.models
 from cartography.models.core.nodes import CartographyNodeSchema
-from cartography.models.ontology.mapping import ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
+from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
+from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
 from cartography.sync import TOP_LEVEL_MODULES
 from tests.utils import load_models
 
 MODELS = list(load_models(cartography.models))
+ALL_MAPPINGS = {
+    **ONTOLOGY_NODES_MAPPING,
+    **SEMANTIC_LABELS_MAPPING,
+}
 
 # Unfortunately, some nodes are not yet migrated to the new data model system.
 # We need to ignore them in this test for now as we are not able to load their model class.
@@ -17,10 +23,19 @@ OLD_FORMAT_NODES = [
 ]
 
 
+def _get_model_by_node_label(node_label: str) -> Type[CartographyNodeSchema] | None:
+    for _, node_class in MODELS:
+        if not issubclass(node_class, CartographyNodeSchema):
+            continue
+        if node_class.label == node_label:
+            return node_class
+    return None
+
+
 def test_ontology_mapping_modules():
     # Verify that all modules defined in the ontology mapping exist in TOP_LEVEL_MODULES
     # and that module names match between the mapping and the key.
-    for mappings in ONTOLOGY_MAPPING.values():
+    for mappings in ONTOLOGY_NODES_MAPPING.values():
         for category, mapping in mappings.items():
             assert (
                 category in TOP_LEVEL_MODULES
@@ -30,20 +45,22 @@ def test_ontology_mapping_modules():
             ), f"Ontology mapping module name '{mapping.module_name}' does not match the key '{category}'."
 
 
-def _get_model_by_node_label(node_label: str) -> Type[CartographyNodeSchema] | None:
-    for _, node_class in list(load_models(cartography.models)):
-        if not issubclass(node_class, CartographyNodeSchema):
-            continue
-        if node_class.label == node_label:
-            return node_class
-    return None
+def test_ontology_mapping_categories():
+    # Verify that field used as id by the ontology model are marked as required in the mapping.
+    for category, category_mappings in ONTOLOGY_NODES_MAPPING.items():
+        assert (
+            category in ONTOLOGY_MODELS
+        ), f"Module '{category}' not found in ONTOLOGY_MODELS."
 
 
 def test_ontology_mapping_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.
-    for _, mappings in ONTOLOGY_MAPPING.items():
+    for _, mappings in ALL_MAPPINGS.items():
         for module_name, mapping in mappings.items():
+            # Skip ontology module as it does not have a corresponding model
+            if module_name == "ontology":
+                continue
             for node in mapping.nodes:
                 # TODO: Remove that uggly exception once all models are migrated to the new data model system
                 if node.node_label in OLD_FORMAT_NODES:
@@ -68,10 +85,10 @@ def test_ontology_mapping_fields():
 
 def test_ontology_mapping_required_fields():
     # Verify that field used as id by the ontology model are marked as required in the mapping.
-    for category, category_mappings in ONTOLOGY_MAPPING.items():
+    for category, category_mappings in ONTOLOGY_NODES_MAPPING.items():
         assert (
             category in ONTOLOGY_MODELS
-        ), f"Module '{category}' not found in ONTOLOGY_MODELS, please update the unit test."
+        ), f"Module '{category}' not found in ONTOLOGY_MODELS."
         model_class = ONTOLOGY_MODELS[category]
         data_dict_id_field = model_class().properties.id.name
         for module, mapping in category_mappings.items():
@@ -90,4 +107,68 @@ def test_ontology_mapping_required_fields():
                         f"Node '{node.node_label}' in module '{category}.{module}' does not have the id field "
                         f"'{data_dict_id_field}' mapped in the ontology mapping. "
                         "You should add it or set `eligible_for_source` to False."
+                    )
+
+
+def test_ontology_mapping_prefix_usage():
+    # Verify that no mapping field uses the 'prefix' attribute
+    for _, mappings in SEMANTIC_LABELS_MAPPING.items():
+        for module_name, mapping in mappings.items():
+            for node in mapping.nodes:
+                for mapping_field in node.fields:
+                    assert not mapping_field.ontology_field.startswith("_ont_"), (
+                        f"Mapping field '{mapping_field.node_field}' in node '{node.node_label}' of module '{module_name}' "
+                        "should not use ontology fields starting with '_ont_' (prefix are added automatically)."
+                    )
+
+
+def test_ontology_mapping_or_boolean_fields():
+    # Verify that all ontology fields in the mapping exist as extra indexed fields
+    # in the corresponding module's model.
+    for _, mappings in SEMANTIC_LABELS_MAPPING.items():
+        for module_name, mapping in mappings.items():
+            for node in mapping.nodes:
+                for mapping_field in node.fields:
+                    if mapping_field.special_handling != "or_boolean":
+                        continue
+                    extra_fields = mapping_field.extra.get("fields")
+                    assert extra_fields is not None, (
+                        f"Mapping field '{mapping_field.node_field}' in node '{node.node_label}' of module '{module_name}' "
+                        "is marked as 'or_boolean' but has no 'fields' defined in extra."
+                    )
+                    node_class = _get_model_by_node_label(node.node_label)
+                    assert node_class is not None, (
+                        f"Model class for node label '{node.node_label}' "
+                        f"in module '{module_name}' not found."
+                    )
+                    node_properties = asdict(node_class().properties)
+
+                    for extra_field in extra_fields:
+                        assert isinstance(extra_field, str), (
+                            f"Extra field '{extra_field}' in mapping field '{mapping_field.node_field}' "
+                            f"in node '{node.node_label}' of module '{module_name}' should be a string."
+                        )
+                        assert extra_field in node_properties, (
+                            f"Extra field '{extra_field}' in mapping field '{mapping_field.node_field}' "
+                            f"in node '{node.node_label}' of module '{module_name}' not found in model."
+                        )
+
+
+def test_omtology_mapping_equal_boolean_fields():
+    # Verify that all ontology fields in the mapping exist as extra indexed fields
+    # in the corresponding module's model.
+    for _, mappings in SEMANTIC_LABELS_MAPPING.items():
+        for module_name, mapping in mappings.items():
+            for node in mapping.nodes:
+                for mapping_field in node.fields:
+                    if mapping_field.special_handling != "equal_boolean":
+                        continue
+                    extra_values = mapping_field.extra.get("values")
+                    assert extra_values is not None, (
+                        f"Mapping field '{mapping_field.node_field}' in node '{node.node_label}' of module '{module_name}' "
+                        "is marked as 'equal_boolean' but has no 'values' defined in extra."
+                    )
+                    assert isinstance(extra_values, list), (
+                        f"'values' in mapping field '{mapping_field.node_field}' "
+                        f"in node '{node.node_label}' of module '{module_name}' should be a list."
                     )

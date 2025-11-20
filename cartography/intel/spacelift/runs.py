@@ -65,9 +65,6 @@ query {
             createdAt
             finished
             triggeredBy
-            worker {
-                id
-            }
         }
     }
 }
@@ -212,10 +209,6 @@ def transform_runs(
         commit = run.get("commit", {})
         commit_hash = commit.get("hash") if commit else None
 
-        # Extract worker ID from nested worker object
-        worker = run.get("worker", {})
-        worker_id = worker.get("id") if worker else None
-
         transformed_run = {
             "id": run_id,
             "run_type": run.get("type"),
@@ -225,9 +218,8 @@ def transform_runs(
             "created_at": run.get("createdAt"),
             "stack_id": run.get("stack"),
             "triggered_by_user_id": run.get("triggeredBy"),
-            "worker_id": worker_id,
             "affected_instance_ids": affected_instance_ids,
-            "account_id": account_id,
+            "spacelift_account_id": account_id,
         }
 
         result.append(transformed_run)
@@ -304,7 +296,7 @@ def extract_commits_from_runs(
             "author_login": commit.get("authorLogin"),
             "author_name": commit.get("authorName"),
             "author_user_id": triggered_by,
-            "account_id": account_id,
+            "spacelift_account_id": account_id,
         }
 
         logger.debug(
@@ -326,16 +318,16 @@ def load_users(
     Load Spacelift users data into Neo4j using the data model.
     """
 
-    # Add account_id to each user for the relationship
+    # Add spacelift_account_id to each user for the relationship
     for user in users_data:
-        user["account_id"] = account_id
+        user["spacelift_account_id"] = account_id
 
     load(
         neo4j_session,
         SpaceliftUserSchema(),
         users_data,
         lastupdated=update_tag,
-        account_id=account_id,
+        spacelift_account_id=account_id,
     )
 
     logger.info(f"Loaded {len(users_data)} Spacelift users")
@@ -355,7 +347,7 @@ def load_runs(
         SpaceliftRunSchema(),
         runs_data,
         lastupdated=update_tag,
-        account_id=account_id,
+        spacelift_account_id=account_id,
     )
 
     logger.info(f"Loaded {len(runs_data)} Spacelift runs")
@@ -376,7 +368,7 @@ def load_commits(
         SpaceliftGitCommitSchema(),
         commits_data,
         lastupdated=update_tag,
-        account_id=account_id,
+        spacelift_account_id=account_id,
     )
 
     logger.info(f"Loaded {len(commits_data)} Git commits")
