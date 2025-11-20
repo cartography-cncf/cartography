@@ -94,6 +94,38 @@ gsuite_mapping = OntologyMapping(
         ),
     ],
 )
+googleworkspace_mapping = OntologyMapping(
+    module_name="googleworkspace",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GoogleWorkspaceUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="given_name"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastname", node_field="family_name"
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa", node_field="is_enrolled_in_2_sv"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="suspended",
+                    extra={"fields": ["archived"]},
+                    special_handling="or_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_login_time"
+                ),
+            ],
+        ),
+    ],
+)
 anthropic_mapping = OntologyMapping(
     module_name="anthropic",
     nodes=[
@@ -354,4 +386,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "tailscale": tailscale_mapping,
     "okta": okta_mapping,
     "aws": aws_mapping,
+    "googleworkspace": googleworkspace_mapping,
 }
