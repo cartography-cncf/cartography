@@ -2,7 +2,6 @@ from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
-
 entra_mapping = OntologyMapping(
     module_name="entra",
     nodes=[
@@ -368,23 +367,20 @@ slack_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="SlackUser",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="email", node_field="email"
-                ),
+                OntologyFieldMapping(ontology_field="email", node_field="email"),
                 OntologyFieldMapping(ontology_field="username", node_field="name"),
                 OntologyFieldMapping(
                     ontology_field="firstname", node_field="first_name"
                 ),
                 OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="real_name"),
+                OntologyFieldMapping(ontology_field="has_mfa", node_field="has_mfa"),
+                OntologyFieldMapping(ontology_field="inactive", node_field="deleted"),
                 OntologyFieldMapping(
-                    ontology_field="has_mfa", node_field="mfa_enabled"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="inactive", node_field="deleted"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="system_account", node_field="is_bot", extra={"fields": ["is_app_user"]}, special_handling="or_boolean",
+                    ontology_field="system_account",
+                    node_field="is_bot",
+                    extra={"fields": ["is_app_user"]},
+                    special_handling="or_boolean",
                 ),
             ],
         ),
