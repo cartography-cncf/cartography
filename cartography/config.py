@@ -113,6 +113,10 @@ class Config:
     :param gsuite_auth_method: Auth method (delegated, oauth) used for Google Workspace. Optional.
     :type gsuite_config: str
     :param gsuite_config: Base64 encoded config object or config file path for Google Workspace. Optional.
+    :type googleworkspace_auth_method: str
+    :param googleworkspace_auth_method: Auth method (delegated, oauth, default) used for Google Workspace. Optional.
+    :type googleworkspace_config: str
+    :param googleworkspace_config: Base64 encoded config object or config file path for Google Workspace. Optional.
     :type lastpass_cid: str
     :param lastpass_cid: Lastpass account ID. Optional.
     :type lastpass_provhash: str
@@ -261,6 +265,8 @@ class Config:
         crowdstrike_api_url=None,
         gsuite_auth_method=None,
         gsuite_config=None,
+        googleworkspace_auth_method=None,
+        googleworkspace_config=None,
         lastpass_cid=None,
         lastpass_provhash=None,
         bigfix_username=None,
@@ -363,6 +369,8 @@ class Config:
         self.crowdstrike_api_url = crowdstrike_api_url
         self.gsuite_auth_method = gsuite_auth_method
         self.gsuite_config = gsuite_config
+        self.googleworkspace_auth_method = googleworkspace_auth_method
+        self.googleworkspace_config = googleworkspace_config
         self.lastpass_cid = lastpass_cid
         self.lastpass_provhash = lastpass_provhash
         self.bigfix_username = bigfix_username
