@@ -120,7 +120,6 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 scopes=OAUTH_SCOPES,
             )
             creds.refresh(Request())
-            creds = creds.create_scoped(OAUTH_SCOPES)
         except DefaultCredentialsError as e:
             logger.error(
                 (
