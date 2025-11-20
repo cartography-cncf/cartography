@@ -213,7 +213,8 @@ def transform_findings(findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def transform_detectors(
-    detectors: List[Dict[str, Any]], aws_account_id: str,
+    detectors: List[Dict[str, Any]],
+    aws_account_id: str,
 ) -> List[Dict[str, Any]]:
     """Transform GuardDuty detector metadata into schema format."""
     transformed: List[Dict[str, Any]] = []
@@ -328,7 +329,8 @@ def sync(
 
         detectors = get_detector_details(boto3_session, region, detector_ids)
         transformed_detectors = transform_detectors(
-            detectors, current_aws_account_id,
+            detectors,
+            current_aws_account_id,
         )
 
         load_guardduty_detectors(

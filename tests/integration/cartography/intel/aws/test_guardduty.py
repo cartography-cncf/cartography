@@ -4,8 +4,8 @@ from unittest.mock import patch
 import cartography.intel.aws.guardduty
 from cartography.intel.aws.guardduty import _get_severity_range_for_threshold
 from cartography.intel.aws.guardduty import sync
-from tests.data.aws.guardduty import GET_FINDINGS
 from tests.data.aws.guardduty import GET_DETECTOR_DETAILS
+from tests.data.aws.guardduty import GET_FINDINGS
 from tests.data.aws.guardduty import LIST_DETECTORS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -57,7 +57,10 @@ def mock_get_findings_with_severity_filter(
     side_effect=mock_get_findings_with_severity_filter,
 )
 def test_sync_guardduty_findings(
-    mock_get_findings, mock_get_detector_details, mock_get_detectors, neo4j_session,
+    mock_get_findings,
+    mock_get_detector_details,
+    mock_get_detectors,
+    neo4j_session,
 ):
     """
     Test that GuardDuty findings are correctly synced to the graph and create proper relationships.
