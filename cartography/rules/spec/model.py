@@ -161,14 +161,5 @@ class Rule:
                     parsed_output["extra"][key] = value
                 else:
                     parsed_output[key] = value
-            try:
-                # Try to parse normally
-                result.append(self.output_model(**parsed_output))
-            except ValidationError as e:
-                # Handle validation errors
-                logger.warning(
-                    "Validation error parsing rule output for rule %s: %s",
-                    self.id,
-                    type(e).__name__,
-                )
+            result.append(self.output_model(**parsed_output))
         return result
