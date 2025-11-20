@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.models.aws.guardduty.detectors import GuardDutyDetectorSchema
 from cartography.models.aws.guardduty.findings import GuardDutyFindingSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
@@ -73,6 +74,40 @@ def get_detectors(
 
     logger.info(f"Found {len(detector_ids)} GuardDuty detectors in region {region}")
     return detector_ids
+
+
+@aws_handle_regions
+def get_detector_details(
+    boto3_session: boto3.session.Session,
+    region: str,
+    detector_ids: List[str],
+) -> List[Dict[str, Any]]:
+    """
+    Get metadata about GuardDuty detectors in a region.
+    """
+    if not detector_ids:
+        return []
+
+    client = boto3_session.client("guardduty", region_name=region)
+    detectors: List[Dict[str, Any]] = []
+
+    for detector_id in detector_ids:
+        detector = client.get_detector(DetectorId=detector_id)
+
+        detectors.append(
+            {
+                "id": detector_id,
+                "findingpublishingfrequency": detector.get(
+                    "FindingPublishingFrequency",
+                ),
+                "service_role": detector.get("ServiceRole"),
+                "status": detector.get("Status"),
+                "createdat": detector.get("CreatedAt"),
+                "updatedat": detector.get("UpdatedAt"),
+            },
+        )
+
+    return detectors
 
 
 @aws_handle_regions
@@ -177,6 +212,29 @@ def transform_findings(findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return transformed
 
 
+def transform_detectors(
+    detectors: List[Dict[str, Any]], aws_account_id: str,
+) -> List[Dict[str, Any]]:
+    """Transform GuardDuty detector metadata into schema format."""
+    transformed: List[Dict[str, Any]] = []
+    for detector in detectors:
+        transformed.append(
+            {
+                "id": detector["id"],
+                "status": detector.get("status"),
+                "findingpublishingfrequency": detector.get(
+                    "findingpublishingfrequency",
+                ),
+                "service_role": detector.get("service_role"),
+                "createdat": detector.get("createdat"),
+                "updatedat": detector.get("updatedat"),
+                "accountid": aws_account_id,
+            },
+        )
+
+    return transformed
+
+
 @timeit
 def load_guardduty_findings(
     neo4j_session: neo4j.Session,
@@ -203,6 +261,29 @@ def load_guardduty_findings(
 
 
 @timeit
+def load_guardduty_detectors(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """Load GuardDuty detector information into the graph."""
+    logger.info(
+        f"Loading {len(data)} GuardDuty detectors for region {region} into graph.",
+    )
+
+    load(
+        neo4j_session,
+        GuardDutyDetectorSchema(),
+        data,
+        lastupdated=update_tag,
+        Region=region,
+        AWS_ID=aws_account_id,
+    )
+
+
+@timeit
 def cleanup_guardduty(
     neo4j_session: neo4j.Session, common_job_parameters: Dict
 ) -> None:
@@ -210,10 +291,12 @@ def cleanup_guardduty(
     Run GuardDuty cleanup job.
     """
     logger.debug("Running GuardDuty cleanup job.")
-    cleanup_job = GraphJob.from_node_schema(
-        GuardDutyFindingSchema(), common_job_parameters
-    )
-    cleanup_job.run(neo4j_session)
+    cleanup_jobs = [
+        GraphJob.from_node_schema(GuardDutyDetectorSchema(), common_job_parameters),
+        GraphJob.from_node_schema(GuardDutyFindingSchema(), common_job_parameters),
+    ]
+    for cleanup_job in cleanup_jobs:
+        cleanup_job.run(neo4j_session)
 
 
 @timeit
@@ -226,7 +309,7 @@ def sync(
     common_job_parameters: Dict,
 ) -> None:
     """
-    Sync GuardDuty findings for all regions.
+    Sync GuardDuty detectors and findings for all regions.
     Severity threshold filter is obtained from common_job_parameters.
     """
     # Get severity threshold from common job parameters
@@ -242,6 +325,19 @@ def sync(
         if not detector_ids:
             logger.info(f"No GuardDuty detectors found in region {region}, skipping.")
             continue
+
+        detectors = get_detector_details(boto3_session, region, detector_ids)
+        transformed_detectors = transform_detectors(
+            detectors, current_aws_account_id,
+        )
+
+        load_guardduty_detectors(
+            neo4j_session,
+            transformed_detectors,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
 
         all_findings = []
 
@@ -265,6 +361,14 @@ def sync(
     # Cleanup and metadata update (outside region loop)
     cleanup_guardduty(neo4j_session, common_job_parameters)
 
+    merge_module_sync_metadata(
+        neo4j_session,
+        group_type="AWSAccount",
+        group_id=current_aws_account_id,
+        synced_type="GuardDutyDetector",
+        update_tag=update_tag,
+        stat_handler=stat_handler,
+    )
     merge_module_sync_metadata(
         neo4j_session,
         group_type="AWSAccount",
