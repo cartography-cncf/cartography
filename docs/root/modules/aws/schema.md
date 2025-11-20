@@ -172,7 +172,7 @@ Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardd
 
 #### Relationships
 
-- GuardDuty detectors belong to AWS Accounts
+- AWS Accounts can enable GuardDuty detectors
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:GuardDutyDetector)
     ```
@@ -180,6 +180,23 @@ Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardd
 - GuardDuty detectors generate GuardDuty findings
     ```cypher
     (:GuardDutyDetector)<-[:DETECTED_BY]-(:GuardDutyFinding)
+    ```
+
+- "What regions have GuardDuty enabled?"
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(d:GuardDutyDetector)
+    RETURN DISTINCT a.name, d.region
+    ```
+
+- "Which EC2 instances are not covered by an enabled GuardDuty detector?"
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(i:EC2Instance)
+    WHERE NOT EXISTS {
+        MATCH (a)-[:RESOURCE]->(d:GuardDutyDetector{status: "ENABLED"})
+        WHERE d.region = i.region
+    }
+    RETURN a.name, i.instanceid, i.region
+    ORDER BY a.name, i.region
     ```
 
 ### GuardDutyFinding::Risk
