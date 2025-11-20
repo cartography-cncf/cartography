@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -96,6 +97,7 @@ class KubernetesContainerToKubernetesClusterRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
     properties: KubernetesContainerNodeProperties = KubernetesContainerNodeProperties()
     sub_resource_relationship: KubernetesContainerToKubernetesClusterRel = (
         KubernetesContainerToKubernetesClusterRel()
