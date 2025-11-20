@@ -1,6 +1,15 @@
+import json
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+from typing import no_type_check
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import model_validator
+
+logger = logging.getLogger(__name__)
 
 
 class Module(str, Enum):
@@ -21,8 +30,31 @@ class Module(str, Enum):
     OKTA = "Okta"
     """Okta identity and access management"""
 
-    CROSS_CLOUD = "CROSS_CLOUD"
+    CLOUDFLARE = "Cloudflare"
+    """Cloudflare services"""
+
+    CROSS_CLOUD = "Cross-Cloud"
     """Multi-cloud or provider-agnostic rules"""
+
+
+class Maturity(str, Enum):
+    """Maturity levels for Facts."""
+
+    EXPERIMENTAL = "EXPERIMENTAL"
+    """Experimental: Initial version, may be unstable or incomplete."""
+
+    STABLE = "STABLE"
+    """Stable: Well-tested and reliable for production use."""
+
+
+MODULE_TO_CARTOGRAPHY_INTEL = {
+    Module.AWS: "aws",
+    Module.AZURE: "azure",
+    Module.GCP: "gcp",
+    Module.GITHUB: "github",
+    Module.OKTA: "okta",
+    Module.CLOUDFLARE: "cloudflare",
+}
 
 
 @dataclass(frozen=True)
@@ -30,13 +62,15 @@ class Fact:
     """A Fact gathers information about the environment using a Cypher query."""
 
     id: str
-    """A descriptive identifier for the Fact. Should be globally unique within Cartography."""
+    """A descriptive identifier for the Fact. By convention, should be lowercase and use underscores like `rule-name-module`."""
     name: str
     """A descriptive name for the Fact."""
     description: str
     """More details about the Fact. Information on details that we're querying for."""
     module: Module
     """The Module that the Fact is associated with e.g. AWS, Azure, GCP, etc."""
+    maturity: Maturity
+    """The maturity level of the Fact query."""
     # TODO can we lint the queries. full-on integ tests here are overkill though.
     cypher_query: str
     """The Cypher query to gather information about the environment. Returns data field by field e.g. `RETURN node.prop1, node.prop2`."""
@@ -47,55 +81,84 @@ class Fact:
     """
 
 
-@dataclass(frozen=True)
-class Requirement:
-    """
-    A requirement within a security framework with one or more facts.
+class Finding(BaseModel):
+    """Base class for Rule finding models."""
 
-    Notes:
-    - `attributes` is reserved for metadata such as tags, categories, or references.
-    - Do NOT put evaluation logic, thresholds, or org-specific preferences here.
-    """
+    # TODO: make this property mandatory one all modules have been updated to new datamodel
+    source: str | None = None
+    """The source of the Fact data, e.g. the specific Cartography module that ingested the data. This field is useful especially for CROSS_CLOUD facts."""
+    extra: dict[str, Any] = {}
+    """A dictionary to hold any extra fields returned by the Fact query that are not explicitly defined in the output model."""
 
-    id: str
-    """A unique identifier for the requirement, e.g. T1098 in MITRE ATT&CK."""
-    name: str
-    """A brief name for the requirement, e.g. "Account Manipulation"."""
-    description: str
-    """A brief description of the requirement."""
-    target_assets: str
-    """
-    A short description of the assets that this requirement is related to. E.g. "Cloud
-    identities that can manipulate other identities". This field is used as
-    documentation: `description` tells us information about the requirement;
-    `target_assets` tells us what specific objects in cartography we will search for to
-    find Facts related to the requirement.
-    """
-    facts: tuple[Fact, ...]
-    """The facts that are related to this requirement."""
-    attributes: dict[str, Any] | None = None
-    """
-    Metadata attributes for the requirement. Example:
-    ```json
-    {
-        "tactic": "initial_access",
-        "technique_id": "T1190",
-        "services": ["ec2", "s3", "rds", "azure_storage"],
-        "providers": ["AWS", "AZURE"],
-    }
-    ```
-    """
-    requirement_url: str | None = None
-    """A URL reference to the requirement in the framework, e.g. https://attack.mitre.org/techniques/T1098/"""
+    # Config to coerce numbers to strings during instantiation
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+
+    # Coerce o strings
+    @no_type_check
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_to_string(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        for name, field in cls.model_fields.items():
+            if field.annotation is not str:
+                continue
+            if name not in data:
+                continue
+            v = data[name]
+            if isinstance(v, (list, tuple, set)):
+                data[name] = ", ".join(v)
+            if isinstance(v, dict):
+                data[name] = json.dumps(v)
+
+        return data
 
 
 @dataclass(frozen=True)
-class Framework:
-    """A security framework containing requirements for comprehensive assessment."""
+class Rule:
+    """A Rule represents a security issue or misconfiguration detected in the environment."""
 
     id: str
+    """A unique identifier for the Rule. Should be globally unique within Cartography."""
     name: str
+    """A brief name for the Rule."""
+    tags: tuple[str, ...]
+    """Tags associated with the Rule for categorization and filtering."""
     description: str
+    """A brief description of the Rule. Can include details about the security issue or misconfiguration."""
     version: str
-    requirements: tuple[Requirement, ...]
-    source_url: str | None = None
+    """The version of the Rule definition."""
+    facts: tuple[Fact, ...]
+    """The Facts that contribute to this Rule."""
+    output_model: type[Finding]
+    """The output model class for the Rule."""
+    references: tuple[str, ...] = ()
+    """References or links to external resources related to the Rule."""
+
+    @property
+    def modules(self) -> set[Module]:
+        """Returns the set of modules associated with this rule."""
+        return {fact.module for fact in self.facts}
+
+    def get_fact_by_id(self, fact_id: str) -> Fact | None:
+        """Returns a fact by its ID, or None if not found."""
+        for fact in self.facts:
+            if fact.id.lower() == fact_id.lower():
+                return fact
+        return None
+
+    def parse_results(
+        self, fact: Fact, fact_results: list[dict[str, Any]]
+    ) -> list[Finding]:
+        # DOC
+        result: list[Finding] = []
+        for result_item in fact_results:
+            parsed_output: dict[str, Any] = {"extra": {}, "source": fact.module.value}
+            for key, value in result_item.items():
+                if key not in self.output_model.model_fields and value is not None:
+                    parsed_output["extra"][key] = value
+                else:
+                    parsed_output[key] = value
+            result.append(self.output_model(**parsed_output))
+        return result
