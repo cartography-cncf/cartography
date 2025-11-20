@@ -35,6 +35,22 @@ from cartography.stats import ScopedStatsClient
 logger = logging.getLogger(__name__)
 
 
+def is_service_control_policy_explicit_deny(
+    error: botocore.exceptions.ClientError,
+) -> bool:
+    """Return True if the ClientError was caused by an explicit service control policy deny."""
+    error_code = error.response.get("Error", {}).get("Code")
+    if error_code not in {"AccessDenied", "AccessDeniedException"}:
+        return False
+
+    message = error.response.get("Error", {}).get("Message")
+    if not message:
+        return False
+
+    lowered = message.lower()
+    return "explicit deny" in lowered and "service control policy" in lowered
+
+
 STATUS_SUCCESS = 0
 STATUS_FAILURE = 1
 STATUS_KEYBOARD_INTERRUPT = 130
@@ -153,6 +169,9 @@ def merge_module_sync_metadata(
     :param synced_type: The sub-module's type
     :param update_tag: Timestamp used to determine data freshness
     """
+    # Import here to avoid circular import with cartography.client.core.tx
+    from cartography.client.core.tx import run_write_query
+
     template = Template(
         """
         MERGE (n:ModuleSyncMetadata{id:'${group_type}_${group_id}_${synced_type}'})
@@ -164,7 +183,8 @@ def merge_module_sync_metadata(
             n.lastupdated=$UPDATE_TAG
     """,
     )
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         template.safe_substitute(
             group_type=group_type,
             group_id=group_id,
@@ -246,13 +266,44 @@ AWSGetFunc = TypeVar("AWSGetFunc", bound=Callable[..., Iterable])
 
 def backoff_handler(details: Dict) -> None:
     """
-    Handler that will be executed on exception by backoff mechanism
+    Handler that will be executed on exception by backoff mechanism.
+
+    The backoff library may provide partial details (e.g. ``wait`` can be ``None`` when a
+    retry is triggered immediately). Format the message defensively so logging never raises.
     """
+    wait = details.get("wait")
+    if isinstance(wait, (int, float)):
+        wait_display = f"{wait:0.1f}"
+    elif wait is None:
+        wait_display = "unknown"
+    else:
+        wait_display = str(wait)
+
+    tries = details.get("tries")
+    tries_display = str(tries) if tries is not None else "unknown"
+
+    target = details.get("target", "<unknown>")
+
     logger.warning(
-        "Backing off {wait:0.1f} seconds after {tries} tries. Calling function {target}".format(
-            **details,
-        ),
+        "Backing off %s seconds after %s tries. Calling function %s",
+        wait_display,
+        tries_display,
+        target,
     )
+
+
+# Error codes that indicate a service is unavailable in a region or blocked by policies
+AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
+    "AccessDenied",
+    "AccessDeniedException",
+    "AuthFailure",
+    "AuthorizationError",
+    "AuthorizationErrorException",
+    "InvalidClientTokenId",
+    "UnauthorizedOperation",
+    "UnrecognizedClientException",
+    "InternalServerErrorException",
+]
 
 
 # TODO Move this to cartography.intel.aws.util.common
@@ -266,17 +317,6 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
 
     This should be used on `get_` functions that normally return a list of items.
     """
-    ERROR_CODES = [
-        "AccessDenied",
-        "AccessDeniedException",
-        "AuthFailure",
-        "AuthorizationError",
-        "AuthorizationErrorException",
-        "InvalidClientTokenId",
-        "UnauthorizedOperation",
-        "UnrecognizedClientException",
-        "InternalServerErrorException",
-    ]
 
     @wraps(func)
     # fix for AWS TooManyRequestsException
@@ -303,12 +343,20 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                 ) from e
             # The account is not authorized to use this service in this region
             # so we can continue without raising an exception
-            if error_code in ERROR_CODES:
-                logger.warning(
-                    "{} in this region. Skipping...".format(
-                        e.response["Error"]["Message"],
-                    ),
-                )
+            if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
+                error_message = e.response.get("Error", {}).get("Message")
+                if is_service_control_policy_explicit_deny(e):
+                    logger.warning(
+                        "Service control policy denied access while calling %s: %s",
+                        func.__name__,
+                        error_message,
+                    )
+                else:
+                    logger.warning(
+                        "{} in this region. Skipping...".format(
+                            error_message,
+                        ),
+                    )
                 return []
             else:
                 raise
@@ -316,7 +364,6 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             logger.warning(
                 "Encountered an EndpointConnectionError. This means that the AWS "
                 "resource is not available in this region. Skipping.",
-                exc_info=True,
             )
             return []
 

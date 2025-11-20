@@ -46,7 +46,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 
-scopes = ["https://www.googleapis.com/auth/admin.directory.userreadonly", "https://www.googleapis.com/auth/admin.directory.group.readonly", "https://www.googleapis.com/auth/admin.directory.group.member"]
+scopes = ["https://www.googleapis.com/auth/admin.directory.user.readonly", "https://www.googleapis.com/auth/admin.directory.group.readonly", "https://www.googleapis.com/auth/admin.directory.group.member"]
 
 print('Go to https://console.cloud.google.com/ > API & Services > Credentials and download secrets')
 project_id = input('Provide your project ID:')
@@ -60,7 +60,7 @@ with open('credentials.json', 'w', encoding='utf-8') as fc:
             "auth_uri":"https://accounts.google.com/o/oauth2/auth",
             "token_uri":"https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs",
-            "client_secret":"client_secret",
+            "client_secret":client_secret,
             "redirect_uris":["http://localhost"]
         }}
     json.dump(data, fc)

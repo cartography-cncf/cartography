@@ -577,6 +577,11 @@ Representation of an [AzureStorageAccount](https://docs.microsoft.com/en-us/rest
     ```cypher
     (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
     ```
+- Azure Storage Accounts can be tagged with Azure Tags.
+
+    ```cypher
+    (:AzureStorageAccount)-[:TAGGED]->(:AzureTag)
+    ```
 
 ### AzureStorageQueueService
 
@@ -1218,14 +1223,31 @@ Representation of an [Azure App Service](https://learn.microsoft.com/en-us/rest/
     (AzureSubscription)-[RESOURCE]->(AzureAppService)
     ```
 
-### AzureLogicApp
+### AzureEventGridTopic
 
-Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).
+Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/rest/api/eventgrid/controlplane-stable/topics/get).
 
 | Field | Description |
 |---|---|
 |firstseen| Timestamp of when a sync job discovered this node|
 |lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Event Grid Topic. |
+|name| The name of the Event Grid Topic. |
+|location| The Azure region where the Topic is deployed. |
+|provisioning_state| The deployment status of the Topic (e.g., Succeeded). |
+|public_network_access| Indicates if the topic can be accessed from the public internet. |
+
+#### Relationships
+
+- An Azure Event Grid Topic is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureEventGridTopic)
+    ```
+
+### AzureLogicApp
+
+Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).
+
 |**id**| The full resource ID of the Logic App. |
 |name| The name of the Logic App. |
 |location| The Azure region where the Logic App is deployed. |
@@ -1262,14 +1284,158 @@ Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/re
     (AzureSubscription)-[RESOURCE]->(:AzureResourceGroup)
     ```
 
-### AzureContainerInstance
+### AzureDataFactory
 
-Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
+Representation of an [Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/factories/get).
+
+| Field | Description |
+| --- | --- |
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Data Factory. |
+| name | The name of the Data Factory. |
+| location | The Azure region where the Data Factory is deployed. |
+| provisioning\_state | The deployment status of the Data Factory (e.g., Succeeded). |
+| create\_time | The timestamp of when the Data Factory was created. |
+| version | The version of the Data Factory. |
+
+#### Relationships
+
+  - An Azure Data Factory is a resource within an Azure Subscription.
+
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureDataFactory)
+    ```
+
+  - An Azure Data Factory contains Pipelines, Datasets, and Linked Services.
+
+    ```cypher
+    (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryPipeline)
+    (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryDataset)
+    (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryLinkedService)
+    ```
+
+### AzureDataFactoryPipeline
+
+Representation of a [Pipeline within an Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/pipelines/get).
+
+| Field | Description |
+| --- | --- |
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Pipeline. |
+| name | The name of the Pipeline. |
+| description | The description of the Pipeline. |
+
+#### Relationships
+
+  - A Pipeline is a resource within an Azure Subscription.
+
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureDataFactoryPipeline)
+    ```
+
+  - A Pipeline uses one or more Datasets.
+
+    ```cypher
+    (AzureDataFactoryPipeline)-[:USES_DATASET]->(:AzureDataFactoryDataset)
+    ```
+
+### AzureDataFactoryDataset
+
+Representation of a [Dataset within an Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/datasets/get).
+
+| Field | Description |
+| --- | --- |
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Dataset. |
+| name | The name of the Dataset. |
+| type | The type of the Dataset (e.g., `DelimitedText`). |
+
+#### Relationships
+
+  - A Dataset is a resource within an Azure Subscription.
+
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureDataFactoryDataset)
+    ```
+
+  - A Dataset uses a Linked Service for its connection.
+
+    ```cypher
+    (AzureDataFactoryDataset)-[:USES_LINKED_SERVICE]->(:AzureDataFactoryLinkedService)
+    ```
+
+### AzureDataFactoryLinkedService
+
+Representation of a [Linked Service within an Azure Data Factory](https://www.google.com/search?q=https://learn.microsoft.com/en-us/rest/api/datafactory/linked-services/get).
+
+| Field | Description |
+| --- | --- |
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Linked Service. |
+| name | The name of the Linked Service. |
+| type | The type of the Linked Service (e.g., `AzureBlobFS`). |
+
+#### Relationships
+
+  - A Linked Service is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureDataFactoryLinkedService)
+    ```
+
+*(External `[:CONNECTS_TO]` relationships will be added in a future PR.)*
+
+### AzureKubernetesCluster
+
+Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
 
 | Field | Description |
 |---|---|
 |firstseen| Timestamp of when a sync job discovered this node|
 |lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the AKS Cluster. |
+|name| The name of the AKS Cluster. |
+|location| The Azure region where the Cluster is deployed. |
+|provisioning_state| The deployment status of the Cluster (e.g., Succeeded). |
+|kubernetes_version| The version of Kubernetes the Cluster is running. |
+|fqdn| The fully qualified domain name of the Cluster's API server. |
+
+#### Relationships
+
+- An Azure Kubernetes Cluster is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKubernetesCluster)
+    ```
+
+### AzureKubernetesAgentPool
+
+Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microsoft.com/en-us/rest/api/aks/agent-pools/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Agent Pool. |
+|name| The name of the Agent Pool. |
+|provisioning_state| The deployment status of the Agent Pool (e.g., Succeeded). |
+|vm_size| The size of the virtual machines in the pool. |
+|os_type| The operating system of the nodes (e.g., Linux). |
+|count| The number of virtual machines in the pool. |
+
+#### Relationships
+
+- An Azure Kubernetes Cluster has one or more Agent Pools.
+    ```cypher
+    (AzureKubernetesCluster)-[:HAS_AGENT_POOL]->(:AzureKubernetesAgentPool)
+    ```
+
+### AzureContainerInstance
+
+Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
+
 |**id**| The full resource ID of the Container Instance. |
 |name| The name of the Container Instance. |
 |location| The Azure region where the Container Instance is deployed. |
@@ -1283,4 +1449,254 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 - An Azure Container Instance is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
+    ```
+
+### AzureLoadBalancer
+
+Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/load-balancers/get).
+
+| Field      | Description                                                 |
+| ---------- | ----------------------------------------------------------- |
+| firstseen  | Timestamp of when a sync job discovered this node           |
+| lastupdated| Timestamp of the last time the node was updated             |
+| **id** | The full resource ID of the Load Balancer.                  |
+| name       | The name of the Load Balancer.                              |
+| location   | The Azure region where the Load Balancer is deployed.       |
+| sku_name   | The SKU of the Load Balancer (e.g., `Standard`, `Basic`).   |
+
+#### Relationships
+
+- An Azure Load Balancer is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancer)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerFrontendIPConfiguration)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerBackendPool)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerRule)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerInboundNatRule)
+    ```
+
+- An Azure Load Balancer contains its component parts.
+    ```cypher
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerFrontendIPConfiguration)
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerBackendPool)
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerRule)
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerInboundNatRule)
+    ```
+
+### AzureLoadBalancerFrontendIPConfiguration
+
+Representation of a Frontend IP Configuration for an Azure Load Balancer.
+
+| Field                | Description                                                              |
+| -------------------- | ------------------------------------------------------------------------ |
+| firstseen            | Timestamp of when a sync job discovered this node                        |
+| lastupdated          | Timestamp of the last time the node was updated                          |
+| **id** | The full resource ID of the Frontend IP Configuration.                   |
+| name                 | The name of the Frontend IP Configuration.                               |
+| private\_ip\_address   | The private IP address of the configuration, if applicable.              |
+| public\_ip\_address\_id | The resource ID of the associated Public IP Address object, if applicable. |
+
+### AzureLoadBalancerBackendPool
+
+Representation of a Backend Pool for an Azure Load Balancer.
+
+| Field       | Description                                       |
+| ----------- | ------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the Backend Pool.         |
+| name        | The name of the Backend Pool.                     |
+
+### AzureLoadBalancerRule
+
+Representation of a Load Balancing Rule for an Azure Load Balancer.
+
+| Field         | Description                                       |
+| ------------- | ------------------------------------------------- |
+| firstseen     | Timestamp of when a sync job discovered this node |
+| lastupdated   | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the Rule.                 |
+| name          | The name of the Rule.                             |
+| protocol      | The network protocol for the rule (e.g., `Tcp`).  |
+| frontend\_port | The port that receives traffic.                   |
+| backend\_port  | The port that traffic is sent to.                 |
+
+#### Relationships
+
+  - A Rule uses a Frontend IP Configuration.
+    ```cypher
+    (AzureLoadBalancerRule)-[:USES_FRONTEND_IP]->(:AzureLoadBalancerFrontendIPConfiguration)
+    ```
+  - A Rule routes traffic to a Backend Pool.
+    ```cypher
+    (AzureLoadBalancerRule)-[:ROUTES_TO]->(:AzureLoadBalancerBackendPool)
+    ```
+
+### AzureLoadBalancerInboundNatRule
+
+Representation of an Inbound NAT Rule for an Azure Load Balancer.
+
+| Field         | Description                                       |
+| ------------- | ------------------------------------------------- |
+| firstseen     | Timestamp of when a sync job discovered this node |
+| lastupdated   | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the NAT Rule.             |
+| name          | The name of the NAT Rule.                         |
+| protocol      | The network protocol for the rule (e.g., `Tcp`).  |
+| frontend\_port | The public port that receives traffic.            |
+| backend\_port  | The private port on the target VM.                |
+
+#### Relationships
+
+*(External `[:FORWARDS_TO]` relationships to Network Interfaces will be added in a future PR.)*
+
+### AzureTag
+
+Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| id | Unique identifier for the tag, formatted as `{subscription_id}|{key}:{value}`. |
+| key | The tag name (e.g., `Environment`). |
+| value | The tag value (e.g., `Production`). |
+| lastupdated | The timestamp of the last time this tag was seen on any resource. |
+
+#### Relationships
+
+- Azure Storage Accounts can be tagged with Azure Tags.
+
+    ```cypher
+    (:AzureStorageAccount)-[:TAGGED]->(:AzureTag)
+    ```
+
+### AzureVirtualNetwork
+
+Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/virtual-networks/get).
+
+| Field                | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| firstseen            | Timestamp of when a sync job discovered this node                 |
+| lastupdated          | Timestamp of the last time the node was updated                   |
+| **id** | The full resource ID of the Virtual Network.                      |
+| name                 | The name of the Virtual Network.                                  |
+| location             | The Azure region where the Virtual Network is deployed.           |
+| provisioning_state   | The deployment status of the Virtual Network (e.g., Succeeded).   |
+
+#### Relationships
+
+- An Azure Virtual Network is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureVirtualNetwork)
+    ```
+
+- An Azure Virtual Network contains one or more Subnets.
+    ```cypher
+    (AzureVirtualNetwork)-[:CONTAINS]->(:AzureSubnet)
+    ```
+
+### AzureSubnet
+
+Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
+
+| Field          | Description                                         |
+| -------------- | --------------------------------------------------- |
+| firstseen      | Timestamp of when a sync job discovered this node   |
+| lastupdated    | Timestamp of the last time the node was updated     |
+| **id** | The full resource ID of the Subnet.                 |
+| name           | The name of the Subnet.                             |
+| address\_prefix | The address prefix of the Subnet in CIDR notation.  |
+
+#### Relationships
+
+  - A Subnet can be associated with a Network Security Group.
+    ```cypher
+    (AzureSubnet)-[:ASSOCIATED_WITH]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureNetworkSecurityGroup
+
+Representation of an [Azure Network Security Group (NSG)](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-security-groups/get).
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the Network Security Group.   |
+| name        | The name of the Network Security Group.               |
+| location    | The Azure region where the NSG is deployed.           |
+
+#### Relationships
+
+  - An Azure Network Security Group is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureSecurityAssessment
+
+Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Assessment.|
+|name| The name of the Assessment.|
+|display\_name| The user-friendly display name of the Assessment.|
+|description| The description of the security issue identified by the assessment.|
+|remediation\_description| The description of the steps required to remediate the issue.|
+
+#### Relationships
+
+  - An Azure Security Assessment is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[HAS_ASSESSMENT]->(AzureSecurityAssessment)
+    ```
+
+### AzureMonitorMetricAlert
+
+Representation of an Azure Monitor [Metric Alert](https://learn.microsoft.com/en-us/rest/api/monitor/metricalerts/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Metric Alert.|
+|name| The name of the Metric Alert.|
+|location| The Azure region where the Metric Alert is deployed.|
+|description| The description of the Metric Alert.|
+|severity| The severity of the alert, from 0 (critical) to 4 (verbose).|
+|enabled| A boolean indicating if the alert rule is enabled.|
+|window\_size| The period of time (in ISO 8601 duration format) that is used to monitor alert activity.|
+|evaluation\_frequency| The frequency (in ISO 8601 duration format) with which the metric data is collected.|
+|last\_updated\_time| The timestamp of when the alert rule was last modified.|
+
+#### Relationships
+
+  - An Azure Monitor Metric Alert is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:HAS_METRIC_ALERT]->(AzureMonitorMetricAlert)
+    ```
+
+### AzureDataLakeFileSystem
+
+Representation of an [Azure Data Lake File System](https://learn.microsoft.com/en-us/rest/api/storagerp/blob-containers/get), which is a container within a Data Lake enabled Storage Account.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the File System. |
+| name | The name of the File System. |
+| public_access | The public access level of the File System (e.g., None). |
+| last_modified_time | The timestamp of when the File System was last modified. |
+| has_immutability_policy | A boolean indicating if the data is protected from being changed or deleted. |
+| has_legal_hold | A boolean indicating if the data is locked for legal reasons. |
+
+#### Relationships
+
+- An Azure Storage Account contains one or more File Systems.
+    ```cypher
+    (AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
     ```

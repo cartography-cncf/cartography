@@ -71,7 +71,7 @@ class ECRRepositoryImageToECRImageRelProperties(CartographyRelProperties):
 class ECRRepositoryImageToECRImageRel(CartographyRelSchema):
     target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("imageDigest")}
+        {"id": PropertyRef("imageDigests", one_to_many=True)}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "IMAGE"
