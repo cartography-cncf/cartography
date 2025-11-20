@@ -6,7 +6,11 @@ import neo4j
 from azure.core.exceptions import HttpResponseError
 from azure.mgmt.compute import ComputeManagementClient
 
+from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
+from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
+from cartography.models.azure.tags.compute_tag import AzureVMTagsSchema
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -111,6 +115,26 @@ def load_vm_data_disks(
         disks=data_disks,
         VM_ID=vm_id,
         update_tag=update_tag,
+    )
+
+
+@timeit
+def load_vm_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    vms: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Virtual Machines.
+    """
+    tags = transform_tags(vms, subscription_id)
+    load(
+        neo4j_session,
+        AzureVMTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -238,6 +262,16 @@ def cleanup_snapshot(neo4j_session: neo4j.Session, common_job_parameters: Dict) 
     )
 
 
+@timeit
+def cleanup_vm_tags(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    GraphJob.from_node_schema(AzureVMTagsSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
 def sync_virtual_machine(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -247,7 +281,9 @@ def sync_virtual_machine(
 ) -> None:
     vm_list = get_vm_list(credentials, subscription_id)
     load_vms(neo4j_session, subscription_id, vm_list, update_tag)
+    load_vm_tags(neo4j_session, subscription_id, vm_list, update_tag)
     cleanup_virtual_machine(neo4j_session, common_job_parameters)
+    cleanup_vm_tags(neo4j_session, common_job_parameters)
 
 
 def sync_disk(

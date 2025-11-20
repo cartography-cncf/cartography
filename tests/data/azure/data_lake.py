@@ -7,6 +7,7 @@ MOCK_STORAGE_ACCOUNTS = [
         "properties": {
             "is_hns_enabled": True,
         },
+        "tags": {"env": "prod", "service": "datalake"},
     },
     {
         # This is a standard storage account.
@@ -15,6 +16,7 @@ MOCK_STORAGE_ACCOUNTS = [
         "properties": {
             "is_hns_enabled": False,
         },
+        "tags": {"env": "prod", "service": "standard-storage"},
     },
 ]
 
