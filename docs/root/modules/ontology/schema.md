@@ -8,6 +8,7 @@ graph LR
 
 U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
+U -- OWNS --> AK{{APIKey}}
 ```
 
 :::{note}
@@ -128,6 +129,10 @@ A client computer is a host that accesses a service made available by a server o
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+- `User` can own one or many `APIKey`
+    ```
+    (:User)-[:OWNS]->(:APIKey)
+    ```
 
 ### APIKey
 
@@ -145,6 +150,14 @@ API keys are used across different cloud providers and SaaS platforms for authen
 | _ont_updated_at | Timestamp when the API key was last updated. |
 | _ont_expires_at | Timestamp when the API key expires (if applicable). |
 | _ont_last_used_at | Timestamp when the API key was last used. |
+
+#### Relationships
+
+- `User` can own one or many `APIKey`
+    ```
+    (:User)-[:OWNS]->(:APIKey)
+    ```
+
 
 
 ### ComputeInstance
