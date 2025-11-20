@@ -37,25 +37,6 @@ useraccount_mapping = OntologyMapping(
         ),
     ],
 )
-slack_mapping = OntologyMapping(
-    module_name="slack",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="SlackUser",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="email", node_field="email", required=True
-                ),
-                OntologyFieldMapping(ontology_field="username", node_field="name"),
-                OntologyFieldMapping(
-                    ontology_field="firstname", node_field="first_name"
-                ),
-                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
-                OntologyFieldMapping(ontology_field="fullname", node_field="real_name"),
-            ],
-        ),
-    ],
-)
 
 
 USERS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {

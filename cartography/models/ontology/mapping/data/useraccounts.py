@@ -2,15 +2,6 @@ from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 
-# UserAccount fields:
-# email
-# fullname
-# firstname
-# lastname
-# username
-# has_mfa
-# inactive => coalesce(toBoleanOrNull(<field>), false)
-# lastactivity
 
 entra_mapping = OntologyMapping(
     module_name="entra",
@@ -371,6 +362,39 @@ aws_mapping = OntologyMapping(
         ),
     ],
 )
+slack_mapping = OntologyMapping(
+    module_name="slack",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SlackUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email"
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="first_name"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="real_name"),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa", node_field="mfa_enabled"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="inactive", node_field="deleted"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="system_account", node_field="is_bot", extra={"fields": ["is_app_user"]}, special_handling="or_boolean",
+                ),
+            ],
+        ),
+    ],
+)
+
+# UserAccount fields:
+# has_mfa
+# inactive
+# lastactivity
 
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "entra": entra_mapping,
@@ -389,4 +413,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "okta": okta_mapping,
     "aws": aws_mapping,
     "googleworkspace": googleworkspace_mapping,
+    "slack": slack_mapping,
 }
