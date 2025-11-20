@@ -1,6 +1,8 @@
 from cartography.intel.aws import iam
 from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
+from cartography.intel.aws.iam import transform_server_certificates
+from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES
 
 SINGLE_STATEMENT = {
     "Resource": "*",
@@ -154,3 +156,48 @@ def test_transform_policy_data_correctly_creates_lists_of_statements():
         }
     ]
     assert statements == expected_statements
+
+
+def test_transform_server_certificates():
+    """Test server certificate transformation"""
+    # Use shared test data from tests/data/aws/iam/server_certificates.py
+    raw_data = LIST_SERVER_CERTIFICATES["ServerCertificateMetadataList"]
+
+    result = transform_server_certificates(raw_data)
+
+    assert len(result) == 2
+    # Check first certificate
+    assert result[0]["arn"] == "arn:aws:iam::000000000000:server-certificate/test-cert-1"
+    assert result[0]["name"] == "test-cert-1"
+    assert result[0]["path"] == "/"
+    assert result[0]["ServerCertificateId"] == "ASCAEXAMPLE1"
+    assert result[0]["upload_date"] == "2023-01-15T10:30:00+00:00"
+
+    # Check second certificate
+    assert result[1]["arn"] == "arn:aws:iam::000000000000:server-certificate/test-cert-2"
+    assert result[1]["name"] == "test-cert-2"
+    assert result[1]["path"] == "/cloudfront/"
+    assert result[1]["ServerCertificateId"] == "ASCAEXAMPLE2"
+    assert result[1]["upload_date"] == "2023-02-20T14:45:00+00:00"
+
+
+def test_transform_server_certificates_handles_optional_fields():
+    """Test that optional fields are handled correctly"""
+    raw_data = [
+        {
+            "Arn": "arn:aws:iam::123456789012:server-certificate/minimal-cert",
+            "ServerCertificateName": "minimal-cert",
+            "ServerCertificateId": "ASCAMINIMAL",
+            # No Path or UploadDate
+        },
+    ]
+
+    result = transform_server_certificates(raw_data)
+
+    assert len(result) == 1
+    assert (
+        result[0]["arn"] == "arn:aws:iam::123456789012:server-certificate/minimal-cert"
+    )
+    assert result[0]["name"] == "minimal-cert"
+    assert result[0]["path"] is None
+    assert result[0]["upload_date"] is None

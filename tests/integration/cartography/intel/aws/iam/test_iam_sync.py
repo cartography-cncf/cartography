@@ -12,6 +12,7 @@ from tests.data.aws.iam.role_policies import (
     ANOTHER_GET_ROLE_LIST_DATASET as GET_ROLE_LIST_DATA,
 )
 from tests.data.aws.iam.role_policies import GET_ROLE_MANAGED_POLICY_DATA
+from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES
 from tests.data.aws.iam.user_inline_policies import GET_USER_INLINE_POLS_SAMPLE
 from tests.data.aws.iam.user_policies import GET_USER_LIST_DATA
 from tests.data.aws.iam.user_policies import GET_USER_MANAGED_POLS_SAMPLE
@@ -23,6 +24,11 @@ TEST_ACCOUNT_ID = "1234"
 TEST_UPDATE_TAG = 123456789
 
 
+@patch.object(
+    cartography.intel.aws.iam,
+    "get_server_certificates",
+    return_value=LIST_SERVER_CERTIFICATES["ServerCertificateMetadataList"],
+)
 @patch.object(
     cartography.intel.aws.iam,
     "get_role_managed_policy_data",
@@ -78,6 +84,7 @@ def test_sync_iam(
     mock_get_role_list_data,
     mock_get_role_policy_data,
     mock_get_role_managed_policy_data,
+    mock_get_server_certificates,
     neo4j_session,
 ):
     """Test IAM sync end-to-end"""
@@ -332,3 +339,33 @@ def test_sync_iam(
         ("AKIAJQ5CMEXAMPLE", "arn:aws:iam::1234:user/user2"),
         ("AKIAEXAMPLE123", "arn:aws:iam::1234:user/user3"),
     }
+
+    # Assert: Check that server certificate nodes were created
+    expected_cert_nodes = {
+        ("arn:aws:iam::000000000000:server-certificate/test-cert-1", "test-cert-1"),
+        ("arn:aws:iam::000000000000:server-certificate/test-cert-2", "test-cert-2"),
+    }
+    assert (
+        check_nodes(neo4j_session, "AWSServerCertificate", ["arn", "name"])
+        == expected_cert_nodes
+    )
+
+    # Assert: Check relationships from AWSAccount to AWSServerCertificate
+    # Note: We're using TEST_ACCOUNT_ID (1234) not the one in the ARN (000000000000)
+    # because the relationship is to the account we're syncing
+    expected_cert_rels = {
+        ("arn:aws:iam::000000000000:server-certificate/test-cert-1", TEST_ACCOUNT_ID),
+        ("arn:aws:iam::000000000000:server-certificate/test-cert-2", TEST_ACCOUNT_ID),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSServerCertificate",
+            "arn",
+            "AWSAccount",
+            "id",
+            "RESOURCE",
+            rel_direction_right=False,
+        )
+        == expected_cert_rels
+    )
