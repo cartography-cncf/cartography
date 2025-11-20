@@ -883,6 +883,10 @@ Representation of an [AzureCosmosDBAccount](https://docs.microsoft.com/en-us/res
     ```cypher
     (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBTableResource)
     ```
+- Azure Cosmos DB Accounts can be tagged with Azure Tags.
+    ```cypher
+    (AzureCosmosDBAccount)-[:TAGGED]->(AzureTag)
+    ```
 
 ### AzureCosmosDBLocation
 
@@ -1254,6 +1258,11 @@ Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/
     (AzureSubscription)-[:RESOURCE]->(:AzureEventGridTopic)
     ```
 
+- Azure Event Grid Topics can be tagged with Azure Tags.
+    ```cypher
+    (AzureEventGridTopic)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureLogicApp
 
 Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).
@@ -1464,6 +1473,10 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 - An Azure Container Instance is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
+    ```
+- Azure Container Instances can be tagged with Azure Tags.
+    ```cypher
+    (AzureContainerInstance)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureLoadBalancer
