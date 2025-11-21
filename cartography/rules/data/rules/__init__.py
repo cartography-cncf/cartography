@@ -13,6 +13,9 @@ from cartography.rules.data.rules.delegation_boundary_modifiable import (
 from cartography.rules.data.rules.identity_administration_privileges import (
     identity_administration_privileges,
 )
+from cartography.rules.data.rules.inactive_user_active_accounts import (
+    inactive_user_active_accounts,
+)
 from cartography.rules.data.rules.mfa_missing import missing_mfa_rule
 from cartography.rules.data.rules.object_storage_public import object_storage_public
 from cartography.rules.data.rules.policy_administration_privileges import (
@@ -29,6 +32,7 @@ RULES = {
     database_instance_exposed.id: database_instance_exposed,
     delegation_boundary_modifiable.id: delegation_boundary_modifiable,
     identity_administration_privileges.id: identity_administration_privileges,
+    inactive_user_active_accounts.id: inactive_user_active_accounts,
     missing_mfa_rule.id: missing_mfa_rule,
     object_storage_public.id: object_storage_public,
     policy_administration_privileges.id: policy_administration_privileges,
