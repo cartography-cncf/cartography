@@ -76,6 +76,10 @@ A user often has one or many user accounts.
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+- `User` can own one or many `APIKey`
+    ```
+    (:User)-[:OWNS]->(:APIKey)
+    ```
 
 ### UserAccount
 
@@ -129,10 +133,7 @@ A client computer is a host that accesses a service made available by a server o
     ```
     (:User)-[:OWNS]->(:Device)
     ```
-- `User` can own one or many `APIKey`
-    ```
-    (:User)-[:OWNS]->(:APIKey)
-    ```
+
 
 ### APIKey
 

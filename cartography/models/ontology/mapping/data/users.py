@@ -30,7 +30,6 @@ useraccount_mapping = OntologyMapping(
             query="MATCH (sso:AWSSSOUser) MATCH (u:User)-[:HAS_ACCOUNT]->(:UserAccount {id: sso.external_id}) MERGE (u)-[r:HAS_ACCOUNT]->(sso) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
             iterative=False,
         ),
-
         OntologyRelMapping(
             __comment__="Link User to APIKey",
             query="MATCH (u:User)-[:HAS_ACCOUNT]->(:UserAccount)-[:OWNS|HAS]->(k:APIKey) MERGE (u)-[r:OWNS]->(k) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
