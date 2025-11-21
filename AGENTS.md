@@ -992,7 +992,7 @@ OntologyNodeMapping(
 
 In this example, AWS IAM users can be linked to existing User ontology nodes through relationships, but they cannot create new User nodes since they lack email addresses.
 
-### Step 5: Handle Complex Relationships
+### Step 4: Handle Complex Relationships
 
 For services that have user-device relationships, add relationship mappings:
 
