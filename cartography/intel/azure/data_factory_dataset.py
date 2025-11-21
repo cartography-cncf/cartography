@@ -119,9 +119,7 @@ def sync_data_factory_datasets(
         all_transformed_datasets.extend(transformed_datasets)
         datasets_by_factory[factory_id] = transformed_datasets
 
-    load_datasets(
-        neo4j_session, all_transformed_datasets, subscription_id, update_tag
-    )
+    load_datasets(neo4j_session, all_transformed_datasets, subscription_id, update_tag)
 
     cleanup_job_params = common_job_parameters.copy()
     cleanup_job_params["subscription_id"] = subscription_id
