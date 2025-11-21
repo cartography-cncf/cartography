@@ -11,12 +11,14 @@ _unmanaged_accounts_ontology = Fact(
     description="Finds user accounts that are not linked to an ontology user node.",
     cypher_query="""
     MATCH (a:UserAccount)
-    WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User)
+    WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User) 
+    AND (a.inactive = false OR a.inactive IS NULL)
     return a.id as id, a.email AS email
     """,
     cypher_visual_query="""
     MATCH (a:UserAccount)
     WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User)
+    AND (a.inactive = false OR a.inactive IS NULL)
     return a
     """,
     module=Module.CROSS_CLOUD,
@@ -33,9 +35,9 @@ class UnmanagedAccountRuleOutput(Finding):
 unmanaged_accounts = Rule(
     id="unmanaged-account",
     name="User accounts not linked to a user identity",
-    description="Detects user accounts that do not have Multi-Factor Authentication enabled.",
+    description="Detects accounts that are not linked to a known user identity (inactive accounts are excluded).",
     output_model=UnmanagedAccountRuleOutput,
     tags=("identity", "iam", "compliance"),
     facts=(_unmanaged_accounts_ontology,),
-    version="0.1.0",
+    version="0.1.1",
 )

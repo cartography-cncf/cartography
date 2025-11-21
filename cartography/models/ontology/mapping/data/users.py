@@ -21,6 +21,9 @@ useraccount_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="lastname", node_field="_ont_lastname"
                 ),
+                OntologyFieldMapping(
+                    ontology_field="inactive", node_field="_ont_inactive"
+                ),
             ],
         ),
     ],
