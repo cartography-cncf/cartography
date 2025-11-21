@@ -191,3 +191,103 @@ def test_sync_data_factory_internal_rels(
         "id",
         "USES_LINKED_SERVICE",
     ) == {(dataset_id, ls_id)}
+
+
+def test_sync_data_factory_linked_services_empty_factories(neo4j_session):
+    """
+    Test that syncing with an empty factories list doesn't crash with UnboundLocalError.
+    Reproduces issue #2078.
+    """
+    # Create the prerequisite AzureSubscription node
+    neo4j_session.run(
+        "MERGE (s:AzureSubscription{id: $sub_id}) SET s.lastupdated = $tag",
+        sub_id=TEST_SUBSCRIPTION_ID,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
+    }
+
+    mock_client = MagicMock()
+
+    # Call with empty factories list - this should trigger UnboundLocalError
+    result = data_factory_linked_service.sync_data_factory_linked_services(
+        neo4j_session,
+        mock_client,
+        [],  # Empty factories list
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Should return empty dict without crashing
+    assert result == {}
+
+
+def test_sync_data_factory_datasets_empty_factories(neo4j_session):
+    """
+    Test that syncing datasets with an empty factories list doesn't crash with UnboundLocalError.
+    Reproduces issue #2078.
+    """
+    # Create the prerequisite AzureSubscription node
+    neo4j_session.run(
+        "MERGE (s:AzureSubscription{id: $sub_id}) SET s.lastupdated = $tag",
+        sub_id=TEST_SUBSCRIPTION_ID,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
+    }
+
+    mock_client = MagicMock()
+
+    # Call with empty factories list - this should trigger UnboundLocalError
+    result = data_factory_dataset.sync_data_factory_datasets(
+        neo4j_session,
+        mock_client,
+        [],  # Empty factories list
+        {},  # Empty linked_services dict
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Should return empty dict without crashing
+    assert result == {}
+
+
+def test_sync_data_factory_pipelines_empty_factories(neo4j_session):
+    """
+    Test that syncing pipelines with an empty factories list doesn't crash with UnboundLocalError.
+    Reproduces issue #2078.
+    """
+    # Create the prerequisite AzureSubscription node
+    neo4j_session.run(
+        "MERGE (s:AzureSubscription{id: $sub_id}) SET s.lastupdated = $tag",
+        sub_id=TEST_SUBSCRIPTION_ID,
+        tag=TEST_UPDATE_TAG,
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
+    }
+
+    mock_client = MagicMock()
+
+    # Call with empty factories list - this should trigger UnboundLocalError
+    data_factory_pipeline.sync_data_factory_pipelines(
+        neo4j_session,
+        mock_client,
+        [],  # Empty factories list
+        {},  # Empty datasets dict
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Should complete without crashing (no return value for this function)
