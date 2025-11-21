@@ -19,6 +19,9 @@ from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
 )
+from cartography.rules.data.rules.cloud_security_product_deactivated import (
+    cloud_security_product_deactivated,
+)
 
 # Rule registry - all available rules
 RULES = {
@@ -31,4 +34,5 @@ RULES = {
     policy_administration_privileges.id: policy_administration_privileges,
     unmanaged_accounts.id: unmanaged_accounts,
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
+    cloud_security_product_deactivated.id: cloud_security_product_deactivated,
 }
