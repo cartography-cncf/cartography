@@ -1,44 +1,51 @@
+from unittest.mock import patch
+
 import cartography.intel.pagerduty.services
-import tests.data.pagerduty.services
+from tests.data.pagerduty.services import GET_INTEGRATIONS_DATA
+from tests.data.pagerduty.services import GET_SERVICES_DATA
+from tests.integration.util import check_nodes
 
 TEST_UPDATE_TAG = 123456789
 
 
-def test_load_service_data(neo4j_session):
-    service_data = tests.data.pagerduty.services.GET_SERVICES_DATA
-    cartography.intel.pagerduty.services.load_service_data(
+@patch.object(
+    cartography.intel.pagerduty.services,
+    "get_integrations",
+    return_value=GET_INTEGRATIONS_DATA,
+)
+@patch.object(
+    cartography.intel.pagerduty.services,
+    "get_services",
+    return_value=GET_SERVICES_DATA,
+)
+def test_sync_services(mock_get_services, mock_get_integrations, neo4j_session):
+    """
+    Test that services and integrations sync correctly and create proper nodes
+    """
+    # Mock PD session (not actually used due to mocks)
+    mock_pd_session = None
+
+    # Act - Call the sync function
+    cartography.intel.pagerduty.services.sync_services(
         neo4j_session,
-        service_data,
         TEST_UPDATE_TAG,
+        mock_pd_session,
     )
 
-    expected_nodes = {
-        "PIJ90N7",
+    # Assert - Use check_nodes() instead of raw Neo4j queries
+    # Check services
+    expected_service_nodes = {
+        ("PIJ90N7",),
     }
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:PagerDutyService) RETURN n.id;
-        """,
-    )
-    actual_nodes = {n["n.id"] for n in nodes}
-    assert actual_nodes == expected_nodes
-
-
-def test_load_integration_data(neo4j_session):
-    integration_data = tests.data.pagerduty.services.GET_INTEGRATIONS_DATA
-    cartography.intel.pagerduty.services.load_integration_data(
-        neo4j_session,
-        integration_data,
-        TEST_UPDATE_TAG,
+    assert (
+        check_nodes(neo4j_session, "PagerDutyService", ["id"]) == expected_service_nodes
     )
 
-    expected_nodes = {
-        "PE1U9CH",
+    # Check integrations
+    expected_integration_nodes = {
+        ("PE1U9CH",),
     }
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:PagerDutyIntegration) RETURN n.id;
-        """,
+    assert (
+        check_nodes(neo4j_session, "PagerDutyIntegration", ["id"])
+        == expected_integration_nodes
     )
-    actual_nodes = {n["n.id"] for n in nodes}
-    assert actual_nodes == expected_nodes
