@@ -29,13 +29,14 @@ This guide teaches you how to write intel modules for Cartography using the mode
 6. @One-to-Many Relationships
 7. @MatchLinks: Connecting Existing Nodes
 8. @Ontology Integration: Mapping Users and Devices
-9. @Configuration and Credentials
-10. @Error Handling
-11. @Testing Your Module
-12. @Refactoring Legacy Code to Data Model
-13. @Common Patterns and Examples
-14. @Troubleshooting Guide
-15. @Quick Reference
+9. @Creating Security Rules with Ontology
+10. @Configuration and Credentials
+11. @Error Handling
+12. @Testing Your Module
+13. @Refactoring Legacy Code to Data Model
+14. @Common Patterns and Examples
+15. @Troubleshooting Guide
+16. @Quick Reference
 
 ## 🚀 Quick Start: Copy an Existing Module {#quick-start}
 
@@ -1330,6 +1331,173 @@ your_service_mapping = OntologyMapping(
 - Primary identifier fields (`email` for users, `hostname` for devices) are marked as `required=True`
 - The field names match exactly between your ontology mapping and node properties
 - Test for `_ont_*` properties on semantic label nodes, not separate ontology nodes
+
+## 🔐 Creating Security Rules with Ontology {#security-rules}
+
+Cartography includes a powerful rules system that allows you to write security queries to identify potential attack surfaces, security gaps, and compliance issues across your infrastructure. The ontology system makes it easy to write rules that work across multiple cloud providers and services.
+
+### Rule Architecture
+
+Rules use a simple two-level hierarchy:
+
+```
+Rule (e.g., "unmanaged-accounts")
+  └─ Fact (e.g., "unmanaged-accounts-ontology")
+```
+
+- **Rule**: Represents a security issue or attack surface (e.g., "User accounts not linked to a user identity")
+- **Fact**: Individual Cypher query that gathers evidence about your environment
+- **Finding**: Pydantic model that defines the structure of results
+
+### Creating Rules
+
+Combine facts from multiple providers (or use ontology nodes) for comprehensive coverage:
+
+```python
+from cartography.rules.spec.model import Fact, Finding, Maturity, Module, Rule
+
+# AWS-specific fact
+_aws_public_databases = Fact(
+    id="aws-rds-public",
+    name="Publicly accessible AWS RDS instances",
+    description="AWS RDS databases exposed to the internet",
+    cypher_query="""
+    MATCH (db:RDSInstance)
+    WHERE db.publicly_accessible = true
+    RETURN db.id AS id, db.db_instance_identifier AS name, db.region AS region
+    """,
+    cypher_visual_query="""
+    MATCH (db:RDSInstance)
+    WHERE db.publicly_accessible = true
+    RETURN db
+    """,
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+# Azure-specific fact
+_azure_public_databases = Fact(
+    id="azure-sql-public",
+    name="Publicly accessible Azure SQL databases",
+    description="Azure SQL databases exposed to the internet",
+    cypher_query="""
+    MATCH (db:AzureSQLServer)
+    WHERE db.public_network_access = 'Enabled'
+    RETURN db.id AS id, db.name AS name, db.location AS region
+    """,
+    cypher_visual_query="""
+    MATCH (db:AzureSQLServer)
+    WHERE db.public_network_access = 'Enabled'
+    RETURN db
+    """,
+    module=Module.AZURE,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+# Output model
+class DatabaseExposedOutput(Finding):
+    id: str | None = None
+    name: str | None = None
+    region: str | None = None
+
+# Unified rule
+database_exposed = Rule(
+    id="database-exposed",
+    name="Publicly Accessible Databases",
+    description="Detects databases exposed to the internet across cloud providers",
+    output_model=DatabaseExposedOutput,
+    tags=("infrastructure", "attack_surface", "database"),
+    facts=(_aws_public_databases, _azure_public_databases),
+    version="0.1.0",
+)
+```
+
+### Output Models with Pydantic
+
+Each Rule must define an output model extending `Finding`:
+
+```python
+from cartography.rules.spec.model import Finding
+
+class MyRuleOutput(Finding):
+    """Output model for my custom rule."""
+
+    # Define fields that will be populated from cypher_query results
+    id: str | None = None              # Resource identifier
+    email: str | None = None           # User email
+    region: str | None = None          # Cloud region
+    public_access: bool | None = None  # Access level
+```
+
+**Key Points:**
+- **Inherit from `Finding`**: Your model must extend the base class
+- **Match Query Aliases**: Field names must match `cypher_query` aliases
+- **Automatic Handling**: The `source` field is auto-populated with module name
+
+### Fact Maturity Levels
+
+Mark fact maturity to indicate production-readiness:
+
+#### `EXPERIMENTAL`
+- New facts, recently added
+- May have bugs or performance issues
+- Limited production testing
+- Use for testing new detection capabilities
+
+```python
+maturity=Maturity.EXPERIMENTAL
+```
+
+#### `STABLE`
+- Production-ready, well-tested
+- Optimized queries, consistent results
+- Use for production monitoring and compliance
+
+```python
+maturity=Maturity.STABLE
+```
+
+### Rule Versioning
+
+Use semantic versioning for rules:
+
+```python
+version="0.1.0"  # Initial release
+version="0.2.0"  # Added new facts (minor)
+version="0.2.1"  # Bug fix (patch)
+version="1.0.0"  # Production ready (major)
+```
+
+### Step-by-Step: Creating a New Rule
+
+1. **Create rule file** in `cartography/rules/data/rules/my_rule.py`:
+
+2. **Register rule** in `cartography/rules/data/rules/__init__.py`:
+
+```python
+from cartography.rules.data.rules.my_rule import my_rule
+
+RULES = {
+    # ... existing rules
+    my_rule.id: my_rule,
+}
+```
+
+3. **Test your rule**:
+
+```bash
+# List rule details
+cartography-rules list my-rule
+
+# Run the rule
+cartography-rules run my-rule
+
+# Run with JSON output
+cartography-rules run my-rule --output json
+
+# Exclude experimental facts
+cartography-rules run my-rule --no-experimental
+```
 
 ## ⚙️ Configuration and Credentials {#configuration}
 
