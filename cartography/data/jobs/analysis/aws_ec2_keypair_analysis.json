@@ -22,8 +22,8 @@
             "iterative": false
         },
         {
-            "__comment__": "Attach EC2KeyPairs with matching fingerprints to eachother and set duplicate_keyfingerprint = True",
-            "query": "MATCH (k1:EC2KeyPair), (k2:EC2KeyPair) WHERE k1.id <> k2.id AND k1.keyfingerprint = k2.keyfingerprint SET k1.duplicate_keyfingerprint = True, k2.duplicate_keyfingerprint = True MERGE (k1)-[r:MATCHING_FINGERPRINT]-(k2) ON CREATE SET r.firstseen = $UPDATE_TAG SET r.lastupdated = $UPDATE_TAG return COUNT(*) as TotalCompleted",
+            "__comment__": "Attach EC2KeyPairs with matching fingerprints to each other and set duplicate_keyfingerprint = True. Use id(k1) < id(k2) to avoid Cartesian product warning and ensure O(1) comparison.",
+            "query": "MATCH (k1:EC2KeyPair) MATCH (k2:EC2KeyPair) WHERE id(k1) < id(k2) AND k1.keyfingerprint = k2.keyfingerprint SET k1.duplicate_keyfingerprint = True, k2.duplicate_keyfingerprint = True MERGE (k1)-[r:MATCHING_FINGERPRINT]-(k2) ON CREATE SET r.firstseen = $UPDATE_TAG SET r.lastupdated = $UPDATE_TAG RETURN COUNT(*) as TotalCompleted",
             "iterative": false
         }
     ]

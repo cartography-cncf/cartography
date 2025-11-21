@@ -45,3 +45,56 @@ LIST_SECRET_VERSIONS = [
         "KmsKeyId": "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
     },
 ]
+
+# Raw AWS API response data for transform_secrets function testing (INPUT to transform_secrets)
+SECRETS_RAW_DATA = [
+    {
+        "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:test-secret-with-rotation-AbCdEf",
+        "Name": "test-secret-with-rotation",
+        "Description": "A test secret with rotation enabled",
+        "RotationEnabled": True,
+        "RotationRules": {"AutomaticallyAfterDays": 90},  # This should be flattened
+        "RotationLambdaARN": "arn:aws:lambda:us-east-1:123456789012:function:rotate-secret",
+        "KmsKeyId": "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012",
+        "CreatedDate": datetime.datetime(
+            2024, 1, 15, 10, 30, 0, tzinfo=tz.utc
+        ),  # Should become epoch
+        "LastRotatedDate": datetime.datetime(
+            2024, 4, 15, 10, 30, 0, tzinfo=tz.utc
+        ),  # Should become epoch
+        "LastChangedDate": datetime.datetime(
+            2024, 5, 1, 14, 45, 30, tzinfo=tz.utc
+        ),  # Should become epoch
+        "LastAccessedDate": datetime.datetime(
+            2024, 5, 10, 16, 20, 15, tzinfo=tz.utc
+        ),  # Should become epoch
+        "PrimaryRegion": "us-west-2",
+        "OwningService": "lambda",
+    },
+    {
+        "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:test-secret-no-rotation-GhIjKl",
+        "Name": "test-secret-no-rotation",
+        "Description": "A test secret without rotation",
+        "RotationEnabled": False,
+        # No RotationRules - should not have flattened property
+        "KmsKeyId": "arn:aws:kms:us-east-1:123456789012:key/87654321-4321-4321-4321-210987654321",
+        "CreatedDate": datetime.datetime(
+            2024, 2, 20, 9, 15, 0, tzinfo=tz.utc
+        ),  # Should become epoch
+        "LastChangedDate": datetime.datetime(
+            2024, 3, 10, 11, 30, 45, tzinfo=tz.utc
+        ),  # Should become epoch
+        "LastAccessedDate": datetime.datetime(
+            2024, 5, 8, 8, 45, 0, tzinfo=tz.utc
+        ),  # Should become epoch
+    },
+    {
+        "ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:test-secret-minimal-MnOpQr",
+        "Name": "test-secret-minimal",
+        "RotationEnabled": False,
+        "CreatedDate": datetime.datetime(
+            2024, 3, 1, 12, 0, 0, tzinfo=tz.utc
+        ),  # Should become epoch
+        # Minimal data - many optional fields missing
+    },
+]

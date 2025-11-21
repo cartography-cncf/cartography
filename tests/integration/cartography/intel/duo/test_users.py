@@ -5,6 +5,8 @@ from cartography.intel.duo.endpoints import sync_duo_endpoints
 from cartography.intel.duo.groups import sync_duo_groups
 from cartography.intel.duo.phones import sync as sync_duo_phones
 from cartography.intel.duo.tokens import sync as sync_duo_tokens
+from cartography.intel.duo.users import _load_users
+from cartography.intel.duo.users import _transform_users
 from cartography.intel.duo.users import sync_duo_users
 from cartography.intel.duo.web_authn_credentials import (
     sync as sync_duo_web_authn_credentials,
@@ -24,6 +26,11 @@ COMMON_JOB_PARAMETERS = {
     "DUO_API_HOSTNAME": TEST_API_HOSTNAME,
     "UPDATE_TAG": TEST_UPDATE_TAG,
 }
+
+
+def _ensure_local_neo4j_has_test_users(neo4j_session):
+    data = _transform_users(GET_USERS_RESPONSE)
+    _load_users(neo4j_session, data, COMMON_JOB_PARAMETERS)
 
 
 def test_sync_duo_users(neo4j_session):
@@ -56,10 +63,10 @@ def test_sync_duo_users(neo4j_session):
         "DuoUser",
         ["id", "user_id", "username", "email"],
     ) == {
-        ("userid1", "userid1", "username1", "email1@example.com"),
-        ("userid2", "userid2", "username2", "email2@example.com"),
-        ("userid3", "userid3", "username3", "email3@example.com"),
-        ("userid4", "userid4", "username4", "email4@example.com"),
+        ("userid1", "userid1", "mbsimpson", "mbsimpson@simpson.corp"),
+        ("userid2", "userid2", "hjsimpson", "hjsimpson@simpson.corp"),
+        ("userid3", "userid3", "lmsimpson", "lmsimpson@simpson.corp"),
+        ("userid4", "userid4", "bjsimpson", "bjsimpson@simpson.corp"),
     }
 
     assert check_rels(
@@ -160,8 +167,8 @@ def test_sync_duo_users(neo4j_session):
         "IDENTITY_DUO",
         rel_direction_right=True,
     ) == {
-        ("email1@example.com", "email1@example.com"),
-        ("email2@example.com", "email2@example.com"),
-        ("email3@example.com", "email3@example.com"),
-        ("email4@example.com", "email4@example.com"),
+        ("mbsimpson@simpson.corp", "mbsimpson@simpson.corp"),
+        ("hjsimpson@simpson.corp", "hjsimpson@simpson.corp"),
+        ("lmsimpson@simpson.corp", "lmsimpson@simpson.corp"),
+        ("bjsimpson@simpson.corp", "bjsimpson@simpson.corp"),
     }

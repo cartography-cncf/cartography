@@ -1,4 +1,6 @@
-GET_USERS_RESPONSE = [
+from typing import Any
+
+GET_USERS_RESPONSE: list[dict[str, Any]] = [
     {
         "alias1": "alias1",
         "alias2": None,
@@ -7,8 +9,8 @@ GET_USERS_RESPONSE = [
         "aliases": {"alias1": "alias1"},
         "created": 1513376825,
         "desktoptokens": [],
-        "email": "email1@example.com",
-        "firstname": None,
+        "email": "mbsimpson@simpson.corp",
+        "firstname": "Marge",
         "groups": [
             {
                 "desc": "",
@@ -34,7 +36,7 @@ GET_USERS_RESPONSE = [
         "is_enrolled": True,
         "last_directory_sync": None,
         "last_login": 1683910263,
-        "lastname": None,
+        "lastname": "Simpson",
         "notes": "",
         "phones": [
             {
@@ -57,7 +59,7 @@ GET_USERS_RESPONSE = [
                 "type": "Mobile",
             },
         ],
-        "realname": "real name 1",
+        "realname": "Marge Simpson",
         "status": "active",
         "tokens": [
             {
@@ -77,7 +79,7 @@ GET_USERS_RESPONSE = [
             {"date_added": 1540012036, "registration_id": "registrationid1"},
         ],
         "user_id": "userid1",
-        "username": "username1",
+        "username": "mbsimpson",
         "webauthncredentials": [
             {
                 "credential_name": "Touch ID",
@@ -101,8 +103,8 @@ GET_USERS_RESPONSE = [
         "aliases": {},
         "created": 1513797520,
         "desktoptokens": [],
-        "email": "email2@example.com",
-        "firstname": None,
+        "email": "hjsimpson@simpson.corp",
+        "firstname": "Homer",
         "groups": [
             {
                 "desc": "",
@@ -118,7 +120,7 @@ GET_USERS_RESPONSE = [
         "is_enrolled": True,
         "last_directory_sync": None,
         "last_login": 1683911153,
-        "lastname": None,
+        "lastname": "Simpson",
         "notes": "",
         "phones": [
             {
@@ -141,12 +143,12 @@ GET_USERS_RESPONSE = [
                 "type": "Mobile",
             },
         ],
-        "realname": "real name 2",
+        "realname": "Homer Simpson",
         "status": "active",
         "tokens": [],
         "u2ftokens": [],
         "user_id": "userid2",
-        "username": "username2",
+        "username": "hjsimpson",
         "webauthncredentials": [
             {
                 "credential_name": "Security key",
@@ -170,8 +172,8 @@ GET_USERS_RESPONSE = [
         "aliases": {},
         "created": 1513802526,
         "desktoptokens": [],
-        "email": "email3@example.com",
-        "firstname": None,
+        "email": "lmsimpson@simpson.corp",
+        "firstname": "Lisa",
         "groups": [
             {
                 "desc": "",
@@ -187,7 +189,7 @@ GET_USERS_RESPONSE = [
         "is_enrolled": True,
         "last_directory_sync": None,
         "last_login": 1683837495,
-        "lastname": None,
+        "lastname": "Simpson",
         "notes": "",
         "phones": [
             {
@@ -210,7 +212,7 @@ GET_USERS_RESPONSE = [
                 "type": "Mobile",
             },
         ],
-        "realname": "real name 3",
+        "realname": "Lisa Simpson",
         "status": "active",
         "tokens": [
             {
@@ -222,7 +224,7 @@ GET_USERS_RESPONSE = [
         ],
         "u2ftokens": [],
         "user_id": "userid3",
-        "username": "username3",
+        "username": "lmsimpson",
         "webauthncredentials": [
             {
                 "credential_name": "Touch ID",
@@ -246,8 +248,8 @@ GET_USERS_RESPONSE = [
         "aliases": {},
         "created": 1528474098,
         "desktoptokens": [],
-        "email": "email4@example.com",
-        "firstname": None,
+        "email": "bjsimpson@simpson.corp",
+        "firstname": "Bart",
         "groups": [
             {
                 "desc": "",
@@ -263,7 +265,7 @@ GET_USERS_RESPONSE = [
         "is_enrolled": True,
         "last_directory_sync": None,
         "last_login": 1683837489,
-        "lastname": None,
+        "lastname": "Simpson",
         "notes": "notes4",
         "phones": [
             {
@@ -286,12 +288,12 @@ GET_USERS_RESPONSE = [
                 "type": "Mobile",
             },
         ],
-        "realname": "real name 4",
+        "realname": "Bart Simpson",
         "status": "active",
         "tokens": [],
         "u2ftokens": [],
         "user_id": "userid4",
-        "username": "username4",
+        "username": "bjsimpson",
         "webauthncredentials": [
             {
                 "credential_name": "Touch ID",

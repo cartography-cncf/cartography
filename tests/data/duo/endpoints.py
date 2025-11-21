@@ -12,7 +12,7 @@ GET_ENDPOINTS_RESPONSE = [
         "device_username_type": "",
         "disk_encryption_status": "Unknown",
         "domain_sid": "",
-        "email": "email1@example.com",
+        "email": "mbsimpson@simpson.corp",
         "epkey": "epkey1",
         "firewall_status": "Unknown",
         "hardware_uuid": "",
@@ -28,7 +28,7 @@ GET_ENDPOINTS_RESPONSE = [
         "security_agents": [],
         "trusted_endpoint": "no",
         "type": "",
-        "username": "username1",
+        "username": "mbsimpson",
     },
     {
         "browsers": [
@@ -46,7 +46,7 @@ GET_ENDPOINTS_RESPONSE = [
         "device_username_type": "",
         "disk_encryption_status": "Unknown",
         "domain_sid": "",
-        "email": "email2@example.com",
+        "email": "hjsimpson@simpson.corp",
         "epkey": "epkey2",
         "firewall_status": "Unknown",
         "hardware_uuid": "",
@@ -62,7 +62,7 @@ GET_ENDPOINTS_RESPONSE = [
         "security_agents": [],
         "trusted_endpoint": "no",
         "type": "",
-        "username": "username2",
+        "username": "hjsimpson",
     },
     {
         "browsers": [],
@@ -77,7 +77,7 @@ GET_ENDPOINTS_RESPONSE = [
         "device_username_type": "",
         "disk_encryption_status": "Unknown",
         "domain_sid": "",
-        "email": "email3@example.com",
+        "email": "lmsimpson@simpson.corp",
         "epkey": "epkey3",
         "firewall_status": "Unknown",
         "hardware_uuid": "",
@@ -93,7 +93,7 @@ GET_ENDPOINTS_RESPONSE = [
         "security_agents": [],
         "trusted_endpoint": "no",
         "type": "",
-        "username": "username3",
+        "username": "lmsimpson",
     },
     {
         "browsers": [],
@@ -108,7 +108,7 @@ GET_ENDPOINTS_RESPONSE = [
         "device_username_type": "",
         "disk_encryption_status": "Unknown",
         "domain_sid": "",
-        "email": "email4@example.com",
+        "email": "bjsimpson@simpson.corp",
         "epkey": "epkey4",
         "firewall_status": "Unknown",
         "hardware_uuid": "",
@@ -124,7 +124,7 @@ GET_ENDPOINTS_RESPONSE = [
         "security_agents": [],
         "trusted_endpoint": "yes",
         "type": "",
-        "username": "username4",
+        "username": "bjsimpson",
     },
     {
         "browsers": [

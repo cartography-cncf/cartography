@@ -14,9 +14,9 @@ Representation of an [Azure Tenant](https://docs.microsoft.com/en-us/rest/api/re
 
 - Azure Principal is part of the Azure Account.
 
-        ```
-        (AzureTenant)-[RESOURCE]->(AzurePrincipal)
-        ```
+    ```cypher
+    (AzureTenant)-[RESOURCE]->(AzurePrincipal)
+    ```
 
 ### AzurePrincipal
 
@@ -32,9 +32,9 @@ Representation of an [Azure Principal](https://docs.microsoft.com/en-us/graph/ap
 
 - Azure Principal is part of the Azure Account.
 
-        ```
-        (AzurePrincipal)-[RESOURCE]->(AzureTenant)
-        ```
+    ```cypher
+    (AzurePrincipal)-[RESOURCE]->(AzureTenant)
+    ```
 
 ### AzureSubscription
 
@@ -53,9 +53,9 @@ Representation of an [Azure Subscription](https://docs.microsoft.com/en-us/rest/
 
 - Azure Tenant contains one or more Subscriptions.
 
-        ```
-        (AzureTenant)-[RESOURCE]->(AzureSubscription)
-        ```
+    ```cypher
+    (AzureTenant)-[RESOURCE]->(AzureSubscription)
+    ```
 
 ### VirtualMachine
 
@@ -84,9 +84,9 @@ Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/re
 
 - Azure Subscription contains one or more Virtual Machines.
 
-        ```
-        (AzureSubscription)-[RESOURCE]->(VirtualMachine)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(VirtualMachine)
+    ```
 
 ### AzureDataDisk
 
@@ -111,9 +111,9 @@ Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api
 
 - Azure Virtual Machines are attached to Data Disks.
 
-        ```
-        (VirtualMachine)-[ATTACHED_TO]->(AzureDataDisk)
-        ```
+    ```cypher
+    (VirtualMachine)-[ATTACHED_TO]->(AzureDataDisk)
+    ```
 
 ### AzureDisk
 
@@ -141,9 +141,9 @@ Representation of an [Azure Disk](https://docs.microsoft.com/en-us/rest/api/comp
 
 - Azure Subscription contains one or more Disks.
 
-        ```
-        (AzureSubscription)-[RESOURCE]->(AzureDisk)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureDisk)
+    ```
 
 ### AzureSnapshot
 
@@ -172,9 +172,9 @@ Representation of an [Azure Snapshot](https://docs.microsoft.com/en-us/rest/api/
 
 - Azure Subscription contains one or more Snapshots.
 
-        ```
-        (AzureSubscription)-[RESOURCE]->(AzureSnapshot)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureSnapshot)
+    ```
 
 ### AzureSQLServer
 
@@ -196,44 +196,44 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
 
 - Azure Subscription contains one or more SQL Servers.
 
-        ```
-        (AzureSubscription)-[RESOURCE]->(AzureSQLServer)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureSQLServer)
+    ```
 - Azure SQL Server can be used by one or more Azure Server DNS Aliases.
 
-        ```
-        (AzureSQLServer)-[USED_BY]->(AzureServerDNSAlias)
-        ```
+    ```cypher
+    (AzureSQLServer)-[USED_BY]->(AzureServerDNSAlias)
+    ```
 - Azure SQL Server can be administered by one or more Azure Server AD Administrators.
 
-        ```
-        (AzureSQLServer)-[ADMINISTERED_BY]->(AzureServerADAdministrator)
-        ```
+    ```cypher
+    (AzureSQLServer)-[ADMINISTERED_BY]->(AzureServerADAdministrator)
+    ```
 - Azure SQL Server has one or more Azure Recoverable Database.
 
-        ```
-        (AzureSQLServer)-[RESOURCE]->(AzureRecoverableDatabase)
-        ```
+    ```cypher
+    (AzureSQLServer)-[RESOURCE]->(AzureRecoverableDatabase)
+    ```
 - Azure SQL Server has one or more Azure Restorable Dropped Database.
 
-        ```
-        (AzureSQLServer)-[RESOURCE]->(AzureRestorableDroppedDatabase)
-        ```
+    ```cypher
+    (AzureSQLServer)-[RESOURCE]->(AzureRestorableDroppedDatabase)
+    ```
 - Azure SQL Server has one or more Azure Failover Group.
 
-        ```
-        (AzureSQLServer)-[RESOURCE]->(AzureFailoverGroup)
-        ```
+    ```cypher
+    (AzureSQLServer)-[RESOURCE]->(AzureFailoverGroup)
+    ```
 - Azure SQL Server has one or more Azure Elastic Pool.
 
-        ```
-        (AzureSQLServer)-[RESOURCE]->(AzureElasticPool)
-        ```
+    ```cypher
+    (AzureSQLServer)-[RESOURCE]->(AzureElasticPool)
+    ```
 - Azure SQL Server has one or more Azure SQL Database.
 
-        ```
-        (AzureSQLServer)-[RESOURCE]->(AzureSQLDatabase)
-        ```
+    ```cypher
+    (AzureSQLServer)-[RESOURCE]->(AzureSQLDatabase)
+    ```
 
 ### AzureServerDNSAlias
 
@@ -251,9 +251,9 @@ Representation of an [AzureServerDNSAlias](https://docs.microsoft.com/en-us/rest
 
 - Azure SQL Server can be used by one or more Azure Server DNS Aliases.
 
-        ```
-        (AzureSQLServer)-[USED_BY]->(AzureServerDNSAlias)
-        ```
+    ```cypher
+    (AzureSQLServer)-[USED_BY]->(AzureServerDNSAlias)
+    ```
 
 ### AzureServerADAdministrator
 
@@ -272,9 +272,9 @@ Representation of an [AzureServerADAdministrator](https://docs.microsoft.com/en-
 
 - Azure SQL Server can be administered by one or more Azure Server AD Administrators.
 
-        ```
-        (AzureSQLServer)-[ADMINISTERED_BY]->(AzureServerADAdministrator)
-        ```
+    ```cypher
+    (AzureSQLServer)-[ADMINISTERED_BY]->(AzureServerADAdministrator)
+    ```
 
 ### AzureRecoverableDatabase
 
@@ -294,9 +294,9 @@ Representation of an [AzureRecoverableDatabase](https://docs.microsoft.com/en-us
 
 - Azure SQL Server has one or more Azure Recoverable Database.
 
-        ```
-        (AzureSQLServer)-[RESOURCE]->(AzureRecoverableDatabase)
-        ```
+    ```cypher
+    (AzureSQLServer)-[RESOURCE]->(AzureRecoverableDatabase)
+    ```
 
 ### AzureRestorableDroppedDatabase
 
@@ -321,9 +321,9 @@ Representation of an [AzureRestorableDroppedDatabase](https://docs.microsoft.com
 
 - Azure SQL Server has one or more Azure Restorable Dropped Database.
 
-        ```
-        (AzureSQLServer)-[RESOURCE]->(AzureRestorableDroppedDatabase)
-        ```
+    ```cypher
+    (AzureSQLServer)-[RESOURCE]->(AzureRestorableDroppedDatabase)
+    ```
 
 ### AzureFailoverGroup
 
@@ -343,9 +343,9 @@ Representation of an [AzureFailoverGroup](https://docs.microsoft.com/en-us/rest/
 
 - Azure SQL Server has one or more Azure Failover Group.
 
-        ```
-        (AzureSQLServer)-[RESOURCE]->(AzureFailoverGroup)
-        ```
+    ```cypher
+    (AzureSQLServer)-[RESOURCE]->(AzureFailoverGroup)
+    ```
 
 ### AzureElasticPool
 
@@ -369,9 +369,9 @@ Representation of an [AzureElasticPool](https://docs.microsoft.com/en-us/rest/ap
 
 - Azure SQL Server has one or more Azure Elastic Pool.
 
-        ```
-        (AzureSQLServer)-[RESOURCE]->(AzureElasticPool)
-        ```
+    ```cypher
+    (AzureSQLServer)-[RESOURCE]->(AzureElasticPool)
+    ```
 
 ### AzureSQLDatabase
 
@@ -401,29 +401,29 @@ Representation of an [AzureSQLDatabase](https://docs.microsoft.com/en-us/rest/ap
 
 - Azure SQL Server has one or more Azure SQL Database.
 
-        ```
-        (AzureSQLServer)-[RESOURCE]->(AzureSQLDatabase)
-        ```
+    ```cypher
+    (AzureSQLServer)-[RESOURCE]->(AzureSQLDatabase)
+    ```
 - Azure SQL Database contains one or more Azure Replication Links.
 
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureReplicationLink)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureReplicationLink)
+    ```
 - Azure SQL Database contains a Database Threat Detection Policy.
 
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureDatabaseThreatDetectionPolicy)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureDatabaseThreatDetectionPolicy)
+    ```
 - Azure SQL Database contains one or more Restore Points.
 
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureRestorePoint)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureRestorePoint)
+    ```
 - Azure SQL Database contains Transparent Data Encryption.
 
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureTransparentDataEncryption)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureTransparentDataEncryption)
+    ```
 
 ### AzureReplicationLink
 
@@ -451,9 +451,9 @@ Representation of an [AzureReplicationLink](https://docs.microsoft.com/en-us/res
 
 - Azure SQL Database contains one or more Azure Replication Links.
 
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureReplicationLink)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureReplicationLink)
+    ```
 
 ### AzureDatabaseThreatDetectionPolicy
 
@@ -479,9 +479,9 @@ Representation of an [AzureDatabaseThreatDetectionPolicy](https://docs.microsoft
 
 - Azure SQL Database contains a Database Threat Detection Policy.
 
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureDatabaseThreatDetectionPolicy)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureDatabaseThreatDetectionPolicy)
+    ```
 
 ### AzureRestorePoint
 
@@ -502,9 +502,9 @@ Representation of an [AzureRestorePoint](https://docs.microsoft.com/en-us/rest/a
 
 - Azure SQL Database contains one or more Restore Points.
 
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureRestorePoint)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureRestorePoint)
+    ```
 
 ### AzureTransparentDataEncryption
 
@@ -523,9 +523,9 @@ Representation of an [AzureTransparentDataEncryption](https://docs.microsoft.com
 
 - Azure SQL Database contains Transparent Data Encryption.
 
-        ```
-        (AzureSQLDatabase)-[CONTAINS]->(AzureTransparentDataEncryption)
-        ```
+    ```cypher
+    (AzureSQLDatabase)-[CONTAINS]->(AzureTransparentDataEncryption)
+    ```
 
 ### AzureStorageAccount
 
@@ -554,29 +554,34 @@ Representation of an [AzureStorageAccount](https://docs.microsoft.com/en-us/rest
 
 - Azure Subscription contains one or more Storage Accounts.
 
-        ```
-        (AzureSubscription)-[RESOURCE]->(AzureStorageAccount)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureStorageAccount)
+    ```
 - Azure Storage Accounts uses one or more Queue Services.
 
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageQueueService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageQueueService)
+    ```
 - Azure Storage Accounts uses one or more Table Services.
 
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageTableService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageTableService)
+    ```
 - Azure Storage Accounts uses one or more File Services.
 
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageFileService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageFileService)
+    ```
 - Azure Storage Accounts uses one or more Blob Services.
 
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
+    ```
+- Azure Storage Accounts can be tagged with Azure Tags.
+
+    ```cypher
+    (:AzureStorageAccount)-[:TAGGED]->(:AzureTag)
+    ```
 
 ### AzureStorageQueueService
 
@@ -594,14 +599,14 @@ Representation of an [AzureStorageQueueService](https://docs.microsoft.com/en-us
 
 - Azure Storage Accounts uses one or more Queue Services.
 
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageQueueService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageQueueService)
+    ```
 - Queue Service contains one or more queues.
 
-        ```
-        (AzureStorageQueueService)-[CONTAINS]->(AzureStorageQueue)
-        ```
+    ```cypher
+    (AzureStorageQueueService)-[CONTAINS]->(AzureStorageQueue)
+    ```
 
 ### AzureStorageTableService
 
@@ -619,14 +624,14 @@ Representation of an [AzureStorageTableService](https://docs.microsoft.com/en-us
 
 - Azure Storage Accounts uses one or more Table Services.
 
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageTableService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageTableService)
+    ```
 - Table Service contains one or more tables.
 
-        ```
-        (AzureStorageTableService)-[CONTAINS]->(AzureStorageTable)
-        ```
+    ```cypher
+    (AzureStorageTableService)-[CONTAINS]->(AzureStorageTable)
+    ```
 
 ### AzureStorageFileService
 
@@ -644,14 +649,14 @@ Representation of an [AzureStorageFileService](https://docs.microsoft.com/en-us/
 
 - Azure Storage Accounts uses one or more File Services.
 
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageFileService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageFileService)
+    ```
 - Table Service contains one or more file shares.
 
-        ```
-        (AzureStorageFileService)-[CONTAINS]->(AzureStorageFileShare)
-        ```
+    ```cypher
+    (AzureStorageFileService)-[CONTAINS]->(AzureStorageFileShare)
+    ```
 
 ### AzureStorageBlobService
 
@@ -669,14 +674,14 @@ Representation of an [AzureStorageBlobService](https://docs.microsoft.com/en-us/
 
 - Azure Storage Accounts uses one or more Blob Services.
 
-        ```
-        (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
-        ```
+    ```cypher
+    (AzureStorageAccount)-[USES]->(AzureStorageBlobService)
+    ```
 - Blob Service contains one or more blob containers.
 
-        ```
-        (AzureStorageBlobService)-[CONTAINS]->(AzureStorageBlobContainer)
-        ```
+    ```cypher
+    (AzureStorageBlobService)-[CONTAINS]->(AzureStorageBlobContainer)
+    ```
 
 ### AzureStorageQueue
 
@@ -694,9 +699,9 @@ Representation of an [AzureStorageQueue](https://docs.microsoft.com/en-us/rest/a
 
 - Queue Service contains one or more queues.
 
-        ```
-        (AzureStorageQueueService)-[CONTAINS]->(AzureStorageQueue)
-        ```
+    ```cypher
+    (AzureStorageQueueService)-[CONTAINS]->(AzureStorageQueue)
+    ```
 
 ### AzureStorageTable
 
@@ -715,9 +720,9 @@ Representation of an [AzureStorageTable](https://docs.microsoft.com/en-us/rest/a
 
 - Table Service contains one or more tables.
 
-        ```
-        (AzureStorageTableService)-[CONTAINS]->(AzureStorageTable)
-        ```
+    ```cypher
+    (AzureStorageTableService)-[CONTAINS]->(AzureStorageTable)
+    ```
 
 ### AzureStorageFileShare
 
@@ -746,9 +751,9 @@ Representation of an [AzureStorageFileShare](https://docs.microsoft.com/en-us/re
 
 - File Service contains one or more file shares.
 
-        ```
-        (AzureStorageTableService)-[CONTAINS]->(AzureStorageFileShare)
-        ```
+    ```cypher
+    (AzureStorageTableService)-[CONTAINS]->(AzureStorageFileShare)
+    ```
 
 ### AzureStorageBlobContainer
 
@@ -778,9 +783,9 @@ Representation of an [AzureStorageBlobContainer](https://docs.microsoft.com/en-u
 
 - Blob Service contains one or more blob containers.
 
-        ```
-        (AzureStorageBlobService)-[CONTAINS]->(AzureStorageBlobContainer)
-        ```
+    ```cypher
+    (AzureStorageBlobService)-[CONTAINS]->(AzureStorageBlobContainer)
+    ```
 
 ### AzureCosmosDBAccount
 
@@ -819,58 +824,60 @@ Representation of an [AzureCosmosDBAccount](https://docs.microsoft.com/en-us/res
 
 - Azure Subscription contains one or more database accounts.
 
-        ```
-        (AzureSubscription)-[RESOURCE]->(AzureCosmosDBAccount)
-        ```
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureCosmosDBAccount)
+    ```
 - Azure Database Account can be read from, written from and is associated with Azure CosmosDB Locations.
 
-        ```
-        (AzureCosmosDBAccount)-[CAN_WRITE_FROM]->(AzureCosmosDBLocation)
-        ```
-        (AzureCosmosDBAccount)-[CAN_READ_FROM]->(AzureCosmosDBLocation)
-        ```
-        (AzureCosmosDBAccount)-[ASSOCIATED_WITH]->(AzureCosmosDBLocation)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CAN_WRITE_FROM]->(AzureCosmosDBLocation)
+    ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CAN_READ_FROM]->(AzureCosmosDBLocation)
+    ```
+    ```cypher
+    (AzureCosmosDBAccount)-[ASSOCIATED_WITH]->(AzureCosmosDBLocation)
+    ```
 - Azure Database Account contains one or more Cors Policy.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCorsPolicy)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCorsPolicy)
+    ```
 - Azure Database Account contains one or more failover policies.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBAccountFailoverPolicy)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBAccountFailoverPolicy)
+    ```
 - Azure Database Account is configured with one or more private endpoint connections.
 
-        ```
-        (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCDBPrivateEndpointConnection)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCDBPrivateEndpointConnection)
+    ```
 - Azure Database Account is configured with one or more virtual network rules.
 
-        ```
-        (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCosmosDBVirtualNetworkRule)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCosmosDBVirtualNetworkRule)
+    ```
 - Azure Database Account contains one or more SQL databases.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBSqlDatabase)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBSqlDatabase)
+    ```
 - Azure Database Account contains one or more Cassandra keyspace.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCassandraKeyspace)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCassandraKeyspace)
+    ```
 - Azure Database Account contains one or more MongoDB Database.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBMongoDBDatabase)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBMongoDBDatabase)
+    ```
 - Azure Database Account contains one or more table resource.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBTableResource)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBTableResource)
+    ```
 
 ### AzureCosmosDBLocation
 
@@ -891,13 +898,13 @@ Representation of an [Azure CosmosDB Location](https://docs.microsoft.com/en-us/
 
 - Azure Database Account has write permissions from, read permissions from and is associated with Azure CosmosDB Locations.
 
-        ```
-        (AzureCosmosDBAccount)-[CAN_WRITE_FROM]->(AzureCosmosDBLocation)
-        ```
-        (AzureCosmosDBAccount)-[CAN_READ_FROM]->(AzureCosmosDBLocation)
-        ```
-        (AzureCosmosDBAccount)-[ASSOCIATED_WITH]->(AzureCosmosDBLocation)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CAN_WRITE_FROM]->(AzureCosmosDBLocation)
+    ```
+    (AzureCosmosDBAccount)-[CAN_READ_FROM]->(AzureCosmosDBLocation)
+    ```cypher
+    (AzureCosmosDBAccount)-[ASSOCIATED_WITH]->(AzureCosmosDBLocation)
+    ```
 
 ### AzureCosmosDBCorsPolicy
 
@@ -918,9 +925,9 @@ Representation of an [Azure Cosmos DB Cors Policy](https://docs.microsoft.com/en
 
 - Azure Database Account contains one or more Cors Policy.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCorsPolicy)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCorsPolicy)
+    ```
 
 ### AzureCosmosDBAccountFailoverPolicy
 
@@ -938,9 +945,9 @@ Representation of an Azure Database Account [Failover Policy](https://docs.micro
 
 - Azure Database Account contains one or more failover policies.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBAccountFailoverPolicy)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBAccountFailoverPolicy)
+    ```
 
 ### AzureCDBPrivateEndpointConnection
 
@@ -960,9 +967,9 @@ Representation of an Azure Cosmos DB [Private Endpoint Connection](https://docs.
 
 - Azure Database Account is configured with one or more private endpoint connections.
 
-        ```
-        (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCDBPrivateEndpointConnection)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCDBPrivateEndpointConnection)
+    ```
 
 ### AzureCosmosDBVirtualNetworkRule
 
@@ -979,9 +986,9 @@ Representation of an Azure Cosmos DB [Virtual Network Rule](https://docs.microso
 
 - Azure Database Account is configured with one or more virtual network rules.
 
-        ```
-        (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCosmosDBVirtualNetworkRule)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONFIGURED_WITH]->(AzureCosmosDBVirtualNetworkRule)
+    ```
 
 ### AzureCosmosDBSqlDatabase
 
@@ -1002,14 +1009,14 @@ Representation of an [AzureCosmosDBSqlDatabase](https://docs.microsoft.com/en-us
 
 - Azure Database Account contains one or more SQL databases.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBSqlDatabase)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBSqlDatabase)
+    ```
 - SQL Databases contain one or more SQL containers.
 
-        ```
-        (AzureCosmosDBSqlDatabase)-[CONTAINS]->(AzureCosmosDBSqlContainer)
-        ```
+    ```cypher
+    (AzureCosmosDBSqlDatabase)-[CONTAINS]->(AzureCosmosDBSqlContainer)
+    ```
 
 ### AzureCosmosDBCassandraKeyspace
 
@@ -1030,14 +1037,14 @@ Representation of an [AzureCosmosDBCassandraKeyspace](https://docs.microsoft.com
 
 - Azure Database Account contains one or more Cassandra keyspace.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCassandraKeyspace)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBCassandraKeyspace)
+    ```
 - Cassandra Keyspace contains one or more Cassandra tables.
 
-        ```
-        (AzureCosmosDBCassandraKeyspace)-[CONTAINS]->(AzureCosmosDBCassandraTable)
-        ```
+    ```cypher
+    (AzureCosmosDBCassandraKeyspace)-[CONTAINS]->(AzureCosmosDBCassandraTable)
+    ```
 
 ### AzureCosmosDBMongoDBDatabase
 
@@ -1058,14 +1065,14 @@ Representation of an [AzureCosmosDBMongoDBDatabase](https://docs.microsoft.com/e
 
 - Azure Database Account contains one or more MongoDB Database.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBMongoDBDatabase)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBMongoDBDatabase)
+    ```
 - MongoDB database contains one or more MongoDB collections.
 
-        ```
-        (AzureCosmosDBMongoDBDatabase)-[CONTAINS]->(AzureCosmosDBMongoDBCollection)
-        ```
+    ```cypher
+    (AzureCosmosDBMongoDBDatabase)-[CONTAINS]->(AzureCosmosDBMongoDBCollection)
+    ```
 
 ### AzureCosmosDBTableResource
 
@@ -1086,9 +1093,9 @@ Representation of an [AzureCosmosDBTableResource](https://docs.microsoft.com/en-
 
 - Azure Database Account contains one or more table resource.
 
-        ```
-        (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBTableResource)
-        ```
+    ```cypher
+    (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBTableResource)
+    ```
 
 ### AzureCosmosDBSqlContainer
 
@@ -1115,9 +1122,9 @@ Representation of an [AzureCosmosDBSqlContainer](https://docs.microsoft.com/en-u
 
 - SQL Databases contain one or more SQL containers.
 
-        ```
-        (AzureCosmosDBSqlDatabase)-[CONTAINS]->(AzureCosmosDBSqlContainer)
-        ```
+    ```cypher
+    (AzureCosmosDBSqlDatabase)-[CONTAINS]->(AzureCosmosDBSqlContainer)
+    ```
 
 ### AzureCosmosDBCassandraTable
 
@@ -1141,9 +1148,9 @@ Representation of an [AzureCosmosDBCassandraTable](https://docs.microsoft.com/en
 
 - Cassandra Keyspace contains one or more Cassandra tables.
 
-        ```
-        (AzureCosmosDBCassandraKeyspace)-[CONTAINS]->(AzureCosmosDBCassandraTable)
-        ```
+    ```cypher
+    (AzureCosmosDBCassandraKeyspace)-[CONTAINS]->(AzureCosmosDBCassandraTable)
+    ```
 
 ### AzureCosmosDBMongoDBCollection
 
@@ -1166,6 +1173,530 @@ Representation of an [AzureCosmosDBMongoDBCollection](https://docs.microsoft.com
 
 - MongoDB database contains one or more MongoDB collections.
 
-        ```
-        (AzureCosmosDBMongoDBDatabase)-[CONTAINS]->(AzureCosmosDBMongoDBCollection)
-        ```
+    ```cypher
+    (AzureCosmosDBMongoDBDatabase)-[CONTAINS]->(AzureCosmosDBMongoDBCollection)
+    ```
+
+### AzureFunctionApp
+
+Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest/api/appservice/web-apps/get).
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Function App. |
+|name| The name of the Function App. |
+|kind| The kind of the resource, used to identify it as a function app. |
+|location| The Azure region where the Function App is deployed. |
+|state| The operational state of the Function App (e.g., Running, Stopped). |
+|default_host_name| The default hostname of the Function App. |
+|https_only| A boolean indicating if the Function App is configured to only accept HTTPS traffic. |
+
+#### Relationships
+
+- An Azure Function App is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureFunctionApp)
+    ```
+
+### AzureAppService
+
+Representation of an [Azure App Service](https://learn.microsoft.com/en-us/rest/api/appservice/web-apps/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the App Service. |
+|name| The name of the App Service. |
+|kind| The kind of the resource, used to identify it as an app service. |
+|location| The Azure region where the App Service is deployed. |
+|state| The operational state of the App Service (e.g., Running, Stopped). |
+|default_host_name| The default hostname of the App Service. |
+|https_only| A boolean indicating if the App Service is configured to only accept HTTPS traffic. |
+
+#### Relationships
+
+- An Azure App Service is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureAppService)
+    ```
+
+### AzureEventGridTopic
+
+Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/rest/api/eventgrid/controlplane-stable/topics/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Event Grid Topic. |
+|name| The name of the Event Grid Topic. |
+|location| The Azure region where the Topic is deployed. |
+|provisioning_state| The deployment status of the Topic (e.g., Succeeded). |
+|public_network_access| Indicates if the topic can be accessed from the public internet. |
+
+#### Relationships
+
+- An Azure Event Grid Topic is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureEventGridTopic)
+    ```
+
+### AzureLogicApp
+
+Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/api/logic/workflows/get).
+
+|**id**| The full resource ID of the Logic App. |
+|name| The name of the Logic App. |
+|location| The Azure region where the Logic App is deployed. |
+|state| The operational state of the Logic App (e.g., Enabled, Disabled). |
+|created_time| The timestamp of when the Logic App was created. |
+|changed_time| The timestamp of when the Logic App was last modified. |
+|version| The version of the Logic App's definition. |
+|access_endpoint| The public URL that can be used to trigger the Logic App. |
+
+#### Relationships
+
+- An Azure Logic App is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureLogicApp)
+    ```
+
+### AzureResourceGroup
+
+Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/rest/api/resources/resource-groups/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Resource Group. |
+|name| The name of the Resource Group. |
+|location| The Azure region where the Resource Group is deployed. |
+|provisioning_state| The deployment status of the Resource Group (e.g., Succeeded). |
+
+#### Relationships
+
+- An Azure Resource Group is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(:AzureResourceGroup)
+    ```
+
+### AzureDataFactory
+
+Representation of an [Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/factories/get).
+
+| Field | Description |
+| --- | --- |
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Data Factory. |
+| name | The name of the Data Factory. |
+| location | The Azure region where the Data Factory is deployed. |
+| provisioning\_state | The deployment status of the Data Factory (e.g., Succeeded). |
+| create\_time | The timestamp of when the Data Factory was created. |
+| version | The version of the Data Factory. |
+
+#### Relationships
+
+  - An Azure Data Factory is a resource within an Azure Subscription.
+
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureDataFactory)
+    ```
+
+  - An Azure Data Factory contains Pipelines, Datasets, and Linked Services.
+
+    ```cypher
+    (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryPipeline)
+    (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryDataset)
+    (AzureDataFactory)-[:CONTAINS]->(:AzureDataFactoryLinkedService)
+    ```
+
+### AzureDataFactoryPipeline
+
+Representation of a [Pipeline within an Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/pipelines/get).
+
+| Field | Description |
+| --- | --- |
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Pipeline. |
+| name | The name of the Pipeline. |
+| description | The description of the Pipeline. |
+
+#### Relationships
+
+  - A Pipeline is a resource within an Azure Subscription.
+
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureDataFactoryPipeline)
+    ```
+
+  - A Pipeline uses one or more Datasets.
+
+    ```cypher
+    (AzureDataFactoryPipeline)-[:USES_DATASET]->(:AzureDataFactoryDataset)
+    ```
+
+### AzureDataFactoryDataset
+
+Representation of a [Dataset within an Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/datasets/get).
+
+| Field | Description |
+| --- | --- |
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Dataset. |
+| name | The name of the Dataset. |
+| type | The type of the Dataset (e.g., `DelimitedText`). |
+
+#### Relationships
+
+  - A Dataset is a resource within an Azure Subscription.
+
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureDataFactoryDataset)
+    ```
+
+  - A Dataset uses a Linked Service for its connection.
+
+    ```cypher
+    (AzureDataFactoryDataset)-[:USES_LINKED_SERVICE]->(:AzureDataFactoryLinkedService)
+    ```
+
+### AzureDataFactoryLinkedService
+
+Representation of a [Linked Service within an Azure Data Factory](https://www.google.com/search?q=https://learn.microsoft.com/en-us/rest/api/datafactory/linked-services/get).
+
+| Field | Description |
+| --- | --- |
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Linked Service. |
+| name | The name of the Linked Service. |
+| type | The type of the Linked Service (e.g., `AzureBlobFS`). |
+
+#### Relationships
+
+  - A Linked Service is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureDataFactoryLinkedService)
+    ```
+
+*(External `[:CONNECTS_TO]` relationships will be added in a future PR.)*
+
+### AzureKubernetesCluster
+
+Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the AKS Cluster. |
+|name| The name of the AKS Cluster. |
+|location| The Azure region where the Cluster is deployed. |
+|provisioning_state| The deployment status of the Cluster (e.g., Succeeded). |
+|kubernetes_version| The version of Kubernetes the Cluster is running. |
+|fqdn| The fully qualified domain name of the Cluster's API server. |
+
+#### Relationships
+
+- An Azure Kubernetes Cluster is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKubernetesCluster)
+    ```
+
+### AzureKubernetesAgentPool
+
+Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microsoft.com/en-us/rest/api/aks/agent-pools/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Agent Pool. |
+|name| The name of the Agent Pool. |
+|provisioning_state| The deployment status of the Agent Pool (e.g., Succeeded). |
+|vm_size| The size of the virtual machines in the pool. |
+|os_type| The operating system of the nodes (e.g., Linux). |
+|count| The number of virtual machines in the pool. |
+
+#### Relationships
+
+- An Azure Kubernetes Cluster has one or more Agent Pools.
+    ```cypher
+    (AzureKubernetesCluster)-[:HAS_AGENT_POOL]->(:AzureKubernetesAgentPool)
+    ```
+
+### AzureContainerInstance
+
+Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).
+
+|**id**| The full resource ID of the Container Instance. |
+|name| The name of the Container Instance. |
+|location| The Azure region where the Container Instance is deployed. |
+|type| The type of the resource (e.g., `Microsoft.ContainerInstance/containerGroups`). |
+|provisioning_state| The deployment status of the Container Instance (e.g., Succeeded). |
+|ip_address| The public IP address of the Container Instance, if one is assigned. |
+|os_type| The operating system type of the Container Instance (e.g., Linux or Windows). |
+
+#### Relationships
+
+- An Azure Container Instance is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
+    ```
+
+### AzureLoadBalancer
+
+Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/load-balancers/get).
+
+| Field      | Description                                                 |
+| ---------- | ----------------------------------------------------------- |
+| firstseen  | Timestamp of when a sync job discovered this node           |
+| lastupdated| Timestamp of the last time the node was updated             |
+| **id** | The full resource ID of the Load Balancer.                  |
+| name       | The name of the Load Balancer.                              |
+| location   | The Azure region where the Load Balancer is deployed.       |
+| sku_name   | The SKU of the Load Balancer (e.g., `Standard`, `Basic`).   |
+
+#### Relationships
+
+- An Azure Load Balancer is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancer)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerFrontendIPConfiguration)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerBackendPool)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerRule)
+    (AzureSubscription)-[:RESOURCE]->(:AzureLoadBalancerInboundNatRule)
+    ```
+
+- An Azure Load Balancer contains its component parts.
+    ```cypher
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerFrontendIPConfiguration)
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerBackendPool)
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerRule)
+    (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerInboundNatRule)
+    ```
+
+### AzureLoadBalancerFrontendIPConfiguration
+
+Representation of a Frontend IP Configuration for an Azure Load Balancer.
+
+| Field                | Description                                                              |
+| -------------------- | ------------------------------------------------------------------------ |
+| firstseen            | Timestamp of when a sync job discovered this node                        |
+| lastupdated          | Timestamp of the last time the node was updated                          |
+| **id** | The full resource ID of the Frontend IP Configuration.                   |
+| name                 | The name of the Frontend IP Configuration.                               |
+| private\_ip\_address   | The private IP address of the configuration, if applicable.              |
+| public\_ip\_address\_id | The resource ID of the associated Public IP Address object, if applicable. |
+
+### AzureLoadBalancerBackendPool
+
+Representation of a Backend Pool for an Azure Load Balancer.
+
+| Field       | Description                                       |
+| ----------- | ------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the Backend Pool.         |
+| name        | The name of the Backend Pool.                     |
+
+### AzureLoadBalancerRule
+
+Representation of a Load Balancing Rule for an Azure Load Balancer.
+
+| Field         | Description                                       |
+| ------------- | ------------------------------------------------- |
+| firstseen     | Timestamp of when a sync job discovered this node |
+| lastupdated   | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the Rule.                 |
+| name          | The name of the Rule.                             |
+| protocol      | The network protocol for the rule (e.g., `Tcp`).  |
+| frontend\_port | The port that receives traffic.                   |
+| backend\_port  | The port that traffic is sent to.                 |
+
+#### Relationships
+
+  - A Rule uses a Frontend IP Configuration.
+    ```cypher
+    (AzureLoadBalancerRule)-[:USES_FRONTEND_IP]->(:AzureLoadBalancerFrontendIPConfiguration)
+    ```
+  - A Rule routes traffic to a Backend Pool.
+    ```cypher
+    (AzureLoadBalancerRule)-[:ROUTES_TO]->(:AzureLoadBalancerBackendPool)
+    ```
+
+### AzureLoadBalancerInboundNatRule
+
+Representation of an Inbound NAT Rule for an Azure Load Balancer.
+
+| Field         | Description                                       |
+| ------------- | ------------------------------------------------- |
+| firstseen     | Timestamp of when a sync job discovered this node |
+| lastupdated   | Timestamp of the last time the node was updated   |
+| **id** | The full resource ID of the NAT Rule.             |
+| name          | The name of the NAT Rule.                         |
+| protocol      | The network protocol for the rule (e.g., `Tcp`).  |
+| frontend\_port | The public port that receives traffic.            |
+| backend\_port  | The private port on the target VM.                |
+
+#### Relationships
+
+*(External `[:FORWARDS_TO]` relationships to Network Interfaces will be added in a future PR.)*
+
+### AzureTag
+
+Representation of a key-value tag applied to an Azure resource. Tags with the same key and value share a single node in the graph, allowing for easy cross-resource querying.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| id | Unique identifier for the tag, formatted as `{subscription_id}|{key}:{value}`. |
+| key | The tag name (e.g., `Environment`). |
+| value | The tag value (e.g., `Production`). |
+| lastupdated | The timestamp of the last time this tag was seen on any resource. |
+
+#### Relationships
+
+- Azure Storage Accounts can be tagged with Azure Tags.
+
+    ```cypher
+    (:AzureStorageAccount)-[:TAGGED]->(:AzureTag)
+    ```
+
+### AzureVirtualNetwork
+
+Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/virtual-networks/get).
+
+| Field                | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| firstseen            | Timestamp of when a sync job discovered this node                 |
+| lastupdated          | Timestamp of the last time the node was updated                   |
+| **id** | The full resource ID of the Virtual Network.                      |
+| name                 | The name of the Virtual Network.                                  |
+| location             | The Azure region where the Virtual Network is deployed.           |
+| provisioning_state   | The deployment status of the Virtual Network (e.g., Succeeded).   |
+
+#### Relationships
+
+- An Azure Virtual Network is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureVirtualNetwork)
+    ```
+
+- An Azure Virtual Network contains one or more Subnets.
+    ```cypher
+    (AzureVirtualNetwork)-[:CONTAINS]->(:AzureSubnet)
+    ```
+
+### AzureSubnet
+
+Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
+
+| Field          | Description                                         |
+| -------------- | --------------------------------------------------- |
+| firstseen      | Timestamp of when a sync job discovered this node   |
+| lastupdated    | Timestamp of the last time the node was updated     |
+| **id** | The full resource ID of the Subnet.                 |
+| name           | The name of the Subnet.                             |
+| address\_prefix | The address prefix of the Subnet in CIDR notation.  |
+
+#### Relationships
+
+  - A Subnet can be associated with a Network Security Group.
+    ```cypher
+    (AzureSubnet)-[:ASSOCIATED_WITH]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureNetworkSecurityGroup
+
+Representation of an [Azure Network Security Group (NSG)](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-security-groups/get).
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the Network Security Group.   |
+| name        | The name of the Network Security Group.               |
+| location    | The Azure region where the NSG is deployed.           |
+
+#### Relationships
+
+  - An Azure Network Security Group is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureSecurityAssessment
+
+Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Assessment.|
+|name| The name of the Assessment.|
+|display\_name| The user-friendly display name of the Assessment.|
+|description| The description of the security issue identified by the assessment.|
+|remediation\_description| The description of the steps required to remediate the issue.|
+
+#### Relationships
+
+  - An Azure Security Assessment is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[HAS_ASSESSMENT]->(AzureSecurityAssessment)
+    ```
+
+### AzureMonitorMetricAlert
+
+Representation of an Azure Monitor [Metric Alert](https://learn.microsoft.com/en-us/rest/api/monitor/metricalerts/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Metric Alert.|
+|name| The name of the Metric Alert.|
+|location| The Azure region where the Metric Alert is deployed.|
+|description| The description of the Metric Alert.|
+|severity| The severity of the alert, from 0 (critical) to 4 (verbose).|
+|enabled| A boolean indicating if the alert rule is enabled.|
+|window\_size| The period of time (in ISO 8601 duration format) that is used to monitor alert activity.|
+|evaluation\_frequency| The frequency (in ISO 8601 duration format) with which the metric data is collected.|
+|last\_updated\_time| The timestamp of when the alert rule was last modified.|
+
+#### Relationships
+
+  - An Azure Monitor Metric Alert is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:HAS_METRIC_ALERT]->(AzureMonitorMetricAlert)
+    ```
+
+### AzureDataLakeFileSystem
+
+Representation of an [Azure Data Lake File System](https://learn.microsoft.com/en-us/rest/api/storagerp/blob-containers/get), which is a container within a Data Lake enabled Storage Account.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the File System. |
+| name | The name of the File System. |
+| public_access | The public access level of the File System (e.g., None). |
+| last_modified_time | The timestamp of when the File System was last modified. |
+| has_immutability_policy | A boolean indicating if the data is protected from being changed or deleted. |
+| has_legal_hold | A boolean indicating if the data is locked for legal reasons. |
+
+#### Relationships
+
+- An Azure Storage Account contains one or more File Systems.
+    ```cypher
+    (AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
+    ```

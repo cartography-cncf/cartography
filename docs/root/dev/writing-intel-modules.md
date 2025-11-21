@@ -339,6 +339,11 @@ Here's how to represent this in the Cartography data model:
 
 Now we can use the same steps described above in this doc to finish data ingestion.
 
+### MatchLinks
+
+See [the MatchLinks documentation](matchlinks) on how to connect existing nodes in the graph together using Cartography's data model.
+
+
 ### Cleanup
 
 We have just added new nodes and relationships to the graph, and we have also updated previously-added ones
@@ -353,6 +358,19 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     cleanup_job = GraphJob.from_node_schema(EMRClusterSchema(), common_job_parameters)
     cleanup_job.run(neo4j_session)
 ```
+
+#### Scoped cleanups
+
+By default, a node_schema has `scoped_cleanup` flag set to True. This means that when we run a clean up job on that
+node type, then we will only delete stale nodes that are connected to the current sub-resource being synced. This is
+designed for modules like AWS or GCP where there a clear definition of a "tenant"-like object because each account or
+project gets synced in one at a time and it doesn't make sense to delete objects outside of the current tenant being
+synced.
+
+For some other modules that don't have a clear tenant-like relationship, you can set `scoped_cleanup` to False on the
+node_schema. This might make sense for a vuln scanner module where there is no logical tenant object.
+
+#### Legacy notes
 
 Older intel modules still do this process with hand-written cleanup jobs that work like this:
 
@@ -415,15 +433,47 @@ resources that exist in the graph don't change across syncs.
     same data. Explained another way, each module should "offer its own perspective" on the data. We believe doing this
     gives us a more complete graph. Below are some key guidelines clarifying and justifying this design choice.
 
-- It is possible (and encouraged) for more than one intel module to modify the same node type.
+- It is possible (and encouraged) for more than one intel module to modify the same node type. However, there are two distinct patterns for this:
 
-    For example, when we [connect RDS instances to their associated EC2 security
-    groups](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L188)
-    there are actually two different intel modules that retrieve EC2 security group data: the [RDS module](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L13)
-    returns [partial group data](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSecurityGroupMembership.html),
-    and the EC2 module returns more complete data as it calls APIs specific for [retrieving and loading security groups](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/ec2.py#L166).
-    Because both the RDS and EC2 modules `MERGE` on a unique ID, we don't need to worry about
-    creating duplicate nodes in the graph.
+    **Simple Relationship Pattern**: When data type A only refers to data type B by an ID without providing additional properties about B, we can just define a relationship schema. This way when A is loaded, the relationship schema performs a `MATCH` to find and connect to existing nodes of type B.
 
-    Another less obvious benefit of using `MERGE` across more than one intel module to connect nodes in this way is that
-    in many cases, we've seen an intel module discover nodes that another module was not aware of!
+    For example, when an RDS instance refers to EC2 security groups by ID, we create a relationship from the RDS instance to the security group nodes, since the RDS API doesn't provide additional properties about the security groups beyond their IDs.
+
+    ```python
+    # RDS Instance refers to Security Groups by ID only
+    @dataclass(frozen=True)
+    class RDSInstanceToSecurityGroupRel(CartographyRelSchema):
+        target_node_label: str = "EC2SecurityGroup"
+        target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+            "id": PropertyRef("SecurityGroupId"),  # Just the ID, no additional properties
+        })
+        direction: LinkDirection = LinkDirection.OUTWARD
+        rel_label: str = "MEMBER_OF_EC2_SECURITY_GROUP"
+        properties: RDSInstanceToSecurityGroupRelProperties = RDSInstanceToSecurityGroupRelProperties()
+    ```
+
+    **Composite Node Pattern**: When a data type `A` refers to another data type `B` and offers additional fields about `B` that `B` doesn't have itself, we should define a composite node schema. This composite node would be named "`BASchema`" to denote that it's a "`B`" object as known by an "`A`" object. When loaded, the composite node schema targets the same node label as the primary `B` schema, allowing the loading system to perform a `MERGE` operation that combines properties from both sources.
+
+    For example, in the AWS EC2 module, we have both `EBSVolumeSchema` (from the EBS API) and `EBSVolumeInstanceSchema` (from the EC2 Instance API). The EC2 Instance API provides additional properties about EBS volumes that the EBS API doesn't have, such as `deleteontermination`. Both schemas target the same `EBSVolume` node label, allowing the node to accumulate properties from both sources.
+
+    ```python
+    # EC2 Instance provides additional properties about EBS Volumes
+    @dataclass(frozen=True)
+    class EBSVolumeInstanceProperties(CartographyNodeProperties):
+        id: PropertyRef = PropertyRef("VolumeId")
+        arn: PropertyRef = PropertyRef("Arn", extra_index=True)
+        lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+        # Additional property that EBS API doesn't have
+        deleteontermination: PropertyRef = PropertyRef("DeleteOnTermination")
+
+    @dataclass(frozen=True)
+    class EBSVolumeInstanceSchema(CartographyNodeSchema):
+        label: str = "EBSVolume"  # Same label as EBSVolumeSchema
+        properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
+        sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
+        # ... other relationships
+    ```
+
+    The key distinction is whether the referring module provides additional properties about the target entity. If it does, use a composite node schema. If it only provides IDs, use a simple relationship schema.
+
+    In case you're curious, here's some [historical context](https://github.com/cartography-cncf/cartography/issues/1210) on how we got here.

@@ -5,7 +5,7 @@ GH_TEAM_DATA = (
         nodes=[
             {
                 "slug": "team-a",
-                "url": "https://github.com/orgs/example_org/teams/team-a",
+                "url": "https://github.com/orgs/simpsoncorp/teams/team-a",
                 "description": None,
                 "repositories": {"totalCount": 0},
                 "members": {"totalCount": 0},
@@ -13,7 +13,7 @@ GH_TEAM_DATA = (
             },
             {
                 "slug": "team-b",
-                "url": "https://github.com/orgs/example_org/teams/team-b",
+                "url": "https://github.com/orgs/simpsoncorp/teams/team-b",
                 "description": None,
                 "repositories": {"totalCount": 3},
                 "members": {"totalCount": 0},
@@ -21,7 +21,7 @@ GH_TEAM_DATA = (
             },
             {
                 "slug": "team-c",
-                "url": "https://github.com/orgs/example_org/teams/team-c",
+                "url": "https://github.com/orgs/simpsoncorp/teams/team-c",
                 "description": None,
                 "repositories": {"totalCount": 0},
                 "members": {"totalCount": 3},
@@ -29,7 +29,7 @@ GH_TEAM_DATA = (
             },
             {
                 "slug": "team-d",
-                "url": "https://github.com/orgs/example_org/teams/team-d",
+                "url": "https://github.com/orgs/simpsoncorp/teams/team-d",
                 "description": "Team D",
                 "repositories": {"totalCount": 0},
                 "members": {"totalCount": 0},
@@ -37,7 +37,7 @@ GH_TEAM_DATA = (
             },
             {
                 "slug": "team-e",
-                "url": "https://github.com/orgs/example_org/teams/team-e",
+                "url": "https://github.com/orgs/simpsoncorp/teams/team-e",
                 "description": "some description here",
                 "repositories": {"totalCount": 0},
                 "members": {"totalCount": 0},
@@ -47,15 +47,15 @@ GH_TEAM_DATA = (
         edges=[],
     ),
     {
-        "url": "https://github.com/example_org",
-        "login": "example_org",
+        "url": "https://github.com/simpsoncorp",
+        "login": "SimpsonCorp",
     },
 )
 
 GH_TEAM_REPOS = PaginatedGraphqlData(
     nodes=[
-        {"url": "https://github.com/example_org/sample_repo"},
-        {"url": "https://github.com/example_org/SampleRepo2"},
+        {"url": "https://github.com/simpsoncorp/sample_repo"},
+        {"url": "https://github.com/simpsoncorp/SampleRepo2"},
         {"url": "https://github.com/cartography-cncf/cartography"},
     ],
     edges=[
@@ -67,9 +67,9 @@ GH_TEAM_REPOS = PaginatedGraphqlData(
 
 GH_TEAM_USERS = PaginatedGraphqlData(
     nodes=[
-        {"url": "https://example.com/hjsimpson"},
-        {"url": "https://example.com/lmsimpson"},
-        {"url": "https://example.com/mbsimpson"},
+        {"url": "https://github.com/hjsimpson"},
+        {"url": "https://github.com/lmsimpson"},
+        {"url": "https://github.com/mbsimpson"},
     ],
     edges=[
         {"role": "MEMBER"},
@@ -80,8 +80,8 @@ GH_TEAM_USERS = PaginatedGraphqlData(
 
 GH_TEAM_CHILD_TEAM = PaginatedGraphqlData(
     nodes=[
-        {"url": "https://github.com/orgs/example_org/teams/team-a"},
-        {"url": "https://github.com/orgs/example_org/teams/team-b"},
+        {"url": "https://github.com/orgs/simpsoncorp/teams/team-a"},
+        {"url": "https://github.com/orgs/simpsoncorp/teams/team-b"},
     ],
     edges=[],
 )

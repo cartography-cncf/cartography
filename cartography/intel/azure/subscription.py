@@ -7,6 +7,7 @@ import neo4j
 from azure.core.exceptions import HttpResponseError
 from azure.mgmt.resource import SubscriptionClient
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 def get_all_azure_subscriptions(credentials: Credentials) -> List[Dict]:
     try:
         # Create the client
-        client = SubscriptionClient(credentials.arm_credentials)
+        client = SubscriptionClient(credentials.credential)
 
         # Get all the accessible subscriptions
         subs = list(client.subscriptions.list())
@@ -52,7 +53,7 @@ def get_current_azure_subscription(
 ) -> List[Dict]:
     try:
         # Create the client
-        client = SubscriptionClient(credentials.arm_credentials)
+        client = SubscriptionClient(credentials.credential)
 
         # Get all the accessible subscriptions
         sub = client.subscriptions.get(subscription_id)
@@ -96,7 +97,8 @@ def load_azure_subscriptions(
     SET r.lastupdated = $update_tag;
     """
     for sub in subscriptions:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             query,
             TENANT_ID=tenant_id,
             SUBSCRIPTION_ID=sub["subscriptionId"],

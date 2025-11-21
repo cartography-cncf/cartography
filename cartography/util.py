@@ -5,6 +5,7 @@ from functools import partial
 from functools import wraps
 from importlib.resources import open_binary
 from importlib.resources import read_text
+from itertools import islice
 from string import Template
 from typing import Any
 from typing import Awaitable
@@ -24,6 +25,7 @@ import backoff
 import boto3
 import botocore
 import neo4j
+from botocore.exceptions import EndpointConnectionError
 
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
@@ -33,10 +35,27 @@ from cartography.stats import ScopedStatsClient
 logger = logging.getLogger(__name__)
 
 
+def is_service_control_policy_explicit_deny(
+    error: botocore.exceptions.ClientError,
+) -> bool:
+    """Return True if the ClientError was caused by an explicit service control policy deny."""
+    error_code = error.response.get("Error", {}).get("Code")
+    if error_code not in {"AccessDenied", "AccessDeniedException"}:
+        return False
+
+    message = error.response.get("Error", {}).get("Message")
+    if not message:
+        return False
+
+    lowered = message.lower()
+    return "explicit deny" in lowered and "service control policy" in lowered
+
+
 STATUS_SUCCESS = 0
 STATUS_FAILURE = 1
 STATUS_KEYBOARD_INTERRUPT = 130
 DEFAULT_BATCH_SIZE = 1000
+DEFAULT_MAX_PAGES = 10000
 
 
 def run_analysis_job(
@@ -150,6 +169,9 @@ def merge_module_sync_metadata(
     :param synced_type: The sub-module's type
     :param update_tag: Timestamp used to determine data freshness
     """
+    # Import here to avoid circular import with cartography.client.core.tx
+    from cartography.client.core.tx import run_write_query
+
     template = Template(
         """
         MERGE (n:ModuleSyncMetadata{id:'${group_type}_${group_id}_${synced_type}'})
@@ -161,7 +183,8 @@ def merge_module_sync_metadata(
             n.lastupdated=$UPDATE_TAG
     """,
     )
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         template.safe_substitute(
             group_type=group_type,
             group_id=group_id,
@@ -208,26 +231,28 @@ def aws_paginate(
     client: boto3.client,
     method_name: str,
     object_name: str,
+    max_pages: int | None = DEFAULT_MAX_PAGES,
     **kwargs: Any,
-) -> List[Dict]:
+) -> Iterable[Dict]:
     """
     Helper method for boilerplate boto3 pagination
     The **kwargs will be forwarded to the paginator
     """
     paginator = client.get_paginator(method_name)
-    items = []
-    i = 0
     for i, page in enumerate(paginator.paginate(**kwargs), start=1):
         if i % 100 == 0:
             logger.info(f"fetching page number {i}")
         if object_name in page:
-            items.extend(page[object_name])
+            items = page[object_name]
+            yield from items
         else:
             logger.warning(
                 f"""aws_paginate: Key "{object_name}" is not present, check if this is a typo.
 If not, then the AWS datatype somehow does not have this key.""",
             )
-    return items
+        if max_pages is not None and i >= max_pages:
+            logger.warning(f"Reached max batch size of {max_pages} pages")
+            break
 
 
 AWSGetFunc = TypeVar("AWSGetFunc", bound=Callable[..., Iterable])
@@ -241,13 +266,44 @@ AWSGetFunc = TypeVar("AWSGetFunc", bound=Callable[..., Iterable])
 
 def backoff_handler(details: Dict) -> None:
     """
-    Handler that will be executed on exception by backoff mechanism
+    Handler that will be executed on exception by backoff mechanism.
+
+    The backoff library may provide partial details (e.g. ``wait`` can be ``None`` when a
+    retry is triggered immediately). Format the message defensively so logging never raises.
     """
+    wait = details.get("wait")
+    if isinstance(wait, (int, float)):
+        wait_display = f"{wait:0.1f}"
+    elif wait is None:
+        wait_display = "unknown"
+    else:
+        wait_display = str(wait)
+
+    tries = details.get("tries")
+    tries_display = str(tries) if tries is not None else "unknown"
+
+    target = details.get("target", "<unknown>")
+
     logger.warning(
-        "Backing off {wait:0.1f} seconds after {tries} tries. Calling function {target}".format(
-            **details,
-        ),
+        "Backing off %s seconds after %s tries. Calling function %s",
+        wait_display,
+        tries_display,
+        target,
     )
+
+
+# Error codes that indicate a service is unavailable in a region or blocked by policies
+AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
+    "AccessDenied",
+    "AccessDeniedException",
+    "AuthFailure",
+    "AuthorizationError",
+    "AuthorizationErrorException",
+    "InvalidClientTokenId",
+    "UnauthorizedOperation",
+    "UnrecognizedClientException",
+    "InternalServerErrorException",
+]
 
 
 # TODO Move this to cartography.intel.aws.util.common
@@ -261,15 +317,6 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
 
     This should be used on `get_` functions that normally return a list of items.
     """
-    ERROR_CODES = [
-        "AccessDenied",
-        "AccessDeniedException",
-        "AuthFailure",
-        "InvalidClientTokenId",
-        "UnauthorizedOperation",
-        "UnrecognizedClientException",
-        "InternalServerErrorException",
-    ]
 
     @wraps(func)
     # fix for AWS TooManyRequestsException
@@ -287,17 +334,38 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         try:
             return func(*args, **kwargs)
         except botocore.exceptions.ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code == "InvalidToken":
+                raise RuntimeError(
+                    "AWS returned an InvalidToken error. Configure regional STS endpoints by "
+                    "setting environment variable AWS_STS_REGIONAL_ENDPOINTS=regional or adding "
+                    "'sts_regional_endpoints = regional' to your AWS config file."
+                ) from e
             # The account is not authorized to use this service in this region
             # so we can continue without raising an exception
-            if e.response["Error"]["Code"] in ERROR_CODES:
-                logger.warning(
-                    "{} in this region. Skipping...".format(
-                        e.response["Error"]["Message"],
-                    ),
-                )
+            if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
+                error_message = e.response.get("Error", {}).get("Message")
+                if is_service_control_policy_explicit_deny(e):
+                    logger.warning(
+                        "Service control policy denied access while calling %s: %s",
+                        func.__name__,
+                        error_message,
+                    )
+                else:
+                    logger.warning(
+                        "{} in this region. Skipping...".format(
+                            error_message,
+                        ),
+                    )
                 return []
             else:
                 raise
+        except EndpointConnectionError:
+            logger.warning(
+                "Encountered an EndpointConnectionError. This means that the AWS "
+                "resource is not available in this region. Skipping.",
+            )
+            return []
 
     return cast(AWSGetFunc, inner_function)
 
@@ -353,17 +421,18 @@ def camel_to_snake(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
-def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> List[List]:
+def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> Iterable[List[Any]]:
     """
-    Takes an Iterable of items and returns a list of lists of the same items,
+    Takes an Iterable of items and returns a Generator of lists of the same items,
      batched into chunks of the provided `size`.
 
     Use:
     x = [1,2,3,4,5,6,7,8]
-    batch(x, size=3) -> [[1, 2, 3], [4, 5, 6], [7, 8]]
+    batch(x, size=3) -> Iterator yielding [1, 2, 3], [4, 5, 6], [7, 8]
     """
-    items = list(items)
-    return [items[i : i + size] for i in range(0, len(items), size)]
+    it = iter(items)
+    while chunk := list(islice(it, size)):
+        yield chunk
 
 
 def is_throttling_exception(exc: Exception) -> bool:

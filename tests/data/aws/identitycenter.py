@@ -1,6 +1,6 @@
 LIST_USERS = [
     {
-        "UserName": "nobody@nobody.com",
+        "UserName": "test.user1@example.com",
         "UserId": "aaaaaaaa-a0d1-aaac-5af0-59c813ec7671",
         "ExternalIds": [
             {
@@ -9,14 +9,14 @@ LIST_USERS = [
             },
         ],
         "Name": {
-            "FamilyName": "Jones",
-            "GivenName": "Mr.",
+            "FamilyName": "User",
+            "GivenName": "Test",
         },
-        "DisplayName": "Mr. Jones",
-        "NickName": "Jonsey",
+        "DisplayName": "Test User 1",
+        "NickName": "TestUser1",
         "Emails": [
             {
-                "Value": "mr.jones@mycompany.com",
+                "Value": "test.user1@example.com",
                 "Type": "work",
                 "Primary": True,
             },
@@ -27,8 +27,23 @@ LIST_USERS = [
                 "Primary": True,
             },
         ],
-        "Title": "Singer, On the Internet",
-        "IdentityStoreId": "d-12345",
+        "Title": "Test User",
+        "IdentityStoreId": "d-1234567890",
+    },
+]
+
+LIST_GROUPS = [
+    {
+        "DisplayName": "Test Group",
+        "GroupId": "gggggggg-a0d1-aaac-5af0-59c813ec7671",
+        "ExternalIds": [
+            {
+                "Issuer": "https://scim.aws.com/1223122",
+                "Id": "00ggggghhhhh",
+            },
+        ],
+        "Description": "Example AWS Identity Center group.",
+        "IdentityStoreId": "d-1234567890",
     },
 ]
 
