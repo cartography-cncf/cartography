@@ -30,6 +30,11 @@ EMPTY_LAYER_DIFF_ID = (
     "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
 )
 
+# Keep per-transaction memory low; each record fan-outs to many relationships.
+# SUBIMAGE-BACKEND-1K showed 1000-item batches could exceed Neo4j's 824MiB tx limit.
+ECR_LAYER_LOAD_BATCH_SIZE = 200
+ECR_LAYER_MEMBERSHIP_BATCH_SIZE = 200
+
 # ECR manifest media types
 ECR_DOCKER_INDEX_MT = "application/vnd.docker.distribution.manifest.list.v2+json"
 ECR_DOCKER_MANIFEST_MT = "application/vnd.docker.distribution.manifest.v2+json"
@@ -453,8 +458,9 @@ def load_ecr_image_layers(
     """
     Load image layers into Neo4j.
 
-    Uses a smaller batch size (1000) to avoid Neo4j transaction memory limits,
-    since layer objects can contain large arrays of relationships.
+    Uses a conservative batch size (ECR_LAYER_LOAD_BATCH_SIZE) to avoid Neo4j
+    transaction memory limits, since layer objects can contain large arrays of
+    relationships.
     """
     logger.info(
         f"Loading {len(image_layers)} image layers for region {region} into graph.",
@@ -464,7 +470,7 @@ def load_ecr_image_layers(
         neo4j_session,
         ECRImageLayerSchema(),
         image_layers,
-        batch_size=1000,
+        batch_size=ECR_LAYER_LOAD_BATCH_SIZE,
         lastupdated=aws_update_tag,
         AWS_ID=current_aws_account_id,
     )
@@ -481,14 +487,15 @@ def load_ecr_image_layer_memberships(
     """
     Load image layer memberships into Neo4j.
 
-    Uses a smaller batch size (1000) to avoid Neo4j transaction memory limits,
-    since membership objects can contain large arrays of layer diff_ids.
+    Uses a conservative batch size (ECR_LAYER_MEMBERSHIP_BATCH_SIZE) to avoid
+    Neo4j transaction memory limits, since membership objects can contain large
+    arrays of layer diff_ids.
     """
     load(
         neo4j_session,
         ECRImageSchema(),
         memberships,
-        batch_size=1000,
+        batch_size=ECR_LAYER_MEMBERSHIP_BATCH_SIZE,
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
