@@ -31,9 +31,7 @@ EMPTY_LAYER_DIFF_ID = (
 )
 
 # Keep per-transaction memory low; each record fan-outs to many relationships.
-# SUBIMAGE-BACKEND-1K showed 1000-item batches could exceed Neo4j's 824MiB tx limit.
-ECR_LAYER_LOAD_BATCH_SIZE = 200
-ECR_LAYER_MEMBERSHIP_BATCH_SIZE = 200
+ECR_LAYER_BATCH_SIZE = 200
 
 # ECR manifest media types
 ECR_DOCKER_INDEX_MT = "application/vnd.docker.distribution.manifest.list.v2+json"
@@ -470,7 +468,7 @@ def load_ecr_image_layers(
         neo4j_session,
         ECRImageLayerSchema(),
         image_layers,
-        batch_size=ECR_LAYER_LOAD_BATCH_SIZE,
+        batch_size=ECR_LAYER_BATCH_SIZE,
         lastupdated=aws_update_tag,
         AWS_ID=current_aws_account_id,
     )
@@ -495,7 +493,7 @@ def load_ecr_image_layer_memberships(
         neo4j_session,
         ECRImageSchema(),
         memberships,
-        batch_size=ECR_LAYER_MEMBERSHIP_BATCH_SIZE,
+        batch_size=ECR_LAYER_BATCH_SIZE,
         lastupdated=aws_update_tag,
         Region=region,
         AWS_ID=current_aws_account_id,
