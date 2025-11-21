@@ -16,8 +16,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class HumanProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("email")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    email: PropertyRef = PropertyRef("email")
 
 
 @dataclass(frozen=True)
@@ -30,10 +31,10 @@ class HumanToUserRelProperties(CartographyRelProperties):
 class HumanToUserRel(CartographyRelSchema):
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"email": PropertyRef("email", set_in_kwargs=True)},
+        {"email": PropertyRef("email")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "IDENTITY_OKTA"
     properties: HumanToUserRelProperties = HumanToUserRelProperties()
 
 

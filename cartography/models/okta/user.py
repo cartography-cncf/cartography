@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -18,6 +19,7 @@ class OktaUserProperties(CartographyNodeProperties):
     last_name: PropertyRef = PropertyRef("last_name")
     login: PropertyRef = PropertyRef("login")
     email: PropertyRef = PropertyRef("email", extra_index=True)
+    # WIP: seems to ne missing from transform
     second_email: PropertyRef = PropertyRef("second_email")
     created: PropertyRef = PropertyRef("created")
     activated: PropertyRef = PropertyRef("activated")
@@ -50,5 +52,8 @@ class OktaUserToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class OktaUserSchema(CartographyNodeSchema):
     label: str = "OktaUser"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: OktaUserProperties = OktaUserProperties()
     sub_resource_relationship: OktaUserToOrganizationRel = OktaUserToOrganizationRel()

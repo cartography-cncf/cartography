@@ -12,6 +12,49 @@ TEST_UPDATE_TAG = 123456789
 TEST_API_KEY = "test-api-key"
 
 
+def _ensure_local_neo4j_has_test_users(neo4j_session):
+    """
+    Helper function to pre-load test users into Neo4j for tests that depend on users existing.
+    """
+    # Create OktaOrganization node
+    neo4j_session.run(
+        """
+        MERGE (o:OktaOrganization{id: $ORG_ID})
+        ON CREATE SET o.firstseen = timestamp()
+        SET o.lastupdated = $UPDATE_TAG
+        """,
+        ORG_ID=TEST_ORG_ID,
+        UPDATE_TAG=TEST_UPDATE_TAG,
+    )
+
+    # Create test users
+    test_user_1 = create_test_user()
+    test_user_1.id = "user-001"
+    test_user_1.profile.email = "alice@example.com"
+    test_user_1.profile.login = "alice@example.com"
+    test_user_1.profile.firstName = "Alice"
+    test_user_1.profile.lastName = "Smith"
+
+    test_user_2 = create_test_user()
+    test_user_2.id = "user-002"
+    test_user_2.profile.email = "bob@example.com"
+    test_user_2.profile.login = "bob@example.com"
+    test_user_2.profile.firstName = "Bob"
+    test_user_2.profile.lastName = "Johnson"
+
+    # Transform and load users
+    user_list, _ = cartography.intel.okta.users.transform_okta_user_list(
+        [test_user_1, test_user_2]
+    )
+    print(user_list)
+    cartography.intel.okta.users._load_okta_users(
+        neo4j_session,
+        TEST_ORG_ID,
+        user_list,
+        TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(cartography.intel.okta.users, "_create_user_client")
 @patch.object(cartography.intel.okta.users, "_get_okta_users")
 def test_sync_okta_users(mock_get_users, mock_user_client, neo4j_session):

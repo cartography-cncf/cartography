@@ -5,6 +5,12 @@ import cartography.intel.okta.applications
 from tests.data.okta.application import create_test_application
 from tests.data.okta.application import LIST_APPLICATION_GROUP_ASSIGNED_RESPONSE
 from tests.data.okta.application import LIST_APPLICATION_USER_ASSIGNED_RESPONSE
+from tests.integration.cartography.intel.okta.test_groups import (
+    _ensure_local_neo4j_has_test_groups,
+)
+from tests.integration.cartography.intel.okta.test_users import (
+    _ensure_local_neo4j_has_test_users,
+)
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -105,6 +111,9 @@ def test_sync_okta_applications_with_users(
     """
     Test that application-to-user relationships are created correctly.
     """
+    # Arrange - Ensure test users exist in the graph
+    _ensure_local_neo4j_has_test_users(neo4j_session)
+
     # Arrange - Create test application
     test_app = create_test_application()
     test_app["id"] = "app-with-users"
@@ -170,6 +179,9 @@ def test_sync_okta_applications_with_groups(
     """
     Test that application-to-group relationships are created correctly.
     """
+    # Arrange - Ensure test groups exist in the graph
+    _ensure_local_neo4j_has_test_groups(neo4j_session)
+
     # Arrange - Create test application
     test_app = create_test_application()
     test_app["id"] = "app-with-groups"
