@@ -56,7 +56,6 @@ def load_linked_services(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     subscription_id: str,
-    factory_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -65,7 +64,6 @@ def load_linked_services(
         data,
         lastupdated=update_tag,
         subscription_id=subscription_id,
-        factory_id=factory_id,
     )
 
 
@@ -111,7 +109,6 @@ def sync_data_factory_linked_services(
         neo4j_session,
         all_transformed_linked_services,
         subscription_id,
-        factory_id,
         update_tag,
     )
 

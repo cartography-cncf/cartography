@@ -64,7 +64,6 @@ def load_datasets(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     subscription_id: str,
-    factory_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -73,7 +72,6 @@ def load_datasets(
         data,
         lastupdated=update_tag,
         subscription_id=subscription_id,
-        factory_id=factory_id,
     )
 
 
@@ -121,9 +119,7 @@ def sync_data_factory_datasets(
         all_transformed_datasets.extend(transformed_datasets)
         datasets_by_factory[factory_id] = transformed_datasets
 
-    load_datasets(
-        neo4j_session, all_transformed_datasets, subscription_id, factory_id, update_tag
-    )
+    load_datasets(neo4j_session, all_transformed_datasets, subscription_id, update_tag)
 
     cleanup_job_params = common_job_parameters.copy()
     cleanup_job_params["subscription_id"] = subscription_id
