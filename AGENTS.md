@@ -927,6 +927,7 @@ class UserToUserAccountRelProperties(CartographyRelProperties):
 
 # (:User)-[:HAS_ACCOUNT]->(:UserAccount)
 # This is a relationship to a sementic label used by modules' users nodes
+@dataclass(frozen=True)
 class UserToUserAccountRel(CartographyRelSchema):
     target_node_label: str = "UserAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
