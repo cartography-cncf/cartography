@@ -43,7 +43,7 @@ cloud_security_product_deactivated = Rule(
     name="Cloud Security Product Deactivated",
     description="Detects accounts (or regions) where cloud security products are deactivated.",
     output_model=CloudSecurityProductDeactivated,
-    tags=("cloud_security"),
+    tags=("cloud_security",),
     facts=(aws_guard_duty_detector_disabled,),
     version="0.1.0",
 )

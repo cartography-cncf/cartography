@@ -1,3 +1,6 @@
+from cartography.rules.data.rules.cloud_security_product_deactivated import (
+    cloud_security_product_deactivated,
+)
 from cartography.rules.data.rules.compute_instance_exposed import (
     compute_instance_exposed,
 )
@@ -18,9 +21,6 @@ from cartography.rules.data.rules.policy_administration_privileges import (
 from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
-)
-from cartography.rules.data.rules.cloud_security_product_deactivated import (
-    cloud_security_product_deactivated,
 )
 
 # Rule registry - all available rules
