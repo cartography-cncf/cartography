@@ -67,6 +67,7 @@ A user often has one or many user accounts.
 | fullname | User's full name. |
 | firstname | User's first name. |
 | lastname | User's last name. |
+| inactive | Boolean indicating if the user is inactive (e.g. disabled in the IDP). |
 
 #### Relationships
 
