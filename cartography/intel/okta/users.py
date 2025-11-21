@@ -1,8 +1,5 @@
 # Okta intel module - Users
 import logging
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 import neo4j
 from okta import UsersClient
@@ -35,13 +32,13 @@ def _create_user_client(okta_org: str, okta_api_key: str) -> UsersClient:
 
 
 @timeit
-def _get_okta_users(user_client: UsersClient) -> List[Dict]:
+def _get_okta_users(user_client: UsersClient) -> list[dict]:
     """
     Get Okta users from Okta server
     :param user_client: user client
     :return: Array of user data
     """
-    user_list: List[Dict] = []
+    user_list: list[dict] = []
     paged_users = user_client.get_paged_users()
 
     # TODO: Fix bug, we miss last page :(
@@ -59,10 +56,10 @@ def _get_okta_users(user_client: UsersClient) -> List[Dict]:
 
 @timeit
 def transform_okta_user_list(
-    okta_user_list: List[User],
-) -> Tuple[List[Dict], List[str]]:
-    users: List[Dict] = []
-    user_ids: List[str] = []
+    okta_user_list: list[User],
+) -> tuple[list[dict], list[str]]:
+    users: list[dict] = []
+    user_ids: list[str] = []
 
     for current in okta_user_list:
         users.append(transform_okta_user(current))
@@ -72,11 +69,11 @@ def transform_okta_user_list(
 
 
 @timeit
-def transform_okta_user(okta_user: User) -> Dict:
+def transform_okta_user(okta_user: User) -> dict:
     """
     Transform okta user data
     :param okta_user: okta user object
-    :return: Dictionary container user properties for ingestion
+    :return: dictionary container user properties for ingestion
     """
 
     # https://github.com/okta/okta-sdk-python/blob/master/okta/models/user/User.py
@@ -132,7 +129,7 @@ def transform_okta_user(okta_user: User) -> Dict:
 def _load_okta_users(
     neo4j_session: neo4j.Session,
     okta_org_id: str,
-    user_list: List[Dict],
+    user_list: list[dict],
     okta_update_tag: int,
 ) -> None:
     """

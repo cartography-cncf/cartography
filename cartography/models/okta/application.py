@@ -91,19 +91,3 @@ class OktaApplicationSchema(CartographyNodeSchema):
             OktaApplicationToGroupRel(),
         ]
     )
-
-
-# WIP: reply_uri
-"""
-    MATCH (app:OktaApplication{id: $APP_ID})
-    WITH app
-    UNWIND $URL_LIST as url_list
-    MERGE (uri:ReplyUri{id: url_list})
-    ON CREATE SET uri.firstseen = timestamp()
-    SET uri.uri = url_list,
-    uri.lastupdated = $okta_update_tag
-    WITH app, uri
-    MERGE (uri)<-[r:REPLYURI]-(app)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $okta_update_tag
-    """

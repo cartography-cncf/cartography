@@ -1,8 +1,5 @@
 # Okta intel module - Factors
 import logging
-from typing import Dict
-from typing import List
-from typing import Any
 
 import neo4j
 from okta import FactorsClient
@@ -10,8 +7,8 @@ from okta.framework.OktaError import OktaError
 from okta.models.factor.Factor import Factor
 
 from cartography.client.core.tx import load
-from cartography.models.okta.userfactor import OktaUserFactorSchema
 from cartography.intel.okta.sync_state import OktaSyncState
+from cartography.models.okta.userfactor import OktaUserFactorSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -36,7 +33,7 @@ def _create_factor_client(okta_org: str, okta_api_key: str) -> FactorsClient:
 
 
 @timeit
-def _get_factor_for_user_id(factor_client: FactorsClient, user_id: str) -> List[Factor]:
+def _get_factor_for_user_id(factor_client: FactorsClient, user_id: str) -> list[Factor]:
     """
     Get factor for user from the Okta server
     :param factor_client: factor client
@@ -58,23 +55,31 @@ def _get_factor_for_user_id(factor_client: FactorsClient, user_id: str) -> List[
 
 
 @timeit
-def transform_okta_user_factor_list(okta_factor_list: List[Factor], user_id: str) -> List[Dict]:
+def transform_okta_user_factor_list(
+    user_factors_map: dict[str, list[Factor]],
+) -> list[dict]:
+    """
+    Transform user factors data
+    :param user_factors_map: dict mapping user_id to their list of factors
+    :return: list of factor objects with user_id field
+    """
     factors = []
 
-    for current in okta_factor_list:
-        transformed_factor = transform_okta_user_factor(current)
-        transformed_factor["user_id"] = user_id
-        factors.append(transformed_factor)
+    for user_id, okta_factor_list in user_factors_map.items():
+        for current in okta_factor_list:
+            transformed_factor = transform_okta_user_factor(current)
+            transformed_factor["user_id"] = user_id
+            factors.append(transformed_factor)
 
     return factors
 
 
 @timeit
-def transform_okta_user_factor(okta_factor_info: Factor) -> Dict:
+def transform_okta_user_factor(okta_factor_info: Factor) -> dict:
     """
     Transform okta user factor into consumable data for the graph
     :param okta_factor_info: okta factor information
-    :return: Dictionary of properties for the factor
+    :return: dictionary of properties for the factor
     """
 
     # https://github.com/okta/okta-sdk-python/blob/master/okta/models/factor/Factor.py
@@ -105,7 +110,7 @@ def transform_okta_user_factor(okta_factor_info: Factor) -> Dict:
 def _load_user_factors(
     neo4j_session: neo4j.Session,
     okta_org_id: str,
-    factors: List[Dict],
+    factors: list[dict],
     okta_update_tag: int,
 ) -> None:
     """
@@ -145,11 +150,19 @@ def sync_users_factors(
 
     logger.info("Syncing Okta User Factors")
 
+    if not sync_state.users:
+        return
+
     factor_client = _create_factor_client(okta_org_id, okta_api_key)
 
-    if sync_state.users:
-        factors: list[dict[str, Any]] = []
-        for user_id in sync_state.users:
-            factor_data = _get_factor_for_user_id(factor_client, user_id)
-            factors.extend(transform_okta_user_factor_list(factor_data, user_id))
+    # Fetch factors for all users
+    user_factors_map: dict[str, list[Factor]] = {}
+    for user_id in sync_state.users:
+        factor_data = _get_factor_for_user_id(factor_client, user_id)
+        if factor_data:
+            user_factors_map[user_id] = factor_data
+
+    # Transform all factors
+    if user_factors_map:
+        factors = transform_okta_user_factor_list(user_factors_map)
         _load_user_factors(neo4j_session, okta_org_id, factors, okta_update_tag)

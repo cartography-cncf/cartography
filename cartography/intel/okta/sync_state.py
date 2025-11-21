@@ -1,6 +1,4 @@
 # Okta intel module - sync state
-from typing import List
-from typing import Optional
 
 
 class OktaSyncState:
@@ -16,8 +14,8 @@ class OktaSyncState:
 
     def __init__(
         self,
-        user: Optional[List[str]] = None,
-        groups: Optional[List[str]] = None,
+        user: list[str] | None = None,
+        groups: list[str] | None = None,
     ) -> None:
         self.users = user
         self.groups = groups

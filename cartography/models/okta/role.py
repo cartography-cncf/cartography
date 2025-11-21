@@ -15,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class OktaAdministrationRoleProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("type")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    type: PropertyRef = PropertyRef("type")
     label: PropertyRef = PropertyRef("label")
 
 
@@ -43,14 +44,14 @@ class OktaAdministrationRoleToGroupProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:OktaGroup)-[:CONTAINS]->(:OktaAdministrationRole)
+# (:OktaGroup)-[:MEMBER_OF_OKTA_ROLE]->(:OktaAdministrationRole)
 class OktaAdministrationRoleToGroupRel(CartographyRelSchema):
     target_node_label: str = "OktaGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("groups", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "MEMBER_OF_OKTA_ROLE"
     properties: OktaAdministrationRoleToGroupProperties = (
         OktaAdministrationRoleToGroupProperties()
     )

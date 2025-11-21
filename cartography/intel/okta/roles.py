@@ -1,16 +1,16 @@
 # Okta intel module - Roles
 import json
 import logging
-from typing import Dict
-from typing import List
+from typing import Any
 
 import neo4j
 from okta.framework.ApiClient import ApiClient
 
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
+from cartography.models.okta.role import OktaAdministrationRoleSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ def _get_group_roles(api_client: ApiClient, group_id: str, okta_org_id: str) -> 
 
 
 @timeit
-def transform_user_roles_data(data: str, okta_org_id: str) -> List[Dict]:
+def transform_user_roles_data(data: str, okta_org_id: str) -> list[dict]:
     """
     Transform user role data
     :param data: data returned by Okta server
@@ -72,7 +72,7 @@ def transform_user_roles_data(data: str, okta_org_id: str) -> List[Dict]:
 
 
 @timeit
-def transform_group_roles_data(data: str, okta_org_id: str) -> List[Dict]:
+def transform_group_roles_data(data: str, okta_org_id: str) -> list[dict]:
     """
     Transform user role data
     :param data: data returned by Okta server
@@ -95,68 +95,68 @@ def transform_group_roles_data(data: str, okta_org_id: str) -> List[Dict]:
 
 
 @timeit
-def _load_user_role(
-    neo4j_session: neo4j.Session,
-    user_id: str,
-    roles_data: List[Dict],
-    okta_update_tag: int,
-) -> None:
-    ingest = """
-    MATCH (user:OktaUser{id: $USER_ID})<-[:RESOURCE]-(org:OktaOrganization)
-    WITH user,org
-    UNWIND $ROLES_DATA as role_data
-    MERGE (role_node:OktaAdministrationRole{id: role_data.type})
-    ON CREATE SET role_node.type = role_data.type, role_node.firstseen = timestamp()
-    SET role_node.label = role_data.label, role_node.lastupdated = $okta_update_tag
-    WITH user, role_node, org
-    MERGE (user)-[r:MEMBER_OF_OKTA_ROLE]->(role_node)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $okta_update_tag
-    WITH role_node, org
-    MERGE (org)-[r2:RESOURCE]->(role_node)
-    ON CREATE SET r2.firstseen = timestamp()
-    SET r2.lastupdated = $okta_update_tag
+def _aggregate_roles_by_type(
+    user_roles: dict[str, list[dict]],
+    group_roles: dict[str, list[dict]],
+) -> list[dict[str, Any]]:
     """
+    Aggregate roles by type with their associated users and groups
+    :param user_roles: dict mapping user_id to their roles
+    :param group_roles: dict mapping group_id to their roles
+    :return: list of role objects with users and groups lists
+    """
+    roles_by_type: dict[str, dict[str, Any]] = {}
 
-    run_write_query(
-        neo4j_session,
-        ingest,
-        USER_ID=user_id,
-        ROLES_DATA=roles_data,
-        okta_update_tag=okta_update_tag,
-    )
+    # Process user roles
+    for user_id, roles in user_roles.items():
+        for role in roles:
+            role_type = role["type"]
+            if role_type not in roles_by_type:
+                roles_by_type[role_type] = {
+                    "type": role_type,
+                    "label": role["label"],
+                    "users": [],
+                    "groups": [],
+                }
+            roles_by_type[role_type]["users"].append(user_id)
+
+    # Process group roles
+    for group_id, roles in group_roles.items():
+        for role in roles:
+            role_type = role["type"]
+            if role_type not in roles_by_type:
+                roles_by_type[role_type] = {
+                    "type": role_type,
+                    "label": role["label"],
+                    "users": [],
+                    "groups": [],
+                }
+            roles_by_type[role_type]["groups"].append(group_id)
+
+    return list(roles_by_type.values())
 
 
 @timeit
-def _load_group_role(
+def _load_roles(
     neo4j_session: neo4j.Session,
-    group_id: str,
-    roles_data: List[Dict],
+    okta_org_id: str,
+    roles_data: list[dict],
     okta_update_tag: int,
 ) -> None:
-    ingest = """
-    MATCH (group:OktaGroup{id: $GROUP_ID})<-[:RESOURCE]-(org:OktaOrganization)
-    WITH group,org
-    UNWIND $ROLES_DATA as role_data
-    MERGE (role_node:OktaAdministrationRole{id: role_data.type})
-    ON CREATE SET role_node.type = role_data.type, role_node.firstseen = timestamp()
-    SET role_node.label = role_data.label, role_node.lastupdated = $okta_update_tag
-    WITH group, role_node, org
-    MERGE (group)-[r:MEMBER_OF_OKTA_ROLE]->(role_node)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $okta_update_tag
-    WITH role_node, org
-    MERGE (org)-[r2:RESOURCE]->(role_node)
-    ON CREATE SET r2.firstseen = timestamp()
-    SET r2.lastupdated = $okta_update_tag
     """
-
-    run_write_query(
+    Load roles with their user and group relationships
+    :param neo4j_session: session with the Neo4j server
+    :param okta_org_id: okta organization id
+    :param roles_data: list of role objects with users and groups
+    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
+    :return: Nothing
+    """
+    load(
         neo4j_session,
-        ingest,
-        GROUP_ID=group_id,
-        ROLES_DATA=roles_data,
-        okta_update_tag=okta_update_tag,
+        OktaAdministrationRoleSchema(),
+        roles_data,
+        lastupdated=okta_update_tag,
+        ORG_ID=okta_org_id,
     )
 
 
@@ -180,19 +180,30 @@ def sync_roles(
 
     logger.info("Syncing Okta Roles")
 
-    # get API client
+    # Get API client
     api_client = create_api_client(okta_org_id, "/api/v1/users", okta_api_key)
 
+    # Fetch roles for all users
+    user_roles_map: dict[str, list[dict]] = {}
     if sync_state.users:
         for user_id in sync_state.users:
             user_roles_data = _get_user_roles(api_client, user_id, okta_org_id)
             user_roles = transform_user_roles_data(user_roles_data, okta_org_id)
             if len(user_roles) > 0:
-                _load_user_role(neo4j_session, user_id, user_roles, okta_update_tag)
+                user_roles_map[user_id] = user_roles
 
+    # Fetch roles for all groups
+    group_roles_map: dict[str, list[dict]] = {}
     if sync_state.groups:
         for group_id in sync_state.groups:
             group_roles_data = _get_group_roles(api_client, group_id, okta_org_id)
             group_roles = transform_group_roles_data(group_roles_data, okta_org_id)
             if len(group_roles) > 0:
-                _load_group_role(neo4j_session, group_id, group_roles, okta_update_tag)
+                group_roles_map[group_id] = group_roles
+
+    # Aggregate roles by type with their associated users and groups
+    aggregated_roles = _aggregate_roles_by_type(user_roles_map, group_roles_map)
+
+    # Load roles into the graph
+    if aggregated_roles:
+        _load_roles(neo4j_session, okta_org_id, aggregated_roles, okta_update_tag)
