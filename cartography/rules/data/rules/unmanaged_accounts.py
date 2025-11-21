@@ -11,7 +11,7 @@ _unmanaged_accounts_ontology = Fact(
     description="Finds user accounts that are not linked to an ontology user node.",
     cypher_query="""
     MATCH (a:UserAccount)
-    WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User) 
+    WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User)
     AND (a.inactive = false OR a.inactive IS NULL)
     return a.id as id, a.email AS email
     """,
