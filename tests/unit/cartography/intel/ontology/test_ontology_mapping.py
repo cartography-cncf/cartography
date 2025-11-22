@@ -154,6 +154,38 @@ def test_ontology_mapping_or_boolean_fields():
                         )
 
 
+def test_omtology_mapping_nor_boolean_fields():
+    # Verify that all ontology fields in the mapping exist as extra indexed fields
+    # in the corresponding module's model.
+    for _, mappings in SEMANTIC_LABELS_MAPPING.items():
+        for module_name, mapping in mappings.items():
+            for node in mapping.nodes:
+                for mapping_field in node.fields:
+                    if mapping_field.special_handling != "nor_boolean":
+                        continue
+                    extra_fields = mapping_field.extra.get("fields")
+                    assert extra_fields is not None, (
+                        f"Mapping field '{mapping_field.node_field}' in node '{node.node_label}' of module '{module_name}' "
+                        "is marked as 'nor_boolean' but has no 'fields' defined in extra."
+                    )
+                    node_class = _get_model_by_node_label(node.node_label)
+                    assert node_class is not None, (
+                        f"Model class for node label '{node.node_label}' "
+                        f"in module '{module_name}' not found."
+                    )
+                    node_properties = asdict(node_class().properties)
+
+                    for extra_field in extra_fields:
+                        assert isinstance(extra_field, str), (
+                            f"Extra field '{extra_field}' in mapping field '{mapping_field.node_field}' "
+                            f"in node '{node.node_label}' of module '{module_name}' should be a string."
+                        )
+                        assert extra_field in node_properties, (
+                            f"Extra field '{extra_field}' in mapping field '{mapping_field.node_field}' "
+                            f"in node '{node.node_label}' of module '{module_name}' not found in model."
+                        )
+
+
 def test_omtology_mapping_equal_boolean_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.

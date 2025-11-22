@@ -12,13 +12,13 @@ _unmanaged_accounts_ontology = Fact(
     cypher_query="""
     MATCH (a:UserAccount)
     WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User)
-    AND (a.inactive = false OR a.inactive IS NULL)
+    AND (a.active = true OR a.active IS NULL)
     return a.id as id, a.email AS email
     """,
     cypher_visual_query="""
     MATCH (a:UserAccount)
     WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User)
-    AND (a.inactive = false OR a.inactive IS NULL)
+    AND (a.active = true OR a.active IS NULL)
     return a
     """,
     module=Module.CROSS_CLOUD,

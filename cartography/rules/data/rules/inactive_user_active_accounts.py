@@ -9,16 +9,17 @@ _inactive_user_active_accounts_ontology = Fact(
     id="inactive-user-active-accounts-ontology",
     name="Active accounts linked to inactive users",
     description="Finds user accounts that remain active despite being linked to inactive user identities.",
+    # We use COALESCE to handle NULL value and default to the opposite of the expected value to avoid false positives with NULL comparison
     cypher_query="""
     MATCH (u:User)-[:HAS_ACCOUNT]-(a:UserAccount)
-    WHERE COALESCE(u.inactive, False) = True
-    AND COALESCE(a.inactive, True) = False
+    WHERE COALESCE(u.active, True) = False
+    AND COALESCE(a.active, False) = True
     RETURN a.id AS account_id, a._ont_email AS account_email, u.id AS user_id, u.email AS user_email, a._ont_username AS account_username, u.fullname AS user_name
     """,
     cypher_visual_query="""
     MATCH (u:User)-[:HAS_ACCOUNT]-(a:UserAccount)
-    WHERE COALESCE(u.inactive, False) = True
-    AND COALESCE(a.inactive, True) = False
+    WHERE COALESCE(u.active, True) = False
+    AND COALESCE(a.active, False) = True
     RETURN a, u
     """,
     module=Module.CROSS_CLOUD,
