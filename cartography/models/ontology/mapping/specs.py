@@ -18,6 +18,7 @@ class OntologyFieldMapping:
         - "invert_boolean": Inverts the boolean value of the field (e.g., True becomes False and vice versa).
         - "to_boolean": Converts the field value to a boolean, treating any non-null value as True.
         - "or_boolean": Combines multiple boolean fields (provided in extra['fields']) using a logical OR operation .
+        - "nor_boolean": Combines multiple boolean fields (provided in extra['fields']) using a logical NOR operation .
         - "equal_boolean": Compares the field value to a specified boolean value (True/False) provided in extra['value'].
 
     Example:

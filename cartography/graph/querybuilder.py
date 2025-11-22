@@ -136,6 +136,55 @@ def _build_ontology_field_statement_or_boolean(
     )
 
 
+def _build_ontology_field_statement_nor_boolean(
+    mapping_field: OntologyFieldMapping,
+    node_property_map: dict[str, PropertyRef],
+) -> str | None:
+    nor_clause = Template("NOT(coalesce(toBooleanOrNull($property_ref), false))")
+    nor_boolean_template = Template("i.$node_property = ($property_condition)")
+    extra_fields = mapping_field.extra.get("fields")
+    if extra_fields is None:
+        # should not occure due to unit test but failing gracefully
+        logger.warning(
+            "nor_boolean special handling requires 'fields' in extra for field %s",
+            mapping_field.ontology_field,
+        )
+        return None
+    if not isinstance(extra_fields, list):
+        # should not occure due to unit test but failing gracefully
+        logger.warning(
+            "nor_boolean special handling 'fields' in extra for field %s must be a list",
+            mapping_field.ontology_field,
+        )
+        return None
+
+    property_conditions = [
+        nor_clause.substitute(
+            property_ref=node_property_map.get(mapping_field.node_field),
+        )
+    ]
+    for extra_field in mapping_field.extra.get("fields", []):
+        extra_property_ref = node_property_map.get(extra_field)
+        if not extra_property_ref:
+            # should not occure due to unit test but failing gracefully
+            logger.warning(
+                "Extra field '%s' not found in node properties for nor_boolean special handling of field %s",
+                extra_field,
+                mapping_field.ontology_field,
+            )
+            continue
+        property_conditions.append(
+            nor_clause.substitute(
+                property_ref=extra_property_ref,
+            )
+        )
+    full_property_condition = " AND ".join(property_conditions)
+    return nor_boolean_template.substitute(
+        node_property=f"_ont_{mapping_field.ontology_field}",
+        property_condition=full_property_condition,
+    )
+
+
 def _build_ontology_node_properties_statement(
     node_schema: CartographyNodeSchema,
     node_property_map: dict[str, PropertyRef],
@@ -186,6 +235,12 @@ def _build_ontology_node_properties_statement(
             )
             if or_boolean_statement:
                 set_clauses.append(or_boolean_statement)
+        elif mapping_field.special_handling == "nor_boolean":
+            nor_boolean_statement = _build_ontology_field_statement_nor_boolean(
+                mapping_field, node_property_map
+            )
+            if nor_boolean_statement:
+                set_clauses.append(nor_boolean_statement)
         else:
             simple_field_template = Template("i.$node_property = $property_ref")
             set_clauses.append(

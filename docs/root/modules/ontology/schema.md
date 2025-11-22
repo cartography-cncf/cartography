@@ -57,6 +57,10 @@ _Reference: [d3f:User](https://d3fend.mitre.org/dao/artifact/d3f:User/)_
 A user is a person (or agent) who uses a computer or network service.
 A user often has one or many user accounts.
 
+```{important}
+If field `active` is null, it should not be considered as `true` or `false`, only as unknown.
+```{note}
+
 | Field | Description |
 |-------|-------------|
 | id | The unique identifier for the user. |
@@ -67,6 +71,7 @@ A user often has one or many user accounts.
 | fullname | User's full name. |
 | firstname | User's first name. |
 | lastname | User's last name. |
+| active | Boolean indicating if the user is active (e.g. disabled in the IDP). |
 
 #### Relationships
 
