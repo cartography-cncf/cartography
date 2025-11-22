@@ -206,6 +206,12 @@ class Config:
     :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
     :type keycloak_url: str
     :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
+    :type konnect_api_token: str
+    :param konnect_api_token: Kong Konnect API token for authentication. Optional.
+    :type konnect_api_url: str
+    :param konnect_api_url: Kong Konnect API base URL, e.g. https://us.api.konghq.com/v2. Optional.
+    :type konnect_org_id: str
+    :param konnect_org_id: Kong Konnect organization ID. Optional.
     """
 
     def __init__(
@@ -311,6 +317,9 @@ class Config:
         keycloak_client_secret=None,
         keycloak_realm=None,
         keycloak_url=None,
+        konnect_api_token=None,
+        konnect_api_url=None,
+        konnect_org_id=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -415,3 +424,6 @@ class Config:
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm
         self.keycloak_url = keycloak_url
+        self.konnect_api_token = konnect_api_token
+        self.konnect_api_url = konnect_api_url
+        self.konnect_org_id = konnect_org_id

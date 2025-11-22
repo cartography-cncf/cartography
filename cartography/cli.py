@@ -876,6 +876,34 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--konnect-api-token-env-var",
+            type=str,
+            default="KONNECT_API_TOKEN",
+            help=(
+                "The name of an environment variable containing the Kong Konnect API token. "
+                "Required if you are using the Kong Konnect intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--konnect-api-url",
+            type=str,
+            default="https://us.api.konghq.com/v2",
+            help=(
+                "The base URL for the Kong Konnect API. "
+                "Defaults to US region. Change for other regions (e.g., https://eu.api.konghq.com/v2). "
+                "Optional."
+            ),
+        )
+        parser.add_argument(
+            "--konnect-org-id",
+            type=str,
+            default=None,
+            help=(
+                "The Kong Konnect organization ID. "
+                "Optional - if not provided, a synthetic org ID will be generated."
+            ),
+        )
+        parser.add_argument(
             "--spacelift-api-endpoint",
             type=str,
             default=None,
@@ -1332,6 +1360,17 @@ class CLI:
             )
         else:
             config.keycloak_client_secret = None
+
+        # Kong Konnect config
+        if config.konnect_api_token_env_var:
+            logger.debug(
+                f"Reading API token for Kong Konnect from environment variable {config.konnect_api_token_env_var}",
+            )
+            config.konnect_api_token = os.environ.get(
+                config.konnect_api_token_env_var
+            )
+        else:
+            config.konnect_api_token = None
 
         # Spacelift config
         # Read endpoint from CLI arg or env var
