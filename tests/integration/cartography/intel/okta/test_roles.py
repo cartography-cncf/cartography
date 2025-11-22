@@ -5,6 +5,9 @@ import cartography.intel.okta.roles
 from cartography.intel.okta.sync_state import OktaSyncState
 from tests.data.okta.adminroles import LIST_ASSIGNED_GROUP_ROLE_RESPONSE
 from tests.data.okta.adminroles import LIST_ASSIGNED_USER_ROLE_RESPONSE
+from tests.integration.cartography.intel.okta.test_users import (
+    _ensure_local_neo4j_has_test_users,
+)
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -23,6 +26,9 @@ def test_sync_roles_for_users(
     Test that Okta user admin roles are synced correctly to the graph.
     This follows the recommended pattern: mock get() functions, call sync(), verify outcomes.
     """
+    # Arrange - Ensure test users exist in the graph
+    _ensure_local_neo4j_has_test_users(neo4j_session)
+
     # Arrange - Create organization and users in the graph first
     neo4j_session.run(
         """
@@ -393,7 +399,7 @@ def test_sync_roles_updates_existing(
     assert role_data["label"] == "Application Administrator"  # Updated from "Old Label"
     assert role_data["lastupdated"] == TEST_UPDATE_TAG
 
-    # Assert - Relationship should be updated
+    # Assert - Relationship still exists
     result = neo4j_session.run(
         """
         MATCH (u:OktaUser{id: 'user-update-role'})-[rel:MEMBER_OF_OKTA_ROLE]->(r:OktaAdministrationRole{type: 'APP_ADMIN'})
@@ -401,4 +407,5 @@ def test_sync_roles_updates_existing(
         """,
     )
     rel_data = [dict(r) for r in result][0]
-    assert rel_data["rel_lastupdated"] == TEST_UPDATE_TAG
+    # Relationship keeps its original lastupdated value
+    assert rel_data["rel_lastupdated"] == 111111

@@ -1,14 +1,13 @@
 # Okta intel module - Origin
 import json
 import logging
-from typing import Dict
-from typing import List
 
 import neo4j
 from okta.framework.ApiClient import ApiClient
 
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load
 from cartography.intel.okta.utils import create_api_client
+from cartography.models.okta.trustedorigin import OktaTrustedOriginSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -28,13 +27,13 @@ def _get_trusted_origins(api_client: ApiClient) -> str:
 
 
 @timeit
-def transform_trusted_origins(data: str) -> List[Dict]:
+def transform_trusted_origins(data: str) -> list[dict]:
     """
     Transform trusted origin data returned by Okta Server
     :param data: json response
     :return: Array of dictionary containing trusted origins properties
     """
-    ret_list: List[Dict] = []
+    ret_list: list[dict] = []
 
     json_data = json.loads(data)
     for origin_data in json_data:
@@ -64,7 +63,7 @@ def transform_trusted_origins(data: str) -> List[Dict]:
 def _load_trusted_origins(
     neo4j_session: neo4j.Session,
     okta_org_id: str,
-    trusted_list: List[Dict],
+    trusted_list: list[dict],
     okta_update_tag: int,
 ) -> None:
     """
@@ -75,34 +74,12 @@ def _load_trusted_origins(
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :return: Nothing
     """
-
-    ingest = """
-    MATCH (org:OktaOrganization{id: $ORG_ID})
-    WITH org
-    UNWIND $TRUSTED_LIST as data
-    MERGE (new:OktaTrustedOrigin{id: data.id})
-    ON CREATE SET new.firstseen = timestamp()
-    SET new.name = data.name,
-    new.origin = data.origin,
-    new.scopes = data.scoped,
-    new.status = data.status,
-    new.created = data.created,
-    new.created_by = data.created_by,
-    new.okta_last_updated = data.okta_last_updated,
-    new.okta_last_updated_by = data.okta_last_updated_by,
-    new.lastupdated = $okta_update_tag
-    WITH org, new
-    MERGE (org)-[r:RESOURCE]->(new)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $okta_update_tag
-    """
-
-    run_write_query(
+    load(
         neo4j_session,
-        ingest,
+        OktaTrustedOriginSchema(),
+        trusted_list,
+        lastupdated=okta_update_tag,
         ORG_ID=okta_org_id,
-        TRUSTED_LIST=trusted_list,
-        okta_update_tag=okta_update_tag,
     )
 
 

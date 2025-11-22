@@ -1,16 +1,15 @@
 # Okta intel module - Users
 import logging
-from typing import Dict
-from typing import List
-from typing import Tuple
 
 import neo4j
 from okta import UsersClient
 from okta.models.user import User
 
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
+from cartography.models.okta.human import HumanSchema
+from cartography.models.okta.user import OktaUserSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -33,13 +32,13 @@ def _create_user_client(okta_org: str, okta_api_key: str) -> UsersClient:
 
 
 @timeit
-def _get_okta_users(user_client: UsersClient) -> List[Dict]:
+def _get_okta_users(user_client: UsersClient) -> list[dict]:
     """
     Get Okta users from Okta server
     :param user_client: user client
     :return: Array of user data
     """
-    user_list: List[Dict] = []
+    user_list: list[dict] = []
     paged_users = user_client.get_paged_users()
 
     # TODO: Fix bug, we miss last page :(
@@ -57,10 +56,10 @@ def _get_okta_users(user_client: UsersClient) -> List[Dict]:
 
 @timeit
 def transform_okta_user_list(
-    okta_user_list: List[User],
-) -> Tuple[List[Dict], List[str]]:
-    users: List[Dict] = []
-    user_ids: List[str] = []
+    okta_user_list: list[User],
+) -> tuple[list[dict], list[str]]:
+    users: list[dict] = []
+    user_ids: list[str] = []
 
     for current in okta_user_list:
         users.append(transform_okta_user(current))
@@ -70,11 +69,11 @@ def transform_okta_user_list(
 
 
 @timeit
-def transform_okta_user(okta_user: User) -> Dict:
+def transform_okta_user(okta_user: User) -> dict:
     """
     Transform okta user data
     :param okta_user: okta user object
-    :return: Dictionary container user properties for ingestion
+    :return: dictionary container user properties for ingestion
     """
 
     # https://github.com/okta/okta-sdk-python/blob/master/okta/models/user/User.py
@@ -130,7 +129,7 @@ def transform_okta_user(okta_user: User) -> Dict:
 def _load_okta_users(
     neo4j_session: neo4j.Session,
     okta_org_id: str,
-    user_list: List[Dict],
+    user_list: list[dict],
     okta_update_tag: int,
 ) -> None:
     """
@@ -141,52 +140,18 @@ def _load_okta_users(
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :return: Nothing
     """
-
-    ingest_statement = """
-    MATCH (org:OktaOrganization{id: $ORG_ID})
-    WITH org
-    UNWIND $USER_LIST as user_data
-    MERGE (new_user:OktaUser{id: user_data.id})
-    ON CREATE SET new_user.firstseen = timestamp()
-    SET new_user.first_name = user_data.first_name,
-    new_user.last_name = user_data.last_name,
-    new_user.login = user_data.login,
-    new_user.email = user_data.email,
-    new_user.second_email = user_data.second_email,
-    new_user.created = user_data.created,
-    new_user.activated = user_data.activated,
-    new_user.status_changed = user_data.status_changed,
-    new_user.last_login = user_data.last_login,
-    new_user.okta_last_updated = user_data.okta_last_updated,
-    new_user.password_changed = user_data.password_changed,
-    new_user.transition_to_status = user_data.transition_to_status,
-    new_user.lastupdated = $okta_update_tag,
-    new_user:UserAccount,
-    new_user._module_name = "cartography:okta",
-    new_user._ont_email = user_data.email,
-    new_user._ont_firstname = user_data.first_name,
-    new_user._ont_lastname = user_data.last_name,
-    new_user._ont_lastactivity = user_data.last_login,
-    new_user._ont_source = "okta"
-    WITH new_user, org
-    MERGE (org)-[org_r:RESOURCE]->(new_user)
-    ON CREATE SET org_r.firstseen = timestamp()
-    SET org_r.lastupdated = $okta_update_tag
-    WITH new_user
-    MERGE (h:Human{email: new_user.email})
-    ON CREATE SET new_user.firstseen = timestamp()
-    SET h.lastupdated = $okta_update_tag
-    MERGE (h)-[r:IDENTITY_OKTA]->(new_user)
-    ON CREATE SET new_user.firstseen = timestamp()
-    SET h.lastupdated = $okta_update_tag
-    """
-
-    run_write_query(
+    load(
         neo4j_session,
-        ingest_statement,
+        OktaUserSchema(),
+        user_list,
+        lastupdated=okta_update_tag,
         ORG_ID=okta_org_id,
-        USER_LIST=user_list,
-        okta_update_tag=okta_update_tag,
+    )
+    load(
+        neo4j_session,
+        HumanSchema(),
+        user_list,
+        lastupdated=okta_update_tag,
     )
 
 

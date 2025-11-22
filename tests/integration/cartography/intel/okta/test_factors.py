@@ -19,19 +19,12 @@ def test_sync_users_factors(mock_get_factors, mock_factor_client, neo4j_session)
     Test that Okta user factors are synced correctly to the graph.
     This follows the recommended pattern: mock get() functions, call sync(), verify outcomes.
     """
-    # Arrange - Create test users in the graph first
-    neo4j_session.run(
-        """
-        MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
-        MERGE (o)-[:RESOURCE]->(u1:OktaUser{id: 'user-001', email: 'user1@example.com'})
-        SET u1.lastupdated = $UPDATE_TAG
-        MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: 'user-002', email: 'user2@example.com'})
-        SET u2.lastupdated = $UPDATE_TAG
-        """,
-        ORG_ID=TEST_ORG_ID,
-        UPDATE_TAG=TEST_UPDATE_TAG,
+    # Arrange - Ensure test users exist in the graph
+    from tests.integration.cartography.intel.okta.test_users import (
+        _ensure_local_neo4j_has_test_users,
     )
+
+    _ensure_local_neo4j_has_test_users(neo4j_session)
 
     # Create test factors for user-001
     factor_totp = create_test_factor()
