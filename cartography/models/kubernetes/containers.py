@@ -22,10 +22,12 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     )
     image_pull_policy: PropertyRef = PropertyRef("image_pull_policy")
     status_image_id: PropertyRef = PropertyRef("status_image_id")
-    status_image_sha: PropertyRef = PropertyRef("status_image_sha")
+    status_image_sha: PropertyRef = PropertyRef("status_image_sha", extra_index=True)  # Used in digest joins (21 times)
+    resolved_image_digest: PropertyRef = PropertyRef("resolvedImageDigest")  # NEW: Resolved platform-specific image (if status_image_sha is manifest_list)
+    manifest_list_digest: PropertyRef = PropertyRef("manifestListDigest")  # NEW: Original manifest list digest (null if direct image)
     status_ready: PropertyRef = PropertyRef("status_ready")
     status_started: PropertyRef = PropertyRef("status_started")
-    status_state: PropertyRef = PropertyRef("status_state")
+    status_state: PropertyRef = PropertyRef("status_state", extra_index=True)  # Filtered 21 times (WHERE status_state = 'running')
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -94,6 +96,51 @@ class KubernetesContainerToKubernetesClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToResolvedImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToResolvedImageRel(CartographyRelSchema):
+    """
+    NEW: Points to the actual platform-specific image (type='image').
+    If status_image_sha is a manifest_list, this is resolved at ingest time
+    by following CONTAINS_IMAGE and matching architecture.
+    """
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("resolvedImageDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_RESOLVED_IMAGE"
+    properties: KubernetesContainerToResolvedImageRelProperties = (
+        KubernetesContainerToResolvedImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToManifestListRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToManifestListRel(CartographyRelSchema):
+    """
+    NEW: Points to manifest_list if the container uses a multi-arch image.
+    Null/not present if container uses a direct platform-specific image.
+    """
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("manifestListDigest")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_MANIFEST_LIST"
+    properties: KubernetesContainerToManifestListRelProperties = (
+        KubernetesContainerToManifestListRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
     properties: KubernetesContainerNodeProperties = KubernetesContainerNodeProperties()
@@ -104,5 +151,7 @@ class KubernetesContainerSchema(CartographyNodeSchema):
         [
             KubernetesContainerToKubernetesNamespaceRel(),
             KubernetesContainerToKubernetesPodRel(),
+            KubernetesContainerToResolvedImageRel(),  # NEW: Always points to type='image'
+            KubernetesContainerToManifestListRel(),  # NEW: Points to manifest_list if applicable
         ]
     )
