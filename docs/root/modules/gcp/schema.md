@@ -716,6 +716,43 @@ Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/
     (GCPRole)-[RESOURCE]->(GCPProject)
     ```
 
+### GCPPolicyBinding
+
+Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/reference/rest/v1/Policy#Binding). Policy bindings connect principals (users, service accounts, groups) to roles on specific resources.
+
+| Field                | Description                                                                      |
+| -------------------- | -------------------------------------------------------------------------------- |
+| id                   | The unique identifier for the policy binding in  the format "{resource}_{role}". |
+| role                 | The name of the GCP role being granted.                                          |
+| resource             | The full resource name where the policy binding is attached.                     |
+| resource_type        | The type of resource.                                                            |
+| members              | A list of principal email addresses that are granted the role.                   |
+| has_condition        | A boolean indicating if the policy binding has a condition attached.             |
+| condition_title      | The title of the condition.                                                      |
+| condition_expression | The expression of the condition.                                                 |
+| firstseen            | Timestamp of when a sync job first discovered this node.                         |
+| lastupdated          | Timestamp of the last time the node was updated.                                 |
+
+#### Relationships
+
+- GCPPolicyBindings are resources of GCPProjects.
+
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPPolicyBinding)
+    ```
+
+- GCPPrincipals have allow policies that grant them access.
+
+    ```
+    (GCPPrincipal)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
+    ```
+
+- GCPPolicyBindings grant roles to principals.
+
+    ```
+    (GCPPolicyBinding)-[:GRANTS_ROLE]->(GCPRole)
+    ```
+
 ### GCPBigtableInstance
 
 Representation of a GCP [Bigtable Instance](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances).
