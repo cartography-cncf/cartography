@@ -51,6 +51,7 @@ from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
 from cartography.util import STATUS_SUCCESS
+from cartography.sinks import file_export as file_export_sink
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +145,13 @@ class Sync:
         :type config: cartography.config.Config
         :param config: Configuration for the sync run.
         """
+        # Configure optional export sink
+        export_file = getattr(config, "export_file", None)
+        no_neo4j_write = bool(getattr(config, "no_neo4j_write", False))
+        if export_file:
+            file_export_sink.enable(export_file)
+        file_export_sink.set_no_neo4j_write(no_neo4j_write)
+
         logger.info("Starting sync with update tag '%d'", config.update_tag)
         with neo4j_driver.session(database=config.neo4j_database) as neo4j_session:
             for stage_name, stage_func in self._stages.items():
@@ -161,6 +169,9 @@ class Sync:
                     raise  # TODO this should be configurable
                 logger.info("Finishing sync stage '%s'", stage_name)
         logger.info("Finishing sync with update tag '%d'", config.update_tag)
+        # Close export sink if used
+        if file_export_sink.is_enabled():
+            file_export_sink.disable()
         return STATUS_SUCCESS
 
     @classmethod
