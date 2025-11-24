@@ -25,6 +25,9 @@ from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
 )
+from cartography.rules.data.rules.malicious_npm_dependencies_shai_hulud import (
+    malicious_npm_dependencies_shai_hulud,
+)
 
 # Rule registry - all available rules
 RULES = {
@@ -39,4 +42,5 @@ RULES = {
     unmanaged_accounts.id: unmanaged_accounts,
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
     cloud_security_product_deactivated.id: cloud_security_product_deactivated,
+    malicious_npm_dependencies_shai_hulud.id: malicious_npm_dependencies_shai_hulud,
 }
