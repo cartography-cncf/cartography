@@ -20,7 +20,7 @@ class ECSContainerNodeProperties(CartographyNodeProperties):
     image: PropertyRef = PropertyRef("image")
     image_digest: PropertyRef = PropertyRef("imageDigest")
     runtime_id: PropertyRef = PropertyRef("runtimeId")
-    last_status: PropertyRef = PropertyRef("lastStatus")
+    last_status: PropertyRef = PropertyRef("lastStatus", extra_index=True)
     exit_code: PropertyRef = PropertyRef("exitCode")
     reason: PropertyRef = PropertyRef("reason")
     health_status: PropertyRef = PropertyRef("healthStatus")
