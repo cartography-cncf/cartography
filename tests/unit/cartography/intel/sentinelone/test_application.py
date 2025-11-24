@@ -167,10 +167,14 @@ def test_transform_application_versions_missing_optional_fields():
 
 def test_transform_application_versions_missing_required_version():
     """
-    Test that transform_application_versions raises KeyError when version is missing (required for ID generation)
+    Test that transform_application_versions handles missing version gracefully by defaulting to 'unknown'
     """
-    with pytest.raises(KeyError):
-        transform_application_versions(APPLICATION_INSTALLS_DATA_MISSING_VERSION)
+    result = transform_application_versions(APPLICATION_INSTALLS_DATA_MISSING_VERSION)
+    assert len(result) == 1
+    assert result[0]["version"] == "unknown"
+    # Verify that the ID is generated with "unknown" version
+    expected_id = "test_vendor:test_app:unknown"
+    assert result[0]["id"] == expected_id
 
 
 def test_transform_application_versions_missing_required_name():
