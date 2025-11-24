@@ -14,7 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class ECRImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("imageDigest")
-    digest: PropertyRef = PropertyRef("imageDigest")
+    digest: PropertyRef = PropertyRef("imageDigest", extra_index=True)
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
