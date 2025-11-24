@@ -42,9 +42,16 @@ def _ensure_local_neo4j_has_test_users(neo4j_session):
     test_user_2.profile.firstName = "Bob"
     test_user_2.profile.lastName = "Johnson"
 
+    test_user_3 = create_test_user()
+    test_user_3.id = "user-003"
+    test_user_3.profile.email = "charlie@example.com"
+    test_user_3.profile.login = "charlie@example.com"
+    test_user_3.profile.firstName = "Charlie"
+    test_user_3.profile.lastName = "Brown"
+
     # Transform and load users
     user_list, _ = cartography.intel.okta.users.transform_okta_user_list(
-        [test_user_1, test_user_2]
+        [test_user_1, test_user_2, test_user_3]
     )
     cartography.intel.okta.users._load_okta_users(
         neo4j_session,

@@ -140,6 +140,6 @@ def test_sync_okta_groups(
 
     # Each of the 3 users should be in both groups (6 relationships total)
     assert len(user_group_pairs) == 6
-    for user_id in ["OKTA_USER_ID_1", "OKTA_USER_ID_2", "OKTA_USER_ID_3"]:
+    for user_id in ["user-001", "user-002", "user-003"]:
         assert (user_id, "group-001") in user_group_pairs
         assert (user_id, "group-002") in user_group_pairs
