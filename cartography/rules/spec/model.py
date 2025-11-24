@@ -156,7 +156,9 @@ class Rule:
         for result_item in fact_results:
             parsed_output: dict[str, Any] = {"extra": {}, "source": fact.module.value}
             for key, value in result_item.items():
-                if key not in self.output_model.model_fields and value is not None:
+                if value is None:
+                    continue
+                if key not in self.output_model.model_fields:
                     parsed_output["extra"][key] = value
                 else:
                     parsed_output[key] = value

@@ -13,7 +13,7 @@ _unmanaged_accounts_ontology = Fact(
     MATCH (a:UserAccount)
     WHERE NOT (a)<-[:HAS_ACCOUNT]-(:User)
     AND (a.active = true OR a.active IS NULL)
-    return a.id as id, a.email AS email
+    return a.id as id, a._ont_email AS email, a._ont_source AS source
     """,
     cypher_visual_query="""
     MATCH (a:UserAccount)

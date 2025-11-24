@@ -14,7 +14,7 @@ _inactive_user_active_accounts_ontology = Fact(
     MATCH (u:User)-[:HAS_ACCOUNT]-(a:UserAccount)
     WHERE COALESCE(u.active, True) = False
     AND COALESCE(a.active, False) = True
-    RETURN a.id AS account_id, a._ont_email AS account_email, u.id AS user_id, u.email AS user_email, a._ont_username AS account_username, u.fullname AS user_name
+    RETURN a.id AS account_id, a._ont_email AS account_email, u.id AS user_id, u.email AS user_email, a._ont_username AS account_username, u.fullname AS user_name, a._ont_source AS source
     """,
     cypher_visual_query="""
     MATCH (u:User)-[:HAS_ACCOUNT]-(a:UserAccount)
