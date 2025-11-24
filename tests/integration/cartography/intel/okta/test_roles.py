@@ -29,28 +29,14 @@ def test_sync_roles_for_users(
     # Arrange - Ensure test users exist in the graph
     _ensure_local_neo4j_has_test_users(neo4j_session)
 
-    # Arrange - Create organization and users in the graph first
-    neo4j_session.run(
-        """
-        MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
-        MERGE (o)-[:RESOURCE]->(u1:OktaUser{id: 'user-admin-001', email: 'admin1@example.com'})
-        SET u1.lastupdated = $UPDATE_TAG
-        MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: 'user-admin-002', email: 'admin2@example.com'})
-        SET u2.lastupdated = $UPDATE_TAG
-        """,
-        ORG_ID=TEST_ORG_ID,
-        UPDATE_TAG=TEST_UPDATE_TAG,
-    )
-
     # Mock the API calls
     mock_get_user_roles.return_value = LIST_ASSIGNED_USER_ROLE_RESPONSE
     mock_get_group_roles.return_value = "[]"  # No group roles
     mock_api_client.return_value = MagicMock()
 
-    # Setup sync state with user IDs
+    # Setup sync state with user IDs - using the same IDs as created by _ensure_local_neo4j_has_test_users
     sync_state = OktaSyncState()
-    sync_state.users = ["user-admin-001", "user-admin-002"]
+    sync_state.users = ["user-001", "user-002"]
     sync_state.groups = []
 
     # Act - Call the main sync function
@@ -75,10 +61,10 @@ def test_sync_roles_for_users(
     # Assert - Verify MEMBER_OF_OKTA_ROLE relationships between users and roles
     # Both users should have both roles since mock returns same data
     expected_user_role_rels = {
-        ("user-admin-001", "APP_ADMIN"),
-        ("user-admin-001", "HELP_DESK_ADMIN"),
-        ("user-admin-002", "APP_ADMIN"),
-        ("user-admin-002", "HELP_DESK_ADMIN"),
+        ("user-001", "APP_ADMIN"),
+        ("user-001", "HELP_DESK_ADMIN"),
+        ("user-002", "APP_ADMIN"),
+        ("user-002", "HELP_DESK_ADMIN"),
     }
     actual_user_role_rels = check_rels(
         neo4j_session,
@@ -399,7 +385,7 @@ def test_sync_roles_updates_existing(
     assert role_data["label"] == "Application Administrator"  # Updated from "Old Label"
     assert role_data["lastupdated"] == TEST_UPDATE_TAG
 
-    # Assert - Relationship still exists
+    # Assert - Relationship still exists and was updated
     result = neo4j_session.run(
         """
         MATCH (u:OktaUser{id: 'user-update-role'})-[rel:MEMBER_OF_OKTA_ROLE]->(r:OktaAdministrationRole{type: 'APP_ADMIN'})
@@ -407,5 +393,5 @@ def test_sync_roles_updates_existing(
         """,
     )
     rel_data = [dict(r) for r in result][0]
-    # Relationship keeps its original lastupdated value
-    assert rel_data["rel_lastupdated"] == 111111
+    # Relationship is updated with the new lastupdated value
+    assert rel_data["rel_lastupdated"] == TEST_UPDATE_TAG

@@ -46,7 +46,6 @@ def _ensure_local_neo4j_has_test_users(neo4j_session):
     user_list, _ = cartography.intel.okta.users.transform_okta_user_list(
         [test_user_1, test_user_2]
     )
-    print(user_list)
     cartography.intel.okta.users._load_okta_users(
         neo4j_session,
         TEST_ORG_ID,

@@ -33,7 +33,7 @@ class HumanToUserRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"email": PropertyRef("email")},
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "IDENTITY_OKTA"
     properties: HumanToUserRelProperties = HumanToUserRelProperties()
 

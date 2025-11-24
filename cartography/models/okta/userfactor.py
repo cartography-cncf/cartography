@@ -65,7 +65,7 @@ class OktaUserFactorSchema(CartographyNodeSchema):
     sub_resource_relationship: OktaUserFactorToOrganizationRel = (
         OktaUserFactorToOrganizationRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             OktaUserFactorToUserRel(),
         ]

@@ -83,7 +83,7 @@ class OktaAdministrationRoleSchema(CartographyNodeSchema):
     sub_resource_relationship: OktaAdministrationRoleToOrganizationRel = (
         OktaAdministrationRoleToOrganizationRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             OktaAdministrationRoleToUserRel(),
             OktaAdministrationRoleToGroupRel(),

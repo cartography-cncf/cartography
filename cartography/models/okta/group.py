@@ -66,7 +66,7 @@ class OktaGroupSchema(CartographyNodeSchema):
     label: str = "OktaGroup"
     properties: OktaGroupProperties = OktaGroupProperties()
     sub_resource_relationship: OktaGroupToOrganizationRel = OktaGroupToOrganizationRel()
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             OktaGroupToUserRel(),
         ]

@@ -85,7 +85,7 @@ class OktaApplicationSchema(CartographyNodeSchema):
     sub_resource_relationship: OktaApplicationToOrganizationRel = (
         OktaApplicationToOrganizationRel()
     )
-    other_relationsips: OtherRelationships = OtherRelationships(
+    other_relationships: OtherRelationships = OtherRelationships(
         [
             OktaApplicationToUserRel(),
             OktaApplicationToGroupRel(),
