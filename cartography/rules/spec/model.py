@@ -57,9 +57,11 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.CLOUDFLARE: "cloudflare",
 }
 
+
 @dataclass(frozen=True)
 class RuleReference:
     """A reference document for a Rule."""
+
     text: str
     url: str
 
@@ -108,8 +110,8 @@ class Finding(BaseModel):
         if not isinstance(data, dict):
             return data
 
-        for name, field in cls.model_fields.items():
-            if field.annotation is not str:
+        for name, f in cls.model_fields.items():
+            if f.annotation is not str:
                 continue
             if name not in data:
                 continue

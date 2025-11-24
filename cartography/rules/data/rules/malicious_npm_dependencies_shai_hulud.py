@@ -566,7 +566,10 @@ malicious_npm_dependencies_shai_hulud = Rule(
     description="Detects GitHub repositories that depend on npm packages compromised during the Shai-Hulud supply chain attack campaign. This sophisticated attack occurred in multiple waves (September and November 2025), targeting hundreds of npm packages including popular terminal styling libraries (chalk, ansi-regex, strip-ansi), DuckDB-adjacent packages, API integration tools (@zapier/*, @postman/*, @asyncapi/*), analytics packages (@posthog/*), blockchain/ENS packages (@ensdomains/*), and numerous other scoped packages. The presence of these specific malicious versions indicates a supply chain compromise requiring immediate remediation.",
     output_model=MaliciousNpmDependenciesShaiHuludOutput,
     tags=("supply_chain", "cti", "shai_hulud"),
-    facts=(_malicious_npm_dependencies_shai_hulud_sept_2025_github, _malicious_npm_dependencies_shai_hulud_nov_2025_github),
+    facts=(
+        _malicious_npm_dependencies_shai_hulud_sept_2025_github,
+        _malicious_npm_dependencies_shai_hulud_nov_2025_github,
+    ),
     version="0.1.0",
     references=[
         RuleReference(
