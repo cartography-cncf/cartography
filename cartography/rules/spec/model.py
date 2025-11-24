@@ -1,6 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass
+from dataclasses import field
 from enum import Enum
 from typing import Any
 from typing import no_type_check
@@ -55,6 +56,12 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.OKTA: "okta",
     Module.CLOUDFLARE: "cloudflare",
 }
+
+@dataclass(frozen=True)
+class RuleReference:
+    """A reference document for a Rule."""
+    text: str
+    url: str
 
 
 @dataclass(frozen=True)
@@ -133,7 +140,7 @@ class Rule:
     """The Facts that contribute to this Rule."""
     output_model: type[Finding]
     """The output model class for the Rule."""
-    references: tuple[str, ...] = ()
+    references: list[RuleReference] = field(default_factory=list)
     """References or links to external resources related to the Rule."""
 
     @property
