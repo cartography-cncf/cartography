@@ -81,6 +81,10 @@ If field `active` is null, it should not be considered as `true` or `false`, onl
     ```
     (:User)-[:OWNS]->(:Device)
     ```
+- `User` can own one or many `APIKey` (semantic label):
+    ```
+    (:User)-[:OWNS]->(:APIKey)
+    ```
 
 ### UserAccount
 
@@ -133,10 +137,6 @@ A client computer is a host that accesses a service made available by a server o
 - `User` can own one or many `Device`
     ```
     (:User)-[:OWNS]->(:Device)
-    ```
-- `User` can own one or many `APIKey`
-    ```
-    (:User)-[:OWNS]->(:APIKey)
     ```
 
 ### APIKey
