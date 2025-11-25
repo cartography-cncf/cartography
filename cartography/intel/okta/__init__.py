@@ -73,14 +73,14 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.okta_org_id,
         config.update_tag,
     )
-    users.sync_okta_users(
+    users_id = users.sync_okta_users(
         neo4j_session,
         config.okta_org_id,
         config.update_tag,
         config.okta_api_key,
         state,
     )
-    groups.sync_okta_groups(
+    groups_id = groups.sync_okta_groups(
         neo4j_session,
         config.okta_org_id,
         config.update_tag,
@@ -123,7 +123,8 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.okta_org_id,
             config.update_tag,
             config.okta_api_key,
-            state,
+            users_id,
+            groups_id,
         )
     except OktaError as okta_error:
         logger.warning(f"Unable to pull admin roles got {okta_error}")

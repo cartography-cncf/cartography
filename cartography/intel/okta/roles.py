@@ -7,7 +7,6 @@ import neo4j
 from okta.framework.ApiClient import ApiClient
 
 from cartography.client.core.tx import load
-from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
 from cartography.models.okta.role import OktaAdministrationRoleSchema
@@ -17,33 +16,33 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def _get_user_roles(api_client: ApiClient, user_id: str, okta_org_id: str) -> str:
+def _get_user_roles(api_client: ApiClient, user_id: str) -> str:
     """
     Get user roles from Okta
     :param api_client: api client
     :param user_id: user to fetch roles from
-    :param okta_org_id: okta organization id
     :return: user roles data
     """
-
     # https://developer.okta.com/docs/reference/api/roles/#list-roles
-    response = api_client.get_path(f"/{user_id}/roles")
+    response = api_client.get_path(f"/users/{user_id}/roles")
     check_rate_limit(response)
+
+    print(response.text)
+
     return response.text
 
 
 @timeit
-def _get_group_roles(api_client: ApiClient, group_id: str, okta_org_id: str) -> str:
+def _get_group_roles(api_client: ApiClient, group_id: str) -> str:
     """
     Get user roles from Okta
     :param api_client: api client
     :param group_id: user to fetch roles from
-    :param okta_org_id: okta organization id
-    :return: group roles data
+    :return: group roles dat
     """
 
     # https://developer.okta.com/docs/reference/api/roles/#list-roles-assigned-to-group
-    response = api_client.get_path(f"/{group_id}/roles")
+    response = api_client.get_path(f"/groups/{group_id}/roles")
     check_rate_limit(response)
     return response.text
 
@@ -166,7 +165,8 @@ def sync_roles(
     okta_org_id: str,
     okta_update_tag: int,
     okta_api_key: str,
-    sync_state: OktaSyncState,
+    users_id: list[str],
+    groups_id: list[str],
 ) -> None:
     """
     Sync okta roles
@@ -174,7 +174,8 @@ def sync_roles(
     :param okta_org_id: Okta organization id
     :param okta_update_tag: Update tag
     :param okta_api_key: Okta API key
-    :param sync_state: Okta sync state
+    :param users_id: List of user ids
+    :param groups_id: List of group ids
     :return: None
     """
 
@@ -185,21 +186,19 @@ def sync_roles(
 
     # Fetch roles for all users
     user_roles_map: dict[str, list[dict]] = {}
-    if sync_state.users:
-        for user_id in sync_state.users:
-            user_roles_data = _get_user_roles(api_client, user_id, okta_org_id)
-            user_roles = transform_user_roles_data(user_roles_data, okta_org_id)
-            if len(user_roles) > 0:
-                user_roles_map[user_id] = user_roles
+    for user_id in users_id:
+        user_roles_data = _get_user_roles(api_client, user_id, okta_org_id)
+        user_roles = transform_user_roles_data(user_roles_data, okta_org_id)
+        if len(user_roles) > 0:
+            user_roles_map[user_id] = user_roles
 
     # Fetch roles for all groups
     group_roles_map: dict[str, list[dict]] = {}
-    if sync_state.groups:
-        for group_id in sync_state.groups:
-            group_roles_data = _get_group_roles(api_client, group_id, okta_org_id)
-            group_roles = transform_group_roles_data(group_roles_data, okta_org_id)
-            if len(group_roles) > 0:
-                group_roles_map[group_id] = group_roles
+    for group_id in groups_id:
+        group_roles_data = _get_group_roles(api_client, group_id, okta_org_id)
+        group_roles = transform_group_roles_data(group_roles_data, okta_org_id)
+        if len(group_roles) > 0:
+            group_roles_map[group_id] = group_roles
 
     # Aggregate roles by type with their associated users and groups
     aggregated_roles = _aggregate_roles_by_type(user_roles_map, group_roles_map)

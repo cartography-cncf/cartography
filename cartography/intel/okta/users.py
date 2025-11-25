@@ -6,7 +6,6 @@ from okta import UsersClient
 from okta.models.user import User
 
 from cartography.client.core.tx import load
-from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.models.okta.human import HumanSchema
 from cartography.models.okta.user import OktaUserSchema
@@ -161,16 +160,14 @@ def sync_okta_users(
     okta_org_id: str,
     okta_update_tag: int,
     okta_api_key: str,
-    sync_state: OktaSyncState,
-) -> None:
+) -> list[str]:
     """
     Sync okta users
     :param neo4j_session: Session with Neo4j server
     :param okta_org_id: Okta organization id to sync
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :param okta_api_key: Okta API key
-    :param sync_state: Okta sync state
-    :return: Nothing
+    :return: List of user ids
     """
 
     logger.info("Syncing Okta users")
@@ -180,5 +177,4 @@ def sync_okta_users(
 
     _load_okta_users(neo4j_session, okta_org_id, users_data, okta_update_tag)
 
-    # store result for later use
-    sync_state.users = user_ids
+    return user_ids

@@ -9,7 +9,6 @@ from okta.framework.PagedResults import PagedResults
 from okta.models.usergroup import UserGroup
 
 from cartography.client.core.tx import load
-from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
 from cartography.intel.okta.utils import is_last_page
@@ -186,16 +185,14 @@ def sync_okta_groups(
     okta_org_id: str,
     okta_update_tag: int,
     okta_api_key: str,
-    sync_state: OktaSyncState,
-) -> None:
+) -> list[str]:
     """
     Synchronize okta groups with their members
     :param neo4_session: session with the Neo4j server
     :param okta_org_id: okta organization id
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :param okta_api_key: Okta API key
-    :param sync_state: Okta sync state
-    :return: Nothing
+    :return: List of group ids
     """
     logger.info("Syncing Okta groups")
     api_client = create_api_client(okta_org_id, "/api/v1/groups", okta_api_key)
@@ -217,8 +214,7 @@ def sync_okta_groups(
         okta_group_data, group_members_map
     )
 
-    # Store result for later use
-    sync_state.groups = group_ids
-
     # Load groups with their member relationships
     _load_okta_groups(neo4_session, okta_org_id, group_list_info, okta_update_tag)
+
+    return group_ids
