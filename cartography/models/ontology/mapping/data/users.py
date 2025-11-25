@@ -38,6 +38,11 @@ useraccount_mapping = OntologyMapping(
             query="MATCH (u:User) WHERE u.email is not NULL MATCH (g:GitHubUser) WHERE u.email in g.organization_verified_domain_emails MERGE (u)-[r:HAS_ACCOUNT]->(g) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
             iterative=False,
         ),
+        OntologyRelMapping(
+            __comment__="Link User to APIKey",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:UserAccount)-[:OWNS|HAS]->(k:APIKey) MERGE (u)-[r:OWNS]->(k) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
+        ),
     ],
 )
 
