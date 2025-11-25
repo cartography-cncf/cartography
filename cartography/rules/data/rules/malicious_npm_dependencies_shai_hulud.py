@@ -98,8 +98,30 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
       { name: 'rxnt-authentication', version: '0.0.4' }
     ] AS vulnerable
     UNWIND vulnerable AS v
-    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
-    RETURN r, d
+        MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
+                    --(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+        WHERE REPLACE(d.requirements, "= ", "") = v.version
+        CALL {
+            WITH r
+            OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
+            RETURN path2
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path3 = (r)-[:OWNER]->(owner:GitHubOrganization|GitHubUser)
+            RETURN path3
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path4 = (r)-[:LANGUAGE]->(l:ProgrammingLanguage)
+            RETURN path4
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path5 = (r)--(t:GitHubTeam)
+            RETURN path5
+        }
+        RETURN *
     """,
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
@@ -543,8 +565,30 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
       { name: 'crypto-addr-codec', version: '0.1.9' }
     ] AS vulnerable
     UNWIND vulnerable AS v
-    MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
-    RETURN r, d
+        MATCH path = (d:Dependency {ecosystem: 'npm', name: v.name})
+                    --(manifest:DependencyGraphManifest)--(r:GitHubRepository)
+        WHERE REPLACE(d.requirements, "= ", "") = v.version
+        CALL {
+            WITH r
+            OPTIONAL MATCH path2 = (r)<-[:COMMITTED_TO]-(u:GitHubUser)
+            RETURN path2
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path3 = (r)-[:OWNER]->(owner:GitHubOrganization|GitHubUser)
+            RETURN path3
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path4 = (r)-[:LANGUAGE]->(l:ProgrammingLanguage)
+            RETURN path4
+        }
+        CALL {
+            WITH r
+            OPTIONAL MATCH path5 = (r)--(t:GitHubTeam)
+            RETURN path5
+        }
+        RETURN *
     """,
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
