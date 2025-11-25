@@ -4,6 +4,7 @@ from unittest.mock import patch
 import cartography.intel.aws.guardduty
 from cartography.intel.aws.guardduty import _get_severity_range_for_threshold
 from cartography.intel.aws.guardduty import sync
+from tests.data.aws.guardduty import GET_DETECTOR_DETAILS
 from tests.data.aws.guardduty import GET_FINDINGS
 from tests.data.aws.guardduty import LIST_DETECTORS
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -47,10 +48,20 @@ def mock_get_findings_with_severity_filter(
 )
 @patch.object(
     cartography.intel.aws.guardduty,
+    "get_detector_details",
+    return_value=GET_DETECTOR_DETAILS,
+)
+@patch.object(
+    cartography.intel.aws.guardduty,
     "get_findings",
     side_effect=mock_get_findings_with_severity_filter,
 )
-def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_session):
+def test_sync_guardduty_findings(
+    mock_get_findings,
+    mock_get_detector_details,
+    mock_get_detectors,
+    neo4j_session,
+):
     """
     Test that GuardDuty findings are correctly synced to the graph and create proper relationships.
     Also tests severity threshold filtering functionality.
@@ -100,6 +111,16 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
         # Note: 85c2345678901bcdef2345678901bcdef0 (severity 5.0) should be excluded
     }
 
+    # Assert - Check that GuardDuty detectors were synced with properties
+    assert check_nodes(
+        neo4j_session,
+        "GuardDutyDetector",
+        ["id", "status", "findingpublishingfrequency"],
+    ) == {
+        ("12abc34d56e78f901234567890abcdef", "ENABLED", "FIFTEEN_MINUTES"),
+        ("98zyx76w54v32u109876543210zyxwvu", "DISABLED", "SIX_HOURS"),
+    }
+
     # Assert - Check that synced findings have the correct properties
     assert check_nodes(
         neo4j_session, "GuardDutyFinding", ["id", "severity", "resource_type"]
@@ -107,6 +128,20 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
         ("74b1234567890abcdef1234567890abcdef", 8.0, "Instance"),
         ("96d3456789012cdef3456789012cdef01", 7.5, "AccessKey"),
         # Note: S3Bucket finding with severity 5.0 excluded by HIGH threshold
+    }
+
+    # Assert - Check that GuardDuty detectors are connected to the AWSAccount
+    assert check_rels(
+        neo4j_session,
+        "AWSAccount",
+        "id",
+        "GuardDutyDetector",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_ACCOUNT_ID, "12abc34d56e78f901234567890abcdef"),
+        (TEST_ACCOUNT_ID, "98zyx76w54v32u109876543210zyxwvu"),
     }
 
     # Assert - Check that HIGH severity findings are connected to the AWSAccount
@@ -129,6 +164,19 @@ def test_sync_guardduty_findings(mock_get_findings, mock_get_detectors, neo4j_se
         ("74b1234567890abcdef1234567890abcdef",),
         ("96d3456789012cdef3456789012cdef01",),
         # Note: MEDIUM severity finding excluded
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GuardDutyFinding",
+        "id",
+        "GuardDutyDetector",
+        "id",
+        "DETECTED_BY",
+        rel_direction_right=True,
+    ) == {
+        ("74b1234567890abcdef1234567890abcdef", "12abc34d56e78f901234567890abcdef"),
+        ("96d3456789012cdef3456789012cdef01", "12abc34d56e78f901234567890abcdef"),
     }
 
     # Assert - Check that GuardDuty finding is connected to the EC2 instance
