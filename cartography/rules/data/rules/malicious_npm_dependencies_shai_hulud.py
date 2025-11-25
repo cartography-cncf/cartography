@@ -2180,7 +2180,6 @@ class MaliciousNpmDependenciesShaiHuludOutput(Finding):
     name: str | None = None
     current_version: str | None = None
     vulnerable_version: str | None = None
-    is_vulnerable: bool | None = None
 
 
 malicious_npm_dependencies_shai_hulud = Rule(
