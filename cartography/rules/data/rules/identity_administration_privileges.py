@@ -3,14 +3,17 @@ from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleReference
 
 # AWS
 _aws_account_manipulation_permissions = Fact(
     id="aws_account_manipulation_permissions",
-    name="IAM Principals with Account Creation and Modification Permissions",
+    name="AWS IAM Principals with Identity Creation and Modification Permissions",
     description=(
-        "AWS IAM users and roles with permissions to create, modify, or delete IAM "
-        "accounts and their associated policies."
+        "Finds AWS IAM users and roles with Allow permissions for identity administration actions "
+        "(iam:Create*, iam:Attach*, iam:Put*, iam:Update*, iam:Add*, iam:*, or *) that are not explicitly denied. "
+        "Excludes AWS service-linked roles and common automation roles. Returns principals with effective "
+        "permissions after deny statement evaluation."
     ),
     cypher_query="""
         MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
@@ -88,13 +91,33 @@ class IdentityAdministrationPrivileges(Finding):
 
 identity_administration_privileges = Rule(
     id="identity_administration_privileges",
-    name="Identity Administration Privileges",
+    name="Principals with Identity Administration Privileges",
     description=(
-        "Principals can create, attach, update, or otherwise administer identities "
-        "(users/roles/groups) and their bindings—classic escalation surface."
+        "Detects principals (users, roles, service accounts) with permissions to create, modify, delete, or "
+        "administer identity resources and their permission bindings. Identity administration privileges represent "
+        "one of the most critical privilege escalation vectors, enabling attackers to create new privileged accounts, "
+        "modify trust relationships, attach administrative permissions to compromised principals, add identities to "
+        "privileged groups, and establish persistent backdoor access. Principals with these capabilities can effectively "
+        "grant themselves or other compromised accounts any permission level in the environment. Organizations should "
+        "severely restrict these privileges, implement strong approval workflows for identity changes, enable comprehensive "
+        "audit logging, and regularly audit principals with these elevated permissions."
     ),
     output_model=IdentityAdministrationPrivileges,
     facts=(_aws_account_manipulation_permissions,),
     tags=("iam", "privilege_escalation"),
-    version="0.1.0",
+    version="0.2.0",
+    references=[
+        RuleReference(
+            text="AWS - IAM Best Practices",
+            url="https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+        ),
+        RuleReference(
+            text="Azure - Identity Management Best Practices",
+            url="https://learn.microsoft.com/en-us/azure/security/fundamentals/identity-management-best-practices",
+        ),
+        RuleReference(
+            text="GCP - Using IAM Securely",
+            url="https://cloud.google.com/iam/docs/using-iam-securely",
+        ),
+    ],
 )

@@ -3,14 +3,17 @@ from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleReference
 
 # AWS
 _aws_service_account_manipulation_via_ec2 = Fact(
     id="aws_service_account_manipulation_via_ec2",
-    name="Service Resources with Account Manipulation Through Instance Profiles",
+    name="AWS EC2 Instances with Identity Administration Permissions",
     description=(
-        "AWS EC2 instances with attached IAM roles that can manipulate other AWS accounts. "
-        "Also indicates whether the instance is internet-exposed."
+        "Finds AWS EC2 instances whose attached instance profile roles have effective Allow permissions for IAM "
+        "identity administration actions (iam:Create*, iam:Attach*, iam:Put*, iam:Update*, iam:Add*) after deny "
+        "evaluation. Returns instance details including whether the instance is internet-exposed, public IP address, "
+        "and open security group ports."
     ),
     cypher_query="""
         MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
@@ -91,9 +94,12 @@ _aws_service_account_manipulation_via_ec2 = Fact(
 
 _aws_service_account_manipulation_via_lambda = Fact(
     id="aws_service_account_manipulation",
-    name="Service Resources with Account Manipulation Through Lambda Roles",
+    name="AWS Lambda Functions with Identity Administration Permissions",
     description=(
-        "AWS Lambda functions with IAM roles that can manipulate other AWS accounts."
+        "Finds AWS Lambda functions whose execution roles have effective Allow permissions for IAM identity "
+        "administration actions (iam:Create*, iam:Attach*, iam:Put*, iam:Update*, iam:Add*) after deny evaluation. "
+        "Returns Lambda ARN, name, execution role, effective permissions, and whether the function has anonymous "
+        "(public) access enabled."
     ),
     cypher_query="""
         // Find Lambda functions with IAM modification or account manipulation capabilities
@@ -178,16 +184,40 @@ class WorkloadIdentityAdminCapabilities(Finding):
 
 workload_identity_admin_capabilities = Rule(
     id="workload_identity_admin_capabilities",
-    name="Workload Identity-Admin Capabilities",
+    name="Compute Workloads with Identity Administration Capabilities",
     description=(
-        "A compute workload (VM or function) holds permissions to administer identities/policies. "
-        "If internet-exposed, the blast radius is higher."
+        "Detects compute workloads (VMs, functions, containers) whose attached service roles possess permissions "
+        "to administer identities and policies. Workload-based identity administration represents a particularly "
+        "dangerous privilege escalation surface because compromising the workload (through application vulnerabilities, "
+        "SSRF, container escapes, or instance metadata service exploitation) grants immediate identity administration "
+        "capabilities. Automated systems or CI/CD pipelines with these permissions can be hijacked to create persistent "
+        "backdoor accounts, and lateral movement from application-layer compromise to cloud infrastructure control "
+        "becomes trivial. The risk is exponentially higher for internet-accessible workloads, which have significantly "
+        "larger attack surface and are continuously targeted by automated exploitation tools. Organizations should "
+        "eliminate identity administration permissions from workload roles whenever possible, use temporary credentials "
+        "with just-in-time access for necessary administration, implement strict network segmentation to prevent "
+        "internet-exposed workloads from accessing identity APIs, deploy runtime security and behavior monitoring for "
+        "workload identity activity, and regularly audit which workloads have elevated identity permissions."
     ),
     output_model=WorkloadIdentityAdminCapabilities,
     facts=(
         _aws_service_account_manipulation_via_ec2,
         _aws_service_account_manipulation_via_lambda,
     ),
-    tags=("iam", "privilege_escalation"),
-    version="0.1.0",
+    tags=("iam", "privilege_escalation", "workload_security"),
+    version="0.2.0",
+    references=[
+        RuleReference(
+            text="AWS - Use an IAM role to grant permissions to applications running on Amazon EC2 instances",
+            url="https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html",
+        ),
+        RuleReference(
+            text="Azure - Use managed identity for Azure App Service",
+            url="https://learn.microsoft.com/en-us/azure/app-service/overview-managed-identity?tabs=portal%2Chttp",
+        ),
+        RuleReference(
+            text="GCP - Use workload identity federation",
+            url="https://cloud.google.com/iam/docs/workload-identity-federation",
+        ),
+    ],
 )

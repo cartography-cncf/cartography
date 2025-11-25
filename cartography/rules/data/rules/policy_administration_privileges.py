@@ -3,13 +3,18 @@ from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleReference
 
 # AWS
 _aws_policy_manipulation_capabilities = Fact(
     id="aws_policy_manipulation_capabilities",
-    name="Principals with IAM Policy Creation and Modification Capabilities",
+    name="AWS IAM Principals with Policy Administration Permissions",
     description=(
-        "AWS IAM principals that can create, modify, or attach IAM policies to other principals. "
+        "Finds AWS IAM principals with Allow permissions for policy administration actions (iam:CreatePolicy, "
+        "iam:CreatePolicyVersion, iam:AttachUserPolicy, iam:AttachRolePolicy, iam:AttachGroupPolicy, "
+        "iam:PutUserPolicy, iam:PutRolePolicy, iam:PutGroupPolicy, or wildcards) that are not explicitly denied. "
+        "Returns action-resource pairs to show which specific permissions apply to which resources. Excludes AWS "
+        "service-linked roles and common automation roles."
     ),
     cypher_query="""
         MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
@@ -92,13 +97,36 @@ class PolicyAdministrationPrivileges(Finding):
 
 policy_administration_privileges = Rule(
     id="policy_administration_privileges",
-    name="Policy Administration Privileges",
+    name="Principals with Policy Administration Privileges",
     description=(
-        "Principals can create, attach/detach, or write IAM policies—often enabling "
-        "indirect privilege escalation."
+        "Detects principals (users, roles, service accounts) with permissions to create, modify, attach, or "
+        "detach authorization policies. Policy administration privileges represent a critical privilege escalation "
+        "vector and indirect path to administrative access. Attackers or malicious insiders with these permissions "
+        "can create new policies with elevated permissions and attach them to their own principals, modify existing "
+        "policies to grant additional capabilities, attach existing administrator policies to compromised identities, "
+        "create backdoor policies that grant cross-account access, and bypass intended least-privilege access controls. "
+        "Unlike direct identity administration (which modifies users/roles), policy administration achieves privilege "
+        "escalation by changing the permissions available to existing principals. Organizations should severely limit "
+        "policy administration permissions to dedicated security/platform teams, require multi-person approval for "
+        "policy changes, monitor all policy modification API calls for anomalies, and regularly audit which principals "
+        "have policy administration capabilities."
     ),
     output_model=PolicyAdministrationPrivileges,
     facts=(_aws_policy_manipulation_capabilities,),
     tags=("iam", "privilege_escalation"),
-    version="0.1.0",
+    version="0.2.0",
+    references=[
+        RuleReference(
+            text="AWS - IAM Best Practices",
+            url="https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+        ),
+        RuleReference(
+            text="Azure - IAM Best Practices",
+            url="https://learn.microsoft.com/en-us/azure/active-directory/identity-protection/identity-protection-best-practices",
+        ),
+        RuleReference(
+            text="Google Cloud - IAM Best Practices",
+            url="https://cloud.google.com/iam/docs/iam-best-practices",
+        ),
+    ],
 )
