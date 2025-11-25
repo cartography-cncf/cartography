@@ -7,7 +7,6 @@ from okta.framework.OktaError import OktaError
 from okta.models.factor.Factor import Factor
 
 from cartography.client.core.tx import load
-from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.models.okta.userfactor import OktaUserFactorSchema
 from cartography.util import timeit
 
@@ -136,7 +135,7 @@ def sync_users_factors(
     okta_org_id: str,
     okta_update_tag: int,
     okta_api_key: str,
-    sync_state: OktaSyncState,
+    users_id: list[str],
 ) -> None:
     """
     Sync user factors
@@ -144,20 +143,20 @@ def sync_users_factors(
     :param okta_org_id: okta organization id
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :param okta_api_key: Okta API key
-    :param sync_state: Okta sync state
+    :param users_id: List of user ids
     :return: Nothing
     """
 
     logger.info("Syncing Okta User Factors")
 
-    if not sync_state.users:
+    if not users_id:
         return
 
     factor_client = _create_factor_client(okta_org_id, okta_api_key)
 
     # Fetch factors for all users
     user_factors_map: dict[str, list[Factor]] = {}
-    for user_id in sync_state.users:
+    for user_id in users_id:
         factor_data = _get_factor_for_user_id(factor_client, user_id)
         if factor_data:
             user_factors_map[user_id] = factor_data

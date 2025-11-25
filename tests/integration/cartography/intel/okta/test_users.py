@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.okta.users
-from cartography.intel.okta.sync_state import OktaSyncState
 from tests.data.okta.users import create_test_user
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -105,15 +104,12 @@ def test_sync_okta_users(mock_get_users, mock_user_client, neo4j_session):
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    sync_state = OktaSyncState()
-
     # Act - Call the main sync function
     cartography.intel.okta.users.sync_okta_users(
         neo4j_session,
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
     )
 
     # Assert - Verify users were created with correct properties
@@ -220,15 +216,12 @@ def test_sync_okta_users_with_optional_fields(
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    sync_state = OktaSyncState()
-
     # Act
     cartography.intel.okta.users.sync_okta_users(
         neo4j_session,
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
     )
 
     # Assert - User should be created with null optional fields
@@ -280,15 +273,12 @@ def test_sync_okta_users_updates_existing(
     mock_get_users.return_value = [test_user]
     mock_user_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-
     # Act
     cartography.intel.okta.users.sync_okta_users(
         neo4j_session,
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
     )
 
     # Assert - User should be updated, not duplicated
@@ -335,16 +325,13 @@ def test_sync_okta_users_stores_state(mock_get_users, mock_user_client, neo4j_se
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    sync_state = OktaSyncState()
-
     # Act
-    cartography.intel.okta.users.sync_okta_users(
+    user_ids = cartography.intel.okta.users.sync_okta_users(
         neo4j_session,
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
     )
 
-    # Assert - sync_state should contain the user IDs
-    assert sync_state.users == ["user-state-1", "user-state-2"]
+    # Assert - function should return the user IDs
+    assert user_ids == ["user-state-1", "user-state-2"]

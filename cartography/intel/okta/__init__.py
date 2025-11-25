@@ -13,7 +13,6 @@ from cartography.intel.okta import organization
 from cartography.intel.okta import origins
 from cartography.intel.okta import roles
 from cartography.intel.okta import users
-from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_cleanup_job
@@ -66,8 +65,6 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "OKTA_ORG_ID": config.okta_org_id,
     }
 
-    state = OktaSyncState()
-
     organization.create_okta_organization(
         neo4j_session,
         config.okta_org_id,
@@ -78,14 +75,12 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.okta_org_id,
         config.update_tag,
         config.okta_api_key,
-        state,
     )
     groups_id = groups.sync_okta_groups(
         neo4j_session,
         config.okta_org_id,
         config.update_tag,
         config.okta_api_key,
-        state,
     )
     applications.sync_okta_applications(
         neo4j_session,
@@ -98,7 +93,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.okta_org_id,
         config.update_tag,
         config.okta_api_key,
-        state,
+        users_id,
     )
     origins.sync_trusted_origins(
         neo4j_session,

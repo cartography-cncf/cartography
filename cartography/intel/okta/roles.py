@@ -187,7 +187,7 @@ def sync_roles(
     # Fetch roles for all users
     user_roles_map: dict[str, list[dict]] = {}
     for user_id in users_id:
-        user_roles_data = _get_user_roles(api_client, user_id, okta_org_id)
+        user_roles_data = _get_user_roles(api_client, user_id)
         user_roles = transform_user_roles_data(user_roles_data, okta_org_id)
         if len(user_roles) > 0:
             user_roles_map[user_id] = user_roles
@@ -195,7 +195,7 @@ def sync_roles(
     # Fetch roles for all groups
     group_roles_map: dict[str, list[dict]] = {}
     for group_id in groups_id:
-        group_roles_data = _get_group_roles(api_client, group_id, okta_org_id)
+        group_roles_data = _get_group_roles(api_client, group_id)
         group_roles = transform_group_roles_data(group_roles_data, okta_org_id)
         if len(group_roles) > 0:
             group_roles_map[group_id] = group_roles

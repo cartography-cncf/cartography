@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.okta.roles
-from cartography.intel.okta.sync_state import OktaSyncState
 from tests.data.okta.adminroles import LIST_ASSIGNED_GROUP_ROLE_RESPONSE
 from tests.data.okta.adminroles import LIST_ASSIGNED_USER_ROLE_RESPONSE
 from tests.integration.cartography.intel.okta.test_users import (
@@ -34,10 +33,9 @@ def test_sync_roles_for_users(
     mock_get_group_roles.return_value = "[]"  # No group roles
     mock_api_client.return_value = MagicMock()
 
-    # Setup sync state with user IDs - using the same IDs as created by _ensure_local_neo4j_has_test_users
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-001", "user-002"]
-    sync_state.groups = []
+    # Setup user and group IDs - using the same IDs as created by _ensure_local_neo4j_has_test_users
+    users_id = ["user-001", "user-002"]
+    groups_id = []
 
     # Act - Call the main sync function
     cartography.intel.okta.roles.sync_roles(
@@ -45,7 +43,8 @@ def test_sync_roles_for_users(
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
+        groups_id,
     )
 
     # Assert - Verify admin role nodes were created
@@ -122,10 +121,9 @@ def test_sync_roles_for_groups(
     mock_get_group_roles.return_value = LIST_ASSIGNED_GROUP_ROLE_RESPONSE
     mock_api_client.return_value = MagicMock()
 
-    # Setup sync state with group IDs
-    sync_state = OktaSyncState()
-    sync_state.users = []
-    sync_state.groups = ["group-admin-001", "group-admin-002"]
+    # Setup user and group IDs
+    users_id = []
+    groups_id = ["group-admin-001", "group-admin-002"]
 
     # Act
     cartography.intel.okta.roles.sync_roles(
@@ -133,7 +131,8 @@ def test_sync_roles_for_groups(
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
+        groups_id,
     )
 
     # Assert - Verify MEMBER_OF_OKTA_ROLE relationships between groups and roles
@@ -186,9 +185,8 @@ def test_sync_roles_for_users_and_groups(
     mock_get_group_roles.return_value = LIST_ASSIGNED_GROUP_ROLE_RESPONSE
     mock_api_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-mixed"]
-    sync_state.groups = ["group-mixed"]
+    users_id = ["user-mixed"]
+    groups_id = ["group-mixed"]
 
     # Act
     cartography.intel.okta.roles.sync_roles(
@@ -196,7 +194,8 @@ def test_sync_roles_for_users_and_groups(
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
+        groups_id,
     )
 
     # Assert - Both user and group should have role relationships
@@ -244,9 +243,8 @@ def test_sync_roles_handles_empty_state(
 
     mock_api_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-    sync_state.users = []  # Empty list instead of None
-    sync_state.groups = []  # Empty list instead of None
+    users_id = []  # Empty list
+    groups_id = []  # Empty list
 
     # Act - Should not crash
     cartography.intel.okta.roles.sync_roles(
@@ -254,7 +252,8 @@ def test_sync_roles_handles_empty_state(
         test_org_id,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
+        groups_id,
     )
 
     # Assert - No roles should be created for this organization
@@ -302,9 +301,8 @@ def test_sync_roles_handles_users_with_no_roles(
     mock_get_group_roles.return_value = "[]"
     mock_api_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-noroles"]
-    sync_state.groups = []
+    users_id = ["user-noroles"]
+    groups_id = []
 
     # Act
     cartography.intel.okta.roles.sync_roles(
@@ -312,7 +310,8 @@ def test_sync_roles_handles_users_with_no_roles(
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
+        groups_id,
     )
 
     # Assert - User should exist but have no role relationships
@@ -361,9 +360,8 @@ def test_sync_roles_updates_existing(
     mock_get_group_roles.return_value = "[]"
     mock_api_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-update-role"]
-    sync_state.groups = []
+    users_id = ["user-update-role"]
+    groups_id = []
 
     # Act
     cartography.intel.okta.roles.sync_roles(
@@ -371,7 +369,8 @@ def test_sync_roles_updates_existing(
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
+        groups_id,
     )
 
     # Assert - Role should be updated with new label and update tag

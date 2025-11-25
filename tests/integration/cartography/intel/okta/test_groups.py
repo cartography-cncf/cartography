@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.okta.groups
-from cartography.intel.okta.sync_state import OktaSyncState
 from tests.data.okta.groups import create_test_group
 from tests.data.okta.groups import GROUP_MEMBERS_SAMPLE_DATA
 from tests.integration.cartography.intel.okta.test_users import (
@@ -92,15 +91,12 @@ def test_sync_okta_groups(
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    sync_state = OktaSyncState()
-
     # Act - Call the main sync function
     cartography.intel.okta.groups.sync_okta_groups(
         neo4j_session,
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
     )
 
     # Assert - Verify groups were created with correct properties
