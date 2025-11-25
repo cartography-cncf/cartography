@@ -48,9 +48,7 @@ kubernetes_mapping = OntologyMapping(
                 ),
                 # cpu: Not exposed as a direct field in KubernetesContainer node
                 # memory: Not exposed as a direct field in KubernetesContainer node
-                OntologyFieldMapping(
-                    ontology_field="region", node_field="cluster_name"
-                ),
+                # region: Not exposed as a direct field in KubernetesContainer node
                 OntologyFieldMapping(
                     ontology_field="namespace", node_field="namespace"
                 ),
