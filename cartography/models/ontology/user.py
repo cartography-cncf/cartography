@@ -20,6 +20,7 @@ class UserNodeProperties(CartographyNodeProperties):
     fullname: PropertyRef = PropertyRef("fullname")
     firstname: PropertyRef = PropertyRef("firstname")
     lastname: PropertyRef = PropertyRef("lastname")
+    active: PropertyRef = PropertyRef("active")
 
 
 @dataclass(frozen=True)

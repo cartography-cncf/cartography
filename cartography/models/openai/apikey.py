@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -77,6 +78,9 @@ class OpenAIApiKeyToSARel(CartographyRelSchema):
 @dataclass(frozen=True)
 class OpenAIApiKeySchema(CartographyNodeSchema):
     label: str = "OpenAIApiKey"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["APIKey"]
+    )  # APIKey label is used for ontology mapping
     properties: OpenAIApiKeyNodeProperties = OpenAIApiKeyNodeProperties()
     sub_resource_relationship: OpenAIApiKeyToProjectRel = OpenAIApiKeyToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(

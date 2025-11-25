@@ -117,6 +117,9 @@ class GitHubUserUnaffiliatedOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitHubOrganizationUserSchema(CartographyNodeSchema):
     label: str = "GitHubUser"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: GitHubOrganizationUserNodeProperties = (
         GitHubOrganizationUserNodeProperties()
     )

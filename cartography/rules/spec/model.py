@@ -1,6 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass
+from dataclasses import field
 from enum import Enum
 from typing import Any
 from typing import no_type_check
@@ -58,6 +59,14 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
 
 
 @dataclass(frozen=True)
+class RuleReference:
+    """A reference document for a Rule."""
+
+    text: str
+    url: str
+
+
+@dataclass(frozen=True)
 class Fact:
     """A Fact gathers information about the environment using a Cypher query."""
 
@@ -101,8 +110,8 @@ class Finding(BaseModel):
         if not isinstance(data, dict):
             return data
 
-        for name, field in cls.model_fields.items():
-            if field.annotation is not str:
+        for name, f in cls.model_fields.items():
+            if f.annotation is not str:
                 continue
             if name not in data:
                 continue
@@ -133,7 +142,7 @@ class Rule:
     """The Facts that contribute to this Rule."""
     output_model: type[Finding]
     """The output model class for the Rule."""
-    references: tuple[str, ...] = ()
+    references: list[RuleReference] = field(default_factory=list)
     """References or links to external resources related to the Rule."""
 
     @property
@@ -156,7 +165,9 @@ class Rule:
         for result_item in fact_results:
             parsed_output: dict[str, Any] = {"extra": {}, "source": fact.module.value}
             for key, value in result_item.items():
-                if key not in self.output_model.model_fields and value is not None:
+                if value is None:
+                    continue
+                if key not in self.output_model.model_fields:
                     parsed_output["extra"][key] = value
                 else:
                     parsed_output[key] = value
