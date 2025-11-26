@@ -44,6 +44,8 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
+      - name: Check lockfile is up-to-date
+        run: uv lock --check
       - name: Install the project
         run: uv sync --frozen --all-extras --dev
       - name: Wait for neo4j 4 to be ready
@@ -76,6 +78,8 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
+      - name: Check lockfile is up-to-date
+        run: uv lock --check
       - name: Install the project
         run: uv sync --frozen --all-extras --dev
       - name: Wait for neo4j 5 to be ready
