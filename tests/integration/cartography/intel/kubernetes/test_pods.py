@@ -224,3 +224,39 @@ def test_pod_cleanup(neo4j_session, _create_test_cluster):
     # Assert: Expect that the pods were deleted
     assert check_nodes(neo4j_session, "KubernetesPod", ["name"]) == set()
     assert check_nodes(neo4j_session, "KubernetesContainer", ["name"]) == set()
+
+
+def test_load_container_resources(neo4j_session, _create_test_cluster):
+    # Arrange
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # Act
+    load_containers(
+        neo4j_session,
+        KUBERNETES_CONTAINER_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # Assert: Check that resource fields are stored
+    result = neo4j_session.run(
+        """
+        MATCH (c:KubernetesContainer {name: "my-pod-container"})
+        RETURN c.memory_request as memory_request,
+               c.cpu_request as cpu_request,
+               c.memory_limit as memory_limit,
+               c.cpu_limit as cpu_limit
+        """
+    )
+    container_resources = result.single()
+    assert container_resources["memory_request"] == "128Mi"
+    assert container_resources["cpu_request"] == "100m"
+    assert container_resources["memory_limit"] == "256Mi"
+    assert container_resources["cpu_limit"] == "500m"
