@@ -9,20 +9,20 @@ aws_ecs_container_mapping = OntologyMapping(
             node_label="ECSContainer",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="containerArn", required=True
+                    ontology_field="id", node_field="arn", required=True
                 ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
-                    ontology_field="image_digest", node_field="imageDigest"
+                    ontology_field="image_digest", node_field="image_digest"
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="lastStatus"),
+                OntologyFieldMapping(ontology_field="status", node_field="last_status"),
                 OntologyFieldMapping(ontology_field="cpu", node_field="cpu"),
                 OntologyFieldMapping(ontology_field="memory", node_field="memory"),
-                OntologyFieldMapping(ontology_field="region", node_field="Region"),
+                OntologyFieldMapping(ontology_field="region", node_field="region"),
                 # namespace: Not applicable for ECS containers (AWS does not use namespaces)
                 OntologyFieldMapping(
-                    ontology_field="health_status", node_field="healthStatus"
+                    ontology_field="health_status", node_field="health_status"
                 ),
             ],
         ),
@@ -36,7 +36,7 @@ kubernetes_mapping = OntologyMapping(
             node_label="KubernetesContainer",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="uid", required=True
+                    ontology_field="id", node_field="id", required=True
                 ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
