@@ -170,7 +170,15 @@ def test_load_load_balancer_tags(neo4j_session):
         f"{TEST_SUBSCRIPTION_ID}|env:prod",
         f"{TEST_SUBSCRIPTION_ID}|service:load-balancer",
     }
-    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+
+    tag_nodes = neo4j_session.run(
+        """
+        MATCH (t:AzureTag)
+        WHERE t.id STARTS WITH $sub_id
+        RETURN t.id
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
     actual_tags = {n["t.id"] for n in tag_nodes}
     assert actual_tags == expected_tags
 

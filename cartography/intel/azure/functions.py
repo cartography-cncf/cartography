@@ -158,3 +158,4 @@ def sync(
     load_function_apps(neo4j_session, transformed_apps, subscription_id, update_tag)
     load_function_app_tags(neo4j_session, subscription_id, transformed_apps, update_tag)
     cleanup_function_apps(neo4j_session, common_job_parameters)
+    cleanup_function_app_tags(neo4j_session, common_job_parameters)
