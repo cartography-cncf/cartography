@@ -16,11 +16,35 @@ logger = logging.getLogger(__name__)
 class Module(str, Enum):
     """Services that can be monitored"""
 
+    AIRBYTE = "Airbyte"
+    """Airbyte data integration"""
+
+    ANTHROPIC = "Anthropic"
+    """Anthropic AI"""
+
     AWS = "AWS"
     """Amazon Web Services"""
 
     AZURE = "Azure"
     """Microsoft Azure"""
+
+    BIGFIX = "BigFix"
+    """BigFix patch management"""
+
+    CLOUDFLARE = "Cloudflare"
+    """Cloudflare services"""
+
+    CROWDSTRIKE = "CrowdStrike"
+    """CrowdStrike endpoint security"""
+
+    DIGITALOCEAN = "DigitalOcean"
+    """DigitalOcean cloud services"""
+
+    DUO = "Duo"
+    """Duo authentication"""
+
+    ENTRA = "Entra"
+    """Entra identity and access management"""
 
     GCP = "GCP"
     """Google Cloud Platform"""
@@ -28,11 +52,53 @@ class Module(str, Enum):
     GITHUB = "GitHub"
     """GitHub source code management"""
 
+    GOOGLEWORKSPACE = "GoogleWorkspace"
+    """Google Workspace identity and access management"""
+
+    JAMF = "Jamf"
+    """Jamf endpoint security"""
+
+    KANDJI = "Kandji"
+    """Kandji endpoint security"""
+
+    KEYCLOAK = "Keycloak"
+    """Keycloak identity and access management"""
+
+    KUBERNETES = "Kubernetes"
+    """Kubernetes cluster security"""
+
+    LASTPASS = "LastPass"
+    """LastPass password manager"""
+
+    OCI = "OCI"
+    """Oracle Cloud Infrastructure"""
+
     OKTA = "Okta"
     """Okta identity and access management"""
 
-    CLOUDFLARE = "Cloudflare"
-    """Cloudflare services"""
+    PAGERDUTY = "PagerDuty"
+    """PagerDuty incident response"""
+
+    SCALEWAY = "Scaleway"
+    """Scaleway cloud services"""
+
+    SEMGREP = "Semgrep"
+    """Semgrep code security"""
+
+    SENTINELONE = "SentinelOne"
+    """SentinelOne endpoint security"""
+
+    SNIPEIT = "Snipe-IT"
+    """Snipe-IT asset management"""
+
+    SPACELIFT = "SpaceLift"
+    """SpaceLift infrastructure as code"""
+
+    TAILSCALE = "TailScale"
+    """TailScale VPN"""
+
+    TRIVY = "Trivy"
+    """Trivy vulnerability scanner"""
 
     CROSS_CLOUD = "Cross-Cloud"
     """Multi-cloud or provider-agnostic rules"""
@@ -49,12 +115,34 @@ class Maturity(str, Enum):
 
 
 MODULE_TO_CARTOGRAPHY_INTEL = {
+    Module.AIRBYTE: "airbyte",
+    Module.ANTHROPIC: "anthropic",
     Module.AWS: "aws",
     Module.AZURE: "azure",
+    Module.BIGFIX: "bigfix",
+    Module.CLOUDFLARE: "cloudflare",
+    Module.CROWDSTRIKE: "crowdstrike",
+    Module.DIGITALOCEAN: "digitalocean",
+    Module.DUO: "duo",
+    Module.ENTRA: "entra",
     Module.GCP: "gcp",
     Module.GITHUB: "github",
+    Module.GOOGLEWORKSPACE: "googleworkspace",
+    Module.JAMF: "jamf",
+    Module.KANDJI: "kandji",
+    Module.KEYCLOAK: "keycloak",
+    Module.KUBERNETES: "kubernetes",
+    Module.LASTPASS: "lastpass",
+    Module.OCI: "oci",
     Module.OKTA: "okta",
-    Module.CLOUDFLARE: "cloudflare",
+    Module.PAGERDUTY: "pagerduty",
+    Module.SCALEWAY: "scaleway",
+    Module.SEMGREP: "semgrep",
+    Module.SENTINELONE: "sentinelone",
+    Module.SNIPEIT: "snipeit",
+    Module.SPACELIFT: "spacelift",
+    Module.TAILSCALE: "tailscale",
+    Module.TRIVY: "trivy",
 }
 
 
