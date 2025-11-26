@@ -23,13 +23,14 @@ OLD_FORMAT_NODES = [
 ]
 
 
-def _get_model_by_node_label(node_label: str) -> Type[CartographyNodeSchema] | None:
+def _get_model_by_node_label(node_label: str) -> list[Type[CartographyNodeSchema]]:
+    models = []
     for _, node_class in MODELS:
         if not issubclass(node_class, CartographyNodeSchema):
             continue
         if node_class.label == node_label:
-            return node_class
-    return None
+            models.append(node_class)
+    return models
 
 
 def test_ontology_mapping_modules():
@@ -65,19 +66,23 @@ def test_ontology_mapping_fields():
                 # TODO: Remove that uggly exception once all models are migrated to the new data model system
                 if node.node_label in OLD_FORMAT_NODES:
                     continue
-                # Load the model class for the module
-                model_class = _get_model_by_node_label(node.node_label)
-                assert model_class is not None, (
+                # Load the model classes for the module
+                model_classes = _get_model_by_node_label(node.node_label)
+                assert len(model_classes) > 0, (
                     f"Model class for node label '{node.node_label}' "
                     f"in module '{module_name}' not found."
                 )
 
-                # Check all ontology fields are in extra indexed fields
                 for mapping_field in node.fields:
-                    model_property = getattr(
-                        model_class.properties, mapping_field.node_field, None
-                    )
-                    assert model_property is not None, (
+                    found = False
+                    for model_class in model_classes:
+                        model_property = getattr(
+                            model_class.properties, mapping_field.node_field, None
+                        )
+                        if model_property is not None:
+                            found = True
+                            break
+                    assert found, (
                         f"Model property '{mapping_field.node_field}' for node label "
                         f"'{node.node_label}' in module '{module_name}' not found."
                     )
@@ -136,25 +141,29 @@ def test_ontology_mapping_or_boolean_fields():
                         f"Mapping field '{mapping_field.node_field}' in node '{node.node_label}' of module '{module_name}' "
                         "is marked as 'or_boolean' but has no 'fields' defined in extra."
                     )
-                    node_class = _get_model_by_node_label(node.node_label)
-                    assert node_class is not None, (
+                    node_classes = _get_model_by_node_label(node.node_label)
+                    assert len(node_classes) > 0, (
                         f"Model class for node label '{node.node_label}' "
                         f"in module '{module_name}' not found."
                     )
-                    node_properties = asdict(node_class().properties)
-
-                    for extra_field in extra_fields:
-                        assert isinstance(extra_field, str), (
-                            f"Extra field '{extra_field}' in mapping field '{mapping_field.node_field}' "
-                            f"in node '{node.node_label}' of module '{module_name}' should be a string."
-                        )
-                        assert extra_field in node_properties, (
+                    for node_class in node_classes:
+                        node_properties = asdict(node_class.properties)
+                        found = False
+                        for extra_field in extra_fields:
+                            assert isinstance(extra_field, str), (
+                                f"Extra field '{extra_field}' in mapping field '{mapping_field.node_field}' "
+                                f"in node '{node.node_label}' of module '{module_name}' should be a string."
+                            )
+                            if extra_field in node_properties:
+                                found = True
+                                break
+                        assert found, (
                             f"Extra field '{extra_field}' in mapping field '{mapping_field.node_field}' "
                             f"in node '{node.node_label}' of module '{module_name}' not found in model."
                         )
 
 
-def test_omtology_mapping_nor_boolean_fields():
+def test_ontology_mapping_nor_boolean_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.
     for _, mappings in SEMANTIC_LABELS_MAPPING.items():
@@ -168,25 +177,29 @@ def test_omtology_mapping_nor_boolean_fields():
                         f"Mapping field '{mapping_field.node_field}' in node '{node.node_label}' of module '{module_name}' "
                         "is marked as 'nor_boolean' but has no 'fields' defined in extra."
                     )
-                    node_class = _get_model_by_node_label(node.node_label)
-                    assert node_class is not None, (
+                    node_classes = _get_model_by_node_label(node.node_label)
+                    assert len(node_classes) > 0, (
                         f"Model class for node label '{node.node_label}' "
                         f"in module '{module_name}' not found."
                     )
-                    node_properties = asdict(node_class().properties)
-
-                    for extra_field in extra_fields:
-                        assert isinstance(extra_field, str), (
-                            f"Extra field '{extra_field}' in mapping field '{mapping_field.node_field}' "
-                            f"in node '{node.node_label}' of module '{module_name}' should be a string."
-                        )
-                        assert extra_field in node_properties, (
+                    for node_class in node_classes:
+                        node_properties = asdict(node_class().properties)
+                        found = False
+                        for extra_field in extra_fields:
+                            assert isinstance(extra_field, str), (
+                                f"Extra field '{extra_field}' in mapping field '{mapping_field.node_field}' "
+                                f"in node '{node.node_label}' of module '{module_name}' should be a string."
+                            )
+                            if extra_field in node_properties:
+                                found = True
+                                break
+                        assert found, (
                             f"Extra field '{extra_field}' in mapping field '{mapping_field.node_field}' "
                             f"in node '{node.node_label}' of module '{module_name}' not found in model."
                         )
 
 
-def test_omtology_mapping_equal_boolean_fields():
+def test_ontology_mapping_equal_boolean_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.
     for _, mappings in SEMANTIC_LABELS_MAPPING.items():
