@@ -203,7 +203,7 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 | _ont_name | The name of the container. |
 | _ont_image | The container image (e.g., nginx:latest). |
 | _ont_image_digest | The digest/SHA256 of the container image. |
-| _ont_status | The current state of the container (e.g., running, stopped, waiting). |
+| _ont_state | The current state of the container (e.g., running, stopped, waiting). |
 | _ont_cpu | CPU allocated to the container. |
 | _ont_memory | Memory allocated to the container (in MB). |
 | _ont_region | The region or zone where the container is running. |

@@ -16,7 +16,7 @@ aws_ecs_container_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="image_digest", node_field="image_digest"
                 ),
-                OntologyFieldMapping(ontology_field="status", node_field="last_status"),
+                OntologyFieldMapping(ontology_field="state", node_field="last_status"),
                 OntologyFieldMapping(ontology_field="cpu", node_field="cpu"),
                 OntologyFieldMapping(ontology_field="memory", node_field="memory"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
@@ -44,7 +44,7 @@ kubernetes_mapping = OntologyMapping(
                     ontology_field="image_digest", node_field="status_image_sha"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="status", node_field="status_state"
+                    ontology_field="state", node_field="status_state"
                 ),
                 # cpu: Not exposed as a direct field in KubernetesContainer node
                 # memory: Not exposed as a direct field in KubernetesContainer node
@@ -71,7 +71,7 @@ azure_mapping = OntologyMapping(
                 # image: Not exposed as a direct field in AzureContainerInstance node (image info is in nested container properties)
                 # image_digest: Not exposed as a direct field in AzureContainerInstance node
                 OntologyFieldMapping(
-                    ontology_field="status", node_field="provisioning_state"
+                    ontology_field="state", node_field="provisioning_state"
                 ),
                 # cpu: Not exposed as a direct field in AzureContainerInstance node
                 # memory: Not exposed as a direct field in AzureContainerInstance node
