@@ -245,18 +245,24 @@ def test_load_container_resources(neo4j_session, _create_test_cluster):
         cluster_name=KUBERNETES_CLUSTER_NAMES[0],
     )
 
-    # Assert: Check that resource fields are stored
-    result = neo4j_session.run(
-        """
-        MATCH (c:KubernetesContainer {name: "my-pod-container"})
-        RETURN c.memory_request as memory_request,
-               c.cpu_request as cpu_request,
-               c.memory_limit as memory_limit,
-               c.cpu_limit as cpu_limit
-        """
+    # Assert: Verify that resource fields are stored correctly for my-pod-container
+    expected_nodes = {("my-pod-container", "128Mi", "100m", "256Mi", "500m")}
+    assert (
+        check_nodes(
+            neo4j_session,
+            "KubernetesContainer",
+            ["name", "memory_request", "cpu_request", "memory_limit", "cpu_limit"],
+        )
+        >= expected_nodes
     )
-    container_resources = result.single()
-    assert container_resources["memory_request"] == "128Mi"
-    assert container_resources["cpu_request"] == "100m"
-    assert container_resources["memory_limit"] == "256Mi"
-    assert container_resources["cpu_limit"] == "500m"
+
+    # Assert: Verify resource fields for my-service-pod-container
+    expected_nodes = {("my-service-pod-container", "64Mi", "50m", "128Mi", "200m")}
+    assert (
+        check_nodes(
+            neo4j_session,
+            "KubernetesContainer",
+            ["name", "memory_request", "cpu_request", "memory_limit", "cpu_limit"],
+        )
+        >= expected_nodes
+    )
