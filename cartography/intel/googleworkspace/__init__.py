@@ -17,7 +17,7 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 from cartography.config import Config
 from cartography.intel.googleworkspace import devices
 from cartography.intel.googleworkspace import groups
-from cartography.intel.googleworkspace import oauth_tokens
+from cartography.intel.googleworkspace import oauth_apps
 from cartography.intel.googleworkspace import tenant
 from cartography.intel.googleworkspace import users
 from cartography.util import timeit
@@ -170,8 +170,8 @@ def start_googleworkspace_ingestion(
         common_job_parameters,
     )
 
-    # Sync OAuth tokens for all users
-    oauth_tokens.sync_googleworkspace_oauth_tokens(
+    # Sync OAuth apps for all users
+    oauth_apps.sync_googleworkspace_oauth_apps(
         neo4j_session,
         resources.admin,
         user_ids,

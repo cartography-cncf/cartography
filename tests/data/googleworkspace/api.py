@@ -169,7 +169,7 @@ MOCK_GOOGLEWORKSPACE_MEMBERS_BY_GROUP_EMAIL = {
 # Mock OAuth tokens responses
 # See: https://developers.google.com/workspace/admin/directory/reference/rest/v1/tokens/list
 MOCK_GOOGLEWORKSPACE_OAUTH_TOKENS_BY_USER = {
-    "mbsimpson@simpson.corp": [
+    "user-1": [
         {
             "kind": "admin#directory#token",
             "etag": "etag-token-1",
@@ -194,7 +194,7 @@ MOCK_GOOGLEWORKSPACE_OAUTH_TOKENS_BY_USER = {
             ],
         },
     ],
-    "hjsimpson@simpson.corp": [
+    "user-2": [
         {
             "kind": "admin#directory#token",
             "etag": "etag-token-3",

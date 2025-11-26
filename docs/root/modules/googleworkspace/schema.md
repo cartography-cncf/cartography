@@ -5,17 +5,17 @@ graph LR
     T(GoogleWorkspaceTenant) -- RESOURCE --> U(GoogleWorkspaceUser)
     T -- RESOURCE --> G(GoogleWorkspaceGroup)
     T -- RESOURCE --> D(GoogleWorkspaceDevice)
-    T -- RESOURCE --> O(GoogleWorkspaceOAuthToken)
+    T -- RESOURCE --> A(GoogleWorkspaceOAuthApp)
     U -- MEMBER_OF --> G
     U -- OWNER_OF --> G
     U -- OWNS --> D
+    U -- "AUTHORIZED {scopes}" --> A
     U -. INHERITED_MEMBER_OF .-> G
     U -. INHERITED_OWNER_OF .-> G
     G -- MEMBER_OF --> G
     G -- OWNER_OF --> G
     G -. INHERITED_MEMBER_OF .-> G
     G -. INHERITED_OWNER_OF .-> G
-    O -- AUTHORIZED_BY --> U
 ```
 
 **Note:** Dashed lines represent inherited relationships that are computed automatically based on group hierarchy.
@@ -48,9 +48,9 @@ Represents a Google Workspace tenant (customer account).
     ```
     (:GoogleWorkspaceTenant)-[:RESOURCE]->(:GoogleWorkspaceDevice)
     ```
-- Tenant has OAuth tokens:
+- Tenant has OAuth apps:
     ```
-    (:GoogleWorkspaceTenant)-[:RESOURCE]->(:GoogleWorkspaceOAuthToken)
+    (:GoogleWorkspaceTenant)-[:RESOURCE]->(:GoogleWorkspaceOAuthApp)
     ```
 
 
@@ -135,10 +135,10 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
     (GoogleWorkspaceUser)-[INHERITED_OWNER_OF]->(GoogleWorkspaceGroup)
     ```
 
-- User has authorized OAuth tokens:
+- User has authorized OAuth apps:
 
     ```
-    (GoogleWorkspaceOAuthToken)-[AUTHORIZED_BY]->(GoogleWorkspaceUser)
+    (GoogleWorkspaceUser)-[AUTHORIZED {scopes: [...]}]->(GoogleWorkspaceOAuthApp)
     ```
 
 
@@ -267,40 +267,40 @@ Represents a device managed by Google Workspace.
     ```
 
 
-## GoogleWorkspaceOAuthToken
+## GoogleWorkspaceOAuthApp
 
-Represents OAuth tokens issued by users to third-party applications that have access to Google Workspace data.
+Represents third-party OAuth applications that have been authorized by users in the Google Workspace organization.
 
 Reference:
 https://developers.google.com/workspace/admin/directory/reference/rest/v1/tokens
 
 | Field | Description |
 |-------|-------------|
-| id | Unique identifier for the token (combination of client_id and user_key) |
-| client_id | The Client ID of the application that has been granted access (indexed) |
-| display_text | The displayable name of the application that has been granted access |
+| id | Unique identifier for the app (equal to client_id) |
+| client_id | The Client ID of the application (indexed) |
+| display_text | The displayable name of the application |
 | anonymous | Whether the application is granted access anonymously |
-| native_app | Whether the token is issued to an installed application (native app) |
-| scopes | The OAuth scopes granted to the application |
-| user_key | The email address or user ID of the user who authorized the token |
+| native_app | Whether this is a native/installed application |
 | customer_id | The Google Workspace customer ID |
 | lastupdated | Timestamp of when a sync job last updated this node |
 | firstseen | Timestamp of when a sync job first discovered this node |
 
 #### Node Labels
 
-- `GoogleWorkspaceOAuthToken`
+- `GoogleWorkspaceOAuthApp`
 
 ### Relationships
 
-- Token belongs to tenant:
+- App belongs to tenant:
 
     ```
-    (:GoogleWorkspaceOAuthToken)<-[:RESOURCE]-(:GoogleWorkspaceTenant)
+    (:GoogleWorkspaceOAuthApp)<-[:RESOURCE]-(:GoogleWorkspaceTenant)
     ```
 
-- Token was authorized by user:
+- User authorized app (with scopes on the relationship):
 
     ```
-    (:GoogleWorkspaceOAuthToken)-[:AUTHORIZED_BY]->(:GoogleWorkspaceUser)
+    (:GoogleWorkspaceUser)-[:AUTHORIZED {scopes: [...]}]->(:GoogleWorkspaceOAuthApp)
     ```
+
+    The `AUTHORIZED` relationship includes a `scopes` property containing the list of OAuth scopes granted by the user to the application.
