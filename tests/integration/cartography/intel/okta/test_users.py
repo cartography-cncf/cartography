@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.okta.users
-from cartography.intel.okta.sync_state import OktaSyncState
 from tests.data.okta.users import create_test_user
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -10,6 +9,55 @@ from tests.integration.util import check_rels
 TEST_ORG_ID = "test-okta-org-id"
 TEST_UPDATE_TAG = 123456789
 TEST_API_KEY = "test-api-key"
+
+
+def _ensure_local_neo4j_has_test_users(neo4j_session):
+    """
+    Helper function to pre-load test users into Neo4j for tests that depend on users existing.
+    """
+    # Create OktaOrganization node
+    neo4j_session.run(
+        """
+        MERGE (o:OktaOrganization{id: $ORG_ID})
+        ON CREATE SET o.firstseen = timestamp()
+        SET o.lastupdated = $UPDATE_TAG
+        """,
+        ORG_ID=TEST_ORG_ID,
+        UPDATE_TAG=TEST_UPDATE_TAG,
+    )
+
+    # Create test users
+    test_user_1 = create_test_user()
+    test_user_1.id = "user-001"
+    test_user_1.profile.email = "alice@example.com"
+    test_user_1.profile.login = "alice@example.com"
+    test_user_1.profile.firstName = "Alice"
+    test_user_1.profile.lastName = "Smith"
+
+    test_user_2 = create_test_user()
+    test_user_2.id = "user-002"
+    test_user_2.profile.email = "bob@example.com"
+    test_user_2.profile.login = "bob@example.com"
+    test_user_2.profile.firstName = "Bob"
+    test_user_2.profile.lastName = "Johnson"
+
+    test_user_3 = create_test_user()
+    test_user_3.id = "user-003"
+    test_user_3.profile.email = "charlie@example.com"
+    test_user_3.profile.login = "charlie@example.com"
+    test_user_3.profile.firstName = "Charlie"
+    test_user_3.profile.lastName = "Brown"
+
+    # Transform and load users
+    user_list, _ = cartography.intel.okta.users.transform_okta_user_list(
+        [test_user_1, test_user_2, test_user_3]
+    )
+    cartography.intel.okta.users._load_okta_users(
+        neo4j_session,
+        TEST_ORG_ID,
+        user_list,
+        TEST_UPDATE_TAG,
+    )
 
 
 @patch.object(cartography.intel.okta.users, "_create_user_client")
@@ -56,15 +104,12 @@ def test_sync_okta_users(mock_get_users, mock_user_client, neo4j_session):
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    sync_state = OktaSyncState()
-
     # Act - Call the main sync function
     cartography.intel.okta.users.sync_okta_users(
         neo4j_session,
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
     )
 
     # Assert - Verify users were created with correct properties
@@ -171,15 +216,12 @@ def test_sync_okta_users_with_optional_fields(
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    sync_state = OktaSyncState()
-
     # Act
     cartography.intel.okta.users.sync_okta_users(
         neo4j_session,
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
     )
 
     # Assert - User should be created with null optional fields
@@ -231,15 +273,12 @@ def test_sync_okta_users_updates_existing(
     mock_get_users.return_value = [test_user]
     mock_user_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-
     # Act
     cartography.intel.okta.users.sync_okta_users(
         neo4j_session,
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
     )
 
     # Assert - User should be updated, not duplicated
@@ -286,16 +325,13 @@ def test_sync_okta_users_stores_state(mock_get_users, mock_user_client, neo4j_se
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    sync_state = OktaSyncState()
-
     # Act
-    cartography.intel.okta.users.sync_okta_users(
+    user_ids = cartography.intel.okta.users.sync_okta_users(
         neo4j_session,
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
     )
 
-    # Assert - sync_state should contain the user IDs
-    assert sync_state.users == ["user-state-1", "user-state-2"]
+    # Assert - function should return the user IDs
+    assert user_ids == ["user-state-1", "user-state-2"]

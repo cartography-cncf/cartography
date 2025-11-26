@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.okta.factors
-from cartography.intel.okta.sync_state import OktaSyncState
 from tests.data.okta.userfactors import create_test_factor
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -19,19 +18,12 @@ def test_sync_users_factors(mock_get_factors, mock_factor_client, neo4j_session)
     Test that Okta user factors are synced correctly to the graph.
     This follows the recommended pattern: mock get() functions, call sync(), verify outcomes.
     """
-    # Arrange - Create test users in the graph first
-    neo4j_session.run(
-        """
-        MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
-        MERGE (o)-[:RESOURCE]->(u1:OktaUser{id: 'user-001', email: 'user1@example.com'})
-        SET u1.lastupdated = $UPDATE_TAG
-        MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: 'user-002', email: 'user2@example.com'})
-        SET u2.lastupdated = $UPDATE_TAG
-        """,
-        ORG_ID=TEST_ORG_ID,
-        UPDATE_TAG=TEST_UPDATE_TAG,
+    # Arrange - Ensure test users exist in the graph
+    from tests.integration.cartography.intel.okta.test_users import (
+        _ensure_local_neo4j_has_test_users,
     )
+
+    _ensure_local_neo4j_has_test_users(neo4j_session)
 
     # Create test factors for user-001
     factor_totp = create_test_factor()
@@ -64,9 +56,8 @@ def test_sync_users_factors(mock_get_factors, mock_factor_client, neo4j_session)
     mock_get_factors.side_effect = mock_get_factors_side_effect
     mock_factor_client.return_value = MagicMock()
 
-    # Setup sync state with user IDs
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-001", "user-002"]
+    # Setup user IDs list
+    users_id = ["user-001", "user-002"]
 
     # Act - Call the main sync function
     cartography.intel.okta.factors.sync_users_factors(
@@ -74,7 +65,7 @@ def test_sync_users_factors(mock_get_factors, mock_factor_client, neo4j_session)
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
     )
 
     # Assert - Verify factors were created with correct properties
@@ -128,9 +119,8 @@ def test_sync_users_factors_with_no_users(
 
     mock_factor_client.return_value = MagicMock()
 
-    # Setup sync state with empty list (not None, as None would be falsy but empty list is also handled)
-    sync_state = OktaSyncState()
-    sync_state.users = []  # Empty list instead of None
+    # Setup empty user IDs list
+    users_id = []  # Empty list
 
     # Act - Should not crash even with no users
     cartography.intel.okta.factors.sync_users_factors(
@@ -138,7 +128,7 @@ def test_sync_users_factors_with_no_users(
         test_org_id,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
     )
 
     # Assert - No factors should be created for this organization
@@ -182,8 +172,7 @@ def test_sync_users_factors_handles_user_with_no_factors(
     mock_get_factors.return_value = []
     mock_factor_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-no-factors"]
+    users_id = ["user-no-factors"]
 
     # Act
     cartography.intel.okta.factors.sync_users_factors(
@@ -191,7 +180,7 @@ def test_sync_users_factors_handles_user_with_no_factors(
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
     )
 
     # Assert - User should still exist but have no factors
@@ -242,8 +231,7 @@ def test_sync_users_factors_updates_existing(
     mock_get_factors.return_value = [updated_factor]
     mock_factor_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-update"]
+    users_id = ["user-update"]
 
     # Act
     cartography.intel.okta.factors.sync_users_factors(
@@ -251,7 +239,7 @@ def test_sync_users_factors_updates_existing(
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
     )
 
     # Assert - Factor should be updated, not duplicated
@@ -325,8 +313,7 @@ def test_sync_users_factors_multiple_factor_types(
     mock_get_factors.return_value = factors
     mock_factor_client.return_value = MagicMock()
 
-    sync_state = OktaSyncState()
-    sync_state.users = ["user-multifactor"]
+    users_id = ["user-multifactor"]
 
     # Act
     cartography.intel.okta.factors.sync_users_factors(
@@ -334,7 +321,7 @@ def test_sync_users_factors_multiple_factor_types(
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         TEST_API_KEY,
-        sync_state,
+        users_id,
     )
 
     # Assert - All factor types should be created
