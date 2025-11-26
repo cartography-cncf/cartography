@@ -749,3 +749,54 @@ def test_load_transparent_data_encryptions_relationships(neo4j_session):
     actual = {(r["n1.id"], r["n2.id"]) for r in result}
 
     assert actual == expected
+
+
+def test_load_sql_server_tags(neo4j_session):
+    """
+    Test that tags are correctly loaded for SQL Servers.
+    """
+    # 1. Arrange
+    neo4j_session.run(
+        """
+        MERGE (s:AzureSubscription{id: $sub_id})
+        SET s.lastupdated = $update_tag
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    sql.load_server_data(
+        neo4j_session, TEST_SUBSCRIPTION_ID, DESCRIBE_SERVERS, TEST_UPDATE_TAG
+    )
+
+    # 2. Act
+    sql.load_sql_server_tags(
+        neo4j_session, TEST_SUBSCRIPTION_ID, DESCRIBE_SERVERS, TEST_UPDATE_TAG
+    )
+
+    # 3. Assert
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:sql",
+        f"{TEST_SUBSCRIPTION_ID}|dept:finance",
+    }
+    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # 4. Check Relationship
+    expected_rels = {
+        (DESCRIBE_SERVERS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (DESCRIBE_SERVERS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:sql"),
+        (DESCRIBE_SERVERS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (DESCRIBE_SERVERS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|dept:finance"),
+    }
+
+    result = neo4j_session.run(
+        """
+        MATCH (s:AzureSQLServer)-[:TAGGED]->(t:AzureTag)
+        RETURN s.id, t.id
+        """
+    )
+    actual_rels = {(r["s.id"], r["t.id"]) for r in result}
+    assert actual_rels == expected_rels

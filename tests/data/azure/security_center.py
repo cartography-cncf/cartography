@@ -9,5 +9,6 @@ MOCK_ASSESSMENTS = [
                 "remediation_description": "This is a test remediation description.",
             }
         },
+        "tags": {"env": "prod", "service": "security"},
     }
 ]

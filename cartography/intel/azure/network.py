@@ -7,11 +7,18 @@ from azure.mgmt.network import NetworkManagementClient
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.network_security_group import (
     AzureNetworkSecurityGroupSchema,
 )
 from cartography.models.azure.subnet import AzureSubnetSchema
 from cartography.models.azure.subnet import AzureSubnetToNSGRel
+from cartography.models.azure.tags.network_security_group_tag import (
+    AzureNetworkSecurityGroupTagsSchema,
+)
+from cartography.models.azure.tags.virtual_network_tag import (
+    AzureVirtualNetworkTagsSchema,
+)
 from cartography.models.azure.virtual_network import AzureVirtualNetworkSchema
 from cartography.util import timeit
 
@@ -66,6 +73,7 @@ def transform_virtual_networks(vnets: list[dict]) -> list[dict]:
                 "provisioning_state": vnet.get("properties", {}).get(
                     "provisioning_state"
                 ),
+                "tags": vnet.get("tags"),
             }
         )
     return transformed
@@ -98,6 +106,7 @@ def transform_network_security_groups(nsgs: list[dict]) -> list[dict]:
                 "id": nsg.get("id"),
                 "name": nsg.get("name"),
                 "location": nsg.get("location"),
+                "tags": nsg.get("tags"),
             }
         )
     return transformed
@@ -174,6 +183,56 @@ def load_subnet_nsg_relationships(
 
 
 @timeit
+def load_virtual_network_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    vnets: list[dict],
+    update_tag: int,
+) -> None:
+    tags = transform_tags(vnets, subscription_id)
+    load(
+        neo4j_session,
+        AzureVirtualNetworkTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def cleanup_virtual_network_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
+    GraphJob.from_node_schema(
+        AzureVirtualNetworkTagsSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
+def load_nsg_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    nsgs: list[dict],
+    update_tag: int,
+) -> None:
+    tags = transform_tags(nsgs, subscription_id)
+    load(
+        neo4j_session,
+        AzureNetworkSecurityGroupTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def cleanup_nsg_tags(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
+    GraphJob.from_node_schema(
+        AzureNetworkSecurityGroupTagsSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
 def _sync_virtual_networks(
     neo4j_session: neo4j.Session,
     client: NetworkManagementClient,
@@ -187,9 +246,11 @@ def _sync_virtual_networks(
     vnets = get_virtual_networks(client)
     transformed_vnets = transform_virtual_networks(vnets)
     load_virtual_networks(neo4j_session, transformed_vnets, subscription_id, update_tag)
+    load_virtual_network_tags(neo4j_session, subscription_id, vnets, update_tag)
     GraphJob.from_node_schema(AzureVirtualNetworkSchema(), common_job_parameters).run(
         neo4j_session
     )
+    cleanup_virtual_network_tags(neo4j_session, common_job_parameters)
     return vnets
 
 
@@ -209,9 +270,11 @@ def _sync_network_security_groups(
     load_network_security_groups(
         neo4j_session, transformed_nsgs, subscription_id, update_tag
     )
+    load_nsg_tags(neo4j_session, subscription_id, nsgs, update_tag)
     GraphJob.from_node_schema(
         AzureNetworkSecurityGroupSchema(), common_job_parameters
     ).run(neo4j_session)
+    cleanup_nsg_tags(neo4j_session, common_job_parameters)
 
 
 @timeit
