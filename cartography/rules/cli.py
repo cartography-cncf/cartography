@@ -96,7 +96,7 @@ def list_cmd(
             if rule_obj.references:
                 typer.echo("  References:")
                 for ref in rule_obj.references:
-                    typer.echo(f"    - {ref}")
+                    typer.echo(f"    - [{ref.text}]({ref.url})")
             typer.echo()
         return
 

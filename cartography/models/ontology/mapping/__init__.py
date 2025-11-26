@@ -2,6 +2,7 @@ import logging
 
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.device import DeviceSchema
+from cartography.models.ontology.mapping.data.apikeys import APIKEYS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.devices import DEVICES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.useraccounts import (
     USERACCOUNTS_ONTOLOGY_MAPPING,
@@ -25,6 +26,7 @@ ONTOLOGY_NODES_MAPPING: dict[str, dict[str, OntologyMapping]] = {
 # They are leveraged directly by the load functions of each module at ingestion time
 SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "useraccounts": USERACCOUNTS_ONTOLOGY_MAPPING,
+    "apikeys": APIKEYS_ONTOLOGY_MAPPING,
 }
 
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
