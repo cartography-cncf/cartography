@@ -203,6 +203,7 @@ Representation of a single GitHubUser [user object](https://developer.github.com
 | permission | Only present if the user is an [outside collaborator](https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection) of this repo.  `permission` is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE ([ref](https://docs.github.com/en/graphql/reference/enums#repositorypermission)). |
 | email | The user's publicly visible profile email. |
 | company | The user's public profile company. |
+| organization_verified_domain_emails | List of emails verified by the user's organization. |
 
 
 #### Relationships

@@ -53,6 +53,9 @@ class BaseGitHubUserNodeProperties(CartographyNodeProperties):
     is_enterprise_owner: PropertyRef = PropertyRef("isEnterpriseOwner")
     email: PropertyRef = PropertyRef("email")
     company: PropertyRef = PropertyRef("company")
+    organization_verified_domain_emails: PropertyRef = PropertyRef(
+        "organizationVerifiedDomainEmails"
+    )
 
 
 @dataclass(frozen=True)
@@ -114,6 +117,9 @@ class GitHubUserUnaffiliatedOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitHubOrganizationUserSchema(CartographyNodeSchema):
     label: str = "GitHubUser"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: GitHubOrganizationUserNodeProperties = (
         GitHubOrganizationUserNodeProperties()
     )

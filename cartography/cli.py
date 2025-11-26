@@ -540,6 +540,24 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--googleworkspace-auth-method",
+            type=str,
+            default="delegated",
+            choices=["delegated", "oauth", "default"],
+            help=(
+                'Google Workspace authentication method. Can be "delegated" for service account or "oauth" for OAuth. '
+                '"Default" best if using gcloud CLI.'
+            ),
+        )
+        parser.add_argument(
+            "--googleworkspace-tokens-env-var",
+            type=str,
+            default="GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS",
+            help=(
+                "The name of environment variable containing secrets for Google Workspace authentication."
+            ),
+        )
+        parser.add_argument(
             "--lastpass-cid-env-var",
             type=str,
             default=None,
@@ -1120,6 +1138,17 @@ class CLI:
             config.gsuite_config = os.environ.get(config.gsuite_tokens_env_var)
         else:
             config.gsuite_tokens_env_var = None
+
+        # Google Workspace config
+        if config.googleworkspace_tokens_env_var:
+            logger.debug(
+                f"Reading config string for Google Workspace from environment variable {config.googleworkspace_tokens_env_var}",
+            )
+            config.googleworkspace_config = os.environ.get(
+                config.googleworkspace_tokens_env_var
+            )
+        else:
+            config.googleworkspace_tokens_env_var = None
 
         # Lastpass config
         if config.lastpass_cid_env_var:

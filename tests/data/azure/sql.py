@@ -8,6 +8,7 @@ DESCRIBE_SERVERS = [
         "version": "12.0",
         "state": "Ready",
         "tags": {"env": "prod", "service": "sql"},
+        "resourceGroup": "TestRG",
     },
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Sql/servers/testSQL2",
@@ -18,6 +19,7 @@ DESCRIBE_SERVERS = [
         "version": "12.0",
         "state": "Ready",
         "tags": {"env": "prod", "dept": "finance"},
+        "resourceGroup": "TestRG",
     },
 ]
 

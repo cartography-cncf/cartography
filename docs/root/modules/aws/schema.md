@@ -41,6 +41,7 @@ Representation of an AWS Account.
                                 :EC2SecurityGroup,
                                 :ElasticIPAddress,
                                 :ESDomain,
+                                :GuardDutyDetector,
                                 :GuardDutyFinding,
                                 :KMSAlias,
                                 :LaunchConfiguration,
@@ -152,6 +153,52 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
     (:AWSGroup)-[:POLICY]->(:AWSPolicy)
     ```
 
+### GuardDutyDetector
+
+Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_GetDetector.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier for the GuardDuty detector |
+| accountid | The AWS Account ID the detector belongs to |
+| region | The AWS Region where the detector is deployed |
+| status | Whether the detector is enabled or disabled |
+| findingpublishingfrequency | Frequency with which GuardDuty publishes findings |
+| service_role | IAM service role used by GuardDuty |
+| createdat | Timestamp when the detector was created |
+| updatedat | Timestamp when the detector was last updated |
+
+#### Relationships
+
+- AWS Accounts can enable GuardDuty detectors
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:GuardDutyDetector)
+    ```
+
+- GuardDuty detectors generate GuardDuty findings
+    ```cypher
+    (:GuardDutyDetector)<-[:DETECTED_BY]-(:GuardDutyFinding)
+    ```
+
+- "What regions have GuardDuty enabled?"
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(d:GuardDutyDetector)
+    RETURN DISTINCT a.name, d.region
+    ```
+
+- "Which EC2 instances are not covered by an enabled GuardDuty detector?"
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(i:EC2Instance)
+    WHERE NOT EXISTS {
+        MATCH (a)-[:RESOURCE]->(d:GuardDutyDetector{status: "ENABLED"})
+        WHERE d.region = i.region
+    }
+    RETURN a.name, i.instanceid, i.region
+    ORDER BY a.name, i.region
+    ```
+
 ### GuardDutyFinding::Risk
 
 Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
@@ -181,6 +228,11 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 - GuardDuty findings belong to AWS Accounts
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:GuardDutyFinding)
+    ```
+
+- GuardDuty findings link back to the detector that produced them
+    ```cypher
+    (:GuardDutyFinding)-[:DETECTED_BY]->(:GuardDutyDetector)
     ```
 
 - GuardDuty findings may affect EC2 Instances
