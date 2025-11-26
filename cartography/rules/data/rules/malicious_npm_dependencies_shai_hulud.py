@@ -53,8 +53,8 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
     ] AS vulnerable
     UNWIND vulnerable AS v
     MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version,
-    (REPLACE(d.requirements, "= ", "") = v.version) AS is_vulnerable
+    WHERE REPLACE(d.requirements, "= ", "") = v.version
+    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -1137,8 +1137,8 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
     ] AS vulnerable
     UNWIND vulnerable AS v
     MATCH (d:Dependency {ecosystem: 'npm', name: v.name})--(manifest:DependencyGraphManifest)--(r:GitHubRepository)
-    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version,
-    (REPLACE(d.requirements, "= ", "") = v.version) AS is_vulnerable
+    WHERE REPLACE(d.requirements, "= ", "") = v.version
+    RETURN r.fullname as repo, d.name as name, d.requirements as current_version, v.version AS vulnerable_version
     """,
     cypher_visual_query="""
     WITH [
@@ -2180,7 +2180,6 @@ class MaliciousNpmDependenciesShaiHuludOutput(Finding):
     name: str | None = None
     current_version: str | None = None
     vulnerable_version: str | None = None
-    is_vulnerable: bool | None = None
 
 
 malicious_npm_dependencies_shai_hulud = Rule(
