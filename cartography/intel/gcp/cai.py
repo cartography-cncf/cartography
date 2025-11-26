@@ -130,6 +130,7 @@ def transform_gcp_roles_cai(
     for role in raw_roles:
         role_name = role["name"]
         if role_name.startswith("roles/"):
+            # CAI currently does not return global predefined roles; keep branch for parity/future support
             role_type = (
                 "BASIC"
                 if role_name in ["roles/owner", "roles/editor", "roles/viewer"]
