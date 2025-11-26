@@ -56,10 +56,9 @@ def get_oauth_tokens_for_user(admin: Resource, user_id: str) -> list[dict]:
             )
         elif e.resp.status == 404:
             # User has no OAuth tokens, this is normal
-            logger.debug(f"No OAuth tokens found for user {user_id}")
             return []
         else:
-            logger.warning(f"Error fetching OAuth tokens for user {user_id}: {e}")
+            logger.warning(f"Error fetching OAuth tokens for user: {e}")
         return []
 
 
@@ -104,7 +103,7 @@ def transform_oauth_apps_and_authorizations(
         scopes = token.get("scopes", [])
 
         if not client_id or not user_id:
-            logger.warning(f"Skipping token with missing client_id or user_id: {token}")
+            logger.warning("Skipping token due to missing client_id or user_id")
             continue
 
         # Create or update app entry
