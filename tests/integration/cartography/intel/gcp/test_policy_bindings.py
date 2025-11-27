@@ -130,7 +130,7 @@ def test_sync_gcp_policy_bindings(
             "project",
         ),
         (
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin",
+            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin_5982c9d5",
             "roles/storage.admin",
             "project",
         ),
@@ -161,7 +161,7 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             TEST_PROJECT_ID,
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin",
+            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin_5982c9d5",
         ),
         (
             TEST_PROJECT_ID,
@@ -190,7 +190,7 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             "bob@example.com",
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin",
+            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin_5982c9d5",
         ),
         # IAM service account
         (
@@ -223,7 +223,7 @@ def test_sync_gcp_policy_bindings(
             "roles/viewer",
         ),
         (
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin",
+            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin_5982c9d5",
             "roles/storage.admin",
         ),
         (
