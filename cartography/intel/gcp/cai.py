@@ -27,26 +27,21 @@ def get_gcp_service_accounts_cai(
     :return: A list of dictionaries representing GCP service accounts.
     """
     service_accounts: List[Dict[str, Any]] = []
-    try:
-        request = cai_client.assets().list(
-            parent=f"projects/{project_id}",
-            assetTypes=["iam.googleapis.com/ServiceAccount"],
-            contentType="RESOURCE",  # Request full resource data, not just metadata
-        )
-        while request is not None:
-            response = request.execute()
-            if "assets" in response:
-                # Extract the actual service account data from CAI response
-                for asset in response["assets"]:
-                    if "resource" in asset and "data" in asset["resource"]:
-                        service_accounts.append(asset["resource"]["data"])
-            request = cai_client.assets().list_next(
-                previous_request=request,
-                previous_response=response,
-            )
-    except Exception as e:
-        logger.warning(
-            f"Error retrieving service accounts via CAI for project {project_id}: {e}"
+    request = cai_client.assets().list(
+        parent=f"projects/{project_id}",
+        assetTypes=["iam.googleapis.com/ServiceAccount"],
+        contentType="RESOURCE",  # Request full resource data, not just metadata
+    )
+    while request is not None:
+        response = request.execute()
+        if "assets" in response:
+            # Extract the actual service account data from CAI response
+            for asset in response["assets"]:
+                if "resource" in asset and "data" in asset["resource"]:
+                    service_accounts.append(asset["resource"]["data"])
+        request = cai_client.assets().list_next(
+            previous_request=request,
+            previous_response=response,
         )
     return service_accounts
 
@@ -60,32 +55,28 @@ def get_gcp_roles_cai(cai_client: Resource, project_id: str) -> List[Dict]:
     :param project_id: The GCP Project ID to retrieve roles from.
     :return: A list of dictionaries representing GCP roles.
     """
-    try:
-        roles = []
+    roles = []
 
-        # Get custom roles (project-level)
-        custom_request = cai_client.assets().list(
-            parent=f"projects/{project_id}",
-            assetTypes=["iam.googleapis.com/Role"],
-            contentType="RESOURCE",  # Request full resource data, not just metadata
-        )
-        while custom_request is not None:
-            resp = custom_request.execute()
-            if "assets" in resp:
-                for asset in resp["assets"]:
-                    if "resource" in asset and "data" in asset["resource"]:
-                        roles.append(asset["resource"]["data"])
-            custom_request = cai_client.assets().list_next(custom_request, resp)
+    # Get custom roles (project-level)
+    custom_request = cai_client.assets().list(
+        parent=f"projects/{project_id}",
+        assetTypes=["iam.googleapis.com/Role"],
+        contentType="RESOURCE",  # Request full resource data, not just metadata
+    )
+    while custom_request is not None:
+        resp = custom_request.execute()
+        if "assets" in resp:
+            for asset in resp["assets"]:
+                if "resource" in asset and "data" in asset["resource"]:
+                    roles.append(asset["resource"]["data"])
+        custom_request = cai_client.assets().list_next(custom_request, resp)
 
-        # TODO: Handle predefined roles
-        # Predefined roles are not project-specific and may need to be queried
-        # at organization level or through a different CAI approach.
-        # Original iam.py uses iam_client.roles().list(view="FULL") for this.
+    # TODO: Handle predefined roles
+    # Predefined roles are not project-specific and may need to be queried
+    # at organization level or through a different CAI approach.
+    # Original iam.py uses iam_client.roles().list(view="FULL") for this.
 
-        return roles
-    except Exception as e:
-        logger.warning(f"Error getting GCP roles via CAI - {e}")
-        return []
+    return roles
 
 
 def transform_gcp_service_accounts_cai(
