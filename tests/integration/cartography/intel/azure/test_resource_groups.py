@@ -64,3 +64,67 @@ def test_sync_resource_groups(mock_get, neo4j_session):
         "RESOURCE",
     )
     assert actual_rels == expected_rels
+
+
+def test_load_resource_group_tags(neo4j_session):
+    """
+    Test that tags are correctly loaded for Resource Groups.
+    """
+    # 1. Arrange
+    neo4j_session.run(
+        """
+        MERGE (s:AzureSubscription{id: $sub_id})
+        SET s.lastupdated = $update_tag
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    transformed_groups = resource_groups.transform_resource_groups(MOCK_RESOURCE_GROUPS)
+
+    resource_groups.load_resource_groups(
+        neo4j_session, transformed_groups, TEST_SUBSCRIPTION_ID, TEST_UPDATE_TAG
+    )
+
+    # 2. Act
+    resource_groups.load_resource_group_tags(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        transformed_groups,
+        TEST_UPDATE_TAG,
+    )
+
+    # 3. Assert
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:resource-group",
+    }
+    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # 4. Check Relationship
+    expected_rels = {
+        # Relationships for TestRG1
+        (MOCK_RESOURCE_GROUPS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (
+            MOCK_RESOURCE_GROUPS[0]["id"],
+            f"{TEST_SUBSCRIPTION_ID}|service:resource-group",
+        ),
+        # Relationships for TestRG2
+        (MOCK_RESOURCE_GROUPS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (
+            MOCK_RESOURCE_GROUPS[1]["id"],
+            f"{TEST_SUBSCRIPTION_ID}|service:resource-group",
+        ),
+    }
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "AzureResourceGroup",
+        "id",
+        "AzureTag",
+        "id",
+        "TAGGED",
+    )
+    assert actual_rels == expected_rels
