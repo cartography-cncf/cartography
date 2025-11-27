@@ -29,6 +29,7 @@ def get_gcp_service_accounts(
     :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
     :param project_id: The GCP Project ID to retrieve service accounts from.
     :return: A list of dictionaries representing GCP service accounts.
+    :raises: Exception if the IAM API call fails. Callers should handle this to avoid silent data loss.
     """
     service_accounts: List[Dict[str, Any]] = []
     request = (
@@ -61,6 +62,7 @@ def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict]:
     :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
     :param project_id: The GCP Project ID to retrieve roles from.
     :return: A list of dictionaries representing GCP roles.
+    :raises: Exception if the IAM API call fails. Callers should handle this to avoid silent data loss.
     """
     roles = []
 

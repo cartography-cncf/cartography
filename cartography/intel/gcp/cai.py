@@ -25,6 +25,7 @@ def get_gcp_service_accounts_cai(
     :param cai_client: The Cloud Asset Inventory resource object created by googleapiclient.discovery.build().
     :param project_id: The GCP Project ID to retrieve service accounts from.
     :return: A list of dictionaries representing GCP service accounts.
+    :raises: Exception if the CAI API call fails. Callers should handle this to avoid silent data loss.
     """
     service_accounts: List[Dict[str, Any]] = []
     request = cai_client.assets().list(
@@ -54,6 +55,7 @@ def get_gcp_roles_cai(cai_client: Resource, project_id: str) -> List[Dict]:
     :param cai_client: The Cloud Asset Inventory resource object created by googleapiclient.discovery.build().
     :param project_id: The GCP Project ID to retrieve roles from.
     :return: A list of dictionaries representing GCP roles.
+    :raises: Exception if the CAI API call fails. Callers should handle this to avoid silent data loss.
     """
     roles = []
 
