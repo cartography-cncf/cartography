@@ -18,6 +18,7 @@ from cartography.intel.gcp import bigtable_backup
 from cartography.intel.gcp import bigtable_cluster
 from cartography.intel.gcp import bigtable_instance
 from cartography.intel.gcp import bigtable_table
+from cartography.intel.gcp import cai
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
@@ -37,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam bigtable")
+Services = namedtuple("Services", "compute storage gke dns iam bigtable cai")
 service_names = Services(
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
@@ -45,6 +46,7 @@ service_names = Services(
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
     bigtable="bigtableadmin.googleapis.com",
+    cai="cloudasset.googleapis.com",
 )
 
 
@@ -164,6 +166,21 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
+        else:
+            # Fallback to Cloud Asset Inventory if IAM API is disabled
+            if service_names.cai in enabled_services:
+                logger.info(
+                    "IAM API not enabled. Syncing GCP project %s for IAM via Cloud Asset Inventory.",
+                    project_id,
+                )
+                cai_cred = build_client("cloudasset", "v1", credentials=credentials)
+                cai.sync(
+                    neo4j_session,
+                    cai_cred,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
         if service_names.bigtable in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Bigtable.")
             bigtable_client = build_client("bigtableadmin", "v2")

@@ -31,29 +31,24 @@ def get_gcp_service_accounts(
     :return: A list of dictionaries representing GCP service accounts.
     """
     service_accounts: List[Dict[str, Any]] = []
-    try:
+    request = (
+        iam_client.projects()
+        .serviceAccounts()
+        .list(
+            name=f"projects/{project_id}",
+        )
+    )
+    while request is not None:
+        response = request.execute()
+        if "accounts" in response:
+            service_accounts.extend(response["accounts"])
         request = (
             iam_client.projects()
             .serviceAccounts()
-            .list(
-                name=f"projects/{project_id}",
+            .list_next(
+                previous_request=request,
+                previous_response=response,
             )
-        )
-        while request is not None:
-            response = request.execute()
-            if "accounts" in response:
-                service_accounts.extend(response["accounts"])
-            request = (
-                iam_client.projects()
-                .serviceAccounts()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-    except Exception as e:
-        logger.warning(
-            f"Error retrieving service accounts for project {project_id}: {e}"
         )
     return service_accounts
 
@@ -67,27 +62,23 @@ def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict]:
     :param project_id: The GCP Project ID to retrieve roles from.
     :return: A list of dictionaries representing GCP roles.
     """
-    try:
-        roles = []
+    roles = []
 
-        # Get custom roles
-        custom_req = iam_client.projects().roles().list(parent=f"projects/{project_id}")
-        while custom_req is not None:
-            resp = custom_req.execute()
-            roles.extend(resp.get("roles", []))
-            custom_req = iam_client.projects().roles().list_next(custom_req, resp)
+    # Get custom roles
+    custom_req = iam_client.projects().roles().list(parent=f"projects/{project_id}")
+    while custom_req is not None:
+        resp = custom_req.execute()
+        roles.extend(resp.get("roles", []))
+        custom_req = iam_client.projects().roles().list_next(custom_req, resp)
 
-        # Get predefined roles
-        predefined_req = iam_client.roles().list(view="FULL")
-        while predefined_req is not None:
-            resp = predefined_req.execute()
-            roles.extend(resp.get("roles", []))
-            predefined_req = iam_client.roles().list_next(predefined_req, resp)
+    # Get predefined roles
+    predefined_req = iam_client.roles().list(view="FULL")
+    while predefined_req is not None:
+        resp = predefined_req.execute()
+        roles.extend(resp.get("roles", []))
+        predefined_req = iam_client.roles().list_next(predefined_req, resp)
 
-        return roles
-    except Exception as e:
-        logger.warning(f"Error getting GCP roles - {e}")
-        return []
+    return roles
 
 
 def transform_gcp_service_accounts(
