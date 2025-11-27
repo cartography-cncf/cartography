@@ -105,7 +105,7 @@ def sync_googleworkspace_users(
     admin: Resource,
     googleworkspace_update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[str]:
     """
     GET Google Workspace user objects using the google admin api resource, load the data into Neo4j and clean up stale nodes.
 
@@ -114,7 +114,7 @@ def sync_googleworkspace_users(
     See https://googleapis.github.io/google-api-python-client/docs/epy/googleapiclient.discovery-module.html#build.
     :param googleworkspace_update_tag: The timestamp value to set our new Neo4j nodes with
     :param common_job_parameters: Parameters to carry to the Neo4j jobs
-    :return: Nothing
+    :return: List of user IDs
     """
     logger.debug("Syncing Google Workspace Users")
 
@@ -134,3 +134,5 @@ def sync_googleworkspace_users(
 
     # 4. CLEANUP - Remove stale data
     cleanup_googleworkspace_users(neo4j_session, common_job_parameters)
+
+    return [user["id"] for user in raw_users]

@@ -16,6 +16,7 @@ This module allows authentication from a service account or via OAuth tokens.
 1. [Perform Google Workspace Domain-Wide Delegation of Authority](https://developers.google.com/admin-sdk/directory/v1/guides/delegation) with following scopes:
     - `https://www.googleapis.com/auth/admin.directory.customer.readonly`
     - `https://www.googleapis.com/auth/admin.directory.user.readonly`
+    - `https://www.googleapis.com/auth/admin.directory.user.security`
     - `https://www.googleapis.com/auth/cloud-identity.groups.readonly`
     - `https://www.googleapis.com/auth/cloud-identity.devices.readonly`
     - `https://www.googleapis.com/auth/cloud-platform`
@@ -55,6 +56,7 @@ from googleapiclient.discovery import build
 scopes = [
     "https://www.googleapis.com/auth/admin.directory.customer.readonly",
     "https://www.googleapis.com/auth/admin.directory.user.readonly",
+    "https://www.googleapis.com/auth/admin.directory.user.security",
     "https://www.googleapis.com/auth/cloud-identity.devices.readonly",
     "https://www.googleapis.com/auth/cloud-identity.groups.readonly"
 ]
@@ -118,6 +120,7 @@ If you are migrating from the deprecated `gsuite` module, here are the key chang
    - The new module requires additional scopes. Ensure your service account or OAuth app has the following:
      - `https://www.googleapis.com/auth/admin.directory.customer.readonly` (New)
      - `https://www.googleapis.com/auth/admin.directory.user.readonly`
+     - `https://www.googleapis.com/auth/admin.directory.user.security` (New)
      - `https://www.googleapis.com/auth/cloud-identity.groups.readonly` (New)
      - `https://www.googleapis.com/auth/cloud-identity.devices.readonly` (New)
      - `https://www.googleapis.com/auth/cloud-platform`

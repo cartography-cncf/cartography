@@ -17,6 +17,7 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 from cartography.config import Config
 from cartography.intel.googleworkspace import devices
 from cartography.intel.googleworkspace import groups
+from cartography.intel.googleworkspace import oauth_apps
 from cartography.intel.googleworkspace import tenant
 from cartography.intel.googleworkspace import users
 from cartography.util import timeit
@@ -24,6 +25,7 @@ from cartography.util import timeit
 OAUTH_SCOPES = [
     "https://www.googleapis.com/auth/admin.directory.customer.readonly",
     "https://www.googleapis.com/auth/admin.directory.user.readonly",
+    "https://www.googleapis.com/auth/admin.directory.user.security",
     "https://www.googleapis.com/auth/cloud-identity.devices.readonly",
     "https://www.googleapis.com/auth/cloud-identity.groups.readonly",
 ]
@@ -160,12 +162,23 @@ def start_googleworkspace_ingestion(
     )
     common_job_parameters["CUSTOMER_ID"] = customer_id
 
-    users.sync_googleworkspace_users(
+    # Sync users and get the list of transformed users for OAuth token sync
+    user_ids = users.sync_googleworkspace_users(
         neo4j_session,
         resources.admin,
         config.update_tag,
         common_job_parameters,
     )
+
+    # Sync OAuth apps for all users
+    oauth_apps.sync_googleworkspace_oauth_apps(
+        neo4j_session,
+        resources.admin,
+        user_ids,
+        config.update_tag,
+        common_job_parameters,
+    )
+
     groups.sync_googleworkspace_groups(
         neo4j_session,
         resources.cloudidentity,
