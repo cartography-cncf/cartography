@@ -133,3 +133,68 @@ def test_sync_load_balancers(mock_get_lbs, neo4j_session):
         "id",
         "ROUTES_TO",
     ) == {(rule_id, backend_pool_id)}
+
+
+def test_load_load_balancer_tags(neo4j_session):
+    """
+    Test that tags are correctly loaded and linked to Azure Load Balancers.
+    """
+    # 1. Arrange: Create the prerequisite AzureSubscription node
+    neo4j_session.run(
+        """
+        MERGE (s:AzureSubscription{id: $sub_id})
+        SET s.lastupdated = $update_tag
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Transform the data first to include tags
+    transformed_lbs = load_balancer.transform_load_balancers(MOCK_LOAD_BALANCERS)
+
+    # Load Load Balancers so they exist to be tagged
+    load_balancer.load_load_balancers(
+        neo4j_session, transformed_lbs, TEST_SUBSCRIPTION_ID, TEST_UPDATE_TAG
+    )
+
+    # 2. Act: Load the tags
+    load_balancer.load_load_balancer_tags(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        transformed_lbs,
+        TEST_UPDATE_TAG,
+    )
+
+    # 3. Assert: Check for the 2 unique tags
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:load-balancer",
+    }
+
+    tag_nodes = neo4j_session.run(
+        """
+        MATCH (t:AzureTag)
+        WHERE t.id STARTS WITH $sub_id
+        RETURN t.id
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # 4. Assert: Check the relationships
+    lb_id = MOCK_LOAD_BALANCERS[0]["id"]
+
+    expected_rels = {
+        (lb_id, f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (lb_id, f"{TEST_SUBSCRIPTION_ID}|service:load-balancer"),
+    }
+
+    result = neo4j_session.run(
+        """
+        MATCH (lb:AzureLoadBalancer)-[:TAGGED]->(t:AzureTag)
+        RETURN lb.id, t.id
+        """
+    )
+    actual_rels = {(r["lb.id"], r["t.id"]) for r in result}
+    assert actual_rels == expected_rels
