@@ -15,4 +15,12 @@ OPENAI_USERS = [
         "role": "member",
         "added_at": 1670089719,
     },
+    {
+        "object": "organization.user",
+        "id": None,
+        "name": "Missing Id",
+        "email": "missing-id@example.com",
+        "role": "member",
+        "added_at": 1670089719,
+    },
 ]

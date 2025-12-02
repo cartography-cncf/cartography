@@ -1,6 +1,5 @@
-from unittest.mock import patch
-
 import requests
+from unittest.mock import patch
 
 import cartography.intel.openai.users
 import tests.data.openai.users

@@ -50,17 +50,27 @@ def load_users(
     ORG_ID: str,
     update_tag: int,
 ) -> None:
+    valid_users = [user for user in data if user.get("id")]
+    dropped_users = len(data) - len(valid_users)
+
+    if dropped_users:
+        logger.warning(
+            "Skipping %d OpenAI users missing an id; received %d users from API.",
+            dropped_users,
+            len(data),
+        )
+
     load(
         neo4j_session,
         OpenAIOrganizationSchema(),
         [{"id": ORG_ID}],
         lastupdated=update_tag,
     )
-    logger.info("Loading %d OpenAI User into Neo4j.", len(data))
+    logger.info("Loading %d OpenAI User into Neo4j.", len(valid_users))
     load(
         neo4j_session,
         OpenAIUserSchema(),
-        data,
+        valid_users,
         lastupdated=update_tag,
         ORG_ID=ORG_ID,
     )
