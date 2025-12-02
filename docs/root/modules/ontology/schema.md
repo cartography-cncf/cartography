@@ -139,6 +139,7 @@ A client computer is a host that accesses a service made available by a server o
     (:User)-[:OWNS]->(:Device)
     ```
 
+
 ### APIKey
 
 ```{note}
@@ -163,3 +164,48 @@ API keys are used across different cloud providers and SaaS platforms for authen
     ```
     (:User)-[:OWNS]->(:APIKey)
     ```
+
+
+
+### ComputeInstance
+
+```{note}
+ComputeInstance is a semantic label.
+```
+
+A compute instance represents a virtual machine or server instance running in a cloud environment.
+It generalizes concepts like EC2 Instances, DigitalOcean Droplets, and Scaleway Instances.
+
+| Field | Description |
+|-------|-------------|
+| _ont_id | The unique identifier for the instance. |
+| _ont_name | The name of the instance. |
+| _ont_region | The region or zone where the instance is located. |
+| _ont_public_ip_address | The public IP address of the instance. |
+| _ont_private_ip_address | The private IP address of the instance. |
+| _ont_state | The current state of the instance (e.g., running, stopped). |
+| _ont_type | The type or size of the instance (e.g., t2.micro, s-1vcpu-1gb). |
+| _ont_created_at | Timestamp when the instance was created. |
+
+
+### Container
+
+```{note}
+Container is a semantic label.
+```
+
+A container represents a lightweight, standalone executable package that includes everything needed to run an application.
+It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Container Instances.
+
+| Field | Description |
+|-------|-------------|
+| _ont_id | The unique identifier for the container. |
+| _ont_name | The name of the container. |
+| _ont_image | The container image (e.g., nginx:latest). |
+| _ont_image_digest | The digest/SHA256 of the container image. |
+| _ont_state | The current state of the container (e.g., running, stopped, waiting). |
+| _ont_cpu | CPU allocated to the container. |
+| _ont_memory | Memory allocated to the container (in MB). |
+| _ont_region | The region or zone where the container is running. |
+| _ont_namespace | Namespace for logical isolation (e.g., Kubernetes namespace). |
+| _ont_health_status | The health status of the container. |
