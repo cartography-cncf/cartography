@@ -7,6 +7,7 @@ from typing import Optional
 from typing import Set
 
 import neo4j
+from google.auth import default as google_auth_default
 from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
@@ -167,20 +168,28 @@ def _sync_project_resources(
                 common_job_parameters,
             )
         else:
-            # Fallback to Cloud Asset Inventory if IAM API is disabled
-            if service_names.cai in enabled_services:
-                logger.info(
-                    "IAM API not enabled. Syncing GCP project %s for IAM via Cloud Asset Inventory.",
-                    project_id,
-                )
-                cai_cred = build_client("cloudasset", "v1", credentials=credentials)
-                cai.sync(
-                    neo4j_session,
-                    cai_cred,
-                    project_id,
-                    gcp_update_tag,
-                    common_job_parameters,
-                )
+            # Fallback to Cloud Asset Inventory even if the target project does not have the API enabled.
+            adc_credentials, adc_project_id = google_auth_default(
+                scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            )
+            logger.info(
+                "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory using quota project %s.",
+                project_id,
+                adc_project_id,
+            )
+            cai_cred = build_client(
+                "cloudasset",
+                "v1",
+                credentials=adc_credentials,
+                quota_project_id=adc_project_id,
+            )
+            cai.sync(
+                neo4j_session,
+                cai_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
         if service_names.bigtable in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Bigtable.")
             bigtable_client = build_client("bigtableadmin", "v2")
