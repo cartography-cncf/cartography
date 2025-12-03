@@ -303,9 +303,10 @@ def _sync_project_resources(
                 common_job_parameters,
                 cai_grpc_client,
             )
-            # If we got a permission denied, don't retry for other projects
-            if policy_bindings_permission_ok is None:
-                policy_bindings_permission_ok = success
+            # Track if we have permission. Once set to False (permission denied),
+            # the outer condition will skip policy_bindings for remaining projects.
+            if not success:
+                policy_bindings_permission_ok = False
 
         permission_relationships.sync(
             neo4j_session,
