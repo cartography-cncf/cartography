@@ -62,3 +62,4 @@ CAI API calls are billed against your **quota project** (the project associated 
 #### Limitations
 
 - **IAM Fallback**: Only retrieves custom roles defined at the project level. Predefined roles (e.g., `roles/viewer`, `roles/editor`) are not included. Enable the IAM API on target projects for complete role coverage.
+- **Policy Bindings**: Requires organization-level `roles/cloudasset.viewer`. If this role is missing, Cartography will log a warning and skip policy bindings sync (other sync operations will continue normally).

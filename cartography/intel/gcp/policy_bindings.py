@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 import neo4j
+from google.api_core.exceptions import PermissionDenied
 from google.cloud.asset_v1 import AssetServiceClient
 from google.cloud.asset_v1.types import BatchGetEffectiveIamPoliciesRequest
 from google.cloud.asset_v1.types import SearchAllIamPoliciesRequest
@@ -197,12 +198,28 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     client: AssetServiceClient,
-) -> None:
-    bindings_data = get_policy_bindings(
-        project_id, common_job_parameters=common_job_parameters, client=client
-    )  # Why pass common_job_parameters here? Because we need to get the org_id for getting inherited policies.
+) -> bool:
+    """
+    Sync GCP IAM policy bindings for a project.
+
+    Returns True if sync was successful, False if skipped due to permissions.
+    """
+    try:
+        bindings_data = get_policy_bindings(
+            project_id, common_job_parameters=common_job_parameters, client=client
+        )  # Why pass common_job_parameters here? Because we need to get the org_id for getting inherited policies.
+    except PermissionDenied as e:
+        logger.warning(
+            "Permission denied when fetching policy bindings for project %s. "
+            "Skipping policy bindings sync. To enable this feature, grant "
+            "roles/cloudasset.viewer at the organization level. Error: %s",
+            project_id,
+            e,
+        )
+        return False
 
     transformed_bindings_data = transform_bindings(bindings_data)
 
     load_bindings(neo4j_session, transformed_bindings_data, project_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
+    return True

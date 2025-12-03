@@ -120,6 +120,9 @@ def _sync_project_resources(
     cai_enabled_on_quota_project: Optional[bool] = (
         None  # Cached check for CAI on quota project
     )
+    policy_bindings_permission_ok: Optional[bool] = (
+        None  # Track if we have permission for policy bindings
+    )
 
     # Per-project sync across services
     for project in projects:
@@ -284,7 +287,7 @@ def _sync_project_resources(
                     cai_quota_project,
                 )
 
-        if cai_enabled_on_quota_project:
+        if cai_enabled_on_quota_project and policy_bindings_permission_ok is not False:
             # Lazily initialize CAI gRPC client for policy bindings.
             if cai_grpc_client is None:
                 cai_grpc_client = build_asset_client(quota_project_id=cai_quota_project)
@@ -293,13 +296,16 @@ def _sync_project_resources(
                 project_id,
                 cai_quota_project,
             )
-            policy_bindings.sync(
+            success = policy_bindings.sync(
                 neo4j_session,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
                 cai_grpc_client,
             )
+            # If we got a permission denied, don't retry for other projects
+            if policy_bindings_permission_ok is None:
+                policy_bindings_permission_ok = success
 
         permission_relationships.sync(
             neo4j_session,
