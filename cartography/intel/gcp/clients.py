@@ -48,11 +48,18 @@ def build_client(
 
 def build_asset_client(
     credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
 ) -> AssetServiceClient:
     """
     Build an AssetServiceClient for the Cloud Asset API.
+
+    :param credentials: Optional credentials to use. If not provided, ADC will be used.
+    :param quota_project_id: Optional quota project ID for billing. If not provided,
+        the ADC default project will be used.
     """
-    resolved_credentials = credentials or get_gcp_credentials()
+    resolved_credentials = credentials or get_gcp_credentials(
+        quota_project_id=quota_project_id,
+    )
     if resolved_credentials is None:
         raise RuntimeError(
             "GCP credentials are not available; cannot build asset client."

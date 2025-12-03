@@ -202,18 +202,21 @@ def load_gcp_roles_cai(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session,
+    project_id: str,
+    common_job_parameters: Dict[str, Any],
 ) -> None:
     """
     Run cleanup jobs for GCP IAM data in Neo4j.
 
     :param neo4j_session: The Neo4j session.
+    :param project_id: The GCP Project ID to clean up resources for.
     :param common_job_parameters: Common job parameters for cleanup.
     """
-    logger.debug("Running GCP IAM cleanup job (CAI)")
+    logger.debug(f"Running GCP IAM cleanup job (CAI) for project {project_id}")
     job_params = {
         **common_job_parameters,
-        "projectId": common_job_parameters.get("PROJECT_ID"),
+        "projectId": project_id,
     }
 
     cleanup_jobs = [
@@ -261,4 +264,4 @@ def sync(
     load_gcp_roles_cai(neo4j_session, roles, project_id, gcp_update_tag)
 
     # Run cleanup
-    cleanup(neo4j_session, common_job_parameters)
+    cleanup(neo4j_session, project_id, common_job_parameters)
