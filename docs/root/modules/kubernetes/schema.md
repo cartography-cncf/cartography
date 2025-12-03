@@ -109,6 +109,10 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | status\_ready | Specifies whether the container has passed its readiness probe. |
 | status\_started | Specifies whether the container has passed its startup probe. |
 | status\_state | State of the container (running, terminated, waiting) |
+| memory\_request | Minimum amount of memory guaranteed to be available to the container (e.g. "128Mi", "1Gi") |
+| cpu\_request | Minimum amount of CPU guaranteed to be available to the container (e.g. "100m", "1") |
+| memory\_limit | Maximum amount of memory the container is allowed to use (e.g. "256Mi", "2Gi") |
+| cpu\_limit | Maximum amount of CPU the container is allowed to use (e.g. "500m", "2") |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 

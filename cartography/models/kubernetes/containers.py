@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -26,6 +27,10 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     status_ready: PropertyRef = PropertyRef("status_ready")
     status_started: PropertyRef = PropertyRef("status_started")
     status_state: PropertyRef = PropertyRef("status_state")
+    memory_request: PropertyRef = PropertyRef("memory_request")
+    cpu_request: PropertyRef = PropertyRef("cpu_request")
+    memory_limit: PropertyRef = PropertyRef("memory_limit")
+    cpu_limit: PropertyRef = PropertyRef("cpu_limit")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -96,6 +101,7 @@ class KubernetesContainerToKubernetesClusterRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
     properties: KubernetesContainerNodeProperties = KubernetesContainerNodeProperties()
     sub_resource_relationship: KubernetesContainerToKubernetesClusterRel = (
         KubernetesContainerToKubernetesClusterRel()
