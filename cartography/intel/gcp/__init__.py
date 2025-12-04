@@ -114,7 +114,7 @@ def _sync_project_resources(
     # CAI is used for:
     # 1. Fallback IAM sync when IAM API is disabled on target projects (cai_rest_client)
     # 2. Policy bindings sync (cai_grpc_client)
-    # Both use the quota project (from credentials) for billing, not the target project.
+    # Both use the quota project (from credentials) so that the user only needs to enable the API on the host project
     cai_rest_client: Optional[Resource] = None  # REST client for asset listing
     cai_grpc_client: Optional[AssetServiceClient] = None  # gRPC client for policy APIs
     cai_quota_project: Optional[str] = credentials.quota_project_id
@@ -190,26 +190,34 @@ def _sync_project_resources(
             )
         else:
             # Fallback to Cloud Asset Inventory even if the target project does not have the API enabled.
-            # Lazily initialize the CAI REST client once and reuse it for all projects.
-            if cai_rest_client is None:
-                cai_rest_client = build_client(
-                    "cloudasset",
-                    "v1",
-                    credentials=credentials,
-                    quota_project_id=cai_quota_project,
+            # CAI requires a quota/host project.
+            if cai_quota_project is None:
+                logger.warning(
+                    "IAM API not enabled on project %s and no quota project configured. "
+                    "Skipping IAM sync for this project.",
+                    project_id,
                 )
-            logger.info(
-                "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory using quota project %s.",
-                project_id,
-                cai_quota_project,
-            )
-            cai.sync(
-                neo4j_session,
-                cai_rest_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
+            else:
+                # Lazily initialize the CAI REST client once and reuse it for all projects.
+                if cai_rest_client is None:
+                    cai_rest_client = build_client(
+                        "cloudasset",
+                        "v1",
+                        credentials=credentials,
+                        quota_project_id=cai_quota_project,
+                    )
+                logger.info(
+                    "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory using quota project %s.",
+                    project_id,
+                    cai_quota_project,
+                )
+                cai.sync(
+                    neo4j_session,
+                    cai_rest_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
         if service_names.bigtable in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Bigtable.")
             bigtable_client = build_client(
