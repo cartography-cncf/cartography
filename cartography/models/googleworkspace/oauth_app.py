@@ -73,7 +73,7 @@ class GoogleWorkspaceUserToOAuthAppRel(CartographyRelSchema):
             "id": PropertyRef("user_id"),
         }
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AUTHORIZED"
     properties: GoogleWorkspaceUserToOAuthAppRelProperties = (
         GoogleWorkspaceUserToOAuthAppRelProperties()
