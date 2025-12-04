@@ -15,6 +15,7 @@ Grant the following roles to the identity at the **organization level**. This en
 | `roles/iam.securityReviewer` | List/get IAM roles and service accounts | Yes |
 | `roles/resourcemanager.organizationViewer` | List/get GCP Organizations | Yes |
 | `roles/resourcemanager.folderViewer` | List/get GCP Folders | Yes |
+| `roles/serviceusage.serviceUsageConsumer` | Check which APIs are enabled on each project | Yes |
 | `roles/cloudasset.viewer` | Sync IAM policy bindings (effective policies across org hierarchy) | Optional |
 
 To grant a role at the organization level:
