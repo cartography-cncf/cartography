@@ -3,6 +3,7 @@ from cartography.graph.querybuilder import (
     _build_ontology_field_statement_invert_boolean,
 )
 from cartography.graph.querybuilder import _build_ontology_field_statement_or_boolean
+from cartography.graph.querybuilder import _build_ontology_field_statement_static_value
 from cartography.graph.querybuilder import _build_ontology_field_statement_to_boolean
 from cartography.models.core.common import PropertyRef
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
@@ -232,3 +233,84 @@ def test_build_ontology_field_statement_or_boolean_missing_property_in_map():
         ")"
     )
     assert result == expected
+
+
+def test_build_ontology_field_statement_static_value_string():
+    """
+    Test _build_ontology_field_statement_static_value function with a string value.
+    This function sets a static value for the ontology field.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="source",
+        node_field="",  # Not used for static_value
+        special_handling="static_value",
+        extra={"value": "googleworkspace"},
+    )
+
+    # Act
+    result = _build_ontology_field_statement_static_value(mapping_field)
+
+    # Assert
+    expected = 'i._ont_source = "googleworkspace"'
+    assert result == expected
+
+
+def test_build_ontology_field_statement_static_value_boolean():
+    """
+    Test _build_ontology_field_statement_static_value function with a boolean value.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="is_verified",
+        node_field="",
+        special_handling="static_value",
+        extra={"value": True},
+    )
+
+    # Act
+    result = _build_ontology_field_statement_static_value(mapping_field)
+
+    # Assert
+    expected = "i._ont_is_verified = true"
+    assert result == expected
+
+
+def test_build_ontology_field_statement_static_value_number():
+    """
+    Test _build_ontology_field_statement_static_value function with a numeric value.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="priority",
+        node_field="",
+        special_handling="static_value",
+        extra={"value": 10},
+    )
+
+    # Act
+    result = _build_ontology_field_statement_static_value(mapping_field)
+
+    # Assert
+    expected = "i._ont_priority = 10"
+    assert result == expected
+
+
+def test_build_ontology_field_statement_static_value_missing_value():
+    """
+    Test _build_ontology_field_statement_static_value function when 'value' is missing in extra.
+    Should return None and log a warning.
+    """
+    # Arrange
+    mapping_field = OntologyFieldMapping(
+        ontology_field="source",
+        node_field="",
+        special_handling="static_value",
+        extra={},  # Missing 'value'
+    )
+
+    # Act
+    result = _build_ontology_field_statement_static_value(mapping_field)
+
+    # Assert
+    assert result is None

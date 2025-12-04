@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -72,7 +73,7 @@ class GoogleWorkspaceUserToOAuthAppRel(CartographyRelSchema):
             "id": PropertyRef("user_id"),
         }
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "AUTHORIZED"
     properties: GoogleWorkspaceUserToOAuthAppRelProperties = (
         GoogleWorkspaceUserToOAuthAppRelProperties()
@@ -114,6 +115,7 @@ class GoogleWorkspaceOAuthAppSchema(CartographyNodeSchema):
     """
 
     label: str = "GoogleWorkspaceOAuthApp"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
     properties: GoogleWorkspaceOAuthAppNodeProperties = (
         GoogleWorkspaceOAuthAppNodeProperties()
     )

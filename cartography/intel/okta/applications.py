@@ -277,9 +277,12 @@ def _load_okta_applications(
     MATCH (org:OktaOrganization{id: $ORG_ID})
     WITH org
     UNWIND $APP_LIST as app_data
-    MERGE (new_app:OktaApplication{id: app_data.id})
+    MERGE (new_app:OktaApplication:ThirdPartyApp{id: app_data.id})
     ON CREATE SET new_app.firstseen = timestamp()
     SET new_app.name = app_data.name,
+    _ont_client_id = app_data.id,
+    _ont_name = app_data.label,
+    _ont_protocol = app_data.sign_on_mode,
     new_app.label = app_data.label,
     new_app.created = app_data.created,
     new_app.okta_last_updated = app_data.okta_last_updated,
