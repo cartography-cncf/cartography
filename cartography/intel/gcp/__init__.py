@@ -191,15 +191,18 @@ def _sync_project_resources(
             # Fallback to Cloud Asset Inventory even if the target project does not have the API enabled.
             # Lazily initialize the CAI REST client once and reuse it for all projects.
             if cai_rest_client is None:
-                adc_credentials, adc_project_id = google_auth_default(
-                    scopes=["https://www.googleapis.com/auth/cloud-platform"],
-                )
-                cai_quota_project = adc_project_id
+                # Get quota project from credentials if available, otherwise fall back to ADC
+                if credentials and credentials.quota_project_id:
+                    cai_quota_project = credentials.quota_project_id
+                else:
+                    _, cai_quota_project = google_auth_default(
+                        scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                    )
                 cai_rest_client = build_client(
                     "cloudasset",
                     "v1",
-                    credentials=adc_credentials,
-                    quota_project_id=adc_project_id,
+                    credentials=credentials,
+                    quota_project_id=cai_quota_project,
                 )
             logger.info(
                 "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory using quota project %s.",
@@ -215,7 +218,9 @@ def _sync_project_resources(
             )
         if service_names.bigtable in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Bigtable.")
-            bigtable_client = build_client("bigtableadmin", "v2")
+            bigtable_client = build_client(
+                "bigtableadmin", "v2", credentials=credentials
+            )
             instances_raw = bigtable_instance.sync_bigtable_instances(
                 neo4j_session,
                 bigtable_client,
@@ -266,11 +271,13 @@ def _sync_project_resources(
         # Policy bindings uses CAI from the quota project to fetch policies for target projects.
         if cai_enabled_on_quota_project is None:
             if cai_quota_project is None:
-                # Get quota project from ADC if not already set by IAM fallback
-                _, adc_project_id = google_auth_default(
-                    scopes=["https://www.googleapis.com/auth/cloud-platform"],
-                )
-                cai_quota_project = adc_project_id
+                # Get quota project from credentials if available, otherwise fall back to ADC
+                if credentials and credentials.quota_project_id:
+                    cai_quota_project = credentials.quota_project_id
+                else:
+                    _, cai_quota_project = google_auth_default(
+                        scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                    )
             quota_project_services = _services_enabled_on_project(
                 build_client("serviceusage", "v1", credentials=credentials),
                 cai_quota_project,
@@ -290,7 +297,10 @@ def _sync_project_resources(
         if cai_enabled_on_quota_project and policy_bindings_permission_ok is not False:
             # Lazily initialize CAI gRPC client for policy bindings.
             if cai_grpc_client is None:
-                cai_grpc_client = build_asset_client(quota_project_id=cai_quota_project)
+                cai_grpc_client = build_asset_client(
+                    credentials=credentials,
+                    quota_project_id=cai_quota_project,
+                )
             logger.info(
                 "Syncing IAM policies for GCP project %s using quota project %s.",
                 project_id,
