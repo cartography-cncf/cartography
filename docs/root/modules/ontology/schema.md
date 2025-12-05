@@ -9,6 +9,7 @@ graph LR
 U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
+U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 ```
 
 :::{note}
@@ -209,3 +210,30 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 | _ont_region | The region or zone where the container is running. |
 | _ont_namespace | Namespace for logical isolation (e.g., Kubernetes namespace). |
 | _ont_health_status | The health status of the container. |
+
+
+### ThirdPartyApp
+
+```{note}
+ThirdPartyApp is a semantic label.
+```
+
+An OAuth application (or OAuth client) represents a third-party application that has been authorized to access user data via OAuth 2.0, OpenID Connect, or SAML protocols.
+OAuth apps span across identity providers (Google Workspace, Okta, Entra, Keycloak) and represent potential security risks when users grant excessive permissions.
+
+| Field | Description |
+|-------|-------------|
+| _ont_client_id | The OAuth client ID - unique identifier for the application (REQUIRED). |
+| _ont_name | Human-readable display name of the OAuth application (REQUIRED). |
+| _ont_enabled | Whether the OAuth application is currently enabled/active. |
+| _ont_native_app | Whether this is a native/mobile application (vs web application). |
+| _ont_protocol | The authentication protocol used (e.g., oauth2, openid-connect, saml). |
+| _ont_source | Source module of the data (e.g., googleworkspace, keycloak, entra, okta). |
+
+
+#### Relationships
+
+- `User` can authorize `ThirdPartyApp` (for modules that track user-level OAuth authorizations):
+    ```
+    (:User)-[:AUTHORIZED]->(:ThirdPartyApp)
+    ```

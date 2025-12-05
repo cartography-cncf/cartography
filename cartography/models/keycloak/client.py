@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -137,6 +138,7 @@ class KeycloakClientToServiceAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KeycloakClientSchema(CartographyNodeSchema):
     label: str = "KeycloakClient"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
     properties: KeycloakClientNodeProperties = KeycloakClientNodeProperties()
     sub_resource_relationship: KeycloakClientToRealmRel = KeycloakClientToRealmRel()
     other_relationships: OtherRelationships = OtherRelationships(
