@@ -233,7 +233,7 @@ OAuth apps span across identity providers (Google Workspace, Okta, Entra, Keyclo
 
 #### Relationships
 
-- `UserAccount` can authorize `ThirdPartyApp` (for modules that track user-level OAuth authorizations):
+- `User` can authorize `ThirdPartyApp` (for modules that track user-level OAuth authorizations):
     ```
-    (:UserAccount)-[:AUTHORIZED]->(:ThirdPartyApp)
+    (:User)-[:AUTHORIZED]->(:ThirdPartyApp)
     ```

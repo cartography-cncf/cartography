@@ -85,6 +85,25 @@ def _build_ontology_field_statement_equal_boolean(
     )
 
 
+def _escape_cypher_string(value: str) -> str:
+    r"""
+    Escape special characters in a string value for use in a Cypher string literal.
+
+    In Cypher, string literals are enclosed in double quotes, and the following characters
+    must be escaped with a backslash:
+    - Backslash (\) -> \\
+    - Double quote (") -> \"
+
+    :param value: The string value to escape
+    :return: The escaped string value safe for use in a Cypher string literal
+    """
+    # Escape backslashes first (must be done before escaping quotes)
+    escaped = value.replace("\\", "\\\\")
+    # Then escape double quotes
+    escaped = escaped.replace('"', '\\"')
+    return escaped
+
+
 def _build_ontology_field_statement_static_value(
     mapping_field: OntologyFieldMapping,
 ) -> str | None:
@@ -102,7 +121,7 @@ def _build_ontology_field_statement_static_value(
 
     # Format the value appropriately for Cypher
     if isinstance(extra_value, str):
-        formatted_value = f'"{extra_value}"'
+        formatted_value = f'"{_escape_cypher_string(extra_value)}"'
     elif isinstance(extra_value, bool):
         formatted_value = str(extra_value).lower()
     elif extra_value is None:
@@ -231,6 +250,16 @@ def _build_ontology_node_properties_statement(
     for mapping_field in ontology_mapping.fields:
         ontology_field_name = f"_ont_{mapping_field.ontology_field}"
         node_propertyref = node_property_map.get(mapping_field.node_field)
+
+        # Handle static_value special handling first - it doesn't require a node_field
+        if mapping_field.special_handling == "static_value":
+            static_value_statement = _build_ontology_field_statement_static_value(
+                mapping_field
+            )
+            if static_value_statement:
+                set_clauses.append(static_value_statement)
+            continue
+
         # Skip validation for special_handling that don't require node_field
         if not node_propertyref:
             # This should not occure due to unit test but failing gracefully
@@ -273,12 +302,6 @@ def _build_ontology_node_properties_statement(
             )
             if nor_boolean_statement:
                 set_clauses.append(nor_boolean_statement)
-        elif mapping_field.special_handling == "static_value":
-            static_value_statement = _build_ontology_field_statement_static_value(
-                mapping_field
-            )
-            if static_value_statement:
-                set_clauses.append(static_value_statement)
         else:
             simple_field_template = Template("i.$node_property = $property_ref")
             set_clauses.append(
