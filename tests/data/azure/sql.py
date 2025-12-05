@@ -7,6 +7,7 @@ DESCRIBE_SERVERS = [
         "kind": "v12.0",
         "version": "12.0",
         "state": "Ready",
+        "tags": {"env": "prod", "service": "sql"},
         "resourceGroup": "TestRG",
     },
     {
@@ -17,6 +18,7 @@ DESCRIBE_SERVERS = [
         "kind": "v12.0",
         "version": "12.0",
         "state": "Ready",
+        "tags": {"env": "prod", "dept": "finance"},
         "resourceGroup": "TestRG",
     },
 ]

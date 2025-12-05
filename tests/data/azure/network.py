@@ -7,6 +7,7 @@ MOCK_VNETS = [
         "properties": {
             "provisioning_state": "Succeeded",
         },
+        "tags": {"env": "prod", "service": "vnet"},
     },
 ]
 
@@ -16,6 +17,7 @@ MOCK_NSGS = [
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkSecurityGroups/my-test-nsg",
         "name": "my-test-nsg",
         "location": "eastus",
+        "tags": {"env": "prod", "service": "nsg"},
     },
 ]
 

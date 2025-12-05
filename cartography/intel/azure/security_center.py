@@ -7,7 +7,11 @@ from azure.mgmt.security import SecurityCenter
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.security_center import AzureSecurityAssessmentSchema
+from cartography.models.azure.tags.security_assessment_tag import (
+    AzureSecurityAssessmentTagsSchema,
+)
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -47,6 +51,7 @@ def transform_assessments(assessments: list[dict]) -> list[dict]:
             "remediation_description": assessment.get("properties", {})
             .get("metadata", {})
             .get("remediation_description"),
+            "tags": assessment.get("tags"),
         }
         transformed_assessments.append(transformed_assessment)
     return transformed_assessments
@@ -72,6 +77,26 @@ def load_assessments(
 
 
 @timeit
+def load_assessment_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    assessments: list[dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Security Assessments.
+    """
+    tags = transform_tags(assessments, subscription_id)
+    load(
+        neo4j_session,
+        AzureSecurityAssessmentTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
 def cleanup_assessments(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
@@ -80,6 +105,18 @@ def cleanup_assessments(
     """
     GraphJob.from_node_schema(
         AzureSecurityAssessmentSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
+def cleanup_assessment_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
+    """
+    Runs cleanup job for Azure Security Assessment tags.
+    """
+    GraphJob.from_node_schema(
+        AzureSecurityAssessmentTagsSchema(), common_job_parameters
     ).run(neo4j_session)
 
 
@@ -103,4 +140,8 @@ def sync(
     load_assessments(
         neo4j_session, transformed_assessments, subscription_id, update_tag
     )
+    load_assessment_tags(
+        neo4j_session, subscription_id, transformed_assessments, update_tag
+    )
     cleanup_assessments(neo4j_session, common_job_parameters)
+    cleanup_assessment_tags(neo4j_session, common_job_parameters)

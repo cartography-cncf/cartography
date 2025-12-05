@@ -235,6 +235,11 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
     (AzureSQLServer)-[RESOURCE]->(AzureSQLDatabase)
     ```
 
+- Azure SQL Servers can be tagged with Azure Tags.
+    ```cypher
+    (AzureSQLServer)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureServerDNSAlias
 
 Representation of an [AzureServerDNSAlias](https://docs.microsoft.com/en-us/rest/api/sql/serverdnsaliases).
@@ -1284,6 +1289,11 @@ Representation of an [Azure Resource Group](https://learn.microsoft.com/en-us/re
     (AzureSubscription)-[RESOURCE]->(:AzureResourceGroup)
     ```
 
+- Azure Resource Groups can be tagged with Azure Tags.
+    ```cypher
+    (AzureResourceGroup)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureDataFactory
 
 Representation of an [Azure Data Factory](https://learn.microsoft.com/en-us/rest/api/datafactory/factories/get).
@@ -1595,6 +1605,11 @@ Representation of an [Azure Virtual Network](https://learn.microsoft.com/en-us/r
     (AzureVirtualNetwork)-[:CONTAINS]->(:AzureSubnet)
     ```
 
+- Azure Virtual Networks can be tagged with Azure Tags.
+    ```cypher
+    (AzureVirtualNetwork)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureSubnet
 
 Representation of a [Subnet within an Azure Virtual Network](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/subnets/get).
@@ -1633,6 +1648,11 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
     (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityGroup)
     ```
 
+  - Azure Network Security Groups can be tagged with Azure Tags.
+    ```cypher
+    (AzureNetworkSecurityGroup)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureSecurityAssessment
 
 Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-us/rest/api/defenderforcloud/assessments/get).
@@ -1652,6 +1672,11 @@ Representation of an Azure Security [Assessment](https://learn.microsoft.com/en-
   - An Azure Security Assessment is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[HAS_ASSESSMENT]->(AzureSecurityAssessment)
+    ```
+
+  - Azure Security Assessments can be tagged with Azure Tags.
+    ```cypher
+    (AzureSecurityAssessment)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureMonitorMetricAlert
