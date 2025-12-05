@@ -66,3 +66,22 @@ LIST_PERMISSION_SETS = [
         "SessionDuration": "PT12H",
     },
 ]
+
+# Mock AWS roles that correspond to permission sets
+# us-east-1 role (no region in path)
+MOCK_AWS_ROLE_US_EAST_1 = {
+    "Arn": "arn:aws:iam::123456789012:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess",
+    "RoleName": "AWSReservedSSO_AdministratorAccess",
+    "RoleId": "AIDACKCEVSQ6C2EXAMPLE",
+    "CreateDate": "2023-01-01T00:00:00Z",
+    "Path": "/aws-reserved/sso.amazonaws.com/",
+}
+
+# us-west-2 role (includes region in path)
+MOCK_AWS_ROLE_US_WEST_2 = {
+    "Arn": "arn:aws:iam::123456789012:role/aws-reserved/sso.amazonaws.com/us-west-2/AWSReservedSSO_AdministratorAccess",
+    "RoleName": "AWSReservedSSO_AdministratorAccess",
+    "RoleId": "AIDACKCEVSQ6C2EXAMPLE",
+    "CreateDate": "2023-01-01T00:00:00Z",
+    "Path": "/aws-reserved/sso.amazonaws.com/us-west-2/",
+}

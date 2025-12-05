@@ -111,11 +111,30 @@ def get_permission_sets(
             )
             permission_set = details.get("PermissionSet", {})
             if permission_set:
-                permission_set["RoleHint"] = (
-                    f":role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_{permission_set.get('Name')}"
-                )
                 permission_sets.append(permission_set)
 
+    return permission_sets
+
+
+def transform_permission_sets(
+    permission_sets: List[Dict],
+    region: str,
+) -> List[Dict]:
+    """
+    Transform permission sets by adding the RoleHint based on region.
+
+    AWS SSO roles in us-east-1 don't include region in the ARN path,
+    but roles in other regions do: /aws-reserved/sso.amazonaws.com/{region}/AWSReservedSSO_*
+    """
+    for permission_set in permission_sets:
+        if region == "us-east-1":
+            permission_set["RoleHint"] = (
+                f":role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_{permission_set.get('Name')}"
+            )
+        else:
+            permission_set["RoleHint"] = (
+                f":role/aws-reserved/sso.amazonaws.com/{region}/AWSReservedSSO_{permission_set.get('Name')}"
+            )
     return permission_sets
 
 
@@ -540,6 +559,8 @@ def sync_identity_center_instances(
                     raise
 
             if permission_set_sync_supported:
+                # Transform permission sets to add RoleHint
+                permission_sets = transform_permission_sets(permission_sets, region)
                 load_permission_sets(
                     neo4j_session,
                     permission_sets,
