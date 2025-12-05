@@ -65,6 +65,25 @@ class CLI:
             action="store_true",
             help="Restrict cartography logging to warnings and errors only.",
         )
+        # Optional export-only sink (off by default)
+        parser.add_argument(
+            "--export-file",
+            type=str,
+            default=None,
+            help=(
+                "Write a gzipped NDJSON export of graph nodes and edges to this path. "
+                "When set, cartography will tee writes to this file while continuing to write to Neo4j unless "
+                "--no-neo4j-write is also provided."
+            ),
+        )
+        parser.add_argument(
+            "--no-neo4j-write",
+            action="store_true",
+            help=(
+                "Do not write to Neo4j. Useful when generating an export file for offline processing. "
+                "Requires --export-file."
+            ),
+        )
         parser.add_argument(
             "--neo4j-uri",
             type=str,
@@ -996,6 +1015,12 @@ class CLI:
         # Selected modules
         if config.selected_modules:
             self.sync = cartography.sync.build_sync(config.selected_modules)
+
+        # Validate export-only options
+        if config.no_neo4j_write and not config.export_file:
+            raise ValueError(
+                "--no-neo4j-write requires --export-file to be set."
+            )
 
         # AWS config
         if config.aws_requested_syncs:
