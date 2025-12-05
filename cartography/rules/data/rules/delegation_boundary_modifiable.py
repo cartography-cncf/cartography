@@ -3,14 +3,16 @@ from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
+from cartography.rules.spec.model import RuleReference
 
 # AWS
 _aws_trust_relationship_manipulation = Fact(
     id="aws_trust_relationship_manipulation",
-    name="Roles with Cross-Account Trust Relationship Modification Capabilities",
+    name="AWS IAM Principals with Trust Policy Modification Permissions",
     description=(
-        "AWS IAM principals with permissions to modify role trust policies "
-        "(specifically AssumeRolePolicyDocuments)."
+        "Finds AWS IAM principals (users and roles) with Allow permissions for iam:UpdateAssumeRolePolicy or "
+        "iam:CreateRole that are not explicitly denied. Returns principals with effective permissions after "
+        "evaluating deny statements. Excludes AWS service-linked roles and common automation roles."
     ),
     cypher_query="""
         MATCH (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
@@ -78,13 +80,36 @@ class DelegationBoundaryModifiable(Finding):
 
 delegation_boundary_modifiable = Rule(
     id="delegation_boundary_modifiable",
-    name="Delegation Boundary Modifiable",
+    name="Principals with Role Trust Relationship Modification Capabilities",
     description=(
-        "Principals can edit role trust/assume policies or create roles with arbitrary trust—"
-        "allowing cross-account or lateral impersonation paths."
+        "Detects principals with permissions to modify role trust policies or create new roles with arbitrary "
+        "trust relationships. These principals control the delegation boundary, determining which entities can "
+        "assume roles and what cross-account or service-to-service trust relationships exist. Attackers or malicious "
+        "insiders with these permissions can modify existing role trust policies to allow their own accounts or "
+        "principals to assume roles, create new roles with trust relationships to attacker-controlled accounts, "
+        "establish cross-account backdoors for persistent access, enable lateral movement by modifying service-to-service "
+        "trust, and bypass intended security boundaries by expanding the scope of role assumptions. This capability is "
+        "particularly dangerous because it can create privilege escalation paths without requiring direct policy "
+        "modification, and it enables cross-account attack pivots. Organizations should strictly limit these permissions, "
+        "implement approval workflows for trust relationship changes, monitor all trust policy modification API calls, "
+        "and regularly audit role trust relationships for anomalies."
     ),
     output_model=DelegationBoundaryModifiable,
     facts=(_aws_trust_relationship_manipulation,),
     tags=("iam", "privilege_escalation"),
-    version="0.1.0",
+    version="0.2.0",
+    references=[
+        RuleReference(
+            text="AWS - IAM Best Practices",
+            url="https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html",
+        ),
+        RuleReference(
+            text="Azure - Identity Management Best Practices",
+            url="https://learn.microsoft.com/en-us/azure/security/fundamentals/identity-management-best-practices",
+        ),
+        RuleReference(
+            text="GCP - Using IAM Securely",
+            url="https://cloud.google.com/iam/docs/using-iam-securely",
+        ),
+    ],
 )
