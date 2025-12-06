@@ -3,24 +3,11 @@ from unittest.mock import patch
 
 import cartography.intel.gcp.cai
 import tests.data.gcp.iam
+from tests.integration.cartography.intel.gcp.test_iam import _create_test_project
+from tests.integration.cartography.intel.gcp.test_iam import TEST_PROJECT_ID
+from tests.integration.cartography.intel.gcp.test_iam import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
-
-TEST_PROJECT_ID = "project-123"
-TEST_UPDATE_TAG = 123456789
-
-
-def _create_test_project(neo4j_session):
-    """Create a test GCP Project node"""
-    neo4j_session.run(
-        """
-        MERGE (project:GCPProject{id: $project_id})
-        ON CREATE SET project.firstseen = timestamp()
-        SET project.lastupdated = $update_tag
-        """,
-        project_id=TEST_PROJECT_ID,
-        update_tag=TEST_UPDATE_TAG,
-    )
 
 
 @patch("cartography.intel.gcp.cai.get_gcp_service_accounts_cai")
@@ -104,4 +91,57 @@ def test_sync_cai(mock_get_roles, mock_get_service_accounts, neo4j_session):
             "RESOURCE",
         )
         == expected_role_rels
+    )
+
+
+@patch("cartography.intel.gcp.cai.get_gcp_service_accounts_cai")
+@patch("cartography.intel.gcp.cai.get_gcp_roles_cai")
+def test_sync_cai_with_predefined_roles(
+    mock_get_roles, mock_get_service_accounts, neo4j_session
+):
+    """
+    Test that predefined roles passed from the quota project are properly merged
+    with custom roles from CAI.
+    """
+    # Arrange
+    _create_test_project(neo4j_session)
+    # Clear roles from previous test
+    neo4j_session.run("MATCH (r:GCPRole) DETACH DELETE r")
+
+    # Mock CAI API responses - only custom roles from CAI
+    mock_get_service_accounts.return_value = []
+    mock_get_roles.return_value = [
+        asset["resource"]["data"]
+        for asset in tests.data.gcp.iam.CAI_ROLES_RESPONSE["assets"]
+    ]
+
+    # Use the predefined role from LIST_ROLES_RESPONSE (roles/editor)
+    # This simulates fetching predefined roles from the quota project's IAM API
+    predefined_roles = [
+        role
+        for role in tests.data.gcp.iam.LIST_ROLES_RESPONSE["roles"]
+        if role["name"].startswith("roles/")
+    ]
+
+    # Act
+    cartography.intel.gcp.cai.sync(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        predefined_roles=predefined_roles,
+    )
+
+    # Assert - verify both custom and predefined role nodes were created
+    expected_role_nodes = {
+        # Custom roles from CAI
+        ("projects/project-123/roles/customRole1", "CUSTOM"),
+        ("projects/project-123/roles/customRole2", "CUSTOM"),
+        # Predefined role from quota project IAM API
+        ("roles/editor", "BASIC"),
+    }
+    assert (
+        check_nodes(neo4j_session, "GCPRole", ["id", "role_type"])
+        == expected_role_nodes
     )
