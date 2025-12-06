@@ -54,6 +54,27 @@ def get_gcp_service_accounts(
 
 
 @timeit
+def get_gcp_predefined_roles(iam_client: Resource) -> List[Dict]:
+    """
+    Retrieve all predefined (Google-managed) IAM roles.
+
+    Predefined roles are global and not project-specific, so they can be fetched
+    from any project with the IAM API enabled. This is useful for the CAI fallback
+    where the target project may not have IAM API enabled, but the quota project does.
+
+    :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
+    :return: A list of dictionaries representing GCP predefined roles.
+    """
+    roles: List[Dict] = []
+    predefined_req = iam_client.roles().list(view="FULL")
+    while predefined_req is not None:
+        resp = predefined_req.execute()
+        roles.extend(resp.get("roles", []))
+        predefined_req = iam_client.roles().list_next(predefined_req, resp)
+    return roles
+
+
+@timeit
 def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict]:
     """
     Retrieve custom and predefined roles from GCP for a given project.
@@ -71,12 +92,8 @@ def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict]:
         roles.extend(resp.get("roles", []))
         custom_req = iam_client.projects().roles().list_next(custom_req, resp)
 
-    # Get predefined roles
-    predefined_req = iam_client.roles().list(view="FULL")
-    while predefined_req is not None:
-        resp = predefined_req.execute()
-        roles.extend(resp.get("roles", []))
-        predefined_req = iam_client.roles().list_next(predefined_req, resp)
+    # Get predefined roles (global, not project-specific)
+    roles.extend(get_gcp_predefined_roles(iam_client))
 
     return roles
 

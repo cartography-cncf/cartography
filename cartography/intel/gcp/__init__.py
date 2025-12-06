@@ -125,6 +125,10 @@ def _sync_project_resources(
         None  # Track if we have permission for policy bindings
     )
 
+    # Predefined roles are global (not project-specific), so we fetch them once from the
+    # quota project and reuse them for all target projects that use the CAI fallback.
+    predefined_roles: Optional[List[Dict]] = None
+
     # Per-project sync across services
     for project in projects:
         project_id = project["projectId"]
@@ -206,6 +210,26 @@ def _sync_project_resources(
                         credentials=credentials,
                         quota_project_id=cai_quota_project,
                     )
+
+                # Lazily fetch predefined roles once from the quota project.
+                # Predefined roles are global, so we only need to fetch them once.
+                if predefined_roles is None:
+                    logger.info(
+                        "Fetching predefined IAM roles from quota project %s",
+                        cai_quota_project,
+                    )
+                    iam_quota_client = build_client(
+                        "iam",
+                        "v1",
+                        credentials=credentials,
+                        quota_project_id=cai_quota_project,
+                    )
+                    predefined_roles = iam.get_gcp_predefined_roles(iam_quota_client)
+                    logger.info(
+                        "Fetched %d predefined IAM roles from quota project",
+                        len(predefined_roles),
+                    )
+
                 logger.info(
                     "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory using quota project %s.",
                     project_id,
@@ -217,6 +241,7 @@ def _sync_project_resources(
                     project_id,
                     gcp_update_tag,
                     common_job_parameters,
+                    predefined_roles=predefined_roles,
                 )
         if service_names.bigtable in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Bigtable.")
