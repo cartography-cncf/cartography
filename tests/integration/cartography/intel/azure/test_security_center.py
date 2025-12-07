@@ -69,55 +69,29 @@ def test_sync_assessments(mock_get, neo4j_session):
     )
     assert actual_rels == expected_rels
 
-
-def test_load_assessment_tags(neo4j_session):
-    """
-    Test that tags are correctly loaded for Security Assessments.
-    """
-    # 1. Arrange
-    neo4j_session.run(
-        """
-        MERGE (s:AzureSubscription{id: $sub_id})
-        SET s.lastupdated = $update_tag
-        """,
-        sub_id=TEST_SUBSCRIPTION_ID,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    transformed_assessments = security_center.transform_assessments(MOCK_ASSESSMENTS)
-
-    security_center.load_assessments(
-        neo4j_session, transformed_assessments, TEST_SUBSCRIPTION_ID, TEST_UPDATE_TAG
-    )
-
-    # 2. Act
-    security_center.load_assessment_tags(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        transformed_assessments,
-        TEST_UPDATE_TAG,
-    )
-
-    # 3. Assert
     expected_tags = {
         f"{TEST_SUBSCRIPTION_ID}|env:prod",
         f"{TEST_SUBSCRIPTION_ID}|service:security",
     }
-    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    tag_nodes = neo4j_session.run(
+        "MATCH (t:AzureTag) WHERE t.id STARTS WITH $sub_id RETURN t.id",
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
     actual_tags = {n["t.id"] for n in tag_nodes}
     assert actual_tags == expected_tags
 
-    # 4. Check Relationship
-    expected_rels = {
+    # Check Tag Relationships
+    expected_tag_rels = {
         (MOCK_ASSESSMENTS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
         (MOCK_ASSESSMENTS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:security"),
     }
-    actual_rels = check_rels(
-        neo4j_session,
-        "AzureSecurityAssessment",
-        "id",
-        "AzureTag",
-        "id",
-        "TAGGED",
+    result = neo4j_session.run(
+        """
+        MATCH (sa:AzureSecurityAssessment)-[:TAGGED]->(t:AzureTag)
+        WHERE sa.id STARTS WITH '/subscriptions/' + $sub_id
+        RETURN sa.id, t.id
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
     )
-    assert actual_rels == expected_rels
+    actual_tag_rels = {(r["sa.id"], r["t.id"]) for r in result}
+    assert actual_tag_rels == expected_tag_rels

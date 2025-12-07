@@ -518,42 +518,21 @@ def test_sync_sql_servers_and_databases(
         == expected_tde_rels
     )
 
-
-def test_load_sql_server_tags(neo4j_session):
-    """
-    Test that tags are correctly loaded for SQL Servers.
-    """
-    # 1. Arrange
-    neo4j_session.run(
-        """
-        MERGE (s:AzureSubscription{id: $sub_id})
-        SET s.lastupdated = $update_tag
-        """,
-        sub_id=TEST_SUBSCRIPTION_ID,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    cartography.intel.azure.sql.load_server_data(
-        neo4j_session, TEST_SUBSCRIPTION_ID, DESCRIBE_SERVERS, TEST_UPDATE_TAG
-    )
-
-    # 2. Act
-    cartography.intel.azure.sql.load_sql_server_tags(
-        neo4j_session, TEST_SUBSCRIPTION_ID, DESCRIBE_SERVERS, TEST_UPDATE_TAG
-    )
-
-    # 3. Assert
     expected_tags = {
         f"{TEST_SUBSCRIPTION_ID}|env:prod",
         f"{TEST_SUBSCRIPTION_ID}|service:sql",
         f"{TEST_SUBSCRIPTION_ID}|dept:finance",
     }
-    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    # Filter by subscription to isolate test
+    tag_nodes = neo4j_session.run(
+        "MATCH (t:AzureTag) WHERE t.id STARTS WITH $sub_id RETURN t.id",
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
     actual_tags = {n["t.id"] for n in tag_nodes}
     assert actual_tags == expected_tags
 
-    # 4. Check Relationship
-    expected_rels = {
+    # Check Tag Relationships
+    expected_tag_rels = {
         (DESCRIBE_SERVERS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
         (DESCRIBE_SERVERS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:sql"),
         (DESCRIBE_SERVERS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
@@ -563,8 +542,10 @@ def test_load_sql_server_tags(neo4j_session):
     result = neo4j_session.run(
         """
         MATCH (s:AzureSQLServer)-[:TAGGED]->(t:AzureTag)
+        WHERE s.id STARTS WITH '/subscriptions/' + $sub_id
         RETURN s.id, t.id
-        """
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
     )
-    actual_rels = {(r["s.id"], r["t.id"]) for r in result}
-    assert actual_rels == expected_rels
+    actual_tag_rels = {(r["s.id"], r["t.id"]) for r in result}
+    assert actual_tag_rels == expected_tag_rels
