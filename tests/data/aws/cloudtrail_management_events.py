@@ -477,3 +477,62 @@ SAML_ASSUME_ROLE_CLOUDTRAIL_EVENTS = [
         "CloudTrailEvent": '{"userIdentity": {"type": "SAMLUser", "principalId": "SAML:alice@example.com", "userName": "alice@example.com"}, "requestParameters": {"roleArn": "arn:aws:iam::987654321098:role/CrossAccountRole", "principalArn": "arn:aws:iam::123456789012:saml-provider/ExampleProvider"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/SAMLRole/alice@example.com"}}}',
     },
 ]
+
+# =============================================================================
+# EDGE CASE TEST MOCK DATA - ACCESS DENIED EVENTS
+# =============================================================================
+
+# Mock CloudTrail AssumeRole events that failed with AccessDenied error
+# These events have null requestParameters which causes NoneType errors
+ACCESS_DENIED_ASSUME_ROLE_CLOUDTRAIL_EVENTS = [
+    {
+        "EventName": "AssumeRole",
+        "EventTime": "2024-01-15T15:45:30.123000",
+        "UserIdentity": {"arn": "arn:aws:iam::123456789012:user/john.doe"},
+        "Resources": [],
+        "ErrorCode": "AccessDenied",
+        "ErrorMessage": "User: arn:aws:iam::123456789012:user/john.doe is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::123456789012:role/RestrictedRole",
+        "CloudTrailEvent": '{"eventVersion": "1.08", "userIdentity": {"type": "IAMUser", "principalId": "AIDACKCEVSQ6C2EXAMPLE", "arn": "arn:aws:iam::123456789012:user/john.doe", "accountId": "123456789012", "userName": "john.doe"}, "eventTime": "2024-01-15T15:45:30Z", "eventSource": "sts.amazonaws.com", "eventName": "AssumeRole", "awsRegion": "us-east-1", "sourceIPAddress": "203.0.113.12", "userAgent": "aws-cli/2.0.0", "errorCode": "AccessDenied", "errorMessage": "User: arn:aws:iam::123456789012:user/john.doe is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::123456789012:role/RestrictedRole", "requestParameters": null, "responseElements": null, "requestID": "12345678-1234-1234-1234-123456789012", "eventID": "87654321-4321-4321-4321-210987654321", "readOnly": false, "eventType": "AwsApiCall", "apiVersion": "2011-06-15", "managementEvent": true, "recipientAccountId": "123456789012", "eventCategory": "Management", "tlsDetails": {"tlsVersion": "TLSv1.2", "cipherSuite": "ECDHE-RSA-AES128-GCM-SHA256"}}',
+    },
+    {
+        "EventName": "AssumeRole",
+        "EventTime": "2024-01-15T16:20:45.789000",
+        "UserIdentity": {"arn": "arn:aws:iam::123456789012:user/alice"},
+        "Resources": [],
+        "ErrorCode": "AccessDenied",
+        "ErrorMessage": "User: arn:aws:iam::123456789012:user/alice is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::999999999999:role/CrossAccountRole",
+        "CloudTrailEvent": '{"eventVersion": "1.08", "userIdentity": {"type": "IAMUser", "principalId": "AIDACKCEVSQ6C2ALICE", "arn": "arn:aws:iam::123456789012:user/alice", "accountId": "123456789012", "userName": "alice"}, "eventTime": "2024-01-15T16:20:45Z", "eventSource": "sts.amazonaws.com", "eventName": "AssumeRole", "awsRegion": "us-west-2", "sourceIPAddress": "203.0.113.45", "userAgent": "aws-sdk-java/1.12.0", "errorCode": "AccessDenied", "errorMessage": "User: arn:aws:iam::123456789012:user/alice is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::999999999999:role/CrossAccountRole", "requestParameters": null, "responseElements": null, "requestID": "abcdef12-ab34-cd56-ef78-abcdef123456", "eventID": "fedcba98-9876-5432-1098-fedcba987654", "readOnly": false, "eventType": "AwsApiCall", "apiVersion": "2011-06-15", "managementEvent": true, "recipientAccountId": "123456789012", "eventCategory": "Management", "tlsDetails": {"tlsVersion": "TLSv1.3", "cipherSuite": "TLS_AES_128_GCM_SHA256"}}',
+    },
+]
+
+# Mock CloudTrail AssumeRoleWithSAML events that failed with AccessDenied error
+ACCESS_DENIED_SAML_ASSUME_ROLE_CLOUDTRAIL_EVENTS = [
+    {
+        "EventName": "AssumeRoleWithSAML",
+        "EventTime": "2024-01-15T17:30:15.456000",
+        "UserIdentity": {
+            "type": "SAMLUser",
+            "principalId": "SAML:unauthorized@example.com",
+        },
+        "Resources": [],
+        "ErrorCode": "AccessDenied",
+        "ErrorMessage": "Not authorized to perform sts:AssumeRoleWithSAML",
+        "CloudTrailEvent": '{"eventVersion": "1.08", "userIdentity": {"type": "SAMLUser", "principalId": "SAML:unauthorized@example.com", "userName": "unauthorized@example.com"}, "eventTime": "2024-01-15T17:30:15Z", "eventSource": "sts.amazonaws.com", "eventName": "AssumeRoleWithSAML", "awsRegion": "us-east-1", "sourceIPAddress": "203.0.113.78", "userAgent": "custom-saml-client/1.0", "errorCode": "AccessDenied", "errorMessage": "Not authorized to perform sts:AssumeRoleWithSAML", "requestParameters": null, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/SAMLRole/unauthorized@example.com"}}, "requestID": "saml1234-5678-9abc-def0-123456789abc", "eventID": "saml9876-5432-1098-7654-321098765432", "readOnly": false, "eventType": "AwsApiCall", "apiVersion": "2011-06-15", "managementEvent": true, "recipientAccountId": "123456789012", "eventCategory": "Management"}',
+    },
+]
+
+# Mock CloudTrail AssumeRoleWithWebIdentity events that failed with AccessDenied error
+ACCESS_DENIED_WEB_IDENTITY_ASSUME_ROLE_CLOUDTRAIL_EVENTS = [
+    {
+        "EventName": "AssumeRoleWithWebIdentity",
+        "EventTime": "2024-01-15T18:45:22.789000",
+        "UserIdentity": {
+            "type": "WebIdentityUser",
+            "principalId": "repo:unauthorizedorg/forbidden-repo:ref:refs/heads/main",
+        },
+        "Resources": [],
+        "ErrorCode": "AccessDenied",
+        "ErrorMessage": "Not authorized to perform sts:AssumeRoleWithWebIdentity",
+        "CloudTrailEvent": '{"eventVersion": "1.08", "userIdentity": {"type": "WebIdentityUser", "principalId": "repo:unauthorizedorg/forbidden-repo:ref:refs/heads/main", "identityProvider": "token.actions.githubusercontent.com", "userName": "repo:unauthorizedorg/forbidden-repo:ref:refs/heads/main"}, "eventTime": "2024-01-15T18:45:22Z", "eventSource": "sts.amazonaws.com", "eventName": "AssumeRoleWithWebIdentity", "awsRegion": "us-west-2", "sourceIPAddress": "140.82.112.3", "userAgent": "GitHub-Actions", "errorCode": "AccessDenied", "errorMessage": "Not authorized to perform sts:AssumeRoleWithWebIdentity", "requestParameters": null, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::123456789012:assumed-role/GitHubActionsRole/forbidden-repo"}}, "requestID": "github12-3456-789a-bcde-f0123456789a", "eventID": "github98-7654-321a-bcde-f0987654321a", "readOnly": false, "eventType": "AwsApiCall", "apiVersion": "2011-06-15", "managementEvent": true, "recipientAccountId": "123456789012", "eventCategory": "Management"}',
+    },
+]

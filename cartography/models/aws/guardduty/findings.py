@@ -69,6 +69,24 @@ class GuardDutyFindingToEC2InstanceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GuardDutyFindingToGuardDutyDetectorRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GuardDutyFindingToGuardDutyDetectorRel(CartographyRelSchema):
+    target_node_label: str = "GuardDutyDetector"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("detectorid")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DETECTED_BY"
+    properties: GuardDutyFindingToGuardDutyDetectorRelRelProperties = (
+        GuardDutyFindingToGuardDutyDetectorRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GuardDutyFindingToS3BucketRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -96,6 +114,7 @@ class GuardDutyFindingSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
+            GuardDutyFindingToGuardDutyDetectorRel(),
             GuardDutyFindingToEC2InstanceRel(),
             GuardDutyFindingToS3BucketRel(),
         ],

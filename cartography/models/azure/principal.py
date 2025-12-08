@@ -12,26 +12,26 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AzurePrincipalProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("current_user")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    email: PropertyRef = PropertyRef("current_user", extra_index=True)
-
-
-@dataclass(frozen=True)
-class AzurePrincipalToTenantProperties(CartographyRelProperties):
+    id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureTenant)-[:RESOURCE]->(:AzurePrincipal)
+class AzurePrincipalToTenantRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 class AzurePrincipalToTenantRel(CartographyRelSchema):
     target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("AZURE_TENANT_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzurePrincipalToTenantProperties = AzurePrincipalToTenantProperties()
+    properties: AzurePrincipalToTenantRelProperties = (
+        AzurePrincipalToTenantRelProperties()
+    )
 
 
 @dataclass(frozen=True)

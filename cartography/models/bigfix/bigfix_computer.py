@@ -22,7 +22,7 @@ class BigfixComputerNodeProperties(CartographyNodeProperties):
     besrootserver: PropertyRef = PropertyRef("BESRootServer")
     bios: PropertyRef = PropertyRef("BIOS")
     computertype: PropertyRef = PropertyRef("ComputerType")
-    computername: PropertyRef = PropertyRef("ComputerName")
+    computername: PropertyRef = PropertyRef("ComputerName", extra_index=True)
     cpu: PropertyRef = PropertyRef("CPU")
     devicetype: PropertyRef = PropertyRef("DeviceType")
     distancetobesrelay: PropertyRef = PropertyRef("DistanceToBESRelay")

@@ -28,19 +28,24 @@ import cartography.intel.duo
 import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
+import cartography.intel.googleworkspace
 import cartography.intel.gsuite
 import cartography.intel.jamf
 import cartography.intel.kandji
+import cartography.intel.keycloak
 import cartography.intel.kubernetes
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
+import cartography.intel.ontology
 import cartography.intel.openai
 import cartography.intel.pagerduty
 import cartography.intel.scaleway
 import cartography.intel.semgrep
 import cartography.intel.sentinelone
+import cartography.intel.slack
 import cartography.intel.snipeit
+import cartography.intel.spacelift
 import cartography.intel.tailscale
 import cartography.intel.trivy
 from cartography.config import Config
@@ -51,7 +56,7 @@ from cartography.util import STATUS_SUCCESS
 logger = logging.getLogger(__name__)
 
 
-TOP_LEVEL_MODULES = OrderedDict(
+TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
     {  # preserve order so that the default sync always runs `analysis` at the very end
         "create-indexes": cartography.intel.create_indexes.run,
         "airbyte": cartography.intel.airbyte.start_airbyte_ingestion,
@@ -62,6 +67,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "cloudflare": cartography.intel.cloudflare.start_cloudflare_ingestion,
         "crowdstrike": cartography.intel.crowdstrike.start_crowdstrike_ingestion,
         "gcp": cartography.intel.gcp.start_gcp_ingestion,
+        "googleworkspace": cartography.intel.googleworkspace.start_googleworkspace_ingestion,
         "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
         "cve": cartography.intel.cve.start_cve_ingestion,
         "oci": cartography.intel.oci.start_oci_ingestion,
@@ -70,6 +76,7 @@ TOP_LEVEL_MODULES = OrderedDict(
         "github": cartography.intel.github.start_github_ingestion,
         "digitalocean": cartography.intel.digitalocean.start_digitalocean_ingestion,
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
+        "keycloak": cartography.intel.keycloak.start_keycloak_ingestion,
         "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
@@ -82,6 +89,9 @@ TOP_LEVEL_MODULES = OrderedDict(
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
+        "slack": cartography.intel.slack.start_slack_ingestion,
+        "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
+        "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,
     }
@@ -210,6 +220,7 @@ class Sync:
                         intel_module_info.name,
                     )
                 available_modules[intel_module_info.name] = v
+        available_modules["ontology"] = cartography.intel.ontology.run
         available_modules["analysis"] = cartography.intel.analysis.run
         return available_modules
 

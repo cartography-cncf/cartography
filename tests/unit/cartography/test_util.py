@@ -9,6 +9,7 @@ import cartography.util
 from cartography import util
 from cartography.util import aws_handle_regions
 from cartography.util import batch
+from cartography.util import is_service_control_policy_explicit_deny
 from cartography.util import run_analysis_and_ensure_deps
 
 
@@ -69,6 +70,39 @@ def test_aws_handle_regions(mocker):
 
     assert raises_supported_client_error(1, 2) == []
 
+    # AuthorizationError should also return the default
+    @aws_handle_regions
+    def raises_authorization_error(a, b):
+        e = botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": "AuthorizationError",
+                    "Message": "aws_handle_regions is not working",
+                },
+            },
+            "FakeOperation",
+        )
+        raise e
+
+    assert raises_authorization_error(1, 2) == []
+
+    # InvalidToken should raise RuntimeError
+    @aws_handle_regions
+    def raises_invalid_token(a, b):
+        e = botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": "InvalidToken",
+                    "Message": "token invalid",
+                },
+            },
+            "FakeOperation",
+        )
+        raise e
+
+    with pytest.raises(RuntimeError):
+        raises_invalid_token(1, 2)
+
     # unhandled type of ClientError
     @aws_handle_regions
     def raises_unsupported_client_error(a, b):
@@ -93,6 +127,33 @@ def test_aws_handle_regions(mocker):
 
     with pytest.raises(ZeroDivisionError):
         raises_unsupported_error(1, 2)
+
+
+def test_is_service_control_policy_explicit_deny():
+    scp_error = botocore.exceptions.ClientError(
+        {
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "User: arn:aws:sts::123456789012:assumed-role/MyRole/session-12345 "
+                "is not authorized to perform: inspector2:ListFindings on resource: "
+                "arn:aws:inspector2:us-east-1:123456789012:/findings/list with an explicit deny in a service control policy",
+            },
+        },
+        "ListFindings",
+    )
+    assert is_service_control_policy_explicit_deny(scp_error) is True
+
+    # Regular access denied without SCP
+    regular_access_denied = botocore.exceptions.ClientError(
+        {
+            "Error": {
+                "Code": "AccessDenied",
+                "Message": "User is not authorized to perform this action",
+            },
+        },
+        "SomeOperation",
+    )
+    assert is_service_control_policy_explicit_deny(regular_access_denied) is False
 
 
 def test_batch(mocker):
