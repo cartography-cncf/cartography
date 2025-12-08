@@ -89,7 +89,6 @@ entra_mapping = OntologyMapping(
                 ),
                 # enabled: Not available - Entra applications don't have an enabled field in current schema
                 # native_app: Not available - Application type not currently ingested
-                # protocol: Not available - All Entra applications use OAuth 2.0/OpenID Connect
                 OntologyFieldMapping(
                     ontology_field="protocol",
                     node_field="",

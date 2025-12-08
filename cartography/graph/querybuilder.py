@@ -124,8 +124,6 @@ def _build_ontology_field_statement_static_value(
         formatted_value = f'"{_escape_cypher_string(extra_value)}"'
     elif isinstance(extra_value, bool):
         formatted_value = str(extra_value).lower()
-    elif extra_value is None:
-        formatted_value = "null"
     else:
         formatted_value = str(extra_value)
 

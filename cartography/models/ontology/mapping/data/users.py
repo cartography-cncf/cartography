@@ -45,7 +45,7 @@ useraccount_mapping = OntologyMapping(
         ),
         OntologyRelMapping(
             __comment__="Link User to ThirdPartyApp",
-            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:UserAccount)-[or:AUTHORIZED|APPLICATION]->(a:ThirdPartyApp) MERGE (u)-[r:AUTHORIZED]->(a) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG, r.scopes = coalesce(or.scopes, [])",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:UserAccount)-[authr:AUTHORIZED|APPLICATION]->(a:ThirdPartyApp) MERGE (u)-[r:AUTHORIZED]->(a) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG, r.scopes = coalesce(authr.scopes, [])",
             iterative=False,
         ),
         # TODO: Change this when we have a Ontology Group node
