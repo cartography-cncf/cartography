@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+from google.api_core.exceptions import PermissionDenied
+
 import cartography.intel.gcp.iam
 import cartography.intel.gcp.policy_bindings
 import cartography.intel.gsuite.groups
@@ -231,3 +233,37 @@ def test_sync_gcp_policy_bindings(
             "roles/storage.objectViewer",
         ),
     }
+
+
+@patch.object(
+    cartography.intel.gcp.policy_bindings,
+    "get_policy_bindings",
+    side_effect=PermissionDenied(
+        "Missing cloudasset.assets.analyzeIamPolicy permission"
+    ),
+)
+def test_sync_gcp_policy_bindings_permission_denied(
+    mock_get_policy_bindings,
+    neo4j_session,
+):
+    """
+    Test that policy bindings sync handles PermissionDenied gracefully.
+    When the user lacks org-level cloudasset.viewer role, sync should return False
+    and not raise an exception.
+    """
+    # ARRANGE
+    _create_test_project(neo4j_session)
+    mock_asset_client = MagicMock()
+
+    # ACT
+    result = cartography.intel.gcp.policy_bindings.sync(
+        neo4j_session,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+        mock_asset_client,
+    )
+
+    # ASSERT - sync should return False and not raise an exception
+    assert result is False
+    mock_get_policy_bindings.assert_called_once()

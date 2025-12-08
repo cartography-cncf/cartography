@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import botocore.exceptions
@@ -5,13 +6,16 @@ import botocore.exceptions
 import cartography.intel.aws.identitycenter
 import tests.data.aws.identitycenter
 from cartography.client.core.tx import load
+from cartography.intel.aws.identitycenter import get_permission_sets
 from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
 from cartography.intel.aws.identitycenter import load_role_assignments
 from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
+from cartography.intel.aws.identitycenter import transform_permission_sets
 from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
+from cartography.models.aws.iam.role import AWSRoleSchema
 from cartography.models.aws.identitycenter.awspermissionset import (
     RoleAssignmentAllowedByGroupMatchLink,
 )
@@ -355,6 +359,182 @@ def test_group_allowed_by_role(neo4j_session):
         (
             role_arn,
             group["GroupId"],
+        )
+    }
+
+
+def test_permission_set_to_role_us_east_1(neo4j_session):
+    """Test that ASSIGNED_TO_ROLE relationship is created for us-east-1 roles (without region in path)."""
+    # Clear existing data
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Load mock AWS role into graph
+    mock_role = tests.data.aws.identitycenter.MOCK_AWS_ROLE_US_EAST_1
+    role_data = [
+        {
+            "arn": mock_role["Arn"],
+            "name": mock_role["RoleName"],
+            "roleid": mock_role["RoleId"],
+            "path": mock_role["Path"],
+            "createdate": str(mock_role["CreateDate"]),
+            "trusted_aws_principals": [],
+        }
+    ]
+    load(
+        neo4j_session,
+        AWSRoleSchema(),
+        role_data,
+        lastupdated="test_tag",
+        AWS_ID=TEST_ACCOUNT_ID,
+    )
+
+    # Mock boto3 session and calls to get permission sets
+    mock_session = MagicMock()
+    mock_client = MagicMock()
+    mock_paginator = MagicMock()
+    mock_session.client.return_value = mock_client
+    mock_client.get_paginator.return_value = mock_paginator
+    mock_paginator.paginate.return_value = [
+        {
+            "PermissionSets": [
+                tests.data.aws.identitycenter.LIST_PERMISSION_SETS[0][
+                    "PermissionSetArn"
+                ]
+            ]
+        }
+    ]
+    mock_client.describe_permission_set.return_value = {
+        "PermissionSet": tests.data.aws.identitycenter.LIST_PERMISSION_SETS[0]
+    }
+
+    # Call get_permission_sets with us-east-1
+    permission_sets = get_permission_sets(
+        mock_session,
+        "arn:aws:sso:::instance/ssoins-12345678901234567",
+        "us-east-1",
+    )
+
+    # Transform permission sets to add RoleHint
+    permission_sets = transform_permission_sets(permission_sets, "us-east-1")
+
+    # Verify RoleHint was generated correctly (without region)
+    assert len(permission_sets) == 1
+    assert (
+        permission_sets[0]["RoleHint"]
+        == ":role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess"
+    )
+
+    # Load permission sets - should create ASSIGNED_TO_ROLE relationship
+    load_permission_sets(
+        neo4j_session,
+        permission_sets,
+        "arn:aws:sso:::instance/ssoins-12345678901234567",
+        "us-east-1",
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    # Verify ASSIGNED_TO_ROLE relationship exists
+    assert check_rels(
+        neo4j_session,
+        "AWSPermissionSet",
+        "arn",
+        "AWSRole",
+        "arn",
+        "ASSIGNED_TO_ROLE",
+        True,
+    ) == {
+        (
+            tests.data.aws.identitycenter.LIST_PERMISSION_SETS[0]["PermissionSetArn"],
+            mock_role["Arn"],
+        )
+    }
+
+
+def test_permission_set_to_role_us_west_2(neo4j_session):
+    """Test that ASSIGNED_TO_ROLE relationship is created for non-us-east-1 roles (with region in path)."""
+    # Clear existing data
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Load mock AWS role into graph
+    mock_role = tests.data.aws.identitycenter.MOCK_AWS_ROLE_US_WEST_2
+    role_data = [
+        {
+            "arn": mock_role["Arn"],
+            "name": mock_role["RoleName"],
+            "roleid": mock_role["RoleId"],
+            "path": mock_role["Path"],
+            "createdate": str(mock_role["CreateDate"]),
+            "trusted_aws_principals": [],
+        }
+    ]
+    load(
+        neo4j_session,
+        AWSRoleSchema(),
+        role_data,
+        lastupdated="test_tag",
+        AWS_ID=TEST_ACCOUNT_ID,
+    )
+
+    # Mock boto3 session and calls to get permission sets
+    mock_session = MagicMock()
+    mock_client = MagicMock()
+    mock_paginator = MagicMock()
+    mock_session.client.return_value = mock_client
+    mock_client.get_paginator.return_value = mock_paginator
+    mock_paginator.paginate.return_value = [
+        {
+            "PermissionSets": [
+                tests.data.aws.identitycenter.LIST_PERMISSION_SETS[0][
+                    "PermissionSetArn"
+                ]
+            ]
+        }
+    ]
+    mock_client.describe_permission_set.return_value = {
+        "PermissionSet": tests.data.aws.identitycenter.LIST_PERMISSION_SETS[0]
+    }
+
+    # Call get_permission_sets with us-west-2
+    permission_sets = get_permission_sets(
+        mock_session,
+        "arn:aws:sso:::instance/ssoins-12345678901234567",
+        "us-west-2",
+    )
+
+    # Transform permission sets to add RoleHint
+    permission_sets = transform_permission_sets(permission_sets, "us-west-2")
+
+    # Verify RoleHint was generated correctly (with region)
+    assert len(permission_sets) == 1
+    assert (
+        permission_sets[0]["RoleHint"]
+        == ":role/aws-reserved/sso.amazonaws.com/us-west-2/AWSReservedSSO_AdministratorAccess"
+    )
+
+    # Load permission sets - should create ASSIGNED_TO_ROLE relationship
+    load_permission_sets(
+        neo4j_session,
+        permission_sets,
+        "arn:aws:sso:::instance/ssoins-12345678901234567",
+        "us-west-2",
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    # Verify ASSIGNED_TO_ROLE relationship exists
+    assert check_rels(
+        neo4j_session,
+        "AWSPermissionSet",
+        "arn",
+        "AWSRole",
+        "arn",
+        "ASSIGNED_TO_ROLE",
+        True,
+    ) == {
+        (
+            tests.data.aws.identitycenter.LIST_PERMISSION_SETS[0]["PermissionSetArn"],
+            mock_role["Arn"],
         )
     }
 
