@@ -151,20 +151,28 @@ def sync_database_account_data_resources(
     response (like cors policy, failover policy, private endpoint connections, virtual network rules and locations).
     """
     for database_account in database_account_list:
-        _load_cosmosdb_cors_policy(neo4j_session, database_account, azure_update_tag)
+        _load_cosmosdb_cors_policy(
+            neo4j_session,
+            database_account,
+            subscription_id,
+            azure_update_tag,
+        )
         _load_cosmosdb_failover_policies(
             neo4j_session,
             database_account,
+            subscription_id,
             azure_update_tag,
         )
         _load_cosmosdb_private_endpoint_connections(
             neo4j_session,
             database_account,
+            subscription_id,
             azure_update_tag,
         )
         _load_cosmosdb_virtual_network_rules(
             neo4j_session,
             database_account,
+            subscription_id,
             azure_update_tag,
         )
         _load_database_account_write_locations(
@@ -281,6 +289,7 @@ def transform_cosmosdb_cors_policy(database_account: Dict) -> Dict:
 def _load_cosmosdb_cors_policy(
     neo4j_session: neo4j.Session,
     database_account: Dict,
+    subscription_id: str,
     azure_update_tag: int,
 ) -> None:
     """
@@ -296,7 +305,7 @@ def _load_cosmosdb_cors_policy(
             AzureCosmosDBCorsPolicySchema(),
             cors_policies,
             lastupdated=azure_update_tag,
-            AZURE_SUBSCRIPTION_ID=database_account_id,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
             DatabaseAccountId=database_account_id,
         )
 
@@ -305,6 +314,7 @@ def _load_cosmosdb_cors_policy(
 def _load_cosmosdb_failover_policies(
     neo4j_session: neo4j.Session,
     database_account: Dict,
+    subscription_id: str,
     azure_update_tag: int,
 ) -> None:
     """
@@ -322,7 +332,7 @@ def _load_cosmosdb_failover_policies(
             AzureCosmosDBAccountFailoverPolicySchema(),
             failover_policies,
             lastupdated=azure_update_tag,
-            AZURE_SUBSCRIPTION_ID=database_account_id,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
             DatabaseAccountId=database_account_id,
         )
 
@@ -331,6 +341,7 @@ def _load_cosmosdb_failover_policies(
 def _load_cosmosdb_private_endpoint_connections(
     neo4j_session: neo4j.Session,
     database_account: Dict,
+    subscription_id: str,
     azure_update_tag: int,
 ) -> None:
     """
@@ -351,7 +362,7 @@ def _load_cosmosdb_private_endpoint_connections(
             AzureCDBPrivateEndpointConnectionSchema(),
             private_endpoint_connections,
             lastupdated=azure_update_tag,
-            AZURE_SUBSCRIPTION_ID=database_account_id,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
             DatabaseAccountId=database_account_id,
         )
 
@@ -360,6 +371,7 @@ def _load_cosmosdb_private_endpoint_connections(
 def _load_cosmosdb_virtual_network_rules(
     neo4j_session: neo4j.Session,
     database_account: Dict,
+    subscription_id: str,
     azure_update_tag: int,
 ) -> None:
     """
@@ -377,7 +389,7 @@ def _load_cosmosdb_virtual_network_rules(
             AzureCosmosDBVirtualNetworkRuleSchema(),
             virtual_network_rules,
             lastupdated=azure_update_tag,
-            AZURE_SUBSCRIPTION_ID=database_account_id,
+            AZURE_SUBSCRIPTION_ID=subscription_id,
             DatabaseAccountId=database_account_id,
         )
 

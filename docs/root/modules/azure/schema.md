@@ -47,7 +47,7 @@ CM -- CONTAINS --> CosmosDBMongoDBCollection
 ```
 
 :::{note}
-All entities are linked to a AzureSubscription, this relationships are not represented for readability.
+All entities are linked to a AzureSubscription, these relationships are not represented for readability.
 :::
 
 ### AzureTenant
@@ -837,7 +837,7 @@ Representation of an [AzureStorageFileShare](https://docs.microsoft.com/en-us/re
 
 - File Service contains one or more file shares.
     ```
-        (AzureStorageTableService)-[CONTAINS]->(AzureStorageFileShare)
+        (AzureStorageFileService)-[CONTAINS]->(AzureStorageFileShare)
     ```
 - File share belongs to a Subscription.
     ```

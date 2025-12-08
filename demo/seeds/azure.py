@@ -94,21 +94,25 @@ class AzureSeed(Seed):
             cartography.intel.azure.cosmosdb._load_cosmosdb_cors_policy(
                 self.neo4j_session,
                 database_account,
+                SUBSCRIPTION_ID,
                 self.update_tag,
             )
             cartography.intel.azure.cosmosdb._load_cosmosdb_failover_policies(
                 self.neo4j_session,
                 database_account,
+                SUBSCRIPTION_ID,
                 self.update_tag,
             )
             cartography.intel.azure.cosmosdb._load_cosmosdb_private_endpoint_connections(
                 self.neo4j_session,
                 database_account,
+                SUBSCRIPTION_ID,
                 self.update_tag,
             )
             cartography.intel.azure.cosmosdb._load_cosmosdb_virtual_network_rules(
                 self.neo4j_session,
                 database_account,
+                SUBSCRIPTION_ID,
                 self.update_tag,
             )
         # SQL

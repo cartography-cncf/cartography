@@ -31,7 +31,7 @@ class AzureCDBPrivateEndpointConnectionToCosmosDBAccountProperties(
 
 
 @dataclass(frozen=True)
-# (:AzureCosmosDBAccount)-[::CONFIGURED_WITH]->(:AzureCDBPrivateEndpointConnection)
+# (:AzureCosmosDBAccount)-[:CONFIGURED_WITH]->(:AzureCDBPrivateEndpointConnection)
 class AzureCDBPrivateEndpointConnectionToCosmosDBAccountRel(CartographyRelSchema):
     target_node_label: str = "AzureCosmosDBAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

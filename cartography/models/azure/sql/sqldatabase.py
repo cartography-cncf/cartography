@@ -17,7 +17,7 @@ class AzureSQLDatabaseProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
     location: PropertyRef = PropertyRef("location")
-    kind = PropertyRef("kind")
+    kind: PropertyRef = PropertyRef("kind")
     creationdate: PropertyRef = PropertyRef("creation_date")
     databaseid: PropertyRef = PropertyRef("database_id")
     maxsizebytes: PropertyRef = PropertyRef("max_size_bytes")
