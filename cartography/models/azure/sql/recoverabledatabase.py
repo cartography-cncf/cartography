@@ -23,14 +23,14 @@ class AzureRecoverableDatabaseToSQLServerProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:AzureSQLServer)-[:CONTAINS]->(:AzureRecoverableDatabase)
+# (:AzureSQLServer)-[:RESOURCE]->(:AzureRecoverableDatabase)
 class AzureRecoverableDatabaseToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "RESOURCE"
     properties: AzureRecoverableDatabaseToSQLServerProperties = (
         AzureRecoverableDatabaseToSQLServerProperties()
     )
