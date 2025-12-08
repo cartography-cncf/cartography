@@ -107,9 +107,14 @@ def sync(
     """
     logger.info("Syncing SentinelOne CVE data")
 
-    api_url = str(common_job_parameters.get("API_URL"))
-    api_token = str(common_job_parameters.get("API_TOKEN"))
-    account_id = str(common_job_parameters.get("S1_ACCOUNT_ID"))
+    api_url = common_job_parameters.get("API_URL", "")
+    api_token = common_job_parameters.get("API_TOKEN", "")
+    account_id = common_job_parameters.get("S1_ACCOUNT_ID", "")
+    update_tag = common_job_parameters.get("UPDATE_TAG", 0)
+
+    if not api_url or not api_token or not account_id or not update_tag:
+        logger.error("Missing required parameters for SentinelOne CVE sync")
+        return
 
     cves = get(api_url, api_token, account_id)
     transformed_cves = transform(cves)

@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 
 import requests
@@ -6,7 +5,6 @@ import requests
 from cartography.util import backoff_handler
 from cartography.util import retries_with_backoff
 
-logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each
 _TIMEOUT = (60, 60)
 
@@ -36,12 +34,6 @@ def _call_sentinelone_api_base(
         "Authorization": f"ApiToken {api_token}",
         "Content-Type": "application/json",
     }
-
-    logger.debug(
-        "SentinelOne: %s %s",
-        method,
-        full_url,
-    )
 
     response = requests.request(
         method=method,
