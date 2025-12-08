@@ -83,7 +83,7 @@ def load_azure_subscriptions(
         AzureSubscriptionSchema(),
         subscriptions,
         lastupdated=update_tag,
-        AZURE_TENANT_ID=tenant_id,
+        TENANT_ID=tenant_id,
     )
 
 
