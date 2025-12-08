@@ -314,6 +314,8 @@ class Config:
         keycloak_client_secret=None,
         keycloak_realm=None,
         keycloak_url=None,
+        export_file=None,
+        no_neo4j_write=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -419,3 +421,6 @@ class Config:
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm
         self.keycloak_url = keycloak_url
+        # Optional export-only sink configuration
+        self.export_file = export_file
+        self.no_neo4j_write = bool(no_neo4j_write)
