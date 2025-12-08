@@ -885,6 +885,28 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--slack-token-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of environment variable containing the Slack Token. "
+                "Required if you are using the Slack intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--slack-teams",
+            type=str,
+            default=None,
+            help=(
+                "The Slack Team ID to sync, comma separated. If not provided, all accessible teams will be synced. "
+            ),
+        )
+        parser.add_argument(
+            "--slack-channels-memberships",
+            action="store_true",
+            help=("Pull memberships for Slack Channels (can be time consuming)."),
+        )
+        parser.add_argument(
             "--spacelift-api-endpoint",
             type=str,
             default=None,
@@ -1332,6 +1354,7 @@ class CLI:
         else:
             config.sentinelone_api_token = None
 
+        # Keycloak config
         if config.keycloak_client_secret_env_var:
             logger.debug(
                 f"Reading Client Secret for Keycloak from environment variable {config.keycloak_client_secret_env_var}",
@@ -1341,6 +1364,15 @@ class CLI:
             )
         else:
             config.keycloak_client_secret = None
+
+        # Slack config
+        if config.slack_token_env_var:
+            logger.debug(
+                f"Reading Slack token from environment variable {config.slack_token_env_var}",
+            )
+            config.slack_token = os.environ.get(config.slack_token_env_var)
+        else:
+            config.slack_token = None
 
         # Spacelift config
         # Read endpoint from CLI arg or env var
