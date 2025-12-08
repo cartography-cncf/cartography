@@ -21,6 +21,7 @@ class PermissionSetProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("Description")
     session_duration: PropertyRef = PropertyRef("SessionDuration")
     instance_arn: PropertyRef = PropertyRef("InstanceArn", set_in_kwargs=True)
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

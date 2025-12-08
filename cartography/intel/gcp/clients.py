@@ -6,6 +6,7 @@ import httplib2
 from google.auth import default
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.exceptions import DefaultCredentialsError
+from google.cloud.asset_v1 import AssetServiceClient
 from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import Resource
 
@@ -29,8 +30,11 @@ def build_client(
     service: str,
     version: str = "v1",
     credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
 ) -> Resource:
-    resolved_credentials = credentials or get_gcp_credentials()
+    resolved_credentials = credentials or get_gcp_credentials(
+        quota_project_id=quota_project_id,
+    )
     if resolved_credentials is None:
         raise RuntimeError("GCP credentials are not available; cannot build client.")
     client = googleapiclient.discovery.build(
@@ -42,15 +46,43 @@ def build_client(
     return client
 
 
-def get_gcp_credentials() -> Optional[GoogleCredentials]:
+def build_asset_client(
+    credentials: Optional[GoogleCredentials] = None,
+    quota_project_id: Optional[str] = None,
+) -> AssetServiceClient:
+    """
+    Build an AssetServiceClient for the Cloud Asset API.
+
+    :param credentials: Optional credentials to use. If not provided, ADC will be used.
+    :param quota_project_id: Optional quota project ID for billing. If not provided,
+        the ADC default project will be used.
+    """
+    resolved_credentials = credentials or get_gcp_credentials(
+        quota_project_id=quota_project_id,
+    )
+    if resolved_credentials is None:
+        raise RuntimeError(
+            "GCP credentials are not available; cannot build asset client."
+        )
+    return AssetServiceClient(credentials=resolved_credentials)
+
+
+def get_gcp_credentials(
+    quota_project_id: Optional[str] = None,
+) -> Optional[GoogleCredentials]:
     """
     Gets access tokens for GCP API access.
     """
     try:
         # Explicitly use Application Default Credentials with the cloud-platform scope.
-        credentials, _ = default(
+        credentials, default_project_id = default(
             scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            quota_project_id=quota_project_id,
         )
+        # Prefer explicit quota project, otherwise fall back to the ADC project ID if present.
+        effective_quota_project = quota_project_id or default_project_id
+        if effective_quota_project and credentials.quota_project_id is None:
+            credentials = credentials.with_quota_project(effective_quota_project)
         return credentials
     except DefaultCredentialsError as e:
         logger.debug(

@@ -19,6 +19,10 @@ KUBERNETES_CONTAINER_DATA = [
         "status_ready": True,
         "status_started": True,
         "status_state": "running",
+        "memory_request": "128Mi",
+        "cpu_request": "100m",
+        "memory_limit": "256Mi",
+        "cpu_limit": "500m",
     },
     {
         "name": "my-service-pod-container",
@@ -32,6 +36,10 @@ KUBERNETES_CONTAINER_DATA = [
         "status_ready": False,
         "status_started": True,
         "status_state": "terminated",
+        "memory_request": "64Mi",
+        "cpu_request": "50m",
+        "memory_limit": "128Mi",
+        "cpu_limit": "200m",
     },
 ]
 

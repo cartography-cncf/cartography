@@ -21,9 +21,7 @@ entra_mapping = OntologyMapping(
                     ontology_field="fullname", node_field="display_name"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="inactive",
-                    node_field="account_enabled",
-                    special_handling="invert_boolean",
+                    ontology_field="active", node_field="account_enabled"
                 ),
             ],
         ),
@@ -44,7 +42,11 @@ lastpass_mapping = OntologyMapping(
                     node_field="multifactor",
                     special_handling="to_boolean",
                 ),
-                OntologyFieldMapping(ontology_field="inactive", node_field="disabled"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="disabled",
+                    special_handling="invert_boolean",
+                ),
                 OntologyFieldMapping(
                     ontology_field="lastactivity", node_field="last_login"
                 ),
@@ -72,10 +74,10 @@ gsuite_mapping = OntologyMapping(
                     ontology_field="has_mfa", node_field="is_enrolled_in_2_sv"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="inactive",
+                    ontology_field="active",
                     node_field="suspended",
                     extra={"fields": ["archived"]},
-                    special_handling="or_boolean",
+                    special_handling="nor_boolean",
                 ),
                 OntologyFieldMapping(
                     ontology_field="lastactivity", node_field="last_login_time"
@@ -104,10 +106,10 @@ googleworkspace_mapping = OntologyMapping(
                     ontology_field="has_mfa", node_field="is_enrolled_in_2_sv"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="inactive",
+                    ontology_field="active",
                     node_field="suspended",
                     extra={"fields": ["archived"]},
-                    special_handling="or_boolean",
+                    special_handling="nor_boolean",
                 ),
                 OntologyFieldMapping(
                     ontology_field="lastactivity", node_field="last_login_time"
@@ -158,9 +160,9 @@ cloudflare_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="lastname", node_field="lastname"),
                 OntologyFieldMapping(
-                    ontology_field="inactive",
+                    ontology_field="active",
                     node_field="status",
-                    extra={"values": ["rejected", "pending"]},
+                    extra={"values": ["accepted"]},
                     special_handling="equal_boolean",
                 ),
                 OntologyFieldMapping(
@@ -190,9 +192,9 @@ duo_mapping = OntologyMapping(
                     ontology_field="lastactivity", node_field="last_login"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="inactive",
+                    ontology_field="active",
                     node_field="status",
-                    extra={"values": ["disabled", "locked out", "pending deletion"]},
+                    extra={"values": ["active", "bypass"]},
                     special_handling="equal_boolean",
                 ),
             ],
@@ -232,9 +234,8 @@ keycloak_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
                 OntologyFieldMapping(
-                    ontology_field="inactive",
+                    ontology_field="active",
                     node_field="enabled",
-                    special_handling="invert_boolean",
                 ),
                 OntologyFieldMapping(ontology_field="has_mfa", node_field="totp"),
             ],
@@ -269,7 +270,11 @@ scaleway_mapping = OntologyMapping(
                 ),
                 OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
-                OntologyFieldMapping(ontology_field="inactive", node_field="locked"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="locked",
+                    special_handling="invert_boolean",
+                ),
                 OntologyFieldMapping(
                     ontology_field="lastactivity", node_field="last_login_at"
                 ),
@@ -308,11 +313,9 @@ tailscale_mapping = OntologyMapping(
                     ontology_field="username", node_field="login_name"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="inactive",
+                    ontology_field="active",
                     node_field="status",
-                    extra={
-                        "values": ["suspended", "needs-approval", "over-billing-limit"]
-                    },
+                    extra={"values": ["active", "idle"]},
                     special_handling="equal_boolean",
                 ),
             ],
