@@ -7,7 +7,6 @@ from typing import Optional
 from typing import Set
 
 import neo4j
-from google.auth import default as google_auth_default
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.cloud.asset_v1 import AssetServiceClient
 from googleapiclient.discovery import HttpError
@@ -30,6 +29,7 @@ from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
+from cartography.intel.gcp.clients import get_gcp_credentials
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
@@ -97,7 +97,7 @@ def _sync_project_resources(
     projects: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
-    credentials: Optional[GoogleCredentials] = None,
+    credentials: GoogleCredentials,
 ) -> None:
     """
     Syncs GCP service-specific resources (Compute, Storage, GKE, DNS, IAM) for each project.
@@ -105,6 +105,7 @@ def _sync_project_resources(
     :param projects: A list of projects containing at minimum a "projectId" field.
     :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
     :param common_job_parameters: Other parameters sent to Neo4j
+    :param credentials: GCP credentials to use for API calls.
     :return: Nothing
     """
     logger.info("Syncing resources for %d GCP projects.", len(projects))
@@ -113,16 +114,20 @@ def _sync_project_resources(
     # CAI is used for:
     # 1. Fallback IAM sync when IAM API is disabled on target projects (cai_rest_client)
     # 2. Policy bindings sync (cai_grpc_client)
-    # Both use the quota project (from ADC) for billing, not the target project.
+    # Both use the quota project (from credentials) so that the user only needs to enable the API on the host project
     cai_rest_client: Optional[Resource] = None  # REST client for asset listing
     cai_grpc_client: Optional[AssetServiceClient] = None  # gRPC client for policy APIs
-    cai_quota_project: Optional[str] = None
+    cai_quota_project: Optional[str] = credentials.quota_project_id
     cai_enabled_on_quota_project: Optional[bool] = (
         None  # Cached check for CAI on quota project
     )
     policy_bindings_permission_ok: Optional[bool] = (
         None  # Track if we have permission for policy bindings
     )
+
+    # Predefined roles are global (not project-specific), so we fetch them once from the
+    # quota project and reuse them for all target projects that use the CAI fallback.
+    predefined_roles: Optional[List[Dict]] = None
 
     # Per-project sync across services
     for project in projects:
@@ -189,33 +194,60 @@ def _sync_project_resources(
             )
         else:
             # Fallback to Cloud Asset Inventory even if the target project does not have the API enabled.
-            # Lazily initialize the CAI REST client once and reuse it for all projects.
-            if cai_rest_client is None:
-                adc_credentials, adc_project_id = google_auth_default(
-                    scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            # CAI requires a quota/host project.
+            if cai_quota_project is None:
+                logger.warning(
+                    "IAM API not enabled on project %s and no quota project configured. "
+                    "Skipping IAM sync for this project.",
+                    project_id,
                 )
-                cai_quota_project = adc_project_id
-                cai_rest_client = build_client(
-                    "cloudasset",
-                    "v1",
-                    credentials=adc_credentials,
-                    quota_project_id=adc_project_id,
+            else:
+                # Lazily initialize the CAI REST client once and reuse it for all projects.
+                if cai_rest_client is None:
+                    cai_rest_client = build_client(
+                        "cloudasset",
+                        "v1",
+                        credentials=credentials,
+                        quota_project_id=cai_quota_project,
+                    )
+
+                # Lazily fetch predefined roles once from the quota project.
+                # Predefined roles are global, so we only need to fetch them once.
+                if predefined_roles is None:
+                    logger.info(
+                        "Fetching predefined IAM roles from quota project %s",
+                        cai_quota_project,
+                    )
+                    iam_quota_client = build_client(
+                        "iam",
+                        "v1",
+                        credentials=credentials,
+                        quota_project_id=cai_quota_project,
+                    )
+                    predefined_roles = iam.get_gcp_predefined_roles(iam_quota_client)
+                    logger.info(
+                        "Fetched %d predefined IAM roles from quota project",
+                        len(predefined_roles),
+                    )
+
+                logger.info(
+                    "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory using quota project %s.",
+                    project_id,
+                    cai_quota_project,
                 )
-            logger.info(
-                "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory using quota project %s.",
-                project_id,
-                cai_quota_project,
-            )
-            cai.sync(
-                neo4j_session,
-                cai_rest_client,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
+                cai.sync(
+                    neo4j_session,
+                    cai_rest_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    predefined_roles=predefined_roles,
+                )
         if service_names.bigtable in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Bigtable.")
-            bigtable_client = build_client("bigtableadmin", "v2")
+            bigtable_client = build_client(
+                "bigtableadmin", "v2", credentials=credentials
+            )
             instances_raw = bigtable_instance.sync_bigtable_instances(
                 neo4j_session,
                 bigtable_client,
@@ -266,31 +298,36 @@ def _sync_project_resources(
         # Policy bindings uses CAI from the quota project to fetch policies for target projects.
         if cai_enabled_on_quota_project is None:
             if cai_quota_project is None:
-                # Get quota project from ADC if not already set by IAM fallback
-                _, adc_project_id = google_auth_default(
-                    scopes=["https://www.googleapis.com/auth/cloud-platform"],
-                )
-                cai_quota_project = adc_project_id
-            quota_project_services = _services_enabled_on_project(
-                build_client("serviceusage", "v1", credentials=credentials),
-                cai_quota_project,
-            )
-            cai_enabled_on_quota_project = service_names.cai in quota_project_services
-            if cai_enabled_on_quota_project:
                 logger.info(
-                    "CAI enabled on quota project %s, will sync policy bindings for all projects.",
-                    cai_quota_project,
+                    "No quota project configured, skipping policy bindings sync.",
                 )
+                cai_enabled_on_quota_project = False
             else:
-                logger.info(
-                    "CAI not enabled on quota project %s, skipping policy bindings sync.",
+                quota_project_services = _services_enabled_on_project(
+                    build_client("serviceusage", "v1", credentials=credentials),
                     cai_quota_project,
                 )
+                cai_enabled_on_quota_project = (
+                    service_names.cai in quota_project_services
+                )
+                if cai_enabled_on_quota_project:
+                    logger.info(
+                        "CAI enabled on quota project %s, will sync policy bindings for all projects.",
+                        cai_quota_project,
+                    )
+                else:
+                    logger.info(
+                        "CAI not enabled on quota project %s, skipping policy bindings sync.",
+                        cai_quota_project,
+                    )
 
         if cai_enabled_on_quota_project and policy_bindings_permission_ok is not False:
             # Lazily initialize CAI gRPC client for policy bindings.
             if cai_grpc_client is None:
-                cai_grpc_client = build_asset_client(quota_project_id=cai_quota_project)
+                cai_grpc_client = build_asset_client(
+                    credentials=credentials,
+                    quota_project_id=cai_quota_project,
+                )
             logger.info(
                 "Syncing IAM policies for GCP project %s using quota project %s.",
                 project_id,
@@ -330,8 +367,18 @@ def start_gcp_ingestion(
     context to all intel modules.
     :param neo4j_session: The Neo4j session
     :param config: A `cartography.config` object
+    :param credentials: Optional GCP credentials. If not provided, ADC will be used.
     :return: Nothing
     """
+    # Initialize credentials from ADC if not provided. This ensures we have a single
+    # credentials object used consistently across all API clients.
+    if credentials is None:
+        credentials = get_gcp_credentials()
+        if credentials is None:
+            raise RuntimeError(
+                "GCP credentials are not available; cannot start GCP ingestion."
+            )
+
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "gcp_permission_relationships_file": config.gcp_permission_relationships_file,

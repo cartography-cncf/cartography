@@ -4595,6 +4595,7 @@ Representation of an AWS Identity Center.
 | instance_status | The status of the Identity Center instance |
 | created_date | The date the Identity Center instance was created |
 | last_modified_date | The date the Identity Center instance was last modified |
+| region | The AWS region where the Identity Center instance is located |
 
 #### Relationships
 - AWSIdentityCenter is part of an AWSAccount.
@@ -4709,6 +4710,7 @@ Representation of an AWS Identity Center Permission Set.
 | description | The description of the Permission Set |
 | session_duration | The session duration of the Permission Set |
 | instance_arn | The ARN of the Identity Center instance the Permission Set belongs to |
+| region | The AWS region where the Permission Set is located |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
