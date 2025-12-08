@@ -25,13 +25,10 @@ def get_all_azure_subscriptions(credentials: Credentials) -> List[Dict]:
         subs = list(client.subscriptions.list())
 
     except HttpResponseError as e:
-        logger.error(
-            f"failed to fetch subscriptions for the credentials \
-            The provided credentials do not have access to any subscriptions - \
-            {e}",
-        )
-
-        return []
+        raise RuntimeError(
+            f"Failed to fetch subscriptions for the credentials. "
+            f"The provided credentials do not have access to any subscriptions: {e}",
+        ) from e
 
     subscriptions = []
     for sub in subs:
@@ -59,13 +56,10 @@ def get_current_azure_subscription(
         sub = client.subscriptions.get(subscription_id)
 
     except HttpResponseError as e:
-        logger.error(
-            f"failed to fetch subscription for the credentials \
-            The provided credentials do not have access to this subscription: {subscription_id} - \
-            {e}",
-        )
-
-        return []
+        raise RuntimeError(
+            f"Failed to fetch subscription for the credentials. "
+            f"The provided credentials do not have access to this subscription: {subscription_id}: {e}",
+        ) from e
 
     return [
         {

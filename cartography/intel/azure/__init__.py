@@ -301,10 +301,9 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             )
 
         if not subscriptions:
-            logger.warning(
-                "No valid Azure credentials are found. No Azure subscriptions can be synced. Exiting Azure sync stage.",
+            raise RuntimeError(
+                "No Azure subscriptions found. Ensure the credentials have access to at least one subscription.",
             )
-            return
 
         _sync_multiple_subscriptions(
             neo4j_session,
