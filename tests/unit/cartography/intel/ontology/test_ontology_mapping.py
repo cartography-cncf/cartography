@@ -20,6 +20,7 @@ ALL_MAPPINGS = {
 # This is a temporary workaround until all models are migrated.
 OLD_FORMAT_NODES = [
     "OktaUser",
+    "OktaApplication",
 ]
 
 
@@ -75,6 +76,9 @@ def test_ontology_mapping_fields():
 
                 for mapping_field in node.fields:
                     found = False
+                    # Skip static value handling
+                    if mapping_field.special_handling == "static_value":
+                        continue
                     for model_class in model_classes:
                         model_property = getattr(
                             model_class.properties, mapping_field.node_field, None
