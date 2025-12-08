@@ -13,11 +13,11 @@ S -- RESOURCE --> CA(CosmosDBAccount)
 VM -- ATTACHED_TO --> DataDisk
 SQL -- USED_BY --> ServerDNSAlias
 SQL -- ADMINISTERED_BY --> ADAdministrator
-SQL -- CONTAINS --> RecoverableDatabase
-SQL -- CONTAINS --> RestorableDroppedDatabase
-SQL -- CONTAINS --> FailoverGroup
-SQL -- CONTAINS --> ElasticPool
-SQL -- CONTAINS --> DB(SQLDatabase)
+SQL -- RESOURCE --> RecoverableDatabase
+SQL -- RESOURCE --> RestorableDroppedDatabase
+SQL -- RESOURCE --> FailoverGroup
+SQL -- RESOURCE --> ElasticPool
+SQL -- RESOURCE --> DB(SQLDatabase)
 DB -- CONTAINS --> ReplicationLink
 DB -- CONTAINS --> DatabaseThreatDetectionPolicy
 DB -- CONTAINS --> RestorePoint
@@ -256,23 +256,23 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
     ```
 - Azure SQL Server has one or more Azure Recoverable Database.
     ```
-    (AzureSQLServer)-[CONTAINS]->(AzureRecoverableDatabase)
+    (AzureSQLServer)-[RESOURCE]->(AzureRecoverableDatabase)
     ```
 - Azure SQL Server has one or more Azure Restorable Dropped Database.
     ```
-    (AzureSQLServer)-[CONTAINS]->(AzureRestorableDroppedDatabase)
+    (AzureSQLServer)-[RESOURCE]->(AzureRestorableDroppedDatabase)
     ```
 - Azure SQL Server has one or more Azure Failover Group.
     ```
-    (AzureSQLServer)-[CONTAINS]->(AzureFailoverGroup)
+    (AzureSQLServer)-[RESOURCE]->(AzureFailoverGroup)
     ```
 - Azure SQL Server has one or more Azure Elastic Pool.
     ```
-    (AzureSQLServer)-[CONTAINS]->(AzureElasticPool)
+    (AzureSQLServer)-[RESOURCE]->(AzureElasticPool)
     ```
 - Azure SQL Server has one or more Azure SQL Database.
     ```
-    (AzureSQLServer)-[CONTAINS]->(AzureSQLDatabase)
+    (AzureSQLServer)-[RESOURCE]->(AzureSQLDatabase)
     ```
 
 ### AzureServerDNSAlias
@@ -342,7 +342,7 @@ Representation of an [AzureRecoverableDatabase](https://docs.microsoft.com/en-us
 
 - Azure SQL Server has one or more Azure Recoverable Database.
     ```
-        (AzureSQLServer)-[CONTAINS]->(AzureRecoverableDatabase)
+        (AzureSQLServer)-[RESOURCE]->(AzureRecoverableDatabase)
     ```
 
 - Azure Recoverable Database belongs to a Subscription.
@@ -373,7 +373,7 @@ Representation of an [AzureRestorableDroppedDatabase](https://docs.microsoft.com
 
 - Azure SQL Server has one or more Azure Restorable Dropped Database.
     ```
-        (AzureSQLServer)-[CONTAINS]->(AzureRestorableDroppedDatabase)
+        (AzureSQLServer)-[RESOURCE]->(AzureRestorableDroppedDatabase)
     ```
 
 - Azure Restorable Dropped Database belongs to a Subscription.
@@ -399,7 +399,7 @@ Representation of an [AzureFailoverGroup](https://docs.microsoft.com/en-us/rest/
 
 - Azure SQL Server has one or more Azure Failover Group.
     ```
-        (AzureSQLServer)-[CONTAINS]->(AzureFailoverGroup)
+        (AzureSQLServer)-[RESOURCE]->(AzureFailoverGroup)
     ```
 
 - Azure Failover Group belongs to a Subscription.
@@ -429,7 +429,7 @@ Representation of an [AzureElasticPool](https://docs.microsoft.com/en-us/rest/ap
 
 - Azure SQL Server has one or more Azure Elastic Pool.
     ```
-        (AzureSQLServer)-[CONTAINS]->(AzureElasticPool)
+        (AzureSQLServer)-[RESOURCE]->(AzureElasticPool)
     ```
 
 - Azure Elastic Pool belongs to a Subscription.
@@ -465,7 +465,7 @@ Representation of an [AzureSQLDatabase](https://docs.microsoft.com/en-us/rest/ap
 
 - Azure SQL Server has one or more Azure SQL Database.
     ```
-        (AzureSQLServer)-[CONTAINS]->(AzureSQLDatabase)
+        (AzureSQLServer)-[RESOURCE]->(AzureSQLDatabase)
     ```
 - Azure SQL Database contains one or more Azure Replication Links.
     ```cypher
