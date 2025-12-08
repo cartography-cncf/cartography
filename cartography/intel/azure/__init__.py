@@ -7,8 +7,26 @@ import neo4j
 from cartography.config import Config
 from cartography.util import timeit
 
+from . import aks
+from . import app_service
 from . import compute
+from . import container_instances
 from . import cosmosdb
+from . import data_factory
+from . import data_factory_dataset
+from . import data_factory_linked_service
+from . import data_factory_pipeline
+from . import data_lake
+from . import event_grid
+from . import functions
+from . import load_balancers
+from . import logic_apps
+from . import monitor
+from . import network
+from . import permission_relationships
+from . import rbac
+from . import resource_groups
+from . import security_center
 from . import sql
 from . import storage
 from . import subscription
@@ -26,6 +44,13 @@ def _sync_one_subscription(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    container_instances.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     compute.sync(
         neo4j_session,
         credentials.credential,
@@ -40,6 +65,41 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
+    app_service.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    functions.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    event_grid.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    logic_apps.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    rbac.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     sql.sync(
         neo4j_session,
         credentials.credential,
@@ -50,6 +110,96 @@ def _sync_one_subscription(
     storage.sync(
         neo4j_session,
         credentials.credential,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    resource_groups.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    aks.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    factories_raw = data_factory.sync_data_factories(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    linked_services_by_factory = (
+        data_factory_linked_service.sync_data_factory_linked_services(
+            neo4j_session,
+            credentials,
+            factories_raw,
+            subscription_id,
+            update_tag,
+            common_job_parameters,
+        )
+    )
+    datasets_by_factory = data_factory_dataset.sync_data_factory_datasets(
+        neo4j_session,
+        credentials,
+        factories_raw,
+        linked_services_by_factory,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    data_factory_pipeline.sync_data_factory_pipelines(
+        neo4j_session,
+        credentials,
+        factories_raw,
+        datasets_by_factory,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    data_lake.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    network.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    load_balancers.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    monitor.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    security_center.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    permission_relationships.sync(
+        neo4j_session,
         subscription_id,
         update_tag,
         common_job_parameters,
@@ -104,6 +254,7 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
+        "azure_permission_relationships_file": config.azure_permission_relationships_file,
     }
 
     try:

@@ -10,6 +10,7 @@ import neo4j
 
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_single_value_tx
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 AccountRole = namedtuple("AccountRole", ["account_id", "role_name"])
@@ -67,24 +68,25 @@ def query_for_okta_to_aws_role_mapping(
     :param neo4j_session: session from the Neo4j server
     :param mapping_regex: the regex used by the organization to map groups to aws roles
     """
-    query = "MATCH (app:OktaApplication{name:'amazon_aws'})--(group:OktaGroup) return group.id, group.name"
+    query = (
+        "MATCH (app:OktaApplication{name:'amazon_aws'})--(group:OktaGroup) "
+        "RETURN group.id AS group_id, group.name AS group_name"
+    )
 
     group_to_role_mapping: List[Dict] = []
-    has_results = False
-    results = neo4j_session.run(query)
+    results = neo4j_session.execute_read(read_list_of_dicts_tx, query)
 
     for res in results:
-        has_results = True
         # input: okta group id, okta group name. output: aws role arn.
         mapping = transform_okta_group_to_aws_role(
-            res["group.id"],
-            res["group.name"],
+            res["group_id"],
+            res["group_name"],
             mapping_regex,
         )
         if mapping:
             group_to_role_mapping.append(mapping)
 
-    if has_results and not group_to_role_mapping:
+    if results and not group_to_role_mapping:
         logger.warning(
             "AWS Okta Application present, but no mappings were found. "
             "Please verify the mapping regex is correct",
@@ -116,7 +118,8 @@ def _load_okta_group_to_aws_roles(
     SET r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_statement,
         GROUP_TO_ROLE=group_to_role,
         okta_update_tag=okta_update_tag,
@@ -140,7 +143,8 @@ def _load_human_can_assume_role(
     SET r.lastupdated = $okta_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_statement,
         okta_update_tag=okta_update_tag,
     )
@@ -244,7 +248,7 @@ def _load_awssso_tx(
         ingest_statement,
         GROUP_TO_ROLE=[g._asdict() for g in group_to_role],
         okta_update_tag=okta_update_tag,
-    )
+    ).consume()
 
 
 def _load_okta_group_to_awssso_roles(

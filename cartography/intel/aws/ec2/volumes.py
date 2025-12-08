@@ -70,7 +70,7 @@ def transform_volumes(
 
         for attachment in active_attachments:
             vol_with_attachment = raw_vol.copy()
-            vol_with_attachment["InstanceId"] = attachment["InstanceId"]
+            vol_with_attachment["InstanceId"] = attachment.get("InstanceId")
             result.append(vol_with_attachment)
 
     return result

@@ -15,6 +15,7 @@ GITHUB_USER_DATA = (
                 "isSiteAdmin": False,
                 "email": "hjsimpson@simpson.corp",
                 "company": "Springfield Nuclear Power Plant",
+                "organizationVerifiedDomainEmails": ["hjsimpson@burns.corp"],
             },
             "role": "MEMBER",
         },
@@ -57,6 +58,7 @@ GITHUB_USER_DATA_AT_TIMESTAMP_2 = (
                 "isSiteAdmin": False,
                 "email": "hjsimpson@simpson.corp",
                 "company": "Springfield Nuclear Power Plant",
+                "organizationVerifiedDomainEmails": ["hjsimpson@burns.corp"],
             },
             # In timestamp 2, Homer is now an admin and no longer a member.
             # This is used to test that stale relationships are removed.

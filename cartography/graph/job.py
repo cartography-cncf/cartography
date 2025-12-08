@@ -279,7 +279,9 @@ class GraphJob:
         }
 
     @classmethod
-    def from_json(cls, blob: str, short_name: Optional[str] = None) -> "GraphJob":
+    def from_json(
+        cls, blob: Union[str, dict], short_name: Optional[str] = None
+    ) -> "GraphJob":
         """
         Create a GraphJob instance from a JSON string.
 
@@ -317,7 +319,7 @@ class GraphJob:
             >>> job.short_name
             'test_job'
         """
-        data: Dict = json.loads(blob)
+        data = json.loads(blob) if isinstance(blob, str) else blob
         statements = _get_statements_from_json(data, short_name)
         name = data["name"]
         return cls(name, statements, short_name)
@@ -327,6 +329,7 @@ class GraphJob:
         cls,
         node_schema: CartographyNodeSchema,
         parameters: Dict[str, Any],
+        iterationsize: int = 100,
     ) -> "GraphJob":
         """
         Create a cleanup job from a CartographyNodeSchema.
@@ -342,6 +345,8 @@ class GraphJob:
             parameters (Dict[str, Any]): Parameters for the cleanup queries.
                 Must include all parameters required by the generated queries.
                 Common parameters include UPDATE_TAG and sub-resource identifiers.
+            iterationsize (int, optional): The number of items to process in each iteration.
+                Defaults to 100.
 
         Returns:
             GraphJob: A new GraphJob instance configured for cleanup operations.
@@ -370,7 +375,7 @@ class GraphJob:
                 query,
                 parameters=parameters,
                 iterative=True,
-                iterationsize=100,
+                iterationsize=iterationsize,
                 parent_job_name=node_schema.label,
                 parent_job_sequence_num=idx,
             )
@@ -390,6 +395,7 @@ class GraphJob:
         sub_resource_label: str,
         sub_resource_id: str,
         update_tag: int,
+        iterationsize: int = 100,
     ) -> "GraphJob":
         """
         Create a cleanup job for matchlink relationships.
@@ -405,6 +411,8 @@ class GraphJob:
             sub_resource_label (str): The label of the sub-resource to scope cleanup to.
             sub_resource_id (str): The ID of the sub-resource to scope cleanup to.
             update_tag (int): The update tag to identify stale relationships.
+            iterationsize (int, optional): The number of items to process in each iteration.
+                Defaults to 100.
 
         Returns:
             GraphJob: A new GraphJob instance configured for matchlink cleanup.
@@ -413,6 +421,10 @@ class GraphJob:
             - This method is specifically designed for matchlink cleanup operations.
             - Required relationship properties ``_sub_resource_label`` and ``_sub_resource_id``
               must be defined in the rel_schema.
+            - For a given rel_schema, the fields used in the rel_schema.properties._sub_resource_label.name and
+            rel_schema.properties._sub_resource_id.name must be provided as keys and values in the params dict.
+            - The rel_schema must have a source_node_matcher and target_node_matcher.
+            - The number of items to process in each iteration. Defaults to 100.
         """
         cleanup_link_query = build_cleanup_query_for_matchlink(rel_schema)
         logger.debug("Cleanup query: %s", cleanup_link_query)
@@ -427,7 +439,7 @@ class GraphJob:
             cleanup_link_query,
             parameters=parameters,
             iterative=True,
-            iterationsize=100,
+            iterationsize=iterationsize,
             parent_job_name=rel_schema.rel_label,
         )
 
@@ -471,7 +483,7 @@ class GraphJob:
     def run_from_json(
         cls,
         neo4j_session: neo4j.Session,
-        blob: str,
+        blob: Union[str, dict],
         parameters: Dict,
         short_name: Optional[str] = None,
     ) -> None:

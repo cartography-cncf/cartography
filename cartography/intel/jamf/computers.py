@@ -4,6 +4,7 @@ from typing import List
 
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.intel.jamf.util import call_jamf_api
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -35,7 +36,12 @@ def load_computer_groups(
     g.lastupdated = $UpdateTag
     """
     groups = data.get("computer_groups")
-    neo4j_session.run(ingest_groups, JsonData=groups, UpdateTag=update_tag)
+    run_write_query(
+        neo4j_session,
+        ingest_groups,
+        JsonData=groups,
+        UpdateTag=update_tag,
+    )
 
 
 @timeit

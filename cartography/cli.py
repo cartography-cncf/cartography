@@ -303,6 +303,17 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--experimental-aws-inspector-batch",
+            type=int,
+            default=1000,
+            help=(
+                "EXPERIMENTAL: This feature is experimental and may be removed in the future. "
+                "Batch size for AWS Inspector findings sync. Controls how many findings are fetched, processed and cleaned up at a time. "
+                "Default is 1000. Increase this value if you have a large number of findings and want to reduce API calls, "
+                "or decrease it if you're experiencing memory issues."
+            ),
+        )
+        parser.add_argument(
             "--analysis-job-directory",
             type=str,
             default=None,
@@ -375,6 +386,24 @@ class CLI:
             help=(
                 "The path to the permission relationships mapping file."
                 "If omitted the default permission relationships will be created"
+            ),
+        )
+        parser.add_argument(
+            "--azure-permission-relationships-file",
+            type=str,
+            default="cartography/data/azure_permission_relationships.yaml",
+            help=(
+                "The path to the Azure permission relationships mapping file."
+                "If omitted the default Azure permission relationships will be created"
+            ),
+        )
+        parser.add_argument(
+            "--gcp-permission-relationships-file",
+            type=str,
+            default="cartography/data/gcp_permission_relationships.yaml",
+            help=(
+                "The path to the GCP permission relationships mapping file. "
+                "If omitted the default GCP permission relationships will be used"
             ),
         )
         parser.add_argument(
@@ -540,6 +569,24 @@ class CLI:
             default="GSUITE_GOOGLE_APPLICATION_CREDENTIALS",
             help=(
                 "The name of environment variable containing secrets for GSuite authentication."
+            ),
+        )
+        parser.add_argument(
+            "--googleworkspace-auth-method",
+            type=str,
+            default="delegated",
+            choices=["delegated", "oauth", "default"],
+            help=(
+                'Google Workspace authentication method. Can be "delegated" for service account or "oauth" for OAuth. '
+                '"Default" best if using gcloud CLI.'
+            ),
+        )
+        parser.add_argument(
+            "--googleworkspace-tokens-env-var",
+            type=str,
+            default="GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS",
+            help=(
+                "The name of environment variable containing secrets for Google Workspace authentication."
             ),
         )
         parser.add_argument(
@@ -743,6 +790,26 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--ontology-users-source",
+            type=str,
+            default=None,
+            help=(
+                "Comma-separated list of sources of truth for user data in the ontology. "
+                "'User' nodes will only be created for users that exist in one of the sources. "
+                "Required if you are using the ontology module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--ontology-devices-source",
+            type=str,
+            default=None,
+            help=(
+                "Comma-separated list of sources of truth for client computer data in the ontology. "
+                "'Device' nodes will only be created for groups that exist in one of the sources. "
+                "Required if you are using the ontology module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
             "--trivy-results-dir",
             type=str,
             default=None,
@@ -838,6 +905,94 @@ class CLI:
                 "The Keycloak realm used for authentication (note: all available realms will be synced). "
                 "Should be `master` (default value) in most of the cases. "
                 "Required if you are using the Keycloak intel module. Ignored otherwise. "
+            ),
+        )
+        parser.add_argument(
+            "--slack-token-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of environment variable containing the Slack Token. "
+                "Required if you are using the Slack intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--slack-teams",
+            type=str,
+            default=None,
+            help=(
+                "The Slack Team ID to sync, comma separated. If not provided, all accessible teams will be synced. "
+            ),
+        )
+        parser.add_argument(
+            "--slack-channels-memberships",
+            action="store_true",
+            help=("Pull memberships for Slack Channels (can be time consuming)."),
+        )
+        parser.add_argument(
+            "--spacelift-api-endpoint",
+            type=str,
+            default=None,
+            help=(
+                "Spacelift GraphQL API endpoint (e.g., https://yourorg.app.spacelift.io/graphql). "
+                "Required if you are using the Spacelift intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-token-env-var",
+            type=str,
+            default="SPACELIFT_API_TOKEN",
+            help=(
+                "The name of an environment variable containing the Spacelift API token. "
+                "Alternative to using API key ID/secret. Ignored if API key credentials are provided."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-key-id-env-var",
+            type=str,
+            default="SPACELIFT_API_KEY_ID",
+            help=(
+                "The name of an environment variable containing the Spacelift API key ID. "
+                "Use with --spacelift-api-key-secret-env-var for automatic token exchange. "
+                "Alternative to providing a pre-generated token."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-key-secret-env-var",
+            type=str,
+            default="SPACELIFT_API_KEY_SECRET",
+            help=(
+                "The name of an environment variable containing the Spacelift API key secret. "
+                "Use with --spacelift-api-key-id-env-var for automatic token exchange. "
+                "Alternative to providing a pre-generated token."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-aws-profile",
+            type=str,
+            default=None,
+            help=(
+                "AWS profile name to use for fetching EC2 ownership data from S3. "
+                "Optional. If not provided, uses default AWS credentials. "
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-s3-bucket",
+            type=str,
+            default=None,
+            help=(
+                "S3 bucket name containing CloudTrail data for EC2 ownership relationships. "
+                "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-prefix)."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-s3-prefix",
+            type=str,
+            default=None,
+            help=(
+                "S3 prefix for CloudTrail data for EC2 ownership relationships. "
+                "All JSON files under this prefix will be processed. "
+                "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-bucket)."
             ),
         )
 
@@ -999,8 +1154,8 @@ class CLI:
                 logger.warning("A Kandji base URI was provided but a token was not.")
                 config.kandji_token = None
         else:
-            logger.warning("A Kandji base URI was not provided.")
             config.kandji_base_uri = None
+            config.kandji_token = None
 
         if config.statsd_enabled:
             logger.debug(
@@ -1046,6 +1201,17 @@ class CLI:
             config.gsuite_config = os.environ.get(config.gsuite_tokens_env_var)
         else:
             config.gsuite_tokens_env_var = None
+
+        # Google Workspace config
+        if config.googleworkspace_tokens_env_var:
+            logger.debug(
+                f"Reading config string for Google Workspace from environment variable {config.googleworkspace_tokens_env_var}",
+            )
+            config.googleworkspace_config = os.environ.get(
+                config.googleworkspace_tokens_env_var
+            )
+        else:
+            config.googleworkspace_tokens_env_var = None
 
         # Lastpass config
         if config.lastpass_cid_env_var:
@@ -1128,8 +1294,8 @@ class CLI:
                 logger.warning("A SnipeIT base URI was provided but a token was not.")
                 config.snipeit_token = None
         else:
-            logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
+            config.snipeit_token = None
 
         # Tailscale config
         if config.tailscale_token_env_var:
@@ -1220,6 +1386,7 @@ class CLI:
         else:
             config.sentinelone_api_token = None
 
+        # Keycloak config
         if config.keycloak_client_secret_env_var:
             logger.debug(
                 f"Reading Client Secret for Keycloak from environment variable {config.keycloak_client_secret_env_var}",
@@ -1229,6 +1396,57 @@ class CLI:
             )
         else:
             config.keycloak_client_secret = None
+
+        # Slack config
+        if config.slack_token_env_var:
+            logger.debug(
+                f"Reading Slack token from environment variable {config.slack_token_env_var}",
+            )
+            config.slack_token = os.environ.get(config.slack_token_env_var)
+        else:
+            config.slack_token = None
+
+        # Spacelift config
+        # Read endpoint from CLI arg or env var
+        if not config.spacelift_api_endpoint:
+            config.spacelift_api_endpoint = os.environ.get("SPACELIFT_API_ENDPOINT")
+
+        if config.spacelift_api_endpoint:
+            # Try to read API token
+            if config.spacelift_api_token_env_var:
+                logger.debug(
+                    f"Reading API token for Spacelift from environment variable {config.spacelift_api_token_env_var}",
+                )
+                config.spacelift_api_token = os.environ.get(
+                    config.spacelift_api_token_env_var
+                )
+            else:
+                config.spacelift_api_token = None
+
+            # Try to read API key ID and secret
+            if config.spacelift_api_key_id_env_var:
+                logger.debug(
+                    f"Reading API key ID for Spacelift from environment variable {config.spacelift_api_key_id_env_var}",
+                )
+                config.spacelift_api_key_id = os.environ.get(
+                    config.spacelift_api_key_id_env_var
+                )
+            else:
+                config.spacelift_api_key_id = None
+
+            if config.spacelift_api_key_secret_env_var:
+                logger.debug(
+                    f"Reading API key secret for Spacelift from environment variable {config.spacelift_api_key_secret_env_var}",
+                )
+                config.spacelift_api_key_secret = os.environ.get(
+                    config.spacelift_api_key_secret_env_var
+                )
+            else:
+                config.spacelift_api_key_secret = None
+        else:
+            config.spacelift_api_token = None
+            config.spacelift_api_key_id = None
+            config.spacelift_api_key_secret = None
 
         # Run cartography
         try:

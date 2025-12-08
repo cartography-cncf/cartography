@@ -41,6 +41,7 @@ Representation of an AWS Account.
                                 :EC2SecurityGroup,
                                 :ElasticIPAddress,
                                 :ESDomain,
+                                :GuardDutyDetector,
                                 :GuardDutyFinding,
                                 :KMSAlias,
                                 :LaunchConfiguration,
@@ -113,7 +114,7 @@ type for `AWSIpv4CidrBlock` and `AWSIpv6CidrBlock`
   RETURN outbound_account.name, inbound_account.name, inbound_range.range, inbound_rule.fromport, inbound_rule.toport, inbound_rule.protocol, inbound_group.name, inbound_vpc.id
   ```
 
-### AWSGroup
+### AWSPrincipal::AWSGroup
 
 Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Group.html).
 
@@ -146,6 +147,58 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
     (:AWSAccount)-[:RESOURCE]->(:AWSGroup)
     ```
 
+- AWSGroups can be assigned AWSPolicies.
+
+    ```cypher
+    (:AWSGroup)-[:POLICY]->(:AWSPolicy)
+    ```
+
+### GuardDutyDetector
+
+Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_GetDetector.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier for the GuardDuty detector |
+| accountid | The AWS Account ID the detector belongs to |
+| region | The AWS Region where the detector is deployed |
+| status | Whether the detector is enabled or disabled |
+| findingpublishingfrequency | Frequency with which GuardDuty publishes findings |
+| service_role | IAM service role used by GuardDuty |
+| createdat | Timestamp when the detector was created |
+| updatedat | Timestamp when the detector was last updated |
+
+#### Relationships
+
+- AWS Accounts can enable GuardDuty detectors
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:GuardDutyDetector)
+    ```
+
+- GuardDuty detectors generate GuardDuty findings
+    ```cypher
+    (:GuardDutyDetector)<-[:DETECTED_BY]-(:GuardDutyFinding)
+    ```
+
+- "What regions have GuardDuty enabled?"
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(d:GuardDutyDetector)
+    RETURN DISTINCT a.name, d.region
+    ```
+
+- "Which EC2 instances are not covered by an enabled GuardDuty detector?"
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(i:EC2Instance)
+    WHERE NOT EXISTS {
+        MATCH (a)-[:RESOURCE]->(d:GuardDutyDetector{status: "ENABLED"})
+        WHERE d.region = i.region
+    }
+    RETURN a.name, i.instanceid, i.region
+    ORDER BY a.name, i.region
+    ```
+
 ### GuardDutyFinding::Risk
 
 Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
@@ -175,6 +228,11 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 - GuardDuty findings belong to AWS Accounts
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:GuardDutyFinding)
+    ```
+
+- GuardDuty findings link back to the detector that produced them
+    ```cypher
+    (:GuardDutyFinding)-[:DETECTED_BY]->(:GuardDutyDetector)
     ```
 
 - GuardDuty findings may affect EC2 Instances
@@ -365,6 +423,8 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 | architectures | The instruction set architecture that the function supports. Architecture is a string array with one of the valid values. |
 | masterarn | For Lambda@Edge functions, the ARN of the main function. |
 | kmskeyarn | The KMS key that's used to encrypt the function's environment variables. This key is only returned if you've configured a customer managed key. |
+| anonymous_actions |  List of anonymous internet accessible actions that may be run on the function. |
+| anonymous_access | True if this function has a policy applied to it that allows anonymous access or if it is open to the internet. |
 | region | The AWS region where the Lambda function is deployed. |
 
 #### Relationships
@@ -486,16 +546,16 @@ Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/
     (:AWSLambda)-[:HAS]->(:AWSLambdaLayer)
     ```
 
+
 ### AWSPolicy
 
-Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html).
+Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html). There are two types of policies: inline and managed.
 
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | name | The friendly name (not ARN) identifying the policy |
-| createdate | ISO 8601 date-time when the policy was created|
 | type | "inline" or "managed" - the type of policy it is|
 | arn | The arn for this object |
 | **id** | The unique identifer for a policy. If the policy is managed this will be the Arn. If the policy is inline this will calculated as _AWSPrincipal_/inline_policy/_PolicyName_|
@@ -506,13 +566,72 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 - `AWSPrincipal` contains `AWSPolicy`
 
     ```cypher
-    (AWSPrincipal)-[POLICY]->(AWSPolicy)
+    (:AWSPrincipal)-[:POLICY]->(:AWSPolicy)
     ```
 
 - `AWSPolicy` contains `AWSPolicyStatement`
 
     ```cypher
-    (AWSPolicy)-[STATEMENTS]->(AWSPolicyStatement)
+    (:AWSPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
+    ```
+
+### AWSPolicy::AWSInlinePolicy
+
+Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html) of type "inline". An inline policy is a policy that is defined on a principal. Inline policies cannot be shared across principals.
+
+| Field | Description |
+|-------|-------------|
+| name | The friendly name (not ARN) identifying the policy |
+| type | "inline" |
+| arn | The arn for this object |
+| **id** | The unique identifer for a policy. Calculated as _AWSPrincipal_/inline_policy/_PolicyName_|
+
+
+#### Relationships
+
+- `AWSPrincipal` contains `AWSInlinePolicy`
+
+    ```cypher
+    (:AWSPrincipal)-[:POLICY]->(:AWSInlinePolicy)
+    ```
+
+- An `AWSInlinePolicy` is scoped to the AWSAccount of the principal it is attached to.
+
+    ```cypher
+    (:AWSInlinePolicy)-[:RESOURCE]->(:AWSAccount)
+    ```
+
+- `AWSInlinePolicy` contains `AWSPolicyStatement`
+
+    ```cypher
+    (:AWSInlinePolicy)-[:STATEMENT]->(:AWSPolicyStatement)
+    ```
+
+
+### AWSPolicy::AWSManagedPolicy
+
+Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Policy.html) of type "managed". A managed policy is a built-in policy created and maintained by AWS. Managed policies are shared across principals, and as such are not associated with a specific AWSAccount.
+
+| Field | Description |
+|-------|-------------|
+| name | The friendly name (not ARN) identifying the policy |
+| type | "managed" |
+| arn | The arn for this object |
+| **id** | The arn of the policy |
+
+
+#### Relationships
+
+- An `AWSPrincipal` can be assigned to one or more `AWSManagedPolicy`s
+
+    ```cypher
+    (:AWSPrincipal)-[:POLICY]->(:AWSManagedPolicy)
+    ```
+
+- An `AWSManagedPolicy` contains one or more `AWSPolicyStatement`s
+
+    ```cypher
+    (:AWSManagedPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
     ```
 
 ### AWSPolicyStatement
@@ -532,10 +651,10 @@ Representation of an [AWS Policy Statement](https://docs.aws.amazon.com/IAM/late
 
 #### Relationships
 
-- `AWSPolicy` contains `AWSPolicyStatement`
+- `AWSPolicy`s contain one or more `AWSPolicyStatement`s
 
     ```cypher
-    (AWSPolicy)-[STATEMENTS]->(AWSPolicyStatement)
+    (:AWSPolicy, :AWSInlinePolicy, :AWSManagedPolicy)-[:STATEMENT]->(:AWSPolicyStatement)
     ```
 
 
@@ -625,6 +744,12 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSAccount)-[RESOURCE]->(AWSUser)
     ```
 
+- AWS Users can be assigned AWSPolicies.
+
+    ```cypher
+    (:AWSUser)-[:POLICY]->(:AWSPolicy)
+    ```
+
 
 ### AWSPrincipal::AWSRole
 
@@ -634,6 +759,7 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
+| id | The arn of the role |
 | roleid | The stable and unique string identifying the role.  |
 | name | The friendly name that identifies the role.|
 | createdate| The date and time, in ISO 8601 date-time format, when the role was created. |
@@ -645,37 +771,37 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 - Some AWS Groups, Users, Principals, and EC2 Instances can assume AWS Roles.
 
     ```cypher
-    (AWSGroup, AWSUser, EC2Instance)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
+    (:AWSGroup, :AWSUser, :EC2Instance)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
     ```
 
 - Some AWS Roles can assume other AWS Roles.
 
     ```cypher
-    (AWSRole)-[STS_ASSUMEROLE_ALLOW]->(AWSRole)
+    (:AWSRole)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
     ```
 
 - Some AWS Roles trust AWS Principals.
 
     ```cypher
-    (AWSRole)-[TRUSTS_AWS_PRINCIPAL]->(AWSPrincipal)
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSPrincipal)
     ```
 
 - Members of an Okta group can assume associated AWS roles if Okta SAML is configured with AWS.
 
     ```cypher
-    (AWSRole)-[ALLOWED_BY]->(OktaGroup)
+    (:AWSRole)-[:ALLOWED_BY]->(:OktaGroup)
     ```
 
 - An IamInstanceProfile can be associated with a role.
 
     ```cypher
-    (AWSRole)<-[ASSOCIATED_WITH]-(AWSInstanceProfile)
+    (:AWSRole)<-[:ASSOCIATED_WITH]-(:AWSInstanceProfile)
     ```
 
 - AWS Roles are defined in AWS Accounts.
 
     ```cypher
-    (AWSAccount)-[RESOURCE]->(AWSRole)
+    (:AWSAccount)-[:RESOURCE]->(:AWSRole)
     ```
 
 - ECSTaskDefinitions have task roles.
@@ -688,9 +814,28 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:ECSTaskDefinition)-[:HAS_EXECUTION_ROLE]->(:AWSRole)
     ```
 
-- Cartography records assumerole events between AWS principals from CloudTrail management events
+- If an AWSRole trusts an AWSRootPrincipal, all roles in the AWSRootPrincipal's account will be able to assume the role.
+
     ```cypher
-    (AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
+    (:AWSRootPrincipal)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
+    ```
+
+- AWSRoles set up trust relationships with AWSServicePrincipals like "ec2.amazonaws.com" to enable use of those services.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSServicePrincipal)
+    ```
+
+- AWSRoles set up trust relationships with AWSFederatedPrincipals to enable use of those services.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSFederatedPrincipal)
+    ```
+
+- Cartography records assumerole events between AWS principals
+
+    ```cypher
+    (:AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(:AWSRole)
     ```
 
 - Cartography records SAML-based role assumptions from CloudTrail management events
@@ -703,6 +848,64 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (GitHubRepository)-[:ASSUMED_ROLE_WITH_WEB_IDENTITY {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
     ```
     Note: Generic web identity providers are not currently implemented.
+
+### AWSPrincipal::AWSRootPrincipal
+
+Representation of the root principal for an AWS account.
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the root principal|
+| **id** | Same as arn |
+
+
+#### Relationships
+
+- Every AWSAccount implicitly has a "root principal".
+
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:AWSRootPrincipal)
+    ```
+
+- If an AWSRole trusts an AWSRootPrincipal, all roles in the AWSRootPrincipal's account will be able to assume the role.
+
+    ```cypher
+    (:AWSRootPrincipal)-[:STS_ASSUMEROLE_ALLOW]->(:AWSRole)
+    ```
+
+### AWSPrincipal::AWSServicePrincipal
+
+Representation of a global AWS service principal e.g. "ec2.amazonaws.com"
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the service principal|
+| **id** | Same as arn |
+
+#### Relationships
+
+- We define trust relationships from AWS roles to AWSServicePrincipals like "ec2.amazonaws.com" to enable those services to use those roles.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSServicePrincipal)
+    ```
+
+### AWSPrincipal::AWSFederatedPrincipal
+
+Representation of a federated principal e.g. "arn:aws:iam::123456789012:saml-provider/my-saml-provider". Federated principals are used for authentication to AWS using SAML or OpenID Connect. Federated principals are only discoverable from AWS role trust relationships.
+
+| Field | Description |
+|-------|-------------|
+| **arn** | The arn of the federated principal|
+| **id** | Same as arn |
+
+#### Relationships
+
+- We can define trust relationships from AWS roles to AWSFederatedPrincipals like "arn:aws:iam::123456789012:saml-provider/my-saml-provider" so that other vendors and products can authenticate to AWS as those roles.
+
+    ```cypher
+    (:AWSRole)-[:TRUSTS_AWS_PRINCIPAL]->(:AWSFederatedPrincipal)
+    ```
 
 ### AWSTransitGateway
 Representation of an [AWS Transit Gateway](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TransitGateway.html).
@@ -844,7 +1047,12 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 #### Relationships
 - Account Access Keys may authenticate AWS Users and AWS Principal objects.
     ```
-    (AWSUser, AWSPrincipal)-[AWS_ACCESS_KEY]->(AccountAccessKey)
+    (:AWSUser, :AWSPrincipal)-[:AWS_ACCESS_KEY]->(:AccountAccessKey)
+    ```
+
+- Account Access Keys are a resource under the AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:AccountAccessKey)
     ```
 
 ### CloudTrailTrail
@@ -1135,29 +1343,34 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
 |name| The name of the DNSRecord|
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The zoneid for the record, the value of the record, and the type concatenated together|
-|type| The record type of the DNS record|
-|value| If it is an A, ALIAS, or CNAME record, this is the IP address that the DNSRecord points to. If it is an NS record, the `name` is used here.|
+|type| The record type of the DNS record (A, AAAA, ALIAS, CNAME, NS, etc.)|
+|value| If it is an A or AAAA record, this is the IP address the DNSRecord resolves to. For CNAME or ALIAS records, this is the target hostname or AWS resource name. If it is an NS record, the `name` is used here.|
 
 #### Relationships
+- AWSDNSRecords can point to IP addresses.
+    ```
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:Ip)
+    ```
+
 - DNSRecords/AWSDNSRecords can point to each other.
     ```
-    (AWSDNSRecord, DNSRecord)-[DNS_POINTS_TO]->(AWSDNSRecord, DNSRecord)
+    (:AWSDNSRecord, :DNSRecord)-[:DNS_POINTS_TO]->(:AWSDNSRecord, :DNSRecord)
     ```
 
 
 - AWSDNSRecords can point to LoadBalancers.
     ```
-    (AWSDNSRecord)-[DNS_POINTS_TO]->(LoadBalancer, ESDomain)
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:LoadBalancer, :ESDomain)
     ```
 
 - AWSDNSRecords can point to ElasticIPAddresses.
     ```
-    (AWSDNSRecord)-[DNS_POINTS_TO]->(ElasticIPAddress)
+    (:AWSDNSRecord)-[:DNS_POINTS_TO]->(:ElasticIPAddress)
     ```
 
 - AWSDNSRecords can be members of AWSDNSZones.
     ```
-    (AWSDNSRecord)-[MEMBER_OF_DNS_ZONE]->(AWSDNSZone)
+    (:AWSDNSRecord)-[:MEMBER_OF_DNS_ZONE]->(:AWSDNSZone)
     ```
 
 
@@ -1544,7 +1757,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
     (NetworkInterface)-[PRIVATE_IP_ADDRESS]->(EC2PrivateIp)
     ```
 
-- EC2RouteTableAssociation is associated with a subnet.
+- EC2RouteTableAssociation links a subnet to a route table. The subnet uses this route table for egress routing decisions.
     ```
     (EC2RouteTableAssociation)-[ASSOCIATED_SUBNET]->(EC2Subnet)
     ```
@@ -1723,10 +1936,22 @@ Representation of an ECR image identified by its digest (e.g. a SHA hash). Speci
 [`ecr.list_images()`](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_ImageIdentifier.html). Also see
 ECRRepositoryImage.
 
+For multi-architecture images, Cartography creates ECRImage nodes for the manifest list, each platform-specific image, and any attestations.
+
 | Field | Description |
 |--------|-----------|
 | digest | The hash of this ECR image |
 | **id** | Same as digest |
+| layer_diff_ids | Ordered list of image layer digests for this image. Only set for `type="image"` nodes. `null` for manifest lists and attestations. |
+| type | Type of image: `"image"` (platform-specific or single-arch image), `"manifest_list"` (multi-arch index), or `"attestation"` (attestation manifest) |
+| architecture | CPU architecture (e.g., `"amd64"`, `"arm64"`). Set to `"unknown"` for attestations, `null` for manifest lists. |
+| os | Operating system (e.g., `"linux"`, `"windows"`). Set to `"unknown"` for attestations, `null` for manifest lists. |
+| variant | Architecture variant (e.g., `"v8"` for ARM). Optional field. |
+| attestation_type | For attestations only: the type of attestation (e.g., `"attestation-manifest"`). `null` for regular images. |
+| attests_digest | For attestations only: the digest of the image this attestation is for. `null` for regular images. |
+| media_type | The OCI/Docker media type of this manifest (e.g., `"application/vnd.oci.image.manifest.v1+json"`) |
+| artifact_media_type | The artifact media type if this is an OCI artifact. Optional field. |
+| child_image_digests | For manifest lists only: list of platform-specific image digests contained in this manifest list. Excludes attestations. `null` for regular images and attestations. |
 
 #### Relationships
 
@@ -1740,6 +1965,11 @@ ECRRepositoryImage.
     (:Package)-[:DEPLOYED]->(:ECRImage)
     ```
 
+- An ECRImage references its layers (only applies to `type="image"` nodes)
+    ```
+    (:ECRImage)-[:HAS_LAYER]->(:ECRImageLayer)
+    ```
+
 - A TrivyImageFinding is a vulnerability that affects an ECRImage.
 
     ```
@@ -1749,6 +1979,163 @@ ECRRepositoryImage.
 - ECSContainers have images.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    ```
+
+- An ECRImage may be built from a parent ECRImage (derived from provenance attestations).
+    ```
+    (:ECRImage)-[:BUILT_FROM]->(:ECRImage)
+    ```
+
+    Relationship properties:
+    - `parent_image_uri`: The package URI of the parent image from the attestation (e.g., `pkg:docker/account.dkr.ecr.region.amazonaws.com/repo@digest`)
+    - `from_attestation`: Boolean flag indicating the relationship was derived from provenance attestation (always `true`)
+    - `confidence`: Confidence level of the relationship (always `"explicit"` for attestation-based relationships)
+
+- A manifest list ECRImage contains platform-specific ECRImages (only applies to `type="manifest_list"` nodes)
+    ```
+    (:ECRImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(:ECRImage {type: "image"})
+    ```
+
+- An attestation ECRImage attests/validates another ECRImage (only applies to `type="attestation"` nodes)
+    ```
+    (:ECRImage {type: "attestation"})-[:ATTESTS]->(:ECRImage)
+    ```
+
+
+### ECRImageLayer
+
+Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `ECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker’s canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)
+
+| Field | Description |
+|-------|-------------|
+| **id** | Same as `diff_id` |
+| diff_id | Digest of the layer |
+| lastupdated | Timestamp of the last time the node was updated |
+| is_empty | Boolean flag identifying Docker's empty layer (true when the **DiffID** is `sha256:5f70bf18...`). |
+
+#### Relationships
+
+- Image layers belong to an AWSAccount
+    ```
+    (:ECRImageLayer)<-[:RESOURCE]-(:AWSAccount)
+    ```
+
+- Layers point to the next layer in the manifest
+    ```
+    (:ECRImageLayer)-[:NEXT]->(:ECRImageLayer)
+    ```
+
+- A layer can be the head of a platform-specific image (only `type="image"` nodes have layer relationships)
+    ```
+    (:ECRImage {type: "image"})-[:HEAD]->(:ECRImageLayer)
+    ```
+
+- A layer can be the tail of a platform-specific image
+    ```
+    (:ECRImage {type: "image"})-[:TAIL]->(:ECRImageLayer)
+    ```
+
+- Platform-specific images reference all of their layers
+    ```
+    (:ECRImage {type: "image"})-[:HAS_LAYER]->(:ECRImageLayer)
+    ```
+
+#### Query Examples
+
+- List the ordered layers for a specific image directly from graph relationships:
+    ```cypher
+    MATCH (img:ECRImage {digest: $digest})-[:HEAD]->(head:ECRImageLayer)
+    MATCH (img)-[:TAIL]->(tail:ECRImageLayer)
+    MATCH path = (head)-[:NEXT*0..]->(tail)
+    WHERE ALL(layer IN nodes(path) WHERE (img)-[:HAS_LAYER]->(layer))
+    WITH path
+    ORDER BY length(path) DESC
+    LIMIT 1
+    UNWIND range(0, length(path)) AS idx
+    RETURN idx AS position, nodes(path)[idx].diff_id AS diff_id
+    ORDER BY position;
+    ```
+
+- Use the stored manifest order when you only need the digests:
+    ```cypher
+    MATCH (img:ECRImage {digest: $digest})
+    UNWIND range(0, size(img.layer_diff_ids) - 1) AS idx
+    RETURN idx AS position, img.layer_diff_ids[idx] AS diff_id
+    ORDER BY position;
+    ```
+
+- Detect images whose layer chains diverge (typically because the Docker empty layer is repeated):
+    ```cypher
+    MATCH (img:ECRImage)-[:HAS_LAYER]->(layer:ECRImageLayer)
+    MATCH (layer)-[:NEXT]->(child:ECRImageLayer)
+    WHERE (img)-[:HAS_LAYER]->(child)
+    WITH img, layer, collect(DISTINCT child.diff_id) AS next_diff_ids
+    WHERE size(next_diff_ids) > 1
+    RETURN img.digest AS digest,
+           layer.diff_id AS branching_layer,
+           next_diff_ids AS successors
+    ORDER BY digest, branching_layer;
+    ```
+- Find parent image given a digest (need to specify base image repository):
+    ```cypher
+    WITH $target_digest as target_digest
+    // Get target image's layer chain via graph traversal
+    MATCH (target:ECRImage {digest: target_digest})
+    MATCH (target)-[:HAS_LAYER]->(tl:ECRImageLayer)
+    WITH target, collect(id(tl)) AS targetAllowedIds
+    CALL {
+    WITH target, targetAllowedIds
+    MATCH p = (target)-[:HEAD]->(:ECRImageLayer)-[:NEXT*0..]->(:ECRImageLayer)<-[:TAIL]-(target)
+    WITH p, targetAllowedIds, [n IN nodes(p) WHERE n:ECRImageLayer | id(n)] AS layerIds
+    WHERE all(i IN layerIds WHERE i IN targetAllowedIds)
+    RETURN [n IN nodes(p) WHERE n:ECRImageLayer | n.diff_id] AS target_diff_ids
+    ORDER BY length(p) DESC
+    LIMIT 1
+    }
+    // Get all base images with their layer chains from a repo called 'base-images'
+    MATCH (base_repo:ECRRepository {name: 'base-images'})-[:REPO_IMAGE]->(base_img:ECRRepositoryImage)-[:IMAGE]->(base:ECRImage)
+    MATCH (base)-[:HAS_LAYER]->(bl:ECRImageLayer)
+    WITH target_diff_ids, base, base_img, collect(id(bl)) AS baseAllowedIds
+    CALL {
+    WITH base, baseAllowedIds
+    MATCH p = (base)-[:HEAD]->(:ECRImageLayer)-[:NEXT*0..]->(:ECRImageLayer)<-[:TAIL]-(base)
+    WITH p, baseAllowedIds, [n IN nodes(p) WHERE n:ECRImageLayer | id(n)] AS layerIds
+    WHERE all(i IN layerIds WHERE i IN baseAllowedIds)
+    RETURN [n IN nodes(p) WHERE n:ECRImageLayer | n.diff_id] AS base_diff_ids
+    ORDER BY length(p) DESC
+    LIMIT 1
+    }
+    // Calculate longest common prefix
+    WITH target_diff_ids, base, base_img, base_diff_ids,
+        REDUCE(lcp = 0, i IN RANGE(0, SIZE(base_diff_ids)-1) |
+        CASE WHEN i < SIZE(target_diff_ids) AND base_diff_ids[i] = target_diff_ids[i]
+                THEN lcp + 1 ELSE lcp END
+        ) as lcp_length
+    // Only keep matches where ALL base layers match (complete prefix)
+    WHERE lcp_length = SIZE(base_diff_ids)
+    RETURN base.digest, base_img.uri, base_img.tag, base_img.image_pushed_at,
+        SIZE(base_diff_ids) as base_layer_count, lcp_length
+    ORDER BY lcp_length DESC, base_img.image_pushed_at DESC
+    LIMIT 1
+    ```
+
+- Find all platform-specific images in a multi-architecture manifest list:
+    ```cypher
+    MATCH (manifest_list:ECRImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(platform_image:ECRImage)
+    RETURN platform_image.architecture, platform_image.os, platform_image.variant, platform_image.digest
+    ORDER BY platform_image.architecture;
+    ```
+
+- Find which image an attestation validates:
+    ```cypher
+    MATCH (attestation:ECRImage {type: "attestation"})-[:ATTESTS]->(image:ECRImage)
+    RETURN attestation.digest AS attestation_digest, image.digest AS validated_image_digest;
+    ```
+
+- Find all attestations for a specific image:
+    ```cypher
+    MATCH (attestation:ECRImage {type: "attestation"})-[:ATTESTS]->(image:ECRImage {digest: $digest})
+    RETURN attestation.digest, attestation.attestation_type;
     ```
 
 
@@ -2220,7 +2607,25 @@ Representation of a generic Network Interface.  Currently however, we only creat
 | requester_managed  |  Indicates whether the interface is managed by the requester |
 | source_dest_check   | Indicates whether to validate network traffic to or from this network interface.  |
 | public_ip   | Public IPv4 address attached to the interface  |
+| attach_time | The timestamp when the network interface was attached to an EC2 instance. For primary interfaces (device_index=0), this reveals the first launch time of the instance [according to AWS](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html). |
+| device_index | The index of the device on the instance for the network interface attachment. A value of `0` indicates the primary (eth0) network interface, which is created when the instance is launched. |
 
+#### Usage Notes
+
+**Finding the True First Launch Time:**
+
+The `LaunchTime` field on EC2Instance nodes shows the *last* launch time (e.g., if an instance was stopped and restarted). To find when an instance was *originally* created, use the `attach_time` of the primary network interface (`device_index: 0`):
+
+```cypher
+// Get the true first launch time for EC2 instances
+MATCH (i:EC2Instance)-[:NETWORK_INTERFACE]->(ni:NetworkInterface {device_index: 0})
+WHERE ni.attach_time IS NOT NULL
+RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
+```
+
+**Primary vs Secondary Interfaces:**
+- **Primary interfaces** (`device_index: 0`): Created when the instance is launched, cannot be detached. The `attach_time` represents the instance's original creation time.
+- **Secondary interfaces** (`device_index: 1+`): Can be attached and detached at any time. The `attach_time` represents when the secondary interface was attached, not when the instance was created.
 
 #### Relationships
 
@@ -4190,6 +4595,7 @@ Representation of an AWS Identity Center.
 | instance_status | The status of the Identity Center instance |
 | created_date | The date the Identity Center instance was created |
 | last_modified_date | The date the Identity Center instance was last modified |
+| region | The AWS region where the Identity Center instance is located |
 
 #### Relationships
 - AWSIdentityCenter is part of an AWSAccount.
@@ -4200,6 +4606,12 @@ Representation of an AWS Identity Center.
 - AWSIdentityCenter has permission sets.
     ```
     (AWSIdentityCenter)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    ```
+
+- Entra service principals can federate to AWS Identity Center via SAML
+
+    ```cypher
+    (:EntraServicePrincipal)-[:FEDERATES_TO]->(:AWSIdentityCenter)
     ```
 
 ### AWSSSOUser
@@ -4218,22 +4630,71 @@ Representation of an AWS SSO User.
 #### Relationships
 - AWSSSOUser is part of an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(AWSSSOUser)
+    (:AWSAccount)-[:RESOURCE]->(:AWSSSOUser)
     ```
 
 - AWSSSOUser can have roles assigned.
     ```
-    (AWSSSOUser)<-[ALLOWED_BY]-(AWSRole)
+    (:AWSSSOUser)<-[:ALLOWED_BY]-(:AWSRole)
     ```
 
-- UserAccount can be assumed by AWSSSOUser.
+ - OktaUsers can assume AWS SSO users via SAML federation
+     ```
+    (:OktaUser)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
-    (UserAccount)-[CAN_ASSUME_IDENTITY]->(AWSSSOUser)
+    More generically, user accounts can assume AWS SSO users via SAML federation.
+    ```
+    (:UserAccount)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
+    ```
+
+- AWSSSOUser has permission set assignments. These include direct assignments and via Identity Center groups.
+    ```
+    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
 
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
-    (AWSSSOUser)-[ASSUMED_ROLE_WITH_SAML]->(AWSRole)
+    (:AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML]->(:AWSRole)
+    ```
+
+- Entra users can sign on to AWSSSOUser via SAML federation through AWS Identity Center. See https://docs.aws.amazon.com/singlesignon/latest/userguide/idp-microsoft-entra.html and https://learn.microsoft.com/en-us/entra/identity/saas-apps/aws-single-sign-on-tutorial.
+    ```
+    (:EntraUser)-[:CAN_SIGN_ON_TO]->(:AWSSSOUser)
+    ```
+
+### AWSSSOGroup
+
+Representation of an AWS SSO Group.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier for the SSO group |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| display_name | The display name of the SSO group |
+| description | The description of the SSO group |
+| external_id | The external ID of the SSO group |
+| identity_store_id | The identity store ID of the SSO group |
+
+#### Relationships
+- AWSSSOGroup is part of an AWSAccount.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSSSOGroup)
+    ```
+
+- AWSSSOGroup can have roles assigned.
+    ```
+    (AWSSSOGroup)<-[ALLOWED_BY]-(AWSRole)
+    ```
+
+- AWSSSOGroup has assigned permission sets.
+    ```
+    (AWSSSOGroup)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    ```
+
+- AWSSSOUser membership in SSO groups.
+    ```
+    (AWSSSOUser)-[MEMBER_OF_SSO_GROUP]->(AWSSSOGroup)
     ```
 
 ### AWSPermissionSet
@@ -4249,6 +4710,7 @@ Representation of an AWS Identity Center Permission Set.
 | description | The description of the Permission Set |
 | session_duration | The session duration of the Permission Set |
 | instance_arn | The ARN of the Identity Center instance the Permission Set belongs to |
+| region | The AWS region where the Permission Set is located |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 

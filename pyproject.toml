@@ -35,9 +35,11 @@ requires-python = ">=3.10"
 dependencies = [
     "backoff>=2.1.2",
     "boto3>=1.15.1",
+    "aioboto3>=13.0.0",
+    "httpx>=0.24.0",
     "botocore>=1.18.1",
     "dnspython>=1.15.0",
-    "neo4j>=4.4.4",
+    "neo4j (>=5.28.2,<6.0.0)",
     "policyuniverse>=1.1.0.0",
     "google-api-python-client>=1.7.8",
     "google-auth>=2.37.0",
@@ -52,11 +54,21 @@ dependencies = [
     "adal>=1.2.4",
     "azure-cli-core>=2.26.0",
     "azure-mgmt-compute>=5.0.0",
+    "azure-mgmt-containerinstance>=10.0.0",
     "azure-mgmt-resource>=10.2.0",
     "azure-mgmt-cosmosdb>=6.0.0",
+    "azure-mgmt-web>=7.0.0",
+    "azure-mgmt-eventgrid>=10.0.0",
+    "azure-mgmt-logic>=10.0.0",
+    "azure-mgmt-datafactory>=8.0.0",
+    "azure-mgmt-containerservice>=30.0.0",
+    "azure-mgmt-network>=25.0.0",
+    "azure-mgmt-security>=5.0.0",
+    "azure-mgmt-monitor>=3.0.0",
     "msrestazure >= 0.6.4",
     "azure-mgmt-storage>=16.0.0",
     "azure-mgmt-sql<=1.0.0",
+    "azure-mgmt-authorization>=0.60.0",
     "azure-identity>=1.5.0",
     "msgraph-sdk",
     "kubernetes>=22.6.0",
@@ -66,7 +78,12 @@ dependencies = [
     "xmltodict",
     "duo-client",
     "cloudflare (>=4.1.0,<5.0.0)",
-    "scaleway>=2.9.0",
+    "scaleway>=2.10.0",
+    "google-cloud-resource-manager>=1.14.2",
+    "google-cloud-asset>=1.0.0",
+    "types-aiobotocore-ecr",
+    "typer>=0.9.0",
+    "slack-sdk>=3.37.0",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
@@ -79,12 +96,21 @@ dev = [
     "pre-commit",
     "pytest>=6.2.4",
     "pytest-mock",
-    "pytest-cov==6.3.0",
+    "pytest-cov==7.0.0",
     "pytest-rerunfailures",
     "pytest-asyncio",
     "types-PyYAML",
-    "black==25.1.0",
-    "types-requests<2.32.4.20250810",
+    "black==25.11.0",
+    "types-requests<2.32.4.20250914",
+    "azure-mgmt-web>=7.0.0",
+    "azure-mgmt-eventgrid>=10.0.0",
+    "azure-mgmt-logic>=10.0.0",
+    "azure-mgmt-datafactory>=8.0.0",
+    "azure-mgmt-containerservice>=30.0.0",
+    "azure-mgmt-containerinstance>=10.0.0",
+    "azure-mgmt-network>=25.0.0",
+    "azure-mgmt-security>=5.0.0",
+    "azure-mgmt-monitor>=3.0.0",
 ]
 doc = [
     "myst-parser[linkify]>=4.0.1",
@@ -102,6 +128,7 @@ include = ["cartography*"]
 [project.scripts]
 cartography = "cartography.cli:main"
 cartography-detectdrift = "cartography.driftdetect.cli:main"
+cartography-rules = "cartography.rules.cli:main"
 
 [tool.setuptools.package-data]
 "cartography" = ["py.typed"]

@@ -24,7 +24,7 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
 - GCPOrganizations can contain GCPProjects.
 
     ```
-    (GCPOrganization)-[RESOURCE]->(GCPProjects)
+    (GCPOrganization)-[RESOURCE]->(GCPProject)
     ```
 
 ### GCPFolder
@@ -36,28 +36,43 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
 | firstseen      | Timestamp of when a sync job first discovered this node                                                                                                                     |
 | lastupdated    | Timestamp of the last time the node was updated                                                                                                                             |
 | id             | The name of the folder, e.g. "folders/1234"                                                                                                                                 |
+| foldername     | The name of the folder, e.g. "folders/1234"                                                                                                                                 |
 | displayname    | A friendly name of the folder, e.g. "My Folder".                                                                                                                            |
 | lifecyclestate | The folder's current lifecycle state. Assigned by the server.  See the [official docs](https://cloud.google.com/resource-manager/reference/rest/v2/folders#LifecycleState). |
+| parent_org     | If the folder's parent is an organization, this field contains the organization ID, e.g. "organizations/1234"                                                               |
+| parent_folder  | If the folder's parent is another folder, this field contains the folder ID, e.g. "folders/5678"                                                                            |
 
 
 #### Relationships
 
- - GCPOrganizations are parents of GCPFolders.
+- GCPFolders are sub-resources of GCPOrganizations.
 
     ```
-    (GCPOrganization)<-[PARENT]-(GCPFolder)
+    (GCPOrganization)-[RESOURCE]->(GCPFolder)
     ```
 
- - GCPFolders can contain GCPProjects
+- GCPFolders can have parent GCPOrganizations.
 
     ```
-    (GCPFolder)-[RESOURCE]->(GCPProject)
+    (GCPFolder)-[PARENT]->(GCPOrganization)
     ```
 
- - GCPFolders can contain other GCPFolders.
+- GCPFolders can have parent GCPFolders.
 
     ```
-    (GCPFolder)-[RESOURCE]->(GCPFolder)
+    (GCPFolder)-[PARENT]->(GCPFolder)
+    ```
+
+- GCPFolders can contain GCPProjects
+
+    ```
+    (GCPProject)-[PARENT]->(GCPFolder)
+    ```
+
+- GCPFolders can contain other GCPFolders.
+
+    ```
+    (GCPFolder)-[PARENT]->(GCPFolder)
     ```
 
 ### GCPProject
@@ -69,22 +84,31 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
  | firstseen      | Timestamp of when a sync job first discovered this node                                                                                                                       |
  | lastupdated    | Timestamp of the last time the node was updated                                                                                                                               |
  | id             | The ID of the project, e.g. "sys-12345"                                                                                                                                       |
+ | projectid      | The ID of the project, e.g. "sys-12345"                                                                                                                                       |
  | projectnumber  | The number uniquely identifying the project, e.g. '987654'                                                                                                                    |
  | displayname    | A friendly name of the project, e.g. "MyProject".                                                                                                                             |
  | lifecyclestate | The project's current lifecycle state. Assigned by the server.  See the [official docs](https://cloud.google.com/resource-manager/reference/rest/v1/projects#LifecycleState). |
+ | parent_org     | If the project's parent is an organization, this field contains the organization ID, e.g. "organizations/1234"                                                                |
+ | parent_folder  | If the project's parent is a folder, this field contains the folder ID, e.g. "folders/5678"                                                                                  |
 
  ### Relationships
 
-- GCPOrganizations contain GCPProjects.
+- GCPProjects are sub-resources of GCPOrganizations.
 
     ```
-    (GCPOrganization)-[RESOURCE]->(GCPProjects)
+    (GCPOrganization)-[RESOURCE]->(GCPProject)
     ```
 
- - GCPFolders can contain GCPProjects
+- GCPProjects can have a parent GCPOrganization.
 
     ```
-    (GCPFolder)-[RESOURCE]->(GCPProject)
+    (GCPProject)-[PARENT]->(GCPOrganization)
+    ```
+
+- GCPProjects can have a parent GCPFolder.
+
+    ```
+    (GCPProject)-[PARENT]->(GCPFolder)
     ```
 
 - GCPVpcs are part of GCPProjects
@@ -300,7 +324,7 @@ Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/re
 - GCPVpcs contain GCPSubnets
 
     ```
-    (:GCPVpc)-[:RESOURCE]->(:GCPSubnet)
+    (:GCPVpc)-[:HAS]->(:GCPSubnet)
     ```
 
 - GCPSubnets are part of GCP VPCs
@@ -395,7 +419,7 @@ Representation of a GCP [Resource Record Set](https://cloud.google.com/dns/docs/
 | ---------- | ------------------------------------------------------- |
 | data | Data contained in the record
 | firstseen  | Timestamp of when a sync job first discovered this node |
-| **id**                   |Same as `name`|
+| **id**                   |Composite key `name|type|zone_id` to ensure uniqueness across record types and zones|
 | name       | The name of the Resource Record Set                                    |
 | type | The identifier of a supported record type. See the list of [Supported DNS record types](https://cloud.google.om/dns/docs/overview#supported_dns_record_types).
 | ttl | Number of seconds that this ResourceRecordSet can be cached by resolvers.
@@ -431,16 +455,22 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 
 #### Relationships
 
+- GCPSubnets are resources of GCPProjects (primary organizational relationship)
+
+    ```
+    (:GCPProject)-[:RESOURCE]->(:GCPSubnet)
+    ```
+
 - GCPSubnets are part of GCP VPCs
 
     ```
-    (GCPVpc)-[RESOURCE]->(GCPSubnet)
+    (:GCPVpc)-[:HAS]->(:GCPSubnet)
     ```
 
 - GCPNetworkInterfaces are connected to GCPSubnets
 
     ```
-    (GCPNetworkInterface)-[PART_OF_SUBNET]->(GCPSubnet)
+    (:GCPNetworkInterface)-[:PART_OF_SUBNET]->(:GCPSubnet)
     ```
 
 
@@ -684,4 +714,172 @@ Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/
 
     ```
     (GCPRole)-[RESOURCE]->(GCPProject)
+    ```
+
+### GCPPolicyBinding
+
+Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/reference/rest/v1/Policy#Binding). Policy bindings connect principals (users, service accounts, groups) to roles on specific resources.
+
+| Field                | Description                                                                      |
+| -------------------- | -------------------------------------------------------------------------------- |
+| id                   | The unique identifier for the policy binding in  the format "{resource}_{role}". |
+| role                 | The name of the GCP role being granted.                                          |
+| resource             | The full resource name where the policy binding is attached.                     |
+| resource_type        | The type of resource.                                                            |
+| members              | A list of principal email addresses that are granted the role.                   |
+| has_condition        | A boolean indicating if the policy binding has a condition attached.             |
+| condition_title      | The title of the condition.                                                      |
+| condition_expression | The expression of the condition.                                                 |
+| firstseen            | Timestamp of when a sync job first discovered this node.                         |
+| lastupdated          | Timestamp of the last time the node was updated.                                 |
+
+#### Relationships
+
+- GCPPolicyBindings are resources of GCPProjects.
+
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPPolicyBinding)
+    ```
+
+- GCPPrincipals have allow policies that grant them access.
+
+    ```
+    (GCPPrincipal)-[:HAS_ALLOW_POLICY]->(GCPPolicyBinding)
+    ```
+
+- GCPPolicyBindings grant roles to principals.
+
+    ```
+    (GCPPolicyBinding)-[:GRANTS_ROLE]->(GCPRole)
+    ```
+
+### GCPBigtableInstance
+
+Representation of a GCP [Bigtable Instance](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource name of the Bigtable Instance. |
+| name | The full resource name of the Bigtable Instance. |
+| display\_name | The human-readable display name for the instance. |
+| state | The current state of the instance (e.g., `READY`). |
+| type | The type of instance (e.g., `PRODUCTION`). |
+
+#### Relationships
+
+  - GCPBigtableInstances are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigtableInstance)
+    ```
+
+### GCPBigtableCluster
+
+Representation of a GCP [Bigtable Cluster](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances.clusters).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource name of the Bigtable Cluster. |
+| name | The full resource name of the Bigtable Cluster. |
+| location | The GCP location where this cluster resides (e.g., `projects/.../locations/us-central1-b`). |
+| state | The current state of the cluster (e.g., `READY`). |
+| default\_storage\_type | The storage media type for the cluster (e.g., `SSD`). |
+
+#### Relationships
+
+  - GCPBigtableClusters are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigtableCluster)
+    ```
+  - GCPBigtableInstances have one or more Clusters.
+    ```
+    (GCPBigtableInstance)-[:HAS_CLUSTER]->(GCPBigtableCluster)
+    ```
+
+### GCPBigtableTable
+
+Representation of a GCP [Bigtable Table](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances.tables).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource name of the Bigtable Table. |
+| name | The full resource name of the Bigtable Table. |
+| granularity | The granularity at which timestamps are stored (e.g., `MILLIS`). |
+
+#### Relationships
+
+  - GCPBigtableTables are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigtableTable)
+    ```
+  - GCPBigtableInstances have one or more Tables.
+    ```
+    (GCPBigtableInstance)-[:HAS_TABLE]->(GCPBigtableTable)
+    ```
+
+### GCPBigtableAppProfile
+
+Representation of a GCP [Bigtable App Profile](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances.appProfiles).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource name of the App Profile. |
+| name | The full resource name of the App Profile. |
+| description | The user-provided description of the app profile. |
+| multi\_cluster\_routing\_use\_any | Whether this profile routes to any available cluster. |
+| single\_cluster\_routing\_cluster\_id | The full resource ID of the cluster this profile routes to, if configured. |
+
+#### Relationships
+
+  - GCPBigtableAppProfiles are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigtableAppProfile)
+    ```
+  - GCPBigtableInstances have one or more App Profiles.
+    ```
+    (GCPBigtableInstance)-[:HAS_APP_PROFILE]->(GCPBigtableAppProfile)
+    ```
+  - GCPBigtableAppProfiles (with single cluster routing) route to a specific Cluster.
+    ```
+    (GCPBigtableAppProfile)-[:ROUTES_TO]->(GCPBigtableCluster)
+    ```
+
+
+### GCPBigtableBackup
+
+Representation of a GCP [Bigtable Backup](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances.clusters.backups).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource name of the Backup. |
+| name | The full resource name of the Backup. |
+| source\_table | The full resource name of the table this backup was created from. |
+| expire\_time | The timestamp when the backup will expire. |
+| start\_time | The timestamp when the backup creation started. |
+| end\_time | The timestamp when the backup creation finished. |
+| size\_bytes | The size of the backup in bytes. |
+| state | The current state of the backup (e.g., `READY`). |
+
+#### Relationships
+
+  - GCPBigtableBackups are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigtableBackup)
+    ```
+  - GCPBigtableClusters store Backups.
+    ```
+    (GCPBigtableCluster)-[:STORES_BACKUP]->(GCPBigtableBackup)
+    ```
+  - GCPBigtableTables are backed up as Backups.
+    ```
+    (GCPBigtableTable)-[:BACKED_UP_AS]->(GCPBigtableBackup)
     ```
