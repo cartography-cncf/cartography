@@ -580,7 +580,7 @@ def backoff_handler(details: Dict) -> None:
         This function logs at WARNING level to ensure visibility of retry
         operations in standard logging configurations. The message includes
         timing information and function identification for debugging.
-        The backoff library may provide partial details (e.g. ``wait`` can be ``None`` when a retry is triggered immediately). 
+        The backoff library may provide partial details (e.g. ``wait`` can be ``None`` when a retry is triggered immediately).
         Format the message defensively so logging never raises.
     """
     wait = details.get("wait")
