@@ -8,7 +8,7 @@ Represents a SentinelOne account, which is the top-level organizational unit for
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The unique identifier for the SentinelOne account |
+| **id** | The unique identifier for the SentinelOne account. |
 | **name** | The name of the SentinelOne account |
 | account_type | The type of account (e.g., Trial, Paid) |
 | active_agents | Number of active agents in the account |
@@ -157,7 +157,7 @@ Represents a Common Vulnerability and Exposure (CVE) discovered in applications 
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The unique identifier for the S1CVE record |
+| **id** | The unique identifier for the S1CVE record. Format: `S1\|{cve_id}`. |
 | **cve_id** | The CVE identifier (e.g., CVE-2023-12345) |
 | application_version_id | The ID of the affected application version |
 | base_score | The CVSS base score for the vulnerability |
