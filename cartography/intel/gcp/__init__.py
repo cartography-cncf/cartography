@@ -229,18 +229,12 @@ def _sync_project_resources(
                     predefined_roles=predefined_roles,
                 )
             except HttpError as e:
-                error_str = str(e)
-                if e.resp.status == 403 and "USER_PROJECT_DENIED" in error_str:
+                if e.resp.status == 403:
                     logger.warning(
-                        "CAI fallback skipped for project %s: USER_PROJECT_DENIED. "
-                        "The identity may lack serviceusage.serviceUsageConsumer on the quota project.",
+                        "CAI fallback skipped for project %s: %s. "
+                        "Ensure Cloud Asset API is enabled and roles/cloudasset.viewer is granted.",
                         project_id,
-                    )
-                elif e.resp.status == 403 and "SERVICE_DISABLED" in error_str:
-                    logger.warning(
-                        "CAI fallback skipped for project %s: Cloud Asset API is not enabled "
-                        "on the service account's host project. Enable it to use CAI fallback.",
-                        project_id,
+                        e.reason,
                     )
                 else:
                     raise
