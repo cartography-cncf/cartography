@@ -211,22 +211,13 @@ def _sync_project_resources(
                         quota_project_id=cai_quota_project,
                     )
 
-                # Lazily fetch predefined roles once from the quota project.
-                # Predefined roles are global, so we only need to fetch them once.
+                # Fetch predefined roles once for CAI fallback (they're global, not project-specific)
                 if predefined_roles is None:
+                    logger.info("Fetching predefined IAM roles for CAI fallback")
+                    iam_client = build_client("iam", "v1", credentials=credentials)
+                    predefined_roles = iam.get_gcp_predefined_roles(iam_client)
                     logger.info(
-                        "Fetching predefined IAM roles from quota project %s",
-                        cai_quota_project,
-                    )
-                    iam_quota_client = build_client(
-                        "iam",
-                        "v1",
-                        credentials=credentials,
-                        quota_project_id=cai_quota_project,
-                    )
-                    predefined_roles = iam.get_gcp_predefined_roles(iam_quota_client)
-                    logger.info(
-                        "Fetched %d predefined IAM roles from quota project",
+                        "Fetched %d predefined IAM roles",
                         len(predefined_roles),
                     )
 
@@ -235,14 +226,25 @@ def _sync_project_resources(
                     project_id,
                     cai_quota_project,
                 )
-                cai.sync(
-                    neo4j_session,
-                    cai_rest_client,
-                    project_id,
-                    gcp_update_tag,
-                    common_job_parameters,
-                    predefined_roles=predefined_roles,
-                )
+                try:
+                    cai.sync(
+                        neo4j_session,
+                        cai_rest_client,
+                        project_id,
+                        gcp_update_tag,
+                        common_job_parameters,
+                        predefined_roles=predefined_roles,
+                    )
+                except HttpError as e:
+                    if e.resp.status == 403 and "USER_PROJECT_DENIED" in str(e):
+                        logger.warning(
+                            "CAI fallback skipped for project %s: serviceusage.serviceUsageConsumer "
+                            "permission required on quota project. Grant roles/serviceusage.serviceUsageConsumer "
+                            "to enable CAI fallback. See: https://docs.cloud.google.com/asset-inventory/docs/roles-permissions",
+                            project_id,
+                        )
+                    else:
+                        raise
         if service_names.bigtable in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Bigtable.")
             bigtable_client = build_client(

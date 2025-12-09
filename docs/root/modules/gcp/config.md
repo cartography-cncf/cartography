@@ -15,7 +15,7 @@ Grant the following roles to the identity at the **organization level**. This en
 | `roles/iam.securityReviewer` | List/get IAM roles and service accounts | Yes |
 | `roles/resourcemanager.organizationViewer` | List/get GCP Organizations | Yes |
 | `roles/resourcemanager.folderViewer` | List/get GCP Folders | Yes |
-| `roles/serviceusage.serviceUsageConsumer` | Check which APIs are enabled on each project | Yes |
+| `roles/serviceusage.serviceUsageConsumer` | Check which APIs are enabled on each project; required for CAI fallback | Optional |
 | `roles/cloudasset.viewer` | Sync IAM policy bindings (effective policies across org hierarchy) | Optional |
 
 To grant a role at the organization level:
@@ -62,5 +62,5 @@ CAI API calls are billed against your **quota project** (the project associated 
 
 #### Limitations
 
-- **IAM Fallback**: Only retrieves custom roles defined at the project level. Predefined roles (e.g., `roles/viewer`, `roles/editor`) are not included. Enable the IAM API on target projects for complete role coverage.
+- **IAM Fallback**: Requires `roles/serviceusage.serviceUsageConsumer` on the quota project. If this permission is missing, Cartography will log a warning and skip the CAI fallback (other sync operations will continue normally). Predefined roles are fetched separately from the IAM API and included in the fallback sync.
 - **Policy Bindings**: Requires organization-level `roles/cloudasset.viewer`. If this role is missing, Cartography will log a warning and skip policy bindings sync (other sync operations will continue normally).
