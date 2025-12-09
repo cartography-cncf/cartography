@@ -15,17 +15,11 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class S1CVENodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
-    application_version_id: PropertyRef = PropertyRef("application_version_id")
     base_score: PropertyRef = PropertyRef("base_score")
     cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
     cvss_version: PropertyRef = PropertyRef("cvss_version")
-    days_detected: PropertyRef = PropertyRef("days_detected")
-    detection_date: PropertyRef = PropertyRef("detection_date")
-    last_scan_date: PropertyRef = PropertyRef("last_scan_date")
-    last_scan_result: PropertyRef = PropertyRef("last_scan_result")
     published_date: PropertyRef = PropertyRef("published_date")
     severity: PropertyRef = PropertyRef("severity")
-    status: PropertyRef = PropertyRef("status")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -49,6 +43,11 @@ class S1CVEToAccount(CartographyRelSchema):
 @dataclass(frozen=True)
 class S1AffectsRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    days_detected: PropertyRef = PropertyRef("days_detected")
+    detection_date: PropertyRef = PropertyRef("detection_date")
+    last_scan_date: PropertyRef = PropertyRef("last_scan_date")
+    last_scan_result: PropertyRef = PropertyRef("last_scan_result")
+    status: PropertyRef = PropertyRef("status")
 
 
 @dataclass(frozen=True)

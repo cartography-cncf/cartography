@@ -47,18 +47,19 @@ def transform(cves_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
         )
         transformed_cve = {
             # Required fields - let them fail if missing
-            "id": cve["id"],
+            "id": f"S1|{cve['cveId']}",  # Use CVE ID as the unique identifier for the node
             "cve_id": cve["cveId"],
             # Optional fields - use .get() with None default
             "application_version_id": app_version_id,
             "base_score": cve.get("baseScore"),
             "cvss_version": cve.get("cvssVersion"),
+            "published_date": cve.get("publishedDate"),
+            "severity": cve.get("severity"),
+            # Relationship properties
             "days_detected": cve.get("daysDetected"),
             "detection_date": cve.get("detectionDate"),
             "last_scan_date": cve.get("lastScanDate"),
             "last_scan_result": cve.get("lastScanResult"),
-            "published_date": cve.get("publishedDate"),
-            "severity": cve.get("severity"),
             "status": cve.get("status"),
         }
 
