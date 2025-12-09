@@ -256,9 +256,9 @@ def sync(
     :param project_id: The GCP Project ID to sync.
     :param gcp_update_tag: The timestamp of the current sync run.
     :param common_job_parameters: Common job parameters for the sync.
-    :param predefined_roles: Optional list of predefined roles fetched from the quota project.
+    :param predefined_roles: Optional list of predefined roles fetched from the IAM API.
         Since predefined roles are global (not project-specific), they can be fetched once
-        from any project with IAM API enabled and reused across all target projects.
+        and reused across all target projects.
     """
     logger.info(f"Syncing GCP IAM for project {project_id} via Cloud Asset Inventory")
 
@@ -280,12 +280,10 @@ def sync(
     roles_raw = get_gcp_roles_cai(cai_client, project_id)
     logger.info(f"Found {len(roles_raw)} custom roles in project {project_id} via CAI")
 
-    # Merge with predefined roles if provided
+    # Merge with predefined roles if provided (fetched once from IAM API and reused)
     if predefined_roles:
         roles_raw.extend(predefined_roles)
-        logger.info(
-            f"Added {len(predefined_roles)} predefined roles from quota project"
-        )
+        logger.info(f"Added {len(predefined_roles)} predefined roles from IAM API")
 
     roles = transform_gcp_roles_cai(roles_raw, project_id)
     load_gcp_roles_cai(neo4j_session, roles, project_id, gcp_update_tag)
