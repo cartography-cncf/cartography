@@ -8,7 +8,7 @@ Represents a SentinelOne account, which is the top-level organizational unit for
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The unique identifier for the SentinelOne account |
+| **id** | The unique identifier for the SentinelOne account. |
 | **name** | The name of the SentinelOne account |
 | account_type | The type of account (e.g., Trial, Paid) |
 | active_agents | Number of active agents in the account |
@@ -35,6 +35,12 @@ Represents a SentinelOne account, which is the top-level organizational unit for
 
     ```
     (S1Account)-[RESOURCE]->(S1ApplicationVersion)
+    ```
+
+- A S1Account has security risks through S1CVEs.
+
+    ```
+    (S1Account)-[RISK]->(S1CVE)
     ```
 
 ### S1Agent
@@ -136,3 +142,48 @@ Represents a specific version of an application installed on SentinelOne agents.
     ```
     (S1Application)-[VERSION]->(S1ApplicationVersion)
     ```
+
+- A S1ApplicationVersion can be affected by S1CVEs.
+
+    ```
+    (S1CVE)-[AFFECTS]->(S1ApplicationVersion)
+    ```
+
+### S1CVE
+
+Represents a Common Vulnerability and Exposure (CVE) discovered in applications managed by SentinelOne.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier for the S1CVE record. Format: `S1\|{cve_id}`. |
+| **cve_id** | The CVE identifier (e.g., CVE-2023-12345) |
+| base_score | The CVSS base score for the vulnerability |
+| cvss_version | The version of CVSS used for scoring |
+| published_date | ISO 8601 timestamp of when the CVE was published |
+| severity | The severity level of the vulnerability (e.g., Critical, High, Medium, Low) |
+
+#### Relationships
+
+- A S1CVE belongs to a S1Account.
+
+    ```
+    (S1Account)-[RISK]->(S1CVE)
+    ```
+
+- A S1CVE affects a S1ApplicationVersion.
+
+    ```
+    (S1CVE)-[AFFECTS]->(S1ApplicationVersion)
+    ```
+
+    The AFFECTS relationship includes additional properties specific to each CVE finding:
+
+    | Property | Description |
+    |----------|-------------|
+    | days_detected | Number of days since the CVE was first detected in this application version |
+    | detection_date | ISO 8601 timestamp of when the CVE was first detected |
+    | last_scan_date | ISO 8601 timestamp of the last scan that detected this CVE |
+    | last_scan_result | Result of the last scan for this CVE |
+    | status | Current status of the CVE finding (e.g., Active, Resolved) |

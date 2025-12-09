@@ -114,19 +114,21 @@ def _sync_project_resources(
     # CAI is used for:
     # 1. Fallback IAM sync when IAM API is disabled on target projects (cai_rest_client)
     # 2. Policy bindings sync (cai_grpc_client)
-    # Both use the quota project (from credentials) so that the user only needs to enable the API on the host project
+    #
+    # Note: We do NOT explicitly set a quota project for CAI clients. Google's default behavior
+    # will use the service account's host project for quota/billing, which doesn't require
+    # the serviceusage.serviceUsageConsumer permission.
     cai_rest_client: Optional[Resource] = None  # REST client for asset listing
     cai_grpc_client: Optional[AssetServiceClient] = None  # gRPC client for policy APIs
-    cai_quota_project: Optional[str] = credentials.quota_project_id
-    cai_enabled_on_quota_project: Optional[bool] = (
-        None  # Cached check for CAI on quota project
+    cai_enabled_on_first_project: Optional[bool] = (
+        None  # Cached check for CAI enablement
     )
     policy_bindings_permission_ok: Optional[bool] = (
         None  # Track if we have permission for policy bindings
     )
 
-    # Predefined roles are global (not project-specific), so we fetch them once from the
-    # quota project and reuse them for all target projects that use the CAI fallback.
+    # Predefined roles are global (not project-specific), so we fetch them once
+    # and reuse them for all target projects that use the CAI fallback.
     predefined_roles: Optional[List[Dict]] = None
 
     # Per-project sync across services
@@ -193,48 +195,31 @@ def _sync_project_resources(
                 common_job_parameters,
             )
         else:
-            # Fallback to Cloud Asset Inventory even if the target project does not have the API enabled.
-            # CAI requires a quota/host project.
-            if cai_quota_project is None:
-                logger.warning(
-                    "IAM API not enabled on project %s and no quota project configured. "
-                    "Skipping IAM sync for this project.",
-                    project_id,
+            # Fallback to Cloud Asset Inventory even if the target project does not have the IAM API enabled.
+            # CAI uses the service account's host project for quota by default (no explicit quota project needed).
+            # Lazily initialize the CAI REST client once and reuse it for all projects.
+            if cai_rest_client is None:
+                cai_rest_client = build_client(
+                    "cloudasset",
+                    "v1",
+                    credentials=credentials,
                 )
-            else:
-                # Lazily initialize the CAI REST client once and reuse it for all projects.
-                if cai_rest_client is None:
-                    cai_rest_client = build_client(
-                        "cloudasset",
-                        "v1",
-                        credentials=credentials,
-                        quota_project_id=cai_quota_project,
-                    )
 
-                # Lazily fetch predefined roles once from the quota project.
-                # Predefined roles are global, so we only need to fetch them once.
-                if predefined_roles is None:
-                    logger.info(
-                        "Fetching predefined IAM roles from quota project %s",
-                        cai_quota_project,
-                    )
-                    iam_quota_client = build_client(
-                        "iam",
-                        "v1",
-                        credentials=credentials,
-                        quota_project_id=cai_quota_project,
-                    )
-                    predefined_roles = iam.get_gcp_predefined_roles(iam_quota_client)
-                    logger.info(
-                        "Fetched %d predefined IAM roles from quota project",
-                        len(predefined_roles),
-                    )
-
+            # Fetch predefined roles once for CAI fallback (they're global, not project-specific)
+            if predefined_roles is None:
+                logger.info("Fetching predefined IAM roles for CAI fallback")
+                iam_client = build_client("iam", "v1", credentials=credentials)
+                predefined_roles = iam.get_gcp_predefined_roles(iam_client)
                 logger.info(
-                    "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory using quota project %s.",
-                    project_id,
-                    cai_quota_project,
+                    "Fetched %d predefined IAM roles",
+                    len(predefined_roles),
                 )
+
+            logger.info(
+                "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory.",
+                project_id,
+            )
+            try:
                 cai.sync(
                     neo4j_session,
                     cai_rest_client,
@@ -243,6 +228,22 @@ def _sync_project_resources(
                     common_job_parameters,
                     predefined_roles=predefined_roles,
                 )
+            except HttpError as e:
+                error_str = str(e)
+                if e.resp.status == 403 and "USER_PROJECT_DENIED" in error_str:
+                    logger.warning(
+                        "CAI fallback skipped for project %s: USER_PROJECT_DENIED. "
+                        "The identity may lack serviceusage.serviceUsageConsumer on the quota project.",
+                        project_id,
+                    )
+                elif e.resp.status == 403 and "SERVICE_DISABLED" in error_str:
+                    logger.warning(
+                        "CAI fallback skipped for project %s: Cloud Asset API is not enabled "
+                        "on the service account's host project. Enable it to use CAI fallback.",
+                        project_id,
+                    )
+                else:
+                    raise
         if service_names.bigtable in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Bigtable.")
             bigtable_client = build_client(
@@ -294,56 +295,51 @@ def _sync_project_resources(
                         common_job_parameters,
                     )
 
-        # Check if CAI is enabled on the quota project (cached after first check).
-        # Policy bindings uses CAI from the quota project to fetch policies for target projects.
-        if cai_enabled_on_quota_project is None:
-            if cai_quota_project is None:
-                logger.info(
-                    "No quota project configured, skipping policy bindings sync.",
-                )
-                cai_enabled_on_quota_project = False
-            else:
-                quota_project_services = _services_enabled_on_project(
+        # Policy bindings sync uses CAI gRPC client.
+        # We attempt policy bindings for all projects unless we've already encountered a permission error.
+        # CAI uses the service account's host project for quota by default.
+        if policy_bindings_permission_ok is not False:
+            # Check if CAI is enabled (cached after first check on first project)
+            if cai_enabled_on_first_project is None:
+                first_project_services = _services_enabled_on_project(
                     build_client("serviceusage", "v1", credentials=credentials),
-                    cai_quota_project,
+                    project_id,
                 )
-                cai_enabled_on_quota_project = (
-                    service_names.cai in quota_project_services
+                cai_enabled_on_first_project = (
+                    service_names.cai in first_project_services
                 )
-                if cai_enabled_on_quota_project:
+                if cai_enabled_on_first_project:
                     logger.info(
-                        "CAI enabled on quota project %s, will sync policy bindings for all projects.",
-                        cai_quota_project,
+                        "CAI enabled, will sync policy bindings for all projects.",
                     )
                 else:
                     logger.info(
-                        "CAI not enabled on quota project %s, skipping policy bindings sync.",
-                        cai_quota_project,
+                        "CAI not enabled on project %s, skipping policy bindings sync. "
+                        "Enable the Cloud Asset Inventory API to sync IAM policy bindings.",
+                        project_id,
                     )
 
-        if cai_enabled_on_quota_project and policy_bindings_permission_ok is not False:
-            # Lazily initialize CAI gRPC client for policy bindings.
-            if cai_grpc_client is None:
-                cai_grpc_client = build_asset_client(
-                    credentials=credentials,
-                    quota_project_id=cai_quota_project,
+            if cai_enabled_on_first_project:
+                # Lazily initialize CAI gRPC client for policy bindings.
+                if cai_grpc_client is None:
+                    cai_grpc_client = build_asset_client(
+                        credentials=credentials,
+                    )
+                logger.info(
+                    "Syncing IAM policies for GCP project %s.",
+                    project_id,
                 )
-            logger.info(
-                "Syncing IAM policies for GCP project %s using quota project %s.",
-                project_id,
-                cai_quota_project,
-            )
-            success = policy_bindings.sync(
-                neo4j_session,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-                cai_grpc_client,
-            )
-            # Track if we have permission. Once set to False (permission denied),
-            # the outer condition will skip policy_bindings for remaining projects.
-            if not success:
-                policy_bindings_permission_ok = False
+                success = policy_bindings.sync(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cai_grpc_client,
+                )
+                # Track if we have permission. Once set to False (permission denied),
+                # the outer condition will skip policy_bindings for remaining projects.
+                if not success:
+                    policy_bindings_permission_ok = False
 
         permission_relationships.sync(
             neo4j_session,
