@@ -15,10 +15,6 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get(api_url: str, api_token: str, account_id: str) -> list[dict[str, Any]]:
-    """
-    Fetch CVE data from SentinelOne API
-    Should be simple and raise exceptions on failure
-    """
     logger.info("Retrieving SentinelOne CVE data")
     cves = get_paginated_results(
         api_url=api_url,
