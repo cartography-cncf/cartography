@@ -45,7 +45,7 @@ class AzureSeed(Seed):
         # VM data disk
         cartography.intel.azure.compute.load_vm_data_disks(
             self.neo4j_session,
-            str(tests.data.azure.compute.DESCRIBE_VMS[0]["id"]),
+            SUBSCRIPTION_ID,
             tests.data.azure.compute.DESCRIBE_VM_DATA_DISKS,
             self.update_tag,
         )
