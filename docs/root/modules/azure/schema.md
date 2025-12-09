@@ -47,7 +47,7 @@ CM -- CONTAINS --> CosmosDBMongoDBCollection
 ```
 
 :::{note}
-All entities are linked to a AzureSubscription, these relationships are not represented for readability.
+All entities are linked to an AzureSubscription, these relationships are not represented for readability.
 :::
 
 ### AzureTenant

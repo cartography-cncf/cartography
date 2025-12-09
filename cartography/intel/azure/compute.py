@@ -12,7 +12,7 @@ from cartography.graph.job import GraphJob
 from cartography.models.azure.vm.datadisk import AzureDataDiskSchema
 from cartography.models.azure.vm.disk import AzureDiskSchema
 from cartography.models.azure.vm.snapshot import AzureSnapshotSchema
-from cartography.models.azure.vm.virutalmachine import AzureVirtualMachineSchema
+from cartography.models.azure.vm.virtualmachine import AzureVirtualMachineSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials

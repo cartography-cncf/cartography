@@ -18,8 +18,8 @@ class AzureCosmosDBMongoDBCollectionProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     type: PropertyRef = PropertyRef("type")
     location: PropertyRef = PropertyRef("location")
-    throughput: PropertyRef = PropertyRef("throughput")
-    maxthroughput: PropertyRef = PropertyRef("autoscale_setting.max_throughput")
+    throughput: PropertyRef = PropertyRef("options.throughput")
+    maxthroughput: PropertyRef = PropertyRef("options.autoscale_setting.max_throughput")
     collectionname: PropertyRef = PropertyRef("resource.id")
     analyticalttl: PropertyRef = PropertyRef("resource.analytical_storage_ttl")
 

@@ -15,6 +15,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class AzureRecoverableDatabaseProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    name: PropertyRef = PropertyRef("name")
+    edition: PropertyRef = PropertyRef("edition")
+    servicelevelobjective: PropertyRef = PropertyRef("service_level_objective")
+    lastbackupdate: PropertyRef = PropertyRef("last_available_backup_date")
 
 
 @dataclass(frozen=True)

@@ -15,6 +15,11 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class AzureCosmosDBLocationProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    locationname: PropertyRef = PropertyRef("location_name")
+    documentendpoint: PropertyRef = PropertyRef("document_endpoint")
+    provisioningstate: PropertyRef = PropertyRef("provisioning_state")
+    failoverpriority: PropertyRef = PropertyRef("failover_priority")
+    iszoneredundant: PropertyRef = PropertyRef("is_zone_redundant")
 
 
 @dataclass(frozen=True)

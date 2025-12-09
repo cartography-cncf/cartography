@@ -94,7 +94,7 @@ def get_database_account_list(
 
     for database_account in database_account_list:
         x = database_account["id"].split("/")
-        database_account["resourceGroup"] = x[x.index("resourceGroups") + 1]
+        database_account["resourcegroup"] = x[x.index("resourceGroups") + 1]
 
     return database_account_list
 
@@ -115,7 +115,7 @@ def transform_database_account_data(database_account_list: List[Dict]) -> List[D
         if "ip_rules" in database_account and len(database_account["ip_rules"]) > 0:
             iprules = [x["ip_address_or_range"] for x in database_account["ip_rules"]]
         database_account["ipruleslist"] = iprules
-        database_account["list_of_capabilities"] = capabilities
+        database_account["capabilities"] = capabilities
 
     return database_account_list
 

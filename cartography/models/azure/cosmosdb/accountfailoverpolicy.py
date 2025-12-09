@@ -15,8 +15,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class AzureCosmosDBAccountFailoverPolicyProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    locationname: PropertyRef = PropertyRef("locationname")
-    failoverpriority: PropertyRef = PropertyRef("failoverpriority")
+    locationname: PropertyRef = PropertyRef("location_name")
+    failoverpriority: PropertyRef = PropertyRef("failover_priority")
 
 
 @dataclass(frozen=True)

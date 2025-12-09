@@ -18,8 +18,8 @@ class AzureCosmosDBSqlDatabaseProperties(CartographyNodeProperties):
     location: PropertyRef = PropertyRef("location")
     name: PropertyRef = PropertyRef("name")
     type: PropertyRef = PropertyRef("type")
-    throughput: PropertyRef = PropertyRef("throughput")
-    maxthroughput: PropertyRef = PropertyRef("maxthroughput")
+    throughput: PropertyRef = PropertyRef("options.throughput")
+    maxthroughput: PropertyRef = PropertyRef("options.autoscale_setting.max_throughput")
 
 
 @dataclass(frozen=True)

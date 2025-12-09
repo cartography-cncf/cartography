@@ -77,7 +77,7 @@ def get_server_list(credentials: Credentials, subscription_id: str) -> List[Dict
 
     for server in server_list:
         x = server["id"].split("/")
-        server["resourceGroup"] = x[x.index("resourceGroups") + 1]
+        server["resourcegroup"] = x[x.index("resourceGroups") + 1]
 
     return server_list
 

@@ -18,7 +18,7 @@ class AzureStorageBlobContainerProperties(CartographyNodeProperties):
     type: PropertyRef = PropertyRef("type")
     name: PropertyRef = PropertyRef("name")
     deleted: PropertyRef = PropertyRef("deleted")
-    deleted_time: PropertyRef = PropertyRef("deleted_time")
+    deletedtime: PropertyRef = PropertyRef("deleted_time")
     default_encryption_scope: PropertyRef = PropertyRef("default_encryption_scope")
     public_access: PropertyRef = PropertyRef("public_access")
     lease_status: PropertyRef = PropertyRef("lease_status")
