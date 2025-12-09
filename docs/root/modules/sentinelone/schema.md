@@ -159,16 +159,10 @@ Represents a Common Vulnerability and Exposure (CVE) discovered in applications 
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The unique identifier for the S1CVE record. Format: `S1\|{cve_id}`. |
 | **cve_id** | The CVE identifier (e.g., CVE-2023-12345) |
-| application_version_id | The ID of the affected application version |
 | base_score | The CVSS base score for the vulnerability |
 | cvss_version | The version of CVSS used for scoring |
-| days_detected | Number of days since the CVE was first detected |
-| detection_date | ISO 8601 timestamp of when the CVE was first detected |
-| last_scan_date | ISO 8601 timestamp of the last scan that detected this CVE |
-| last_scan_result | Result of the last scan for this CVE |
 | published_date | ISO 8601 timestamp of when the CVE was published |
 | severity | The severity level of the vulnerability (e.g., Critical, High, Medium, Low) |
-| status | Current status of the CVE (e.g., Active, Resolved) |
 
 #### Relationships
 
@@ -183,3 +177,13 @@ Represents a Common Vulnerability and Exposure (CVE) discovered in applications 
     ```
     (S1CVE)-[AFFECTS]->(S1ApplicationVersion)
     ```
+
+    The AFFECTS relationship includes additional properties specific to each CVE finding:
+
+    | Property | Description |
+    |----------|-------------|
+    | days_detected | Number of days since the CVE was first detected in this application version |
+    | detection_date | ISO 8601 timestamp of when the CVE was first detected |
+    | last_scan_date | ISO 8601 timestamp of the last scan that detected this CVE |
+    | last_scan_result | Result of the last scan for this CVE |
+    | status | Current status of the CVE finding (e.g., Active, Resolved) |
