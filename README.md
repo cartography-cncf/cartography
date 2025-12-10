@@ -30,7 +30,7 @@ You can learn more about the story behind Cartography in our [presentation at BS
 - [DigitalOcean](https://cartography-cncf.github.io/cartography/modules/digitalocean/index.html)
 - [Duo](https://cartography-cncf.github.io/cartography/modules/duo/index.html) - Users, Groups, Endpoints
 - [GitHub](https://cartography-cncf.github.io/cartography/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies
-- [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Bigtable, Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine
+- [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Bigtable, Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine, Vertex AI
 - [Google GSuite](https://cartography-cncf.github.io/cartography/modules/gsuite/index.html) - users, groups (deprecated - use Google Workspace instead)
 - [Google Workspace](https://cartography-cncf.github.io/cartography/modules/googleworkspace/index.html) - users, groups, devices, OAuth apps
 - [Kandji](https://cartography-cncf.github.io/cartography/modules/kandji/index.html) - Devices
