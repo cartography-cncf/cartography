@@ -4,6 +4,7 @@ from collections import namedtuple
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import boto3
 import neo4j
@@ -42,6 +43,25 @@ Ec2Data = namedtuple(
         "instance_ebs_volumes_list",
     ],
 )
+
+
+def _get_eks_cluster_name(tags: List[Dict[str, str]]) -> Optional[str]:
+    for tag in tags:
+        key = tag.get("Key")
+        value = tag.get("Value")
+
+        if key == "eks:cluster-name" and value:
+            return value
+
+        if key == "alpha.eksctl.io/cluster-name" and value:
+            return value
+
+        if key and key.startswith("kubernetes.io/cluster/"):
+            cluster_name = key.split("kubernetes.io/cluster/")[-1]
+            if cluster_name:
+                return cluster_name
+
+    return None
 
 
 @timeit
@@ -87,6 +107,7 @@ def transform_ec2_instances(
             launch_time_unix = (
                 str(time.mktime(launch_time.timetuple())) if launch_time else None
             )
+            eks_cluster_name = _get_eks_cluster_name(instance.get("Tags", []))
             instance_list.append(
                 {
                     "InstanceId": instance_id,
@@ -118,6 +139,7 @@ def transform_ec2_instances(
                     "HibernationOptions": instance.get("HibernationOptions", {}).get(
                         "Configured",
                     ),
+                    "EksClusterName": eks_cluster_name,
                 },
             )
 
