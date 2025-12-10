@@ -58,9 +58,9 @@ def get_gcp_predefined_roles(iam_client: Resource) -> List[Dict]:
     """
     Retrieve all predefined (Google-managed) IAM roles.
 
-    Predefined roles are global and not project-specific, so they can be fetched
-    from any project with the IAM API enabled. This is useful for the CAI fallback
-    where the target project may not have IAM API enabled, but the quota project does.
+    Predefined roles are global and not project-specific, so they can be fetched once
+    and reused across all target projects. This is useful for the CAI fallback where
+    the target project may not have the IAM API enabled.
 
     :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
     :return: A list of dictionaries representing GCP predefined roles.

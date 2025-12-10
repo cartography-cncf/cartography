@@ -253,3 +253,29 @@ def test_run_analysis_and_ensure_deps_no_requirements(
         neo4j_session,
         common_job_parameters,
     )
+
+
+def test_aws_handle_regions_retries_on_response_parser_error(mocker):
+    """Test that aws_handle_regions retries on ResponseParserError.
+
+    ResponseParserError occurs when AWS returns invalid XML responses (e.g., "Internal Failure"
+    as plain text instead of XML). This is a transient AWS infrastructure issue.
+    """
+    from botocore.parsers import ResponseParserError
+
+    call_count = 0
+
+    @aws_handle_regions
+    def fails_then_succeeds():
+        nonlocal call_count
+        call_count += 1
+        if call_count < 3:
+            raise ResponseParserError("Unable to parse response")
+        return "success"
+
+    # Mock backoff to avoid actual delays
+    mocker.patch("cartography.util.backoff_handler")
+
+    result = fails_then_succeeds()
+    assert result == "success"
+    assert call_count == 3

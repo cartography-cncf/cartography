@@ -15,7 +15,6 @@ Grant the following roles to the identity at the **organization level**. This en
 | `roles/iam.securityReviewer` | List/get IAM roles and service accounts | Yes |
 | `roles/resourcemanager.organizationViewer` | List/get GCP Organizations | Yes |
 | `roles/resourcemanager.folderViewer` | List/get GCP Folders | Yes |
-| `roles/serviceusage.serviceUsageConsumer` | Check which APIs are enabled on each project | Yes |
 | `roles/cloudasset.viewer` | Sync IAM policy bindings (effective policies across org hierarchy) | Optional |
 
 To grant a role at the organization level:
@@ -46,21 +45,22 @@ Cartography uses the [Cloud Asset Inventory API](https://cloud.google.com/asset-
 
 #### Setup
 
-CAI API calls are billed against your **quota project** (the project associated with your Application Default Credentials), not the target projects being scanned.
+When using a service account, CAI API calls are automatically billed against the service account's **host project**. No additional configuration is required.
 
-1. Enable the Cloud Asset Inventory API on your quota project:
+1. Enable the Cloud Asset Inventory API on the service account's host project:
    ```bash
-   gcloud services enable cloudasset.googleapis.com --project=YOUR_QUOTA_PROJECT
+   gcloud services enable cloudasset.googleapis.com --project=YOUR_SERVICE_ACCOUNT_PROJECT
    ```
 
-2. Check your current quota project:
-   ```bash
-   gcloud config get-value project
-   ```
+2. For policy bindings sync, grant `roles/cloudasset.viewer` at the **organization level** (see roles table above).
 
-3. For policy bindings sync, grant `roles/cloudasset.viewer` at the **organization level** (see roles table above).
+#### How It Works
+
+- CAI uses Google's default quota project resolution. For service accounts, this is the project where the service account was created.
+- This means you don't need to explicitly configure a quota project or grant additional permissions like `serviceusage.serviceUsageConsumer`.
+- Cartography automatically attempts CAI operations and gracefully handles permission errors.
 
 #### Limitations
 
-- **IAM Fallback**: Only retrieves custom roles defined at the project level. Predefined roles (e.g., `roles/viewer`, `roles/editor`) are not included. Enable the IAM API on target projects for complete role coverage.
+- **IAM Fallback**: Requires the Cloud Asset Inventory API to be enabled on the service account's host project. If the API is not enabled or the identity lacks permissions, Cartography will log a warning and skip the CAI fallback (other sync operations will continue normally). Predefined roles are fetched separately from the IAM API and included in the fallback sync.
 - **Policy Bindings**: Requires organization-level `roles/cloudasset.viewer`. If this role is missing, Cartography will log a warning and skip policy bindings sync (other sync operations will continue normally).
