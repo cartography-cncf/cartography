@@ -517,3 +517,35 @@ def test_sync_sql_servers_and_databases(
         )
         == expected_tde_rels
     )
+
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:sql",
+        f"{TEST_SUBSCRIPTION_ID}|dept:finance",
+    }
+    # Filter by subscription to isolate test
+    tag_nodes = neo4j_session.run(
+        "MATCH (t:AzureTag) WHERE t.id STARTS WITH $sub_id RETURN t.id",
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # Check Tag Relationships
+    expected_tag_rels = {
+        (DESCRIBE_SERVERS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (DESCRIBE_SERVERS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:sql"),
+        (DESCRIBE_SERVERS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (DESCRIBE_SERVERS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|dept:finance"),
+    }
+
+    result = neo4j_session.run(
+        """
+        MATCH (s:AzureSQLServer)-[:TAGGED]->(t:AzureTag)
+        WHERE s.id STARTS WITH '/subscriptions/' + $sub_id
+        RETURN s.id, t.id
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
+    actual_tag_rels = {(r["s.id"], r["t.id"]) for r in result}
+    assert actual_tag_rels == expected_tag_rels
