@@ -253,7 +253,9 @@ def get_resource_ids(
 
 def parse_permission_relationships_file(file_path: str) -> list[dict[str, Any]]:
     try:
-        if not os.path.isabs(file_path):
+        if os.path.isabs(file_path):
+            resolved_file_path = file_path
+        else:
             resolved_file_path = os.path.join(os.getcwd(), file_path)
         with open(resolved_file_path) as f:
             relationship_mapping = yaml.load(f, Loader=yaml.FullLoader)
