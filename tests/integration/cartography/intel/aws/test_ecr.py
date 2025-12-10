@@ -714,7 +714,9 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
         }
     ],
 )
-def test_sync_single_platform_image_marked_as_manifest_list(mock_get_repos, neo4j_session):
+def test_sync_single_platform_image_marked_as_manifest_list(
+    mock_get_repos, neo4j_session
+):
     """
     Test that single-platform images incorrectly marked as manifest lists are handled gracefully.
 
@@ -802,8 +804,12 @@ def test_sync_single_platform_image_marked_as_manifest_list(mock_get_repos, neo4
     # Verify it's the single-platform image
     single_platform_img = ecr_images[0]
     assert single_platform_img["digest"] == tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST
-    assert single_platform_img["type"] == "image"  # Should be "image", not "manifest_list"
-    assert single_platform_img["architecture"] is None  # No platform info since not a real manifest list
+    assert (
+        single_platform_img["type"] == "image"
+    )  # Should be "image", not "manifest_list"
+    assert (
+        single_platform_img["architecture"] is None
+    )  # No platform info since not a real manifest list
     assert single_platform_img["os"] is None
     assert single_platform_img["variant"] is None
 

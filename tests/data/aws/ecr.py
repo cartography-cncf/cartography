@@ -446,4 +446,4 @@ SINGLE_PLATFORM_IMAGE_DETAILS = {
 }
 
 # Empty response when trying to fetch as manifest list (the bug scenario)
-BATCH_GET_MANIFEST_LIST_EMPTY_RESPONSE = {"images": []}
+BATCH_GET_MANIFEST_LIST_EMPTY_RESPONSE: dict[str, list] = {"images": []}
