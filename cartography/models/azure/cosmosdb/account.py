@@ -15,7 +15,7 @@ class AzureCosmosDBAccountProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     type: PropertyRef = PropertyRef("type")
-    resourcegroup: PropertyRef = PropertyRef("resourcegroup")
+    resourcegroup: PropertyRef = PropertyRef("resourceGroup")
     location: PropertyRef = PropertyRef("location")
     kind: PropertyRef = PropertyRef("kind")
     name: PropertyRef = PropertyRef("name")

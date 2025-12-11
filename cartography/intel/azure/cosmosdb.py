@@ -94,7 +94,7 @@ def get_database_account_list(
 
     for database_account in database_account_list:
         x = database_account["id"].split("/")
-        database_account["resourcegroup"] = x[x.index("resourceGroups") + 1]
+        database_account["resourceGroup"] = x[x.index("resourceGroups") + 1]
 
     return database_account_list
 

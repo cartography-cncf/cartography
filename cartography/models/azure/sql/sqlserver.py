@@ -15,7 +15,7 @@ class AzureSQLServerProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
-    resourcegroup: PropertyRef = PropertyRef("resourcegroup")
+    resourcegroup: PropertyRef = PropertyRef("resourceGroup")
     location: PropertyRef = PropertyRef("location")
     kind: PropertyRef = PropertyRef("kind")
     state: PropertyRef = PropertyRef("state")
