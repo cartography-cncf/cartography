@@ -80,25 +80,6 @@ class AWSSSOUserToPermissionSetRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class AWSSSOUserToPermissionSetRel(CartographyRelSchema):
-    """
-    Represents that a user has been assigned this permission set in at least one AWS account.
-
-    Semantics:
-        This is a SUMMARY relationship indicating the user has some assignment involving this
-        permission set. It does NOT indicate which specific accounts the user can access.
-
-    To determine account-specific access:
-        Follow the authoritative path through roles:
-        (AWSSSOUser)-[:ALLOWED_BY]-(AWSRole)-[:RESOURCE]->(AWSAccount)
-
-        The role's [:ASSIGNED_TO_ROLE] relationship links back to the permission set,
-        providing the complete (User, PermissionSet, Account) context.
-
-    Query examples:
-        - "What permission sets does this user have?" → Use this HAS_PERMISSION_SET relationship
-        - "Which accounts can this user access?" → Use the ALLOWED_BY → Role → Account path
-    """
-
     target_node_label: str = "AWSPermissionSet"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("AssignedPermissionSets", one_to_many=True)},
