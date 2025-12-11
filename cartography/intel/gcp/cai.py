@@ -1,4 +1,5 @@
 import logging
+import random
 import time
 from typing import Any
 from typing import Dict
@@ -6,6 +7,7 @@ from typing import List
 
 import neo4j
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -19,6 +21,43 @@ logger = logging.getLogger(__name__)
 GOOGLE_API_NUM_RETRIES = 5
 # Delay between CAI API calls to avoid hitting rate limits (100 requests/min per project)
 CAI_CALL_DELAY_SECONDS = 1
+# Rate limit retry settings
+RATE_LIMIT_MAX_RETRIES = 5
+RATE_LIMIT_BASE_DELAY_SECONDS = 2
+
+
+def _execute_with_rate_limit_retry(request: Any) -> Dict[str, Any]:
+    """
+    Execute a Google API request with exponential backoff for 429 rate limit errors.
+
+    The googleapiclient's built-in num_retries handles transient errors but doesn't
+    properly back off on 429 rate limits. This wrapper adds exponential backoff
+    specifically for rate limiting.
+
+    :param request: A Google API request object (from .list(), etc.)
+    :return: The API response dict
+    :raises HttpError: If max retries exceeded or non-429 error
+    """
+    last_exception: HttpError | None = None
+    for attempt in range(RATE_LIMIT_MAX_RETRIES + 1):
+        try:
+            return request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+        except HttpError as e:
+            last_exception = e
+            if e.resp.status == 429 and attempt < RATE_LIMIT_MAX_RETRIES:
+                # Exponential backoff with jitter to avoid thundering herd
+                delay = RATE_LIMIT_BASE_DELAY_SECONDS * (2**attempt) + random.uniform(
+                    0, 1
+                )
+                logger.warning(
+                    f"CAI rate limited (429). Retrying in {delay:.1f}s "
+                    f"(attempt {attempt + 1}/{RATE_LIMIT_MAX_RETRIES})"
+                )
+                time.sleep(delay)
+            else:
+                raise
+    # This should be unreachable, but satisfies mypy
+    raise last_exception  # type: ignore[misc]
 
 
 @timeit
@@ -39,7 +78,7 @@ def get_gcp_service_accounts_cai(
         contentType="RESOURCE",  # Request full resource data, not just metadata
     )
     while request is not None:
-        response = request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+        response = _execute_with_rate_limit_retry(request)
         if "assets" in response:
             # Extract the actual service account data from CAI response
             for asset in response["assets"]:
@@ -77,7 +116,7 @@ def get_gcp_roles_cai(cai_client: Resource, project_id: str) -> List[Dict]:
         contentType="RESOURCE",  # Request full resource data, not just metadata
     )
     while custom_request is not None:
-        resp = custom_request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+        resp = _execute_with_rate_limit_retry(custom_request)
         if "assets" in resp:
             for asset in resp["assets"]:
                 if "resource" in asset and "data" in asset["resource"]:
