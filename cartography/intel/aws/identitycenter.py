@@ -474,43 +474,55 @@ def get_principal_roles(
     principal_assignments: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
+    At this point we've established that the principal has access to a given account
+    via a given permission set, and now we need to find the exact role in the account
+    it has access to.
     :param neo4j_session: neo4j.Session
     :param principal_assignments: either a list of {
                 "UserId": str
-                "PermissionSetArn": str,
                 "AccountId": str,
+                "PermissionSetArn": str,
             }, or a list of {
-                "GroupId": str
-                "PermissionSetArn": str,
+                "GroupId": str,
                 "AccountId": str,
+                "PermissionSetArn": str,
             }
     :return: either a list of {
         "UserId": str,
-        "PermissionSetArn": str,
         "AccountId": str,
+        "PermissionSetArn": str,
         "RoleArn": str
     } or,
     a list of  {
         "GroupId": str,
-        "PermissionSetArn": str,
         "AccountId": str,
+        "PermissionSetArn": str,
         "RoleArn": str
     }
     """
     # Get unique permission set ARNs from role assignments
-    permset_ids = list({ra["PermissionSetArn"] for ra in principal_assignments})
+    permset_ids = list({pa["PermissionSetArn"] for pa in principal_assignments})
     permset_to_role = _get_permset_roles(neo4j_session, permset_ids)
 
+    unmatched = 0
     # Use the lookup table to enrich assignments with exact role ARNs
     principal_roles = []
     for assignment in principal_assignments:
         lookup_key = (assignment["PermissionSetArn"], assignment["AccountId"])
         role_arn = permset_to_role.get(lookup_key)
+        if not role_arn:
+            unmatched += 1
         principal_roles.append(
             {
                 **assignment,
                 "RoleArn": role_arn,
             }
+        )
+    if unmatched > 0:
+        logger.info(
+            f"Identity Center: {unmatched} of {len(principal_assignments)} principal assignments "
+            "did not match a role. This usually means IAM roles for some permission sets/accounts "
+            "have not been ingested yet. Re-run the IAM sync, and then the Identity Center sync to fix."
         )
     return principal_roles
 
