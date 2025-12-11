@@ -158,6 +158,7 @@ def test_link_sso_group_to_permission_set(neo4j_session):
         mapping,
         lastupdated="test_tag",
         AWS_ID=TEST_ACCOUNT_ID,
+        Region="us-west-2",
     )
 
     assert check_rels(
@@ -222,6 +223,7 @@ def test_link_sso_user_membership_to_group(neo4j_session):
         membership,
         lastupdated="test_tag",
         AWS_ID=TEST_ACCOUNT_ID,
+        Region="us-west-2",
     )
 
     assert check_rels(
@@ -284,6 +286,7 @@ def test_link_sso_user_to_permission_set(neo4j_session):
         mapping,
         lastupdated="test_tag",
         AWS_ID=TEST_ACCOUNT_ID,
+        Region="us-west-2",
     )
 
     # Assert
