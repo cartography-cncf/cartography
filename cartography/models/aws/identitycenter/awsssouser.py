@@ -18,7 +18,7 @@ class SSOUserProperties(CartographyNodeProperties):
     user_name: PropertyRef = PropertyRef("UserName")
     identity_store_id: PropertyRef = PropertyRef("IdentityStoreId")
     external_id: PropertyRef = PropertyRef("ExternalId", extra_index=True)
-    region: PropertyRef = PropertyRef("Region")
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

@@ -475,7 +475,7 @@ def get_principal_roles(
 ) -> list[dict[str, Any]]:
     """
     :param neo4j_session: neo4j.Session
-    :param role_assignments: either a list of {
+    :param principal_assignments: either a list of {
                 "UserId": str
                 "PermissionSetArn": str,
                 "AccountId": str,
@@ -498,7 +498,7 @@ def get_principal_roles(
     }
     """
     # Get unique permission set ARNs from role assignments
-    permset_ids = list[str]({ra["PermissionSetArn"] for ra in principal_assignments})
+    permset_ids = list({ra["PermissionSetArn"] for ra in principal_assignments})
     permset_to_role = _get_permset_roles(neo4j_session, permset_ids)
 
     # Use the lookup table to enrich assignments with exact role ARNs
