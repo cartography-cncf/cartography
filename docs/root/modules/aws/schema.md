@@ -4740,10 +4740,19 @@ Representation of an AWS Identity Center Permission Set.
     (:AWSPermissionSet)-[:ASSIGNED_TO_ROLE]->(:AWSRole)
     ```
 
-- An AWSSSOUser can be assigned to one or more AWSPermissionSets. These include direct assignments and via Identity Center groups. Note that this relationship does not indicate which accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
+- An AWSSSOUser can be directly assigned to one or more AWSPermissionSets.
     ```
     (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
+    Notes:
+    - This relationship is only drawn for direct assignments. It does _not_ indicate assignment via AWSSSOGroups.
+    - This relationship does not indicate which accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
+
+- An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
+    ```
+    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    ```
+    Note: This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 
 ### EC2RouteTable
 
