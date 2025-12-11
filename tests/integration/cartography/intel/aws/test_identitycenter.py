@@ -7,18 +7,15 @@ import cartography.intel.aws.identitycenter
 import tests.data.aws.identitycenter
 from cartography.client.core.tx import load
 from cartography.intel.aws.identitycenter import get_permission_sets
+from cartography.intel.aws.identitycenter import load_group_roles
 from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
-from cartography.intel.aws.identitycenter import load_role_assignments
 from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
 from cartography.intel.aws.identitycenter import transform_permission_sets
 from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
 from cartography.models.aws.iam.role import AWSRoleSchema
-from cartography.models.aws.identitycenter.awspermissionset import (
-    RoleAssignmentAllowedByGroupMatchLink,
-)
 from cartography.models.aws.identitycenter.awssogroup import AWSSSOGroupSchema
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
 from tests.integration.util import check_nodes
@@ -339,12 +336,11 @@ def test_group_allowed_by_role(neo4j_session):
         }
     ]
 
-    load_role_assignments(
+    load_group_roles(
         neo4j_session,
         rel_data,
         TEST_ACCOUNT_ID,
         "test_tag",
-        RoleAssignmentAllowedByGroupMatchLink(),
     )
 
     assert check_rels(

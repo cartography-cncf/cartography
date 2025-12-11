@@ -1,9 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
 
 import boto3
 import botocore.exceptions
@@ -20,10 +16,10 @@ from cartography.models.aws.identitycenter.awspermissionset import (
     AWSPermissionSetSchema,
 )
 from cartography.models.aws.identitycenter.awspermissionset import (
-    RoleAssignmentAllowedByGroupMatchLink,
+    AWSRoleToSSOGroupMatchLink,
 )
 from cartography.models.aws.identitycenter.awspermissionset import (
-    RoleAssignmentAllowedByMatchLink,
+    AWSRoleToSSOUserMatchLink,
 )
 from cartography.models.aws.identitycenter.awssogroup import AWSSSOGroupSchema
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
@@ -50,7 +46,7 @@ def _is_permission_set_sync_unsupported_error(
 def get_identity_center_instances(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     """
     Get all AWS IAM Identity Center instances in the current region
     """
@@ -67,7 +63,7 @@ def get_identity_center_instances(
 @timeit
 def load_identity_center_instances(
     neo4j_session: neo4j.Session,
-    instance_data: List[Dict],
+    instance_data: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -94,7 +90,7 @@ def get_permission_sets(
     boto3_session: boto3.session.Session,
     instance_arn: str,
     region: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     """
     Get all permission sets for a given Identity Center instance
     """
@@ -117,9 +113,9 @@ def get_permission_sets(
 
 
 def transform_permission_sets(
-    permission_sets: List[Dict],
+    permission_sets: list[dict[str, Any]],
     region: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     """
     Transform permission sets by adding the RoleHint based on region.
 
@@ -141,7 +137,7 @@ def transform_permission_sets(
 @timeit
 def load_permission_sets(
     neo4j_session: neo4j.Session,
-    permission_sets: List[Dict],
+    permission_sets: list[dict[str, Any]],
     instance_arn: str,
     region: str,
     aws_account_id: str,
@@ -173,7 +169,7 @@ def get_sso_users(
     boto3_session: boto3.session.Session,
     identity_store_id: str,
     region: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     """
     Get all SSO users for a given Identity Store
     """
@@ -195,12 +191,12 @@ def get_sso_groups(
     boto3_session: boto3.session.Session,
     identity_store_id: str,
     region: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     """
     Get all SSO groups for a given Identity Store
     """
     client = boto3_session.client("identitystore", region_name=region)
-    groups: List[Dict[str, Any]] = []
+    groups: list[dict[str, Any]] = []
 
     paginator = client.get_paginator("list_groups")
     for page in paginator.paginate(IdentityStoreId=identity_store_id):
@@ -212,13 +208,32 @@ def get_sso_groups(
 
 
 def transform_sso_users(
-    users: List[Dict[str, Any]],
-    user_group_memberships: Optional[Dict[str, List[str]]] = None,
-    user_permission_sets: Optional[Dict[str, List[str]]] = None,
-) -> List[Dict[str, Any]]:
+    users: list[dict[str, Any]],
+    user_group_memberships: dict[str, list[str]] | None = None,
+    user_permissionsets: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """
     Transform SSO users to match the expected schema, optionally including group memberships
+    and permission set assignments.
+
+    Args:
+        users: List of SSO users from AWS API
+        user_group_memberships: Optional mapping of UserId -> [GroupIds]
+        user_permissionsets: Optional list of permission set assignments with shape:
+            [{UserId: str, PermissionSetArn: str, AccountId: str}, ...]
+
+    Returns:
+        Transformed users with MemberOfGroups and AssignedPermissionSets fields added
     """
+    # Build mapping from UserId to list of PermissionSetArns
+    user_permission_sets: dict[str, list[str]] = {}
+    if user_permissionsets:
+        for assignment in user_permissionsets:
+            user_id = assignment["UserId"]
+            perm_set = assignment["PermissionSetArn"]
+            user_permission_sets.setdefault(user_id, []).append(perm_set)
+
+    # Transform users
     transformed_users = []
     for user in users:
         if user.get("ExternalIds"):
@@ -226,7 +241,7 @@ def transform_sso_users(
         # Add group memberships if provided
         if user_group_memberships:
             user["MemberOfGroups"] = user_group_memberships.get(user["UserId"], [])
-        # Add direct permission set assignments if provided
+        # Add direct permission set assignments if available
         if user_permission_sets:
             user["AssignedPermissionSets"] = user_permission_sets.get(
                 user["UserId"], []
@@ -236,17 +251,34 @@ def transform_sso_users(
 
 
 def transform_sso_groups(
-    groups: List[Dict[str, Any]],
-    group_permission_sets: Optional[Dict[str, List[str]]] = None,
-) -> List[Dict[str, Any]]:
+    groups: list[dict[str, Any]],
+    group_role_assignments: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """
-    Transform SSO groups to match the expected schema, optionally including permission set assignments
+    Transform SSO groups to match the expected schema, optionally including permission set assignments.
+
+    Args:
+        groups: List of SSO groups from AWS API
+        group_role_assignments: Optional list of role assignments with shape:
+            [{GroupId: str, PermissionSetArn: str, AccountId: str}, ...]
+
+    Returns:
+        Transformed groups with AssignedPermissionSets field added
     """
-    transformed_groups: List[Dict[str, Any]] = []
+    # Build mapping from GroupId to list of PermissionSetArns
+    group_permission_sets: dict[str, list[str]] = {}
+    if group_role_assignments:
+        for assignment in group_role_assignments:
+            group_id = assignment["GroupId"]
+            perm_set = assignment["PermissionSetArn"]
+            group_permission_sets.setdefault(group_id, []).append(perm_set)
+
+    # Transform groups
+    transformed_groups: list[dict[str, Any]] = []
     for group in groups:
         if group.get("ExternalIds"):
             group["ExternalId"] = group["ExternalIds"][0].get("Id")
-        # Add permission set assignments if provided
+        # Add permission set assignments if available
         if group_permission_sets:
             group["AssignedPermissionSets"] = group_permission_sets.get(
                 group["GroupId"], []
@@ -258,7 +290,7 @@ def transform_sso_groups(
 @timeit
 def load_sso_users(
     neo4j_session: neo4j.Session,
-    users: List[Dict],
+    users: list[dict[str, Any]],
     identity_store_id: str,
     region: str,
     aws_account_id: str,
@@ -285,7 +317,7 @@ def load_sso_users(
 @timeit
 def load_sso_groups(
     neo4j_session: neo4j.Session,
-    groups: List[Dict],
+    groups: list[dict[str, Any]],
     identity_store_id: str,
     region: str,
     aws_account_id: str,
@@ -311,19 +343,18 @@ def load_sso_groups(
 
 @timeit
 @aws_handle_regions
-def get_role_assignments(
+def get_user_permissionsets(
     boto3_session: boto3.session.Session,
-    users: List[Dict],
+    users: list[dict[str, Any]],
     instance_arn: str,
     region: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     """
-    Get role assignments for SSO users
+    Get permissionsets for SSO users
     """
-
-    logger.info(f"Getting role assignments for {len(users)} users")
+    logger.info(f"Getting permissionsets for {len(users)} users")
     client = boto3_session.client("sso-admin", region_name=region)
-    role_assignments = []
+    user_permissionsets = []
 
     for user in users:
         user_id = user["UserId"]
@@ -334,7 +365,7 @@ def get_role_assignments(
             PrincipalType="USER",
         ):
             for assignment in page.get("AccountAssignments", []):
-                role_assignments.append(
+                user_permissionsets.append(
                     {
                         "UserId": user_id,
                         "PermissionSetArn": assignment.get("PermissionSetArn"),
@@ -342,24 +373,23 @@ def get_role_assignments(
                     },
                 )
 
-    return role_assignments
+    return user_permissionsets
 
 
 @timeit
 @aws_handle_regions
-def get_group_role_assignments(
+def get_group_permissionsets(
     boto3_session: boto3.session.Session,
-    groups: List[Dict],
+    groups: list[dict[str, Any]],
     instance_arn: str,
     region: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     """
-    Get role assignments for SSO groups
+    Get permissionsets for SSO groups
     """
-
-    logger.info(f"Getting role assignments for {len(groups)} groups")
+    logger.info(f"Getting permissionsets for {len(groups)} groups")
     client = boto3_session.client("sso-admin", region_name=region)
-    role_assignments: List[Dict[str, Any]] = []
+    group_permissionsets: list[dict[str, Any]] = []
 
     for group in groups:
         group_id = group["GroupId"]
@@ -370,7 +400,7 @@ def get_group_role_assignments(
             PrincipalType="GROUP",
         ):
             for assignment in page.get("AccountAssignments", []):
-                role_assignments.append(
+                group_permissionsets.append(
                     {
                         "GroupId": group_id,
                         "PermissionSetArn": assignment.get("PermissionSetArn"),
@@ -378,7 +408,7 @@ def get_group_role_assignments(
                     }
                 )
 
-    return role_assignments
+    return group_permissionsets
 
 
 @timeit
@@ -386,14 +416,14 @@ def get_group_role_assignments(
 def get_user_group_memberships(
     boto3_session: boto3.session.Session,
     identity_store_id: str,
-    groups: List[Dict],
+    groups: list[dict[str, Any]],
     region: str,
-) -> Dict[str, List[str]]:
+) -> dict[str, list[str]]:
     """
     Return a mapping of UserId -> [GroupIds] for all group memberships in the identity store.
     """
     client = boto3_session.client("identitystore", region_name=region)
-    user_groups: Dict[str, List[str]] = {}
+    user_groups: dict[str, list[str]] = {}
 
     for group in groups:
         group_id = group["GroupId"]
@@ -413,19 +443,68 @@ def get_user_group_memberships(
 @timeit
 def get_permset_roles(
     neo4j_session: neo4j.Session,
-    role_assignments: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    permset_ids: list[str],
+) -> dict[tuple[str, str], str]:
     """
-    Enrich role assignments with exact role ARNs by querying existing permission set relationships.
-    Uses the ASSIGNED_TO_ROLE relationships created when permission sets were loaded.
+    Given a list of permission set ARNs, return a mapping of (permission set ARN, account ID) to role ARN
     """
-    # Get unique permission set ARNs from role assignments
-    permset_ids = list({ra["PermissionSetArn"] for ra in role_assignments})
-
     query = """
     MATCH (role:AWSRole)<-[:ASSIGNED_TO_ROLE]-(permset:AWSPermissionSet)
+    MATCH (role)-[:RESOURCE]->(account:AWSAccount)
     WHERE permset.arn IN $PermSetIds
-    RETURN permset.arn AS PermissionSetArn, role.arn AS RoleArn
+    RETURN permset.arn AS PermissionSetArn, role.arn AS RoleArn, account.id AS AccountId
+    """
+    permset_to_role = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        query,
+        PermSetIds=permset_ids,
+    )
+    return {
+        (entry["PermissionSetArn"], entry["AccountId"]): entry["RoleArn"]
+        for entry in permset_to_role
+    }
+
+
+@timeit
+def get_principal_roles(
+    neo4j_session: neo4j.Session,
+    principal_assignments: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    :param neo4j_session: neo4j.Session
+    :param role_assignments: either a list of {
+                "UserId": str
+                "PermissionSetArn": str,
+                "AccountId": str,
+            }, or a list of {
+                "GroupId": str
+                "PermissionSetArn": str,
+                "AccountId": str,
+            }
+    :return: either a list of {
+        "UserId": str,
+        "PermissionSetArn": str,
+        "AccountId": str,
+        "RoleArn": str
+    } or,
+    a list of  {
+        "GroupId": str,
+        "PermissionSetArn": str,
+        "AccountId": str,
+        "RoleArn": str
+    }
+    """
+    # Get unique permission set ARNs from role assignments
+    permset_ids = list[str]({ra["PermissionSetArn"] for ra in principal_assignments})
+
+    # (1) We previously synced permissionset--roles.
+    # (2) In this function we currently have user/group--permissionset.
+    # Let's retrieve (1), so we can do user/group--role.
+    query = """
+    MATCH (role:AWSRole)<-[:ASSIGNED_TO_ROLE]-(permset:AWSPermissionSet)
+    MATCH (role)-[:RESOURCE]->(account:AWSAccount)
+    WHERE permset.arn IN $PermSetIds
+    RETURN permset.arn AS PermissionSetArn, role.arn AS RoleArn, account.id AS AccountId
     """
     permset_to_role = neo4j_session.execute_read(
         read_list_of_dicts_tx,
@@ -433,44 +512,56 @@ def get_permset_roles(
         PermSetIds=permset_ids,
     )
 
-    # Create mapping from permission set ARN to role ARN
-    permset_to_role_map = {
-        entry["PermissionSetArn"]: entry["RoleArn"] for entry in permset_to_role
+    # Transform the graph data to a useful mapping: (permission set ARN, account ID) to role ARN
+    permset_account_to_role_map = {
+        (entry["PermissionSetArn"], entry["AccountId"]): entry["RoleArn"]
+        for entry in permset_to_role
     }
 
-    # Enrich role assignments with exact role ARNs
-    enriched_assignments = []
-    for assignment in role_assignments:
-        role_arn = permset_to_role_map.get(assignment["PermissionSetArn"])
-        enriched_assignments.append(
+    # Use the lookup table to enrich assignments with exact role ARNs
+    principal_roles = []
+    for assignment in principal_assignments:
+        lookup_key = (assignment["PermissionSetArn"], assignment["AccountId"])
+        role_arn = permset_account_to_role_map.get(lookup_key)
+        principal_roles.append(
             {
                 **assignment,
                 "RoleArn": role_arn,
             }
         )
-
-    return enriched_assignments
+    return principal_roles
 
 
 @timeit
-def load_role_assignments(
+def load_user_roles(
     neo4j_session: neo4j.Session,
-    role_assignments: List[Dict],
+    user_roles: list[dict[str, Any]],
     aws_account_id: str,
     aws_update_tag: int,
-    matchlink_schema: Union[
-        RoleAssignmentAllowedByMatchLink,
-        RoleAssignmentAllowedByGroupMatchLink,
-    ],
 ) -> None:
-    """
-    Load role assignments into the graph using the provided MatchLink schema
-    """
-    logger.info(f"Loading {len(role_assignments)} role assignments")
+    logger.info(f"Loading {len(user_roles)} user roles")
     load_matchlinks(
         neo4j_session,
-        matchlink_schema,
-        role_assignments,
+        AWSRoleToSSOUserMatchLink(),
+        user_roles,
+        lastupdated=aws_update_tag,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id=aws_account_id,
+    )
+
+
+@timeit
+def load_group_roles(
+    neo4j_session: neo4j.Session,
+    group_roles: list[dict[str, Any]],
+    aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(f"Loading {len(group_roles)} group roles")
+    load_matchlinks(
+        neo4j_session,
+        AWSRoleToSSOGroupMatchLink(),
+        group_roles,
         lastupdated=aws_update_tag,
         _sub_resource_label="AWSAccount",
         _sub_resource_id=aws_account_id,
@@ -480,7 +571,7 @@ def load_role_assignments(
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(
         AWSIdentityCenterInstanceSchema(),
@@ -498,13 +589,13 @@ def cleanup(
 
     # Clean up role assignment MatchLinks
     GraphJob.from_matchlink(
-        RoleAssignmentAllowedByMatchLink(),
+        AWSRoleToSSOUserMatchLink(),
         "AWSAccount",
         common_job_parameters["AWS_ID"],
         common_job_parameters["UPDATE_TAG"],
     ).run(neo4j_session)
     GraphJob.from_matchlink(
-        RoleAssignmentAllowedByGroupMatchLink(),
+        AWSRoleToSSOGroupMatchLink(),
         "AWSAccount",
         common_job_parameters["AWS_ID"],
         common_job_parameters["UPDATE_TAG"],
@@ -515,10 +606,10 @@ def cleanup(
 def sync_identity_center_instances(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync Identity Center instances, their permission sets, and SSO users
@@ -551,7 +642,8 @@ def sync_identity_center_instances(
                     permission_sets = []
                     logger.warning(
                         "Skipping permission set sync for Identity Center instance %s in region %s "
-                        "because the instance does not support permission sets.",
+                        "because the instance does not support permission sets. "
+                        "Will attempt to sync users and groups only.",
                         instance_arn,
                         region,
                     )
@@ -574,23 +666,18 @@ def sync_identity_center_instances(
             groups = get_sso_groups(boto3_session, identity_store_id, region)
 
             # Get permission set assignments for groups
-            group_permission_sets: Dict[str, List[str]] = {}
-            group_role_assignments_raw: List[Dict[str, Any]] = []
+            group_permissionsets_raw: list[dict[str, Any]] = []
             if permission_set_sync_supported:
-                group_role_assignments_raw = get_group_role_assignments(
+                group_permissionsets_raw = get_group_permissionsets(
                     boto3_session,
                     groups,
                     instance_arn,
                     region,
                 )
-                for assignment in group_role_assignments_raw:
-                    group_id = assignment["GroupId"]
-                    perm_set = assignment["PermissionSetArn"]
-                    group_permission_sets.setdefault(group_id, []).append(perm_set)
 
             # Transform and load groups with their permission set assignments FIRST
             # so that user->group membership edges can attach in the same run.
-            transformed_groups = transform_sso_groups(groups, group_permission_sets)
+            transformed_groups = transform_sso_groups(groups, group_permissionsets_raw)
             load_sso_groups(
                 neo4j_session,
                 transformed_groups,
@@ -610,25 +697,20 @@ def sync_identity_center_instances(
             )
 
             # Get direct permission set assignments for users
-            user_permission_sets: Dict[str, List[str]] = {}
-            user_role_assignments_raw: List[Dict[str, Any]] = []
+            user_permissionsets_raw: list[dict[str, Any]] = []
             if permission_set_sync_supported:
-                user_role_assignments_raw = get_role_assignments(
+                user_permissionsets_raw = get_user_permissionsets(
                     boto3_session,
                     users,
                     instance_arn,
                     region,
                 )
-                for assignment in user_role_assignments_raw:
-                    uid = assignment["UserId"]
-                    perm_set = assignment["PermissionSetArn"]
-                    user_permission_sets.setdefault(uid, []).append(perm_set)
 
             # Transform and load users with their group memberships AFTER groups exist
             transformed_users = transform_sso_users(
                 users,
                 user_group_memberships,
-                user_permission_sets,
+                user_permissionsets_raw,
             )
             load_sso_users(
                 neo4j_session,
@@ -644,28 +726,26 @@ def sync_identity_center_instances(
             # load_role_assignments calls can MATCH existing AWSSSOUser/AWSSSOGroup
             # nodes when drawing the ALLOWED_BY edges.
             if permission_set_sync_supported:
-                enriched_role_assignments = get_permset_roles(
+                user_roles = get_principal_roles(
                     neo4j_session,
-                    user_role_assignments_raw,
+                    user_permissionsets_raw,
                 )
-                load_role_assignments(
+                load_user_roles(
                     neo4j_session,
-                    enriched_role_assignments,
+                    user_roles,
                     current_aws_account_id,
                     update_tag,
-                    RoleAssignmentAllowedByMatchLink(),
                 )
 
-                enriched_group_role_assignments = get_permset_roles(
+                group_roles = get_principal_roles(
                     neo4j_session,
-                    group_role_assignments_raw,
+                    group_permissionsets_raw,
                 )
-                load_role_assignments(
+                load_group_roles(
                     neo4j_session,
-                    enriched_group_role_assignments,
+                    group_roles,
                     current_aws_account_id,
                     update_tag,
-                    RoleAssignmentAllowedByGroupMatchLink(),
                 )
 
     cleanup(neo4j_session, common_job_parameters)
