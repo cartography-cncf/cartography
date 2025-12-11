@@ -1476,6 +1476,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | bootmode | The boot mode of the instance.|
 | instancelifecycle | Indicates whether this is a Spot Instance or a Scheduled Instance.|
 | hibernationoptions | Indicates whether the instance is enabled for hibernation.|
+| eks_cluster_name | The name of the EKS cluster this instance belongs to, if applicable. Extracted from instance tags.|
 
 
 #### Relationships
@@ -1543,6 +1544,11 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 - EC2Instances can have SSMInstancePatches
     ```
     (EC2Instance)-[HAS_PATCH]->(SSMInstancePatch)
+    ```
+
+- EC2Instances can be members of EKS Clusters
+    ```
+    (EC2Instance)-[MEMBER_OF_EKS_CLUSTER]->(EKSCluster)
     ```
 
 ### EC2KeyPair

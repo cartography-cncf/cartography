@@ -257,28 +257,29 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "azure_permission_relationships_file": config.azure_permission_relationships_file,
     }
 
-    try:
-        if config.azure_sp_auth:
-            credentials = Authenticator().authenticate_sp(
-                config.azure_tenant_id,
-                config.azure_client_id,
-                config.azure_client_secret,
+    if config.azure_sp_auth:
+        if not (
+            config.azure_tenant_id
+            and config.azure_client_id
+            and config.azure_client_secret
+        ):
+            raise ValueError(
+                "Azure Service Principal authentication requested, but tenant ID, client ID, "
+                "and client secret were not all provided.",
             )
-        else:
-            credentials = Authenticator().authenticate_cli()
 
-    except Exception as e:
-        logger.error(
-            (
-                "Unable to authenticate with Azure Service Principal, an error occurred: %s."
-                "Make sure your credentials (CLI or Service Principal) are configured correctly."
-            ),
-            e,
+        credentials = Authenticator().authenticate_sp(
+            config.azure_tenant_id,
+            config.azure_client_id,
+            config.azure_client_secret,
         )
-        return
+    else:
+        credentials = Authenticator().authenticate_cli()
 
     if not credentials:
-        return
+        raise RuntimeError(
+            "Azure authentication failed. Ensure Azure CLI login or Service Principal credentials are configured.",
+        )
 
     common_job_parameters["TENANT_ID"] = credentials.tenant_id
 
@@ -300,10 +301,9 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             )
 
         if not subscriptions:
-            logger.warning(
-                "No valid Azure credentials are found. No Azure subscriptions can be synced. Exiting Azure sync stage.",
+            raise RuntimeError(
+                "No Azure subscriptions found. Ensure the credentials have access to at least one subscription.",
             )
-            return
 
         _sync_multiple_subscriptions(
             neo4j_session,

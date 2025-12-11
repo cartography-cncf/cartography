@@ -72,17 +72,28 @@ def get_gcp_credentials(
 ) -> Optional[GoogleCredentials]:
     """
     Gets access tokens for GCP API access.
+
+    Note: We intentionally do NOT set a quota project automatically from ADC.
+    When credentials have a quota_project_id set, Google requires the
+    serviceusage.serviceUsageConsumer role on that project for most API calls.
+    By not setting it, we let Google use default billing behavior which doesn't
+    require this additional permission.
+
+    :param quota_project_id: Optional explicit quota project ID. Only set this
+        if you specifically need quota/billing charged to a particular project
+        AND the identity has serviceusage.serviceUsageConsumer on that project.
     """
     try:
         # Explicitly use Application Default Credentials with the cloud-platform scope.
-        credentials, default_project_id = default(
+        credentials, _ = default(
             scopes=["https://www.googleapis.com/auth/cloud-platform"],
             quota_project_id=quota_project_id,
         )
-        # Prefer explicit quota project, otherwise fall back to the ADC project ID if present.
-        effective_quota_project = quota_project_id or default_project_id
-        if effective_quota_project and credentials.quota_project_id is None:
-            credentials = credentials.with_quota_project(effective_quota_project)
+        # Only set quota project if explicitly requested.
+        # Do NOT automatically use the ADC project ID - this would require
+        # serviceusage.serviceUsageConsumer permission on that project.
+        if quota_project_id and credentials.quota_project_id is None:
+            credentials = credentials.with_quota_project(quota_project_id)
         return credentials
     except DefaultCredentialsError as e:
         logger.debug(
