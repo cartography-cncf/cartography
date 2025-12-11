@@ -174,3 +174,11 @@ MATCH (repo:GitHubRepository)-[edge:REQUIRES]->(dep:Dependency)
 RETURN repo.name, dep.name, edge.specifier, dep.version
 ```
 [test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28repo%3AGitHubRepository%29-%5Bedge%3AREQUIRES%5D-%3E%28dep%3ADependency%29%0ARETURN%20repo.name%2C%20dep.name%2C%20edge.specifier%2C%20dep.version)
+
+### What AWS accounts can a given AWS Identity Center user access? Via what permission sets and roles?
+```cypher
+MATCH (user:AWSSSOUser{user_name:"myuser"})-[:ALLOWED_BY]-(role:AWSRole)<-[:RESOURCE]-(account:AWSAccount)
+MATCH (role)<-[:ASSIGNED_TO_ROLE]-(ps:AWSPermissionSet)
+RETURN account.id, account.name, ps.name, role.arn
+```
+[test it locally](http://localhost:7474/browser/?preselectAuthMethod=NO_AUTH&db=neo4j&connectURL=bolt://neo4j:neo4j@localhost:7474&cmd=edit&arg=MATCH%20%28user%3AAWSSSOUser%7Buser_name%3A%22myuser%22%7D%29-%5B%3AALLOWED_BY%5D-%28role%3AAWSRole%29-%3C-%5B%3ARESOURCE%5D-%3E%28account%3AAWSAccount%29%0A%20%20%20%20MATCH%20%28role%29-%3C-%5B%3AASSIGNED_TO_ROLE%5D-%3C-%28ps%3AAWSPermissionSet%29%0A%20%20%20%20RETURN%20account.id%2C%20account.name%2C%20ps.name%2C%20role.arn)
