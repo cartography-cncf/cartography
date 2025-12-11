@@ -4598,14 +4598,14 @@ Representation of an AWS Identity Center.
 | region | The AWS region where the Identity Center instance is located |
 
 #### Relationships
-- AWSIdentityCenter is part of an AWSAccount.
+- An AWSIdentityCenter instance is part of an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(AWSIdentityCenter)
+    (:AWSAccount)-[:RESOURCE]->(:AWSIdentityCenter)
     ```
 
-- AWSIdentityCenter has permission sets.
+- AWSIdentityCenter instance has permission sets.
     ```
-    (AWSIdentityCenter)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    (:AWSIdentityCenter)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
 
 - Entra service principals can federate to AWS Identity Center via SAML
@@ -4633,12 +4633,17 @@ Representation of an AWS SSO User.
     (:AWSAccount)-[:RESOURCE]->(:AWSSSOUser)
     ```
 
-- AWSSSOUser can have roles assigned.
+- An AWSSSOUser can be a member of one or more AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
+    ```
+    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    ```
+
+- AWSSSOUsers can be assigned to AWSRoles. This happens if the user is assigned to a permission set for a specific account. Note that we only draw this relationship for direct assignments, _not_ assignment via AWSSSOGroups.
     ```
     (:AWSSSOUser)<-[:ALLOWED_BY]-(:AWSRole)
     ```
 
- - OktaUsers can assume AWS SSO users via SAML federation
+- OktaUsers can assume AWS SSO users via SAML federation
      ```
     (:OktaUser)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
@@ -4647,10 +4652,13 @@ Representation of an AWS SSO User.
     (:UserAccount)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
 
-- AWSSSOUser has permission set assignments. These include direct assignments and via Identity Center groups.
+- An AWSSSOUser can be directly assigned to one or more AWSPermissionSets.
     ```
     (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
+    Notes:
+    - This relationship is only drawn for direct assignments. It does _not_ indicate assignment via AWSSSOGroups.
+    - This relationship does not indicate which accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
@@ -4679,22 +4687,23 @@ Representation of an AWS SSO Group.
 #### Relationships
 - AWSSSOGroup is part of an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(AWSSSOGroup)
+    (:AWSAccount)-[:RESOURCE]->(:AWSSSOGroup)
     ```
 
-- AWSSSOGroup can have roles assigned.
+- An AWSSSOGroup can have roles assigned. This happens if the group is assigned to a permission set for a specific account.
     ```
-    (AWSSSOGroup)<-[ALLOWED_BY]-(AWSRole)
-    ```
-
-- AWSSSOGroup has assigned permission sets.
-    ```
-    (AWSSSOGroup)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    (:AWSSSOGroup)<-[:ALLOWED_BY]-(:AWSRole)
     ```
 
-- AWSSSOUser membership in SSO groups.
+- An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
     ```
-    (AWSSSOUser)-[MEMBER_OF_SSO_GROUP]->(AWSSSOGroup)
+    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    ```
+    Note: This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
+
+- AWSSSOUsers can be members of AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
+    ```
+    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
     ```
 
 ### AWSPermissionSet
@@ -4715,14 +4724,19 @@ Representation of an AWS Identity Center Permission Set.
 | lastupdated | Timestamp of the last time the node was updated |
 
 #### Relationships
-- AWSPermissionSet is part of an AWSIdentityCenter.
+- An AWSPermissionSet is part of an AWSIdentityCenter instance.
     ```
-    (AWSIdentityCenter)<-[HAS_PERMISSION_SET]-(AWSPermissionSet)
+    (:AWSIdentityCenter)<-[:HAS_PERMISSION_SET]-(:AWSPermissionSet)
     ```
 
-- AWSPermissionSet can be assigned to roles.
+- An AWSPermissionSet creates AWSRoles in all of the AWS accounts that its associated permission set assigns it to.
     ```
-    (AWSPermissionSet)-[ASSIGNED_TO_ROLE]->(AWSRole)
+    (:AWSPermissionSet)-[:ASSIGNED_TO_ROLE]->(:AWSRole)
+    ```
+
+- An AWSSSOUser can be assigned to one or more AWSPermissionSets. These include direct assignments and via Identity Center groups. Note that this relationship does not indicate which accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
+    ```
+    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
 
 ### EC2RouteTable
