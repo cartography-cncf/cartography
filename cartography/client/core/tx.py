@@ -191,8 +191,24 @@ def _run_index_query_with_retry(neo4j_session: neo4j.Session, query: str) -> Non
     """
     Execute an index creation query with retry logic.
     Index creation requires autocommit transactions and can experience transient errors.
+
+    Handles the EquivalentSchemaRuleAlreadyExists error that can occur when multiple
+    parallel sync operations attempt to create the same index simultaneously. Even though
+    we use CREATE INDEX IF NOT EXISTS, Neo4j has a race condition where concurrent
+    index creation can fail if another session creates the index between the existence
+    check and the actual creation.
     """
-    neo4j_session.run(query)
+    try:
+        neo4j_session.run(query)
+    except neo4j.exceptions.ClientError as e:
+        # EquivalentSchemaRuleAlreadyExists means another parallel sync already created
+        # this index, which is the desired end state. Safe to ignore.
+        if e.code == "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists":
+            logger.debug(
+                f"Index already exists (likely created by parallel sync): {query}"
+            )
+            return
+        raise
 
 
 def execute_write_with_retry(

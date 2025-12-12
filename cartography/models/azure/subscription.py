@@ -11,31 +11,37 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class AzurePrincipalProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+class AzureSubscriptionProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("subscriptionId")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    path: PropertyRef = PropertyRef("id")
+    name: PropertyRef = PropertyRef("displayName")
+    state: PropertyRef = PropertyRef("state")
+
+
+@dataclass(frozen=True)
+class AzureSubscriptionToTenantProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AzurePrincipalToTenantRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class AzurePrincipalToTenantRel(CartographyRelSchema):
+# (:AzureTenant)-[:RESOURCE]->(:AzureSubscription)
+class AzureSubscriptionToTenantRel(CartographyRelSchema):
     target_node_label: str = "AzureTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzurePrincipalToTenantRelProperties = (
-        AzurePrincipalToTenantRelProperties()
+    properties: AzureSubscriptionToTenantProperties = (
+        AzureSubscriptionToTenantProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzurePrincipalSchema(CartographyNodeSchema):
-    label: str = "AzurePrincipal"
-    properties: AzurePrincipalProperties = AzurePrincipalProperties()
-    sub_resource_relationship: AzurePrincipalToTenantRel = AzurePrincipalToTenantRel()
+class AzureSubscriptionSchema(CartographyNodeSchema):
+    label: str = "AzureSubscription"
+    properties: AzureSubscriptionProperties = AzureSubscriptionProperties()
+    sub_resource_relationship: AzureSubscriptionToTenantRel = (
+        AzureSubscriptionToTenantRel()
+    )
