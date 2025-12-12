@@ -633,6 +633,33 @@ def test_sync_account_instance_skips_permission_sets(
         "arn:aws:sso:::instance/ssoins-test",
     ) in all_instances, f"Expected test instance to be synced, but it wasn't found. Instances: {all_instances}"
 
+    # Assert OUTCOME 5: No ALLOWED_BY relationships are created without permission sets
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSRole",
+            "arn",
+            "AWSSSOUser",
+            "id",
+            "ALLOWED_BY",
+            True,
+        )
+        == set()
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSRole",
+            "arn",
+            "AWSSSOGroup",
+            "id",
+            "ALLOWED_BY",
+            True,
+        )
+        == set()
+    )
+
 
 @patch.object(
     cartography.intel.aws.identitycenter,
