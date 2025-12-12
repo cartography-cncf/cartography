@@ -20,7 +20,7 @@ class AzureStorageTableServiceProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureStorageTableServiceToStorageAccountPropertiesRelProperties(
+class AzureStorageTableServiceToStorageAccountRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -35,8 +35,8 @@ class AzureStorageTableServiceToStorageAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "USES"
-    properties: AzureStorageTableServiceToStorageAccountPropertiesRelProperties = (
-        AzureStorageTableServiceToStorageAccountPropertiesRelProperties()
+    properties: AzureStorageTableServiceToStorageAccountRelProperties = (
+        AzureStorageTableServiceToStorageAccountRelProperties()
     )
 
 

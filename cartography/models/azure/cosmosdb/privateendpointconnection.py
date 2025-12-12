@@ -24,7 +24,7 @@ class AzureCDBPrivateEndpointConnectionProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureCDBPrivateEndpointConnectionToCosmosDBAccountPropertiesRelProperties(
+class AzureCDBPrivateEndpointConnectionToCosmosDBAccountRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -40,8 +40,8 @@ class AzureCDBPrivateEndpointConnectionToCosmosDBAccountRel(CartographyRelSchema
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONFIGURED_WITH"
     properties: (
-        AzureCDBPrivateEndpointConnectionToCosmosDBAccountPropertiesRelProperties
-    ) = AzureCDBPrivateEndpointConnectionToCosmosDBAccountPropertiesRelProperties()
+        AzureCDBPrivateEndpointConnectionToCosmosDBAccountRelProperties
+    ) = AzureCDBPrivateEndpointConnectionToCosmosDBAccountRelProperties()
 
 
 @dataclass(frozen=True)

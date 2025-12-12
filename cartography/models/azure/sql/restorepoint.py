@@ -23,7 +23,7 @@ class AzureRestorePointProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureRestorePointToSQLDatabasePropertiesRelProperties(CartographyRelProperties):
+class AzureRestorePointToSQLDatabaseRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -36,8 +36,8 @@ class AzureRestorePointToSQLDatabaseRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureRestorePointToSQLDatabasePropertiesRelProperties = (
-        AzureRestorePointToSQLDatabasePropertiesRelProperties()
+    properties: AzureRestorePointToSQLDatabaseRelProperties = (
+        AzureRestorePointToSQLDatabaseRelProperties()
     )
 
 

@@ -19,7 +19,7 @@ Representation of a SnipeIT Tenant.
 
 #### Relationships
 
-- All SnipeIT users and asset are linked to a SnipeIT Tenant
+- All SnipeIT users and assets are linked to a SnipeIT Tenant
 
     ```cypher
     (:SnipeitUser)<-[:RESOURCE]-(:SnipeitTenant)

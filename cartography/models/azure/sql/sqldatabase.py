@@ -33,7 +33,7 @@ class AzureSQLDatabaseProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureSQLDatabaseToSQLServerPropertiesRelProperties(CartographyRelProperties):
+class AzureSQLDatabaseToSQLServerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -46,8 +46,8 @@ class AzureSQLDatabaseToSQLServerRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureSQLDatabaseToSQLServerPropertiesRelProperties = (
-        AzureSQLDatabaseToSQLServerPropertiesRelProperties()
+    properties: AzureSQLDatabaseToSQLServerRelProperties = (
+        AzureSQLDatabaseToSQLServerRelProperties()
     )
 
 

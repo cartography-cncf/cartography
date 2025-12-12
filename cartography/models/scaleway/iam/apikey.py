@@ -28,7 +28,7 @@ class ScalewayApiKeyProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class ScalewayApiKeyToUserPropertiesRelProperties(CartographyRelProperties):
+class ScalewayApiKeyToUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -41,13 +41,13 @@ class ScalewayApiKeyToUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS"
-    properties: ScalewayApiKeyToUserPropertiesRelProperties = (
-        ScalewayApiKeyToUserPropertiesRelProperties()
+    properties: ScalewayApiKeyToUserRelProperties = (
+        ScalewayApiKeyToUserRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class ScalewayApiKeyToApplicationPropertiesRelProperties(CartographyRelProperties):
+class ScalewayApiKeyToApplicationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -60,8 +60,8 @@ class ScalewayApiKeyToApplicationRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS"
-    properties: ScalewayApiKeyToApplicationPropertiesRelProperties = (
-        ScalewayApiKeyToApplicationPropertiesRelProperties()
+    properties: ScalewayApiKeyToApplicationRelProperties = (
+        ScalewayApiKeyToApplicationRelProperties()
     )
 
 

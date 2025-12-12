@@ -26,7 +26,7 @@ class AzureElasticPoolProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureElasticPoolToSQLServerPropertiesRelProperties(CartographyRelProperties):
+class AzureElasticPoolToSQLServerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -39,8 +39,8 @@ class AzureElasticPoolToSQLServerRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureElasticPoolToSQLServerPropertiesRelProperties = (
-        AzureElasticPoolToSQLServerPropertiesRelProperties()
+    properties: AzureElasticPoolToSQLServerRelProperties = (
+        AzureElasticPoolToSQLServerRelProperties()
     )
 
 

@@ -26,7 +26,7 @@ class AzureCosmosDBCassandraTableProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspacePropertiesRelProperties(
+class AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspaceRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -42,8 +42,8 @@ class AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspaceRel(CartographyRelSc
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
     properties: (
-        AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspacePropertiesRelProperties
-    ) = AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspacePropertiesRelProperties()
+        AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspaceRelProperties
+    ) = AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspaceRelProperties()
 
 
 @dataclass(frozen=True)

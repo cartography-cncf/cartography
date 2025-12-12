@@ -22,7 +22,7 @@ class AzureFailoverGroupProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureFailoverGroupToSQLServerPropertiesRelProperties(CartographyRelProperties):
+class AzureFailoverGroupToSQLServerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -35,8 +35,8 @@ class AzureFailoverGroupToSQLServerRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureFailoverGroupToSQLServerPropertiesRelProperties = (
-        AzureFailoverGroupToSQLServerPropertiesRelProperties()
+    properties: AzureFailoverGroupToSQLServerRelProperties = (
+        AzureFailoverGroupToSQLServerRelProperties()
     )
 
 

@@ -21,7 +21,7 @@ class AzureServerADAdministratorProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureServerADAdministratorToSQLServerPropertiesRelProperties(
+class AzureServerADAdministratorToSQLServerRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -36,8 +36,8 @@ class AzureServerADAdministratorToSQLServerRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ADMINISTERED_BY"
-    properties: AzureServerADAdministratorToSQLServerPropertiesRelProperties = (
-        AzureServerADAdministratorToSQLServerPropertiesRelProperties()
+    properties: AzureServerADAdministratorToSQLServerRelProperties = (
+        AzureServerADAdministratorToSQLServerRelProperties()
     )
 
 
