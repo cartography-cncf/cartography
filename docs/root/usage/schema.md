@@ -93,6 +93,9 @@
 ```{include} ../modules/okta/schema.md
 ```
 
+```{include} ../modules/ontology/schema.md
+```
+
 ```{include} ../modules/openai/schema.md
 ```
 
@@ -112,6 +115,9 @@
 ```
 
 ```{include} ../modules/snipeit/schema.md
+```
+
+```{include} ../modules/spacelift/schema.md
 ```
 
 ```{include} ../modules/tailscale/schema.md
