@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -44,6 +45,7 @@ class ProjectToBigtableInstanceRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GCPBigtableInstanceSchema(CartographyNodeSchema):
     label: str = "GCPBigtableInstance"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
     properties: GCPBigtableInstanceProperties = GCPBigtableInstanceProperties()
     sub_resource_relationship: ProjectToBigtableInstanceRel = (
         ProjectToBigtableInstanceRel()
