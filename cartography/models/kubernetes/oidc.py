@@ -34,7 +34,7 @@ class KubernetesOIDCProviderToClusterRel(CartographyRelSchema):
         {"id": PropertyRef("CLUSTER_ID", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "TRUSTS"
     properties: KubernetesOIDCProviderToClusterRelProperties = (
         KubernetesOIDCProviderToClusterRelProperties()
     )

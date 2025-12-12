@@ -186,7 +186,7 @@ def test_sync_cves_cleanup(mock_get_paginated_results, neo4j_session):
             lastupdated: $old_update_tag
         })
         CREATE (acc:S1Account {id: $account_id, lastupdated: $update_tag})
-        CREATE (old)<-[:RISK]-(acc)
+        CREATE (old)<-[:RESOURCE]-(acc)
         """,
         old_update_tag=old_update_tag,
         account_id=TEST_ACCOUNT_ID,

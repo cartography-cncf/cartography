@@ -37,7 +37,7 @@ class GitHubDependencyToRepositoryRel(CartographyRelSchema):
         {"id": PropertyRef("repo_url", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "REQUIRES"
     properties: GitHubDependencyToRepositoryRelProperties = (
         GitHubDependencyToRepositoryRelProperties()
     )
