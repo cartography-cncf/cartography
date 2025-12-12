@@ -166,7 +166,13 @@ def sync(
         if resource_group_name:
             agent_pools = get_agent_pools(client, cluster["name"], resource_group_name)
             transformed_pools = transform_agent_pools(agent_pools)
-            load_agent_pools(neo4j_session, transformed_pools, subscription_id, cluster_id, update_tag)
+            load_agent_pools(
+                neo4j_session,
+                transformed_pools,
+                subscription_id,
+                cluster_id,
+                update_tag,
+            )
 
             pool_cleanup_params = common_job_parameters.copy()
             pool_cleanup_params["CLUSTER_ID"] = cluster_id
