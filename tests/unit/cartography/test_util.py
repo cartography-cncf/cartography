@@ -273,8 +273,8 @@ def test_aws_handle_regions_retries_on_response_parser_error(mocker):
             raise ResponseParserError("Unable to parse response")
         return "success"
 
-    # Mock backoff to avoid actual delays
-    mocker.patch("cartography.util.backoff_handler")
+    # Mock sleep to avoid actual delays
+    mocker.patch("time.sleep")
 
     result = fails_then_succeeds()
     assert result == "success"
