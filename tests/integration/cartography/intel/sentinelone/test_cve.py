@@ -110,8 +110,8 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
         "id",
         "S1Account",
         "id",
-        "RISK",
-        rel_direction_right=False,  # (:S1CVE)<-[:RISK]-(:S1Account)
+        "RESOURCE",
+        rel_direction_right=False,  # (:S1CVE)<-[:RESOURCE]-(:S1Account)
     )
 
     assert actual_rels == expected_rels

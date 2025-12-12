@@ -79,6 +79,6 @@ def test_sync_datalake_filesystems(
         "id",
         "AzureDataLakeFileSystem",
         "id",
-        "CONTAINS",
+        "RESOURCE",
     )
     assert actual_rels == expected_rels

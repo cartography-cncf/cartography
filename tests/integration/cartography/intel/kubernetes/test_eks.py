@@ -205,7 +205,7 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         "id",
         "KubernetesOIDCProvider",
         "id",
-        "TRUSTS",
+        "RESOURCE",
     )
     assert expected_cluster_relationships.issubset(actual_cluster_relationships)
 

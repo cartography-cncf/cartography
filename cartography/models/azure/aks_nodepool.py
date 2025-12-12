@@ -54,7 +54,7 @@ class AzureKubernetesAgentPoolToSubscriptionRelProperties(CartographyRelProperti
 class AzureKubernetesAgentPoolToSubscriptionRel(CartographyRelSchema):
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("SUBSCRIPTION_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"

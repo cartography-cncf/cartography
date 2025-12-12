@@ -570,7 +570,7 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
         "id",
         "Dependency",
         "id",
-        "REQUIRES",
+        "RESOURCE",
     )
     assert actual_repo_dependency_relationships is not None
     assert expected_github_repo_dependency_relationships.issubset(
