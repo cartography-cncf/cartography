@@ -4904,7 +4904,7 @@ graph LR
 
     Endpoint -- USES --> EndpointConfig
 
-    TransformJob -- USES --> Model
+    TransformJob -- REFERENCES --> Model
     TransformJob -- WRITES_TO --> S3
 
     ModelPackageGroup -- CONTAINS --> ModelPackage
@@ -4915,7 +4915,7 @@ graph LR
 
 #### AWSSageMakerDomain
 
-Represents an [AWS SageMaker Domain](https://docs.aws.amazon.com/sagemaker/latest/dg/gs-studio-onboard.html). A Domain is a centralized environment for SageMaker Studio users and their resources.
+Represents an [AWS SageMaker Domain](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeDomain.html). A Domain is a centralized environment for SageMaker Studio users and their resources.
 
 | Field | Description |
 |-------|-------------|
@@ -4943,7 +4943,7 @@ Represents an [AWS SageMaker Domain](https://docs.aws.amazon.com/sagemaker/lates
 
 #### AWSSageMakerUserProfile
 
-Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker/latest/dg/domain-user-profile.html). A User Profile represents a user within a SageMaker Studio Domain.
+Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeUserProfile.html). A User Profile represents a user within a SageMaker Studio Domain.
 
 | Field | Description |
 |-------|-------------|
@@ -4976,7 +4976,7 @@ Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker
 
 #### AWSSageMakerNotebookInstance
 
-Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sagemaker/latest/dg/nbi.html). A Notebook Instance is a fully managed ML compute instance running Jupyter notebooks.
+Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeNotebookInstance.html). A Notebook Instance is a fully managed ML compute instance running Jupyter notebooks.
 
 | Field | Description |
 |-------|-------------|
@@ -5010,7 +5010,7 @@ Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sage
 
 #### AWSSageMakerTrainingJob
 
-Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker/latest/dg/how-it-works-training.html). A Training Job trains ML models using specified algorithms and datasets.
+Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTrainingJob.html). A Training Job trains ML models using specified algorithms and datasets.
 
 | Field | Description |
 |-------|-------------|
@@ -5050,7 +5050,7 @@ Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker
 
 #### AWSSageMakerModel
 
-Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints.html). A Model contains the information needed to deploy ML models for inference.
+Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference.
 
 | Field | Description |
 |-------|-------------|
@@ -5076,18 +5076,18 @@ Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest
     ```
     (AWSSageMakerModel)-[:HAS_EXECUTION_ROLE]->(AWSRole)
     ```
-- Model references artifacts in S3 Bucket
+- Model references artifacts (Knowledge from training ) that is stored in an S3 bucket
     ```
     (AWSSageMakerModel)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
     ```
-- Model derives from Model Package
+- Model derives model blueprint from a model package
     ```
     (AWSSageMakerModel)-[:DERIVES_FROM]->(AWSSageMakerModelPackage)
     ```
 
 #### AWSSageMakerEndpointConfig
 
-Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints.html). An Endpoint Config specifies the ML compute instances and model variants for deploying models.
+Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpointConfig.html). An Endpoint Config specifies the ML compute instances and model variants for deploying models. Allows for a model to provide a prediction to a request in real time.
 
 | Field | Description |
 |-------|-------------|
@@ -5113,7 +5113,7 @@ Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com
 
 #### AWSSageMakerEndpoint
 
-Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints.html). An Endpoint provides a persistent HTTPS endpoint for real-time inference.
+Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpoint.html). An Endpoint provides a persistent HTTPS endpoint for real-time inference.
 
 | Field | Description |
 |-------|-------------|
@@ -5141,7 +5141,8 @@ Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/lat
 
 #### AWSSageMakerTransformJob
 
-Represents an [AWS SageMaker Transform Job](https://docs.aws.amazon.com/sagemaker/latest/dg/batch-transform.html). A Transform Job performs batch inference on datasets.
+Represents an [AWS SageMaker Transform Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTransformJob.html). A Transform Job performs batch inference on datasets. Takes
+a large dataset and uses batch inference to write multiple predictions to an S3 Bucket.
 
 | Field | Description |
 |-------|-------------|
@@ -5162,9 +5163,9 @@ Represents an [AWS SageMaker Transform Job](https://docs.aws.amazon.com/sagemake
     ```
     (AWSAccount)-[:RESOURCE]->(AWSSageMakerTransformJob)
     ```
-- Transform Job uses a Model
+- Transform Job references a Model
     ```
-    (AWSSageMakerTransformJob)-[:USES]->(AWSSageMakerModel)
+    (AWSSageMakerTransformJob)-[:REFERENCES]->(AWSSageMakerModel)
     ```
 - Transform Job writes output to S3 Bucket
     ```
@@ -5173,7 +5174,7 @@ Represents an [AWS SageMaker Transform Job](https://docs.aws.amazon.com/sagemake
 
 #### AWSSageMakerModelPackageGroup
 
-Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sagemaker/latest/dg/model-registry.html). A Model Package Group is a collection of versioned models in the SageMaker Model Registry.
+Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackageGroup.html). A Model Package Group is a collection of versioned model packages in the SageMaker Model Registry.
 
 | Field | Description |
 |-------|-------------|
@@ -5199,7 +5200,7 @@ Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sa
 
 #### AWSSageMakerModelPackage
 
-Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemaker/latest/dg/model-registry.html). A Model Package is a versioned model in the SageMaker Model Registry.
+Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackage.html). A Model Package is a versioned model in the SageMaker Model Registry that acts as a blueprint for a deployed model.
 
 | Field | Description |
 |-------|-------------|

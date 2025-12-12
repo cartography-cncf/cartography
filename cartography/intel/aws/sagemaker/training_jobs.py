@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -21,39 +19,32 @@ logger = logging.getLogger(__name__)
 def get_training_jobs(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all SageMaker Training Jobs in the given region.
     """
     client = boto3_session.client("sagemaker", region_name=region)
     paginator = client.get_paginator("list_training_jobs")
-    training_jobs: List[Dict[str, Any]] = []
+    training_jobs: list[dict[str, Any]] = []
 
     # Get all training job names
-    training_job_names: List[str] = []
+    training_job_names: list[str] = []
     for page in paginator.paginate():
         for job in page.get("TrainingJobSummaries", []):
             training_job_names.append(job["TrainingJobName"])
 
     # Get detailed information for each training job
     for job_name in training_job_names:
-        try:
-            response = client.describe_training_job(TrainingJobName=job_name)
-            training_jobs.append(response)
-        except client.exceptions.ClientError as e:
-            logger.warning(
-                f"Failed to describe training job {job_name} in {region}: {e}",
-                exc_info=True,
-            )
-            continue
+        response = client.describe_training_job(TrainingJobName=job_name)
+        training_jobs.append(response)
 
     return training_jobs
 
 
 def transform_training_jobs(
-    training_jobs: List[Dict[str, Any]],
+    training_jobs: list[dict[str, Any]],
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform training job data for loading into Neo4j.
     """
@@ -116,7 +107,7 @@ def transform_training_jobs(
 @timeit
 def load_training_jobs(
     neo4j_session: neo4j.Session,
-    training_jobs: List[Dict[str, Any]],
+    training_jobs: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -137,7 +128,7 @@ def load_training_jobs(
 @timeit
 def cleanup_training_jobs(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove training jobs that no longer exist in AWS.
@@ -152,10 +143,10 @@ def cleanup_training_jobs(
 def sync_training_jobs(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     aws_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync SageMaker Training Jobs for all specified regions.

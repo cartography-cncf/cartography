@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -23,39 +21,32 @@ logger = logging.getLogger(__name__)
 def get_model_packages(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all SageMaker Model Packages in the given region.
     """
     client = boto3_session.client("sagemaker", region_name=region)
     paginator = client.get_paginator("list_model_packages")
-    model_packages: List[Dict[str, Any]] = []
+    model_packages: list[dict[str, Any]] = []
 
     # Get all model package ARNs
-    model_package_arns: List[str] = []
+    model_package_arns: list[str] = []
     for page in paginator.paginate():
         for package in page.get("ModelPackageSummaryList", []):
             model_package_arns.append(package["ModelPackageArn"])
 
     # Get detailed information for each model package
     for package_arn in model_package_arns:
-        try:
-            response = client.describe_model_package(ModelPackageName=package_arn)
-            model_packages.append(response)
-        except client.exceptions.ClientError as e:
-            logger.warning(
-                f"Failed to describe model package {package_arn} in {region}: {e}",
-                exc_info=True,
-            )
-            continue
+        response = client.describe_model_package(ModelPackageName=package_arn)
+        model_packages.append(response)
 
     return model_packages
 
 
 def transform_model_packages(
-    model_packages: List[Dict[str, Any]],
+    model_packages: list[dict[str, Any]],
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform model package data for loading into Neo4j.
     """
@@ -78,8 +69,10 @@ def transform_model_packages(
             "ModelPackageName": package.get("ModelPackageName"),
             "ModelPackageGroupName": package.get("ModelPackageGroupName"),
             "ModelPackageVersion": package.get("ModelPackageVersion"),
+            "ModelPackageDescription": package.get("ModelPackageDescription"),
             "ModelPackageStatus": package.get("ModelPackageStatus"),
             "CreationTime": package.get("CreationTime"),
+            "LastModifiedTime": package.get("LastModifiedTime"),
             "ModelApprovalStatus": package.get("ModelApprovalStatus"),
             "ModelArtifactsS3BucketId": model_artifacts_bucket_id,
             "Region": region,
@@ -92,7 +85,7 @@ def transform_model_packages(
 @timeit
 def load_model_packages(
     neo4j_session: neo4j.Session,
-    model_packages: List[Dict[str, Any]],
+    model_packages: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -113,7 +106,7 @@ def load_model_packages(
 @timeit
 def cleanup_model_packages(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove model packages that no longer exist in AWS.
@@ -128,10 +121,10 @@ def cleanup_model_packages(
 def sync_model_packages(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     aws_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync SageMaker Model Packages for all specified regions.

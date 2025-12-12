@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -20,39 +18,32 @@ logger = logging.getLogger(__name__)
 def get_domains(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all SageMaker Domains in the given region.
     """
     client = boto3_session.client("sagemaker", region_name=region)
     paginator = client.get_paginator("list_domains")
-    domains: List[Dict[str, Any]] = []
+    domains: list[dict[str, Any]] = []
 
     # Get all domain IDs
-    domain_ids: List[str] = []
+    domain_ids: list[str] = []
     for page in paginator.paginate():
         for domain in page.get("Domains", []):
             domain_ids.append(domain["DomainId"])
 
     # Get detailed information for each domain
     for domain_id in domain_ids:
-        try:
-            response = client.describe_domain(DomainId=domain_id)
-            domains.append(response)
-        except client.exceptions.ClientError as e:
-            logger.warning(
-                f"Failed to describe domain {domain_id} in {region}: {e}",
-                exc_info=True,
-            )
-            continue
+        response = client.describe_domain(DomainId=domain_id)
+        domains.append(response)
 
     return domains
 
 
 def transform_domains(
-    domains: List[Dict[str, Any]],
+    domains: list[dict[str, Any]],
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform domain data for loading into Neo4j.
     """
@@ -79,7 +70,7 @@ def transform_domains(
 @timeit
 def load_domains(
     neo4j_session: neo4j.Session,
-    domains: List[Dict[str, Any]],
+    domains: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -100,7 +91,7 @@ def load_domains(
 @timeit
 def cleanup_domains(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove domains that no longer exist in AWS.
@@ -115,10 +106,10 @@ def cleanup_domains(
 def sync_domains(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     aws_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync SageMaker Domains for all specified regions.

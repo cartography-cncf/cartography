@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -22,41 +20,32 @@ logger = logging.getLogger(__name__)
 def get_model_package_groups(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all SageMaker Model Package Groups in the given region.
     """
     client = boto3_session.client("sagemaker", region_name=region)
     paginator = client.get_paginator("list_model_package_groups")
-    model_package_groups: List[Dict[str, Any]] = []
+    model_package_groups: list[dict[str, Any]] = []
 
     # Get all model package group names
-    model_package_group_names: List[str] = []
+    model_package_group_names: list[str] = []
     for page in paginator.paginate():
         for group in page.get("ModelPackageGroupSummaryList", []):
             model_package_group_names.append(group["ModelPackageGroupName"])
 
     # Get detailed information for each model package group
     for group_name in model_package_group_names:
-        try:
-            response = client.describe_model_package_group(
-                ModelPackageGroupName=group_name
-            )
-            model_package_groups.append(response)
-        except client.exceptions.ClientError as e:
-            logger.warning(
-                f"Failed to describe model package group {group_name} in {region}: {e}",
-                exc_info=True,
-            )
-            continue
+        response = client.describe_model_package_group(ModelPackageGroupName=group_name)
+        model_package_groups.append(response)
 
     return model_package_groups
 
 
 def transform_model_package_groups(
-    model_package_groups: List[Dict[str, Any]],
+    model_package_groups: list[dict[str, Any]],
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform model package group data for loading into Neo4j.
     """
@@ -66,6 +55,7 @@ def transform_model_package_groups(
         transformed_group = {
             "ModelPackageGroupArn": group.get("ModelPackageGroupArn"),
             "ModelPackageGroupName": group.get("ModelPackageGroupName"),
+            "ModelPackageGroupDescription": group.get("ModelPackageGroupDescription"),
             "CreationTime": group.get("CreationTime"),
             "ModelPackageGroupStatus": group.get("ModelPackageGroupStatus"),
             "Region": region,
@@ -78,7 +68,7 @@ def transform_model_package_groups(
 @timeit
 def load_model_package_groups(
     neo4j_session: neo4j.Session,
-    model_package_groups: List[Dict[str, Any]],
+    model_package_groups: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -99,7 +89,7 @@ def load_model_package_groups(
 @timeit
 def cleanup_model_package_groups(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove model package groups that no longer exist in AWS.
@@ -114,10 +104,10 @@ def cleanup_model_package_groups(
 def sync_model_package_groups(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     aws_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync SageMaker Model Package Groups for all specified regions.

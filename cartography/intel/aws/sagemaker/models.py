@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -21,39 +19,32 @@ logger = logging.getLogger(__name__)
 def get_models(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all SageMaker Models in the given region.
     """
     client = boto3_session.client("sagemaker", region_name=region)
     paginator = client.get_paginator("list_models")
-    models: List[Dict[str, Any]] = []
+    models: list[dict[str, Any]] = []
 
     # Get all model names
-    model_names: List[str] = []
+    model_names: list[str] = []
     for page in paginator.paginate():
         for model in page.get("Models", []):
             model_names.append(model["ModelName"])
 
     # Get detailed information for each model
     for model_name in model_names:
-        try:
-            response = client.describe_model(ModelName=model_name)
-            models.append(response)
-        except client.exceptions.ClientError as e:
-            logger.warning(
-                f"Failed to describe model {model_name} in {region}: {e}",
-                exc_info=True,
-            )
-            continue
+        response = client.describe_model(ModelName=model_name)
+        models.append(response)
 
     return models
 
 
 def transform_models(
-    models: List[Dict[str, Any]],
+    models: list[dict[str, Any]],
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform model data for loading into Neo4j.
     """
@@ -107,7 +98,7 @@ def transform_models(
 @timeit
 def load_models(
     neo4j_session: neo4j.Session,
-    models: List[Dict[str, Any]],
+    models: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -128,7 +119,7 @@ def load_models(
 @timeit
 def cleanup_models(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove models that no longer exist in AWS.
@@ -143,10 +134,10 @@ def cleanup_models(
 def sync_models(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     aws_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync SageMaker Models for all specified regions.

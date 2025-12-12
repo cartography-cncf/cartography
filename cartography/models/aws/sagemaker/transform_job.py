@@ -59,7 +59,7 @@ class AWSSageMakerTransformJobToModelRel(CartographyRelSchema):
         {"model_name": PropertyRef("ModelName")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "USES"
+    rel_label: str = "REFERENCES"
     properties: AWSSageMakerTransformJobToModelRelProperties = (
         AWSSageMakerTransformJobToModelRelProperties()
     )

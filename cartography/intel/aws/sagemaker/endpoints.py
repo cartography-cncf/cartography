@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -20,39 +18,32 @@ logger = logging.getLogger(__name__)
 def get_endpoints(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all SageMaker Endpoints in the given region.
     """
     client = boto3_session.client("sagemaker", region_name=region)
     paginator = client.get_paginator("list_endpoints")
-    endpoints: List[Dict[str, Any]] = []
+    endpoints: list[dict[str, Any]] = []
 
     # Get all endpoint names
-    endpoint_names: List[str] = []
+    endpoint_names: list[str] = []
     for page in paginator.paginate():
         for endpoint in page.get("Endpoints", []):
             endpoint_names.append(endpoint["EndpointName"])
 
     # Get detailed information for each endpoint
     for endpoint_name in endpoint_names:
-        try:
-            response = client.describe_endpoint(EndpointName=endpoint_name)
-            endpoints.append(response)
-        except client.exceptions.ClientError as e:
-            logger.warning(
-                f"Failed to describe endpoint {endpoint_name} in {region}: {e}",
-                exc_info=True,
-            )
-            continue
+        response = client.describe_endpoint(EndpointName=endpoint_name)
+        endpoints.append(response)
 
     return endpoints
 
 
 def transform_endpoints(
-    endpoints: List[Dict[str, Any]],
+    endpoints: list[dict[str, Any]],
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform endpoint data for loading into Neo4j.
     """
@@ -76,7 +67,7 @@ def transform_endpoints(
 @timeit
 def load_endpoints(
     neo4j_session: neo4j.Session,
-    endpoints: List[Dict[str, Any]],
+    endpoints: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -97,7 +88,7 @@ def load_endpoints(
 @timeit
 def cleanup_endpoints(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove endpoints that no longer exist in AWS.
@@ -112,10 +103,10 @@ def cleanup_endpoints(
 def sync_endpoints(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     aws_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync SageMaker Endpoints for all specified regions.

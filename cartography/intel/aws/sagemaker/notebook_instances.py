@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -22,41 +20,34 @@ logger = logging.getLogger(__name__)
 def get_notebook_instances(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all SageMaker Notebook Instances in the given region.
     """
     client = boto3_session.client("sagemaker", region_name=region)
     paginator = client.get_paginator("list_notebook_instances")
-    notebook_instances: List[Dict[str, Any]] = []
+    notebook_instances: list[dict[str, Any]] = []
 
     # Get all notebook instance names
-    notebook_instance_names: List[str] = []
+    notebook_instance_names: list[str] = []
     for page in paginator.paginate():
         for instance in page.get("NotebookInstances", []):
             notebook_instance_names.append(instance["NotebookInstanceName"])
 
     # Get detailed information for each notebook instance
     for notebook_instance_name in notebook_instance_names:
-        try:
-            response = client.describe_notebook_instance(
-                NotebookInstanceName=notebook_instance_name
-            )
-            notebook_instances.append(response)
-        except client.exceptions.ClientError as e:
-            logger.warning(
-                f"Failed to describe notebook instance {notebook_instance_name} in {region}: {e}",
-                exc_info=True,
-            )
-            continue
+        response = client.describe_notebook_instance(
+            NotebookInstanceName=notebook_instance_name
+        )
+        notebook_instances.append(response)
 
     return notebook_instances
 
 
 def transform_notebook_instances(
-    notebook_instances: List[Dict[str, Any]],
+    notebook_instances: list[dict[str, Any]],
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform notebook instance data for loading into Neo4j.
     """
@@ -90,7 +81,7 @@ def transform_notebook_instances(
 @timeit
 def load_notebook_instances(
     neo4j_session: neo4j.Session,
-    notebook_instances: List[Dict[str, Any]],
+    notebook_instances: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -111,7 +102,7 @@ def load_notebook_instances(
 @timeit
 def cleanup_notebook_instances(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove notebook instances that no longer exist in AWS.
@@ -126,10 +117,10 @@ def cleanup_notebook_instances(
 def sync_notebook_instances(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     aws_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync SageMaker Notebook Instances for all specified regions.

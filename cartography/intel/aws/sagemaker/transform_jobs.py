@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -23,39 +21,32 @@ logger = logging.getLogger(__name__)
 def get_transform_jobs(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all SageMaker Transform Jobs in the given region.
     """
     client = boto3_session.client("sagemaker", region_name=region)
     paginator = client.get_paginator("list_transform_jobs")
-    transform_jobs: List[Dict[str, Any]] = []
+    transform_jobs: list[dict[str, Any]] = []
 
     # Get all transform job names
-    transform_job_names: List[str] = []
+    transform_job_names: list[str] = []
     for page in paginator.paginate():
         for job in page.get("TransformJobSummaries", []):
             transform_job_names.append(job["TransformJobName"])
 
     # Get detailed information for each transform job
     for job_name in transform_job_names:
-        try:
-            response = client.describe_transform_job(TransformJobName=job_name)
-            transform_jobs.append(response)
-        except client.exceptions.ClientError as e:
-            logger.warning(
-                f"Failed to describe transform job {job_name} in {region}: {e}",
-                exc_info=True,
-            )
-            continue
+        response = client.describe_transform_job(TransformJobName=job_name)
+        transform_jobs.append(response)
 
     return transform_jobs
 
 
 def transform_transform_jobs(
-    transform_jobs: List[Dict[str, Any]],
+    transform_jobs: list[dict[str, Any]],
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform transform job data for loading into Neo4j.
     """
@@ -91,7 +82,7 @@ def transform_transform_jobs(
 @timeit
 def load_transform_jobs(
     neo4j_session: neo4j.Session,
-    transform_jobs: List[Dict[str, Any]],
+    transform_jobs: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -112,7 +103,7 @@ def load_transform_jobs(
 @timeit
 def cleanup_transform_jobs(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove transform jobs that no longer exist in AWS.
@@ -127,10 +118,10 @@ def cleanup_transform_jobs(
 def sync_transform_jobs(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     aws_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync SageMaker Transform Jobs for all specified regions.

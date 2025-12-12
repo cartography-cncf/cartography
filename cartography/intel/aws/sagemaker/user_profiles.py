@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -20,16 +18,16 @@ logger = logging.getLogger(__name__)
 def get_user_profiles(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all SageMaker User Profiles in the given region.
     """
     client = boto3_session.client("sagemaker", region_name=region)
     paginator = client.get_paginator("list_user_profiles")
-    user_profiles: List[Dict[str, Any]] = []
+    user_profiles: list[dict[str, Any]] = []
 
     # Get all user profile identifiers (DomainId + UserProfileName)
-    user_profile_ids: List[Dict[str, str]] = []
+    user_profile_ids: list[dict[str, str]] = []
     for page in paginator.paginate():
         for profile in page.get("UserProfiles", []):
             user_profile_ids.append(
@@ -41,27 +39,19 @@ def get_user_profiles(
 
     # Get detailed information for each user profile
     for profile_id in user_profile_ids:
-        try:
-            response = client.describe_user_profile(
-                DomainId=profile_id["DomainId"],
-                UserProfileName=profile_id["UserProfileName"],
-            )
-            user_profiles.append(response)
-        except client.exceptions.ClientError as e:
-            logger.warning(
-                f"Failed to describe user profile {profile_id['UserProfileName']} "
-                f"in domain {profile_id['DomainId']} in {region}: {e}",
-                exc_info=True,
-            )
-            continue
+        response = client.describe_user_profile(
+            DomainId=profile_id["DomainId"],
+            UserProfileName=profile_id["UserProfileName"],
+        )
+        user_profiles.append(response)
 
     return user_profiles
 
 
 def transform_user_profiles(
-    user_profiles: List[Dict[str, Any]],
+    user_profiles: list[dict[str, Any]],
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform user profile data for loading into Neo4j.
     """
@@ -91,7 +81,7 @@ def transform_user_profiles(
 @timeit
 def load_user_profiles(
     neo4j_session: neo4j.Session,
-    user_profiles: List[Dict[str, Any]],
+    user_profiles: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -112,7 +102,7 @@ def load_user_profiles(
 @timeit
 def cleanup_user_profiles(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove user profiles that no longer exist in AWS.
@@ -127,10 +117,10 @@ def cleanup_user_profiles(
 def sync_user_profiles(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     aws_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync SageMaker User Profiles for all specified regions.

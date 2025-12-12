@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -22,39 +20,32 @@ logger = logging.getLogger(__name__)
 def get_endpoint_configs(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get all SageMaker Endpoint Configs in the given region.
     """
     client = boto3_session.client("sagemaker", region_name=region)
     paginator = client.get_paginator("list_endpoint_configs")
-    endpoint_configs: List[Dict[str, Any]] = []
+    endpoint_configs: list[dict[str, Any]] = []
 
     # Get all endpoint config names
-    endpoint_config_names: List[str] = []
+    endpoint_config_names: list[str] = []
     for page in paginator.paginate():
         for config in page.get("EndpointConfigs", []):
             endpoint_config_names.append(config["EndpointConfigName"])
 
     # Get detailed information for each endpoint config
     for config_name in endpoint_config_names:
-        try:
-            response = client.describe_endpoint_config(EndpointConfigName=config_name)
-            endpoint_configs.append(response)
-        except client.exceptions.ClientError as e:
-            logger.warning(
-                f"Failed to describe endpoint config {config_name} in {region}: {e}",
-                exc_info=True,
-            )
-            continue
+        response = client.describe_endpoint_config(EndpointConfigName=config_name)
+        endpoint_configs.append(response)
 
     return endpoint_configs
 
 
 def transform_endpoint_configs(
-    endpoint_configs: List[Dict[str, Any]],
+    endpoint_configs: list[dict[str, Any]],
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform endpoint config data for loading into Neo4j.
     """
@@ -82,7 +73,7 @@ def transform_endpoint_configs(
 @timeit
 def load_endpoint_configs(
     neo4j_session: neo4j.Session,
-    endpoint_configs: List[Dict[str, Any]],
+    endpoint_configs: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -103,7 +94,7 @@ def load_endpoint_configs(
 @timeit
 def cleanup_endpoint_configs(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove endpoint configs that no longer exist in AWS.
@@ -118,10 +109,10 @@ def cleanup_endpoint_configs(
 def sync_endpoint_configs(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     aws_update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync SageMaker Endpoint Configs for all specified regions.
