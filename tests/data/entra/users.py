@@ -2,6 +2,7 @@ import datetime
 import uuid
 
 from msgraph.generated.models.assigned_plan import AssignedPlan
+from msgraph.generated.models.directory_object import DirectoryObject
 from msgraph.generated.models.organization import Organization
 from msgraph.generated.models.user import User
 from msgraph.generated.models.verified_domain import VerifiedDomain
@@ -77,12 +78,15 @@ MOCK_ENTRA_USERS = [
         given_name="Homer",
         mail="hjsimpson@simpson.corp",
         surname="Simpson",
+        department="Operations",
+        manager=DirectoryObject(id="11dca63b-cb03-4e53-bb75-fa8060285550"),
         user_principal_name="hjsimpson@simpson.corp",
     ),
     User(
         id="11dca63b-cb03-4e53-bb75-fa8060285550",
         odata_type="#microsoft.graph.user",
         display_name="Entra Test User 1",
+        department="Engineering",
         user_principal_name="entra-test-user-1@mycompany.onmicrosoft.com",
     ),
 ]

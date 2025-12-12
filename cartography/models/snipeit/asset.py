@@ -22,6 +22,7 @@ class SnipeitAssetNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # SnipeIT specific properties
+    name: PropertyRef = PropertyRef("name", extra_index=True)
     asset_tag: PropertyRef = PropertyRef("asset_tag")
     assigned_to: PropertyRef = PropertyRef("assigned_to.email")
     category: PropertyRef = PropertyRef("category.name")
@@ -29,6 +30,7 @@ class SnipeitAssetNodeProperties(CartographyNodeProperties):
     manufacturer: PropertyRef = PropertyRef("manufacturer.name")
     model: PropertyRef = PropertyRef("model.name")
     serial: PropertyRef = PropertyRef("serial", extra_index=True)
+    status: PropertyRef = PropertyRef("status_label.name")
 
 
 # (:SnipeitAsset)<-[:RESOURCE]-(:SnipeitTenant)

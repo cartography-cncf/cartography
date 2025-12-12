@@ -26,6 +26,10 @@
 ```{include} ../modules/_cartography-metadata/schema.md
 ```
 
+```{include} ../modules/airbyte/schema.md
+```
+
+
 ```{include} ../modules/anthropic/schema.md
 ```
 
@@ -62,6 +66,9 @@
 ```{include} ../modules/github/schema.md
 ```
 
+```{include} ../modules/googleworkspace/schema.md
+```
+
 ```{include} ../modules/gsuite/schema.md
 ```
 
@@ -69,6 +76,9 @@
 ```
 
 ```{include} ../modules/kandji/schema.md
+```
+
+```{include} ../modules/keycloak/schema.md
 ```
 
 ```{include} ../modules/kubernetes/schema.md
@@ -89,7 +99,16 @@
 ```{include} ../modules/pagerduty/schema.md
 ```
 
+```{include} ../modules/scaleway/schema.md
+```
+
 ```{include} ../modules/semgrep/schema.md
+```
+
+```{include} ../modules/sentinelone/schema.md
+```
+
+```{include} ../modules/slack/schema.md
 ```
 
 ```{include} ../modules/snipeit/schema.md

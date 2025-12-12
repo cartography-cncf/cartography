@@ -21,28 +21,34 @@ You can learn more about the story behind Cartography in our [presentation at BS
 
 
 ## Supported platforms
-- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, CloudWatch, Config, EC2, ECS, ECR, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SQS, SSM, STS, Tags
-- [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine
-- [Google GSuite](https://cartography-cncf.github.io/cartography/modules/gsuite/index.html) - users, groups
-- [Oracle Cloud Infrastructure](https://cartography-cncf.github.io/cartography/modules/oci/index.html) - IAM
-- [Okta](https://cartography-cncf.github.io/cartography/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs
-- [GitHub](https://cartography-cncf.github.io/cartography/modules/github/index.html) - repos, branches, users, teams
-- [DigitalOcean](https://cartography-cncf.github.io/cartography/modules/digitalocean/index.html)
-- [Microsoft Azure](https://cartography-cncf.github.io/cartography/modules/azure/index.html) -  CosmosDB, SQL, Storage, Virtual Machine
-- [Microsoft Entra ID](https://cartography-cncf.github.io/cartography/modules/entra/index.html) -  Users
-- [Kubernetes](https://cartography-cncf.github.io/cartography/modules/kubernetes/index.html) - Cluster, Namespace, Service, Pod, Container
-- [PagerDuty](https://cartography-cncf.github.io/cartography/modules/pagerduty/index.html) - Users, teams, services, schedules, escalation policies, integrations, vendors
-- [Crowdstrike Falcon](https://cartography-cncf.github.io/cartography/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
-- [NIST CVE](https://cartography-cncf.github.io/cartography/modules/cve/index.html) - Common Vulnerabilities and Exposures (CVE) data from NIST database
-- [Lastpass](https://cartography-cncf.github.io/cartography/modules/lastpass/index.html) - users
+- [Airbyte](https://cartography-cncf.github.io/cartography/modules/airbyte/index.html) - Organization, Workspace, User, Source, Destination, Connection, Tag, Stream
+- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, CloudWatch, CodeBuild, Config, Cognito, EC2, ECS, ECR (including multi-arch images, image layers, and attestations), EFS, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, Glue,  GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SNS, SQS, SSM, STS, Tags
+- [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 - [BigFix](https://cartography-cncf.github.io/cartography/modules/bigfix/index.html) - Computers
+- [Cloudflare](https://cartography-cncf.github.io/cartography/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
+- [Crowdstrike Falcon](https://cartography-cncf.github.io/cartography/modules/crowdstrike/index.html) - Hosts, Spotlight vulnerabilities, CVEs
+- [DigitalOcean](https://cartography-cncf.github.io/cartography/modules/digitalocean/index.html)
 - [Duo](https://cartography-cncf.github.io/cartography/modules/duo/index.html) - Users, Groups, Endpoints
+- [GitHub](https://cartography-cncf.github.io/cartography/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies
+- [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Bigtable, Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine
+- [Google GSuite](https://cartography-cncf.github.io/cartography/modules/gsuite/index.html) - users, groups (deprecated - use Google Workspace instead)
+- [Google Workspace](https://cartography-cncf.github.io/cartography/modules/googleworkspace/index.html) - users, groups, devices, OAuth apps
 - [Kandji](https://cartography-cncf.github.io/cartography/modules/kandji/index.html) - Devices
+- [Keycloak](https://cartography-cncf.github.io/cartography/modules/keycloak/index.html) - Realms, Users, Groups, Roles, Scopes, Clients, IdentityProviders, Authentication Flows, Authentication Executions, Organizations, Organization Domains
+- [Kubernetes](https://cartography-cncf.github.io/cartography/modules/kubernetes/index.html) - Cluster, Namespace, Service, Pod, Container, ServiceAccount, Role, RoleBinding, ClusterRole, ClusterRoleBinding, OIDCProvider
+- [Lastpass](https://cartography-cncf.github.io/cartography/modules/lastpass/index.html) - users
+- [Microsoft Azure](https://cartography-cncf.github.io/cartography/modules/azure/index.html) - App Service, Container Instance, CosmosDB, Data Factory, Event Grid, Functions, Azure Kubernetes Service (AKS), Load Balancer, Logic Apps, Resource Group, SQL, Storage, Virtual Machine, Virtual Networks
+- [Microsoft Entra ID](https://cartography-cncf.github.io/cartography/modules/entra/index.html) -  Users, Groups, Applications, OUs, App Roles, federation to AWS Identity Center
+- [NIST CVE](https://cartography-cncf.github.io/cartography/modules/cve/index.html) - Common Vulnerabilities and Exposures (CVE) data from NIST database
+- [Okta](https://cartography-cncf.github.io/cartography/modules/okta/index.html) - users, groups, organizations, roles, applications, factors, trusted origins, reply URIs, federation to AWS roles, federation to AWS Identity Center
+- [OpenAI](https://cartography-cncf.github.io/cartography/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
+- [Oracle Cloud Infrastructure](https://cartography-cncf.github.io/cartography/modules/oci/index.html) - IAM
+- [PagerDuty](https://cartography-cncf.github.io/cartography/modules/pagerduty/index.html) - Users, teams, services, schedules, escalation policies, integrations, vendors
+- [Scaleway](https://cartography-cncf.github.io/cartography/modules/scaleway/index.html) - Projects, IAM, Local Storage, Instances
+- [SentinelOne](https://cartography-cncf.github.io/cartography/modules/sentinelone/index.html) - Accounts, Agents, Applications, Application Versions, CVEs
+- [Slack](https://cartography-cncf.github.io/cartography/modules/slack/index.html) - Teams, Users, UserGroups, Channels
 - [SnipeIT](https://cartography-cncf.github.io/cartography/modules/snipeit/index.html) - Users, Assets
 - [Tailscale](https://cartography-cncf.github.io/cartography/modules/tailscale/index.html) - Tailnet, Users, Devices, Groups, Tags, PostureIntegrations
-- [Cloudflare](https://cartography-cncf.github.io/cartography/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
-- [OpenAI](https://cartography-cncf.github.io/cartography/modules/openai/index.html) - Organization, AdminApiKey, User, Project, ServiceAccount, ApiKey
-- [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 - [Trivy Scanner](https://cartography-cncf.github.io/cartography/modules/trivy/index.html) - AWS ECR Images
 
 
@@ -79,6 +85,17 @@ When you are ready to try it in production, read [here](https://cartography-cncf
 
 ## Usage
 
+### Running rules
+
+You can check your environment against common security frameworks using the `cartography-rules` command.
+
+```bash
+cartography-rules run all
+```
+
+See [the rules docs](https://cartography-cncf.github.io/cartography/usage/rules.html) for more detail.
+
+
 ### Querying the database directly
 
 ![poweruser.png](docs/root/images/poweruser.png)
@@ -88,6 +105,10 @@ Now that data is in the graph, you can quickly start with our [querying tutorial
 ### Building applications around Cartography
 Directly querying Neo4j is already very useful as a sort of "swiss army knife" for security data problems, but you can also build applications and data pipelines around Cartography. View this doc on [applications](https://cartography-cncf.github.io/cartography/usage/applications.html).
 
+
+## Docs
+
+See [here](https://cartography-cncf.github.io/cartography/)
 
 ## Community
 
@@ -104,7 +125,7 @@ This project is licensed under the [Apache 2.0 License](LICENSE).
 Thank you for considering contributing to Cartography!
 
 ### Code of conduct
-All contributors and participants of this project must follow the  [CNCF code of conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
+All contributors and participants of this project must follow the [CNCF code of conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 
 ### Bug reports and feature requests and discussions
 Submit a GitHub issue to report a bug or request a new feature. If we decide that the issue needs more discussion - usually because the scope is too large or we need to make careful decision - we will convert the issue to a [GitHub Discussion](https://github.com/cartography-cncf/cartography/discussions).

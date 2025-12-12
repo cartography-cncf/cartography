@@ -13,9 +13,11 @@ from typing import Union
 import neo4j
 
 from cartography.graph.cleanupbuilder import build_cleanup_queries
+from cartography.graph.cleanupbuilder import build_cleanup_query_for_matchlink
 from cartography.graph.statement import get_job_shortname
 from cartography.graph.statement import GraphStatement
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.relationships import CartographyRelSchema
 
 logger = logging.getLogger(__name__)
 
@@ -123,11 +125,13 @@ class GraphJob:
         }
 
     @classmethod
-    def from_json(cls, blob: str, short_name: Optional[str] = None) -> "GraphJob":
+    def from_json(
+        cls, blob: Union[str, dict], short_name: Optional[str] = None
+    ) -> "GraphJob":
         """
-        Create a job from a JSON blob.
+        Create a job from a JSON dict or blob.
         """
-        data: Dict = json.loads(blob)
+        data = json.loads(blob) if isinstance(blob, str) else blob
         statements = _get_statements_from_json(data, short_name)
         name = data["name"]
         return cls(name, statements, short_name)
@@ -137,11 +141,13 @@ class GraphJob:
         cls,
         node_schema: CartographyNodeSchema,
         parameters: Dict[str, Any],
+        iterationsize: int = 100,
     ) -> "GraphJob":
         """
         Create a cleanup job from a CartographyNodeSchema object.
         For a given node, the fields used in the node_schema.sub_resource_relationship.target_node_node_matcher.keys()
         must be provided as keys and values in the params dict.
+        :param iterationsize: The number of items to process in each iteration. Defaults to 100.
         """
         queries: List[str] = build_cleanup_queries(node_schema)
 
@@ -163,7 +169,7 @@ class GraphJob:
                 query,
                 parameters=parameters,
                 iterative=True,
-                iterationsize=100,
+                iterationsize=iterationsize,
                 parent_job_name=node_schema.label,
                 parent_job_sequence_num=idx,
             )
@@ -174,6 +180,48 @@ class GraphJob:
             f"Cleanup {node_schema.label}",
             statements,
             node_schema.label,
+        )
+
+    @classmethod
+    def from_matchlink(
+        cls,
+        rel_schema: CartographyRelSchema,
+        sub_resource_label: str,
+        sub_resource_id: str,
+        update_tag: int,
+        iterationsize: int = 100,
+    ) -> "GraphJob":
+        """
+        Create a cleanup job from a CartographyRelSchema object (specifically, a MatchLink).
+        This is used for cleaning up stale links between nodes created by load_rels(). Do not use for other purposes.
+
+        Other notes:
+        - For a given rel_schema, the fields used in the rel_schema.properties._sub_resource_label.name and
+        rel_schema.properties._sub_resource_id.name must be provided as keys and values in the params dict.
+        - The rel_schema must have a source_node_matcher and target_node_matcher.
+        :param iterationsize: The number of items to process in each iteration. Defaults to 100.
+        """
+        cleanup_link_query = build_cleanup_query_for_matchlink(rel_schema)
+        logger.debug(f"Cleanup query: {cleanup_link_query}")
+
+        parameters = {
+            "UPDATE_TAG": update_tag,
+            "_sub_resource_label": sub_resource_label,
+            "_sub_resource_id": sub_resource_id,
+        }
+
+        statement = GraphStatement(
+            cleanup_link_query,
+            parameters=parameters,
+            iterative=True,
+            iterationsize=iterationsize,
+            parent_job_name=rel_schema.rel_label,
+        )
+
+        return cls(
+            f"Cleanup {rel_schema.rel_label} between {rel_schema.source_node_label} and {rel_schema.target_node_label}",
+            [statement],
+            rel_schema.rel_label,
         )
 
     @classmethod
@@ -196,12 +244,12 @@ class GraphJob:
     def run_from_json(
         cls,
         neo4j_session: neo4j.Session,
-        blob: str,
+        blob: Union[str, dict],
         parameters: Dict,
         short_name: Optional[str] = None,
     ) -> None:
         """
-        Run a job from a JSON blob. This will deserialize the job and execute all statements sequentially.
+        Run a job from a JSON dict or blob. This will deserialize the job and execute all statements sequentially.
         """
         if not parameters:
             parameters = {}

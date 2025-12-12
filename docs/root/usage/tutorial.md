@@ -1,6 +1,8 @@
 ## Usage Tutorial
 
-Once everything has been installed and synced, you can view the Neo4j web interface at http://localhost:7474. You can view the reference on this [here](https://neo4j.com/developer/guide-neo4j-browser/#_installing_and_starting_neo4j_browser).
+Once everything has been installed and synced, you can follow this tutorial on querying the graph directly.
+
+View the Neo4j web interface at http://localhost:7474. You can view the reference on this [here](https://neo4j.com/developer/guide-neo4j-browser/#_installing_and_starting_neo4j_browser).
 
 If you already know Neo4j and just need to know what are the nodes, attributes, and graph relationships for our representation of infrastructure assets, you can view our [sample queries](samplequeries.html). More sample queries are available at https://github.com/marco-lancini/cartography-queries.
 

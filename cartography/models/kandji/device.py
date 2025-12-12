@@ -14,9 +14,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class KandjiDeviceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
     device_id: PropertyRef = PropertyRef("device_id")
-    device_name: PropertyRef = PropertyRef("device_name")
+    device_name: PropertyRef = PropertyRef("device_name", extra_index=True)
     last_check_in: PropertyRef = PropertyRef("last_check_in")
     model: PropertyRef = PropertyRef("model")
     os_version: PropertyRef = PropertyRef("os_version")
