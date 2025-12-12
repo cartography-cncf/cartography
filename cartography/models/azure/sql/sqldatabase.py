@@ -37,14 +37,14 @@ class AzureSQLDatabaseToSQLServerPropertiesRelProperties(CartographyRelPropertie
 
 
 @dataclass(frozen=True)
-# (:AzureSQLServer)-[:RESOURCE]->(:AzureSQLDatabase)
+# (:AzureSQLServer)-[:CONTAINS]->(:AzureSQLDatabase)
 class AzureSQLDatabaseToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "CONTAINS"
     properties: AzureSQLDatabaseToSQLServerPropertiesRelProperties = (
         AzureSQLDatabaseToSQLServerPropertiesRelProperties()
     )
