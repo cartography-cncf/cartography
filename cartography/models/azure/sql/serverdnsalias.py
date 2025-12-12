@@ -20,7 +20,7 @@ class AzureServerDNSAliasProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureServerDNSAliasToSQLServerProperties(CartographyRelProperties):
+class AzureServerDNSAliasToSQLServerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -33,8 +33,8 @@ class AzureServerDNSAliasToSQLServerRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "USED_BY"
-    properties: AzureServerDNSAliasToSQLServerProperties = (
-        AzureServerDNSAliasToSQLServerProperties()
+    properties: AzureServerDNSAliasToSQLServerRelProperties = (
+        AzureServerDNSAliasToSQLServerRelProperties()
     )
 
 

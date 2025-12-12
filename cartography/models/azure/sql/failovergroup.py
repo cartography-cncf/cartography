@@ -22,21 +22,21 @@ class AzureFailoverGroupProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureFailoverGroupToSQLServerProperties(CartographyRelProperties):
+class AzureFailoverGroupToSQLServerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSQLServer)-[:RESOURCE]->(:AzureFailoverGroup)
+# (:AzureSQLServer)-[:CONTAINS]->(:AzureFailoverGroup)
 class AzureFailoverGroupToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: AzureFailoverGroupToSQLServerProperties = (
-        AzureFailoverGroupToSQLServerProperties()
+    rel_label: str = "CONTAINS"
+    properties: AzureFailoverGroupToSQLServerRelProperties = (
+        AzureFailoverGroupToSQLServerRelProperties()
     )
 
 

@@ -33,9 +33,7 @@ class SnipeitAssetNodeProperties(CartographyNodeProperties):
     status: PropertyRef = PropertyRef("status_label.name")
 
 
-###
-# (:SnipeitAsset)<-[:ASSET]-(:SnipeitTenant)
-###
+# (:SnipeitAsset)<-[:RESOURCE]-(:SnipeitTenant)
 @dataclass(frozen=True)
 class SnipeitTenantToSnipeitAssetRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -48,15 +46,13 @@ class SnipeitTenantToSnipeitAssetRel(CartographyRelSchema):
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_ASSET"
+    rel_label: str = "RESOURCE"
     properties: SnipeitTenantToSnipeitAssetRelProperties = (
         SnipeitTenantToSnipeitAssetRelProperties()
     )
 
 
-###
 # (:SnipeitUser)-[:HAS_CHECKED_OUT]->(:SnipeitAsset)
-###
 @dataclass(frozen=True)
 class SnipeitUserToSnipeitAssetRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -75,7 +71,6 @@ class SnipeitUserToSnipeitAssetRel(CartographyRelSchema):
     )
 
 
-###
 @dataclass(frozen=True)
 class SnipeitAssetSchema(CartographyNodeSchema):
     label: str = "SnipeitAsset"  # The label of the node

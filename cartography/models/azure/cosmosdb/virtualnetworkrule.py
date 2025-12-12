@@ -21,7 +21,7 @@ class AzureCosmosDBVirtualNetworkRuleProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties(
+class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -36,9 +36,9 @@ class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONFIGURED_WITH"
-    properties: AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties = (
-        AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountProperties()
-    )
+    properties: (
+        AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRelProperties
+    ) = AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRelProperties()
 
 
 @dataclass(frozen=True)

@@ -39,7 +39,7 @@ class AzureSubscriptionToMetricAlertRel(CartographyRelSchema):
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_METRIC_ALERT"
+    rel_label: str = "RESOURCE"
     properties: AzureSubscriptionToMetricAlertRelProperties = (
         AzureSubscriptionToMetricAlertRelProperties()
     )

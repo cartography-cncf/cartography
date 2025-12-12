@@ -33,21 +33,21 @@ class AzureSQLDatabaseProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureSQLDatabaseToSQLServerProperties(CartographyRelProperties):
+class AzureSQLDatabaseToSQLServerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSQLServer)-[:RESOURCE]->(:AzureSQLDatabase)
+# (:AzureSQLServer)-[:CONTAINS]->(:AzureSQLDatabase)
 class AzureSQLDatabaseToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: AzureSQLDatabaseToSQLServerProperties = (
-        AzureSQLDatabaseToSQLServerProperties()
+    rel_label: str = "CONTAINS"
+    properties: AzureSQLDatabaseToSQLServerRelProperties = (
+        AzureSQLDatabaseToSQLServerRelProperties()
     )
 
 

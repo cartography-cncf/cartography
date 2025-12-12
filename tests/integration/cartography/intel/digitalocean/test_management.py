@@ -71,7 +71,7 @@ def test_transform_and_load_projects(
         "DOAccount",
         "id",
         "RESOURCE",
-        rel_direction_right=True,
+        rel_direction_right=False,
     ) == {
         (
             test_project.id,

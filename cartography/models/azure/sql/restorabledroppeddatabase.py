@@ -27,21 +27,23 @@ class AzureRestorableDroppedDatabaseProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureRestorableDroppedDatabaseToSQLServerProperties(CartographyRelProperties):
+class AzureRestorableDroppedDatabaseToSQLServerRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSQLServer)-[:RESOURCE]->(:AzureRestorableDroppedDatabase)
+# (:AzureSQLServer)-[:CONTAINS]->(:AzureRestorableDroppedDatabase)
 class AzureRestorableDroppedDatabaseToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: AzureRestorableDroppedDatabaseToSQLServerProperties = (
-        AzureRestorableDroppedDatabaseToSQLServerProperties()
+    rel_label: str = "CONTAINS"
+    properties: AzureRestorableDroppedDatabaseToSQLServerRelProperties = (
+        AzureRestorableDroppedDatabaseToSQLServerRelProperties()
     )
 
 
