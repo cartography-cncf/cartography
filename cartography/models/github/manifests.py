@@ -32,7 +32,7 @@ class DependencyGraphManifestToRepositoryRel(CartographyRelSchema):
         {"id": PropertyRef("repo_url", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_MANIFEST"
+    rel_label: str = "RESOURCE"
     properties: DependencyGraphManifestToRepositoryRelProperties = (
         DependencyGraphManifestToRepositoryRelProperties()
     )

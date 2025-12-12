@@ -36,7 +36,7 @@ class AzureDataLakeFileSystemToStorageAccountRel(CartographyRelSchema):
         {"id": PropertyRef("STORAGE_ACCOUNT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "RESOURCE"
     properties: AzureDataLakeFileSystemToStorageAccountRelProperties = (
         AzureDataLakeFileSystemToStorageAccountRelProperties()
     )

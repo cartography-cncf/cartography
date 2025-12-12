@@ -23,7 +23,9 @@ class AzureCosmosDBCorsPolicyProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBCorsPolicyToCosmosDBAccountProperties(CartographyRelProperties):
+class AzureCosmosDBCorsPolicyToCosmosDBAccountPropertiesRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -36,8 +38,8 @@ class AzureCosmosDBCorsPolicyToCosmosDBAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureCosmosDBCorsPolicyToCosmosDBAccountProperties = (
-        AzureCosmosDBCorsPolicyToCosmosDBAccountProperties()
+    properties: AzureCosmosDBCorsPolicyToCosmosDBAccountPropertiesRelProperties = (
+        AzureCosmosDBCorsPolicyToCosmosDBAccountPropertiesRelProperties()
     )
 
 

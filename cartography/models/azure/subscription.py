@@ -20,7 +20,7 @@ class AzureSubscriptionProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureSubscriptionToTenantProperties(CartographyRelProperties):
+class AzureSubscriptionToTenantPropertiesRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -33,8 +33,8 @@ class AzureSubscriptionToTenantRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureSubscriptionToTenantProperties = (
-        AzureSubscriptionToTenantProperties()
+    properties: AzureSubscriptionToTenantPropertiesRelProperties = (
+        AzureSubscriptionToTenantPropertiesRelProperties()
     )
 
 

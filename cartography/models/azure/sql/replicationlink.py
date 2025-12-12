@@ -30,7 +30,9 @@ class AzureReplicationLinkProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureReplicationLinkToSQLDatabaseProperties(CartographyRelProperties):
+class AzureReplicationLinkToSQLDatabasePropertiesRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -43,8 +45,8 @@ class AzureReplicationLinkToSQLDatabaseRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureReplicationLinkToSQLDatabaseProperties = (
-        AzureReplicationLinkToSQLDatabaseProperties()
+    properties: AzureReplicationLinkToSQLDatabasePropertiesRelProperties = (
+        AzureReplicationLinkToSQLDatabasePropertiesRelProperties()
     )
 
 

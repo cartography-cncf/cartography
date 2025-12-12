@@ -22,7 +22,9 @@ class AzureRecoverableDatabaseProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureRecoverableDatabaseToSQLServerProperties(CartographyRelProperties):
+class AzureRecoverableDatabaseToSQLServerPropertiesRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -35,8 +37,8 @@ class AzureRecoverableDatabaseToSQLServerRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureRecoverableDatabaseToSQLServerProperties = (
-        AzureRecoverableDatabaseToSQLServerProperties()
+    properties: AzureRecoverableDatabaseToSQLServerPropertiesRelProperties = (
+        AzureRecoverableDatabaseToSQLServerPropertiesRelProperties()
     )
 
 

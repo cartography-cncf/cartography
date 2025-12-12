@@ -27,7 +27,9 @@ class AzureRestorableDroppedDatabaseProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureRestorableDroppedDatabaseToSQLServerProperties(CartographyRelProperties):
+class AzureRestorableDroppedDatabaseToSQLServerPropertiesRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -40,8 +42,8 @@ class AzureRestorableDroppedDatabaseToSQLServerRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureRestorableDroppedDatabaseToSQLServerProperties = (
-        AzureRestorableDroppedDatabaseToSQLServerProperties()
+    properties: AzureRestorableDroppedDatabaseToSQLServerPropertiesRelProperties = (
+        AzureRestorableDroppedDatabaseToSQLServerPropertiesRelProperties()
     )
 
 

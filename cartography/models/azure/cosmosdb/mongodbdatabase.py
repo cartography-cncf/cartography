@@ -23,7 +23,9 @@ class AzureCosmosDBMongoDBDatabaseProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBMongoDBDatabaseToCosmosDBAccountProperties(CartographyRelProperties):
+class AzureCosmosDBMongoDBDatabaseToCosmosDBAccountPropertiesRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -36,8 +38,8 @@ class AzureCosmosDBMongoDBDatabaseToCosmosDBAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureCosmosDBMongoDBDatabaseToCosmosDBAccountProperties = (
-        AzureCosmosDBMongoDBDatabaseToCosmosDBAccountProperties()
+    properties: AzureCosmosDBMongoDBDatabaseToCosmosDBAccountPropertiesRelProperties = (
+        AzureCosmosDBMongoDBDatabaseToCosmosDBAccountPropertiesRelProperties()
     )
 
 
