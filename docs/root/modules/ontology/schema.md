@@ -237,3 +237,23 @@ OAuth apps span across identity providers (Google Workspace, Okta, Entra, Keyclo
     ```
     (:User)-[:AUTHORIZED]->(:ThirdPartyApp)
     ```
+
+
+### Database
+
+```{note}
+Database is a semantic label.
+```
+
+A database represents a managed data storage system across different cloud providers and database technologies.
+It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure SQL databases, Azure CosmosDB databases, and GCP Bigtable instances.
+
+| Field | Description |
+|-------|-------------|
+| _ont_db_name | The name/identifier of the database (REQUIRED). |
+| _ont_db_type | The database engine/type (e.g., "mysql", "postgres", "dynamodb", "mongodb", "cassandra", "cosmosdb-sql", "bigtable"). |
+| _ont_db_version | The database engine version. |
+| _ont_db_endpoint | The connection endpoint/address for the database. |
+| _ont_db_port | The port number the database listens on. |
+| _ont_db_encrypted | Whether the database storage is encrypted. |
+| _ont_db_location | The physical location/region of the database. |
