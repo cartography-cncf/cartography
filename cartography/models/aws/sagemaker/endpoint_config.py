@@ -53,7 +53,7 @@ class AWSSageMakerEndpointConfigToModelRel(CartographyRelSchema):
         {"model_name": PropertyRef("ModelName")}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "REFERENCES"
+    rel_label: str = "USES"
     properties: AWSSageMakerEndpointConfigToModelRelProperties = (
         AWSSageMakerEndpointConfigToModelRelProperties()
     )

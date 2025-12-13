@@ -4931,11 +4931,11 @@ graph LR
     Model -- REFERENCES_ARTIFACTS_IN --> S3
     Model -- DERIVES_FROM --> ModelPackage
 
-    EndpointConfig -- REFERENCES --> Model
+    EndpointConfig -- USES --> Model
 
     Endpoint -- USES --> EndpointConfig
 
-    TransformJob -- REFERENCES --> Model
+    TransformJob -- USES --> Model
     TransformJob -- WRITES_TO --> S3
 
     ModelPackageGroup -- CONTAINS --> ModelPackage
@@ -5137,9 +5137,9 @@ Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com
     ```
     (AWSAccount)-[:RESOURCE]->(AWSSageMakerEndpointConfig)
     ```
-- Endpoint Config references a Model
+- Endpoint Config uses a Model
     ```
-    (AWSSageMakerEndpointConfig)-[:REFERENCES]->(AWSSageMakerModel)
+    (AWSSageMakerEndpointConfig)-[:USES]->(AWSSageMakerModel)
     ```
 
 #### AWSSageMakerEndpoint
@@ -5194,9 +5194,9 @@ a large dataset and uses batch inference to write multiple predictions to an S3 
     ```
     (AWSAccount)-[:RESOURCE]->(AWSSageMakerTransformJob)
     ```
-- Transform Job references a Model
+- Transform Job uses a Model
     ```
-    (AWSSageMakerTransformJob)-[:REFERENCES]->(AWSSageMakerModel)
+    (AWSSageMakerTransformJob)-[:USES]->(AWSSageMakerModel)
     ```
 - Transform Job writes output to S3 Bucket
     ```
