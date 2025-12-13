@@ -53,7 +53,7 @@ class AzureNetworkInterfaceToVirtualMachineRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("VIRTUAL_MACHINE_ID")},
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ATTACHED_TO"
     properties: AzureNetworkInterfaceToVirtualMachineRelProperties = (
         AzureNetworkInterfaceToVirtualMachineRelProperties()

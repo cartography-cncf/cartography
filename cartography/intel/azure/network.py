@@ -7,10 +7,10 @@ from azure.mgmt.network import NetworkManagementClient
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.models.azure.network_interface import AzureNetworkInterfaceSchema
 from cartography.models.azure.network_security_group import (
     AzureNetworkSecurityGroupSchema,
 )
-from cartography.models.azure.network_interface import AzureNetworkInterfaceSchema
 from cartography.models.azure.public_ip_address import AzurePublicIPAddressSchema
 from cartography.models.azure.subnet import AzureSubnetSchema
 from cartography.models.azure.subnet import AzureSubnetToNSGRel
@@ -159,6 +159,10 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
             if private_ip:
                 private_ips.append(private_ip)
 
+        # Handle case where virtual_machine can be None (unattached NIC)
+        vm_ref = interface.get("virtual_machine")
+        vm_id = vm_ref.get("id") if vm_ref else None
+
         transformed.append(
             {
                 "id": interface.get("id"),
@@ -166,7 +170,7 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
                 "location": interface.get("location"),
                 "mac_address": interface.get("mac_address"),
                 "private_ip_addresses": private_ips,
-                "VIRTUAL_MACHINE_ID": interface.get("virtual_machine", {}).get("id"),
+                "VIRTUAL_MACHINE_ID": vm_id,
                 "SUBNET_IDS": subnet_ids,
                 "PUBLIC_IP_IDS": public_ip_ids,
             }
@@ -333,9 +337,9 @@ def _sync_public_ip_addresses(
     load_public_ip_addresses(
         neo4j_session, transformed_public_ips, subscription_id, update_tag
     )
-    GraphJob.from_node_schema(
-        AzurePublicIPAddressSchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(AzurePublicIPAddressSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -354,9 +358,9 @@ def _sync_network_interfaces(
     load_network_interfaces(
         neo4j_session, transformed_network_interfaces, subscription_id, update_tag
     )
-    GraphJob.from_node_schema(
-        AzureNetworkInterfaceSchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(AzureNetworkInterfaceSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -417,14 +421,7 @@ def sync(
         neo4j_session, client, subscription_id, update_tag, common_job_parameters
     )
 
-    _sync_public_ip_addresses(
-        neo4j_session, client, subscription_id, update_tag, common_job_parameters
-    )
-
-    _sync_network_interfaces(
-        neo4j_session, client, subscription_id, update_tag, common_job_parameters
-    )
-
+    # Subnets must be synced before Network Interfaces so that NIC→Subnet relationships work
     if vnets:
         _sync_subnets(
             neo4j_session,
@@ -434,3 +431,12 @@ def sync(
             update_tag,
             common_job_parameters,
         )
+
+    # Public IPs must be synced before Network Interfaces so that NIC→PublicIP relationships work
+    _sync_public_ip_addresses(
+        neo4j_session, client, subscription_id, update_tag, common_job_parameters
+    )
+
+    _sync_network_interfaces(
+        neo4j_session, client, subscription_id, update_tag, common_job_parameters
+    )
