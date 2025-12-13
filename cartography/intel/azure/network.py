@@ -10,6 +10,8 @@ from cartography.graph.job import GraphJob
 from cartography.models.azure.network_security_group import (
     AzureNetworkSecurityGroupSchema,
 )
+from cartography.models.azure.network_interface import AzureNetworkInterfaceSchema
+from cartography.models.azure.public_ip_address import AzurePublicIPAddressSchema
 from cartography.models.azure.subnet import AzureSubnetSchema
 from cartography.models.azure.subnet import AzureSubnetToNSGRel
 from cartography.models.azure.virtual_network import AzureVirtualNetworkSchema
@@ -53,6 +55,22 @@ def get_network_security_groups(client: NetworkManagementClient) -> list[dict]:
     Get a list of all Network Security Groups in a subscription.
     """
     return [nsg.as_dict() for nsg in client.network_security_groups.list_all()]
+
+
+@timeit
+def get_public_ip_addresses(client: NetworkManagementClient) -> list[dict]:
+    """
+    Get a list of all Public IP Addresses in a subscription.
+    """
+    return [pip.as_dict() for pip in client.public_ip_addresses.list_all()]
+
+
+@timeit
+def get_network_interfaces(client: NetworkManagementClient) -> list[dict]:
+    """
+    Get a list of all Network Interfaces in a subscription.
+    """
+    return [interface.as_dict() for interface in client.network_interfaces.list_all()]
 
 
 def transform_virtual_networks(vnets: list[dict]) -> list[dict]:
@@ -103,6 +121,59 @@ def transform_network_security_groups(nsgs: list[dict]) -> list[dict]:
     return transformed
 
 
+def transform_public_ip_addresses(public_ips: list[dict]) -> list[dict]:
+    transformed: list[dict[str, Any]] = []
+    for public_ip in public_ips:
+        transformed.append(
+            {
+                "id": public_ip.get("id"),
+                "name": public_ip.get("name"),
+                "location": public_ip.get("location"),
+                "ip_address": public_ip.get("ip_address"),
+                "public_ip_allocation_method": public_ip.get(
+                    "public_ip_allocation_method"
+                ),
+            }
+        )
+    return transformed
+
+
+def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
+    transformed: list[dict[str, Any]] = []
+    for interface in network_interfaces:
+        subnet_ids: list[str] = []
+        public_ip_ids: list[str] = []
+        private_ips: list[str] = []
+
+        for ip_config in interface.get("ip_configurations", []):
+            ip_config_props = ip_config.get("properties", {})
+            subnet_id = ip_config_props.get("subnet", {}).get("id")
+            if subnet_id:
+                subnet_ids.append(subnet_id)
+
+            public_ip_id = ip_config_props.get("public_ip_address", {}).get("id")
+            if public_ip_id:
+                public_ip_ids.append(public_ip_id)
+
+            private_ip = ip_config_props.get("private_ip_address")
+            if private_ip:
+                private_ips.append(private_ip)
+
+        transformed.append(
+            {
+                "id": interface.get("id"),
+                "name": interface.get("name"),
+                "location": interface.get("location"),
+                "mac_address": interface.get("mac_address"),
+                "private_ip_addresses": private_ips,
+                "VIRTUAL_MACHINE_ID": interface.get("virtual_machine", {}).get("id"),
+                "SUBNET_IDS": subnet_ids,
+                "PUBLIC_IP_IDS": public_ip_ids,
+            }
+        )
+    return transformed
+
+
 @timeit
 def load_virtual_networks(
     neo4j_session: neo4j.Session,
@@ -147,6 +218,38 @@ def load_network_security_groups(
     load(
         neo4j_session,
         AzureNetworkSecurityGroupSchema(),
+        data,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def load_public_ip_addresses(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    subscription_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AzurePublicIPAddressSchema(),
+        data,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def load_network_interfaces(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    subscription_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AzureNetworkInterfaceSchema(),
         data,
         lastupdated=update_tag,
         AZURE_SUBSCRIPTION_ID=subscription_id,
@@ -215,6 +318,48 @@ def _sync_network_security_groups(
 
 
 @timeit
+def _sync_public_ip_addresses(
+    neo4j_session: neo4j.Session,
+    client: NetworkManagementClient,
+    subscription_id: str,
+    update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    """
+    Syncs Public IP Addresses.
+    """
+    public_ip_addresses = get_public_ip_addresses(client)
+    transformed_public_ips = transform_public_ip_addresses(public_ip_addresses)
+    load_public_ip_addresses(
+        neo4j_session, transformed_public_ips, subscription_id, update_tag
+    )
+    GraphJob.from_node_schema(
+        AzurePublicIPAddressSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
+def _sync_network_interfaces(
+    neo4j_session: neo4j.Session,
+    client: NetworkManagementClient,
+    subscription_id: str,
+    update_tag: int,
+    common_job_parameters: dict,
+) -> None:
+    """
+    Syncs Network Interfaces.
+    """
+    network_interfaces = get_network_interfaces(client)
+    transformed_network_interfaces = transform_network_interfaces(network_interfaces)
+    load_network_interfaces(
+        neo4j_session, transformed_network_interfaces, subscription_id, update_tag
+    )
+    GraphJob.from_node_schema(
+        AzureNetworkInterfaceSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
 def _sync_subnets(
     neo4j_session: neo4j.Session,
     client: NetworkManagementClient,
@@ -269,6 +414,14 @@ def sync(
         neo4j_session, client, subscription_id, update_tag, common_job_parameters
     )
     _sync_network_security_groups(
+        neo4j_session, client, subscription_id, update_tag, common_job_parameters
+    )
+
+    _sync_public_ip_addresses(
+        neo4j_session, client, subscription_id, update_tag, common_job_parameters
+    )
+
+    _sync_network_interfaces(
         neo4j_session, client, subscription_id, update_tag, common_job_parameters
     )
 
