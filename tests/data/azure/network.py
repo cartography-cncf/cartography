@@ -1,12 +1,11 @@
 # Mock data for Virtual Networks
+# Structure matches Azure SDK's .as_dict() output (flattened, not nested under "properties")
 MOCK_VNETS = [
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-test-vnet",
         "name": "my-test-vnet",
         "location": "eastus",
-        "properties": {
-            "provisioning_state": "Succeeded",
-        },
+        "provisioning_state": "Succeeded",
     },
 ]
 
@@ -20,14 +19,12 @@ MOCK_NSGS = [
 ]
 
 # Mock data for Subnets
+# Structure matches Azure SDK's .as_dict() output (flattened, not nested under "properties")
 MOCK_SUBNETS = [
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-test-vnet/subnets/subnet-with-nsg",
         "name": "subnet-with-nsg",
-        "properties": {
-            "address_prefix": "10.0.1.0/24",
-        },
-        # This object MUST be at the top level to match the real API
+        "address_prefix": "10.0.1.0/24",
         "network_security_group": {
             "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkSecurityGroups/my-test-nsg",
         },
@@ -35,9 +32,7 @@ MOCK_SUBNETS = [
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-test-vnet/subnets/subnet-without-nsg",
         "name": "subnet-without-nsg",
-        "properties": {
-            "address_prefix": "10.0.2.0/24",
-        },
+        "address_prefix": "10.0.2.0/24",
         "network_security_group": None,
     },
 ]
@@ -63,13 +58,13 @@ MOCK_PUBLIC_IPS = [
 
 
 # Mock data for Network Interfaces
+# Structure matches Azure SDK's .as_dict() output (flattened, not nested under "properties")
 MOCK_NETWORK_INTERFACES = [
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkInterfaces/my-nic-1",
         "name": "my-nic-1",
         "location": "eastus",
         "mac_address": "00-0D-3A-1B-C7-21",
-        # Reference objects are at top level in SDK response
         "virtual_machine": {
             "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/my-vm-1",
         },
@@ -77,14 +72,12 @@ MOCK_NETWORK_INTERFACES = [
             {
                 "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkInterfaces/my-nic-1/ipConfigurations/ipconfig1",
                 "name": "ipconfig1",
-                "properties": {
-                    "private_ip_address": "10.0.1.4",
-                    "subnet": {
-                        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-test-vnet/subnets/subnet-with-nsg",
-                    },
-                    "public_ip_address": {
-                        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/my-public-ip-1",
-                    },
+                "private_ip_address": "10.0.1.4",
+                "subnet": {
+                    "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-test-vnet/subnets/subnet-with-nsg",
+                },
+                "public_ip_address": {
+                    "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/my-public-ip-1",
                 },
             },
         ],
@@ -101,13 +94,11 @@ MOCK_NETWORK_INTERFACES = [
             {
                 "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkInterfaces/my-nic-2/ipConfigurations/ipconfig1",
                 "name": "ipconfig1",
-                "properties": {
-                    "private_ip_address": "10.0.2.4",
-                    "subnet": {
-                        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-test-vnet/subnets/subnet-without-nsg",
-                    },
-                    # No public IP for this NIC
+                "private_ip_address": "10.0.2.4",
+                "subnet": {
+                    "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-test-vnet/subnets/subnet-without-nsg",
                 },
+                # No public IP for this NIC
             },
         ],
     },
@@ -122,14 +113,12 @@ MOCK_NETWORK_INTERFACES = [
             {
                 "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkInterfaces/my-nic-unattached/ipConfigurations/ipconfig1",
                 "name": "ipconfig1",
-                "properties": {
-                    "private_ip_address": "10.0.1.5",
-                    "subnet": {
-                        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-test-vnet/subnets/subnet-with-nsg",
-                    },
-                    "public_ip_address": {
-                        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/my-public-ip-2",
-                    },
+                "private_ip_address": "10.0.1.5",
+                "subnet": {
+                    "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/my-test-vnet/subnets/subnet-with-nsg",
+                },
+                "public_ip_address": {
+                    "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/my-public-ip-2",
                 },
             },
         ],

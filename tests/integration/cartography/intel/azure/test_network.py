@@ -205,12 +205,13 @@ def test_sync_network(
     assert actual_nic_vm_rels == expected_nic_vm_rels
 
     # Test Network Interface to Subnet relationship
+    # Test data uses flattened structure (matching real Azure SDK as_dict() output)
     expected_nic_subnet_rels = set()
     for nic in MOCK_NETWORK_INTERFACES:
         for ip_config in nic.get("ip_configurations", []):
-            subnet_id = ip_config.get("properties", {}).get("subnet", {}).get("id")
-            if subnet_id:
-                expected_nic_subnet_rels.add((nic["id"], subnet_id))
+            subnet = ip_config.get("subnet", {})
+            if subnet and subnet.get("id"):
+                expected_nic_subnet_rels.add((nic["id"], subnet["id"]))
 
     actual_nic_subnet_rels = check_rels(
         neo4j_session,
@@ -223,14 +224,13 @@ def test_sync_network(
     assert actual_nic_subnet_rels == expected_nic_subnet_rels
 
     # Test Network Interface to Public IP relationship
+    # Test data uses flattened structure (matching real Azure SDK as_dict() output)
     expected_nic_pip_rels = set()
     for nic in MOCK_NETWORK_INTERFACES:
         for ip_config in nic.get("ip_configurations", []):
-            pip_id = (
-                ip_config.get("properties", {}).get("public_ip_address", {}).get("id")
-            )
-            if pip_id:
-                expected_nic_pip_rels.add((nic["id"], pip_id))
+            pip = ip_config.get("public_ip_address", {})
+            if pip and pip.get("id"):
+                expected_nic_pip_rels.add((nic["id"], pip["id"]))
 
     actual_nic_pip_rels = check_rels(
         neo4j_session,
