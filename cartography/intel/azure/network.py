@@ -76,14 +76,16 @@ def get_network_interfaces(client: NetworkManagementClient) -> list[dict]:
 def transform_virtual_networks(vnets: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for vnet in vnets:
+        # Azure SDK as_dict() may return properties nested or flattened
+        provisioning_state = vnet.get("properties", {}).get(
+            "provisioning_state"
+        ) or vnet.get("provisioning_state")
         transformed.append(
             {
                 "id": vnet.get("id"),
                 "name": vnet.get("name"),
                 "location": vnet.get("location"),
-                "provisioning_state": vnet.get("properties", {}).get(
-                    "provisioning_state"
-                ),
+                "provisioning_state": provisioning_state,
             }
         )
     return transformed
@@ -97,11 +99,16 @@ def transform_subnets(subnets: list[dict]) -> list[dict]:
         if network_security_group:
             nsg_id = network_security_group.get("id")
 
+        # Azure SDK as_dict() may return properties nested or flattened
+        address_prefix = subnet.get("properties", {}).get(
+            "address_prefix"
+        ) or subnet.get("address_prefix")
+
         transformed.append(
             {
                 "id": subnet.get("id"),
                 "name": subnet.get("name"),
-                "address_prefix": subnet.get("properties", {}).get("address_prefix"),
+                "address_prefix": address_prefix,
                 "nsg_id": nsg_id,
             }
         )
@@ -146,16 +153,30 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
         private_ips: list[str] = []
 
         for ip_config in interface.get("ip_configurations", []):
+            # Azure SDK as_dict() may return properties nested or flattened
+            # Try nested first (properties wrapper), then flattened (direct access)
             ip_config_props = ip_config.get("properties", {})
-            subnet_id = ip_config_props.get("subnet", {}).get("id")
-            if subnet_id:
-                subnet_ids.append(subnet_id)
 
-            public_ip_id = ip_config_props.get("public_ip_address", {}).get("id")
-            if public_ip_id:
-                public_ip_ids.append(public_ip_id)
+            # Get subnet ID - try nested then flattened
+            subnet_ref = ip_config_props.get("subnet") or ip_config.get("subnet")
+            if subnet_ref and isinstance(subnet_ref, dict):
+                subnet_id = subnet_ref.get("id")
+                if subnet_id:
+                    subnet_ids.append(subnet_id)
 
-            private_ip = ip_config_props.get("private_ip_address")
+            # Get public IP ID - try nested then flattened
+            public_ip_ref = ip_config_props.get("public_ip_address") or ip_config.get(
+                "public_ip_address"
+            )
+            if public_ip_ref and isinstance(public_ip_ref, dict):
+                public_ip_id = public_ip_ref.get("id")
+                if public_ip_id:
+                    public_ip_ids.append(public_ip_id)
+
+            # Get private IP - try nested then flattened
+            private_ip = ip_config_props.get("private_ip_address") or ip_config.get(
+                "private_ip_address"
+            )
             if private_ip:
                 private_ips.append(private_ip)
 
