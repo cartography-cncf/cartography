@@ -39,6 +39,9 @@ MOCK_SUBNETS = [
 
 
 # Mock data for Public IP Addresses
+# This fixture includes both shapes that Azure SDK's .as_dict() may return:
+# - flattened fields at the top level
+# - fields nested under "properties"
 MOCK_PUBLIC_IPS = [
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/my-public-ip-1",
@@ -53,6 +56,15 @@ MOCK_PUBLIC_IPS = [
         "location": "eastus",
         "ip_address": "20.10.30.41",
         "public_ip_allocation_method": "Dynamic",
+    },
+    {
+        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/my-public-ip-3",
+        "name": "my-public-ip-3",
+        "location": "eastus",
+        "properties": {
+            "ip_address": "20.10.30.42",
+            "public_ip_allocation_method": "Static",
+        },
     },
 ]
 

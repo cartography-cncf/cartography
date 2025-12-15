@@ -131,15 +131,19 @@ def transform_network_security_groups(nsgs: list[dict]) -> list[dict]:
 def transform_public_ip_addresses(public_ips: list[dict]) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for public_ip in public_ips:
+        # Azure SDK as_dict() may return properties nested or flattened
+        properties = public_ip.get("properties", {})
+        ip_address = properties.get("ip_address") or public_ip.get("ip_address")
+        allocation_method = properties.get(
+            "public_ip_allocation_method"
+        ) or public_ip.get("public_ip_allocation_method")
         transformed.append(
             {
                 "id": public_ip.get("id"),
                 "name": public_ip.get("name"),
                 "location": public_ip.get("location"),
-                "ip_address": public_ip.get("ip_address"),
-                "public_ip_allocation_method": public_ip.get(
-                    "public_ip_allocation_method"
-                ),
+                "ip_address": ip_address,
+                "public_ip_allocation_method": allocation_method,
             }
         )
     return transformed

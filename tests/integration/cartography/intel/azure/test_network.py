@@ -148,9 +148,23 @@ def test_sync_network(
     assert actual_assoc_rels == expected_assoc_rels
 
     # Assert Public IP Address nodes
-    expected_public_ips = {(pip["id"],) for pip in MOCK_PUBLIC_IPS}
+    expected_public_ips = set()
+    for pip in MOCK_PUBLIC_IPS:
+        pip_properties = pip.get("properties", {})
+        expected_public_ips.add(
+            (
+                pip["id"],
+                pip_properties.get("ip_address") or pip.get("ip_address"),
+                pip_properties.get("public_ip_allocation_method")
+                or pip.get("public_ip_allocation_method"),
+            ),
+        )
     assert (
-        check_nodes(neo4j_session, "AzurePublicIPAddress", ["id"])
+        check_nodes(
+            neo4j_session,
+            "AzurePublicIPAddress",
+            ["id", "ip_address", "allocation_method"],
+        )
         == expected_public_ips
     )
 
