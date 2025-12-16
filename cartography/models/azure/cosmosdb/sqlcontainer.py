@@ -48,9 +48,9 @@ class AzureCosmosDBSqlContainerToCosmosDBSqlDatabaseRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: (
-        AzureCosmosDBSqlContainerToCosmosDBSqlDatabaseRelProperties
-    ) = AzureCosmosDBSqlContainerToCosmosDBSqlDatabaseRelProperties()
+    properties: AzureCosmosDBSqlContainerToCosmosDBSqlDatabaseRelProperties = (
+        AzureCosmosDBSqlContainerToCosmosDBSqlDatabaseRelProperties()
+    )
 
 
 @dataclass(frozen=True)

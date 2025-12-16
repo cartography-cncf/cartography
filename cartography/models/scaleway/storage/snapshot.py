@@ -46,9 +46,7 @@ class ScalewayVolumeSnapshotToProjectRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class ScalewayVolumeSnapshotToInstanceVolumeRelProperties(
-    CartographyRelProperties
-):
+class ScalewayVolumeSnapshotToInstanceVolumeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

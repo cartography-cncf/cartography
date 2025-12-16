@@ -40,9 +40,9 @@ class AzureCosmosDBMongoDBCollectionToCosmosDBMongoDBDatabaseRel(CartographyRelS
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: (
-        AzureCosmosDBMongoDBCollectionToCosmosDBMongoDBDatabaseRelProperties
-    ) = AzureCosmosDBMongoDBCollectionToCosmosDBMongoDBDatabaseRelProperties()
+    properties: AzureCosmosDBMongoDBCollectionToCosmosDBMongoDBDatabaseRelProperties = (
+        AzureCosmosDBMongoDBCollectionToCosmosDBMongoDBDatabaseRelProperties()
+    )
 
 
 @dataclass(frozen=True)

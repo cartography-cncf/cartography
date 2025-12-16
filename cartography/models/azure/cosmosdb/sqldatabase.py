@@ -24,9 +24,7 @@ class AzureCosmosDBSqlDatabaseProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBSqlDatabaseToCosmosDBAccountRelProperties(
-    CartographyRelProperties
-):
+class AzureCosmosDBSqlDatabaseToCosmosDBAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

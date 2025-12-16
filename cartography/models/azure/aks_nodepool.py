@@ -63,6 +63,20 @@ class AzureKubernetesAgentPoolToSubscriptionRel(CartographyRelSchema):
     )
 
 
+@dataclass(frozen=True)
+# (:AzureKubernetesAgentPool)<-[:HAS_AGENT_POOL]-(:AzureSubscription) - Backwards compatibility
+class AzureKubernetesAgentPoolToSubscriptionDeprecatedRel(CartographyRelSchema):
+    target_node_label: str = "AzureSubscription"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_AGENT_POOL"
+    properties: AzureKubernetesAgentPoolToSubscriptionRelProperties = (
+        AzureKubernetesAgentPoolToSubscriptionRelProperties()
+    )
+
+
 # --- Main Schema ---
 @dataclass(frozen=True)
 class AzureKubernetesNodePoolSchema(CartographyNodeSchema):
@@ -71,6 +85,8 @@ class AzureKubernetesNodePoolSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
             AzureKubernetesAgentPoolToClusterRel(),
+            # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+            AzureKubernetesAgentPoolToSubscriptionDeprecatedRel(),
         ],
     )
     sub_resource_relationship: AzureKubernetesAgentPoolToSubscriptionRel = (

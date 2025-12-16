@@ -41,9 +41,7 @@ class ScalewayApiKeyToUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS"
-    properties: ScalewayApiKeyToUserRelProperties = (
-        ScalewayApiKeyToUserRelProperties()
-    )
+    properties: ScalewayApiKeyToUserRelProperties = ScalewayApiKeyToUserRelProperties()
 
 
 @dataclass(frozen=True)

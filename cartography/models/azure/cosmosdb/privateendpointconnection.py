@@ -39,9 +39,9 @@ class AzureCDBPrivateEndpointConnectionToCosmosDBAccountRel(CartographyRelSchema
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONFIGURED_WITH"
-    properties: (
-        AzureCDBPrivateEndpointConnectionToCosmosDBAccountRelProperties
-    ) = AzureCDBPrivateEndpointConnectionToCosmosDBAccountRelProperties()
+    properties: AzureCDBPrivateEndpointConnectionToCosmosDBAccountRelProperties = (
+        AzureCDBPrivateEndpointConnectionToCosmosDBAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)

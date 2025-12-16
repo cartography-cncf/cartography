@@ -30,9 +30,7 @@ class AzureReplicationLinkProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureReplicationLinkToSQLDatabaseRelProperties(
-    CartographyRelProperties
-):
+class AzureReplicationLinkToSQLDatabaseRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

@@ -43,9 +43,9 @@ class AzureDatabaseThreatDetectionPolicyToSQLDatabaseRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: (
-        AzureDatabaseThreatDetectionPolicyToSQLDatabaseRelProperties
-    ) = AzureDatabaseThreatDetectionPolicyToSQLDatabaseRelProperties()
+    properties: AzureDatabaseThreatDetectionPolicyToSQLDatabaseRelProperties = (
+        AzureDatabaseThreatDetectionPolicyToSQLDatabaseRelProperties()
+    )
 
 
 @dataclass(frozen=True)

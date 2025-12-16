@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 logger = logging.getLogger(__name__)
@@ -43,9 +44,32 @@ class AzureDataLakeFileSystemToStorageAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AzureDataLakeFileSystemToSubscriptionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:AzureDataLakeFileSystem)<-[:CONTAINS]-(:AzureSubscription) - Backwards compatibility
+class AzureDataLakeFileSystemToSubscriptionDeprecatedRel(CartographyRelSchema):
+    target_node_label: str = "AzureSubscription"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "CONTAINS"
+    properties: AzureDataLakeFileSystemToSubscriptionRelProperties = (
+        AzureDataLakeFileSystemToSubscriptionRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AzureDataLakeFileSystemSchema(CartographyNodeSchema):
     label: str = "AzureDataLakeFileSystem"
     properties: AzureDataLakeFileSystemProperties = AzureDataLakeFileSystemProperties()
     sub_resource_relationship: AzureDataLakeFileSystemToStorageAccountRel = (
         AzureDataLakeFileSystemToStorageAccountRel()
+    )
+    # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[AzureDataLakeFileSystemToSubscriptionDeprecatedRel()],
     )

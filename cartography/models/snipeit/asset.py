@@ -72,6 +72,20 @@ class SnipeitUserToSnipeitAssetRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# (:SnipeitAsset)<-[:HAS_ASSET]-(:SnipeitTenant) - Backwards compatibility
+class SnipeitTenantToSnipeitAssetDeprecatedRel(CartographyRelSchema):
+    target_node_label: str = "SnipeitTenant"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "HAS_ASSET"
+    properties: SnipeitTenantToSnipeitAssetRelProperties = (
+        SnipeitTenantToSnipeitAssetRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SnipeitAssetSchema(CartographyNodeSchema):
     label: str = "SnipeitAsset"  # The label of the node
     properties: SnipeitAssetNodeProperties = (
@@ -83,5 +97,7 @@ class SnipeitAssetSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             SnipeitUserToSnipeitAssetRel(),
+            # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+            SnipeitTenantToSnipeitAssetDeprecatedRel(),
         ],
     )

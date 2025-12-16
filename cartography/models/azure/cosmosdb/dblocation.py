@@ -38,9 +38,9 @@ class AzureCosmosDBLocationWriteToAzureCosmosDBAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CAN_WRITE_FROM"
-    properties: (
-        AzureCosmosDBLocationWriteToAzureCosmosDBAccountRelProperties
-    ) = AzureCosmosDBLocationWriteToAzureCosmosDBAccountRelProperties()
+    properties: AzureCosmosDBLocationWriteToAzureCosmosDBAccountRelProperties = (
+        AzureCosmosDBLocationWriteToAzureCosmosDBAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -59,9 +59,9 @@ class AzureCosmosDBLocationReadToAzureCosmosDBAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CAN_READ_FROM"
-    properties: (
-        AzureCosmosDBLocationReadToAzureCosmosDBAccountRelProperties
-    ) = AzureCosmosDBLocationReadToAzureCosmosDBAccountRelProperties()
+    properties: AzureCosmosDBLocationReadToAzureCosmosDBAccountRelProperties = (
+        AzureCosmosDBLocationReadToAzureCosmosDBAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -80,9 +80,9 @@ class AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRel(CartographyRelSch
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSOCIATED_WITH"
-    properties: (
-        AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRelProperties
-    ) = AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRelProperties()
+    properties: AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRelProperties = (
+        AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)

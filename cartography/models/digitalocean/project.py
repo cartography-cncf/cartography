@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -42,7 +43,23 @@ class DOProjectToAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# (:DOAccount)<-[:RESOURCE]-(:DOProject) - Backwards compatibility
+class DOProjectToAccountDeprecatedRel(CartographyRelSchema):
+    target_node_label: str = "DOAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "RESOURCE"
+    properties: DOProjectToAccountRelProperties = DOProjectToAccountRelProperties()
+
+
+@dataclass(frozen=True)
 class DOProjectSchema(CartographyNodeSchema):
     label: str = "DOProject"
     properties: DOProjectNodeProperties = DOProjectNodeProperties()
     sub_resource_relationship: DOProjectToAccountRel = DOProjectToAccountRel()
+    # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[DOProjectToAccountDeprecatedRel()],
+    )

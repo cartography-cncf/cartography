@@ -20,9 +20,7 @@ class AzureStorageQueueServiceProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureStorageQueueServiceToStorageAccountRelProperties(
-    CartographyRelProperties
-):
+class AzureStorageQueueServiceToStorageAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

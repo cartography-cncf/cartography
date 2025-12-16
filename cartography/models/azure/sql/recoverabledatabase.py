@@ -22,9 +22,7 @@ class AzureRecoverableDatabaseProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureRecoverableDatabaseToSQLServerRelProperties(
-    CartographyRelProperties
-):
+class AzureRecoverableDatabaseToSQLServerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

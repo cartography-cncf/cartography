@@ -21,9 +21,7 @@ class AzureStorageTableProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureStorageTableToStorageTableServiceRelProperties(
-    CartographyRelProperties
-):
+class AzureStorageTableToStorageTableServiceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

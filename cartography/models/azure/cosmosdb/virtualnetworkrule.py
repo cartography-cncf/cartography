@@ -36,9 +36,9 @@ class AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONFIGURED_WITH"
-    properties: (
-        AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRelProperties
-    ) = AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRelProperties()
+    properties: AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRelProperties = (
+        AzureCosmosDBVirtualNetworkRuleToCosmosDBAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)

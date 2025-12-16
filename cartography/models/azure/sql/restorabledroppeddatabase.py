@@ -27,9 +27,7 @@ class AzureRestorableDroppedDatabaseProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureRestorableDroppedDatabaseToSQLServerRelProperties(
-    CartographyRelProperties
-):
+class AzureRestorableDroppedDatabaseToSQLServerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

@@ -41,9 +41,9 @@ class AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspaceRel(CartographyRelSc
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: (
-        AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspaceRelProperties
-    ) = AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspaceRelProperties()
+    properties: AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspaceRelProperties = (
+        AzureCosmosDBCassandraTableToCosmosDBCassandraKeyspaceRelProperties()
+    )
 
 
 @dataclass(frozen=True)

@@ -23,9 +23,7 @@ class AzureCosmosDBCorsPolicyProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBCorsPolicyToCosmosDBAccountRelProperties(
-    CartographyRelProperties
-):
+class AzureCosmosDBCorsPolicyToCosmosDBAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

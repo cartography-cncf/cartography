@@ -21,9 +21,7 @@ class AzureServerADAdministratorProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureServerADAdministratorToSQLServerRelProperties(
-    CartographyRelProperties
-):
+class AzureServerADAdministratorToSQLServerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

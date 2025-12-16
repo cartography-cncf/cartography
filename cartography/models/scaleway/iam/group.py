@@ -39,9 +39,7 @@ class ScalewayGroupToUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"
-    properties: ScalewayGroupToUserRelProperties = (
-        ScalewayGroupToUserRelProperties()
-    )
+    properties: ScalewayGroupToUserRelProperties = ScalewayGroupToUserRelProperties()
 
 
 @dataclass(frozen=True)
