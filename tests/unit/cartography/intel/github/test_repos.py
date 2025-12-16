@@ -1,6 +1,7 @@
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
+from cartography.intel.github.repos import _transform_python_requirements
 from cartography.intel.github.repos import transform
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import GET_REPOS
@@ -101,6 +102,41 @@ def test_transform_dependency_converts_to_expected_format():
     assert react_dep["manifest_path"] == "/package.json"
     assert react_dep["repo_url"] == repo_url
     assert react_dep["manifest_file"] == "package.json"
+
+
+def test_transform_python_requirements_skips_flags_and_continuations():
+    repo_url = "https://github.com/test-org/test-repo"
+    output_list = []
+    requirements_list = [
+        "requests==2.31.0 \\",
+        "    --hash=sha256:1111111111111111111111111111111111111111111111111111111111111111 \\",
+        "    --hash=sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "--extra-index-url https://example.com/simple",
+        "-r base.txt",
+        "boto3==1.34.0 \\",
+        "    ; python_version >= \"3.9\"",
+        "pytest==8.0.2",
+    ]
+
+    _transform_python_requirements(requirements_list, repo_url, output_list)
+
+    deps_by_name = {dep["name"]: dep for dep in output_list}
+
+    assert set(deps_by_name) == {"boto3", "pytest", "requests"}
+
+    requests_dep = deps_by_name["requests"]
+    assert requests_dep["version"] == "2.31.0"
+    assert requests_dep["specifier"] == "==2.31.0"
+    assert requests_dep["id"] == "requests|2.31.0"
+    assert requests_dep["repo_url"] == repo_url
+
+    boto3_dep = deps_by_name["boto3"]
+    assert boto3_dep["version"] == "1.34.0"
+    assert boto3_dep["specifier"] == "==1.34.0"
+
+    pytest_dep = deps_by_name["pytest"]
+    assert pytest_dep["version"] == "8.0.2"
+    assert pytest_dep["specifier"] == "==8.0.2"
 
 
 def test_create_git_url_from_ssh_url():
