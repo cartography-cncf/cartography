@@ -31,13 +31,14 @@ class AzureDataLakeFileSystemToStorageAccountRelProperties(CartographyRelPropert
 
 
 @dataclass(frozen=True)
+# (:AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
 class AzureDataLakeFileSystemToStorageAccountRel(CartographyRelSchema):
     target_node_label: str = "AzureStorageAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("STORAGE_ACCOUNT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
+    rel_label: str = "CONTAINS"
     properties: AzureDataLakeFileSystemToStorageAccountRelProperties = (
         AzureDataLakeFileSystemToStorageAccountRelProperties()
     )
@@ -49,14 +50,14 @@ class AzureDataLakeFileSystemToSubscriptionRelProperties(CartographyRelPropertie
 
 
 @dataclass(frozen=True)
-# (:AzureDataLakeFileSystem)<-[:CONTAINS]-(:AzureSubscription) - Backwards compatibility
-class AzureDataLakeFileSystemToSubscriptionDeprecatedRel(CartographyRelSchema):
+# (:AzureSubscription)-[:RESOURCE]->(:AzureDataLakeFileSystem)
+class AzureDataLakeFileSystemToSubscriptionRel(CartographyRelSchema):
     target_node_label: str = "AzureSubscription"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AZURE_SUBSCRIPTION_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CONTAINS"
+    rel_label: str = "RESOURCE"
     properties: AzureDataLakeFileSystemToSubscriptionRelProperties = (
         AzureDataLakeFileSystemToSubscriptionRelProperties()
     )
@@ -66,10 +67,10 @@ class AzureDataLakeFileSystemToSubscriptionDeprecatedRel(CartographyRelSchema):
 class AzureDataLakeFileSystemSchema(CartographyNodeSchema):
     label: str = "AzureDataLakeFileSystem"
     properties: AzureDataLakeFileSystemProperties = AzureDataLakeFileSystemProperties()
-    sub_resource_relationship: AzureDataLakeFileSystemToStorageAccountRel = (
-        AzureDataLakeFileSystemToStorageAccountRel()
+    sub_resource_relationship: AzureDataLakeFileSystemToSubscriptionRel = (
+        AzureDataLakeFileSystemToSubscriptionRel()
     )
     # DEPRECATED: for backward compatibility, will be removed in v1.0.0
     other_relationships: OtherRelationships = OtherRelationships(
-        rels=[AzureDataLakeFileSystemToSubscriptionDeprecatedRel()],
+        rels=[AzureDataLakeFileSystemToStorageAccountRel()],
     )
