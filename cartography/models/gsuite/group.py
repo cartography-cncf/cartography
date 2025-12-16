@@ -62,7 +62,7 @@ class GSuiteGroupToTenantRel(CartographyRelSchema):
             "id": PropertyRef("CUSTOMER_ID", set_in_kwargs=True),
         }
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
     properties: GSuiteGroupToTenantRelProperties = GSuiteGroupToTenantRelProperties()
 
@@ -114,7 +114,7 @@ class GSuiteGroupToOwnerRel(CartographyRelSchema):
             "id": PropertyRef("owner_ids", one_to_many=True),
         }
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OWNER_GSUITE_GROUP"
     properties: GSuiteGroupToOwnerRelProperties = GSuiteGroupToOwnerRelProperties()
 
