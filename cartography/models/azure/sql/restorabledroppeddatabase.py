@@ -67,6 +67,20 @@ class AzureRestorableDroppedDatabaseToSubscriptionRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# (:AzureSQLServer)-[:RESOURCE]->(:AzureRestorableDroppedDatabase) - Backwards compatibility
+class AzureRestorableDroppedDatabaseToSQLServerDeprecatedRel(CartographyRelSchema):
+    target_node_label: str = "AzureSQLServer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("server_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AzureRestorableDroppedDatabaseToSQLServerRelProperties = (
+        AzureRestorableDroppedDatabaseToSQLServerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AzureRestorableDroppedDatabaseSchema(CartographyNodeSchema):
     label: str = "AzureRestorableDroppedDatabase"
     properties: AzureRestorableDroppedDatabaseProperties = (
@@ -78,5 +92,7 @@ class AzureRestorableDroppedDatabaseSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureRestorableDroppedDatabaseToSQLServerRel(),
+            # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+            AzureRestorableDroppedDatabaseToSQLServerDeprecatedRel(),
         ]
     )

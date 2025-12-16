@@ -60,6 +60,20 @@ class AzureRecoverableDatabaseToSubscriptionRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# (:AzureSQLServer)-[:RESOURCE]->(:AzureRecoverableDatabase) - Backwards compatibility
+class AzureRecoverableDatabaseToSQLServerDeprecatedRel(CartographyRelSchema):
+    target_node_label: str = "AzureSQLServer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("server_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AzureRecoverableDatabaseToSQLServerRelProperties = (
+        AzureRecoverableDatabaseToSQLServerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AzureRecoverableDatabaseSchema(CartographyNodeSchema):
     label: str = "AzureRecoverableDatabase"
     properties: AzureRecoverableDatabaseProperties = (
@@ -71,5 +85,7 @@ class AzureRecoverableDatabaseSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureRecoverableDatabaseToSQLServerRel(),
+            # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+            AzureRecoverableDatabaseToSQLServerDeprecatedRel(),
         ]
     )

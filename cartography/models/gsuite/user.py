@@ -85,7 +85,7 @@ class GSuiteUserToTenantRel(CartographyRelSchema):
             "id": PropertyRef("CUSTOMER_ID", set_in_kwargs=True),
         }
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "RESOURCE"
     properties: GSuiteUserToTenantRelProperties = GSuiteUserToTenantRelProperties()
 
