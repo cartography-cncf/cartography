@@ -114,7 +114,7 @@ def test_transform_python_requirements_skips_flags_and_continuations():
         "--extra-index-url https://example.com/simple",
         "-r base.txt",
         "boto3==1.34.0 \\",
-        "    ; python_version >= \"3.9\"",
+        '    ; python_version >= "3.9"',
         "pytest==8.0.2",
     ]
 
