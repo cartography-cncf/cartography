@@ -3,6 +3,8 @@ from typing import Any
 from typing import List
 
 from cartography.intel.github.repos import UserAffiliationAndRepoPermission
+from tests.data.github.protected_branches import PROTECTED_BRANCH_STRONG
+from tests.data.github.protected_branches import PROTECTED_BRANCH_WEAK
 
 # Dependency graph test data for unit tests
 DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
@@ -179,6 +181,9 @@ GET_REPOS: List[dict[str, Any]] = [
             ),
         },
         "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
+        "branchProtectionRules": {
+            "nodes": [PROTECTED_BRANCH_STRONG],
+        },
     },
 ]
 

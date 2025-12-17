@@ -21,6 +21,7 @@ from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import PaginatedGraphqlData
 from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.models.github.manifests import DependencyGraphManifestSchema
+from cartography.models.github.protected_branches import GitHubProtectedBranchSchema
 from cartography.util import backoff_handler
 from cartography.util import retries_with_backoff
 from cartography.util import run_cleanup_job
@@ -110,6 +111,25 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                                     packageManager
                                 }
                             }
+                        }
+                    }
+                    branchProtectionRules(first: 50) {
+                        nodes {
+                            id
+                            pattern
+                            allowsDeletions
+                            allowsForcePushes
+                            dismissesStaleReviews
+                            isAdminEnforced
+                            requiresApprovingReviews
+                            requiredApprovingReviewCount
+                            requiresCodeOwnerReviews
+                            requiresCommitSignatures
+                            requiresLinearHistory
+                            requiresStatusChecks
+                            requiresStrictStatusChecks
+                            restrictsPushes
+                            restrictsReviewDismissals
                         }
                     }
                 }
@@ -329,8 +349,8 @@ def transform(
     :param outside_collaborators: dict of repo URL to list of outside collaborators.
         See tests.data.github.repos.OUTSIDE_COLLABORATORS for data shape.
     :return: Dict containing the repos, repo->language mapping, owners->repo mapping, outside collaborators->repo
-    mapping, Python requirements files (if any) in a repo, manifests from GitHub's dependency graph, and all
-    dependencies from GitHub's dependency graph.
+    mapping, Python requirements files (if any) in a repo, manifests from GitHub's dependency graph, all
+    dependencies from GitHub's dependency graph, and protected branch rules.
     """
     logger.info(f"Processing {len(repos_json)} GitHub repositories")
     transformed_repo_list: List[Dict] = []
@@ -354,6 +374,7 @@ def transform(
     transformed_requirements_files: List[Dict] = []
     transformed_dependencies: List[Dict] = []
     transformed_manifests: List[Dict] = []
+    transformed_protected_branches: List[Dict] = []
     for repo_object in repos_json:
         # GitHub can return null repo entries. See issues #1334 and #1404.
         if repo_object is None:
@@ -406,6 +427,11 @@ def transform(
             repo_url,
             transformed_dependencies,
         )
+        _transform_protected_branches(
+            repo_object.get("branchProtectionRules", {}).get("nodes", []),
+            repo_url,
+            transformed_protected_branches,
+        )
     results = {
         "repos": transformed_repo_list,
         "repo_languages": transformed_repo_languages,
@@ -415,6 +441,7 @@ def transform(
         "python_requirements": transformed_requirements_files,
         "dependencies": transformed_dependencies,
         "manifests": transformed_manifests,
+        "protected_branches": transformed_protected_branches,
     }
 
     return results
@@ -803,6 +830,42 @@ def _transform_python_requirements(
         )
 
 
+def _transform_protected_branches(
+    protected_branches_data: List[Dict[str, Any]],
+    repo_url: str,
+    out_protected_branches: List[Dict],
+) -> None:
+    """
+    Transforms GitHub protected branch data from API format to Cartography format.
+    :param protected_branches_data: List of protected branch objects from GitHub's branchProtectionRules API.
+        See tests.data.github.protected_branches for data shape.
+    :param repo_url: The URL of the GitHub repository.
+    :param out_protected_branches: Output array to append transformed results to.
+    :return: Nothing.
+    """
+    for pb in protected_branches_data:
+        out_protected_branches.append(
+            {
+                "id": pb["id"],
+                "pattern": pb["pattern"],
+                "allows_deletions": pb["allowsDeletions"],
+                "allows_force_pushes": pb["allowsForcePushes"],
+                "dismisses_stale_reviews": pb["dismissesStaleReviews"],
+                "is_admin_enforced": pb["isAdminEnforced"],
+                "requires_approving_reviews": pb["requiresApprovingReviews"],
+                "required_approving_review_count": pb["requiredApprovingReviewCount"],
+                "requires_code_owner_reviews": pb["requiresCodeOwnerReviews"],
+                "requires_commit_signatures": pb["requiresCommitSignatures"],
+                "requires_linear_history": pb["requiresLinearHistory"],
+                "requires_status_checks": pb["requiresStatusChecks"],
+                "requires_strict_status_checks": pb["requiresStrictStatusChecks"],
+                "restricts_pushes": pb["restrictsPushes"],
+                "restricts_review_dismissals": pb["restrictsReviewDismissals"],
+                "repo_url": repo_url,
+            }
+        )
+
+
 def parse_setup_cfg(config: configparser.ConfigParser) -> List[str]:
     reqs: List[str] = []
     reqs.extend(
@@ -1165,6 +1228,59 @@ def cleanup_github_manifests(
 
 
 @timeit
+def load_protected_branches(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+    protected_branches: List[Dict],
+) -> None:
+    """
+    Ingest GitHub protected branch rules into Neo4j
+    :param neo4j_session: Neo4J session object for server communication
+    :param update_tag: Timestamp used to determine data freshness
+    :param protected_branches: List of protected branch objects from GitHub's branchProtectionRules API
+    :return: Nothing
+    """
+    # Group protected branches by repo_url for schema-based loading
+    branches_by_repo = defaultdict(list)
+
+    for branch in protected_branches:
+        repo_url = branch["repo_url"]
+        # Remove repo_url from the branch object since we'll pass it as kwargs
+        branch_without_kwargs = {k: v for k, v in branch.items() if k != "repo_url"}
+        branches_by_repo[repo_url].append(branch_without_kwargs)
+
+    # Load protected branches for each repository separately
+    for repo_url, repo_branches in branches_by_repo.items():
+        load_data(
+            neo4j_session,
+            GitHubProtectedBranchSchema(),
+            repo_branches,
+            lastupdated=update_tag,
+            repo_url=repo_url,
+        )
+
+
+@timeit
+def cleanup_protected_branches(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+    repo_urls: List[str],
+) -> None:
+    """
+    Delete GitHub protected branches from the graph if they were not updated in the last sync.
+    :param neo4j_session: Neo4j session
+    :param common_job_parameters: Common job parameters containing UPDATE_TAG
+    :param repo_urls: List of repository URLs to clean up protected branches for
+    """
+    # Run cleanup for each repository separately
+    for repo_url in repo_urls:
+        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
+        GraphJob.from_node_schema(GitHubProtectedBranchSchema(), cleanup_params).run(
+            neo4j_session
+        )
+
+
+@timeit
 def load(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
@@ -1211,6 +1327,11 @@ def load(
         neo4j_session,
         common_job_parameters["UPDATE_TAG"],
         repo_data["dependencies"],
+    )
+    load_protected_branches(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["protected_branches"],
     )
 
 
@@ -1272,6 +1393,14 @@ def sync(
     )
     cleanup_github_manifests(
         neo4j_session, common_job_parameters, repo_urls_with_manifests
+    )
+
+    # Collect repository URLs that have protected branches for cleanup
+    repo_urls_with_protected_branches = list(
+        {pb["repo_url"] for pb in repo_data["protected_branches"]}
+    )
+    cleanup_protected_branches(
+        neo4j_session, common_job_parameters, repo_urls_with_protected_branches
     )
 
     run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)
