@@ -64,6 +64,7 @@ def get_all_groups(cloudidentity: Resource, customer_id: str) -> list[dict[str, 
                     "run: gcloud auth application-default login --scopes="
                     "https://www.googleapis.com/auth/admin.directory.customer.readonly,"
                     "https://www.googleapis.com/auth/admin.directory.user.readonly,"
+                    "https://www.googleapis.com/auth/admin.directory.user.security,"
                     "https://www.googleapis.com/auth/cloud-identity.devices.readonly,"
                     "https://www.googleapis.com/auth/cloud-identity.groups.readonly,"
                     "https://www.googleapis.com/auth/cloud-platform"

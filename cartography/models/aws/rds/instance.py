@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -143,6 +144,7 @@ class RDSInstanceToRDSClusterRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RDSInstanceSchema(CartographyNodeSchema):
     label: str = "RDSInstance"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
     properties: RDSInstanceNodeProperties = RDSInstanceNodeProperties()
     sub_resource_relationship: RDSInstanceToAWSAccountRel = RDSInstanceToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(

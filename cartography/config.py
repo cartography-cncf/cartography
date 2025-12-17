@@ -81,6 +81,8 @@ class Config:
     :param permission_relationships_file: File path for the resource permission relationships file. Optional.
     :type azure_permission_relationships_file: str
     :param azure_permission_relationships_file: File path for the Azure permission relationships file. Optional.
+    :type gcp_permission_relationships_file: str
+    :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
     :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.com/JSSResource. Optional.
     :type jamf_user: string
@@ -206,6 +208,12 @@ class Config:
     :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
     :type keycloak_url: str
     :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
+    :type slack_token: str
+    :param slack_token: Slack API token. Optional.
+    :type slack_teams: list[str]
+    :param slack_teams: List of Slack team IDs to sync. Optional.
+    :type slack_channels_memberships: bool
+    :param slack_channels_memberships: If True, sync Slack channel membership data. Optional.
     """
 
     def __init__(
@@ -243,6 +251,7 @@ class Config:
         digitalocean_token=None,
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
+        gcp_permission_relationships_file=None,
         jamf_base_uri=None,
         jamf_user=None,
         jamf_password=None,
@@ -311,6 +320,9 @@ class Config:
         keycloak_client_secret=None,
         keycloak_realm=None,
         keycloak_url=None,
+        slack_token=None,
+        slack_teams=None,
+        slack_channels_memberships=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -347,6 +359,7 @@ class Config:
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
+        self.gcp_permission_relationships_file = gcp_permission_relationships_file
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
         self.jamf_password = jamf_password
@@ -415,3 +428,6 @@ class Config:
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm
         self.keycloak_url = keycloak_url
+        self.slack_token = slack_token
+        self.slack_teams = slack_teams
+        self.slack_channels_memberships = slack_channels_memberships

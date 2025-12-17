@@ -164,3 +164,48 @@ MOCK_GOOGLEWORKSPACE_MEMBERS_BY_GROUP_EMAIL = {
         },
     ],
 }
+
+
+# Mock OAuth tokens responses
+# See: https://developers.google.com/workspace/admin/directory/reference/rest/v1/tokens/list
+MOCK_GOOGLEWORKSPACE_OAUTH_TOKENS_BY_USER = {
+    "user-1": [
+        {
+            "kind": "admin#directory#token",
+            "etag": "etag-token-1",
+            "clientId": "123456789.apps.googleusercontent.com",
+            "displayText": "Slack",
+            "anonymous": False,
+            "nativeApp": False,
+            "scopes": [
+                "https://www.googleapis.com/auth/userinfo.email",
+                "https://www.googleapis.com/auth/userinfo.profile",
+            ],
+        },
+        {
+            "kind": "admin#directory#token",
+            "etag": "etag-token-2",
+            "clientId": "987654321.apps.googleusercontent.com",
+            "displayText": "Google Calendar Mobile",
+            "anonymous": False,
+            "nativeApp": True,
+            "scopes": [
+                "https://www.googleapis.com/auth/calendar",
+            ],
+        },
+    ],
+    "user-2": [
+        {
+            "kind": "admin#directory#token",
+            "etag": "etag-token-3",
+            "clientId": "123456789.apps.googleusercontent.com",
+            "displayText": "Slack",
+            "anonymous": False,
+            "nativeApp": False,
+            "scopes": [
+                "https://www.googleapis.com/auth/userinfo.email",
+                "https://www.googleapis.com/auth/userinfo.profile",
+            ],
+        },
+    ],
+}
