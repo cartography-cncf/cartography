@@ -201,3 +201,40 @@ def test_transform_includes_branch_protection_rules():
     assert rule["requires_approving_reviews"] is True
     assert rule["required_approving_review_count"] == 2
     assert rule["repo_url"] == repo_with_branch_protection_rules["url"]
+
+
+def test_transform_prefers_dependency_graph_over_requirements_txt():
+    repo = GET_REPOS[2]
+    repo_url = repo["url"]
+
+    result = transform(
+        [repo],
+        {repo_url: []},
+        {repo_url: []},
+    )
+
+    # Dependency graph is present; requirements files are used only as fallback
+    assert result["python_requirements"] == []
+    # Dependencies should still come from the dependency graph data
+    dependency_ids = {dep["id"] for dep in result["dependencies"]}
+    assert dependency_ids == {
+        "react|18.2.0",
+        "lodash",
+        "django|= 4.2.0",
+        "org.springframework:spring-core|5.3.21",
+    }
+
+
+def test_transform_uses_requirements_when_dependency_graph_missing():
+    repo = GET_REPOS[0]
+    repo_url = repo["url"]
+
+    result = transform(
+        [repo],
+        {repo_url: []},
+        {repo_url: []},
+    )
+
+    # No dependency graph data, so requirements parsing should run
+    requirement_names = {req["name"] for req in result["python_requirements"]}
+    assert {"cartography", "httplib2", "jinja2", "lxml"}.issubset(requirement_names)

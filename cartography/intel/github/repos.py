@@ -409,23 +409,30 @@ def transform(
                 transformed_direct_collaborators,
             )
 
-        _transform_requirements_txt(
-            repo_object["requirements"],
-            repo_url,
-            transformed_requirements_files,
+        dependency_manifests = repo_object.get("dependencyGraphManifests")
+        has_dependency_graph = bool(
+            dependency_manifests and dependency_manifests.get("nodes"),
         )
-        _transform_setup_cfg_requirements(
-            repo_object["setupCfg"],
-            repo_url,
-            transformed_requirements_files,
-        )
+
+        if not has_dependency_graph:
+            _transform_requirements_txt(
+                repo_object["requirements"],
+                repo_url,
+                transformed_requirements_files,
+            )
+            _transform_setup_cfg_requirements(
+                repo_object["setupCfg"],
+                repo_url,
+                transformed_requirements_files,
+            )
+
         _transform_dependency_manifests(
-            repo_object.get("dependencyGraphManifests"),
+            dependency_manifests,
             repo_url,
             transformed_manifests,
         )
         _transform_dependency_graph(
-            repo_object.get("dependencyGraphManifests"),
+            dependency_manifests,
             repo_url,
             transformed_dependencies,
         )
