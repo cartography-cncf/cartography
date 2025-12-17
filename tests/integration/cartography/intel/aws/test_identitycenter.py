@@ -7,18 +7,15 @@ import cartography.intel.aws.identitycenter
 import tests.data.aws.identitycenter
 from cartography.client.core.tx import load
 from cartography.intel.aws.identitycenter import get_permission_sets
+from cartography.intel.aws.identitycenter import load_group_roles
 from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
-from cartography.intel.aws.identitycenter import load_role_assignments
 from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
 from cartography.intel.aws.identitycenter import transform_permission_sets
 from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
 from cartography.models.aws.iam.role import AWSRoleSchema
-from cartography.models.aws.identitycenter.awspermissionset import (
-    RoleAssignmentAllowedByGroupMatchLink,
-)
 from cartography.models.aws.identitycenter.awssogroup import AWSSSOGroupSchema
 from cartography.models.aws.identitycenter.awsssouser import AWSSSOUserSchema
 from tests.integration.util import check_nodes
@@ -161,6 +158,7 @@ def test_link_sso_group_to_permission_set(neo4j_session):
         mapping,
         lastupdated="test_tag",
         AWS_ID=TEST_ACCOUNT_ID,
+        Region="us-west-2",
     )
 
     assert check_rels(
@@ -225,6 +223,7 @@ def test_link_sso_user_membership_to_group(neo4j_session):
         membership,
         lastupdated="test_tag",
         AWS_ID=TEST_ACCOUNT_ID,
+        Region="us-west-2",
     )
 
     assert check_rels(
@@ -287,6 +286,7 @@ def test_link_sso_user_to_permission_set(neo4j_session):
         mapping,
         lastupdated="test_tag",
         AWS_ID=TEST_ACCOUNT_ID,
+        Region="us-west-2",
     )
 
     # Assert
@@ -339,12 +339,11 @@ def test_group_allowed_by_role(neo4j_session):
         }
     ]
 
-    load_role_assignments(
+    load_group_roles(
         neo4j_session,
         rel_data,
         TEST_ACCOUNT_ID,
         "test_tag",
-        RoleAssignmentAllowedByGroupMatchLink(),
     )
 
     assert check_rels(
@@ -633,3 +632,172 @@ def test_sync_account_instance_skips_permission_sets(
     assert (
         "arn:aws:sso:::instance/ssoins-test",
     ) in all_instances, f"Expected test instance to be synced, but it wasn't found. Instances: {all_instances}"
+
+    # Assert OUTCOME 5: No ALLOWED_BY relationships are created without permission sets
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSRole",
+            "arn",
+            "AWSSSOUser",
+            "id",
+            "ALLOWED_BY",
+            True,
+        )
+        == set()
+    )
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSRole",
+            "arn",
+            "AWSSSOGroup",
+            "id",
+            "ALLOWED_BY",
+            True,
+        )
+        == set()
+    )
+
+
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_user_group_memberships",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_group_permissionsets",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_user_permissionsets",
+    return_value=tests.data.aws.identitycenter.MULTI_ACCOUNT_USER_ASSIGNMENTS,
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_sso_groups",
+    return_value=tests.data.aws.identitycenter.LIST_GROUPS,
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_sso_users",
+    return_value=tests.data.aws.identitycenter.LIST_USERS,
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_permission_sets",
+    return_value=tests.data.aws.identitycenter.LIST_PERMISSION_SETS,
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_identity_center_instances",
+    return_value=tests.data.aws.identitycenter.LIST_INSTANCES,
+)
+def test_multi_account_permission_set_assignments(
+    mock_instances,
+    mock_permission_sets,
+    mock_users,
+    mock_groups,
+    mock_user_permissionsets,
+    mock_group_permissionsets,
+    mock_memberships,
+    neo4j_session,
+):
+    """
+    Test that user assignments to permission sets are correctly scoped to specific accounts.
+
+    This test proves the fix for the multi-account false positive bug where users assigned to
+    a permission set on 2 out of 3 accounts were incorrectly showing ALLOWED_BY relationships
+    to all 3 accounts.
+
+    Scenario:
+    - 3 AWS accounts exist (pre-populated from IAM sync)
+    - A permission set is provisioned to all 3 accounts (creating 3 IAM roles from IAM sync)
+    - A user is assigned to the permission set on ONLY accounts 1 and 2
+    - sync_identity_center_instances() runs and creates relationships
+
+    Expected outcome:
+    - User has ALLOWED_BY relationships to roles in accounts 1 and 2 ONLY
+    - User does NOT have ALLOWED_BY relationship to role in account 3
+    """
+    # Arrange - Pre-populate AWS accounts (simulating they were created by AWS account sync)
+    for account_id in tests.data.aws.identitycenter.MULTI_ACCOUNT_TEST_ACCOUNTS:
+        neo4j_session.run(
+            "MERGE (a:AWSAccount {id: $account_id}) SET a.lastupdated = $update_tag",
+            account_id=account_id,
+            update_tag=123,
+        )
+
+    # Arrange - Pre-populate IAM roles (simulating they were created by AWS IAM sync)
+    # These roles exist in all 3 accounts for the same permission set
+    role_data = [
+        {
+            "arn": role["Arn"],
+            "name": role["RoleName"],
+            "roleid": role["RoleId"],
+            "path": role["Path"],
+            "createdate": str(role["CreateDate"]),
+            "trusted_aws_principals": [],
+        }
+        for role in tests.data.aws.identitycenter.MULTI_ACCOUNT_TEST_ROLES
+    ]
+
+    for i, role in enumerate(role_data):
+        load(
+            neo4j_session,
+            AWSRoleSchema(),
+            [role],
+            lastupdated=123,
+            AWS_ID=tests.data.aws.identitycenter.MULTI_ACCOUNT_TEST_ACCOUNTS[i],
+        )
+
+    # Act - Run the complete sync flow
+    cartography.intel.aws.identitycenter.sync_identity_center_instances(
+        neo4j_session,
+        boto3_session=None,  # Mocked via patches
+        regions=["us-east-1"],
+        current_aws_account_id=TEST_ACCOUNT_ID,
+        update_tag=123,
+        common_job_parameters={"AWS_ID": TEST_ACCOUNT_ID, "UPDATE_TAG": 123},
+    )
+
+    # Assert - User has ALLOWED_BY to roles in accounts 1 and 2 ONLY
+    user_id = tests.data.aws.identitycenter.LIST_USERS[0]["UserId"]
+    role_arns_with_allowed_by = neo4j_session.run(
+        """
+        MATCH (user:AWSSSOUser {id: $user_id})<-[:ALLOWED_BY]-(role:AWSRole)
+        RETURN role.arn as role_arn
+        """,
+        user_id=user_id,
+    )
+    actual_role_arns = {record["role_arn"] for record in role_arns_with_allowed_by}
+
+    expected_role_arns = {
+        tests.data.aws.identitycenter.MULTI_ACCOUNT_TEST_ROLES[0]["Arn"],  # Account 1
+        tests.data.aws.identitycenter.MULTI_ACCOUNT_TEST_ROLES[1]["Arn"],  # Account 2
+        # NOT Account 3
+    }
+
+    assert actual_role_arns == expected_role_arns, (
+        f"Expected user to have ALLOWED_BY relationships to roles in accounts 1 and 2 only. "
+        f"Expected: {expected_role_arns}, Actual: {actual_role_arns}"
+    )
+
+    # Additional verification - Ensure role in account 3 exists but has NO ALLOWED_BY to user
+    role_3_arn = tests.data.aws.identitycenter.MULTI_ACCOUNT_TEST_ROLES[2]["Arn"]
+    assert role_3_arn not in actual_role_arns, (
+        f"User should NOT have ALLOWED_BY relationship to role in account 3 ({role_3_arn}), "
+        f"but it was found in: {actual_role_arns}"
+    )
+
+    # Verify account 3 role exists in the graph (sanity check)
+    role_3_exists = neo4j_session.run(
+        "MATCH (role:AWSRole {arn: $arn}) RETURN count(role) as count",
+        arn=role_3_arn,
+    ).single()["count"]
+    assert (
+        role_3_exists == 1
+    ), f"Role in account 3 should exist in graph but was not found: {role_3_arn}"
