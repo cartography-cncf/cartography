@@ -1,3 +1,7 @@
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_iam
+from cartography.rules.data.rules.cis_aws_logging import cis_aws_logging
+from cartography.rules.data.rules.cis_aws_networking import cis_aws_networking
+from cartography.rules.data.rules.cis_aws_storage import cis_aws_storage
 from cartography.rules.data.rules.cloud_security_product_deactivated import (
     cloud_security_product_deactivated,
 )
@@ -31,6 +35,12 @@ from cartography.rules.data.rules.workload_identity_admin_capabilities import (
 
 # Rule registry - all available rules
 RULES = {
+    # CIS AWS Compliance Rules
+    cis_aws_iam.id: cis_aws_iam,
+    cis_aws_logging.id: cis_aws_logging,
+    cis_aws_networking.id: cis_aws_networking,
+    cis_aws_storage.id: cis_aws_storage,
+    # Security Rules
     compute_instance_exposed.id: compute_instance_exposed,
     database_instance_exposed.id: database_instance_exposed,
     delegation_boundary_modifiable.id: delegation_boundary_modifiable,
