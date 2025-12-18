@@ -215,26 +215,35 @@ _cis_1_13_multiple_access_keys = Fact(
 # Output Model
 # -----------------------------------------------------------------------------
 class CISAWSIAMOutput(Finding):
-    """Output model for CIS AWS IAM checks."""
+    """Output model for CIS AWS IAM checks.
 
-    account_id: str | None = None
-    account: str | None = None
-    user_name: str | None = None
-    user_arn: str | None = None
+    Field order matters for display_name: first non-null field is used.
+    Most specific identifiers should come first.
+    """
+
+    # Primary identifiers (first non-null becomes display_name)
     access_key_id: str | None = None
+    user_arn: str | None = None
+    domain_name: str | None = None
+    # User details
+    user_name: str | None = None
+    # Key details
     key_create_date: str | None = None
     last_used_date: str | None = None
     days_since_rotation: int | None = None
     active_key_count: int | None = None
     access_key_ids: list[str] | None = None
+    # Policy details
     policy_name: str | None = None
     policy_arn: str | None = None
-    # Certificate fields
-    domain_name: str | None = None
+    # Certificate details
     certificate_arn: str | None = None
     status: str | None = None
     expiry_date: str | None = None
     certificate_type: str | None = None
+    # Account (last - generic identifier)
+    account_id: str | None = None
+    account: str | None = None
 
 
 # -----------------------------------------------------------------------------

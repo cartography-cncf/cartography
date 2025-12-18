@@ -205,11 +205,15 @@ _unrestricted_all_ports = Fact(
 # Output Model
 # -----------------------------------------------------------------------------
 class CISAWSNetworkingOutput(Finding):
-    """Output model for CIS AWS Networking checks."""
+    """Output model for CIS AWS Networking checks.
 
-    account_id: str | None = None
-    account: str | None = None
+    Field order matters for display_name: first non-null field is used.
+    Most specific identifiers should come first.
+    """
+
+    # Primary identifier (first non-null becomes display_name)
     security_group_id: str | None = None
+    # Security group details
     security_group_name: str | None = None
     region: str | None = None
     from_port: int | None = None
@@ -217,6 +221,9 @@ class CISAWSNetworkingOutput(Finding):
     protocol: str | None = None
     cidr_range: str | None = None
     rule_direction: str | None = None
+    # Account (last - generic identifier)
+    account_id: str | None = None
+    account: str | None = None
 
 
 # -----------------------------------------------------------------------------

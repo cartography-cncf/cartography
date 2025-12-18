@@ -261,13 +261,18 @@ _cis_2_3_1_ebs_encryption_disabled = Fact(
 # Output Model
 # -----------------------------------------------------------------------------
 class CISAWSStorageOutput(Finding):
-    """Output model for CIS AWS Storage checks."""
+    """Output model for CIS AWS Storage checks.
 
-    account_id: str | None = None
-    account: str | None = None
+    Field order matters for display_name: first non-null field is used.
+    Most specific identifiers should come first.
+    """
+
+    # Primary identifiers (first non-null becomes display_name)
     bucket_name: str | None = None
-    bucket_id: str | None = None
+    db_identifier: str | None = None
     volume_id: str | None = None
+    # S3 bucket details
+    bucket_id: str | None = None
     region: str | None = None
     mfa_delete_enabled: bool | None = None
     block_public_acls: bool | None = None
@@ -278,18 +283,21 @@ class CISAWSStorageOutput(Finding):
     logging_enabled: bool | None = None
     default_encryption: bool | None = None
     encryption_algorithm: str | None = None
+    # EBS volume details
     encrypted: bool | None = None
     volume_type: str | None = None
     size_gb: int | None = None
     state: str | None = None
-    # RDS fields
-    db_identifier: str | None = None
+    # RDS details
     db_arn: str | None = None
     engine: str | None = None
     engine_version: str | None = None
     instance_class: str | None = None
     storage_encrypted: bool | None = None
     publicly_accessible: bool | None = None
+    # Account (last - generic identifier)
+    account_id: str | None = None
+    account: str | None = None
 
 
 # -----------------------------------------------------------------------------

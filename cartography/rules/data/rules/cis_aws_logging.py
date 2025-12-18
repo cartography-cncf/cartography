@@ -147,17 +147,24 @@ _cis_3_7_cloudtrail_not_encrypted = Fact(
 # Output Model
 # -----------------------------------------------------------------------------
 class CISAWSLoggingOutput(Finding):
-    """Output model for CIS AWS Logging checks."""
+    """Output model for CIS AWS Logging checks.
 
-    account_id: str | None = None
-    account: str | None = None
+    Field order matters for display_name: first non-null field is used.
+    Most specific identifiers should come first.
+    """
+
+    # Primary identifier (first non-null becomes display_name)
     trail_name: str | None = None
+    # Trail details
     trail_arn: str | None = None
     home_region: str | None = None
     is_multi_region: bool | None = None
     log_validation_enabled: bool | None = None
     cloudwatch_log_group: str | None = None
     kms_key_id: str | None = None
+    # Account (last - generic identifier)
+    account_id: str | None = None
+    account: str | None = None
 
 
 # -----------------------------------------------------------------------------
