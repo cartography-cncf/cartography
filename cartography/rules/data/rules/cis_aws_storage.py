@@ -190,6 +190,41 @@ _cis_2_1_6_s3_encryption_disabled = Fact(
 
 
 # -----------------------------------------------------------------------------
+# CIS 2.2.1: Ensure that encryption-at-rest is enabled for RDS instances
+# -----------------------------------------------------------------------------
+_cis_2_2_1_rds_encryption_disabled = Fact(
+    id="cis_2_2_1_rds_encryption_disabled",
+    name="CIS 2.2.1: RDS instances without encryption at rest",
+    description=(
+        "Detects RDS instances that do not have storage encryption enabled. "
+        "Encrypting RDS instances protects data at rest and helps meet "
+        "compliance requirements for sensitive data."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance)
+    WHERE rds.storage_encrypted IS NULL OR rds.storage_encrypted = false
+    RETURN
+        a.id AS account_id,
+        a.name AS account,
+        rds.db_instance_identifier AS db_identifier,
+        rds.arn AS db_arn,
+        rds.engine AS engine,
+        rds.engine_version AS engine_version,
+        rds.db_instance_class AS instance_class,
+        rds.storage_encrypted AS storage_encrypted,
+        rds.publicly_accessible AS publicly_accessible
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance)
+    WHERE rds.storage_encrypted IS NULL OR rds.storage_encrypted = false
+    RETURN *
+    """,
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+
+# -----------------------------------------------------------------------------
 # CIS 2.3.1: Ensure EBS volume encryption is enabled
 # -----------------------------------------------------------------------------
 _cis_2_3_1_ebs_encryption_disabled = Fact(
@@ -246,6 +281,14 @@ class CISAWSStorageOutput(Finding):
     volume_type: str | None = None
     size_gb: int | None = None
     state: str | None = None
+    # RDS fields
+    db_identifier: str | None = None
+    db_arn: str | None = None
+    engine: str | None = None
+    engine_version: str | None = None
+    instance_class: str | None = None
+    storage_encrypted: bool | None = None
+    publicly_accessible: bool | None = None
 
 
 # -----------------------------------------------------------------------------
@@ -266,9 +309,10 @@ cis_aws_storage = Rule(
         _cis_2_1_1_s3_versioning_disabled,
         _cis_2_1_5_s3_access_logging_disabled,
         _cis_2_1_6_s3_encryption_disabled,
+        _cis_2_2_1_rds_encryption_disabled,
         _cis_2_3_1_ebs_encryption_disabled,
     ),
-    tags=("cis", "compliance", "cis_aws_5.0", "storage", "s3", "ebs"),
+    tags=("cis", "compliance", "cis_aws_5.0", "storage", "s3", "ebs", "rds"),
     version="1.0.0",
     references=[
         RuleReference(

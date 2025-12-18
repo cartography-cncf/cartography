@@ -131,6 +131,41 @@ _cis_1_12_unused_credentials = Fact(
 
 
 # -----------------------------------------------------------------------------
+# CIS 1.18: Ensure that all expired SSL/TLS certificates are removed
+# -----------------------------------------------------------------------------
+_cis_1_18_expired_certificates = Fact(
+    id="cis_1_18_expired_certificates",
+    name="CIS 1.18: Expired SSL/TLS certificates",
+    description=(
+        "Detects ACM certificates that have expired. Expired certificates "
+        "should be removed to maintain security hygiene and avoid confusion "
+        "with valid certificates."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
+    WHERE cert.not_after IS NOT NULL
+    AND date(datetime(replace(cert.not_after, ' ', 'T'))) < date()
+    RETURN
+        a.id AS account_id,
+        a.name AS account,
+        cert.domainname AS domain_name,
+        cert.arn AS certificate_arn,
+        cert.status AS status,
+        cert.not_after AS expiry_date,
+        cert.type AS certificate_type
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
+    WHERE cert.not_after IS NOT NULL
+    AND date(datetime(replace(cert.not_after, ' ', 'T'))) < date()
+    RETURN *
+    """,
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+
+# -----------------------------------------------------------------------------
 # CIS 1.13: Ensure there is only one active access key available for any single IAM user
 # -----------------------------------------------------------------------------
 _cis_1_13_multiple_access_keys = Fact(
@@ -182,6 +217,12 @@ class CISAWSIAMOutput(Finding):
     active_key_count: int | None = None
     policy_name: str | None = None
     policy_arn: str | None = None
+    # Certificate fields
+    domain_name: str | None = None
+    certificate_arn: str | None = None
+    status: str | None = None
+    expiry_date: str | None = None
+    certificate_type: str | None = None
 
 
 # -----------------------------------------------------------------------------
@@ -201,8 +242,9 @@ cis_aws_iam = Rule(
         _cis_1_15_user_direct_policies,
         _cis_1_12_unused_credentials,
         _cis_1_13_multiple_access_keys,
+        _cis_1_18_expired_certificates,
     ),
-    tags=("cis", "compliance", "cis_aws_5.0", "iam"),
+    tags=("cis", "compliance", "cis_aws_5.0", "iam", "acm"),
     version="1.0.0",
     references=[
         RuleReference(
