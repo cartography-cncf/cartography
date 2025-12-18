@@ -29,7 +29,7 @@ Settings for a tailnet (aka Tenant).
 | devices_key_duration_days | The [key expiry](https://tailscale.com/kb/1028/key-expiry) duration for devices on this tailnet. |
 | users_approval_on | Whether [user approval](https://tailscale.com/kb/1239/user-approval) is enabled for this tailnet. |
 | users_role_allowed_to_join_external_tailnets | Which user roles are allowed to [join external tailnets](https://tailscale.com/kb/1271/invite-any-user). |
-| network_flow_logging_on | Whether [network flog logs](https://tailscale.com/kb/1219/network-flow-logs) are enabled for the tailnet. |
+| network_flow_logging_on | Whether [network flow logs](https://tailscale.com/kb/1219/network-flow-logs) are enabled for the tailnet. |
 | regional_routing_on | Whether [regional routing](https://tailscale.com/kb/1115/high-availability#regional-routing) is enabled for the tailnet. |
 | posture_identity_collection_on | Whether [identity collection](https://tailscale.com/kb/1326/device-identity) is enabled for [device posture](https://tailscale.com/kb/1288/device-posture) integrations for the tailnet. |
 
