@@ -144,6 +144,7 @@ _cis_1_18_expired_certificates = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
     WHERE cert.not_after IS NOT NULL
+    AND cert.not_after <> 'None'
     AND date(datetime(replace(cert.not_after, ' ', 'T'))) < date()
     RETURN
         a.id AS account_id,
@@ -157,6 +158,7 @@ _cis_1_18_expired_certificates = Fact(
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
     WHERE cert.not_after IS NOT NULL
+    AND cert.not_after <> 'None'
     AND date(datetime(replace(cert.not_after, ' ', 'T'))) < date()
     RETURN *
     """,
