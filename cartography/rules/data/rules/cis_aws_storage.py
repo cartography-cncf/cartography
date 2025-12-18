@@ -38,12 +38,12 @@ _cis_2_1_2_s3_mfa_delete_disabled = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
     WHERE bucket.mfa_delete IS NULL OR bucket.mfa_delete = false
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
         bucket.region AS region,
-        bucket.mfa_delete AS mfa_delete_enabled
+        bucket.mfa_delete AS mfa_delete_enabled,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
@@ -72,15 +72,15 @@ _cis_2_1_4_s3_block_public_access = Fact(
        OR (bucket.block_public_policy IS NULL OR bucket.block_public_policy <> true)
        OR (bucket.restrict_public_buckets IS NULL OR bucket.restrict_public_buckets <> true)
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
         bucket.region AS region,
         bucket.block_public_acls AS block_public_acls,
         bucket.ignore_public_acls AS ignore_public_acls,
         bucket.block_public_policy AS block_public_policy,
-        bucket.restrict_public_buckets AS restrict_public_buckets
+        bucket.restrict_public_buckets AS restrict_public_buckets,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
@@ -109,12 +109,12 @@ _cis_2_1_1_s3_versioning_disabled = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
     WHERE bucket.versioning_status IS NULL OR bucket.versioning_status <> 'Enabled'
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
         bucket.region AS region,
-        bucket.versioning_status AS versioning_status
+        bucket.versioning_status AS versioning_status,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
@@ -140,12 +140,12 @@ _cis_2_1_5_s3_access_logging_disabled = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
     WHERE bucket.logging_enabled IS NULL OR bucket.logging_enabled = false
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
         bucket.region AS region,
-        bucket.logging_enabled AS logging_enabled
+        bucket.logging_enabled AS logging_enabled,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
@@ -171,13 +171,13 @@ _cis_2_1_6_s3_encryption_disabled = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
     WHERE bucket.default_encryption IS NULL OR bucket.default_encryption = false
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         bucket.name AS bucket_name,
         bucket.id AS bucket_id,
         bucket.region AS region,
         bucket.default_encryption AS default_encryption,
-        bucket.encryption_algorithm AS encryption_algorithm
+        bucket.encryption_algorithm AS encryption_algorithm,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
@@ -204,15 +204,15 @@ _cis_2_2_1_rds_encryption_disabled = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance)
     WHERE rds.storage_encrypted IS NULL OR rds.storage_encrypted = false
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         rds.db_instance_identifier AS db_identifier,
         rds.arn AS db_arn,
         rds.engine AS engine,
         rds.engine_version AS engine_version,
         rds.db_instance_class AS instance_class,
         rds.storage_encrypted AS storage_encrypted,
-        rds.publicly_accessible AS publicly_accessible
+        rds.publicly_accessible AS publicly_accessible,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(rds:RDSInstance)
@@ -238,14 +238,14 @@ _cis_2_3_1_ebs_encryption_disabled = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
     WHERE volume.encrypted IS NULL OR volume.encrypted = false
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         volume.id AS volume_id,
         volume.region AS region,
         volume.volumetype AS volume_type,
         volume.size AS size_gb,
         volume.state AS state,
-        volume.encrypted AS encrypted
+        volume.encrypted AS encrypted,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)

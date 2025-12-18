@@ -37,15 +37,15 @@ _cis_5_1_unrestricted_ssh = Fact(
           OR rule.protocol = '-1'
       )
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         sg.groupid AS security_group_id,
         sg.name AS security_group_name,
         sg.region AS region,
         rule.fromport AS from_port,
         rule.toport AS to_port,
         rule.protocol AS protocol,
-        range.id AS cidr_range
+        range.id AS cidr_range,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
@@ -85,15 +85,15 @@ _cis_5_2_unrestricted_rdp = Fact(
           OR rule.protocol = '-1'
       )
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         sg.groupid AS security_group_id,
         sg.name AS security_group_name,
         sg.region AS region,
         rule.fromport AS from_port,
         rule.toport AS to_port,
         rule.protocol AS protocol,
-        range.id AS cidr_range
+        range.id AS cidr_range,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
@@ -127,29 +127,29 @@ _cis_5_4_default_sg_allows_traffic = Fact(
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
     WHERE sg.name = 'default'
     RETURN DISTINCT
-        a.id AS account_id,
-        a.name AS account,
         sg.groupid AS security_group_id,
         sg.name AS security_group_name,
         sg.region AS region,
         'inbound' AS rule_direction,
         rule.fromport AS from_port,
         rule.toport AS to_port,
-        rule.protocol AS protocol
+        rule.protocol AS protocol,
+        a.id AS account_id,
+        a.name AS account
     UNION
     MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionEgress)
     WHERE sg.name = 'default'
     RETURN DISTINCT
-        a.id AS account_id,
-        a.name AS account,
         sg.groupid AS security_group_id,
         sg.name AS security_group_name,
         sg.region AS region,
         'egress' AS rule_direction,
         rule.fromport AS from_port,
         rule.toport AS to_port,
-        rule.protocol AS protocol
+        rule.protocol AS protocol,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
@@ -180,13 +180,13 @@ _unrestricted_all_ports = Fact(
     WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')
       AND rule.protocol = '-1'
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         sg.groupid AS security_group_id,
         sg.name AS security_group_name,
         sg.region AS region,
         rule.protocol AS protocol,
-        range.id AS cidr_range
+        range.id AS cidr_range,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)

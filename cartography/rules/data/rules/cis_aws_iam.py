@@ -34,13 +34,13 @@ _cis_1_14_access_keys_not_rotated = Fact(
     WITH a, user, key
     WHERE date(datetime(replace(key.createdate, ' ', 'T'))) < date() - duration('P90D')
     RETURN
-        a.id AS account_id,
-        a.name AS account,
+        key.accesskeyid AS access_key_id,
         user.name AS user_name,
         user.arn AS user_arn,
-        key.accesskeyid AS access_key_id,
         key.createdate AS key_create_date,
-        duration.inDays(date(datetime(replace(key.createdate, ' ', 'T'))), date()).days AS days_since_rotation
+        duration.inDays(date(datetime(replace(key.createdate, ' ', 'T'))), date()).days AS days_since_rotation,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
@@ -70,12 +70,12 @@ _cis_1_15_user_direct_policies = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:POLICY]->(policy:AWSPolicy)
     RETURN
-        a.id AS account_id,
-        a.name AS account,
-        user.name AS user_name,
         user.arn AS user_arn,
+        user.name AS user_name,
         policy.name AS policy_name,
-        policy.arn AS policy_arn
+        policy.arn AS policy_arn,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:POLICY]->(policy:AWSPolicy)
@@ -109,13 +109,13 @@ _cis_1_12_unused_credentials = Fact(
     WHERE (last_used IS NOT NULL AND last_used < date() - duration('P45D'))
        OR (last_used IS NULL AND created IS NOT NULL AND created < date() - duration('P45D'))
     RETURN
-        a.id AS account_id,
-        a.name AS account,
+        key.accesskeyid AS access_key_id,
         user.name AS user_name,
         user.arn AS user_arn,
-        key.accesskeyid AS access_key_id,
         key.lastuseddate AS last_used_date,
-        key.createdate AS key_create_date
+        key.createdate AS key_create_date,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
@@ -154,13 +154,13 @@ _cis_1_18_expired_certificates = Fact(
     WITH a, cert
     WHERE date(datetime(replace(cert.not_after, ' ', 'T'))) < date()
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         cert.domainname AS domain_name,
         cert.arn AS certificate_arn,
         cert.status AS status,
         cert.not_after AS expiry_date,
-        cert.type AS certificate_type
+        cert.type AS certificate_type,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
@@ -191,12 +191,12 @@ _cis_1_13_multiple_access_keys = Fact(
     WITH a, user, collect(key) AS keys
     WHERE size(keys) > 1
     RETURN
-        a.id AS account_id,
-        a.name AS account,
-        user.name AS user_name,
         user.arn AS user_arn,
+        user.name AS user_name,
         size(keys) AS active_key_count,
-        [k IN keys | k.accesskeyid] AS access_key_ids
+        [k IN keys | k.accesskeyid] AS access_key_ids,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)

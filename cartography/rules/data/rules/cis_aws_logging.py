@@ -30,12 +30,12 @@ _cis_3_1_cloudtrail_not_multi_region = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)
     WHERE trail.is_multi_region_trail IS NULL OR trail.is_multi_region_trail = false
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         trail.name AS trail_name,
         trail.arn AS trail_arn,
         trail.home_region AS home_region,
-        trail.is_multi_region_trail AS is_multi_region
+        trail.is_multi_region_trail AS is_multi_region,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)
@@ -62,12 +62,12 @@ _cis_3_4_cloudtrail_log_validation_disabled = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)
     WHERE trail.log_file_validation_enabled IS NULL OR trail.log_file_validation_enabled = false
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         trail.name AS trail_name,
         trail.arn AS trail_arn,
         trail.home_region AS home_region,
-        trail.log_file_validation_enabled AS log_validation_enabled
+        trail.log_file_validation_enabled AS log_validation_enabled,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)
@@ -94,12 +94,12 @@ _cis_3_5_cloudtrail_no_cloudwatch = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)
     WHERE trail.cloudwatch_logs_log_group_arn IS NULL OR trail.cloudwatch_logs_log_group_arn = ''
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         trail.name AS trail_name,
         trail.arn AS trail_arn,
         trail.home_region AS home_region,
-        trail.cloudwatch_logs_log_group_arn AS cloudwatch_log_group
+        trail.cloudwatch_logs_log_group_arn AS cloudwatch_log_group,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)
@@ -126,12 +126,12 @@ _cis_3_7_cloudtrail_not_encrypted = Fact(
     MATCH (a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)
     WHERE trail.kms_key_id IS NULL OR trail.kms_key_id = ''
     RETURN
-        a.id AS account_id,
-        a.name AS account,
         trail.name AS trail_name,
         trail.arn AS trail_arn,
         trail.home_region AS home_region,
-        trail.kms_key_id AS kms_key_id
+        trail.kms_key_id AS kms_key_id,
+        a.id AS account_id,
+        a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(trail:CloudTrailTrail)
