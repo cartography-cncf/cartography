@@ -8,6 +8,7 @@ from googleapiclient.errors import HttpError
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.googleworkspace.oauth_risk import evaluate_scope_risk
 from cartography.models.googleworkspace.oauth_app import GoogleWorkspaceOAuthAppSchema
 from cartography.models.googleworkspace.oauth_app import (
     GoogleWorkspaceUserToOAuthAppRel,
@@ -115,12 +116,16 @@ def transform_oauth_apps_and_authorizations(
                 "native_app": token.get("nativeApp", False),
             }
 
+        risk_level, scope_risk_levels = evaluate_scope_risk(scopes)
+
         # Create authorization relationship
         authorizations.append(
             {
                 "user_id": user_id,
                 "client_id": client_id,
                 "scopes": scopes,
+                "risk_level": risk_level,
+                "scope_risk_levels": scope_risk_levels,
             }
         )
 
