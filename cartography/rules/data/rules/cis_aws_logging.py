@@ -7,13 +7,13 @@ Based on CIS AWS Foundations Benchmark v5.0
 Each Fact represents a specific CIS check that can be performed against
 Neo4j data synced by Cartography.
 """
+
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
-
 
 # -----------------------------------------------------------------------------
 # CIS 3.1: Ensure CloudTrail is enabled in all regions
@@ -148,6 +148,7 @@ _cis_3_7_cloudtrail_not_encrypted = Fact(
 # -----------------------------------------------------------------------------
 class CISAWSLoggingOutput(Finding):
     """Output model for CIS AWS Logging checks."""
+
     account_id: str | None = None
     account: str | None = None
     trail_name: str | None = None

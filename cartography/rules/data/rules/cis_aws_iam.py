@@ -7,13 +7,13 @@ Based on CIS AWS Foundations Benchmark v5.0
 Each Fact represents a specific CIS check that can be performed against
 Neo4j data synced by Cartography.
 """
+
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
-
 
 # -----------------------------------------------------------------------------
 # CIS 1.14: Ensure access keys are rotated every 90 days or less
@@ -206,6 +206,7 @@ _cis_1_13_multiple_access_keys = Fact(
 # -----------------------------------------------------------------------------
 class CISAWSIAMOutput(Finding):
     """Output model for CIS AWS IAM checks."""
+
     account_id: str | None = None
     account: str | None = None
     user_name: str | None = None

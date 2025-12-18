@@ -7,13 +7,13 @@ Based on CIS AWS Foundations Benchmark v5.0
 Each Fact represents a specific CIS check that can be performed against
 Neo4j data synced by Cartography.
 """
+
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
-
 
 # -----------------------------------------------------------------------------
 # CIS 5.1: Ensure no security groups allow ingress from 0.0.0.0/0 to remote
@@ -206,6 +206,7 @@ _unrestricted_all_ports = Fact(
 # -----------------------------------------------------------------------------
 class CISAWSNetworkingOutput(Finding):
     """Output model for CIS AWS Networking checks."""
+
     account_id: str | None = None
     account: str | None = None
     security_group_id: str | None = None

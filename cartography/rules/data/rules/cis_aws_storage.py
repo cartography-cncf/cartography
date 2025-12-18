@@ -7,13 +7,13 @@ Based on CIS AWS Foundations Benchmark v5.0
 Each Fact represents a specific CIS check that can be performed against
 Neo4j data synced by Cartography.
 """
+
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
-
 
 # -----------------------------------------------------------------------------
 # CIS 2.1.1: Ensure S3 Bucket Policy is set to deny HTTP requests
@@ -262,6 +262,7 @@ _cis_2_3_1_ebs_encryption_disabled = Fact(
 # -----------------------------------------------------------------------------
 class CISAWSStorageOutput(Finding):
     """Output model for CIS AWS Storage checks."""
+
     account_id: str | None = None
     account: str | None = None
     bucket_name: str | None = None
