@@ -1,7 +1,7 @@
 """
-Data model for GitHub Protected Branches.
+Data model for GitHub Branch Protection Rules.
 
-Schema for GitHubProtectedBranch nodes and their relationships to GitHubRepository.
+Schema for GitHubBranchProtectionRule nodes and their relationships to GitHubRepository.
 Based on GitHub GraphQL API: https://docs.github.com/en/graphql/reference/objects#branchprotectionrule
 """
 
@@ -18,9 +18,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class GitHubProtectedBranchNodeProperties(CartographyNodeProperties):
+class GitHubBranchProtectionRuleNodeProperties(CartographyNodeProperties):
     """
-    Properties of a GitHubProtectedBranch node.
+    Properties of a GitHubBranchProtectionRule node.
     Maps to GitHub's BranchProtectionRule GraphQL type.
     """
 
@@ -51,18 +51,18 @@ class GitHubProtectedBranchNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GitHubProtectedBranchToRepositoryRelProperties(CartographyRelProperties):
+class GitHubBranchProtectionRuleToRepositoryRelProperties(CartographyRelProperties):
     """
-    Properties for the relationship between a protected branch rule and its repository.
+    Properties for the relationship between a branch protection rule and its repository.
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class GitHubProtectedBranchToRepositoryRel(CartographyRelSchema):
+class GitHubBranchProtectionRuleToRepositoryRel(CartographyRelSchema):
     """
-    Relationship: (GitHubRepository)-[:PROTECTS]->(GitHubProtectedBranch)
+    Relationship: (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
     A repository can have multiple protection rules (for different branch patterns).
     """
 
@@ -71,30 +71,18 @@ class GitHubProtectedBranchToRepositoryRel(CartographyRelSchema):
         {"id": PropertyRef("repo_url", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "PROTECTS"
-    properties: GitHubProtectedBranchToRepositoryRelProperties = (
-        GitHubProtectedBranchToRepositoryRelProperties()
+    rel_label: str = "HAS_RULE"
+    properties: GitHubBranchProtectionRuleToRepositoryRelProperties = (
+        GitHubBranchProtectionRuleToRepositoryRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GitHubProtectedBranchSchema(CartographyNodeSchema):
-    """
-    Schema for GitHubProtectedBranch nodes.
-
-    Example Cypher query to use this data:
-    ```
-    MATCH (repo:GitHubRepository)-[:PROTECTS]->(pb:GitHubProtectedBranch)
-    WHERE pb.pattern = 'main'
-      AND (pb.requires_approving_reviews = false OR pb.required_approving_review_count = 0)
-    RETURN repo.name as UnprotectedRepo
-    ```
-    """
-
-    label: str = "GitHubProtectedBranch"
-    properties: GitHubProtectedBranchNodeProperties = (
-        GitHubProtectedBranchNodeProperties()
+class GitHubBranchProtectionRuleSchema(CartographyNodeSchema):
+    label: str = "GitHubBranchProtectionRule"
+    properties: GitHubBranchProtectionRuleNodeProperties = (
+        GitHubBranchProtectionRuleNodeProperties()
     )
-    sub_resource_relationship: GitHubProtectedBranchToRepositoryRel = (
-        GitHubProtectedBranchToRepositoryRel()
+    sub_resource_relationship: GitHubBranchProtectionRuleToRepositoryRel = (
+        GitHubBranchProtectionRuleToRepositoryRel()
     )

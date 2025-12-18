@@ -19,9 +19,11 @@ from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import PaginatedGraphqlData
+from cartography.models.github.branch_protection_rules import (
+    GitHubBranchProtectionRuleSchema,
+)
 from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.models.github.manifests import DependencyGraphManifestSchema
-from cartography.models.github.protected_branches import GitHubProtectedBranchSchema
 from cartography.util import backoff_handler
 from cartography.util import retries_with_backoff
 from cartography.util import run_cleanup_job
@@ -350,7 +352,7 @@ def transform(
         See tests.data.github.repos.OUTSIDE_COLLABORATORS for data shape.
     :return: Dict containing the repos, repo->language mapping, owners->repo mapping, outside collaborators->repo
     mapping, Python requirements files (if any) in a repo, manifests from GitHub's dependency graph, all
-    dependencies from GitHub's dependency graph, and protected branch rules.
+    dependencies from GitHub's dependency graph, and branch protection rules.
     """
     logger.info(f"Processing {len(repos_json)} GitHub repositories")
     transformed_repo_list: List[Dict] = []
@@ -374,7 +376,7 @@ def transform(
     transformed_requirements_files: List[Dict] = []
     transformed_dependencies: List[Dict] = []
     transformed_manifests: List[Dict] = []
-    transformed_protected_branches: List[Dict] = []
+    transformed_branch_protection_rules: List[Dict] = []
     for repo_object in repos_json:
         # GitHub can return null repo entries. See issues #1334 and #1404.
         if repo_object is None:
@@ -427,10 +429,10 @@ def transform(
             repo_url,
             transformed_dependencies,
         )
-        _transform_protected_branches(
+        _transform_branch_protection_rules(
             repo_object.get("branchProtectionRules", {}).get("nodes", []),
             repo_url,
-            transformed_protected_branches,
+            transformed_branch_protection_rules,
         )
     results = {
         "repos": transformed_repo_list,
@@ -441,7 +443,7 @@ def transform(
         "python_requirements": transformed_requirements_files,
         "dependencies": transformed_dependencies,
         "manifests": transformed_manifests,
-        "protected_branches": transformed_protected_branches,
+        "branch_protection_rules": transformed_branch_protection_rules,
     }
 
     return results
@@ -830,37 +832,37 @@ def _transform_python_requirements(
         )
 
 
-def _transform_protected_branches(
-    protected_branches_data: List[Dict[str, Any]],
+def _transform_branch_protection_rules(
+    branch_protection_rules_data: List[Dict[str, Any]],
     repo_url: str,
-    out_protected_branches: List[Dict],
+    out_branch_protection_rules: List[Dict],
 ) -> None:
     """
-    Transforms GitHub protected branch data from API format to Cartography format.
-    :param protected_branches_data: List of protected branch objects from GitHub's branchProtectionRules API.
-        See tests.data.github.protected_branches for data shape.
+    Transforms GitHub branch protection rule data from API format to Cartography format.
+    :param branch_protection_rules_data: List of branch protection rule objects from GitHub's branchProtectionRules API.
+        See tests.data.github.branch_protection_rules for data shape.
     :param repo_url: The URL of the GitHub repository.
-    :param out_protected_branches: Output array to append transformed results to.
+    :param out_branch_protection_rules: Output array to append transformed results to.
     :return: Nothing.
     """
-    for pb in protected_branches_data:
-        out_protected_branches.append(
+    for rule in branch_protection_rules_data:
+        out_branch_protection_rules.append(
             {
-                "id": pb["id"],
-                "pattern": pb["pattern"],
-                "allows_deletions": pb["allowsDeletions"],
-                "allows_force_pushes": pb["allowsForcePushes"],
-                "dismisses_stale_reviews": pb["dismissesStaleReviews"],
-                "is_admin_enforced": pb["isAdminEnforced"],
-                "requires_approving_reviews": pb["requiresApprovingReviews"],
-                "required_approving_review_count": pb["requiredApprovingReviewCount"],
-                "requires_code_owner_reviews": pb["requiresCodeOwnerReviews"],
-                "requires_commit_signatures": pb["requiresCommitSignatures"],
-                "requires_linear_history": pb["requiresLinearHistory"],
-                "requires_status_checks": pb["requiresStatusChecks"],
-                "requires_strict_status_checks": pb["requiresStrictStatusChecks"],
-                "restricts_pushes": pb["restrictsPushes"],
-                "restricts_review_dismissals": pb["restrictsReviewDismissals"],
+                "id": rule["id"],
+                "pattern": rule["pattern"],
+                "allows_deletions": rule["allowsDeletions"],
+                "allows_force_pushes": rule["allowsForcePushes"],
+                "dismisses_stale_reviews": rule["dismissesStaleReviews"],
+                "is_admin_enforced": rule["isAdminEnforced"],
+                "requires_approving_reviews": rule["requiresApprovingReviews"],
+                "required_approving_review_count": rule["requiredApprovingReviewCount"],
+                "requires_code_owner_reviews": rule["requiresCodeOwnerReviews"],
+                "requires_commit_signatures": rule["requiresCommitSignatures"],
+                "requires_linear_history": rule["requiresLinearHistory"],
+                "requires_status_checks": rule["requiresStatusChecks"],
+                "requires_strict_status_checks": rule["requiresStrictStatusChecks"],
+                "restricts_pushes": rule["restrictsPushes"],
+                "restricts_review_dismissals": rule["restrictsReviewDismissals"],
                 "repo_url": repo_url,
             }
         )
@@ -1228,56 +1230,56 @@ def cleanup_github_manifests(
 
 
 @timeit
-def load_protected_branches(
+def load_branch_protection_rules(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    protected_branches: List[Dict],
+    branch_protection_rules: List[Dict],
 ) -> None:
     """
-    Ingest GitHub protected branch rules into Neo4j
+    Ingest GitHub branch protection rules into Neo4j
     :param neo4j_session: Neo4J session object for server communication
     :param update_tag: Timestamp used to determine data freshness
-    :param protected_branches: List of protected branch objects from GitHub's branchProtectionRules API
+    :param branch_protection_rules: List of branch protection rule objects from GitHub's branchProtectionRules API
     :return: Nothing
     """
-    # Group protected branches by repo_url for schema-based loading
-    branches_by_repo = defaultdict(list)
+    # Group branch protection rules by repo_url for schema-based loading
+    rules_by_repo = defaultdict(list)
 
-    for branch in protected_branches:
-        repo_url = branch["repo_url"]
-        # Remove repo_url from the branch object since we'll pass it as kwargs
-        branch_without_kwargs = {k: v for k, v in branch.items() if k != "repo_url"}
-        branches_by_repo[repo_url].append(branch_without_kwargs)
+    for rule in branch_protection_rules:
+        repo_url = rule["repo_url"]
+        # Remove repo_url from the rule object since we'll pass it as kwargs
+        rule_without_kwargs = {k: v for k, v in rule.items() if k != "repo_url"}
+        rules_by_repo[repo_url].append(rule_without_kwargs)
 
-    # Load protected branches for each repository separately
-    for repo_url, repo_branches in branches_by_repo.items():
+    # Load branch protection rules for each repository separately
+    for repo_url, repo_rules in rules_by_repo.items():
         load_data(
             neo4j_session,
-            GitHubProtectedBranchSchema(),
-            repo_branches,
+            GitHubBranchProtectionRuleSchema(),
+            repo_rules,
             lastupdated=update_tag,
             repo_url=repo_url,
         )
 
 
 @timeit
-def cleanup_protected_branches(
+def cleanup_branch_protection_rules(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
     repo_urls: List[str],
 ) -> None:
     """
-    Delete GitHub protected branches from the graph if they were not updated in the last sync.
+    Delete GitHub branch protection rules from the graph if they were not updated in the last sync.
     :param neo4j_session: Neo4j session
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
-    :param repo_urls: List of repository URLs to clean up protected branches for
+    :param repo_urls: List of repository URLs to clean up branch protection rules for
     """
     # Run cleanup for each repository separately
     for repo_url in repo_urls:
         cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-        GraphJob.from_node_schema(GitHubProtectedBranchSchema(), cleanup_params).run(
-            neo4j_session
-        )
+        GraphJob.from_node_schema(
+            GitHubBranchProtectionRuleSchema(), cleanup_params
+        ).run(neo4j_session)
 
 
 @timeit
@@ -1328,10 +1330,10 @@ def load(
         common_job_parameters["UPDATE_TAG"],
         repo_data["dependencies"],
     )
-    load_protected_branches(
+    load_branch_protection_rules(
         neo4j_session,
         common_job_parameters["UPDATE_TAG"],
-        repo_data["protected_branches"],
+        repo_data["branch_protection_rules"],
     )
 
 
@@ -1395,12 +1397,12 @@ def sync(
         neo4j_session, common_job_parameters, repo_urls_with_manifests
     )
 
-    # Collect repository URLs that have protected branches for cleanup
-    repo_urls_with_protected_branches = list(
-        {pb["repo_url"] for pb in repo_data["protected_branches"]}
+    # Collect repository URLs that have branch protection rules for cleanup
+    repo_urls_with_branch_protection_rules = list(
+        {rule["repo_url"] for rule in repo_data["branch_protection_rules"]}
     )
-    cleanup_protected_branches(
-        neo4j_session, common_job_parameters, repo_urls_with_protected_branches
+    cleanup_branch_protection_rules(
+        neo4j_session, common_job_parameters, repo_urls_with_branch_protection_rules
     )
 
     run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)

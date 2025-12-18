@@ -3,8 +3,7 @@ from typing import Any
 from typing import List
 
 from cartography.intel.github.repos import UserAffiliationAndRepoPermission
-from tests.data.github.protected_branches import PROTECTED_BRANCH_STRONG
-from tests.data.github.protected_branches import PROTECTED_BRANCH_WEAK
+from tests.data.github.branch_protection_rules import PROTECTED_BRANCH_STRONG
 
 # Dependency graph test data for unit tests
 DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {

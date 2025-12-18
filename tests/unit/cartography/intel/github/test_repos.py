@@ -137,31 +137,31 @@ def test_transform_skips_null_repository_entries():
     assert result["repos"][0]["id"] == repo_with_collab_counts["url"]
 
 
-def test_transform_includes_protected_branches():
+def test_transform_includes_branch_protection_rules():
     """
-    Test that the transform function includes protected branches in the output.
+    Test that the transform function includes branch protection rules in the output.
     """
     # Arrange - GET_REPOS[2] has branchProtectionRules
-    repo_with_protected_branches = GET_REPOS[2]
+    repo_with_branch_protection_rules = GET_REPOS[2]
 
     # Act
     result = transform(
-        [repo_with_protected_branches],
-        {repo_with_protected_branches["url"]: []},
-        {repo_with_protected_branches["url"]: []},
+        [repo_with_branch_protection_rules],
+        {repo_with_branch_protection_rules["url"]: []},
+        {repo_with_branch_protection_rules["url"]: []},
     )
 
-    # Assert: Check that protected_branches key is present in the result
-    assert "protected_branches" in result
+    # Assert: Check that branch_protection_rules key is present in the result
+    assert "branch_protection_rules" in result
 
-    # Assert: Check that we have 1 protected branch from the test data
-    assert len(result["protected_branches"]) == 1
+    # Assert: Check that we have 1 branch protection rule from the test data
+    assert len(result["branch_protection_rules"]) == 1
 
-    # Assert: Check the protected branch has expected properties
-    pb = result["protected_branches"][0]
-    assert pb["id"] == "BPR_kwDOAbc123=="
-    assert pb["pattern"] == "main"
-    assert pb["allows_deletions"] is False
-    assert pb["requires_approving_reviews"] is True
-    assert pb["required_approving_review_count"] == 2
-    assert pb["repo_url"] == repo_with_protected_branches["url"]
+    # Assert: Check the branch protection rule has expected properties
+    rule = result["branch_protection_rules"][0]
+    assert rule["id"] == "BPR_kwDOAbc123=="
+    assert rule["pattern"] == "main"
+    assert rule["allows_deletions"] is False
+    assert rule["requires_approving_reviews"] is True
+    assert rule["required_approving_review_count"] == 2
+    assert rule["repo_url"] == repo_with_branch_protection_rules["url"]
