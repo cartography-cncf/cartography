@@ -847,7 +847,7 @@ requires-dist = [
     { name = "azure-mgmt-network", specifier = ">=25.0.0" },
     { name = "azure-mgmt-resource", specifier = ">=10.2.0" },
     { name = "azure-mgmt-security", specifier = ">=5.0.0" },
-    { name = "azure-mgmt-sql", specifier = ">=3.0.1" },
+    { name = "azure-mgmt-sql", specifier = ">=3.0.1,<4" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
     { name = "backoff", specifier = ">=2.1.2" },
