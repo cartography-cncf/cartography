@@ -215,6 +215,7 @@ class CISAWSIAMOutput(Finding):
     last_used_date: str | None = None
     days_since_rotation: int | None = None
     active_key_count: int | None = None
+    access_key_ids: list[str] | None = None
     policy_name: str | None = None
     policy_arn: str | None = None
     # Certificate fields

@@ -67,10 +67,10 @@ _cis_2_1_4_s3_block_public_access = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
-    WHERE bucket.block_public_acls <> true
-       OR bucket.ignore_public_acls <> true
-       OR bucket.block_public_policy <> true
-       OR bucket.restrict_public_buckets <> true
+    WHERE (bucket.block_public_acls IS NULL OR bucket.block_public_acls <> true)
+       OR (bucket.ignore_public_acls IS NULL OR bucket.ignore_public_acls <> true)
+       OR (bucket.block_public_policy IS NULL OR bucket.block_public_policy <> true)
+       OR (bucket.restrict_public_buckets IS NULL OR bucket.restrict_public_buckets <> true)
     RETURN
         a.id AS account_id,
         a.name AS account,
@@ -84,10 +84,10 @@ _cis_2_1_4_s3_block_public_access = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
-    WHERE bucket.block_public_acls <> true
-       OR bucket.ignore_public_acls <> true
-       OR bucket.block_public_policy <> true
-       OR bucket.restrict_public_buckets <> true
+    WHERE (bucket.block_public_acls IS NULL OR bucket.block_public_acls <> true)
+       OR (bucket.ignore_public_acls IS NULL OR bucket.ignore_public_acls <> true)
+       OR (bucket.block_public_policy IS NULL OR bucket.block_public_policy <> true)
+       OR (bucket.restrict_public_buckets IS NULL OR bucket.restrict_public_buckets <> true)
     RETURN *
     """,
     module=Module.AWS,

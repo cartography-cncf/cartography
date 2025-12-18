@@ -16,7 +16,7 @@ from cartography.rules.spec.model import RuleReference
 
 
 # -----------------------------------------------------------------------------
-# CIS 5.1: Ensure no Network ACLs allow ingress from 0.0.0.0/0 to remote
+# CIS 5.1: Ensure no security groups allow ingress from 0.0.0.0/0 to remote
 # server administration ports (SSH - port 22)
 # -----------------------------------------------------------------------------
 _cis_5_1_unrestricted_ssh = Fact(
@@ -64,7 +64,7 @@ _cis_5_1_unrestricted_ssh = Fact(
 
 
 # -----------------------------------------------------------------------------
-# CIS 5.2: Ensure no Network ACLs allow ingress from 0.0.0.0/0 to remote
+# CIS 5.2: Ensure no security groups allow ingress from 0.0.0.0/0 to remote
 # server administration ports (RDP - port 3389)
 # -----------------------------------------------------------------------------
 _cis_5_2_unrestricted_rdp = Fact(
@@ -136,10 +136,24 @@ _cis_5_4_default_sg_allows_traffic = Fact(
         rule.fromport AS from_port,
         rule.toport AS to_port,
         rule.protocol AS protocol
+    UNION
+    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionEgress)
+    WHERE sg.name = 'default'
+    RETURN DISTINCT
+        a.id AS account_id,
+        a.name AS account,
+        sg.groupid AS security_group_id,
+        sg.name AS security_group_name,
+        sg.region AS region,
+        'egress' AS rule_direction,
+        rule.fromport AS from_port,
+        rule.toport AS to_port,
+        rule.protocol AS protocol
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
+          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpRule)
     WHERE sg.name = 'default'
     RETURN *
     """,
