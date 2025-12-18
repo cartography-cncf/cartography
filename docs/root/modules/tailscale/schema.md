@@ -24,14 +24,14 @@ Settings for a tailnet (aka Tenant).
 | id    | ID of the Tailnet (name of the organization)
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| devices_approval_on | Whether [device approval](/https://tailscale.com/kb/1099/device-approval) is enabled for the tailnet. |
-| devices_auto_updates_on | Whether [auto updates](/https://tailscale.com/kb/1067/update#auto-updates) are enabled for devices that belong to this tailnet. |
-| devices_key_duration_days | The [key expiry](/https://tailscale.com/kb/1028/key-expiry) duration for devices on this tailnet. |
-| users_approval_on | Whether [user approval](/https://tailscale.com/kb/1239/user-approval) is enabled for this tailnet. |
-| users_role_allowed_to_join_external_tailnets | Which user roles are allowed to [join external tailnets](/https://tailscale.com/kb/1271/invite-any-user). |
-| network_flow_logging_on | Whether [network flog logs](/https://tailscale.com/kb/1219/network-flow-logs) are enabled for the tailnet. |
-| regional_routing_on | Whether [regional routing](/https://tailscale.com/kb/1115/high-availability#regional-routing) is enabled for the tailnet. |
-| posture_identity_collection_on | Whether [identity collection](/https://tailscale.com/kb/1326/device-identity) is enabled for [device posture](/https://tailscale.com/kb/1288/device-posture) integrations for the tailnet. |
+| devices_approval_on | Whether [device approval](https://tailscale.com/kb/1099/device-approval) is enabled for the tailnet. |
+| devices_auto_updates_on | Whether [auto updates](https://tailscale.com/kb/1067/update#auto-updates) are enabled for devices that belong to this tailnet. |
+| devices_key_duration_days | The [key expiry](https://tailscale.com/kb/1028/key-expiry) duration for devices on this tailnet. |
+| users_approval_on | Whether [user approval](https://tailscale.com/kb/1239/user-approval) is enabled for this tailnet. |
+| users_role_allowed_to_join_external_tailnets | Which user roles are allowed to [join external tailnets](https://tailscale.com/kb/1271/invite-any-user). |
+| network_flow_logging_on | Whether [network flog logs](https://tailscale.com/kb/1219/network-flow-logs) are enabled for the tailnet. |
+| regional_routing_on | Whether [regional routing](https://tailscale.com/kb/1115/high-availability#regional-routing) is enabled for the tailnet. |
+| posture_identity_collection_on | Whether [identity collection](https://tailscale.com/kb/1326/device-identity) is enabled for [device posture](https://tailscale.com/kb/1288/device-posture) integrations for the tailnet. |
 
 #### Relationships
 - `User`, `Device`, `PostureIntegration`, `Group`, `Tag` belong to a `Tailnet`.
