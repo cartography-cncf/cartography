@@ -32,13 +32,13 @@ _cis_1_14_access_keys_not_rotated = Fact(
       AND key.createdate IS NOT NULL
       AND key.createdate <> 'None'
     WITH a, user, key
-    WHERE date(datetime(replace(key.createdate, ' ', 'T'))) < date() - duration('P90D')
+    WHERE date(datetime(replace(toString(key.createdate), ' ', 'T'))) < date() - duration('P90D')
     RETURN
         key.accesskeyid AS access_key_id,
         user.name AS user_name,
         user.arn AS user_arn,
         key.createdate AS key_create_date,
-        duration.inDays(date(datetime(replace(key.createdate, ' ', 'T'))), date()).days AS days_since_rotation,
+        duration.inDays(date(datetime(replace(toString(key.createdate), ' ', 'T'))), date()).days AS days_since_rotation,
         a.id AS account_id,
         a.name AS account
     """,
@@ -48,7 +48,7 @@ _cis_1_14_access_keys_not_rotated = Fact(
       AND key.createdate IS NOT NULL
       AND key.createdate <> 'None'
     WITH p, a, user, key
-    WHERE date(datetime(replace(key.createdate, ' ', 'T'))) < date() - duration('P90D')
+    WHERE date(datetime(replace(toString(key.createdate), ' ', 'T'))) < date() - duration('P90D')
     RETURN *
     """,
     module=Module.AWS,
@@ -101,10 +101,10 @@ _cis_1_12_unused_credentials = Fact(
     WHERE key.status = 'Active'
     WITH a, user, key,
          CASE WHEN key.lastuseddate IS NOT NULL AND key.lastuseddate <> 'None'
-              THEN date(datetime(replace(key.lastuseddate, ' ', 'T')))
+              THEN date(datetime(replace(toString(key.lastuseddate), ' ', 'T')))
               ELSE null END AS last_used,
          CASE WHEN key.createdate IS NOT NULL AND key.createdate <> 'None'
-              THEN date(datetime(replace(key.createdate, ' ', 'T')))
+              THEN date(datetime(replace(toString(key.createdate), ' ', 'T')))
               ELSE null END AS created
     WHERE (last_used IS NOT NULL AND last_used < date() - duration('P45D'))
        OR (last_used IS NULL AND created IS NOT NULL AND created < date() - duration('P45D'))
@@ -122,10 +122,10 @@ _cis_1_12_unused_credentials = Fact(
     WHERE key.status = 'Active'
     WITH p, a, user, key,
          CASE WHEN key.lastuseddate IS NOT NULL AND key.lastuseddate <> 'None'
-              THEN date(datetime(replace(key.lastuseddate, ' ', 'T')))
+              THEN date(datetime(replace(toString(key.lastuseddate), ' ', 'T')))
               ELSE null END AS last_used,
          CASE WHEN key.createdate IS NOT NULL AND key.createdate <> 'None'
-              THEN date(datetime(replace(key.createdate, ' ', 'T')))
+              THEN date(datetime(replace(toString(key.createdate), ' ', 'T')))
               ELSE null END AS created
     WHERE (last_used IS NOT NULL AND last_used < date() - duration('P45D'))
        OR (last_used IS NULL AND created IS NOT NULL AND created < date() - duration('P45D'))
@@ -152,7 +152,7 @@ _cis_1_18_expired_certificates = Fact(
     WHERE cert.not_after IS NOT NULL
       AND cert.not_after <> 'None'
     WITH a, cert
-    WHERE date(datetime(replace(cert.not_after, ' ', 'T'))) < date()
+    WHERE date(datetime(replace(toString(cert.not_after), ' ', 'T'))) < date()
     RETURN
         cert.domainname AS domain_name,
         cert.arn AS certificate_arn,
@@ -167,7 +167,7 @@ _cis_1_18_expired_certificates = Fact(
     WHERE cert.not_after IS NOT NULL
       AND cert.not_after <> 'None'
     WITH p, a, cert
-    WHERE date(datetime(replace(cert.not_after, ' ', 'T'))) < date()
+    WHERE date(datetime(replace(toString(cert.not_after), ' ', 'T'))) < date()
     RETURN *
     """,
     module=Module.AWS,
