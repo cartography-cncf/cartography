@@ -40,6 +40,11 @@ Representation of an [Okta Organization](https://developer.okta.com/docs/concept
     ```
     (OktaOrganization)-[RESOURCE]->(OktaAdministrationRole)
     ```
+- An OktaOrganization contains OktaDevices
+
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaDevice)
+    ```
 
 ### OktaUser :: UserAccount
 
@@ -91,6 +96,10 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
  - OktaUsers can have authentication factors
     ```
     (:OktaUser)-[:FACTOR]->(:OktaUserFactor)
+    ```
+ - OktaUsers can own OktaDevices
+    ```
+    (:OktaUser)-[:OWNS]->(:OktaDevice)
     ```
  - OktaUsers can assume AWS SSO users via SAML federation
     ```
@@ -201,6 +210,42 @@ Representation of Okta User authentication [Factors](https://developer.okta.com/
  - OktaUsers can have authentication Factors
      ```
     (OktaUser)-[FACTOR]->(OktaUserFactor)
+    ```
+ - OktaUsers can own OktaDevices
+     ```
+    (OktaUser)-[OWNS]->(OktaDevice)
+    ```
+
+### OktaDevice
+
+Representation of an [Okta Device](https://developer.okta.com/docs/api/openapi/okta-management/management/tag/Device/) enrolled, managed, or registered in Okta.
+
+| Field | Description |
+|-------|-------------|
+| id | device id |
+| status | device status (e.g., ACTIVE, INACTIVE) |
+| created | device creation date and time |
+| last_updated | date and time of last device property changes |
+| display_name | device display name |
+| platform | device platform (e.g., IOS, ANDROID, WINDOWS, MACOS) |
+| manufacturer | device manufacturer |
+| model | device model |
+| serial_number | device serial number |
+| os_version | operating system version |
+| user_agent | user agent string |
+| device_id | device identifier |
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+
+#### Relationships
+
+ - An OktaOrganization contains OktaDevices
+     ```
+    (OktaOrganization)-[RESOURCE]->(OktaDevice)
+    ```
+ - OktaUsers can own OktaDevices
+     ```
+    (OktaUser)-[OWNS]->(OktaDevice)
     ```
 
 ### OktaTrustedOrigin
