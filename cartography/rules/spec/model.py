@@ -76,6 +76,9 @@ class Module(str, Enum):
     OKTA = "Okta"
     """Okta identity and access management"""
 
+    OPENAI = "OpenAI"
+    """OpenAI"""
+
     PAGERDUTY = "PagerDuty"
     """PagerDuty incident response"""
 
