@@ -70,7 +70,6 @@ class AzureDataLakeFileSystemSchema(CartographyNodeSchema):
     sub_resource_relationship: AzureDataLakeFileSystemToSubscriptionRel = (
         AzureDataLakeFileSystemToSubscriptionRel()
     )
-    # DEPRECATED: for backward compatibility, will be removed in v1.0.0
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[AzureDataLakeFileSystemToStorageAccountRel()],
     )
