@@ -10,6 +10,8 @@ S -- RESOURCE --> Snapshot
 S -- RESOURCE --> SQL(SQLServer)
 S -- RESOURCE --> SA(StorageAccount)
 S -- RESOURCE --> CA(CosmosDBAccount)
+S -- RESOURCE --> NIC(NetworkInterface)
+S -- RESOURCE --> PIP(PublicIPAddress)
 S -- RESOURCE --> RA(RoleAssignment)
 S -- RESOURCE --> RD(RoleDefinition)
 S -- RESOURCE --> Permissions
@@ -19,6 +21,9 @@ EntraUser -- HAS_ROLE_ASSIGNMENT --> RA
 EntraGroup -- HAS_ROLE_ASSIGNMENT --> RA
 EntraServicePrincipal -- HAS_ROLE_ASSIGNMENT --> RA
 VM -- ATTACHED_TO --> DataDisk
+NIC -- ATTACHED_TO --> VM
+NIC -- ATTACHED_TO --> Subnet
+NIC -- ASSOCIATED_WITH --> PIP
 SQL -- USED_BY --> ServerDNSAlias
 SQL -- ADMINISTERED_BY --> ADAdministrator
 SQL -- RESOURCE --> RecoverableDatabase
@@ -1883,6 +1888,63 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
   - An Azure Network Security Group is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureNetworkInterface
+
+Representation of an [Azure Network Interface](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-interfaces/get).
+
+| Field                | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| firstseen            | Timestamp of when a sync job discovered this node                 |
+| lastupdated          | Timestamp of the last time the node was updated                   |
+| **id**               | The full resource ID of the Network Interface.                    |
+| name                 | The name of the Network Interface.                                |
+| location             | The Azure region where the Network Interface is deployed.         |
+| mac\_address         | The MAC address of the Network Interface.                         |
+| private\_ip\_addresses | List of private IP addresses assigned to the Network Interface. |
+
+#### Relationships
+
+  - An Azure Network Interface is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureNetworkInterface)
+    ```
+
+  - An Azure Network Interface is attached to a Virtual Machine.
+    ```cypher
+    (AzureNetworkInterface)-[:ATTACHED_TO]->(:AzureVirtualMachine)
+    ```
+
+  - An Azure Network Interface is attached to one or more Subnets.
+    ```cypher
+    (AzureNetworkInterface)-[:ATTACHED_TO]->(:AzureSubnet)
+    ```
+
+  - An Azure Network Interface is associated with one or more Public IP Addresses.
+    ```cypher
+    (AzureNetworkInterface)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)
+    ```
+
+### AzurePublicIPAddress
+
+Representation of an [Azure Public IP Address](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/public-ip-addresses/get).
+
+| Field             | Description                                                              |
+| ----------------- | ------------------------------------------------------------------------ |
+| firstseen         | Timestamp of when a sync job discovered this node                        |
+| lastupdated       | Timestamp of the last time the node was updated                          |
+| **id**            | The full resource ID of the Public IP Address.                           |
+| name              | The name of the Public IP Address.                                       |
+| location          | The Azure region where the Public IP Address is deployed.                |
+| ip\_address       | The actual IP address value assigned to this resource.                   |
+| allocation\_method | The allocation method (Static or Dynamic) for the public IP address.    |
+
+#### Relationships
+
+  - An Azure Public IP Address is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzurePublicIPAddress)
     ```
 
 ### AzureSecurityAssessment
