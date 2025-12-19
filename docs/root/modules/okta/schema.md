@@ -211,10 +211,6 @@ Representation of Okta User authentication [Factors](https://developer.okta.com/
      ```
     (OktaUser)-[FACTOR]->(OktaUserFactor)
     ```
- - OktaUsers can own OktaDevices
-     ```
-    (OktaUser)-[OWNS]->(OktaDevice)
-    ```
 
 ### OktaDevice
 
