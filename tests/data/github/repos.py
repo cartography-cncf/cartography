@@ -4,6 +4,7 @@ from typing import List
 
 from cartography.intel.github.repos import UserAffiliationAndRepoPermission
 from tests.data.github.branch_protection_rules import PROTECTED_BRANCH_STRONG
+from tests.data.github.rulesets import RULESET_PRODUCTION
 
 # Dependency graph test data for unit tests
 DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
@@ -182,6 +183,9 @@ GET_REPOS: List[dict[str, Any]] = [
         "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
         "branchProtectionRules": {
             "nodes": [PROTECTED_BRANCH_STRONG],
+        },
+        "rulesets": {
+            "nodes": [RULESET_PRODUCTION],
         },
     },
 ]

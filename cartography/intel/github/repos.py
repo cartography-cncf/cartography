@@ -1,4 +1,5 @@
 import configparser
+import json
 import logging
 from collections import defaultdict
 from collections import namedtuple
@@ -24,6 +25,11 @@ from cartography.models.github.branch_protection_rules import (
 )
 from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.models.github.manifests import DependencyGraphManifestSchema
+from cartography.models.github.ruleset_bypass_actors import (
+    GitHubRulesetBypassActorSchema,
+)
+from cartography.models.github.ruleset_rules import GitHubRulesetRuleSchema
+from cartography.models.github.rulesets import GitHubRulesetSchema
 from cartography.util import backoff_handler
 from cartography.util import retries_with_backoff
 from cartography.util import run_cleanup_job
@@ -132,6 +138,57 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                             requiresStrictStatusChecks
                             restrictsPushes
                             restrictsReviewDismissals
+                        }
+                    }
+                    rulesets(first: 20) {
+                        nodes {
+                            id
+                            databaseId
+                            name
+                            target
+                            source
+                            enforcement
+                            createdAt
+                            updatedAt
+                            conditions {
+                                refName {
+                                    include
+                                    exclude
+                                }
+                            }
+                            rules(first: 20) {
+                                nodes {
+                                    id
+                                    type
+                                    parameters
+                                }
+                            }
+                            bypassActors(first: 20) {
+                                nodes {
+                                    id
+                                    bypassMode
+                                    organizationAdmin
+                                    enterpriseOwner
+                                    deployKey
+                                    repositoryRoleName
+                                    repositoryRoleDatabaseId
+                                    actor {
+                                        ... on Team {
+                                            __typename
+                                            id
+                                            databaseId
+                                            name
+                                        }
+                                        ... on App {
+                                            __typename
+                                            id
+                                            databaseId
+                                            name
+                                            slug
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -377,6 +434,9 @@ def transform(
     transformed_dependencies: List[Dict] = []
     transformed_manifests: List[Dict] = []
     transformed_branch_protection_rules: List[Dict] = []
+    transformed_rulesets: List[Dict] = []
+    transformed_ruleset_rules: List[Dict] = []
+    transformed_ruleset_bypass_actors: List[Dict] = []
     for repo_object in repos_json:
         # GitHub can return null repo entries. See issues #1334 and #1404.
         if repo_object is None:
@@ -434,6 +494,13 @@ def transform(
             repo_url,
             transformed_branch_protection_rules,
         )
+        _transform_rulesets(
+            repo_object.get("rulesets", {}).get("nodes", []),
+            repo_url,
+            transformed_rulesets,
+            transformed_ruleset_rules,
+            transformed_ruleset_bypass_actors,
+        )
     results = {
         "repos": transformed_repo_list,
         "repo_languages": transformed_repo_languages,
@@ -444,6 +511,9 @@ def transform(
         "dependencies": transformed_dependencies,
         "manifests": transformed_manifests,
         "branch_protection_rules": transformed_branch_protection_rules,
+        "rulesets": transformed_rulesets,
+        "ruleset_rules": transformed_ruleset_rules,
+        "ruleset_bypass_actors": transformed_ruleset_bypass_actors,
     }
 
     return results
@@ -868,6 +938,95 @@ def _transform_branch_protection_rules(
         )
 
 
+def _transform_rulesets(
+    rulesets_data: List[Dict[str, Any]],
+    repo_url: str,
+    out_rulesets: List[Dict],
+    out_rules: List[Dict],
+    out_bypass_actors: List[Dict],
+) -> None:
+    for ruleset in rulesets_data:
+        ruleset_id = ruleset["id"]
+
+        conditions = ruleset.get("conditions", {}) or {}
+        ref_name = conditions.get("refName", {}) or {}
+
+        out_rulesets.append(
+            {
+                "id": ruleset_id,
+                "database_id": ruleset.get("databaseId"),
+                "name": ruleset.get("name"),
+                "target": ruleset.get("target"),
+                "enforcement": ruleset.get("enforcement"),
+                "created_at": ruleset.get("createdAt"),
+                "updated_at": ruleset.get("updatedAt"),
+                "conditions_ref_name_include": ref_name.get("include", []),
+                "conditions_ref_name_exclude": ref_name.get("exclude", []),
+                "repo_url": repo_url,
+            }
+        )
+
+        rules_data = ruleset.get("rules", {}).get("nodes", [])
+        for rule in rules_data:
+            parameters = rule.get("parameters")
+            parameters_json = json.dumps(parameters) if parameters is not None else None
+
+            out_rules.append(
+                {
+                    "id": rule["id"],
+                    "type": rule.get("type"),
+                    "parameters": parameters_json,
+                    "ruleset_id": ruleset_id,
+                }
+            )
+
+        bypass_actors_data = ruleset.get("bypassActors", {}).get("nodes", [])
+        for actor_data in bypass_actors_data:
+            if actor_data is None:
+                continue
+
+            # Determine actor type based on boolean fields or actor union
+            actor = actor_data.get("actor")
+            actor_type = None
+            actor_id = None
+            actor_database_id = None
+            actor_name = None
+            actor_slug = None
+
+            if actor_data.get("organizationAdmin"):
+                actor_type = "OrganizationAdmin"
+            elif actor_data.get("enterpriseOwner"):
+                actor_type = "EnterpriseOwner"
+            elif actor_data.get("deployKey"):
+                actor_type = "DeployKey"
+            elif actor_data.get("repositoryRoleName"):
+                actor_type = "RepositoryRole"
+                actor_name = actor_data.get("repositoryRoleName")
+                actor_database_id = actor_data.get("repositoryRoleDatabaseId")
+            elif actor:
+                # Team or App from the actor union
+                actor_type = actor.get("__typename")
+                actor_id = actor.get("id")
+                actor_database_id = actor.get("databaseId")
+                actor_name = actor.get("name")
+                actor_slug = actor.get("slug")
+
+            # Only add if we identified an actor type
+            if actor_type:
+                out_bypass_actors.append(
+                    {
+                        "id": actor_data["id"],
+                        "bypass_mode": actor_data.get("bypassMode"),
+                        "actor_type": actor_type,
+                        "actor_id": actor_id,
+                        "actor_database_id": actor_database_id,
+                        "actor_name": actor_name,
+                        "actor_slug": actor_slug,
+                        "ruleset_id": ruleset_id,
+                    }
+                )
+
+
 def parse_setup_cfg(config: configparser.ConfigParser) -> List[str]:
     reqs: List[str] = []
     reqs.extend(
@@ -1283,6 +1442,100 @@ def cleanup_branch_protection_rules(
 
 
 @timeit
+def load_rulesets(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+    rulesets: List[Dict],
+    ruleset_rules: List[Dict],
+    ruleset_bypass_actors: List[Dict],
+) -> None:
+    rules_by_ruleset = defaultdict(list)
+    for rule in ruleset_rules:
+        ruleset_id = rule["ruleset_id"]
+        rule_without_kwargs = {k: v for k, v in rule.items() if k != "ruleset_id"}
+        rules_by_ruleset[ruleset_id].append(rule_without_kwargs)
+
+    bypass_actors_by_ruleset = defaultdict(list)
+    for actor in ruleset_bypass_actors:
+        ruleset_id = actor["ruleset_id"]
+        actor_without_kwargs = {k: v for k, v in actor.items() if k != "ruleset_id"}
+        bypass_actors_by_ruleset[ruleset_id].append(actor_without_kwargs)
+
+    rulesets_by_repo = defaultdict(list)
+    for ruleset in rulesets:
+        repo_url = ruleset["repo_url"]
+        ruleset_without_kwargs = {k: v for k, v in ruleset.items() if k != "repo_url"}
+        rulesets_by_repo[repo_url].append(ruleset_without_kwargs)
+
+    for repo_url, repo_rulesets in rulesets_by_repo.items():
+        load_data(
+            neo4j_session,
+            GitHubRulesetSchema(),
+            repo_rulesets,
+            lastupdated=update_tag,
+            repo_url=repo_url,
+        )
+
+    for ruleset_id, rules in rules_by_ruleset.items():
+        load_data(
+            neo4j_session,
+            GitHubRulesetRuleSchema(),
+            rules,
+            lastupdated=update_tag,
+            ruleset_id=ruleset_id,
+        )
+
+    for ruleset_id, actors in bypass_actors_by_ruleset.items():
+        load_data(
+            neo4j_session,
+            GitHubRulesetBypassActorSchema(),
+            actors,
+            lastupdated=update_tag,
+            ruleset_id=ruleset_id,
+        )
+
+
+@timeit
+def cleanup_rulesets(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+    repo_urls: List[str],
+) -> None:
+    """
+    Delete GitHub rulesets and their child resources from the graph if they were not updated in the last sync.
+    :param neo4j_session: Neo4j session
+    :param common_job_parameters: Common job parameters containing UPDATE_TAG
+    :param repo_urls: List of repository URLs to clean up rulesets for
+    """
+    for repo_url in repo_urls:
+        # Get all rulesets for this repo to clean up their children
+        result = neo4j_session.run(
+            """
+            MATCH (repo:GitHubRepository {id: $repo_url})-[:HAS_RULESET]->(ruleset:GitHubRuleset)
+            RETURN ruleset.id as ruleset_id
+            """,
+            repo_url=repo_url,
+        )
+        ruleset_ids = [record["ruleset_id"] for record in result]
+
+        # Clean up child resources for each ruleset
+        for ruleset_id in ruleset_ids:
+            cleanup_params = {**common_job_parameters, "ruleset_id": ruleset_id}
+            GraphJob.from_node_schema(
+                GitHubRulesetBypassActorSchema(), cleanup_params
+            ).run(neo4j_session)
+            GraphJob.from_node_schema(GitHubRulesetRuleSchema(), cleanup_params).run(
+                neo4j_session
+            )
+
+        # Clean up the rulesets themselves
+        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
+        GraphJob.from_node_schema(GitHubRulesetSchema(), cleanup_params).run(
+            neo4j_session
+        )
+
+
+@timeit
 def load(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
@@ -1334,6 +1587,13 @@ def load(
         neo4j_session,
         common_job_parameters["UPDATE_TAG"],
         repo_data["branch_protection_rules"],
+    )
+    load_rulesets(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["rulesets"],
+        repo_data["ruleset_rules"],
+        repo_data["ruleset_bypass_actors"],
     )
 
 
@@ -1404,5 +1664,10 @@ def sync(
     cleanup_branch_protection_rules(
         neo4j_session, common_job_parameters, repo_urls_with_branch_protection_rules
     )
+
+    repo_urls_with_rulesets = list(
+        {ruleset["repo_url"] for ruleset in repo_data["rulesets"]}
+    )
+    cleanup_rulesets(neo4j_session, common_job_parameters, repo_urls_with_rulesets)
 
     run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)

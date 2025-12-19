@@ -165,3 +165,31 @@ def test_transform_includes_branch_protection_rules():
     assert rule["requires_approving_reviews"] is True
     assert rule["required_approving_review_count"] == 2
     assert rule["repo_url"] == repo_with_branch_protection_rules["url"]
+
+
+def test_transform_includes_rulesets():
+    """
+    Test that the transform function includes rulesets in the output.
+    """
+    repo_with_rulesets = GET_REPOS[2]
+
+    result = transform(
+        [repo_with_rulesets],
+        {repo_with_rulesets["url"]: []},
+        {repo_with_rulesets["url"]: []},
+    )
+
+    assert "rulesets" in result
+    assert "ruleset_rules" in result
+    assert "ruleset_bypass_actors" in result
+
+    assert len(result["rulesets"]) == 1
+    assert len(result["ruleset_rules"]) == 3
+    assert len(result["ruleset_bypass_actors"]) == 2
+
+    ruleset = result["rulesets"][0]
+    assert ruleset["id"] == "RRS_lACkVXNlcs4AXenizgBRqVA"
+    assert ruleset["name"] == "production-ruleset"
+    assert ruleset["target"] == "BRANCH"
+    assert ruleset["enforcement"] == "ACTIVE"
+    assert ruleset["repo_url"] == repo_with_rulesets["url"]
