@@ -40,6 +40,11 @@ Representation of an [Okta Organization](https://developer.okta.com/docs/concept
     ```
     (OktaOrganization)-[RESOURCE]->(OktaAdministrationRole)
     ```
+- An OktaOrganization contains OktaDevices
+
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaDevice)
+    ```
 
 ### OktaUser :: UserAccount
 
@@ -89,6 +94,10 @@ Representation of an [Okta User](https://developer.okta.com/docs/reference/api/u
     (:OktaUser)-[:MEMBER_OF_OKTA_ROLE]->(:OktaAdministrationRole)
     ```
  - OktaUsers can have authentication factors
+ - OktaUsers can have enrolled devices
+    ```
+    (:OktaUser)-[:HAS_DEVICE]->(:OktaDevice)
+    ```
     ```
     (:OktaUser)-[:FACTOR]->(:OktaUserFactor)
     ```
@@ -275,3 +284,48 @@ Representation of [Okta Application ReplyUri](https://developer.okta.com/docs/re
     ```
     (ReplyUri)-[REPLYURI]->(OktaApplication)
     ```
+
+### OktaDevice
+
+Representation of an [Okta Device](https://developer.okta.com/docs/api/openapi/okta-management/management/tag/Device/#tag/Device/operation/listDevices) enrolled or managed by Okta.
+
+| Field | Description |
+|-------|--------------|
+| id | device id |
+| status | device status (CREATED, ACTIVE, DEACTIVATED, SUSPENDED) |
+| created | device creation date and time |
+| last_updated | date and time of last device property changes |
+| display_name | user-defined display name for the device |
+| platform | device platform (WINDOWS, MACOS, ANDROID, IOS, etc.) |
+| manufacturer | device manufacturer (e.g., "Apple", "Google") |
+| model | device model (e.g., "MacBook Pro", "Pixel 6") |
+| os_version | operating system version |
+| serial_number | hardware serial number |
+| sid | Windows Security Identifier (for Windows devices) |
+| imei | International Mobile Equipment Identity (for mobile devices) |
+| meid | Mobile Equipment Identifier (for mobile devices) |
+| udid | Unique Device Identifier (for iOS devices) |
+| registered | whether the device is registered |
+| secure_hardware_present | whether device has secure hardware (TPM, Secure Enclave) |
+| disk_encryption_type | type of disk encryption (ALL_INTERNAL_VOLUMES, USER, NONE) |
+| resource_type | Okta resource type (UDDevice) |
+| resource_display_name | resource display name |
+| resource_display_name_sensitive | whether display name is sensitive |
+| resource_alternate_id | alternate resource identifier |
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated |  Timestamp of the last time the node was updated |
+
+#### Relationships
+
+ - OktaOrganizations contain OktaDevices
+    ```
+    (OktaOrganization)-[RESOURCE]->(OktaDevice)
+    ```
+ - OktaUsers can have enrolled devices
+    ```
+    (OktaUser)-[HAS_DEVICE]->(OktaDevice)
+    ```
+    The HAS_DEVICE relationship includes these properties:
+    - `management_status`: Device management status (MANAGED, NOT_MANAGED)
+    - `screen_lock_type`: Type of screen lock (BIOMETRIC, PASSCODE)
+    - `enrolled_at`: Date and time when user enrolled the device
