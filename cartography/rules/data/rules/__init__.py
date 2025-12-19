@@ -4,7 +4,9 @@ from cartography.rules.data.rules.cis_aws_iam import cis_1_14_access_key_not_rot
 from cartography.rules.data.rules.cis_aws_iam import cis_1_15_user_direct_policies
 from cartography.rules.data.rules.cis_aws_iam import cis_1_18_expired_certificates
 from cartography.rules.data.rules.cis_aws_logging import cis_3_1_cloudtrail_multi_region
-from cartography.rules.data.rules.cis_aws_logging import cis_3_4_cloudtrail_log_validation
+from cartography.rules.data.rules.cis_aws_logging import (
+    cis_3_4_cloudtrail_log_validation,
+)
 from cartography.rules.data.rules.cis_aws_logging import cis_3_5_cloudtrail_cloudwatch
 from cartography.rules.data.rules.cis_aws_logging import cis_3_7_cloudtrail_encryption
 from cartography.rules.data.rules.cis_aws_networking import cis_5_1_unrestricted_ssh
@@ -13,7 +15,9 @@ from cartography.rules.data.rules.cis_aws_networking import cis_5_4_default_sg_t
 from cartography.rules.data.rules.cis_aws_networking import unrestricted_all_ports
 from cartography.rules.data.rules.cis_aws_storage import cis_2_1_1_s3_versioning
 from cartography.rules.data.rules.cis_aws_storage import cis_2_1_2_s3_mfa_delete
-from cartography.rules.data.rules.cis_aws_storage import cis_2_1_4_s3_block_public_access
+from cartography.rules.data.rules.cis_aws_storage import (
+    cis_2_1_4_s3_block_public_access,
+)
 from cartography.rules.data.rules.cis_aws_storage import cis_2_1_5_s3_access_logging
 from cartography.rules.data.rules.cis_aws_storage import cis_2_1_6_s3_encryption
 from cartography.rules.data.rules.cis_aws_storage import cis_2_2_1_rds_encryption
