@@ -138,6 +138,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.LASTPASS: "lastpass",
     Module.OCI: "oci",
     Module.OKTA: "okta",
+    Module.OPENAI: "openai",
     Module.PAGERDUTY: "pagerduty",
     Module.SCALEWAY: "scaleway",
     Module.SEMGREP: "semgrep",
