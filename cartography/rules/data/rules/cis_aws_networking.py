@@ -4,8 +4,8 @@ CIS AWS Networking Security Checks
 Implements CIS AWS Foundations Benchmark Section 5: Networking
 Based on CIS AWS Foundations Benchmark v5.0
 
-Each Fact represents a specific CIS check that can be performed against
-Neo4j data synced by Cartography.
+Each Rule represents a distinct security concept with a consistent main node type.
+Facts within a Rule are provider-specific implementations of the same concept.
 """
 
 from cartography.rules.spec.model import Fact
@@ -15,13 +15,39 @@ from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
 
-# -----------------------------------------------------------------------------
-# CIS 5.1: Ensure no security groups allow ingress from 0.0.0.0/0 to remote
-# server administration ports (SSH - port 22)
-# -----------------------------------------------------------------------------
-_cis_5_1_unrestricted_ssh = Fact(
-    id="cis_5_1_unrestricted_ssh",
-    name="CIS 5.1: Security groups allow unrestricted SSH access",
+CIS_REFERENCES = [
+    RuleReference(
+        text="CIS AWS Foundations Benchmark v5.0",
+        url="https://www.cisecurity.org/benchmark/amazon_web_services",
+    ),
+    RuleReference(
+        text="AWS Security Group Best Practices",
+        url="https://docs.aws.amazon.com/vpc/latest/userguide/security-group-rules.html",
+    ),
+]
+
+
+# =============================================================================
+# CIS 5.1: Unrestricted SSH Access
+# Main node: EC2SecurityGroup
+# =============================================================================
+class UnrestrictedSshOutput(Finding):
+    """Output model for unrestricted SSH check."""
+
+    security_group_id: str | None = None
+    security_group_name: str | None = None
+    region: str | None = None
+    from_port: int | None = None
+    to_port: int | None = None
+    protocol: str | None = None
+    cidr_range: str | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_unrestricted_ssh = Fact(
+    id="aws_unrestricted_ssh",
+    name="AWS security groups allow unrestricted SSH access",
     description=(
         "Detects security groups that allow SSH access (port 22) from any IP address "
         "(0.0.0.0/0 or ::/0). Unrestricted SSH access increases the risk of "
@@ -62,14 +88,42 @@ _cis_5_1_unrestricted_ssh = Fact(
     maturity=Maturity.STABLE,
 )
 
+cis_5_1_unrestricted_ssh = Rule(
+    id="cis_5_1_unrestricted_ssh",
+    name="CIS 5.1: Unrestricted SSH Access",
+    description=(
+        "Security groups should not allow SSH access (port 22) from any IP address. "
+        "Unrestricted SSH access increases the risk of unauthorized access."
+    ),
+    output_model=UnrestrictedSshOutput,
+    facts=(_aws_unrestricted_ssh,),
+    tags=("cis", "cis_5_1", "cis_aws_5.0", "networking", "security-groups", "ssh"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+)
 
-# -----------------------------------------------------------------------------
-# CIS 5.2: Ensure no security groups allow ingress from 0.0.0.0/0 to remote
-# server administration ports (RDP - port 3389)
-# -----------------------------------------------------------------------------
-_cis_5_2_unrestricted_rdp = Fact(
-    id="cis_5_2_unrestricted_rdp",
-    name="CIS 5.2: Security groups allow unrestricted RDP access",
+
+# =============================================================================
+# CIS 5.2: Unrestricted RDP Access
+# Main node: EC2SecurityGroup
+# =============================================================================
+class UnrestrictedRdpOutput(Finding):
+    """Output model for unrestricted RDP check."""
+
+    security_group_id: str | None = None
+    security_group_name: str | None = None
+    region: str | None = None
+    from_port: int | None = None
+    to_port: int | None = None
+    protocol: str | None = None
+    cidr_range: str | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_unrestricted_rdp = Fact(
+    id="aws_unrestricted_rdp",
+    name="AWS security groups allow unrestricted RDP access",
     description=(
         "Detects security groups that allow RDP access (port 3389) from any IP address "
         "(0.0.0.0/0 or ::/0). Unrestricted RDP access increases the risk of "
@@ -110,13 +164,42 @@ _cis_5_2_unrestricted_rdp = Fact(
     maturity=Maturity.STABLE,
 )
 
+cis_5_2_unrestricted_rdp = Rule(
+    id="cis_5_2_unrestricted_rdp",
+    name="CIS 5.2: Unrestricted RDP Access",
+    description=(
+        "Security groups should not allow RDP access (port 3389) from any IP address. "
+        "Unrestricted RDP access increases the risk of unauthorized access."
+    ),
+    output_model=UnrestrictedRdpOutput,
+    facts=(_aws_unrestricted_rdp,),
+    tags=("cis", "cis_5_2", "cis_aws_5.0", "networking", "security-groups", "rdp"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+)
 
-# -----------------------------------------------------------------------------
-# CIS 5.4: Ensure the default security group of every VPC restricts all traffic
-# -----------------------------------------------------------------------------
-_cis_5_4_default_sg_allows_traffic = Fact(
-    id="cis_5_4_default_sg_allows_traffic",
-    name="CIS 5.4: Default security group allows traffic",
+
+# =============================================================================
+# CIS 5.4: Default Security Group Restricts All Traffic
+# Main node: EC2SecurityGroup
+# =============================================================================
+class DefaultSgAllowsTrafficOutput(Finding):
+    """Output model for default security group check."""
+
+    security_group_id: str | None = None
+    security_group_name: str | None = None
+    region: str | None = None
+    rule_direction: str | None = None
+    from_port: int | None = None
+    to_port: int | None = None
+    protocol: str | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_default_sg_allows_traffic = Fact(
+    id="aws_default_sg_allows_traffic",
+    name="AWS default security group allows traffic",
     description=(
         "Detects VPCs where the default security group has inbound or outbound rules "
         "allowing traffic. The default security group should restrict all traffic "
@@ -161,13 +244,40 @@ _cis_5_4_default_sg_allows_traffic = Fact(
     maturity=Maturity.STABLE,
 )
 
+cis_5_4_default_sg_traffic = Rule(
+    id="cis_5_4_default_sg_traffic",
+    name="CIS 5.4: Default Security Group Restricts Traffic",
+    description=(
+        "The default security group of every VPC should restrict all traffic to "
+        "prevent accidental exposure of resources."
+    ),
+    output_model=DefaultSgAllowsTrafficOutput,
+    facts=(_aws_default_sg_allows_traffic,),
+    tags=("cis", "cis_5_4", "cis_aws_5.0", "networking", "security-groups"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+)
 
-# -----------------------------------------------------------------------------
-# Additional: Security groups with unrestricted ingress on all ports
-# -----------------------------------------------------------------------------
-_unrestricted_all_ports = Fact(
-    id="cis_aws_unrestricted_all_ports",
-    name="Security groups with unrestricted access to all ports",
+
+# =============================================================================
+# Additional: Unrestricted All Ports
+# Main node: EC2SecurityGroup
+# =============================================================================
+class UnrestrictedAllPortsOutput(Finding):
+    """Output model for unrestricted all ports check."""
+
+    security_group_id: str | None = None
+    security_group_name: str | None = None
+    region: str | None = None
+    protocol: str | None = None
+    cidr_range: str | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_unrestricted_all_ports = Fact(
+    id="aws_unrestricted_all_ports",
+    name="AWS security groups with unrestricted access to all ports",
     description=(
         "Detects security groups that allow access to all ports from any IP address "
         "(0.0.0.0/0 or ::/0). This is a severe misconfiguration that exposes all "
@@ -200,60 +310,16 @@ _unrestricted_all_ports = Fact(
     maturity=Maturity.STABLE,
 )
 
-
-# -----------------------------------------------------------------------------
-# Output Model
-# -----------------------------------------------------------------------------
-class CISAWSNetworkingOutput(Finding):
-    """Output model for CIS AWS Networking checks.
-
-    Field order matters for display_name: first non-null field is used.
-    Most specific identifiers should come first.
-    """
-
-    # Primary identifier (first non-null becomes display_name)
-    security_group_id: str | None = None
-    # Security group details
-    security_group_name: str | None = None
-    region: str | None = None
-    from_port: int | None = None
-    to_port: int | None = None
-    protocol: str | None = None
-    cidr_range: str | None = None
-    rule_direction: str | None = None
-    # Account (last - generic identifier)
-    account_id: str | None = None
-    account: str | None = None
-
-
-# -----------------------------------------------------------------------------
-# Rule Definition
-# -----------------------------------------------------------------------------
-cis_aws_networking = Rule(
-    id="cis_aws_networking",
-    name="CIS AWS Networking Security Checks",
+unrestricted_all_ports = Rule(
+    id="unrestricted_all_ports",
+    name="Unrestricted Access to All Ports",
     description=(
-        "CIS AWS Foundations Benchmark - Networking controls. "
-        "Detects security group misconfigurations including unrestricted SSH, "
-        "RDP, and overly permissive default security groups."
+        "Security groups should not allow access to all ports from any IP address. "
+        "This is a severe misconfiguration that exposes all services."
     ),
-    output_model=CISAWSNetworkingOutput,
-    facts=(
-        _cis_5_1_unrestricted_ssh,
-        _cis_5_2_unrestricted_rdp,
-        _cis_5_4_default_sg_allows_traffic,
-        _unrestricted_all_ports,
-    ),
-    tags=("cis", "compliance", "cis_aws_5.0", "networking", "security-groups"),
+    output_model=UnrestrictedAllPortsOutput,
+    facts=(_aws_unrestricted_all_ports,),
+    tags=("cis", "cis_aws_5.0", "networking", "security-groups", "critical"),
     version="1.0.0",
-    references=[
-        RuleReference(
-            text="CIS AWS Foundations Benchmark v5.0",
-            url="https://www.cisecurity.org/benchmark/amazon_web_services",
-        ),
-        RuleReference(
-            text="AWS Security Group Best Practices",
-            url="https://docs.aws.amazon.com/vpc/latest/userguide/security-group-rules.html",
-        ),
-    ],
+    references=CIS_REFERENCES,
 )

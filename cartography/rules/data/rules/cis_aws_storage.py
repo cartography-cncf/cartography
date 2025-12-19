@@ -4,8 +4,8 @@ CIS AWS Storage Security Checks
 Implements CIS AWS Foundations Benchmark Section 2: Storage
 Based on CIS AWS Foundations Benchmark v5.0
 
-Each Fact represents a specific CIS check that can be performed against
-Neo4j data synced by Cartography.
+Each Rule represents a distinct security concept with a consistent main node type.
+Facts within a Rule are provider-specific implementations of the same concept.
 """
 
 from cartography.rules.spec.model import Fact
@@ -15,20 +15,93 @@ from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
 
-# -----------------------------------------------------------------------------
-# CIS 2.1.1: Ensure S3 Bucket Policy is set to deny HTTP requests
-# (Covered partially - we check for public access settings)
-# -----------------------------------------------------------------------------
-# Note: This is already covered by object_storage_public rule, but we add
-# additional checks for Block Public Access settings
+CIS_REFERENCES = [
+    RuleReference(
+        text="CIS AWS Foundations Benchmark v5.0",
+        url="https://www.cisecurity.org/benchmark/amazon_web_services",
+    ),
+    RuleReference(
+        text="AWS S3 Security Best Practices",
+        url="https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html",
+    ),
+]
 
 
-# -----------------------------------------------------------------------------
-# CIS 2.1.2: Ensure S3 bucket MFA Delete is enabled
-# -----------------------------------------------------------------------------
-_cis_2_1_2_s3_mfa_delete_disabled = Fact(
-    id="cis_2_1_2_s3_mfa_delete_disabled",
-    name="CIS 2.1.2: S3 buckets without MFA Delete",
+# =============================================================================
+# CIS 2.1.1: S3 bucket versioning
+# Main node: S3Bucket
+# =============================================================================
+class S3VersioningOutput(Finding):
+    """Output model for S3 versioning check."""
+
+    bucket_name: str | None = None
+    bucket_id: str | None = None
+    region: str | None = None
+    versioning_status: str | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_s3_versioning_disabled = Fact(
+    id="aws_s3_versioning_disabled",
+    name="AWS S3 buckets without versioning enabled",
+    description=(
+        "Detects S3 buckets that do not have versioning enabled. Versioning helps "
+        "protect against accidental deletion and enables recovery of objects."
+    ),
+    cypher_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
+    WHERE bucket.versioning_status IS NULL OR bucket.versioning_status <> 'Enabled'
+    RETURN
+        bucket.name AS bucket_name,
+        bucket.id AS bucket_id,
+        bucket.region AS region,
+        bucket.versioning_status AS versioning_status,
+        a.id AS account_id,
+        a.name AS account
+    """,
+    cypher_visual_query="""
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
+    WHERE bucket.versioning_status IS NULL OR bucket.versioning_status <> 'Enabled'
+    RETURN *
+    """,
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
+
+cis_2_1_1_s3_versioning = Rule(
+    id="cis_2_1_1_s3_versioning",
+    name="CIS 2.1.1: S3 Bucket Versioning",
+    description=(
+        "S3 buckets should have versioning enabled to protect against accidental "
+        "deletion and enable recovery of objects."
+    ),
+    output_model=S3VersioningOutput,
+    facts=(_aws_s3_versioning_disabled,),
+    tags=("cis", "cis_2_1_1", "cis_aws_5.0", "storage", "s3"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+)
+
+
+# =============================================================================
+# CIS 2.1.2: S3 bucket MFA Delete
+# Main node: S3Bucket
+# =============================================================================
+class S3MfaDeleteOutput(Finding):
+    """Output model for S3 MFA Delete check."""
+
+    bucket_name: str | None = None
+    bucket_id: str | None = None
+    region: str | None = None
+    mfa_delete_enabled: bool | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_s3_mfa_delete_disabled = Fact(
+    id="aws_s3_mfa_delete_disabled",
+    name="AWS S3 buckets without MFA Delete",
     description=(
         "Detects S3 buckets that do not have MFA Delete enabled. MFA Delete "
         "provides an additional layer of security by requiring MFA authentication "
@@ -54,13 +127,42 @@ _cis_2_1_2_s3_mfa_delete_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
+cis_2_1_2_s3_mfa_delete = Rule(
+    id="cis_2_1_2_s3_mfa_delete",
+    name="CIS 2.1.2: S3 Bucket MFA Delete",
+    description=(
+        "S3 buckets should have MFA Delete enabled to require MFA authentication "
+        "for deleting object versions or changing versioning state."
+    ),
+    output_model=S3MfaDeleteOutput,
+    facts=(_aws_s3_mfa_delete_disabled,),
+    tags=("cis", "cis_2_1_2", "cis_aws_5.0", "storage", "s3"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+)
 
-# -----------------------------------------------------------------------------
-# CIS 2.1.4: Ensure that S3 Buckets are configured with 'Block public access'
-# -----------------------------------------------------------------------------
-_cis_2_1_4_s3_block_public_access = Fact(
-    id="cis_2_1_4_s3_block_public_access_disabled",
-    name="CIS 2.1.4: S3 buckets without full Block Public Access",
+
+# =============================================================================
+# CIS 2.1.4: S3 Block Public Access
+# Main node: S3Bucket
+# =============================================================================
+class S3BlockPublicAccessOutput(Finding):
+    """Output model for S3 Block Public Access check."""
+
+    bucket_name: str | None = None
+    bucket_id: str | None = None
+    region: str | None = None
+    block_public_acls: bool | None = None
+    ignore_public_acls: bool | None = None
+    block_public_policy: bool | None = None
+    restrict_public_buckets: bool | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_s3_block_public_access_disabled = Fact(
+    id="aws_s3_block_public_access_disabled",
+    name="AWS S3 buckets without full Block Public Access",
     description=(
         "Detects S3 buckets that do not have all Block Public Access settings enabled. "
         "All four Block Public Access settings should be enabled to prevent public access."
@@ -94,44 +196,39 @@ _cis_2_1_4_s3_block_public_access = Fact(
     maturity=Maturity.STABLE,
 )
 
-
-# -----------------------------------------------------------------------------
-# CIS 2.1.1: Ensure S3 bucket versioning is enabled
-# -----------------------------------------------------------------------------
-_cis_2_1_1_s3_versioning_disabled = Fact(
-    id="cis_2_1_1_s3_versioning_disabled",
-    name="CIS 2.1.1: S3 buckets without versioning enabled",
+cis_2_1_4_s3_block_public_access = Rule(
+    id="cis_2_1_4_s3_block_public_access",
+    name="CIS 2.1.4: S3 Block Public Access",
     description=(
-        "Detects S3 buckets that do not have versioning enabled. Versioning helps "
-        "protect against accidental deletion and enables recovery of objects."
+        "S3 buckets should have all Block Public Access settings enabled to prevent "
+        "accidental public exposure of data."
     ),
-    cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
-    WHERE bucket.versioning_status IS NULL OR bucket.versioning_status <> 'Enabled'
-    RETURN
-        bucket.name AS bucket_name,
-        bucket.id AS bucket_id,
-        bucket.region AS region,
-        bucket.versioning_status AS versioning_status,
-        a.id AS account_id,
-        a.name AS account
-    """,
-    cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
-    WHERE bucket.versioning_status IS NULL OR bucket.versioning_status <> 'Enabled'
-    RETURN *
-    """,
-    module=Module.AWS,
-    maturity=Maturity.STABLE,
+    output_model=S3BlockPublicAccessOutput,
+    facts=(_aws_s3_block_public_access_disabled,),
+    tags=("cis", "cis_2_1_4", "cis_aws_5.0", "storage", "s3"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
 )
 
 
-# -----------------------------------------------------------------------------
-# CIS 2.1.5: Ensure S3 bucket access logging is enabled
-# -----------------------------------------------------------------------------
-_cis_2_1_5_s3_access_logging_disabled = Fact(
-    id="cis_2_1_5_s3_access_logging_disabled",
-    name="CIS 2.1.5: S3 buckets without access logging",
+# =============================================================================
+# CIS 2.1.5: S3 Access Logging
+# Main node: S3Bucket
+# =============================================================================
+class S3AccessLoggingOutput(Finding):
+    """Output model for S3 access logging check."""
+
+    bucket_name: str | None = None
+    bucket_id: str | None = None
+    region: str | None = None
+    logging_enabled: bool | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_s3_access_logging_disabled = Fact(
+    id="aws_s3_access_logging_disabled",
+    name="AWS S3 buckets without access logging",
     description=(
         "Detects S3 buckets that do not have server access logging enabled. "
         "Access logging provides detailed records for access requests to the bucket."
@@ -156,13 +253,40 @@ _cis_2_1_5_s3_access_logging_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
+cis_2_1_5_s3_access_logging = Rule(
+    id="cis_2_1_5_s3_access_logging",
+    name="CIS 2.1.5: S3 Bucket Access Logging",
+    description=(
+        "S3 buckets should have server access logging enabled to provide detailed "
+        "records for access requests."
+    ),
+    output_model=S3AccessLoggingOutput,
+    facts=(_aws_s3_access_logging_disabled,),
+    tags=("cis", "cis_2_1_5", "cis_aws_5.0", "storage", "s3", "logging"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+)
 
-# -----------------------------------------------------------------------------
-# CIS 2.1.6: Ensure S3 bucket default encryption is enabled
-# -----------------------------------------------------------------------------
-_cis_2_1_6_s3_encryption_disabled = Fact(
-    id="cis_2_1_6_s3_encryption_disabled",
-    name="CIS 2.1.6: S3 buckets without default encryption",
+
+# =============================================================================
+# CIS 2.1.6: S3 Default Encryption
+# Main node: S3Bucket
+# =============================================================================
+class S3EncryptionOutput(Finding):
+    """Output model for S3 encryption check."""
+
+    bucket_name: str | None = None
+    bucket_id: str | None = None
+    region: str | None = None
+    default_encryption: bool | None = None
+    encryption_algorithm: str | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_s3_encryption_disabled = Fact(
+    id="aws_s3_encryption_disabled",
+    name="AWS S3 buckets without default encryption",
     description=(
         "Detects S3 buckets that do not have default encryption enabled. "
         "Default encryption ensures all objects stored are encrypted at rest."
@@ -188,13 +312,42 @@ _cis_2_1_6_s3_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
+cis_2_1_6_s3_encryption = Rule(
+    id="cis_2_1_6_s3_encryption",
+    name="CIS 2.1.6: S3 Default Encryption",
+    description=(
+        "S3 buckets should have default encryption enabled to ensure all objects "
+        "are encrypted at rest."
+    ),
+    output_model=S3EncryptionOutput,
+    facts=(_aws_s3_encryption_disabled,),
+    tags=("cis", "cis_2_1_6", "cis_aws_5.0", "storage", "s3", "encryption"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+)
 
-# -----------------------------------------------------------------------------
-# CIS 2.2.1: Ensure that encryption-at-rest is enabled for RDS instances
-# -----------------------------------------------------------------------------
-_cis_2_2_1_rds_encryption_disabled = Fact(
-    id="cis_2_2_1_rds_encryption_disabled",
-    name="CIS 2.2.1: RDS instances without encryption at rest",
+
+# =============================================================================
+# CIS 2.2.1: RDS Encryption at Rest
+# Main node: RDSInstance
+# =============================================================================
+class RdsEncryptionOutput(Finding):
+    """Output model for RDS encryption check."""
+
+    db_identifier: str | None = None
+    db_arn: str | None = None
+    engine: str | None = None
+    engine_version: str | None = None
+    instance_class: str | None = None
+    storage_encrypted: bool | None = None
+    publicly_accessible: bool | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_rds_encryption_disabled = Fact(
+    id="aws_rds_encryption_disabled",
+    name="AWS RDS instances without encryption at rest",
     description=(
         "Detects RDS instances that do not have storage encryption enabled. "
         "Encrypting RDS instances protects data at rest and helps meet "
@@ -223,13 +376,41 @@ _cis_2_2_1_rds_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
+cis_2_2_1_rds_encryption = Rule(
+    id="cis_2_2_1_rds_encryption",
+    name="CIS 2.2.1: RDS Encryption at Rest",
+    description=(
+        "RDS instances should have storage encryption enabled to protect data at rest "
+        "and meet compliance requirements."
+    ),
+    output_model=RdsEncryptionOutput,
+    facts=(_aws_rds_encryption_disabled,),
+    tags=("cis", "cis_2_2_1", "cis_aws_5.0", "storage", "rds", "encryption"),
+    version="1.0.0",
+    references=CIS_REFERENCES,
+)
 
-# -----------------------------------------------------------------------------
-# CIS 2.3.1: Ensure EBS volume encryption is enabled
-# -----------------------------------------------------------------------------
-_cis_2_3_1_ebs_encryption_disabled = Fact(
-    id="cis_2_3_1_ebs_encryption_disabled",
-    name="CIS 2.3.1: EBS volumes without encryption",
+
+# =============================================================================
+# CIS 2.3.1: EBS Volume Encryption
+# Main node: EBSVolume
+# =============================================================================
+class EbsEncryptionOutput(Finding):
+    """Output model for EBS encryption check."""
+
+    volume_id: str | None = None
+    region: str | None = None
+    volume_type: str | None = None
+    size_gb: int | None = None
+    state: str | None = None
+    encrypted: bool | None = None
+    account_id: str | None = None
+    account: str | None = None
+
+
+_aws_ebs_encryption_disabled = Fact(
+    id="aws_ebs_encryption_disabled",
+    name="AWS EBS volumes without encryption",
     description=(
         "Detects EBS volumes that are not encrypted. Encrypting EBS volumes "
         "protects data at rest and data in transit between the volume and instance."
@@ -256,81 +437,16 @@ _cis_2_3_1_ebs_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-
-# -----------------------------------------------------------------------------
-# Output Model
-# -----------------------------------------------------------------------------
-class CISAWSStorageOutput(Finding):
-    """Output model for CIS AWS Storage checks.
-
-    Field order matters for display_name: first non-null field is used.
-    Most specific identifiers should come first.
-    """
-
-    # Primary identifiers (first non-null becomes display_name)
-    bucket_name: str | None = None
-    db_identifier: str | None = None
-    volume_id: str | None = None
-    # S3 bucket details
-    bucket_id: str | None = None
-    region: str | None = None
-    mfa_delete_enabled: bool | None = None
-    block_public_acls: bool | None = None
-    ignore_public_acls: bool | None = None
-    block_public_policy: bool | None = None
-    restrict_public_buckets: bool | None = None
-    versioning_status: str | None = None
-    logging_enabled: bool | None = None
-    default_encryption: bool | None = None
-    encryption_algorithm: str | None = None
-    # EBS volume details
-    encrypted: bool | None = None
-    volume_type: str | None = None
-    size_gb: int | None = None
-    state: str | None = None
-    # RDS details
-    db_arn: str | None = None
-    engine: str | None = None
-    engine_version: str | None = None
-    instance_class: str | None = None
-    storage_encrypted: bool | None = None
-    publicly_accessible: bool | None = None
-    # Account (last - generic identifier)
-    account_id: str | None = None
-    account: str | None = None
-
-
-# -----------------------------------------------------------------------------
-# Rule Definition
-# -----------------------------------------------------------------------------
-cis_aws_storage = Rule(
-    id="cis_aws_storage",
-    name="CIS AWS Storage Security Checks",
+cis_2_3_1_ebs_encryption = Rule(
+    id="cis_2_3_1_ebs_encryption",
+    name="CIS 2.3.1: EBS Volume Encryption",
     description=(
-        "CIS AWS Foundations Benchmark - Storage controls. "
-        "Detects S3 and EBS misconfigurations including missing encryption, "
-        "disabled versioning, and insufficient access controls."
+        "EBS volumes should be encrypted to protect data at rest and in transit "
+        "between the volume and instance."
     ),
-    output_model=CISAWSStorageOutput,
-    facts=(
-        _cis_2_1_2_s3_mfa_delete_disabled,
-        _cis_2_1_4_s3_block_public_access,
-        _cis_2_1_1_s3_versioning_disabled,
-        _cis_2_1_5_s3_access_logging_disabled,
-        _cis_2_1_6_s3_encryption_disabled,
-        _cis_2_2_1_rds_encryption_disabled,
-        _cis_2_3_1_ebs_encryption_disabled,
-    ),
-    tags=("cis", "compliance", "cis_aws_5.0", "storage", "s3", "ebs", "rds"),
+    output_model=EbsEncryptionOutput,
+    facts=(_aws_ebs_encryption_disabled,),
+    tags=("cis", "cis_2_3_1", "cis_aws_5.0", "storage", "ebs", "encryption"),
     version="1.0.0",
-    references=[
-        RuleReference(
-            text="CIS AWS Foundations Benchmark v5.0",
-            url="https://www.cisecurity.org/benchmark/amazon_web_services",
-        ),
-        RuleReference(
-            text="AWS S3 Security Best Practices",
-            url="https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html",
-        ),
-    ],
+    references=CIS_REFERENCES,
 )
