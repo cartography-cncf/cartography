@@ -409,23 +409,30 @@ def transform(
                 transformed_direct_collaborators,
             )
 
-        _transform_requirements_txt(
-            repo_object["requirements"],
-            repo_url,
-            transformed_requirements_files,
+        dependency_manifests = repo_object.get("dependencyGraphManifests")
+        has_dependency_graph = bool(
+            dependency_manifests and dependency_manifests.get("nodes"),
         )
-        _transform_setup_cfg_requirements(
-            repo_object["setupCfg"],
-            repo_url,
-            transformed_requirements_files,
-        )
+
+        if not has_dependency_graph:
+            _transform_requirements_txt(
+                repo_object["requirements"],
+                repo_url,
+                transformed_requirements_files,
+            )
+            _transform_setup_cfg_requirements(
+                repo_object["setupCfg"],
+                repo_url,
+                transformed_requirements_files,
+            )
+
         _transform_dependency_manifests(
-            repo_object.get("dependencyGraphManifests"),
+            dependency_manifests,
             repo_url,
             transformed_manifests,
         )
         _transform_dependency_graph(
-            repo_object.get("dependencyGraphManifests"),
+            dependency_manifests,
             repo_url,
             transformed_dependencies,
         )
@@ -787,13 +794,41 @@ def _transform_python_requirements(
     :param out_requirements_files: Output array to append transformed results to.
     :return: Nothing.
     """
-    parsed_list = []
+    normalized_requirements: List[str] = []
+    current_line = ""
+
     for line in requirements_list:
         stripped_line = line.partition("#")[0].strip()
-        if stripped_line == "":
+        if not stripped_line:
+            if current_line:
+                normalized_requirements.append(current_line)
+                current_line = ""
             continue
+
+        continues = stripped_line.endswith("\\")
+        if continues:
+            stripped_line = stripped_line[:-1].rstrip()
+
+        is_option_line = stripped_line.startswith("-")
+        if not is_option_line and stripped_line:
+            current_line = (
+                f"{current_line} {stripped_line}".strip()
+                if current_line
+                else stripped_line
+            )
+
+        if not continues:
+            if current_line:
+                normalized_requirements.append(current_line)
+                current_line = ""
+
+    if current_line:
+        normalized_requirements.append(current_line)
+
+    parsed_list = []
+    for line in normalized_requirements:
         try:
-            req = Requirement(stripped_line)
+            req = Requirement(line)
             parsed_list.append(req)
         except InvalidRequirement:
             # INFO and not WARN/ERROR as we intentionally don't support all ways to specify Python requirements
