@@ -135,6 +135,12 @@ class Config:
     :param duo_api_key: The Duo api secret. Optional.
     :type duo_api_hostname: str
     :param duo_api_hostname: The Duo api hostname, e.g. "api-abc123.duosecurity.com". Optional.
+    :type workday_api_url: str
+    :param workday_api_url: The Workday API URL. Optional.
+    :type workday_api_login: str
+    :param workday_api_login: The Workday API login username. Optional.
+    :type workday_api_password: str
+    :param workday_api_password: The Workday API password. Optional.
     :param semgrep_app_token: The Semgrep api token. Optional.
     :type semgrep_app_token: str
     :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
@@ -284,6 +290,9 @@ class Config:
         duo_api_key=None,
         duo_api_secret=None,
         duo_api_hostname=None,
+        workday_api_url=None,
+        workday_api_login=None,
+        workday_api_password=None,
         semgrep_app_token=None,
         semgrep_dependency_ecosystems=None,
         snipeit_base_uri=None,
@@ -392,6 +401,9 @@ class Config:
         self.duo_api_key = duo_api_key
         self.duo_api_secret = duo_api_secret
         self.duo_api_hostname = duo_api_hostname
+        self.workday_api_url = workday_api_url
+        self.workday_api_login = workday_api_login
+        self.workday_api_password = workday_api_password
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.snipeit_base_uri = snipeit_base_uri
