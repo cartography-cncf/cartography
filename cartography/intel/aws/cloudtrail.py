@@ -1,8 +1,8 @@
+import json
 import logging
 from typing import Any
 from typing import Dict
 from typing import List
-import json
 
 import boto3
 import neo4j
@@ -33,7 +33,8 @@ def get_cloudtrail_trails(
             selectors = client.get_event_selectors(TrailName=trail["TrailARN"])
             trail["EventSelectors"] = selectors.get("EventSelectors", [])
             trail["AdvancedEventSelectors"] = selectors.get(
-                "AdvancedEventSelectors", [],
+                "AdvancedEventSelectors",
+                [],
             )
             trails_filtered.append(trail)
 
