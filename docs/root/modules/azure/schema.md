@@ -10,7 +10,20 @@ S -- RESOURCE --> Snapshot
 S -- RESOURCE --> SQL(SQLServer)
 S -- RESOURCE --> SA(StorageAccount)
 S -- RESOURCE --> CA(CosmosDBAccount)
+S -- RESOURCE --> NIC(NetworkInterface)
+S -- RESOURCE --> PIP(PublicIPAddress)
+S -- RESOURCE --> RA(RoleAssignment)
+S -- RESOURCE --> RD(RoleDefinition)
+S -- RESOURCE --> Permissions
+RA -- ROLE_ASSIGNED --> RD
+RD -- HAS_PERMISSIONS --> Permissions
+EntraUser -- HAS_ROLE_ASSIGNMENT --> RA
+EntraGroup -- HAS_ROLE_ASSIGNMENT --> RA
+EntraServicePrincipal -- HAS_ROLE_ASSIGNMENT --> RA
 VM -- ATTACHED_TO --> DataDisk
+NIC -- ATTACHED_TO --> VM
+NIC -- ATTACHED_TO --> Subnet
+NIC -- ASSOCIATED_WITH --> PIP
 SQL -- USED_BY --> ServerDNSAlias
 SQL -- ADMINISTERED_BY --> ADAdministrator
 SQL -- RESOURCE --> RecoverableDatabase
@@ -102,6 +115,141 @@ Representation of an [Azure Subscription](https://docs.microsoft.com/en-us/rest/
 - Azure Tenant contains one or more Subscriptions.
     ```cypher
     (AzureTenant)-[RESOURCE]->(AzureSubscription)
+    ```
+
+### AzureRoleAssignment
+
+Representation of an [Azure Role Assignment](https://learn.microsoft.com/en-us/azure/role-based-access-control/role-assignments-list-rest). Role assignments associate a principal (user, group, service principal, or managed identity) with a role definition at a given scope.
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The fully qualified ID of the role assignment|
+|name| The name (GUID) of the role assignment|
+|type| The type of the resource (Microsoft.Authorization/roleAssignments)|
+|principal_id| The principal ID of the assignee (user, group, or service principal)|
+|principal_type| The type of principal (User, Group, ServicePrincipal)|
+|role_definition_id| The ID of the role definition being assigned|
+|scope| The scope at which the role is assigned (subscription, resource group, or resource)|
+|scope_type| The type of scope|
+|created_on| Timestamp when the role assignment was created|
+|updated_on| Timestamp when the role assignment was last updated|
+|created_by| The ID of the principal who created the role assignment|
+|updated_by| The ID of the principal who last updated the role assignment|
+|condition| JSON string containing any conditions on the role assignment|
+|description| Description of the role assignment|
+|delegated_managed_identity_resource_id| The delegated managed identity resource ID, if applicable|
+|subscription_id| The Azure subscription ID|
+
+#### Relationships
+
+- Azure Subscription contains Role Assignments.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureRoleAssignment)
+    ```
+
+- Role Assignment references a Role Definition.
+    ```cypher
+    (AzureRoleAssignment)-[ROLE_ASSIGNED]->(AzureRoleDefinition)
+    ```
+
+- Entra Users can have Role Assignments.
+    ```cypher
+    (EntraUser)-[HAS_ROLE_ASSIGNMENT]->(AzureRoleAssignment)
+    ```
+
+- Entra Groups can have Role Assignments.
+    ```cypher
+    (EntraGroup)-[HAS_ROLE_ASSIGNMENT]->(AzureRoleAssignment)
+    ```
+
+- Entra Service Principals can have Role Assignments.
+    ```cypher
+    (EntraServicePrincipal)-[HAS_ROLE_ASSIGNMENT]->(AzureRoleAssignment)
+    ```
+
+### AzureRoleDefinition
+
+Representation of an [Azure Role Definition](https://learn.microsoft.com/en-us/azure/role-based-access-control/role-definitions). Role definitions describe the permissions that can be granted, including allowed actions, not actions, data actions, and not data actions.
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The fully qualified ID of the role definition|
+|name| The name (GUID) of the role definition|
+|type| The type of the resource (Microsoft.Authorization/roleDefinitions)|
+|role_name| The display name of the role (e.g., "Contributor", "Reader")|
+|description| Description of what the role allows|
+|assignable_scopes| List of scopes where this role can be assigned|
+|subscription_id| The Azure subscription ID|
+
+#### Relationships
+
+- Azure Subscription contains Role Definitions.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzureRoleDefinition)
+    ```
+
+- Role Definition has Permissions.
+    ```cypher
+    (AzureRoleDefinition)-[HAS_PERMISSIONS]->(AzurePermissions)
+    ```
+
+- Role Assignments reference Role Definitions.
+    ```cypher
+    (AzureRoleAssignment)-[ROLE_ASSIGNED]->(AzureRoleDefinition)
+    ```
+
+### AzurePermissions
+
+Representation of the permissions within an Azure Role Definition. Each permission set contains allowed and denied actions for both control plane (management) and data plane operations.
+
+| Field | Description |
+|-------|-------------|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| Unique identifier for the permission set (role_definition_id/permissions/index)|
+|actions| List of allowed control plane actions (e.g., "Microsoft.Compute/virtualMachines/read")|
+|not_actions| List of denied control plane actions|
+|data_actions| List of allowed data plane actions (e.g., "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read")|
+|not_data_actions| List of denied data plane actions|
+|subscription_id| The Azure subscription ID|
+
+#### Relationships
+
+- Azure Subscription contains Permissions.
+    ```cypher
+    (AzureSubscription)-[RESOURCE]->(AzurePermissions)
+    ```
+
+- Role Definition has Permissions.
+    ```cypher
+    (AzureRoleDefinition)-[HAS_PERMISSIONS]->(AzurePermissions)
+    ```
+
+#### Example Queries
+
+- Find all users with the "Owner" role:
+    ```cypher
+    MATCH (u:EntraUser)-[:HAS_ROLE_ASSIGNMENT]->(ra:AzureRoleAssignment)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)
+    WHERE rd.role_name = 'Owner'
+    RETURN u.email, ra.scope
+    ```
+
+- Find all principals with write access to storage accounts:
+    ```cypher
+    MATCH (ra:AzureRoleAssignment)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)-[:HAS_PERMISSIONS]->(p:AzurePermissions)
+    WHERE ANY(action IN p.actions WHERE action CONTAINS 'Microsoft.Storage' AND action CONTAINS 'write')
+    RETURN ra.principal_id, ra.principal_type, rd.role_name, ra.scope
+    ```
+
+- Find service principals with high-privilege roles:
+    ```cypher
+    MATCH (sp:EntraServicePrincipal)-[:HAS_ROLE_ASSIGNMENT]->(ra:AzureRoleAssignment)-[:ROLE_ASSIGNED]->(rd:AzureRoleDefinition)
+    WHERE rd.role_name IN ['Owner', 'Contributor', 'User Access Administrator']
+    RETURN sp.display_name, rd.role_name, ra.scope
     ```
 
 ### VirtualMachine
@@ -1740,6 +1888,63 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
   - An Azure Network Security Group is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureNetworkSecurityGroup)
+    ```
+
+### AzureNetworkInterface
+
+Representation of an [Azure Network Interface](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-interfaces/get).
+
+| Field                | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| firstseen            | Timestamp of when a sync job discovered this node                 |
+| lastupdated          | Timestamp of the last time the node was updated                   |
+| **id**               | The full resource ID of the Network Interface.                    |
+| name                 | The name of the Network Interface.                                |
+| location             | The Azure region where the Network Interface is deployed.         |
+| mac\_address         | The MAC address of the Network Interface.                         |
+| private\_ip\_addresses | List of private IP addresses assigned to the Network Interface. |
+
+#### Relationships
+
+  - An Azure Network Interface is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureNetworkInterface)
+    ```
+
+  - An Azure Network Interface is attached to a Virtual Machine.
+    ```cypher
+    (AzureNetworkInterface)-[:ATTACHED_TO]->(:AzureVirtualMachine)
+    ```
+
+  - An Azure Network Interface is attached to one or more Subnets.
+    ```cypher
+    (AzureNetworkInterface)-[:ATTACHED_TO]->(:AzureSubnet)
+    ```
+
+  - An Azure Network Interface is associated with one or more Public IP Addresses.
+    ```cypher
+    (AzureNetworkInterface)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)
+    ```
+
+### AzurePublicIPAddress
+
+Representation of an [Azure Public IP Address](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/public-ip-addresses/get).
+
+| Field             | Description                                                              |
+| ----------------- | ------------------------------------------------------------------------ |
+| firstseen         | Timestamp of when a sync job discovered this node                        |
+| lastupdated       | Timestamp of the last time the node was updated                          |
+| **id**            | The full resource ID of the Public IP Address.                           |
+| name              | The name of the Public IP Address.                                       |
+| location          | The Azure region where the Public IP Address is deployed.                |
+| ip\_address       | The actual IP address value assigned to this resource.                   |
+| allocation\_method | The allocation method (Static or Dynamic) for the public IP address.    |
+
+#### Relationships
+
+  - An Azure Public IP Address is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzurePublicIPAddress)
     ```
 
 ### AzureSecurityAssessment
