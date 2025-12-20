@@ -22,6 +22,7 @@ class SnipeitAssetNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # SnipeIT specific properties
+    name: PropertyRef = PropertyRef("name", extra_index=True)
     asset_tag: PropertyRef = PropertyRef("asset_tag")
     assigned_to: PropertyRef = PropertyRef("assigned_to.email")
     category: PropertyRef = PropertyRef("category.name")

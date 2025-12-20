@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -22,10 +23,14 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     )
     image_pull_policy: PropertyRef = PropertyRef("image_pull_policy")
     status_image_id: PropertyRef = PropertyRef("status_image_id")
-    status_image_sha: PropertyRef = PropertyRef("status_image_sha")
+    status_image_sha: PropertyRef = PropertyRef("status_image_sha", extra_index=True)
     status_ready: PropertyRef = PropertyRef("status_ready")
     status_started: PropertyRef = PropertyRef("status_started")
     status_state: PropertyRef = PropertyRef("status_state")
+    memory_request: PropertyRef = PropertyRef("memory_request")
+    cpu_request: PropertyRef = PropertyRef("cpu_request")
+    memory_limit: PropertyRef = PropertyRef("memory_limit")
+    cpu_limit: PropertyRef = PropertyRef("cpu_limit")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -94,8 +99,27 @@ class KubernetesContainerToKubernetesClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToECRImageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToECRImageRel(CartographyRelSchema):
+    target_node_label: str = "ECRImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("status_image_sha")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: KubernetesContainerToECRImageRelProperties = (
+        KubernetesContainerToECRImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
     properties: KubernetesContainerNodeProperties = KubernetesContainerNodeProperties()
     sub_resource_relationship: KubernetesContainerToKubernetesClusterRel = (
         KubernetesContainerToKubernetesClusterRel()
@@ -104,5 +128,6 @@ class KubernetesContainerSchema(CartographyNodeSchema):
         [
             KubernetesContainerToKubernetesNamespaceRel(),
             KubernetesContainerToKubernetesPodRel(),
+            KubernetesContainerToECRImageRel(),
         ]
     )

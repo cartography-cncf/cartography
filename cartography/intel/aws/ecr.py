@@ -58,9 +58,16 @@ def _get_platform_specific_digests(
     )
 
     if not response.get("images"):
-        raise ValueError(
-            f"No manifest list found for digest {manifest_list_digest} in repository {repository_name}"
+        # Image is not actually a manifest list despite the media type hint.
+        # This can happen with single-platform images where describe_images reports
+        # a manifest list media type but batch_get_image with restrictive acceptedMediaTypes
+        # returns empty results. Return empty results so caller treats it as a regular image.
+        logger.debug(
+            "Digest %s in repository %s is not a manifest list despite media type hint",
+            manifest_list_digest,
+            repository_name,
         )
+        return [], set()
 
     # batch_get_image returns a single manifest list (hence [0])
     # The manifests[] array inside contains all platform-specific images and attestations
@@ -248,12 +255,19 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
 
                 # Create ECRImage for the manifest list itself
                 if digest not in ecr_images_dict:
+                    # Extract child image digests (excluding attestations for CONTAINS_IMAGE relationship)
+                    child_digests = [
+                        m["digest"]
+                        for m in manifest_images
+                        if m.get("type") != "attestation"
+                    ]
                     ecr_images_dict[digest] = {
                         "imageDigest": digest,
                         "type": "manifest_list",
                         "architecture": None,
                         "os": None,
                         "variant": None,
+                        "child_image_digests": child_digests if child_digests else None,
                     }
 
                 # Create ECRImage nodes for each image in the manifest list

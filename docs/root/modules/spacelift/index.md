@@ -1,0 +1,6 @@
+# Spacelift
+
+```{toctree}
+config
+schema
+```

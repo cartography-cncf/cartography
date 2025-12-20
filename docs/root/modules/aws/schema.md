@@ -41,6 +41,7 @@ Representation of an AWS Account.
                                 :EC2SecurityGroup,
                                 :ElasticIPAddress,
                                 :ESDomain,
+                                :GuardDutyDetector,
                                 :GuardDutyFinding,
                                 :KMSAlias,
                                 :LaunchConfiguration,
@@ -152,6 +153,52 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
     (:AWSGroup)-[:POLICY]->(:AWSPolicy)
     ```
 
+### GuardDutyDetector
+
+Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_GetDetector.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The unique identifier for the GuardDuty detector |
+| accountid | The AWS Account ID the detector belongs to |
+| region | The AWS Region where the detector is deployed |
+| status | Whether the detector is enabled or disabled |
+| findingpublishingfrequency | Frequency with which GuardDuty publishes findings |
+| service_role | IAM service role used by GuardDuty |
+| createdat | Timestamp when the detector was created |
+| updatedat | Timestamp when the detector was last updated |
+
+#### Relationships
+
+- AWS Accounts can enable GuardDuty detectors
+    ```cypher
+    (:AWSAccount)-[:RESOURCE]->(:GuardDutyDetector)
+    ```
+
+- GuardDuty detectors generate GuardDuty findings
+    ```cypher
+    (:GuardDutyDetector)<-[:DETECTED_BY]-(:GuardDutyFinding)
+    ```
+
+- "What regions have GuardDuty enabled?"
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(d:GuardDutyDetector)
+    RETURN DISTINCT a.name, d.region
+    ```
+
+- "Which EC2 instances are not covered by an enabled GuardDuty detector?"
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(i:EC2Instance)
+    WHERE NOT EXISTS {
+        MATCH (a)-[:RESOURCE]->(d:GuardDutyDetector{status: "ENABLED"})
+        WHERE d.region = i.region
+    }
+    RETURN a.name, i.instanceid, i.region
+    ORDER BY a.name, i.region
+    ```
+
 ### GuardDutyFinding::Risk
 
 Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_Finding.html).
@@ -181,6 +228,11 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 - GuardDuty findings belong to AWS Accounts
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:GuardDutyFinding)
+    ```
+
+- GuardDuty findings link back to the detector that produced them
+    ```cypher
+    (:GuardDutyFinding)-[:DETECTED_BY]->(:GuardDutyDetector)
     ```
 
 - GuardDuty findings may affect EC2 Instances
@@ -1426,6 +1478,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | bootmode | The boot mode of the instance.|
 | instancelifecycle | Indicates whether this is a Spot Instance or a Scheduled Instance.|
 | hibernationoptions | Indicates whether the instance is enabled for hibernation.|
+| eks_cluster_name | The name of the EKS cluster this instance belongs to, if applicable. Extracted from instance tags.|
 
 
 #### Relationships
@@ -1493,6 +1546,11 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 - EC2Instances can have SSMInstancePatches
     ```
     (EC2Instance)-[HAS_PATCH]->(SSMInstancePatch)
+    ```
+
+- EC2Instances can be members of EKS Clusters
+    ```
+    (EC2Instance)-[MEMBER_OF_EKS_CLUSTER]->(EKSCluster)
     ```
 
 ### EC2KeyPair
@@ -1707,7 +1765,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
     (NetworkInterface)-[PRIVATE_IP_ADDRESS]->(EC2PrivateIp)
     ```
 
-- EC2RouteTableAssociation is associated with a subnet.
+- EC2RouteTableAssociation links a subnet to a route table. The subnet uses this route table for egress routing decisions.
     ```
     (EC2RouteTableAssociation)-[ASSOCIATED_SUBNET]->(EC2Subnet)
     ```
@@ -1892,7 +1950,7 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 |--------|-----------|
 | digest | The hash of this ECR image |
 | **id** | Same as digest |
-| layer_diff_ids | Ordered list of image layer digests for this image. Mirrors the manifest order and includes duplicates (for example, the Docker empty layer). |
+| layer_diff_ids | Ordered list of image layer digests for this image. Only set for `type="image"` nodes. `null` for manifest lists and attestations. |
 | type | Type of image: `"image"` (platform-specific or single-arch image), `"manifest_list"` (multi-arch index), or `"attestation"` (attestation manifest) |
 | architecture | CPU architecture (e.g., `"amd64"`, `"arm64"`). Set to `"unknown"` for attestations, `null` for manifest lists. |
 | os | Operating system (e.g., `"linux"`, `"windows"`). Set to `"unknown"` for attestations, `null` for manifest lists. |
@@ -1901,6 +1959,7 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 | attests_digest | For attestations only: the digest of the image this attestation is for. `null` for regular images. |
 | media_type | The OCI/Docker media type of this manifest (e.g., `"application/vnd.oci.image.manifest.v1+json"`) |
 | artifact_media_type | The artifact media type if this is an OCI artifact. Optional field. |
+| child_image_digests | For manifest lists only: list of platform-specific image digests contained in this manifest list. Excludes attestations. `null` for regular images and attestations. |
 
 #### Relationships
 
@@ -1914,7 +1973,7 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:Package)-[:DEPLOYED]->(:ECRImage)
     ```
 
-- An ECRImage references its layers
+- An ECRImage references its layers (only applies to `type="image"` nodes)
     ```
     (:ECRImage)-[:HAS_LAYER]->(:ECRImageLayer)
     ```
@@ -1940,6 +1999,16 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     - `from_attestation`: Boolean flag indicating the relationship was derived from provenance attestation (always `true`)
     - `confidence`: Confidence level of the relationship (always `"explicit"` for attestation-based relationships)
 
+- A manifest list ECRImage contains platform-specific ECRImages (only applies to `type="manifest_list"` nodes)
+    ```
+    (:ECRImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(:ECRImage {type: "image"})
+    ```
+
+- An attestation ECRImage attests/validates another ECRImage (only applies to `type="attestation"` nodes)
+    ```
+    (:ECRImage {type: "attestation"})-[:ATTESTS]->(:ECRImage)
+    ```
+
 
 ### ECRImageLayer
 
@@ -1964,19 +2033,19 @@ Representation of an individual Docker image layer discovered while processing E
     (:ECRImageLayer)-[:NEXT]->(:ECRImageLayer)
     ```
 
-- A layer can be the head of an image
+- A layer can be the head of a platform-specific image (only `type="image"` nodes have layer relationships)
     ```
-    (:ECRImageLayer)-[:HEAD]->(:ECRImage)
-    ```
-
-- A layer can be the tail of an image
-    ```
-    (:ECRImageLayer)-[:TAIL]->(:ECRImage)
+    (:ECRImage {type: "image"})-[:HEAD]->(:ECRImageLayer)
     ```
 
-- Images reference all of their layers
+- A layer can be the tail of a platform-specific image
     ```
-    (:ECRImage)-[:HAS_LAYER]->(:ECRImageLayer)
+    (:ECRImage {type: "image"})-[:TAIL]->(:ECRImageLayer)
+    ```
+
+- Platform-specific images reference all of their layers
+    ```
+    (:ECRImage {type: "image"})-[:HAS_LAYER]->(:ECRImageLayer)
     ```
 
 #### Query Examples
@@ -2056,6 +2125,25 @@ Representation of an individual Docker image layer discovered while processing E
         SIZE(base_diff_ids) as base_layer_count, lcp_length
     ORDER BY lcp_length DESC, base_img.image_pushed_at DESC
     LIMIT 1
+    ```
+
+- Find all platform-specific images in a multi-architecture manifest list:
+    ```cypher
+    MATCH (manifest_list:ECRImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(platform_image:ECRImage)
+    RETURN platform_image.architecture, platform_image.os, platform_image.variant, platform_image.digest
+    ORDER BY platform_image.architecture;
+    ```
+
+- Find which image an attestation validates:
+    ```cypher
+    MATCH (attestation:ECRImage {type: "attestation"})-[:ATTESTS]->(image:ECRImage)
+    RETURN attestation.digest AS attestation_digest, image.digest AS validated_image_digest;
+    ```
+
+- Find all attestations for a specific image:
+    ```cypher
+    MATCH (attestation:ECRImage {type: "attestation"})-[:ATTESTS]->(image:ECRImage {digest: $digest})
+    RETURN attestation.digest, attestation.attestation_type;
     ```
 
 
@@ -4515,16 +4603,17 @@ Representation of an AWS Identity Center.
 | instance_status | The status of the Identity Center instance |
 | created_date | The date the Identity Center instance was created |
 | last_modified_date | The date the Identity Center instance was last modified |
+| region | The AWS region where the Identity Center instance is located |
 
 #### Relationships
-- AWSIdentityCenter is part of an AWSAccount.
+- An AWSIdentityCenter instance is part of an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(AWSIdentityCenter)
+    (:AWSAccount)-[:RESOURCE]->(:AWSIdentityCenter)
     ```
 
-- AWSIdentityCenter has permission sets.
+- AWSIdentityCenter instance has permission sets.
     ```
-    (AWSIdentityCenter)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    (:AWSIdentityCenter)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
 
 - Entra service principals can federate to AWS Identity Center via SAML
@@ -4552,12 +4641,17 @@ Representation of an AWS SSO User.
     (:AWSAccount)-[:RESOURCE]->(:AWSSSOUser)
     ```
 
-- AWSSSOUser can have roles assigned.
+- An AWSSSOUser can be a member of one or more AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
+    ```
+    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    ```
+
+- AWSSSOUsers can be assigned to AWSRoles. This happens when the user is assigned to a permission set for a specific account. This includes both direct assignments to the user and assignments inherited through AWSSSOGroup membership. Note: The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `ALLOWED_BY` relationships for roles they can access through groups they belong to.
     ```
     (:AWSSSOUser)<-[:ALLOWED_BY]-(:AWSRole)
     ```
 
- - OktaUsers can assume AWS SSO users via SAML federation
+- OktaUsers can assume AWS SSO users via SAML federation
      ```
     (:OktaUser)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
@@ -4566,10 +4660,13 @@ Representation of an AWS SSO User.
     (:UserAccount)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
 
-- AWSSSOUser has permission set assignments. These include direct assignments and via Identity Center groups.
+- An AWSSSOUser can be assigned to one or more AWSPermissionSets. This includes both direct assignments and assignments inherited through AWSSSOGroup membership.
     ```
     (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
+    Notes:
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+    - This is a **summary relationship** that does not indicate which specific accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
@@ -4598,22 +4695,25 @@ Representation of an AWS SSO Group.
 #### Relationships
 - AWSSSOGroup is part of an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(AWSSSOGroup)
+    (:AWSAccount)-[:RESOURCE]->(:AWSSSOGroup)
     ```
 
-- AWSSSOGroup can have roles assigned.
+- An AWSSSOGroup can have roles assigned. This happens if the group is assigned to a permission set for a specific account.
     ```
-    (AWSSSOGroup)<-[ALLOWED_BY]-(AWSRole)
-    ```
-
-- AWSSSOGroup has assigned permission sets.
-    ```
-    (AWSSSOGroup)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    (:AWSSSOGroup)<-[:ALLOWED_BY]-(:AWSRole)
     ```
 
-- AWSSSOUser membership in SSO groups.
+- An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
     ```
-    (AWSSSOUser)-[MEMBER_OF_SSO_GROUP]->(AWSSSOGroup)
+    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    ```
+    Notes:
+    - This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+
+- AWSSSOUsers can be members of AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
+    ```
+    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
     ```
 
 ### AWSPermissionSet
@@ -4629,19 +4729,34 @@ Representation of an AWS Identity Center Permission Set.
 | description | The description of the Permission Set |
 | session_duration | The session duration of the Permission Set |
 | instance_arn | The ARN of the Identity Center instance the Permission Set belongs to |
+| region | The AWS region where the Permission Set is located |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
 #### Relationships
-- AWSPermissionSet is part of an AWSIdentityCenter.
+- An AWSPermissionSet is part of an AWSIdentityCenter instance.
     ```
-    (AWSIdentityCenter)<-[HAS_PERMISSION_SET]-(AWSPermissionSet)
+    (:AWSIdentityCenter)<-[:HAS_PERMISSION_SET]-(:AWSPermissionSet)
     ```
 
-- AWSPermissionSet can be assigned to roles.
+- An AWSPermissionSet creates AWSRoles in all of the AWS accounts that its associated permission set assigns it to.
     ```
-    (AWSPermissionSet)-[ASSIGNED_TO_ROLE]->(AWSRole)
+    (:AWSPermissionSet)-[:ASSIGNED_TO_ROLE]->(:AWSRole)
     ```
+
+- An AWSSSOUser can be assigned to one or more AWSPermissionSets. This includes both direct assignments and assignments inherited through AWSSSOGroup membership.
+    ```
+    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    ```
+    Notes:
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+    - This is a **summary relationship** that does not indicate which specific accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set _for that specific account_. This is captured by the `ALLOWED_BY` relationship.
+
+- An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
+    ```
+    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    ```
+    Note: This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 
 ### EC2RouteTable
 

@@ -14,6 +14,7 @@ import neo4j
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 
+from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
@@ -983,11 +984,12 @@ def load_gcp_ingress_firewalls(
     gcp_update_tag: int,
 ) -> None:
     """
-    Load the firewall list to Neo4j.
+    Load the firewall list to Neo4j with retry logic for transient errors.
     :param fw_list: The transformed list of firewalls
     :return: Nothing
     """
-    neo4j_session.execute_write(
+    execute_write_with_retry(
+        neo4j_session,
         _load_gcp_ingress_firewalls_tx,
         fw_list,
         gcp_update_tag,
@@ -1032,7 +1034,7 @@ def _load_gcp_ingress_firewalls_tx(
             VpcPartialUri=fw["vpc_partial_uri"],
             HasTargetServiceAccounts=fw["has_target_service_accounts"],
             gcp_update_tag=gcp_update_tag,
-        )
+        ).consume()
         _attach_firewall_rules(tx, fw, gcp_update_tag)
         _attach_target_tags(tx, fw, gcp_update_tag)
 
@@ -1095,7 +1097,7 @@ def _attach_firewall_rules(
                     ToPort=rule.get("toport"),
                     Range=ip_range,
                     gcp_update_tag=gcp_update_tag,
-                )
+                ).consume()
 
 
 @timeit
@@ -1132,7 +1134,7 @@ def _attach_target_tags(
             TagId=tag_id,
             TagValue=tag,
             gcp_update_tag=gcp_update_tag,
-        )
+        ).consume()
 
 
 @timeit

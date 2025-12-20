@@ -219,6 +219,20 @@ ATTESTATION_MANIFEST = {
     ],
 }
 
+# SLSA provenance blob (in-toto attestation payload)
+SLSA_PROVENANCE_BLOB = {
+    "predicate": {
+        "materials": [
+            {
+                "uri": "pkg:docker/000000000000.dkr.ecr.us-east-1.amazonaws.com/base-image@sha256:parent123",
+                "digest": {
+                    "sha256": "parent1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                },
+            }
+        ]
+    }
+}
+
 # Multi-layer container image manifest
 MULTI_LAYER_MANIFEST = {
     "schemaVersion": 2,
@@ -413,3 +427,23 @@ MULTI_ARCH_IMAGE_DETAILS = {
     "imageManifestMediaType": "application/vnd.oci.image.index.v1+json",
     "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00",
 }
+
+# Single-platform image incorrectly marked as manifest list (bug scenario)
+SINGLE_PLATFORM_DIGEST = (
+    "sha256:914758fa1c15b12c7dfa8cab15eb53b7bbb5143386911da492b00c73c49eef6f"
+)
+
+SINGLE_PLATFORM_IMAGE_DETAILS = {
+    "registryId": "000000000000",
+    "repositoryName": "single-platform-repository",
+    "imageDigest": SINGLE_PLATFORM_DIGEST,
+    "imageTags": ["latest"],
+    "imageSizeInBytes": 12345678,
+    "imagePushedAt": "2025-01-01T00:00:00.000000-00:00",
+    # AWS ECR sometimes reports manifest list media type even for single-platform images
+    "imageManifestMediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+    "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00",
+}
+
+# Empty response when trying to fetch as manifest list (the bug scenario)
+BATCH_GET_MANIFEST_LIST_EMPTY_RESPONSE: dict[str, list] = {"images": []}
