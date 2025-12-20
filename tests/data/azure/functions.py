@@ -9,6 +9,7 @@ MOCK_FUNCTION_APPS = [
         "state": "Running",
         "default_host_name": "my-test-func-app.azurewebsites.net",
         "https_only": True,
+        "tags": {"env": "prod", "service": "function-app"},
     },
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Web/sites/my-regular-web-app",
@@ -18,5 +19,6 @@ MOCK_FUNCTION_APPS = [
         "state": "Running",
         "default_host_name": "my-regular-web-app.azurewebsites.net",
         "https_only": True,
+        "tags": {"env": "prod", "service": "web-app"},
     },
 ]

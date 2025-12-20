@@ -4,6 +4,7 @@ MOCK_LOAD_BALANCERS = [
         "name": "my-test-lb",
         "location": "eastus",
         "sku": {"name": "Standard"},
+        "tags": {"env": "prod", "service": "load-balancer"},
         "frontend_ip_configurations": [
             {
                 "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/loadBalancers/my-test-lb/frontendIPConfigurations/my-lb-frontend",

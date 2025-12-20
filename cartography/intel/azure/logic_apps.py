@@ -8,7 +8,9 @@ from azure.mgmt.logic import LogicManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.logic_apps import AzureLogicAppSchema
+from cartography.models.azure.tags.logic_app_tag import AzureLogicAppTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -47,6 +49,7 @@ def transform_logic_apps(logic_apps_response: list[dict]) -> list[dict]:
             "changed_time": app.get("properties", {}).get("changed_time"),
             "version": app.get("properties", {}).get("version"),
             "access_endpoint": app.get("properties", {}).get("access_endpoint"),
+            "tags": app.get("tags"),
         }
         transformed_apps.append(transformed_app)
     return transformed_apps
@@ -72,6 +75,26 @@ def load_logic_apps(
 
 
 @timeit
+def load_logic_app_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    apps: list[dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Logic Apps.
+    """
+    tags = transform_tags(apps, subscription_id)
+    load(
+        neo4j_session,
+        AzureLogicAppTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
 def cleanup_logic_apps(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
@@ -79,6 +102,18 @@ def cleanup_logic_apps(
     Run the cleanup job for Azure Logic Apps.
     """
     GraphJob.from_node_schema(AzureLogicAppSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def cleanup_logic_app_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
+    """
+    Runs cleanup job for Azure Logic App tags.
+    """
+    GraphJob.from_node_schema(AzureLogicAppTagsSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -98,4 +133,6 @@ def sync(
     raw_apps = get_logic_apps(credentials, subscription_id)
     transformed_apps = transform_logic_apps(raw_apps)
     load_logic_apps(neo4j_session, transformed_apps, subscription_id, update_tag)
+    load_logic_app_tags(neo4j_session, subscription_id, transformed_apps, update_tag)
     cleanup_logic_apps(neo4j_session, common_job_parameters)
+    cleanup_logic_app_tags(neo4j_session, common_job_parameters)
