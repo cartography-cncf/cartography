@@ -78,7 +78,7 @@ cis_2_1_1_s3_versioning = Rule(
     ),
     output_model=S3VersioningOutput,
     facts=(_aws_s3_versioning_disabled,),
-    tags=("cis", "cis_2_1_1", "cis_aws_5.0", "storage", "s3"),
+    tags=("cis_2_1_1", "cis:aws-5.0", "storage", "s3"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -136,7 +136,7 @@ cis_2_1_2_s3_mfa_delete = Rule(
     ),
     output_model=S3MfaDeleteOutput,
     facts=(_aws_s3_mfa_delete_disabled,),
-    tags=("cis", "cis_2_1_2", "cis_aws_5.0", "storage", "s3"),
+    tags=("cis_2_1_2", "cis:aws-5.0", "storage", "s3"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -205,7 +205,7 @@ cis_2_1_4_s3_block_public_access = Rule(
     ),
     output_model=S3BlockPublicAccessOutput,
     facts=(_aws_s3_block_public_access_disabled,),
-    tags=("cis", "cis_2_1_4", "cis_aws_5.0", "storage", "s3"),
+    tags=("cis_2_1_4", "cis:aws-5.0", "storage", "s3"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -262,7 +262,7 @@ cis_2_1_5_s3_access_logging = Rule(
     ),
     output_model=S3AccessLoggingOutput,
     facts=(_aws_s3_access_logging_disabled,),
-    tags=("cis", "cis_2_1_5", "cis_aws_5.0", "storage", "s3", "logging"),
+    tags=("cis_2_1_5", "cis:aws-5.0", "storage", "s3", "logging"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -321,7 +321,7 @@ cis_2_1_6_s3_encryption = Rule(
     ),
     output_model=S3EncryptionOutput,
     facts=(_aws_s3_encryption_disabled,),
-    tags=("cis", "cis_2_1_6", "cis_aws_5.0", "storage", "s3", "encryption"),
+    tags=("cis_2_1_6", "cis:aws-5.0", "storage", "s3", "encryption"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -385,7 +385,7 @@ cis_2_2_1_rds_encryption = Rule(
     ),
     output_model=RdsEncryptionOutput,
     facts=(_aws_rds_encryption_disabled,),
-    tags=("cis", "cis_2_2_1", "cis_aws_5.0", "storage", "rds", "encryption"),
+    tags=("cis_2_2_1", "cis:aws-5.0", "storage", "rds", "encryption"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -446,7 +446,7 @@ cis_2_3_1_ebs_encryption = Rule(
     ),
     output_model=EbsEncryptionOutput,
     facts=(_aws_ebs_encryption_disabled,),
-    tags=("cis", "cis_2_3_1", "cis_aws_5.0", "storage", "ebs", "encryption"),
+    tags=("cis_2_3_1", "cis:aws-5.0", "storage", "ebs", "encryption"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
