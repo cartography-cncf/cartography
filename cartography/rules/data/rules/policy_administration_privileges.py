@@ -101,7 +101,6 @@ policy_administration_privileges = Rule(
     facts=(_aws_policy_manipulation_capabilities,),
     tags=(
         "iam",
-        "privilege_escalation",
         "stride:elevation_of_privilege",
         "stride:spoofing",
         "stride:tampering",

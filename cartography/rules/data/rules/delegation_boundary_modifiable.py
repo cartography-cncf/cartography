@@ -87,7 +87,6 @@ delegation_boundary_modifiable = Rule(
     facts=(_aws_trust_relationship_manipulation,),
     tags=(
         "iam",
-        "privilege_escalation",
         "stride:elevation_of_privilege",
         "stride:spoofing",
         "stride:tampering",
