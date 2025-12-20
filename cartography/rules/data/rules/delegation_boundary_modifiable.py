@@ -85,6 +85,12 @@ delegation_boundary_modifiable = Rule(
     ),
     output_model=DelegationBoundaryModifiable,
     facts=(_aws_trust_relationship_manipulation,),
-    tags=("iam", "privilege_escalation"),
+    tags=(
+        "iam",
+        "privilege_escalation",
+        "stride:elevation_of_privilege",
+        "stride:spoofing",
+        "stride:tampering",
+    ),
     version="0.1.0",
 )
