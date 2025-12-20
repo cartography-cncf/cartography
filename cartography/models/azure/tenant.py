@@ -1,11 +1,8 @@
-import logging
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)

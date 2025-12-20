@@ -126,7 +126,7 @@ def transform_application_versions(
     for installed_version in application_installs_list:
         app_name = installed_version["applicationName"]
         app_vendor = installed_version["applicationVendor"]
-        version = installed_version["version"]
+        version = installed_version.get("version") or "unknown"
 
         transformed_version = {
             "id": get_application_version_id(

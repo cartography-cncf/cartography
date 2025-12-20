@@ -135,3 +135,33 @@ def test_transform_skips_null_repository_entries():
 
     assert len(result["repos"]) == 1
     assert result["repos"][0]["id"] == repo_with_collab_counts["url"]
+
+
+def test_transform_includes_branch_protection_rules():
+    """
+    Test that the transform function includes branch protection rules in the output.
+    """
+    # Arrange - GET_REPOS[2] has branchProtectionRules
+    repo_with_branch_protection_rules = GET_REPOS[2]
+
+    # Act
+    result = transform(
+        [repo_with_branch_protection_rules],
+        {repo_with_branch_protection_rules["url"]: []},
+        {repo_with_branch_protection_rules["url"]: []},
+    )
+
+    # Assert: Check that branch_protection_rules key is present in the result
+    assert "branch_protection_rules" in result
+
+    # Assert: Check that we have 1 branch protection rule from the test data
+    assert len(result["branch_protection_rules"]) == 1
+
+    # Assert: Check the branch protection rule has expected properties
+    rule = result["branch_protection_rules"][0]
+    assert rule["id"] == "BPR_kwDOAbc123=="
+    assert rule["pattern"] == "main"
+    assert rule["allows_deletions"] is False
+    assert rule["requires_approving_reviews"] is True
+    assert rule["required_approving_review_count"] == 2
+    assert rule["repo_url"] == repo_with_branch_protection_rules["url"]
