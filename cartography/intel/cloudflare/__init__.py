@@ -29,7 +29,7 @@ def start_cloudflare_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
             "Set the token to enable the Cloudflare sync stage."
         )
         logger.error(message)
-        raise ValueError(message)
+        raise RuntimeError(message)
 
     # Create client
     client = Cloudflare(api_token=config.cloudflare_token)
