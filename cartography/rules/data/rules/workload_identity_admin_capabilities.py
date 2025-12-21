@@ -188,6 +188,11 @@ workload_identity_admin_capabilities = Rule(
         _aws_service_account_manipulation_via_ec2,
         _aws_service_account_manipulation_via_lambda,
     ),
-    tags=("iam", "privilege_escalation"),
+    tags=(
+        "iam",
+        "stride:elevation_of_privilege",
+        "stride:spoofing",
+        "stride:tampering",
+    ),
     version="0.1.0",
 )

@@ -67,8 +67,8 @@ def test_load_kandji_devices_relationship(neo4j_session):
             "id",
             "KandjiDevice",
             "id",
-            "ENROLLED_TO",
-            rel_direction_right=False,
+            "RESOURCE",
+            rel_direction_right=True,
         )
         == expected_nodes_relationships
     )
@@ -132,8 +132,8 @@ def test_cleanup_kandji_devices(neo4j_session):
             "id",
             "KandjiDevice",
             "id",
-            "ENROLLED_TO",
-            rel_direction_right=False,
+            "RESOURCE",
+            rel_direction_right=True,
         )
         == expected_nodes_relationships
     )

@@ -48,6 +48,12 @@ database_instance_exposed = Rule(
     description=("Database instances accessible from the internet"),
     output_model=DatabaseInstanceExposed,
     facts=(_aws_rds_public_access,),
-    tags=("infrastructure", "databases", "attack_surface"),
+    tags=(
+        "infrastructure",
+        "databases",
+        "attack_surface",
+        "stride:information_disclosure",
+        "stride:tampering",
+    ),
     version="0.1.0",
 )
