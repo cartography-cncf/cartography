@@ -15,6 +15,9 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+# Timeout for API requests (connect timeout, read timeout) in seconds
+_TIMEOUT = (60, 60)
+
 
 @timeit
 def get_workday_directory(
@@ -30,7 +33,7 @@ def get_workday_directory(
     :raises Exception: if the API returns a non-200 status code, or if the response can't be parsed as JSON
     """
     http_auth = HTTPBasicAuth(workday_login, workday_password)
-    response = requests.get(workday_api_url, auth=http_auth)
+    response = requests.get(workday_api_url, auth=http_auth, timeout=_TIMEOUT)
 
     if response.status_code != 200:
         raise Exception(
