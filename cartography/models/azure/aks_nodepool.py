@@ -62,6 +62,7 @@ class AzureKubernetesAgentPoolToSubscriptionRel(CartographyRelSchema):
         AzureKubernetesAgentPoolToSubscriptionRelProperties()
     )
 
+
 # --- Main Schema ---
 @dataclass(frozen=True)
 class AzureKubernetesNodePoolSchema(CartographyNodeSchema):
