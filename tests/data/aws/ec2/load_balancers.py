@@ -2,6 +2,19 @@ TARGET_GROUPS = [
     {
         "TargetType": "instance",
         "Targets": ["i-0f76fade"],
+        "Port": 80,
+        "Protocol": "HTTP",
+    },
+    {
+        "TargetType": "ip",
+        "Targets": ["10.0.0.1"],
+        "Port": 443,
+        "Protocol": "HTTPS",
+    },
+    {
+        "TargetType": "lambda",
+        "Targets": ["arn:aws:lambda:us-east-1:000000000000:function:example"],
+        "Protocol": "HTTPS",
     },
 ]
 

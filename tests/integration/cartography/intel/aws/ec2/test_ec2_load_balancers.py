@@ -145,6 +145,8 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
 def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
     load_balancer_id = "asadfmyloadbalancerid"
     ec2_instance_id = "i-0f76fade"
+    private_ip_address = "10.0.0.1"
+    lambda_arn = "arn:aws:lambda:us-east-1:000000000000:function:example"
 
     target_groups = tests.data.aws.ec2.load_balancers.TARGET_GROUPS
 
@@ -159,12 +161,22 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         ON CREATE SET ec2.firstseen = timestamp()
         SET ec2.lastupdated = $aws_update_tag
 
+        MERGE (private_ip:EC2PrivateIp{private_ip_address: $private_ip_address})
+        ON CREATE SET private_ip.firstseen = timestamp()
+        SET private_ip.lastupdated = $aws_update_tag
+
+        MERGE (lambda_fn:AWSLambda{id: $lambda_arn})
+        ON CREATE SET lambda_fn.firstseen = timestamp()
+        SET lambda_fn.lastupdated = $aws_update_tag
+
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
         SET aws.lastupdated = $aws_update_tag
         """,
         load_balancer_id=load_balancer_id,
         ec2_instance_id=ec2_instance_id,
+        private_ip_address=private_ip_address,
+        lambda_arn=lambda_arn,
         aws_account_id=TEST_ACCOUNT_ID,
         aws_update_tag=TEST_UPDATE_TAG,
     )
@@ -177,8 +189,8 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         TEST_UPDATE_TAG,
     )
 
-    # verify the db has (load_balancer_id)-[r:EXPOSE]->(instance)
-    nodes = neo4j_session.run(
+    # verify the db has EXPOSE rels to instance, ip, and lambda targets
+    instance_nodes = neo4j_session.run(
         """
         MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(instance:EC2Instance{instanceid: $INSTANCE_ID})
         RETURN elbv2.id, instance.instanceid
@@ -187,18 +199,42 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         INSTANCE_ID=ec2_instance_id,
     )
 
+    ip_nodes = neo4j_session.run(
+        """
+        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(ip:EC2PrivateIp{private_ip_address: $private_ip_address})
+        RETURN elbv2.id, ip.private_ip_address
+        """,
+        ID=load_balancer_id,
+        private_ip_address=private_ip_address,
+    )
+
+    lambda_nodes = neo4j_session.run(
+        """
+        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(lambda_fn:AWSLambda{id: $lambda_arn})
+        RETURN elbv2.id, lambda_fn.id
+        """,
+        ID=load_balancer_id,
+        lambda_arn=lambda_arn,
+    )
+
     expected_nodes = {
         (
             load_balancer_id,
             ec2_instance_id,
         ),
+        (
+            load_balancer_id,
+            private_ip_address,
+        ),
+        (
+            load_balancer_id,
+            lambda_arn,
+        ),
     }
     actual_nodes = {
-        (
-            n["elbv2.id"],
-            n["instance.instanceid"],
-        )
-        for n in nodes
+        (n["elbv2.id"], n["instance.instanceid"]) for n in instance_nodes
+    } | {(n["elbv2.id"], n["ip.private_ip_address"]) for n in ip_nodes} | {
+        (n["elbv2.id"], n["lambda_fn.id"]) for n in lambda_nodes
     }
     assert actual_nodes == expected_nodes
 
