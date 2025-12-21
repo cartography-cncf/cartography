@@ -1,4 +1,3 @@
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cartography.intel.gitlab.projects import _extract_repo_name_from_url
@@ -17,24 +16,36 @@ TEST_GITLAB_TOKEN = "test_token_12345"
 
 def _ensure_local_neo4j_has_test_data(neo4j_session):
     """Helper to load test data into Neo4j"""
-    projects_data, repositories_data = _transform_gitlab_projects(GET_GITLAB_PROJECTS_RESPONSE)
+    projects_data, repositories_data = _transform_gitlab_projects(
+        GET_GITLAB_PROJECTS_RESPONSE
+    )
     _load_gitlab_repositories(neo4j_session, repositories_data, TEST_UPDATE_TAG)
     _load_gitlab_projects(neo4j_session, projects_data, TEST_UPDATE_TAG)
 
 
 def test_extract_repo_name_from_url():
     """Test that repository names are extracted correctly from URLs"""
-    assert _extract_repo_name_from_url("https://gitlab.example.com/team/awesome-project") == "team/awesome-project"
-    assert _extract_repo_name_from_url("https://gitlab.example.com/group/subgroup/repo") == "group/subgroup/repo"
     assert (
-        _extract_repo_name_from_url("https://gitlab.example.com/user%20name/project%20name")
+        _extract_repo_name_from_url("https://gitlab.example.com/team/awesome-project")
+        == "team/awesome-project"
+    )
+    assert (
+        _extract_repo_name_from_url("https://gitlab.example.com/group/subgroup/repo")
+        == "group/subgroup/repo"
+    )
+    assert (
+        _extract_repo_name_from_url(
+            "https://gitlab.example.com/user%20name/project%20name"
+        )
         == "user name/project name"
     )
 
 
 def test_transform_gitlab_projects():
     """Test that project data is transformed correctly"""
-    projects_data, repositories_data = _transform_gitlab_projects(GET_GITLAB_PROJECTS_RESPONSE)
+    projects_data, repositories_data = _transform_gitlab_projects(
+        GET_GITLAB_PROJECTS_RESPONSE
+    )
 
     # Check that we have 4 projects and 4 repositories
     assert len(projects_data) == 4

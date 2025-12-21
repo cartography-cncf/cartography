@@ -64,7 +64,9 @@ def _extract_repo_name_from_url(url: str) -> str:
 
 
 @timeit
-def _transform_gitlab_projects(projects: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+def _transform_gitlab_projects(
+    projects: List[Dict[str, Any]],
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Transform GitLab project data for loading into Neo4j.
 
@@ -153,9 +155,13 @@ def _cleanup_gitlab_data(
     :param common_job_parameters: Common job parameters including UPDATE_TAG
     """
     # Cleanup projects
-    GraphJob.from_node_schema(GitLabProjectSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(GitLabProjectSchema(), common_job_parameters).run(
+        neo4j_session
+    )
     # Cleanup repositories
-    GraphJob.from_node_schema(GitLabRepositorySchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(GitLabRepositorySchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit

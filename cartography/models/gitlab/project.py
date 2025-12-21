@@ -35,7 +35,9 @@ class GitLabProjectToRepositoryRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SOURCE_CODE"
-    properties: GitLabProjectToRepositoryRelProperties = GitLabProjectToRepositoryRelProperties()
+    properties: GitLabProjectToRepositoryRelProperties = (
+        GitLabProjectToRepositoryRelProperties()
+    )
 
 
 @dataclass(frozen=True)
