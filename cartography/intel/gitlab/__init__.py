@@ -3,7 +3,7 @@ import logging
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.gitlab import projects
+from cartography.intel.gitlab import repositories
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
         return
 
-    projects.sync_gitlab_projects(
+    repositories.sync_gitlab_repositories(
         neo4j_session,
         config.gitlab_url,
         config.gitlab_token,

@@ -1,0 +1,10 @@
+{
+    "statements": [
+        {
+            "query": "MATCH (:GitLabRepository)-[r:LANGUAGE]->(:ProgrammingLanguage) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) as TotalCompleted",
+            "iterative": true,
+            "iterationsize": 100
+        }
+    ],
+    "name": "cleanup GitLab repository language relationships"
+}

@@ -6,14 +6,15 @@ from cartography.models.core.nodes import CartographyNodeSchema
 
 
 @dataclass(frozen=True)
-class GitLabRepositoryNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id", extra_index=True)
+class ProgrammingLanguageNodeProperties(CartographyNodeProperties):
+    """Properties for a programming language."""
+
+    id: PropertyRef = PropertyRef("name")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name")
-    url: PropertyRef = PropertyRef("url")
 
 
 @dataclass(frozen=True)
-class GitLabRepositorySchema(CartographyNodeSchema):
-    label: str = "GitLabRepository"
-    properties: GitLabRepositoryNodeProperties = GitLabRepositoryNodeProperties()
+class ProgrammingLanguageSchema(CartographyNodeSchema):
+    label: str = "ProgrammingLanguage"
+    properties: ProgrammingLanguageNodeProperties = ProgrammingLanguageNodeProperties()
