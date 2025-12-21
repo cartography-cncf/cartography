@@ -45,7 +45,9 @@ class WorkdayHumanToOrganizationRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF_ORGANIZATION"
-    properties: WorkdayHumanToOrganizationRelProperties = WorkdayHumanToOrganizationRelProperties()
+    properties: WorkdayHumanToOrganizationRelProperties = (
+        WorkdayHumanToOrganizationRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -61,7 +63,9 @@ class WorkdayHumanToManagerRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "REPORTS_TO"
-    properties: WorkdayHumanToManagerRelProperties = WorkdayHumanToManagerRelProperties()
+    properties: WorkdayHumanToManagerRelProperties = (
+        WorkdayHumanToManagerRelProperties()
+    )
 
 
 @dataclass(frozen=True)

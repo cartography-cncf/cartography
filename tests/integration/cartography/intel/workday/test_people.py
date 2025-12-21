@@ -1,4 +1,3 @@
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cartography.intel.workday.people import _load_manager_relationships
@@ -18,7 +17,9 @@ TEST_WORKDAY_PASSWORD = "test_password"
 
 def _ensure_local_neo4j_has_test_data(neo4j_session):
     """Helper to load test data into Neo4j"""
-    people_data, manager_relationships = _transform_people_data(GET_WORKDAY_DIRECTORY_RESPONSE)
+    people_data, manager_relationships = _transform_people_data(
+        GET_WORKDAY_DIRECTORY_RESPONSE
+    )
     _load_organizations(neo4j_session, people_data, TEST_UPDATE_TAG)
     _load_people(neo4j_session, people_data, TEST_UPDATE_TAG)
     _load_manager_relationships(neo4j_session, manager_relationships, TEST_UPDATE_TAG)
@@ -26,7 +27,9 @@ def _ensure_local_neo4j_has_test_data(neo4j_session):
 
 def test_transform_people_data():
     """Test that people data is transformed correctly"""
-    people_data, manager_relationships = _transform_people_data(GET_WORKDAY_DIRECTORY_RESPONSE)
+    people_data, manager_relationships = _transform_people_data(
+        GET_WORKDAY_DIRECTORY_RESPONSE
+    )
 
     # Check that we have 4 people
     assert len(people_data) == 4
