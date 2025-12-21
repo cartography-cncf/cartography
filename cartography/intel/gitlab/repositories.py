@@ -1,4 +1,7 @@
 import logging
+from concurrent.futures import as_completed
+from concurrent.futures import Future
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Dict
 from typing import List
@@ -33,6 +36,9 @@ def get_gitlab_repositories(gitlab_url: str, gitlab_token: str) -> List[Dict[str
     if not gitlab_url or not gitlab_token:
         raise ValueError("GitLab URL and token are required")
 
+    # Normalize URL for consistent ID generation
+    normalized_url = gitlab_url.rstrip("/")
+
     gl = gitlab.Gitlab(url=gitlab_url, private_token=gitlab_token, timeout=_TIMEOUT)
     projects_iterator = gl.projects.list(iterator=True, all=True)
 
@@ -42,8 +48,15 @@ def get_gitlab_repositories(gitlab_url: str, gitlab_token: str) -> List[Dict[str
         namespace = project.namespace if hasattr(project, "namespace") else {}
         namespace_id = namespace.get("id") if isinstance(namespace, dict) else None
 
+        # Create unique ID that includes GitLab instance URL for multi-instance support
+        unique_id = f"{normalized_url}/projects/{project.id}"
+        unique_namespace_id = (
+            f"{normalized_url}/groups/{namespace_id}" if namespace_id else None
+        )
+
         repo_data = {
-            "id": project.id,
+            "id": unique_id,
+            "numeric_id": project.id,  # Keep numeric ID for API calls
             # Core identification
             "name": project.name,
             "path": project.path,
@@ -52,17 +65,25 @@ def get_gitlab_repositories(gitlab_url: str, gitlab_token: str) -> List[Dict[str
             "web_url": project.web_url,
             "http_url_to_repo": project.http_url_to_repo,
             "ssh_url_to_repo": project.ssh_url_to_repo,
-            "readme_url": project.readme_url if hasattr(project, "readme_url") else None,
+            "readme_url": (
+                project.readme_url if hasattr(project, "readme_url") else None
+            ),
             # Metadata
             "description": project.description or "",
             "visibility": project.visibility,
             "archived": project.archived,
-            "default_branch": project.default_branch if hasattr(project, "default_branch") else None,
+            "default_branch": (
+                project.default_branch if hasattr(project, "default_branch") else None
+            ),
             # Stats
             "star_count": project.star_count if hasattr(project, "star_count") else 0,
-            "forks_count": project.forks_count if hasattr(project, "forks_count") else 0,
+            "forks_count": (
+                project.forks_count if hasattr(project, "forks_count") else 0
+            ),
             "open_issues_count": (
-                project.open_issues_count if hasattr(project, "open_issues_count") else 0
+                project.open_issues_count
+                if hasattr(project, "open_issues_count")
+                else 0
             ),
             # Timestamps
             "created_at": project.created_at,
@@ -78,12 +99,21 @@ def get_gitlab_repositories(gitlab_url: str, gitlab_token: str) -> List[Dict[str
                 else False
             ),
             # Access
-            "empty_repo": project.empty_repo if hasattr(project, "empty_repo") else False,
-            # For relationships
-            "namespace_id": namespace_id,
-            "namespace_kind": namespace.get("kind") if isinstance(namespace, dict) else None,
-            "namespace_name": namespace.get("name") if isinstance(namespace, dict) else None,
-            "namespace_path": namespace.get("path") if isinstance(namespace, dict) else None,
+            "empty_repo": (
+                project.empty_repo if hasattr(project, "empty_repo") else False
+            ),
+            # For relationships (use unique IDs for multi-instance support)
+            "namespace_id": unique_namespace_id,
+            "namespace_numeric_id": namespace_id,  # Keep numeric ID for reference
+            "namespace_kind": (
+                namespace.get("kind") if isinstance(namespace, dict) else None
+            ),
+            "namespace_name": (
+                namespace.get("name") if isinstance(namespace, dict) else None
+            ),
+            "namespace_path": (
+                namespace.get("path") if isinstance(namespace, dict) else None
+            ),
             "namespace_full_path": (
                 namespace.get("full_path") if isinstance(namespace, dict) else None
             ),
@@ -96,7 +126,9 @@ def get_gitlab_repositories(gitlab_url: str, gitlab_token: str) -> List[Dict[str
 
 
 @timeit
-def _extract_groups_from_repositories(repositories: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _extract_groups_from_repositories(
+    repositories: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     """
     Extract unique groups (namespaces) from repository data.
 
@@ -105,17 +137,21 @@ def _extract_groups_from_repositories(repositories: List[Dict[str, Any]]) -> Lis
     """
     groups_map = {}
     for repo in repositories:
-        namespace_id = repo.get("namespace_id")
+        namespace_id = repo.get("namespace_id")  # This is the unique ID now
+        namespace_numeric_id = repo.get("namespace_numeric_id")
         # Only process group namespaces (not user namespaces)
         if namespace_id and repo.get("namespace_kind") == "group":
             if namespace_id not in groups_map:
                 groups_map[namespace_id] = {
-                    "id": namespace_id,
+                    "id": namespace_id,  # Unique ID with URL prefix
+                    "numeric_id": namespace_numeric_id,  # Numeric ID
                     "name": repo.get("namespace_name", ""),
                     "path": repo.get("namespace_path", ""),
                     "full_path": repo.get("namespace_full_path", ""),
                     "web_url": f"{repo['web_url'].rsplit('/', 1)[0]}",  # Derive from project URL
-                    "visibility": repo.get("visibility", "private"),  # Inherit from project
+                    "visibility": repo.get(
+                        "visibility", "private"
+                    ),  # Inherit from project
                     "description": "",
                 }
 
@@ -124,62 +160,111 @@ def _extract_groups_from_repositories(repositories: List[Dict[str, Any]]) -> Lis
     return groups
 
 
+def _fetch_languages_for_repo(
+    gitlab_client: gitlab.Gitlab,
+    repo_unique_id: str,
+    repo_numeric_id: int,
+) -> List[Dict[str, Any]]:
+    """
+    Fetch languages for a single repository.
+
+    :param gitlab_client: GitLab client instance
+    :param repo_unique_id: Unique repository ID (with URL prefix)
+    :param repo_numeric_id: Numeric GitLab project ID for API calls
+    :return: List of language mappings for this repository
+    """
+    try:
+        project = gitlab_client.projects.get(repo_numeric_id)
+        languages = project.languages()
+
+        # languages is a dict like {"Python": 65.5, "JavaScript": 34.5}
+        mappings = []
+        for language_name, percentage in languages.items():
+            mappings.append(
+                {
+                    "repo_id": repo_unique_id,
+                    "language_name": language_name,
+                    "percentage": percentage,
+                },
+            )
+        return mappings
+    except Exception as e:
+        logger.debug(f"Could not fetch languages for project {repo_numeric_id}: {e}")
+        return []
+
+
 @timeit
 def _get_repository_languages(
     gitlab_url: str,
     gitlab_token: str,
     repositories: List[Dict[str, Any]],
-    max_repos: int = 500,
+    max_workers: int = 10,
 ) -> List[Dict[str, Any]]:
     """
-    Fetch language statistics for repositories.
+    Fetch language statistics for ALL repositories using parallel execution.
 
-    Note: This requires individual API calls per repository and can be slow.
-    For large GitLab instances (>500 repos), this will only fetch languages
-    for the first 500 repositories to keep sync time reasonable.
+    Uses ThreadPoolExecutor to fetch language data concurrently for improved
+    performance on large GitLab instances. With 10 workers, ~3000 repos should
+    complete in 5-10 minutes depending on GitLab instance performance.
 
     :param gitlab_url: GitLab instance URL
     :param gitlab_token: API token
     :param repositories: List of repository data
-    :param max_repos: Maximum number of repositories to fetch languages for (default: 500)
+    :param max_workers: Number of parallel workers (default: 10)
     :return: List of language mappings for relationships
     """
     repo_count = len(repositories)
-    if repo_count > max_repos:
-        logger.warning(
-            f"GitLab instance has {repo_count} repositories. "
-            f"Language detection limited to first {max_repos} repos for performance. "
-            f"To fetch all languages, this feature needs to be run separately or parallelized.",
-        )
-        repos_to_process = repositories[:max_repos]
-    else:
-        repos_to_process = repositories
+    logger.info(
+        f"Fetching languages for {repo_count} repositories using {max_workers} parallel workers",
+    )
 
-    gl = gitlab.Gitlab(url=gitlab_url, private_token=gitlab_token, timeout=_TIMEOUT)
+    # Create a shared GitLab client for each worker
     language_mappings = []
+    completed_count = 0
 
-    for idx, repo in enumerate(repos_to_process):
-        if idx > 0 and idx % 100 == 0:
-            logger.info(f"Fetched languages for {idx}/{len(repos_to_process)} repositories...")
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Create a GitLab client instance per thread to avoid sharing issues
+        clients = {
+            i: gitlab.Gitlab(
+                url=gitlab_url, private_token=gitlab_token, timeout=_TIMEOUT
+            )
+            for i in range(max_workers)
+        }
 
-        try:
-            project = gl.projects.get(repo["id"])
-            languages = project.languages()
+        # Submit all repositories for language fetching
+        future_to_repo: Dict[Future, Dict[str, Any]] = {}
+        for repo in repositories:
+            # Round-robin assign clients to futures
+            client = clients[len(future_to_repo) % max_workers]
+            future = executor.submit(
+                _fetch_languages_for_repo,
+                client,
+                repo["id"],  # Unique ID with URL
+                repo["numeric_id"],  # Numeric ID for API calls
+            )
+            future_to_repo[future] = repo
 
-            # languages is a dict like {"Python": 65.5, "JavaScript": 34.5}
-            for language_name, percentage in languages.items():
-                language_mappings.append(
-                    {
-                        "repo_id": repo["id"],
-                        "language_name": language_name,
-                        "percentage": percentage,
-                    },
+        # Process results as they complete
+        for future in as_completed(future_to_repo):
+            repo = future_to_repo[future]
+            try:
+                mappings = future.result()
+                language_mappings.extend(mappings)
+                completed_count += 1
+
+                # Progress logging every 100 repos
+                if completed_count % 100 == 0:
+                    logger.info(
+                        f"Fetched languages for {completed_count}/{repo_count} repositories...",
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"Error fetching languages for repository {repo['id']}: {e}"
                 )
-        except Exception as e:
-            logger.debug(f"Could not fetch languages for project {repo['id']}: {e}")
-            continue
 
-    logger.info(f"Found {len(language_mappings)} language mappings from {len(repos_to_process)} repositories")
+    logger.info(
+        f"Found {len(language_mappings)} language mappings from {completed_count} repositories",
+    )
     return language_mappings
 
 
@@ -301,9 +386,13 @@ def _cleanup_gitlab_data(
     :param common_job_parameters: Common job parameters including UPDATE_TAG
     """
     # Cleanup repositories (nodes and OWNER relationships)
-    GraphJob.from_node_schema(GitLabRepositorySchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(GitLabRepositorySchema(), common_job_parameters).run(
+        neo4j_session
+    )
     # Cleanup groups
-    GraphJob.from_node_schema(GitLabGroupSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(GitLabGroupSchema(), common_job_parameters).run(
+        neo4j_session
+    )
     # Cleanup LANGUAGE relationships (created via raw Cypher, so need explicit cleanup)
     run_cleanup_job("gitlab_repos_cleanup.json", neo4j_session, common_job_parameters)
 
@@ -349,7 +438,9 @@ def sync_gitlab_repositories(
     _load_gitlab_repositories(neo4j_session, repositories, update_tag)
 
     # Fetch and load language data
-    language_mappings = _get_repository_languages(gitlab_url, gitlab_token, repositories)
+    language_mappings = _get_repository_languages(
+        gitlab_url, gitlab_token, repositories
+    )
     _load_programming_languages(neo4j_session, language_mappings, update_tag)
 
     # Cleanup stale data

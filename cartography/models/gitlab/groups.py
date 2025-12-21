@@ -11,6 +11,7 @@ class GitLabGroupNodeProperties(CartographyNodeProperties):
 
     id: PropertyRef = PropertyRef("id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    numeric_id: PropertyRef = PropertyRef("numeric_id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     path: PropertyRef = PropertyRef("path")
     full_path: PropertyRef = PropertyRef("full_path")

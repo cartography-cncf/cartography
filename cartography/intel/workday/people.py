@@ -70,23 +70,45 @@ def _transform_people_data(
     manager_relationships = []
 
     for person in people:
-        # Add source field for all Workday humans
-        person_data = {**person, "source": "WORKDAY"}
+        # Extract manager ID from nested structure for the schema
+        manager_id = None
+        manager_group = person.get("Worker_s_Manager_group", [])
+        if manager_group and len(manager_group) > 0:
+            manager_id = manager_group[0].get("Manager_ID")
+
+        # Transform Workday API fields to clean property names
+        # Don't spread person to avoid duplicate fields with hyphens
+        person_data = {
+            # Core identification (keep original field names)
+            "Employee_ID": person.get("Employee_ID"),
+            "Name": person.get("Name"),
+            "businessTitle": person.get("businessTitle"),
+            "Worker_Type": person.get("Worker_Type"),
+            "location": person.get("location"),
+            "Team": person.get("Team"),
+            "Sub_Team": person.get("Sub_Team"),
+            "Company": person.get("Company"),
+            "Supervisory_Organization": person.get("Supervisory_Organization"),
+            "Manager_ID": manager_id,  # Flat field for schema relationship
+            # Map API fields with hyphens to clean property names
+            "email": person.get("Email_-_Work"),
+            "country": person.get("Location_Address_-_Country"),
+            "cost_center": person.get("Cost_Center"),
+            "function": person.get("GBL-Custom-Function"),
+            "sub_function": person.get("Sub-Function"),
+            "source": "WORKDAY",
+        }
         people_transformed.append(person_data)
 
-        # Extract manager relationships from nested structure
-        manager_group = person.get("Worker_s_Manager_group", [])
-        for manager in manager_group:
-            manager_id = manager.get("Manager_ID")
-            employee_id = person.get("Employee_ID")
-            # Only create relationship if both IDs exist and are different
-            if manager_id and employee_id and manager_id != employee_id:
-                manager_relationships.append(
-                    {
-                        "Employee_ID": employee_id,
-                        "Manager_ID": manager_id,
-                    }
-                )
+        # Track manager relationships for validation/debugging
+        employee_id = person.get("Employee_ID")
+        if manager_id and employee_id and manager_id != employee_id:
+            manager_relationships.append(
+                {
+                    "Employee_ID": employee_id,
+                    "Manager_ID": manager_id,
+                }
+            )
 
     return people_transformed, manager_relationships
 
@@ -153,16 +175,20 @@ def _load_manager_relationships(
     """
     Load manager (REPORTS_TO) relationships into Neo4j.
 
+    NOTE: This function is now a no-op. Manager relationships are created automatically
+    when _load_people() is called, via the WorkdayHumanToManagerRel relationship defined
+    in the WorkdayHumanSchema. The Manager_ID field in the people_data is used to create
+    the REPORTS_TO relationships.
+
+    This function is kept for backward compatibility and logging purposes.
+
     :param neo4j_session: Neo4j session
-    :param manager_relationships: List of manager relationship data
+    :param manager_relationships: List of manager relationship data (used only for logging)
     :param update_tag: Update tag for tracking data freshness
     """
-    logger.info(f"Loading {len(manager_relationships)} Workday manager relationships")
-    load(
-        neo4j_session,
-        WorkdayHumanSchema(),
-        manager_relationships,
-        lastupdated=update_tag,
+    logger.info(
+        f"Manager relationships ({len(manager_relationships)}) are created automatically "
+        "via WorkdayHumanSchema when loading people"
     )
 
 

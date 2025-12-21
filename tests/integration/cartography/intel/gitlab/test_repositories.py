@@ -1,4 +1,3 @@
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cartography.intel.gitlab.repositories import _extract_groups_from_repositories
@@ -20,8 +19,12 @@ def _ensure_local_neo4j_has_test_data(neo4j_session):
     """Helper to load test data into Neo4j"""
     groups = _extract_groups_from_repositories(GET_GITLAB_REPOSITORIES_RESPONSE)
     _load_gitlab_groups(neo4j_session, groups, TEST_UPDATE_TAG)
-    _load_gitlab_repositories(neo4j_session, GET_GITLAB_REPOSITORIES_RESPONSE, TEST_UPDATE_TAG)
-    _load_programming_languages(neo4j_session, GET_GITLAB_LANGUAGE_MAPPINGS, TEST_UPDATE_TAG)
+    _load_gitlab_repositories(
+        neo4j_session, GET_GITLAB_REPOSITORIES_RESPONSE, TEST_UPDATE_TAG
+    )
+    _load_programming_languages(
+        neo4j_session, GET_GITLAB_LANGUAGE_MAPPINGS, TEST_UPDATE_TAG
+    )
 
 
 def test_extract_groups_from_repositories():
@@ -31,9 +34,13 @@ def test_extract_groups_from_repositories():
     # Should have 3 unique groups
     assert len(groups) == 3
 
-    # Check that group IDs are present
+    # Check that group IDs are present and include URL prefix
     group_ids = {group["id"] for group in groups}
-    assert group_ids == {10, 20, 30}
+    assert group_ids == {
+        "https://gitlab.example.com/groups/10",
+        "https://gitlab.example.com/groups/20",
+        "https://gitlab.example.com/groups/30",
+    }
 
     # Check that groups have required fields
     for group in groups:
@@ -54,16 +61,31 @@ def test_load_gitlab_repositories(neo4j_session):
         "GitLabRepository",
         ["id", "name", "path_with_namespace", "visibility"],
     ) == {
-        (123, "awesome-project", "engineering/awesome-project", "private"),
-        (456, "backend-service", "services/backend-service", "internal"),
-        (789, "frontend-app", "apps/frontend-app", "public"),
+        (
+            "https://gitlab.example.com/projects/123",
+            "awesome-project",
+            "engineering/awesome-project",
+            "private",
+        ),
+        (
+            "https://gitlab.example.com/projects/456",
+            "backend-service",
+            "services/backend-service",
+            "internal",
+        ),
+        (
+            "https://gitlab.example.com/projects/789",
+            "frontend-app",
+            "apps/frontend-app",
+            "public",
+        ),
     }
 
     # Check URLs are populated
     result = neo4j_session.run(
         """
         MATCH (r:GitLabRepository)
-        WHERE r.id = 123
+        WHERE r.id = 'https://gitlab.example.com/projects/123'
         RETURN r.web_url as web_url,
                r.ssh_url_to_repo as ssh_url,
                r.http_url_to_repo as http_url
@@ -72,13 +94,16 @@ def test_load_gitlab_repositories(neo4j_session):
     record = result.single()
     assert record["web_url"] == "https://gitlab.example.com/engineering/awesome-project"
     assert record["ssh_url"] == "git@gitlab.example.com:engineering/awesome-project.git"
-    assert record["http_url"] == "https://gitlab.example.com/engineering/awesome-project.git"
+    assert (
+        record["http_url"]
+        == "https://gitlab.example.com/engineering/awesome-project.git"
+    )
 
     # Check stats are populated
     result = neo4j_session.run(
         """
         MATCH (r:GitLabRepository)
-        WHERE r.id = 789
+        WHERE r.id = 'https://gitlab.example.com/projects/789'
         RETURN r.star_count as stars,
                r.forks_count as forks,
                r.archived as archived
@@ -101,9 +126,9 @@ def test_load_gitlab_groups(neo4j_session):
         "GitLabGroup",
         ["id", "name", "path"],
     ) == {
-        (10, "Engineering", "engineering"),
-        (20, "Services", "services"),
-        (30, "Apps", "apps"),
+        ("https://gitlab.example.com/groups/10", "Engineering", "engineering"),
+        ("https://gitlab.example.com/groups/20", "Services", "services"),
+        ("https://gitlab.example.com/groups/30", "Apps", "apps"),
     }
 
 
@@ -122,9 +147,18 @@ def test_group_to_repository_relationships(neo4j_session):
         "OWNER",
         rel_direction_right=True,
     ) == {
-        (10, 123),  # Engineering owns awesome-project
-        (20, 456),  # Services owns backend-service
-        (30, 789),  # Apps owns frontend-app
+        (
+            "https://gitlab.example.com/groups/10",
+            "https://gitlab.example.com/projects/123",
+        ),  # Engineering owns awesome-project
+        (
+            "https://gitlab.example.com/groups/20",
+            "https://gitlab.example.com/projects/456",
+        ),  # Services owns backend-service
+        (
+            "https://gitlab.example.com/groups/30",
+            "https://gitlab.example.com/projects/789",
+        ),  # Apps owns frontend-app
     }
 
 
@@ -158,19 +192,19 @@ def test_language_relationships(neo4j_session):
         "LANGUAGE",
         rel_direction_right=True,
     ) == {
-        (123, "Python"),
-        (123, "JavaScript"),
-        (456, "Go"),
-        (456, "Shell"),
-        (789, "TypeScript"),
-        (789, "CSS"),
-        (789, "HTML"),
+        ("https://gitlab.example.com/projects/123", "Python"),
+        ("https://gitlab.example.com/projects/123", "JavaScript"),
+        ("https://gitlab.example.com/projects/456", "Go"),
+        ("https://gitlab.example.com/projects/456", "Shell"),
+        ("https://gitlab.example.com/projects/789", "TypeScript"),
+        ("https://gitlab.example.com/projects/789", "CSS"),
+        ("https://gitlab.example.com/projects/789", "HTML"),
     }
 
     # Check language percentage is stored on relationship
     result = neo4j_session.run(
         """
-        MATCH (r:GitLabRepository {id: 123})-[rel:LANGUAGE]->(l:ProgrammingLanguage {name: 'Python'})
+        MATCH (r:GitLabRepository {id: 'https://gitlab.example.com/projects/123'})-[rel:LANGUAGE]->(l:ProgrammingLanguage {name: 'Python'})
         RETURN rel.percentage as percentage
         """,
     )
@@ -204,9 +238,9 @@ def test_sync_gitlab_repositories(mock_get_languages, mock_get_repos, neo4j_sess
         "GitLabRepository",
         ["id", "name"],
     ) == {
-        (123, "awesome-project"),
-        (456, "backend-service"),
-        (789, "frontend-app"),
+        ("https://gitlab.example.com/projects/123", "awesome-project"),
+        ("https://gitlab.example.com/projects/456", "backend-service"),
+        ("https://gitlab.example.com/projects/789", "frontend-app"),
     }
 
     # Verify groups were loaded

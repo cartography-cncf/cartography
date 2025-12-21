@@ -1,6 +1,7 @@
 GET_GITLAB_REPOSITORIES_RESPONSE = [
     {
-        "id": 123,
+        "id": "https://gitlab.example.com/projects/123",
+        "numeric_id": 123,
         # Core identification
         "name": "awesome-project",
         "path": "awesome-project",
@@ -31,14 +32,16 @@ GET_GITLAB_REPOSITORIES_RESPONSE = [
         # Access
         "empty_repo": False,
         # Namespace/Group info
-        "namespace_id": 10,
+        "namespace_id": "https://gitlab.example.com/groups/10",
+        "namespace_numeric_id": 10,
         "namespace_kind": "group",
         "namespace_name": "Engineering",
         "namespace_path": "engineering",
         "namespace_full_path": "engineering",
     },
     {
-        "id": 456,
+        "id": "https://gitlab.example.com/projects/456",
+        "numeric_id": 456,
         "name": "backend-service",
         "path": "backend-service",
         "path_with_namespace": "services/backend-service",
@@ -61,14 +64,16 @@ GET_GITLAB_REPOSITORIES_RESPONSE = [
         "snippets_enabled": True,
         "container_registry_enabled": True,
         "empty_repo": False,
-        "namespace_id": 20,
+        "namespace_id": "https://gitlab.example.com/groups/20",
+        "namespace_numeric_id": 20,
         "namespace_kind": "group",
         "namespace_name": "Services",
         "namespace_path": "services",
         "namespace_full_path": "services",
     },
     {
-        "id": 789,
+        "id": "https://gitlab.example.com/projects/789",
+        "numeric_id": 789,
         "name": "frontend-app",
         "path": "frontend-app",
         "path_with_namespace": "apps/frontend-app",
@@ -91,7 +96,8 @@ GET_GITLAB_REPOSITORIES_RESPONSE = [
         "snippets_enabled": True,
         "container_registry_enabled": False,
         "empty_repo": False,
-        "namespace_id": 30,
+        "namespace_id": "https://gitlab.example.com/groups/30",
+        "namespace_numeric_id": 30,
         "namespace_kind": "group",
         "namespace_name": "Apps",
         "namespace_path": "apps",
@@ -100,11 +106,39 @@ GET_GITLAB_REPOSITORIES_RESPONSE = [
 ]
 
 GET_GITLAB_LANGUAGE_MAPPINGS = [
-    {"repo_id": 123, "language_name": "Python", "percentage": 65.5},
-    {"repo_id": 123, "language_name": "JavaScript", "percentage": 34.5},
-    {"repo_id": 456, "language_name": "Go", "percentage": 85.0},
-    {"repo_id": 456, "language_name": "Shell", "percentage": 15.0},
-    {"repo_id": 789, "language_name": "TypeScript", "percentage": 70.0},
-    {"repo_id": 789, "language_name": "CSS", "percentage": 25.0},
-    {"repo_id": 789, "language_name": "HTML", "percentage": 5.0},
+    {
+        "repo_id": "https://gitlab.example.com/projects/123",
+        "language_name": "Python",
+        "percentage": 65.5,
+    },
+    {
+        "repo_id": "https://gitlab.example.com/projects/123",
+        "language_name": "JavaScript",
+        "percentage": 34.5,
+    },
+    {
+        "repo_id": "https://gitlab.example.com/projects/456",
+        "language_name": "Go",
+        "percentage": 85.0,
+    },
+    {
+        "repo_id": "https://gitlab.example.com/projects/456",
+        "language_name": "Shell",
+        "percentage": 15.0,
+    },
+    {
+        "repo_id": "https://gitlab.example.com/projects/789",
+        "language_name": "TypeScript",
+        "percentage": 70.0,
+    },
+    {
+        "repo_id": "https://gitlab.example.com/projects/789",
+        "language_name": "CSS",
+        "percentage": 25.0,
+    },
+    {
+        "repo_id": "https://gitlab.example.com/projects/789",
+        "language_name": "HTML",
+        "percentage": 5.0,
+    },
 ]
