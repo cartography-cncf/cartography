@@ -17,6 +17,7 @@ class GitLabRepositoryNodeProperties(CartographyNodeProperties):
 
     id: PropertyRef = PropertyRef("id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    numeric_id: PropertyRef = PropertyRef("numeric_id", extra_index=True)
     # Core identification
     name: PropertyRef = PropertyRef("name")
     path: PropertyRef = PropertyRef("path")
@@ -63,7 +64,9 @@ class GitLabRepositoryToGroupRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OWNER"
-    properties: GitLabRepositoryToGroupRelProperties = GitLabRepositoryToGroupRelProperties()
+    properties: GitLabRepositoryToGroupRelProperties = (
+        GitLabRepositoryToGroupRelProperties()
+    )
 
 
 @dataclass(frozen=True)
