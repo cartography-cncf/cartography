@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Any
 from typing import Dict
 from typing import List
@@ -18,7 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_workday_directory(workday_api_url: str, workday_login: str, workday_password: str) -> Dict[str, Any]:
+def get_workday_directory(
+    workday_api_url: str, workday_login: str, workday_password: str
+) -> Dict[str, Any]:
     """
     Fetches data from the Workday API.
 
@@ -32,7 +33,9 @@ def get_workday_directory(workday_api_url: str, workday_login: str, workday_pass
     response = requests.get(workday_api_url, auth=http_auth)
 
     if response.status_code != 200:
-        raise Exception(f"Workday API returned HTTP {response.status_code}: {response.content!r}")
+        raise Exception(
+            f"Workday API returned HTTP {response.status_code}: {response.content!r}"
+        )
 
     try:
         directory = response.json()
@@ -40,13 +43,17 @@ def get_workday_directory(workday_api_url: str, workday_login: str, workday_pass
         raise Exception(f"Unable to parse Workday API response as JSON: {e}")
 
     if not directory:
-        raise Exception(f"Workday API returned empty response (HTTP 200): {response.content!r}")
+        raise Exception(
+            f"Workday API returned empty response (HTTP 200): {response.content!r}"
+        )
 
     return directory
 
 
 @timeit
-def _transform_people_data(directory_data: Dict[str, Any]) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+def _transform_people_data(
+    directory_data: Dict[str, Any],
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Transform Workday directory data into separate lists for people and manager relationships.
 
@@ -71,10 +78,12 @@ def _transform_people_data(directory_data: Dict[str, Any]) -> tuple[List[Dict[st
             employee_id = person.get("Employee_ID")
             # Only create relationship if both IDs exist and are different
             if manager_id and employee_id and manager_id != employee_id:
-                manager_relationships.append({
-                    "Employee_ID": employee_id,
-                    "Manager_ID": manager_id,
-                })
+                manager_relationships.append(
+                    {
+                        "Employee_ID": employee_id,
+                        "Manager_ID": manager_id,
+                    }
+                )
 
     return people_transformed, manager_relationships
 
@@ -166,9 +175,13 @@ def _cleanup_workday_data(
     :param common_job_parameters: Common job parameters including UPDATE_TAG
     """
     # Cleanup humans
-    GraphJob.from_node_schema(WorkdayHumanSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(WorkdayHumanSchema(), common_job_parameters).run(
+        neo4j_session
+    )
     # Cleanup organizations
-    GraphJob.from_node_schema(WorkdayOrganizationSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(WorkdayOrganizationSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -195,7 +208,9 @@ def sync_workday_people(
     logger.info("Syncing Workday people data")
 
     # Fetch data from Workday API
-    workday_data = get_workday_directory(workday_api_url, workday_login, workday_password)
+    workday_data = get_workday_directory(
+        workday_api_url, workday_login, workday_password
+    )
 
     # Transform data
     people_data, manager_relationships = _transform_people_data(workday_data)
