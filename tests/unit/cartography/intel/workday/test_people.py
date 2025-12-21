@@ -1,4 +1,8 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 from cartography.intel.workday.people import _transform_people_data
+from cartography.intel.workday.people import get_workday_directory
 
 
 def test_transform_people_data_basic():
@@ -63,9 +67,7 @@ def test_transform_people_data_prevents_self_reporting():
                 "Name": "Alice",
                 "Email_-_Work": "alice@example.com",
                 "Supervisory_Organization": "Eng",
-                "Worker_s_Manager_group": [
-                    {"Manager_ID": "emp001"}  # Self-reference!
-                ],
+                "Worker_s_Manager_group": [{"Manager_ID": "emp001"}],  # Self-reference!
             },
         ],
     }
@@ -262,3 +264,97 @@ def test_transform_people_data_handles_multiple_manager_entries():
     assert people_data[0]["Manager_ID"] == "mgr001"
     assert len(manager_relationships) == 1
     assert manager_relationships[0]["Manager_ID"] == "mgr001"
+
+
+@patch("requests.get")
+def test_get_workday_directory_success(mock_get):
+    """Test successful API call to Workday"""
+    # Arrange
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "Report_Entry": [
+            {
+                "Employee_ID": "emp001",
+                "Name": "Alice",
+                "Email_-_Work": "alice@example.com",
+            },
+        ],
+    }
+    mock_get.return_value = mock_response
+
+    # Act
+    result = get_workday_directory(
+        "https://workday.example.com/api",
+        "test_user",
+        "test_password",
+    )
+
+    # Assert
+    assert result == {
+        "Report_Entry": [
+            {
+                "Employee_ID": "emp001",
+                "Name": "Alice",
+                "Email_-_Work": "alice@example.com",
+            }
+        ]
+    }
+    # Verify HTTP Basic Auth was used
+    call_kwargs = mock_get.call_args[1]
+    assert call_kwargs["auth"].username == "test_user"
+    assert call_kwargs["auth"].password == "test_password"
+    assert call_kwargs["timeout"] == (60, 60)
+
+
+@patch("requests.get")
+def test_get_workday_directory_handles_http_error(mock_get):
+    """Test that HTTP errors are properly raised"""
+    # Arrange
+    mock_response = MagicMock()
+    mock_response.status_code = 401
+    mock_response.content = b"Unauthorized"
+    mock_get.return_value = mock_response
+
+    # Act & Assert
+    try:
+        get_workday_directory("https://workday.example.com/api", "user", "pass")
+        assert False, "Should have raised Exception"
+    except Exception as e:
+        assert "Workday API returned HTTP 401" in str(e)
+        assert "Unauthorized" in str(e)
+
+
+@patch("requests.get")
+def test_get_workday_directory_handles_json_parse_error(mock_get):
+    """Test that JSON parsing errors are properly handled"""
+    # Arrange
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.side_effect = ValueError("Invalid JSON")
+    mock_get.return_value = mock_response
+
+    # Act & Assert
+    try:
+        get_workday_directory("https://workday.example.com/api", "user", "pass")
+        assert False, "Should have raised Exception"
+    except Exception as e:
+        assert "Unable to parse Workday API response as JSON" in str(e)
+
+
+@patch("requests.get")
+def test_get_workday_directory_handles_empty_response(mock_get):
+    """Test that empty JSON response is caught"""
+    # Arrange
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {}  # Empty dict
+    mock_response.content = b"{}"
+    mock_get.return_value = mock_response
+
+    # Act & Assert
+    try:
+        get_workday_directory("https://workday.example.com/api", "user", "pass")
+        assert False, "Should have raised Exception"
+    except Exception as e:
+        assert "Workday API returned empty response" in str(e)
