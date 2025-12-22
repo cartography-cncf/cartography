@@ -362,7 +362,8 @@ def test_upinned_python_library_to_repo(neo4j_session):
 def test_setup_cfg_library_to_repo(neo4j_session):
     """
     Ensure that repositories are connected to Python libraries stated as dependencies in setup.cfg.
-    and verify that exactly 2 repos are connected to the PythonLibrary.
+    Verify that exactly 1 repo is connected to the PythonLibrary (repos with dependency graph data
+    skip requirements.txt/setup.cfg parsing).
     """
     _ensure_local_neo4j_has_test_data(neo4j_session)
 
@@ -373,7 +374,7 @@ def test_setup_cfg_library_to_repo(neo4j_session):
     """
     nodes = neo4j_session.run(query)
     actual_nodes = {n["repo_count"] for n in nodes}
-    expected_nodes = {2}
+    expected_nodes = {1}
     assert actual_nodes == expected_nodes
 
 
