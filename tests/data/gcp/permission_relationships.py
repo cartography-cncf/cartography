@@ -6,7 +6,7 @@ MOCK_STORAGE_BUCKETS = {
             "kind": "storage#bucket",
             "id": "test-bucket",
             "selfLink": "https://www.googleapis.com/storage/v1/b/test-bucket",
-            "projectNumber": 123456789,
+            "projectNumber": 123456789012,
             "name": "test-bucket",
             "timeCreated": "2023-01-01T00:00:00.000Z",
             "updated": "2023-01-01T00:00:00.000Z",
@@ -29,7 +29,7 @@ MOCK_STORAGE_BUCKETS = {
 }
 
 MOCK_COMPUTE_INSTANCES = {
-    "id": "projects/project-123/zones/us-east1-b/instances",
+    "id": "projects/project-abc/zones/us-east1-b/instances",
     "items": [
         {
             "canIpForward": False,
@@ -45,13 +45,13 @@ MOCK_COMPUTE_INSTANCES = {
                     "interface": "SCSI",
                     "kind": "compute#attachedDisk",
                     "mode": "READ_WRITE",
-                    "source": "https://www.googleapis.com/compute/v1/projects/project-123/zones/us-east1-b/disks/instance-1",
+                    "source": "https://www.googleapis.com/compute/v1/projects/project-abc/zones/us-east1-b/disks/instance-1",
                     "type": "PERSISTENT",
                 },
             ],
             "id": "123456789",
             "kind": "compute#instance",
-            "machineType": "https://www.googleapis.com/compute/v1/projects/project-123/zones/us-east1-b/machineTypes/n1-standard-1",
+            "machineType": "https://www.googleapis.com/compute/v1/projects/project-abc/zones/us-east1-b/machineTypes/n1-standard-1",
             "name": "instance-1",
             "networkInterfaces": [
                 {
@@ -66,9 +66,9 @@ MOCK_COMPUTE_INSTANCES = {
                     ],
                     "kind": "compute#networkInterface",
                     "name": "nic0",
-                    "network": "https://www.googleapis.com/compute/v1/projects/project-123/global/networks/default",
+                    "network": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks/default",
                     "networkIP": "10.0.0.1",
-                    "subnetwork": "https://www.googleapis.com/compute/v1/projects/project-123/regions/us-east1/subnetworks/default",
+                    "subnetwork": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/us-east1/subnetworks/default",
                 },
             ],
             "scheduling": {
@@ -76,21 +76,21 @@ MOCK_COMPUTE_INSTANCES = {
                 "onHostMaintenance": "MIGRATE",
                 "preemptible": False,
             },
-            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-123/zones/us-east1-b/instances/instance-1",
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/zones/us-east1-b/instances/instance-1",
             "serviceAccounts": [
                 {
-                    "email": "sa@project-123.iam.gserviceaccount.com",
+                    "email": "sa@project-abc.iam.gserviceaccount.com",
                     "scopes": [
                         "https://www.googleapis.com/auth/devstorage.read_only",
                     ],
                 },
             ],
             "status": "RUNNING",
-            "zone": "https://www.googleapis.com/compute/v1/projects/project-123/zones/us-east1-b",
+            "zone": "https://www.googleapis.com/compute/v1/projects/project-abc/zones/us-east1-b",
         },
     ],
     "kind": "compute#instanceList",
-    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-123/zones/us-east1-b/instances",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/zones/us-east1-b/instances",
 }
 
 MOCK_PERMISSION_RELATIONSHIPS_YAML = [
