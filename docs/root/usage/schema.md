@@ -66,6 +66,9 @@
 ```{include} ../modules/github/schema.md
 ```
 
+```{include} ../modules/gitlab/schema.md
+```
+
 ```{include} ../modules/googleworkspace/schema.md
 ```
 
@@ -124,4 +127,7 @@
 ```
 
 ```{include} ../modules/trivy/schema.md
+```
+
+```{include} ../modules/workday/schema.md
 ```
