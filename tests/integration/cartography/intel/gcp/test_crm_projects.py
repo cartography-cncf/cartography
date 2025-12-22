@@ -100,9 +100,7 @@ def test_sync_gcp_projects(
         COMMON_JOB_PARAMS,
     )
 
-    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
-        ("project-abc",)
-    }
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {("project-abc",)}
 
     query = (
         "MATCH (p:GCPProject{id:$ProjectId})-[:PARENT]->(f:GCPFolder)-[:PARENT]->(o:GCPOrganization)\n"
@@ -133,9 +131,7 @@ def test_sync_gcp_projects_without_parent(_mock_get_projects, neo4j_session) -> 
         COMMON_JOB_PARAMS,
     )
 
-    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
-        ("project-abc",)
-    }
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {("project-abc",)}
     assert (
         check_rels(neo4j_session, "GCPProject", "id", "GCPFolder", "id", "PARENT")
         == set()
@@ -161,9 +157,7 @@ def test_sync_gcp_projects_with_org_parent(_mock_get_projects, neo4j_session) ->
         COMMON_JOB_PARAMS,
     )
 
-    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
-        ("project-abc",)
-    }
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {("project-abc",)}
     assert check_rels(
         neo4j_session, "GCPProject", "id", "GCPOrganization", "id", "PARENT"
     ) == {("project-abc", "organizations/1337")}
