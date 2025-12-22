@@ -208,7 +208,7 @@ def test_sync_sql_servers_and_databases(
             "id",
             "AzureSQLDatabase",
             "id",
-            "RESOURCE",
+            "CONTAINS",
             rel_direction_right=True,
         )
         == expected_db_rels
@@ -292,7 +292,7 @@ def test_sync_sql_servers_and_databases(
             "id",
             "AzureRecoverableDatabase",
             "id",
-            "RESOURCE",
+            "CONTAINS",
             rel_direction_right=True,
         )
         == expected_recoverable_db_rels
@@ -320,7 +320,7 @@ def test_sync_sql_servers_and_databases(
             "id",
             "AzureRestorableDroppedDatabase",
             "id",
-            "RESOURCE",
+            "CONTAINS",
             rel_direction_right=True,
         )
         == expected_restorable_dropped_db_rels
@@ -348,7 +348,7 @@ def test_sync_sql_servers_and_databases(
             "id",
             "AzureFailoverGroup",
             "id",
-            "RESOURCE",
+            "CONTAINS",
             rel_direction_right=True,
         )
         == expected_failover_group_rels
@@ -376,7 +376,7 @@ def test_sync_sql_servers_and_databases(
             "id",
             "AzureElasticPool",
             "id",
-            "RESOURCE",
+            "CONTAINS",
             rel_direction_right=True,
         )
         == expected_elastic_pool_rels

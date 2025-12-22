@@ -23,7 +23,7 @@ class AzureCosmosDBLocationProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBLocationWriteToAzureCosmosDBAccountProperties(
+class AzureCosmosDBLocationWriteToAzureCosmosDBAccountRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -38,13 +38,13 @@ class AzureCosmosDBLocationWriteToAzureCosmosDBAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CAN_WRITE_FROM"
-    properties: AzureCosmosDBLocationWriteToAzureCosmosDBAccountProperties = (
-        AzureCosmosDBLocationWriteToAzureCosmosDBAccountProperties()
+    properties: AzureCosmosDBLocationWriteToAzureCosmosDBAccountRelProperties = (
+        AzureCosmosDBLocationWriteToAzureCosmosDBAccountRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBLocationReadToAzureCosmosDBAccountProperties(
+class AzureCosmosDBLocationReadToAzureCosmosDBAccountRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -59,13 +59,13 @@ class AzureCosmosDBLocationReadToAzureCosmosDBAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CAN_READ_FROM"
-    properties: AzureCosmosDBLocationReadToAzureCosmosDBAccountProperties = (
-        AzureCosmosDBLocationReadToAzureCosmosDBAccountProperties()
+    properties: AzureCosmosDBLocationReadToAzureCosmosDBAccountRelProperties = (
+        AzureCosmosDBLocationReadToAzureCosmosDBAccountRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountProperties(
+class AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRelProperties(
     CartographyRelProperties
 ):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -80,8 +80,8 @@ class AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRel(CartographyRelSch
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ASSOCIATED_WITH"
-    properties: AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountProperties = (
-        AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountProperties()
+    properties: AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRelProperties = (
+        AzureCosmosDBLocationAssociatedToAzureCosmosDBAccountRelProperties()
     )
 
 

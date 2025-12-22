@@ -26,7 +26,7 @@ class ScalewayGroupProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class ScalewayGroupToUserProperties(CartographyRelProperties):
+class ScalewayGroupToUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -39,11 +39,11 @@ class ScalewayGroupToUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"
-    properties: ScalewayGroupToUserProperties = ScalewayGroupToUserProperties()
+    properties: ScalewayGroupToUserRelProperties = ScalewayGroupToUserRelProperties()
 
 
 @dataclass(frozen=True)
-class ScalewayGroupToApplicationProperties(CartographyRelProperties):
+class ScalewayGroupToApplicationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -56,8 +56,8 @@ class ScalewayGroupToApplicationRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF"
-    properties: ScalewayGroupToApplicationProperties = (
-        ScalewayGroupToApplicationProperties()
+    properties: ScalewayGroupToApplicationRelProperties = (
+        ScalewayGroupToApplicationRelProperties()
     )
 
 

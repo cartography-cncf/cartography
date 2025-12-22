@@ -43,7 +43,7 @@ class TrivyFindingToImageRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class TrivyFindingToImage(CartographyRelSchema):
+class TrivyFindingToImageRel(CartographyRelSchema):
     target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ImageDigest")},
@@ -61,6 +61,6 @@ class TrivyImageFindingSchema(CartographyNodeSchema):
     properties: TrivyImageFindingNodeProperties = TrivyImageFindingNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            TrivyFindingToImage(),
+            TrivyFindingToImageRel(),
         ],
     )

@@ -25,7 +25,7 @@ class S1ApplicationToAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:S1Application)<-[:RESOURCE]-(:S1Account)
-class S1ApplicationToAccount(CartographyRelSchema):
+class S1ApplicationToAccountRel(CartographyRelSchema):
     target_node_label: str = "S1Account"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("S1_ACCOUNT_ID", set_in_kwargs=True)},
@@ -41,4 +41,4 @@ class S1ApplicationToAccount(CartographyRelSchema):
 class S1ApplicationSchema(CartographyNodeSchema):
     label: str = "S1Application"
     properties: S1ApplicationNodeProperties = S1ApplicationNodeProperties()
-    sub_resource_relationship: S1ApplicationToAccount = S1ApplicationToAccount()
+    sub_resource_relationship: S1ApplicationToAccountRel = S1ApplicationToAccountRel()

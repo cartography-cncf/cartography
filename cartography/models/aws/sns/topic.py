@@ -33,7 +33,7 @@ class SNSTopicToAwsAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class SNSTopicToAWSAccount(CartographyRelSchema):
+class SNSTopicToAWSAccountRel(CartographyRelSchema):
     target_node_label: str = "AWSAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("AWS_ID", set_in_kwargs=True)},
@@ -47,4 +47,4 @@ class SNSTopicToAWSAccount(CartographyRelSchema):
 class SNSTopicSchema(CartographyNodeSchema):
     label: str = "SNSTopic"
     properties: SNSTopicNodeProperties = SNSTopicNodeProperties()
-    sub_resource_relationship: SNSTopicToAWSAccount = SNSTopicToAWSAccount()
+    sub_resource_relationship: SNSTopicToAWSAccountRel = SNSTopicToAWSAccountRel()

@@ -95,6 +95,11 @@ identity_administration_privileges = Rule(
     ),
     output_model=IdentityAdministrationPrivileges,
     facts=(_aws_account_manipulation_permissions,),
-    tags=("iam", "privilege_escalation"),
+    tags=(
+        "iam",
+        "stride:elevation_of_privilege",
+        "stride:spoofing",
+        "stride:tampering",
+    ),
     version="0.1.0",
 )

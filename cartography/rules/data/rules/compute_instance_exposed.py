@@ -46,6 +46,12 @@ compute_instance_exposed = Rule(
     ),
     output_model=ComputeInstanceExposed,
     facts=(_aws_ec2_instance_internet_exposed,),
-    tags=("infrastructure", "compute", "attack_surface"),
+    tags=(
+        "infrastructure",
+        "compute",
+        "attack_surface",
+        "stride:information_disclosure",
+        "stride:elevation_of_privilege",
+    ),
     version="0.1.0",
 )

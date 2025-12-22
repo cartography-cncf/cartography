@@ -95,7 +95,7 @@ def test_load_snipeit_assets_relationship(neo4j_session):
             "id",
             "SnipeitAsset",
             "serial",
-            "HAS_ASSET",
+            "RESOURCE",
             rel_direction_right=True,
         )
         == expected_nodes_relationships
@@ -180,7 +180,7 @@ def test_cleanup_snipeit_assets(neo4j_session):
             "id",
             "SnipeitAsset",
             "id",
-            "HAS_ASSET",
+            "RESOURCE",
             rel_direction_right=True,
         )
         == expected_nodes_relationships

@@ -31,7 +31,7 @@ class AzureStorageFileShareProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureStorageFileShareToStorageFileServiceProperties(CartographyRelProperties):
+class AzureStorageFileShareToStorageFileServiceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -44,8 +44,8 @@ class AzureStorageFileShareToStorageFileServiceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureStorageFileShareToStorageFileServiceProperties = (
-        AzureStorageFileShareToStorageFileServiceProperties()
+    properties: AzureStorageFileShareToStorageFileServiceRelProperties = (
+        AzureStorageFileShareToStorageFileServiceRelProperties()
     )
 
 

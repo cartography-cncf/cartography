@@ -46,7 +46,7 @@ class CloudflareMemberToAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CloudflareMemberToCloudflareRoleProperties(CartographyRelProperties):
+class CloudflareMemberToCloudflareRoleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -64,8 +64,8 @@ class CloudflareMemberToCloudflareRoleRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_ROLE"
-    properties: CloudflareMemberToCloudflareRoleProperties = (
-        CloudflareMemberToCloudflareRoleProperties()
+    properties: CloudflareMemberToCloudflareRoleRelProperties = (
+        CloudflareMemberToCloudflareRoleRelProperties()
     )
 
 

@@ -2165,7 +2165,7 @@ Representation of a software package, as found by an AWS ECR vulnerability scan.
 - A TrivyImageFinding is a vulnerability that affects a software Package.
 
     ```
-    (:Package)-[:AFFECTS]->(:TrivyImageFinding)
+    (:TrivyImageFinding)-[:AFFECTS]->(:Package)
     ```
 
 - We should update a vulnerable package to a fixed version described by a TrivyFix.

@@ -46,7 +46,7 @@ class ScalewayVolumeSnapshotToProjectRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class ScalewayVolumeSnapshotToInstanceVolumeProperties(CartographyRelProperties):
+class ScalewayVolumeSnapshotToInstanceVolumeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -59,8 +59,8 @@ class ScalewayVolumeSnapshotToInstanceVolumeRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS"
-    properties: ScalewayVolumeSnapshotToInstanceVolumeProperties = (
-        ScalewayVolumeSnapshotToInstanceVolumeProperties()
+    properties: ScalewayVolumeSnapshotToInstanceVolumeRelProperties = (
+        ScalewayVolumeSnapshotToInstanceVolumeRelProperties()
     )
 
 

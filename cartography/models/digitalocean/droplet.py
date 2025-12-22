@@ -8,6 +8,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -39,8 +40,20 @@ class DODropletToAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:DOProject)<-[:RESOURCE]-(:DODroplet)
+# (:DOProject)-[:RESOURCE]->(:DODroplet)
 class DODropletToAccountRel(CartographyRelSchema):
+    target_node_label: str = "DOProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: DODropletToAccountRelProperties = DODropletToAccountRelProperties()
+
+
+@dataclass(frozen=True)
+# (:DOProject)<-[:RESOURCE]-(:DODroplet) - Backwards compatibility
+class DODropletToProjectDeprecatedRel(CartographyRelSchema):
     target_node_label: str = "DOProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)},
@@ -56,3 +69,7 @@ class DODropletSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeInstance"])
     properties: DODropletNodeProperties = DODropletNodeProperties()
     sub_resource_relationship: DODropletToAccountRel = DODropletToAccountRel()
+    # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[DODropletToProjectDeprecatedRel()],
+    )
