@@ -70,12 +70,34 @@ class GitLabRepositoryToGroupRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitLabRepositoryToLanguageRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    percentage: PropertyRef = PropertyRef("percentage")
+
+
+@dataclass(frozen=True)
+class GitLabRepositoryToLanguageRel(CartographyRelSchema):
+    """Relationship from GitLabRepository to ProgrammingLanguage."""
+
+    target_node_label: str = "ProgrammingLanguage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("language_name")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "LANGUAGE"
+    properties: GitLabRepositoryToLanguageRelProperties = (
+        GitLabRepositoryToLanguageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitLabRepositorySchema(CartographyNodeSchema):
     label: str = "GitLabRepository"
     properties: GitLabRepositoryNodeProperties = GitLabRepositoryNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
             GitLabRepositoryToGroupRel(),
+            GitLabRepositoryToLanguageRel(),
         ],
     )
 
