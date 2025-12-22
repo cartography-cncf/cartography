@@ -20,5 +20,5 @@ def test_neo4j_driver_init_with_idle_time(mock_driver):
     # Assert
     mock_driver.assert_called_once()
     args, kwargs = mock_driver.call_args
-    assert "max_connection_idle_time" in kwargs
-    assert kwargs["max_connection_idle_time"] == 120
+    assert "max_connection_lifetime" in kwargs
+    assert kwargs["max_connection_lifetime"] == 120
