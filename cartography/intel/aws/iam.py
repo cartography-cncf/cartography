@@ -29,6 +29,7 @@ from cartography.models.aws.iam.service_principal import AWSServicePrincipalSche
 from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMatchLink
 from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
+from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
@@ -107,6 +108,7 @@ def get_group_membership_data(
 
 
 @timeit
+@aws_handle_regions
 def get_group_policy_data(
     boto3_session: boto3.Session,
     group_list: List[Dict],
@@ -125,6 +127,7 @@ def get_group_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_group_managed_policy_data(
     boto3_session: boto3.Session,
     group_list: List[Dict],
@@ -143,6 +146,7 @@ def get_group_managed_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_user_policy_data(
     boto3_session: boto3.Session,
     user_list: List[Dict],
@@ -166,6 +170,7 @@ def get_user_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_user_managed_policy_data(
     boto3_session: boto3.Session,
     user_list: List[Dict],
@@ -189,6 +194,7 @@ def get_user_managed_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_role_policy_data(
     boto3_session: boto3.Session,
     role_list: List[Dict],
@@ -212,6 +218,7 @@ def get_role_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_role_managed_policy_data(
     boto3_session: boto3.Session,
     role_list: List[Dict],
@@ -235,6 +242,7 @@ def get_role_managed_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
     role_list = get_role_list_data(boto3_session)["Roles"]
     resource_client = boto3_session.resource("iam")

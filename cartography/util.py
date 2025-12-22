@@ -26,6 +26,7 @@ import boto3
 import botocore
 import neo4j
 from botocore.exceptions import EndpointConnectionError
+from botocore.parsers import ResponseParserError
 
 from cartography.graph.job import GraphJob
 from cartography.graph.statement import get_job_shortname
@@ -326,7 +327,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
     # https://github.com/cartography-cncf/cartography/issues/25
     @backoff.on_exception(
         backoff.expo,
-        botocore.exceptions.ClientError,
+        (botocore.exceptions.ClientError, ResponseParserError),
         max_time=600,
         on_backoff=backoff_handler,
     )
