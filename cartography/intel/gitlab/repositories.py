@@ -352,9 +352,11 @@ def _load_programming_languages(
         lastupdated=update_tag,
     )
 
-    # Create relationships using Cypher (similar to GitHub's approach)
-    # We use raw Cypher here because we need to link existing repos to existing languages
-    # without overwriting the repo properties
+    # Create LANGUAGE relationships using raw Cypher to link existing nodes
+    # NOTE: Raw Cypher is the CORRECT approach here (not legacy code).
+    # Using load() with GitLabRepositorySchema would overwrite repo properties with NULL
+    # since we only provide {id, language_name, percentage}. This matches the established
+    # pattern for creating relationships between existing nodes without modification.
     ingest_languages_query = """
         UNWIND $LanguageMappings as mapping
 
@@ -393,7 +395,9 @@ def _cleanup_gitlab_data(
     GraphJob.from_node_schema(GitLabGroupSchema(), common_job_parameters).run(
         neo4j_session
     )
-    # Cleanup LANGUAGE relationships (created via raw Cypher, so need explicit cleanup)
+    # Cleanup LANGUAGE relationships (created via raw Cypher)
+    # NOTE: Raw Cypher is correct here for linking existing nodes. Cleanup via JSON file is
+    # the established pattern when relationships are created outside the schema load() system.
     run_cleanup_job("gitlab_repos_cleanup.json", neo4j_session, common_job_parameters)
 
 
