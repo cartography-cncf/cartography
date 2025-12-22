@@ -9,27 +9,27 @@ H -- REPORTS_TO --> H2(WorkdayHuman)
 
 ### WorkdayHuman
 
-Representation of a person in the Workday system. WorkdayHuman nodes are also labeled as `Human` to enable integration with other identity modules (Duo, Okta, etc.) via email matching.
+Representation of a person in Workday. WorkdayHuman nodes include the `Human` label for cross-module identity integration.
 
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | Employee ID from Workday (e.g., `emp001`) |
-| **employee_id** | Same as id - Employee ID (indexed for fast lookups) |
+| **id** | Employee ID from Workday |
+| **employee_id** | Employee ID (indexed for lookups) |
 | **name** | Employee's full name |
 | **email** | Work email address (indexed for cross-module relationships) |
 | **title** | Job title/business title |
-| **worker_type** | Type of worker (e.g., Employee, Contractor) |
+| **worker_type** | Type of worker (Employee, Contractor, etc.) |
 | **location** | Office or work location |
 | **country** | Country from work address |
 | **cost_center** | Cost center code |
-| **function** | Functional area (e.g., Product Development, Engineering) |
+| **function** | Functional area |
 | **sub_function** | Sub-functional area |
 | **team** | Team name |
 | **sub_team** | Sub-team name |
 | **company** | Company or legal entity name |
-| **source** | Always set to `"WORKDAY"` to identify the data source |
+| **source** | Always `"WORKDAY"` to identify data source |
 
 #### Relationships
 
@@ -47,15 +47,7 @@ Representation of a person in the Workday system. WorkdayHuman nodes are also la
 
 #### Human Label Integration
 
-WorkdayHuman nodes are also labeled as `Human`, enabling integration with other identity sources:
-
-```cypher
-// Find a person's Duo and Workday identities
-MATCH (h:Human {email: "alice@example.com"})
-OPTIONAL MATCH (h)-[:IDENTITY_DUO]-(duo:DuoUser)
-OPTIONAL MATCH (h:WorkdayHuman)
-RETURN h.name, h.email, duo.username, h.title
-```
+WorkdayHuman nodes include the `Human` label, enabling cross-module identity queries with Duo, Okta, and other identity sources.
 
 ### WorkdayOrganization
 
@@ -65,16 +57,14 @@ Representation of a supervisory organization or department in Workday.
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | Organization name (e.g., `Engineering Department`) |
+| **id** | Organization name |
 | **name** | Organization name |
 
 #### Relationships
 
-- WorkdayHumans are members of WorkdayOrganizations
-
-    ```
-    (WorkdayHuman)-[MEMBER_OF_ORGANIZATION]->(WorkdayOrganization)
-    ```
+```
+(WorkdayHuman)-[MEMBER_OF_ORGANIZATION]->(WorkdayOrganization)
+```
 
 ## Sample Cypher Queries
 
@@ -109,40 +99,23 @@ RETURN o.name, count(h) as employee_count
 ORDER BY employee_count DESC
 ```
 
-### Find employees by function
+### Find employees by function or team
 
 ```cypher
 MATCH (h:WorkdayHuman)
-WHERE h.function = "Product Development"
-RETURN h.name, h.sub_function, h.team
+WHERE h.function = "Product Development" OR h.team = "Engineering"
+RETURN h.name, h.function, h.team, h.title
 ORDER BY h.team, h.name
 ```
 
-### Find contractors vs employees
-
-```cypher
-MATCH (h:WorkdayHuman)
-RETURN h.worker_type, count(h) as count
-ORDER BY count DESC
-```
-
-### Find employees in a specific location
-
-```cypher
-MATCH (h:WorkdayHuman)
-WHERE h.location CONTAINS "San Francisco"
-RETURN h.name, h.team, h.title
-ORDER BY h.team
-```
-
-### Find managers (people with direct reports)
+### Find managers with most direct reports
 
 ```cypher
 MATCH (h:WorkdayHuman)<-[:REPORTS_TO]-(report:WorkdayHuman)
 WITH h, count(report) as report_count
-WHERE report_count > 0
 RETURN h.name, h.title, report_count
 ORDER BY report_count DESC
+LIMIT 10
 ```
 
 ### Cross-module: Find Workday employees with Duo accounts
@@ -154,28 +127,11 @@ MATCH (h2:Human)-[:IDENTITY_DUO]->(duo)
 RETURN h.name, h.email, duo.is_enrolled as duo_enrolled
 ```
 
-### Find organization hierarchy
+### Cross-module: Find all identities for a person
 
 ```cypher
-MATCH (h:WorkdayHuman)-[:MEMBER_OF_ORGANIZATION]->(o:WorkdayOrganization)
-WITH o, count(h) as members
-RETURN o.name, members
-ORDER BY members DESC
-```
-
-### Find employees without managers
-
-```cypher
-MATCH (h:WorkdayHuman)
-WHERE NOT (h)-[:REPORTS_TO]->(:WorkdayHuman)
-RETURN h.name, h.title, h.email
-```
-
-### Map team structure
-
-```cypher
-MATCH (h:WorkdayHuman)
-WHERE h.team IS NOT NULL
-RETURN DISTINCT h.team, h.sub_team, count(*) as members
-ORDER BY h.team, h.sub_team
+MATCH (h:Human {email: "alice@example.com"})
+OPTIONAL MATCH (h:WorkdayHuman)
+OPTIONAL MATCH (h)-[:IDENTITY_DUO]->(duo:DuoUser)
+RETURN h.name, h.email, h.title, duo.username as duo_account
 ```
