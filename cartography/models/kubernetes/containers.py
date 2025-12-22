@@ -26,7 +26,7 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     status_image_sha: PropertyRef = PropertyRef("status_image_sha", extra_index=True)
     status_ready: PropertyRef = PropertyRef("status_ready")
     status_started: PropertyRef = PropertyRef("status_started")
-    status_state: PropertyRef = PropertyRef("status_state")
+    status_state: PropertyRef = PropertyRef("status_state", extra_index=True)
     memory_request: PropertyRef = PropertyRef("memory_request")
     cpu_request: PropertyRef = PropertyRef("cpu_request")
     memory_limit: PropertyRef = PropertyRef("memory_limit")
