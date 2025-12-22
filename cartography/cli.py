@@ -107,6 +107,15 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--neo4j-max-connection-idle-time",
+            type=int,
+            default=None,
+            help=(
+                "Time in seconds for the Neo4j driver to close idle TCP connections. See "
+                "https://neo4j.com/docs/api/python-driver/current/api.html#neo4j.GraphDatabase.driver."
+            ),
+        )
+        parser.add_argument(
             "--neo4j-database",
             type=str,
             default=None,
@@ -984,6 +993,14 @@ class CLI:
         """
         # TODO support parameter lookup in environment variables if not present on command line
         config: argparse.Namespace = self.parser.parse_args(argv)
+
+        if not config.neo4j_max_connection_idle_time and os.environ.get(
+            "NEO4J_MAX_CONNECTION_IDLE_TIME"
+        ):
+            config.neo4j_max_connection_idle_time = int(
+                os.environ.get("NEO4J_MAX_CONNECTION_IDLE_TIME")
+            )
+
         # Logging config
         if config.verbose:
             logging.getLogger("cartography").setLevel(logging.DEBUG)
