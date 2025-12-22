@@ -994,11 +994,15 @@ class CLI:
         # TODO support parameter lookup in environment variables if not present on command line
         config: argparse.Namespace = self.parser.parse_args(argv)
 
-        if not config.neo4j_max_connection_idle_time and os.environ.get(
+        env_neo4j_max_connection_idle_time = os.environ.get(
             "NEO4J_MAX_CONNECTION_IDLE_TIME"
+        )
+        if (
+            config.neo4j_max_connection_idle_time is None
+            and env_neo4j_max_connection_idle_time
         ):
             config.neo4j_max_connection_idle_time = int(
-                os.environ.get("NEO4J_MAX_CONNECTION_IDLE_TIME")
+                env_neo4j_max_connection_idle_time
             )
 
         # Logging config
