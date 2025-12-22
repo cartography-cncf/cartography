@@ -17,6 +17,7 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
 from cartography.models.aws.iam.access_key import AccountAccessKeySchema
+from cartography.models.aws.iam.service_specific_credential import ServiceSpecificCredentialSchema
 from cartography.models.aws.iam.account_role import AWSAccountAWSRoleSchema
 from cartography.models.aws.iam.federated_principal import AWSFederatedPrincipalSchema
 from cartography.models.aws.iam.group import AWSGroupSchema
@@ -348,6 +349,50 @@ def get_account_access_key_data(
 
 
 @timeit
+def get_user_service_specific_credentials_data(
+    boto3_session: boto3.Session,
+    users: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    Get service-specific credential data for all users.
+    Returns a dict mapping user ARN to list of service-specific credential data.
+    """
+    user_service_credentials = {}
+
+    for user in users:
+        username = user["name"]
+        user_arn = user["arn"]
+
+        credentials = get_user_service_specific_credentials(boto3_session, username)
+        if credentials and "ServiceSpecificCredentials" in credentials:
+            user_service_credentials[user_arn] = credentials["ServiceSpecificCredentials"]
+        else:
+            user_service_credentials[user_arn] = []
+
+    return user_service_credentials
+
+
+@timeit
+def get_user_service_specific_credentials(
+    boto3_session: boto3.Session,
+    username: str,
+) -> dict[str, Any]:
+    """
+    Get service-specific credentials for a single user.
+    """
+    client = boto3_session.client("iam")
+    credentials: dict[str, Any] = {}
+    try:
+        credentials = client.list_service_specific_credentials(UserName=username)
+    except client.exceptions.NoSuchEntityException:
+        logger.warning(
+            f"Could not get service-specific credentials for user {username} due to NoSuchEntityException; skipping.",
+        )
+        return credentials
+    return credentials
+
+
+@timeit
 def get_group_memberships(
     boto3_session: boto3.Session, groups: list[dict[str, Any]]
 ) -> dict[str, list[str]]:
@@ -453,6 +498,29 @@ def transform_access_keys(
                 access_key_data.append(access_key_record)
 
     return access_key_data
+
+
+def transform_service_specific_credentials(
+    user_service_credentials: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """
+    Transform service-specific credential data for Neo4j ingestion.
+    """
+    credential_data = []
+    for user_arn, credentials in user_service_credentials.items():
+        for credential in credentials:
+            if credential.get("ServiceSpecificCredentialId"):
+                credential_record = {
+                    "service_specific_credential_id": credential["ServiceSpecificCredentialId"],
+                    "service_name": credential.get("ServiceName", ""),
+                    "service_user_name": credential.get("ServiceUserName", ""),
+                    "status": credential.get("Status", ""),
+                    "createdate": str(credential.get("CreateDate", "")),
+                    "user_arn": user_arn,  # For the relationship to AWSUser
+                }
+                credential_data.append(credential_record)
+
+    return credential_data
 
 
 def transform_role_trust_policies(
@@ -580,6 +648,22 @@ def load_access_keys(
         neo4j_session,
         AccountAccessKeySchema(),
         access_keys,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def load_service_specific_credentials(
+    neo4j_session: neo4j.Session,
+    service_credentials: list[dict[str, Any]],
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        ServiceSpecificCredentialSchema(),
+        service_credentials,
         lastupdated=aws_update_tag,
         AWS_ID=current_aws_account_id,
     )
@@ -903,6 +987,39 @@ def sync_user_access_keys(
         neo4j_session, access_key_data, aws_update_tag, current_aws_account_id
     )
     GraphJob.from_node_schema(AccountAccessKeySchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def sync_user_service_specific_credentials(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    logger.info(
+        "Syncing IAM user service-specific credentials for account '%s'.", current_aws_account_id
+    )
+
+    # Query the graph for users instead of making another AWS API call
+    query = (
+        "MATCH (user:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID}) "
+        "RETURN user.name as name, user.arn as arn"
+    )
+    users = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        query,
+        AWS_ID=current_aws_account_id,
+    )
+
+    user_service_credentials = get_user_service_specific_credentials_data(boto3_session, users)
+    credential_data = transform_service_specific_credentials(user_service_credentials)
+    load_service_specific_credentials(
+        neo4j_session, credential_data, aws_update_tag, current_aws_account_id
+    )
+    GraphJob.from_node_schema(ServiceSpecificCredentialSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -1332,6 +1449,13 @@ def sync(
         update_tag,
         common_job_parameters,
     )
+    sync_user_service_specific_credentials(  
+        neo4j_session,                        
+        boto3_session,                        
+        current_aws_account_id,                
+        update_tag,                           
+        common_job_parameters,                 
+    )                                         
     cleanup_iam(neo4j_session, common_job_parameters)
     merge_module_sync_metadata(
         neo4j_session,
