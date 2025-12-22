@@ -46,6 +46,6 @@ RETURN DISTINCT
     er.name AS repo_name,
     img.digest AS digest
     """
-    return neo4j_session.read_transaction(
+    return neo4j_session.execute_read(
         read_list_of_tuples_tx, query, AWS_ID=aws_account_id
     )

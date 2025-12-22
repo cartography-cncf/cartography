@@ -16,4 +16,4 @@ def list_accounts(neo4j_session: neo4j.Session) -> List[str]:
     query = """
     MATCH (a:AWSAccount) RETURN a.id
     """
-    return neo4j_session.read_transaction(read_list_of_values_tx, query)
+    return neo4j_session.execute_read(read_list_of_values_tx, query)

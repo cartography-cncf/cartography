@@ -34,4 +34,4 @@ def get_aws_admin_like_principals(neo4j_session: Session) -> List[Dict[str, Any]
     RETURN a.name AS account_name, a.id AS account_id, p.name AS principal_name, policy.name AS policy_name
     ORDER BY account_name, principal_name
     """
-    return neo4j_session.read_transaction(read_list_of_dicts_tx, query)
+    return neo4j_session.execute_read(read_list_of_dicts_tx, query)

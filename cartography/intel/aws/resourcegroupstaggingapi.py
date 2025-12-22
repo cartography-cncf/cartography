@@ -269,7 +269,7 @@ def load_tags(
         # If there is no data to load, save some time.
         return
     for tag_data_batch in batch(tag_data, size=100):
-        neo4j_session.write_transaction(
+        neo4j_session.execute_write(
             _load_tags_tx,
             tag_data=tag_data_batch,
             resource_type=resource_type,
