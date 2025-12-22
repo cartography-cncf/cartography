@@ -133,9 +133,7 @@ class GraphStatement:
         self.parameters["LIMIT_SIZE"] = self.iterationsize
 
         while True:
-            summary: neo4j.ResultSummary = session.execute_write(
-                self._run_noniterative
-            )
+            summary: neo4j.ResultSummary = session.execute_write(self._run_noniterative)
 
             if not summary.counters.contains_updates:
                 break
