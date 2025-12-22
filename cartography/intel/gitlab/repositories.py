@@ -14,6 +14,7 @@ from cartography.graph.job import GraphJob
 from cartography.models.common.programming_language import ProgrammingLanguageSchema
 from cartography.models.gitlab.groups import GitLabGroupSchema
 from cartography.models.gitlab.repositories import GitLabRepositorySchema
+from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -322,7 +323,7 @@ def _load_programming_languages(
     update_tag: int,
 ) -> None:
     """
-    Load programming language nodes and their relationships to repositories using modern schema-based approach.
+    Load programming language nodes and their relationships to repositories.
 
     :param neo4j_session: Neo4j session
     :param language_mappings: List of language-to-repo mappings
@@ -351,25 +352,25 @@ def _load_programming_languages(
         lastupdated=update_tag,
     )
 
-    # Transform language mappings to repository-centric format for schema-based loading
-    # Each entry represents a repository with its language relationship
-    repo_language_data = []
-    for mapping in language_mappings:
-        repo_language_data.append(
-            {
-                "id": mapping["repo_id"],  # Repository ID for matching
-                "language_name": mapping["language_name"],  # For relationship matcher
-                "percentage": mapping["percentage"],  # Relationship property
-            },
-        )
+    # Create relationships using Cypher (similar to GitHub's approach)
+    # We use raw Cypher here because we need to link existing repos to existing languages
+    # without overwriting the repo properties
+    ingest_languages_query = """
+        UNWIND $LanguageMappings as mapping
 
-    # Load language relationships via schema (modern approach - like Workday)
-    # The GitLabRepositoryToLanguageRel in the schema creates the LANGUAGE relationships
-    load(
-        neo4j_session,
-        GitLabRepositorySchema(),
-        repo_language_data,
-        lastupdated=update_tag,
+        MATCH (repo:GitLabRepository {id: mapping.repo_id})
+        MATCH (lang:ProgrammingLanguage {name: mapping.language_name})
+
+        MERGE (repo)-[r:LANGUAGE]->(lang)
+        ON CREATE SET r.firstseen = timestamp()
+        SET r.lastupdated = $UpdateTag,
+            r.percentage = mapping.percentage
+    """
+
+    neo4j_session.run(
+        ingest_languages_query,
+        LanguageMappings=language_mappings,
+        UpdateTag=update_tag,
     )
 
 
@@ -379,13 +380,12 @@ def _cleanup_gitlab_data(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     """
-    Remove stale GitLab data from Neo4j using modern schema-based cleanup.
+    Remove stale GitLab data from Neo4j.
 
     :param neo4j_session: Neo4j session
     :param common_job_parameters: Common job parameters including UPDATE_TAG
     """
-    # Cleanup repositories (nodes, OWNER relationships, and LANGUAGE relationships)
-    # The schema handles all cleanup automatically via scoped_cleanup=False
+    # Cleanup repositories (nodes and OWNER relationships)
     GraphJob.from_node_schema(GitLabRepositorySchema(), common_job_parameters).run(
         neo4j_session
     )
@@ -393,6 +393,8 @@ def _cleanup_gitlab_data(
     GraphJob.from_node_schema(GitLabGroupSchema(), common_job_parameters).run(
         neo4j_session
     )
+    # Cleanup LANGUAGE relationships (created via raw Cypher, so need explicit cleanup)
+    run_cleanup_job("gitlab_repos_cleanup.json", neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -417,8 +419,12 @@ def sync_gitlab_repositories(
     :param gitlab_token: GitLab API access token
     :param update_tag: Update tag for tracking data freshness
     """
+    # Normalize URL for consistent ID generation and cleanup scoping
+    normalized_url = gitlab_url.rstrip("/")
+
     common_job_parameters = {
         "UPDATE_TAG": update_tag,
+        "GITLAB_URL": normalized_url,  # For multi-instance cleanup scoping
     }
 
     logger.info("Syncing GitLab repositories")
