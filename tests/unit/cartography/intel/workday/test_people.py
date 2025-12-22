@@ -322,7 +322,7 @@ def test_get_workday_directory_handles_http_error(mock_get):
         assert False, "Should have raised Exception"
     except Exception as e:
         assert "Workday API returned HTTP 401" in str(e)
-        assert "Unauthorized" in str(e)
+        assert "credentials" in str(e).lower()
 
 
 @patch("requests.get")

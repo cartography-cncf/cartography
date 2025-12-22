@@ -37,7 +37,7 @@ def get_workday_directory(
 
     if response.status_code != 200:
         raise Exception(
-            f"Workday API returned HTTP {response.status_code}: {response.content!r}"
+            f"Workday API returned HTTP {response.status_code}. Check credentials and API endpoint."
         )
 
     try:
@@ -46,9 +46,7 @@ def get_workday_directory(
         raise Exception(f"Unable to parse Workday API response as JSON: {e}")
 
     if not directory:
-        raise Exception(
-            f"Workday API returned empty response (HTTP 200): {response.content!r}"
-        )
+        raise Exception("Workday API returned empty response (HTTP 200). Check API configuration.")
 
     return directory
 

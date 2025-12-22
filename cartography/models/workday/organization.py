@@ -16,3 +16,7 @@ class WorkdayOrganizationNodeProperties(CartographyNodeProperties):
 class WorkdayOrganizationSchema(CartographyNodeSchema):
     label: str = "WorkdayOrganization"
     properties: WorkdayOrganizationNodeProperties = WorkdayOrganizationNodeProperties()
+
+    @property
+    def scoped_cleanup(self) -> bool:
+        return False

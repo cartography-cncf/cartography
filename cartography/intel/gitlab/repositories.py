@@ -419,8 +419,12 @@ def sync_gitlab_repositories(
     :param gitlab_token: GitLab API access token
     :param update_tag: Update tag for tracking data freshness
     """
+    # Normalize URL for consistent ID generation and cleanup scoping
+    normalized_url = gitlab_url.rstrip("/")
+
     common_job_parameters = {
         "UPDATE_TAG": update_tag,
+        "GITLAB_URL": normalized_url,  # For multi-instance cleanup scoping
     }
 
     logger.info("Syncing GitLab repositories")

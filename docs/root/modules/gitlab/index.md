@@ -38,7 +38,7 @@ Cartography can sync repository, group, and programming language data from GitLa
 (:GitLabGroup)-[:OWNER]->(:GitLabRepository)-[:LANGUAGE{percentage}]->(:ProgrammingLanguage)
 ```
 
-###Configuration
+### Configuration
 
 See [GitLab Configuration](config.md) for setup instructions.
 
@@ -48,10 +48,4 @@ See [GitLab Schema](schema.md) for detailed schema documentation and sample quer
 
 ### Scalability
 
-The GitLab module has been tested with instances containing:
-- 2950+ repositories
-- 95+ groups
-- 95+ programming languages
-- 7200+ language relationships
-
-Language detection uses parallel execution (10 concurrent workers) to handle large instances efficiently.
+The GitLab module has been tested with large instances and uses parallel execution (10 concurrent workers) to efficiently handle language detection across thousands of repositories.
