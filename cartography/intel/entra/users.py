@@ -60,6 +60,7 @@ USER_SELECT_FIELDS = [
     "employeeType",
     "accountEnabled",
     "ageGroup",
+    "assignedPlans",
 ]
 
 
@@ -142,6 +143,14 @@ def transform_users(users: list[User]) -> Generator[dict[str, Any], None, None]:
             "account_enabled": user.account_enabled,
             "age_group": user.age_group,
             "manager_id": manager_id,
+            "assigned_plans": [
+                {
+                    "service_plan_id": str(plan.service_plan_id),
+                    "service": plan.service,
+                    "capability_status": plan.capability_status,
+                }
+                for plan in getattr(user, "assigned_plans", []) or []
+            ],
         }
 
 
