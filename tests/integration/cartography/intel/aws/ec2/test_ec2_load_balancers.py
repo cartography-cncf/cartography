@@ -32,7 +32,7 @@ def test_load_load_balancer_v2s(neo4j_session, *args):
 
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
 
         MERGE (group:EC2SecurityGroup{groupid: $GROUP_ID_1})
         ON CREATE SET group.firstseen = timestamp()
@@ -161,7 +161,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
 
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
         """,
         load_balancer_id=load_balancer_id,
         ec2_instance_id=ec2_instance_id,
@@ -462,7 +462,7 @@ def test_load_balancer_v2s_skips_missing_dnsname(neo4j_session, *args):
 
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
 
         MERGE (group:EC2SecurityGroup{groupid: $GROUP_ID_1})
         ON CREATE SET group.firstseen = timestamp()
