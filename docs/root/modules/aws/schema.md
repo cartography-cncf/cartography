@@ -2423,17 +2423,20 @@ Represents a generic IP address.
 
 ### IpRule
 
-Represents a generic IP rule.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+Represents a generic IP rule. The creation of this node is derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules using the AWS EC2 API's SecurityGroupRule objects.
 
 | Field | Description |
 |-------|-------------|
-| **ruleid** | `{group_id}/{rule_type}/{from_port}{to_port}{protocol}` |
-| groupid | The groupid of the EC2 Security Group that this was derived from |
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| protocol | The protocol this rule applies to |
-| fromport | Lowest port in the range defined by this rule|
-| toport | Highest port in the range defined by this rule|
+| **ruleid** | The AWS SecurityGroupRuleId (e.g., 'sgr-0123456789abcdef') which uniquely identifies the rule |
+| **arn** | The ARN of the security group rule (e.g., 'arn:aws:ec2:region:account-id:security-group-rule/sgr-0123456789abcdef') |
+| **id** | Same as the ARN |
+| groupid | The groupid of the EC2 Security Group that this rule belongs to |
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| protocol | The protocol this rule applies to (e.g., 'tcp', 'udp', '-1' for all) |
+| fromport | Lowest port in the range defined by this rule |
+| toport | Highest port in the range defined by this rule |
+| isegress | Boolean indicating if this is an egress rule (true) or an ingress rule (false) |
 
 
 #### Relationships
@@ -2450,13 +2453,16 @@ An IpPermissionInbound node is a specific type of IpRule.  It represents a gener
 
 | Field | Description |
 |-------|-------------|
-| **ruleid** | `{group_id}/{rule_type}/{from_port}{to_port}{protocol}` |
-| groupid |  The groupid of the EC2 Security Group that this was derived from |
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| protocol | The protocol this rule applies to |
-| fromport | Lowest port in the range defined by this rule|
-| toport | Highest port in the range defined by this rule|
+| **ruleid** | The AWS SecurityGroupRuleId (e.g., 'sgr-0123456789abcdef') which uniquely identifies the rule |
+| **arn** | The ARN of the security group rule |
+| **id** | Same as the ARN |
+| groupid | The groupid of the EC2 Security Group that this rule belongs to |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| protocol | The protocol this rule applies to (e.g., 'tcp', 'udp', '-1' for all) |
+| fromport | Lowest port in the range defined by this rule |
+| toport | Highest port in the range defined by this rule |
+| isegress | Always `false` for IpPermissionInbound nodes, `true` for IpPermissionEgress nodes |
 
 #### Relationships
 

@@ -116,7 +116,6 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
     "ec2:security-group": {
         "label": "EC2SecurityGroup",
         "property": "id",
-        "id_func": get_short_id_from_ec2_arn,
     },
     "ec2:subnet": {
         "label": "EC2Subnet",
