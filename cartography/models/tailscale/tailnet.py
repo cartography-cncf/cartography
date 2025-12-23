@@ -28,4 +28,4 @@ class TailscaleTailnetNodeProperties(CartographyNodeProperties):
 class TailscaleTailnetSchema(CartographyNodeSchema):
     label: str = "TailscaleTailnet"
     properties: TailscaleTailnetNodeProperties = TailscaleTailnetNodeProperties()
-    extra_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])

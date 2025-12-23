@@ -198,7 +198,7 @@ keycloak_mapping = OntologyMapping(
     module_name="keycloak",
     nodes=[
         OntologyNodeMapping(
-            node_label="KeycloakOrganization",
+            node_label="KeycloakRealm",
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True

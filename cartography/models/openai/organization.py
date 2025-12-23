@@ -16,4 +16,4 @@ class OpenAIOrganizationNodeProperties(CartographyNodeProperties):
 class OpenAIOrganizationSchema(CartographyNodeSchema):
     label: str = "OpenAIOrganization"
     properties: OpenAIOrganizationNodeProperties = OpenAIOrganizationNodeProperties()
-    extra_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
