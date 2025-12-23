@@ -9,6 +9,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.models.aws.eventbridge.event_bus import AWSEventsEventBusSchema
 from cartography.models.aws.eventbridge.rule import EventBridgeRuleSchema
 from cartography.models.aws.eventbridge.target import EventBridgeTargetSchema
 from cartography.util import aws_handle_regions
@@ -115,6 +116,41 @@ def load_eventbridge_targets(
 
 
 @timeit
+@aws_handle_regions
+def get_event_buses(boto3_session: boto3.Session, region: str) -> List[Dict[str, Any]]:
+    client = boto3_session.client(
+        "events", region_name=region, config=get_botocore_config()
+    )
+    buses = []
+    # list_event_buses
+    paginator = client.get_paginator("list_event_buses")
+    for page in paginator.paginate():
+        buses.extend(page.get("EventBuses", []))
+    return buses
+
+
+@timeit
+def load_event_buses(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        f"Loading EventBridge {len(data)} event buses for region '{region}' into graph."
+    )
+    load(
+        neo4j_session,
+        AWSEventsEventBusSchema(),
+        data,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -124,6 +160,9 @@ def cleanup(
         neo4j_session
     )
     GraphJob.from_node_schema(EventBridgeTargetSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(AWSEventsEventBusSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -156,6 +195,15 @@ def sync(
         load_eventbridge_targets(
             neo4j_session,
             transformed_targets,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+        buses = get_event_buses(boto3_session, region)
+        load_event_buses(
+            neo4j_session,
+            buses,
             region,
             current_aws_account_id,
             update_tag,

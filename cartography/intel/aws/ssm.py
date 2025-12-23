@@ -11,6 +11,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
+from cartography.models.aws.ssm.document import AWSSSMDocumentSchema
 from cartography.models.aws.ssm.instance_information import SSMInstanceInformationSchema
 from cartography.models.aws.ssm.instance_patch import SSMInstancePatchSchema
 from cartography.models.aws.ssm.parameters import SSMParameterSchema
@@ -145,6 +146,56 @@ def transform_ssm_parameters(
 
 
 @timeit
+@aws_handle_regions
+def get_ssm_documents(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict[str, Any]]:
+    client = boto3_session.client("ssm", region_name=region)
+    paginator = client.get_paginator("list_documents")
+    documents: List[Dict[str, Any]] = []
+    # Filters to only get self-owned documents? Or all available?
+    # Default is all. But AWS owns many. We might want Filter Key=Owner, Value=Self?
+    # Request implies "My" documents.
+    # Let's filter by Owner=Self if possible, or usually we just list all and filtering happens locally?
+    # list_documents has Filters.
+    # However, 'list_documents' by default returns everything including AWS owned.
+    # We should probably filter for 'Owner' == 'Self' or accountId?
+    # boto3 'list_documents' supports Filters=[{'Key': 'Owner', 'Values': ['Self']}]
+    for page in paginator.paginate(Filters=[{"Key": "Owner", "Values": ["Self"]}]):
+        documents.extend(page.get("DocumentIdentifiers", []))
+    return documents
+
+
+def transform_ssm_documents(
+    documents: List[Dict[str, Any]], region: str, current_aws_account_id: str
+) -> List[Dict[str, Any]]:
+    for doc in documents:
+        doc["ARN"] = (
+            f"arn:aws:ssm:{region}:{current_aws_account_id}:document/{doc['Name']}"
+        )
+    return documents
+
+
+@timeit
+def load_ssm_documents(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSSSMDocumentSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
 def load_instance_information(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
@@ -214,6 +265,9 @@ def cleanup_ssm(
     GraphJob.from_node_schema(SSMParameterSchema(), common_job_parameters).run(
         neo4j_session,
     )
+    GraphJob.from_node_schema(AWSSSMDocumentSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -257,6 +311,16 @@ def sync(
         load_ssm_parameters(
             neo4j_session,
             data,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+        documents = get_ssm_documents(boto3_session, region)
+        documents = transform_ssm_documents(documents, region, current_aws_account_id)
+        load_ssm_documents(
+            neo4j_session,
+            documents,
             region,
             current_aws_account_id,
             update_tag,
