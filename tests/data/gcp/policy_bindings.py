@@ -58,10 +58,10 @@ MOCK_IAM_ROLES = [
 
 MOCK_IAM_SERVICE_ACCOUNTS = [
     {
-        "name": "projects/project-123/serviceAccounts/sa@project-123.iam.gserviceaccount.com",
-        "projectId": "project-123",
+        "name": "projects/project-abc/serviceAccounts/sa@project-abc.iam.gserviceaccount.com",
+        "projectId": "project-abc",
         "uniqueId": "112233445566778899",
-        "email": "sa@project-123.iam.gserviceaccount.com",
+        "email": "sa@project-abc.iam.gserviceaccount.com",
         "displayName": "Service Account",
         "etag": "etag_123",
         "description": "Test service account",
@@ -158,21 +158,21 @@ MOCK_GSUITE_GROUP_MEMBERS = {
 }
 
 MOCK_POLICY_BINDINGS_RESPONSE = {
-    "project_id": "project-123",
+    "project_id": "project-abc",
     "organization": "organizations/1337",
     "policy_results": [
         {
-            "full_resource_name": "//cloudresourcemanager.googleapis.com/projects/project-123",
+            "full_resource_name": "//cloudresourcemanager.googleapis.com/projects/project-abc",
             "policies": [
                 {
-                    "attached_resource": "//cloudresourcemanager.googleapis.com/projects/project-123",
+                    "attached_resource": "//cloudresourcemanager.googleapis.com/projects/project-abc",
                     "policy": {
                         "bindings": [
                             {
                                 "role": "roles/editor",
                                 "members": [
                                     "user:alice@example.com",  # GSuite user
-                                    "serviceAccount:sa@project-123.iam.gserviceaccount.com",  # IAM service account
+                                    "serviceAccount:sa@project-abc.iam.gserviceaccount.com",  # IAM service account
                                 ],
                             },
                             {
