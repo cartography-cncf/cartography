@@ -268,6 +268,7 @@ def _build_cleanup_node_query_unscoped(
             "definition is what you expect.",
         )
 
+    # The cleanup node query must always be before the cleanup rel query
     delete_action_clause = """
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
