@@ -36,4 +36,4 @@ class EntraTenantNodeProperties(CartographyNodeProperties):
 class EntraTenantSchema(CartographyNodeSchema):
     label: str = "AzureTenant"
     properties: EntraTenantNodeProperties = EntraTenantNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EntraTenant"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["EntraTenant", "Tenant"])

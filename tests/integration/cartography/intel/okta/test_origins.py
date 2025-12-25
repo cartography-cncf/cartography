@@ -23,7 +23,7 @@ def test_sync_trusted_origins(mock_get_origins, mock_api_client, neo4j_session):
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
         ON CREATE SET o.firstseen = timestamp()
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=TEST_ORG_ID,
         UPDATE_TAG=TEST_UPDATE_TAG,
@@ -111,7 +111,7 @@ def test_sync_trusted_origins_with_no_origins(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=test_org_id,
         UPDATE_TAG=TEST_UPDATE_TAG,
@@ -153,7 +153,7 @@ def test_sync_trusted_origins_updates_existing(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(origin:OktaTrustedOrigin{id: 'tosue7JvguwJ7U6kz0g3'})
         SET origin.name = 'Old Name',
             origin.origin = 'http://old-example.com',
@@ -206,7 +206,7 @@ def test_sync_trusted_origins_with_different_scopes(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=test_org_id,
         UPDATE_TAG=TEST_UPDATE_TAG,
@@ -294,7 +294,7 @@ def test_sync_trusted_origins_with_inactive_status(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=test_org_id,
         UPDATE_TAG=TEST_UPDATE_TAG,

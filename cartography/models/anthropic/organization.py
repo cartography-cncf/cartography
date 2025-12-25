@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 
 
 @dataclass(frozen=True)
@@ -17,3 +18,4 @@ class AnthropicOrganizationSchema(CartographyNodeSchema):
     properties: AnthropicOrganizationNodeProperties = (
         AnthropicOrganizationNodeProperties()
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
