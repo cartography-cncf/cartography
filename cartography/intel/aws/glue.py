@@ -10,8 +10,10 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
 from cartography.models.aws.glue.connection import GlueConnectionSchema
+from cartography.models.aws.glue.database import AWSGlueDatabaseSchema
 from cartography.models.aws.glue.job import GlueJobSchema
 from cartography.util import aws_handle_regions
+from cartography.util import dict_date_to_epoch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -133,6 +135,51 @@ def load_glue_jobs(
 
 
 @timeit
+@aws_handle_regions
+def get_glue_databases(
+    boto3_session: boto3.Session, region: str
+) -> List[Dict[str, Any]]:
+    client = boto3_session.client(
+        "glue", region_name=region, config=get_botocore_config()
+    )
+    databases = []
+    paginator = client.get_paginator("get_databases")
+    for page in paginator.paginate():
+        databases.extend(page.get("DatabaseList", []))
+    return databases
+
+
+def transform_glue_databases(
+    databases: List[Dict[str, Any]], region: str, current_aws_account_id: str
+) -> List[Dict[str, Any]]:
+    for db in databases:
+        db["ARN"] = (
+            f"arn:aws:glue:{region}:{current_aws_account_id}:database/{db['Name']}"
+        )
+        db["CreateTime"] = dict_date_to_epoch(db, "CreateTime")
+    return databases
+
+
+@timeit
+def load_glue_databases(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(f"Loading Glue {len(data)} databases for region '{region}' into graph.")
+    load(
+        neo4j_session,
+        AWSGlueDatabaseSchema(),
+        data,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
@@ -142,6 +189,9 @@ def cleanup(
         neo4j_session
     )
     GraphJob.from_node_schema(GlueJobSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(AWSGlueDatabaseSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -173,6 +223,18 @@ def sync(
         load_glue_jobs(
             neo4j_session,
             transformed_jobs,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+        databases = get_glue_databases(boto3_session, region)
+        transformed_databases = transform_glue_databases(
+            databases, region, current_aws_account_id
+        )
+        load_glue_databases(
+            neo4j_session,
+            transformed_databases,
             region,
             current_aws_account_id,
             update_tag,

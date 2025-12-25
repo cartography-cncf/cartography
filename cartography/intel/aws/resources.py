@@ -6,6 +6,10 @@ from cartography.intel.aws.ec2.route_tables import sync_route_tables
 from . import acm
 from . import apigateway
 from . import apigatewayv2
+from . import athena
+from . import backup
+from . import cloudformation
+from . import cloudfront
 from . import cloudtrail
 from . import cloudtrail_management_events
 from . import cloudwatch
@@ -36,11 +40,13 @@ from . import resourcegroupstaggingapi
 from . import route53
 from . import s3
 from . import s3accountpublicaccessblock
+from . import schemas
 from . import secretsmanager
 from . import securityhub
 from . import sns
 from . import sqs
 from . import ssm
+from . import wafv2
 from .ec2.auto_scaling_groups import sync_ec2_auto_scaling_groups
 from .ec2.elastic_ip_addresses import sync_elastic_ip_addresses
 from .ec2.images import sync_ec2_images
@@ -59,6 +65,7 @@ from .ec2.subnets import sync_subnets
 from .ec2.tgw import sync_transit_gateways
 from .ec2.volumes import sync_ebs_volumes
 from .ec2.vpc import sync_vpc
+from .ec2.vpc_endpoint_services import sync_vpc_endpoint_services
 from .ec2.vpc_peerings import sync_vpc_peerings
 from .iam_instance_profiles import sync_iam_instance_profiles
 
@@ -84,6 +91,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "ec2:tgw": sync_transit_gateways,
     "ec2:vpc": sync_vpc,
     "ec2:vpc_peering": sync_vpc_peerings,
+    "ec2:vpc_endpoint_service": sync_vpc_endpoint_services,
     "ec2:internet_gateway": sync_internet_gateways,
     "ec2:reserved_instances": sync_ec2_reserved_instances,
     "ec2:volumes": sync_ebs_volumes,
@@ -124,4 +132,10 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "cognito": cognito.sync,
     "eventbridge": eventbridge.sync,
     "glue": glue.sync,
+    "backup": backup.sync,
+    "wafv2": wafv2.sync,
+    "cloudfront": cloudfront.sync,
+    "cloudformation": cloudformation.sync,
+    "athena": athena.sync,
+    "schemas": schemas.sync,
 }
