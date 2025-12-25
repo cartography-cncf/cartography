@@ -187,7 +187,7 @@ def _parse_cyclonedx_sbom(
     Format: https://cyclonedx.org/
 
     GitLab stores the source manifest/lock file in the SBOM metadata as
-    'gitlab:dependency_scanning:input_file'. All dependencies in this SBOM
+    'gitlab:dependency_scanning:input_file:path'. All dependencies in this SBOM
     came from that single file.
 
     :param sbom_data: Parsed JSON from gl-sbom-*.cdx.json file
