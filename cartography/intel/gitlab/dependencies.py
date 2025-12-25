@@ -183,8 +183,12 @@ def _parse_cyclonedx_sbom(
     """
     Parse a CycloneDX SBOM file to extract dependencies.
 
-    CycloneDX is the new format GitLab uses for dependency scanning.
+    CycloneDX is the format GitLab uses for dependency scanning.
     Format: https://cyclonedx.org/
+
+    GitLab stores the source manifest/lock file in the SBOM metadata as
+    'gitlab:dependency_scanning:input_file'. All dependencies in this SBOM
+    came from that single file.
 
     :param sbom_data: Parsed JSON from gl-sbom-*.cdx.json file
     :param dependency_files: List of dependency files for mapping paths to IDs
@@ -196,6 +200,18 @@ def _parse_cyclonedx_sbom(
     path_to_id = {
         df.get("path"): df.get("id") for df in dependency_files if df.get("path")
     }
+
+    # Extract the source manifest file from SBOM metadata
+    # GitLab stores this as 'gitlab:dependency_scanning:input_file:path'
+    manifest_path = ""
+    manifest_id = None
+    metadata = sbom_data.get("metadata", {})
+    metadata_properties = metadata.get("properties", [])
+    for prop in metadata_properties:
+        if prop.get("name") == "gitlab:dependency_scanning:input_file:path":
+            manifest_path = prop.get("value", "")
+            manifest_id = path_to_id.get(manifest_path)
+            break
 
     # Extract components (dependencies) from the SBOM
     components = sbom_data.get("components", [])
@@ -221,27 +237,6 @@ def _parse_cyclonedx_sbom(
             if len(parts) >= 1:
                 pkg_type = parts[0].replace("pkg:", "")
                 package_manager = pkg_type
-
-        # Try to determine manifest file from properties
-        # CycloneDX may include file location in properties
-        manifest_path = ""
-        manifest_id = None
-
-        # Check if there's a file reference in the component
-        properties = component.get("properties", [])
-        for prop in properties:
-            if prop.get("name") == "cdx:npm:package:path":
-                manifest_path = prop.get("value", "")
-                break
-
-        # If we couldn't find manifest path from properties, try to infer from package manager
-        if not manifest_path and package_manager == "npm":
-            # Check if package-lock.json or package.json exists
-            for path in ["package-lock.json", "package.json"]:
-                if path in path_to_id:
-                    manifest_path = path
-                    manifest_id = path_to_id[path]
-                    break
 
         dependency = {
             "name": name,
