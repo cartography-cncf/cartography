@@ -75,7 +75,7 @@ class GitLabGroupCanAccessProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitLabProjectToGroupRelProperties(CartographyRelProperties):
     """
-    Properties for the CAN_ACCESS relationship between GitLabProject and GitLabGroup.
+    Properties for the MEMBER_OF relationship between GitLabProject and GitLabGroup.
     Represents the immediate parent group of a project (for projects in nested groups).
     """
 
@@ -85,7 +85,7 @@ class GitLabProjectToGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class GitLabProjectToGroupRel(CartographyRelSchema):
     """
-    Relationship from GitLabGroup to GitLabProject via CAN_ACCESS.
+    Relationship from GitLabProject to GitLabGroup via MEMBER_OF.
     Represents the immediate parent group of a project (for projects in nested groups).
     """
 
@@ -93,8 +93,8 @@ class GitLabProjectToGroupRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_url")},
     )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "CAN_ACCESS"
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF"
     properties: GitLabProjectToGroupRelProperties = GitLabProjectToGroupRelProperties()
 
 
