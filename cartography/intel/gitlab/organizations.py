@@ -6,86 +6,22 @@ import logging
 from typing import Any
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gitlab.util import get_single
 from cartography.models.gitlab.organizations import GitLabOrganizationSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
-def get_organizations(gitlab_url: str, token: str) -> list[dict[str, Any]]:
-    """
-    Fetch all top-level groups (organizations) from GitLab using REST API.
-    Organizations are groups where parent_id is null.
-    """
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-
-    # Use the /groups endpoint with top_level_only=true to get root-level groups
-    api_url = f"{gitlab_url}/api/v4/groups"
-    params = {
-        "per_page": 100,  # Max items per page
-        "page": 1,
-        "top_level_only": True,  # Only fetch root-level groups (organizations)
-    }
-
-    organizations = []
-
-    logger.info(f"Fetching organizations from {gitlab_url}")
-
-    while True:
-        response = requests.get(api_url, headers=headers, params=params, timeout=60)
-        response.raise_for_status()
-
-        page_orgs = response.json()
-
-        if not page_orgs:
-            # No more data
-            break
-
-        organizations.extend(page_orgs)
-
-        logger.info(
-            f"Fetched {len(page_orgs)} organizations from page {params['page']}"
-        )
-
-        # Check if there's a next page
-        next_page = response.headers.get("x-next-page")
-        if not next_page:
-            # No more pages
-            break
-
-        params["page"] = int(next_page)
-
-    logger.info(f"Fetched total of {len(organizations)} organizations")
-    return organizations
-
-
 def get_organization(gitlab_url: str, token: str, org_id: int) -> dict[str, Any]:
     """
     Fetch a specific top-level group (organization) from GitLab by ID.
     """
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-
-    api_url = f"{gitlab_url}/api/v4/groups/{org_id}"
-
     logger.info(f"Fetching organization ID {org_id} from {gitlab_url}")
-
-    response = requests.get(api_url, headers=headers, timeout=60)
-    response.raise_for_status()
-
-    organization = response.json()
-    logger.info(f"Fetched organization: {organization.get('name')}")
-
-    return organization
+    return get_single(gitlab_url, token, f"/api/v4/groups/{org_id}")
 
 
 def transform_organizations(

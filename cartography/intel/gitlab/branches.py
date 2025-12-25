@@ -6,10 +6,10 @@ import logging
 from typing import Any
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gitlab.util import get_paginated
 from cartography.models.gitlab.branches import GitLabBranchSchema
 from cartography.util import timeit
 
@@ -18,49 +18,13 @@ logger = logging.getLogger(__name__)
 
 def get_branches(gitlab_url: str, token: str, project_id: int) -> list[dict[str, Any]]:
     """
-    Fetch all branches for a specific project from GitLab using REST API.
+    Fetch all branches for a specific project from GitLab.
     """
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-
-    # Use the /projects/:id/repository/branches endpoint to get all branches
-    api_url = f"{gitlab_url}/api/v4/projects/{project_id}/repository/branches"
-    params = {
-        "per_page": 100,  # Max items per page
-        "page": 1,
-    }
-
-    branches = []
-
-    logger.info(f"Fetching branches for project ID {project_id} from {gitlab_url}")
-
-    while True:
-        response = requests.get(api_url, headers=headers, params=params, timeout=60)
-        response.raise_for_status()
-
-        page_branches = response.json()
-
-        if not page_branches:
-            # No more data
-            break
-
-        branches.extend(page_branches)
-
-        logger.info(f"Fetched {len(page_branches)} branches from page {params['page']}")
-
-        # Check if there's a next page
-        next_page = response.headers.get("x-next-page")
-        if not next_page:
-            # No more pages
-            break
-
-        params["page"] = int(next_page)
-
-    logger.info(
-        f"Fetched total of {len(branches)} branches for project ID {project_id}"
+    logger.debug(f"Fetching branches for project ID {project_id}")
+    branches = get_paginated(
+        gitlab_url, token, f"/api/v4/projects/{project_id}/repository/branches"
     )
+    logger.debug(f"Fetched {len(branches)} branches for project ID {project_id}")
     return branches
 
 

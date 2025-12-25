@@ -9,11 +9,11 @@ import logging
 from typing import Any
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.organizations import get_organization
+from cartography.intel.gitlab.util import get_paginated
 from cartography.models.gitlab.groups import GitLabGroupSchema
 from cartography.util import timeit
 
@@ -22,48 +22,13 @@ logger = logging.getLogger(__name__)
 
 def get_groups(gitlab_url: str, token: str, org_id: int) -> list[dict[str, Any]]:
     """
-    Fetch all descendant groups for a specific organization from GitLab using REST API.
-    This includes nested subgroups at all levels under the organization.
+    Fetch all descendant groups for a specific organization from GitLab.
     """
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-
-    # Use the /groups/:id/descendant_groups endpoint to get all nested groups
-    api_url = f"{gitlab_url}/api/v4/groups/{org_id}/descendant_groups"
-    params = {
-        "per_page": 100,  # Max items per page
-        "page": 1,
-    }
-
-    groups = []
-
-    logger.info(f"Fetching groups for organization ID {org_id} from {gitlab_url}")
-
-    while True:
-        response = requests.get(api_url, headers=headers, params=params, timeout=60)
-        response.raise_for_status()
-
-        page_groups = response.json()
-
-        if not page_groups:
-            # No more data
-            break
-
-        groups.extend(page_groups)
-
-        logger.info(f"Fetched {len(page_groups)} groups from page {params['page']}")
-
-        # Check if there's a next page
-        next_page = response.headers.get("x-next-page")
-        if not next_page:
-            # No more pages
-            break
-
-        params["page"] = int(next_page)
-
-    logger.info(f"Fetched total of {len(groups)} groups for organization ID {org_id}")
+    logger.info(f"Fetching groups for organization ID {org_id}")
+    groups = get_paginated(
+        gitlab_url, token, f"/api/v4/groups/{org_id}/descendant_groups"
+    )
+    logger.info(f"Fetched {len(groups)} groups for organization ID {org_id}")
     return groups
 
 

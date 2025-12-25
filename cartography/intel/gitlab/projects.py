@@ -9,20 +9,19 @@ from typing import Any
 
 import httpx
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.organizations import get_organization
-from cartography.intel.gitlab.organizations import get_organizations
+from cartography.intel.gitlab.util import get_paginated
 from cartography.models.gitlab.projects import GitLabProjectSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# Concurrency settings for language fetching
-_MAX_CONCURRENT_REQUESTS = 10
-_REQUEST_TIMEOUT = 60.0
+# Default concurrency settings for language fetching (can be overridden via config)
+DEFAULT_MAX_CONCURRENT_REQUESTS = 10
+DEFAULT_REQUEST_TIMEOUT = 60.0
 
 
 async def _fetch_project_languages(
@@ -61,6 +60,7 @@ async def _fetch_all_languages(
     gitlab_url: str,
     token: str,
     projects: list[dict[str, Any]],
+    max_concurrent_requests: int = DEFAULT_MAX_CONCURRENT_REQUESTS,
 ) -> dict[int, dict[str, float]]:
     """
     Fetch languages for all projects concurrently using asyncio.
@@ -68,15 +68,18 @@ async def _fetch_all_languages(
     :param gitlab_url: The GitLab instance URL.
     :param token: The GitLab API token.
     :param projects: List of raw project dicts (must have 'id' key).
+    :param max_concurrent_requests: Maximum concurrent API requests (default: 10).
     :return: Dict mapping project_id to language dict {name: percentage}.
     """
     if not projects:
         return {}
 
     headers = {"PRIVATE-TOKEN": token}
-    semaphore = asyncio.Semaphore(_MAX_CONCURRENT_REQUESTS)
+    semaphore = asyncio.Semaphore(max_concurrent_requests)
 
-    async with httpx.AsyncClient(headers=headers, timeout=_REQUEST_TIMEOUT) as client:
+    async with httpx.AsyncClient(
+        headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT
+    ) as client:
         tasks = [
             _fetch_project_languages(client, semaphore, gitlab_url, project["id"])
             for project in projects
@@ -95,75 +98,18 @@ async def _fetch_all_languages(
     return languages_by_project
 
 
-def fetch_all_projects(gitlab_url: str, token: str) -> list[dict[str, Any]]:
-    """
-    Fetch all projects across all organizations from GitLab.
-
-    This is a helper function to avoid redundant API calls when multiple
-    sync functions need the same project list.
-    """
-    logger.info("Fetching all projects across all organizations")
-    organizations = get_organizations(gitlab_url, token)
-
-    all_projects = []
-    for org in organizations:
-        org_id: int = org["id"]
-        org_name: str = org["name"]
-        logger.info(f"Fetching projects for organization: {org_name}")
-        org_projects = get_projects(gitlab_url, token, org_id)
-        if org_projects:
-            all_projects.extend(org_projects)
-
-    logger.info(
-        f"Fetched total of {len(all_projects)} projects across all organizations"
-    )
-    return all_projects
-
-
 def get_projects(gitlab_url: str, token: str, group_id: int) -> list[dict[str, Any]]:
     """
-    Fetch all projects for a specific group from GitLab using REST API.
+    Fetch all projects for a specific group from GitLab.
     """
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-
-    # Use the /groups/:id/projects endpoint to get all projects in this group
-    api_url = f"{gitlab_url}/api/v4/groups/{group_id}/projects"
-    params = {
-        "per_page": 100,  # Max items per page
-        "page": 1,
-        "include_subgroups": True,  # Include projects from subgroups
-    }
-
-    projects = []
-
-    logger.info(f"Fetching projects for group ID {group_id} from {gitlab_url}")
-
-    while True:
-        response = requests.get(api_url, headers=headers, params=params, timeout=60)
-        response.raise_for_status()
-
-        page_projects = response.json()
-
-        if not page_projects:
-            # No more data
-            break
-
-        projects.extend(page_projects)
-
-        logger.info(f"Fetched {len(page_projects)} projects from page {params['page']}")
-
-        # Check if there's a next page
-        next_page = response.headers.get("x-next-page")
-        if not next_page:
-            # No more pages
-            break
-
-        params["page"] = int(next_page)
-
-    logger.info(f"Fetched total of {len(projects)} projects for group ID {group_id}")
+    logger.info(f"Fetching projects for group ID {group_id}")
+    projects = get_paginated(
+        gitlab_url,
+        token,
+        f"/api/v4/groups/{group_id}/projects",
+        extra_params={"include_subgroups": True},
+    )
+    logger.info(f"Fetched {len(projects)} projects for group ID {group_id}")
     return projects
 
 
