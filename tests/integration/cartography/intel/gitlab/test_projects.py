@@ -1,265 +1,232 @@
-from unittest.mock import patch
+"""Integration tests for GitLab projects module."""
 
-from cartography.intel.gitlab.repositories import _extract_groups_from_repositories
-from cartography.intel.gitlab.repositories import _load_gitlab_groups
-from cartography.intel.gitlab.repositories import _load_gitlab_repositories
-from cartography.intel.gitlab.repositories import _load_programming_languages
-from cartography.intel.gitlab.repositories import sync_gitlab_repositories
-from tests.data.gitlab.repositories import GET_GITLAB_LANGUAGE_MAPPINGS
-from tests.data.gitlab.repositories import GET_GITLAB_REPOSITORIES_RESPONSE
+import json
+
+from cartography.intel.gitlab.projects import load_projects
+from tests.data.gitlab.projects import TRANSFORMED_PROJECTS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-TEST_GITLAB_URL = "https://gitlab.example.com"
-TEST_GITLAB_TOKEN = "test_token_12345"
+TEST_ORG_URL = "https://gitlab.example.com/myorg"
 
 
-def _ensure_local_neo4j_has_test_data(neo4j_session):
-    """Helper to load test data into Neo4j"""
-    groups = _extract_groups_from_repositories(GET_GITLAB_REPOSITORIES_RESPONSE)
-    _load_gitlab_groups(neo4j_session, groups, TEST_UPDATE_TAG)
-    _load_gitlab_repositories(
-        neo4j_session, GET_GITLAB_REPOSITORIES_RESPONSE, TEST_UPDATE_TAG
+def _create_test_organization(neo4j_session):
+    """Create test GitLabOrganization node."""
+    neo4j_session.run(
+        """
+        MERGE (org:GitLabOrganization{id: $org_url})
+        ON CREATE SET org.firstseen = timestamp()
+        SET org.lastupdated = $update_tag,
+            org.name = 'myorg'
+        """,
+        org_url=TEST_ORG_URL,
+        update_tag=TEST_UPDATE_TAG,
     )
-    _load_programming_languages(
-        neo4j_session, GET_GITLAB_LANGUAGE_MAPPINGS, TEST_UPDATE_TAG
-    )
 
 
-def test_extract_groups_from_repositories():
-    """Test that groups are extracted correctly from repository data"""
-    groups = _extract_groups_from_repositories(GET_GITLAB_REPOSITORIES_RESPONSE)
-
-    # Should have 3 unique groups
-    assert len(groups) == 3
-
-    # Check that group IDs are present and include URL prefix
-    group_ids = {group["id"] for group in groups}
-    assert group_ids == {
-        "https://gitlab.example.com/groups/10",
-        "https://gitlab.example.com/groups/20",
-        "https://gitlab.example.com/groups/30",
-    }
-
-    # Check that groups have required fields
+def _create_test_groups(neo4j_session):
+    """Create test GitLabGroup nodes for nested groups."""
+    groups = [
+        {
+            "id": "https://gitlab.example.com/myorg/platform",
+            "name": "Platform",
+        },
+        {
+            "id": "https://gitlab.example.com/myorg/apps",
+            "name": "Apps",
+        },
+    ]
     for group in groups:
-        assert "id" in group
-        assert "name" in group
-        assert "path" in group
-        assert "full_path" in group
+        neo4j_session.run(
+            """
+            MERGE (g:GitLabGroup{id: $id})
+            ON CREATE SET g.firstseen = timestamp()
+            SET g.lastupdated = $update_tag,
+                g.name = $name
+            """,
+            id=group["id"],
+            name=group["name"],
+            update_tag=TEST_UPDATE_TAG,
+        )
 
 
-def test_load_gitlab_repositories(neo4j_session):
-    """Test that GitLab repositories are loaded correctly into Neo4j"""
-    # Arrange & Act
-    _ensure_local_neo4j_has_test_data(neo4j_session)
-
-    # Assert - Check that repository nodes exist with rich metadata
-    assert check_nodes(
-        neo4j_session,
-        "GitLabRepository",
-        ["id", "name", "path_with_namespace", "visibility"],
-    ) == {
-        (
-            "https://gitlab.example.com/projects/123",
-            "awesome-project",
-            "engineering/awesome-project",
-            "private",
-        ),
-        (
-            "https://gitlab.example.com/projects/456",
-            "backend-service",
-            "services/backend-service",
-            "internal",
-        ),
-        (
-            "https://gitlab.example.com/projects/789",
-            "frontend-app",
-            "apps/frontend-app",
-            "public",
-        ),
-    }
-
-    # Check URLs are populated
-    result = neo4j_session.run(
-        """
-        MATCH (r:GitLabRepository)
-        WHERE r.id = 'https://gitlab.example.com/projects/123'
-        RETURN r.web_url as web_url,
-               r.ssh_url_to_repo as ssh_url,
-               r.http_url_to_repo as http_url
-        """,
-    )
-    record = result.single()
-    assert record["web_url"] == "https://gitlab.example.com/engineering/awesome-project"
-    assert record["ssh_url"] == "git@gitlab.example.com:engineering/awesome-project.git"
-    assert (
-        record["http_url"]
-        == "https://gitlab.example.com/engineering/awesome-project.git"
-    )
-
-    # Check stats are populated
-    result = neo4j_session.run(
-        """
-        MATCH (r:GitLabRepository)
-        WHERE r.id = 'https://gitlab.example.com/projects/789'
-        RETURN r.star_count as stars,
-               r.forks_count as forks,
-               r.archived as archived
-        """,
-    )
-    record = result.single()
-    assert record["stars"] == 42
-    assert record["forks"] == 8
-    assert record["archived"] is False
-
-
-def test_load_gitlab_groups(neo4j_session):
-    """Test that GitLab groups are loaded correctly into Neo4j"""
-    # Arrange & Act
-    _ensure_local_neo4j_has_test_data(neo4j_session)
-
-    # Assert - Check that group nodes exist
-    assert check_nodes(
-        neo4j_session,
-        "GitLabGroup",
-        ["id", "name", "path"],
-    ) == {
-        ("https://gitlab.example.com/groups/10", "Engineering", "engineering"),
-        ("https://gitlab.example.com/groups/20", "Services", "services"),
-        ("https://gitlab.example.com/groups/30", "Apps", "apps"),
-    }
-
-
-def test_group_to_repository_relationships(neo4j_session):
-    """Test that OWNER relationships are created correctly"""
-    # Arrange & Act
-    _ensure_local_neo4j_has_test_data(neo4j_session)
-
-    # Assert - Check OWNER relationships from Group to Repository
-    assert check_rels(
-        neo4j_session,
-        "GitLabGroup",
-        "id",
-        "GitLabRepository",
-        "id",
-        "OWNER",
-        rel_direction_right=True,
-    ) == {
-        (
-            "https://gitlab.example.com/groups/10",
-            "https://gitlab.example.com/projects/123",
-        ),  # Engineering owns awesome-project
-        (
-            "https://gitlab.example.com/groups/20",
-            "https://gitlab.example.com/projects/456",
-        ),  # Services owns backend-service
-        (
-            "https://gitlab.example.com/groups/30",
-            "https://gitlab.example.com/projects/789",
-        ),  # Apps owns frontend-app
-    }
-
-
-def test_language_relationships(neo4j_session):
-    """Test that LANGUAGE relationships are created correctly"""
-    # Arrange & Act
-    _ensure_local_neo4j_has_test_data(neo4j_session)
-
-    # Assert - Check that ProgrammingLanguage nodes exist
-    assert check_nodes(
-        neo4j_session,
-        "ProgrammingLanguage",
-        ["name"],
-    ) == {
-        ("Python",),
-        ("JavaScript",),
-        ("Go",),
-        ("Shell",),
-        ("TypeScript",),
-        ("CSS",),
-        ("HTML",),
-    }
-
-    # Check LANGUAGE relationships from Repository to Language
-    assert check_rels(
-        neo4j_session,
-        "GitLabRepository",
-        "id",
-        "ProgrammingLanguage",
-        "name",
-        "LANGUAGE",
-        rel_direction_right=True,
-    ) == {
-        ("https://gitlab.example.com/projects/123", "Python"),
-        ("https://gitlab.example.com/projects/123", "JavaScript"),
-        ("https://gitlab.example.com/projects/456", "Go"),
-        ("https://gitlab.example.com/projects/456", "Shell"),
-        ("https://gitlab.example.com/projects/789", "TypeScript"),
-        ("https://gitlab.example.com/projects/789", "CSS"),
-        ("https://gitlab.example.com/projects/789", "HTML"),
-    }
-
-    # Check language percentage is stored on relationship
-    result = neo4j_session.run(
-        """
-        MATCH (r:GitLabRepository {id: 'https://gitlab.example.com/projects/123'})-[rel:LANGUAGE]->(l:ProgrammingLanguage {name: 'Python'})
-        RETURN rel.percentage as percentage
-        """,
-    )
-    record = result.single()
-    assert record["percentage"] == 65.5
-
-
-@patch("cartography.intel.gitlab.repositories.get_gitlab_repositories")
-@patch("cartography.intel.gitlab.repositories._get_repository_languages")
-def test_sync_gitlab_repositories(mock_get_languages, mock_get_repos, neo4j_session):
-    """Test the full sync_gitlab_repositories function"""
+def test_load_gitlab_projects_nodes(neo4j_session):
+    """Test that GitLab projects are loaded correctly into Neo4j."""
     # Arrange
-    mock_get_repos.return_value = GET_GITLAB_REPOSITORIES_RESPONSE
-    mock_get_languages.return_value = GET_GITLAB_LANGUAGE_MAPPINGS
+    _create_test_organization(neo4j_session)
 
     # Act
-    sync_gitlab_repositories(
+    load_projects(
         neo4j_session,
-        TEST_GITLAB_URL,
-        TEST_GITLAB_TOKEN,
+        TRANSFORMED_PROJECTS,
+        TEST_ORG_URL,
         TEST_UPDATE_TAG,
     )
 
-    # Assert - Verify the mocks were called correctly
-    mock_get_repos.assert_called_once_with(TEST_GITLAB_URL, TEST_GITLAB_TOKEN)
-    mock_get_languages.assert_called_once()
-
-    # Verify repositories were loaded
-    assert check_nodes(
-        neo4j_session,
-        "GitLabRepository",
-        ["id", "name"],
-    ) == {
-        ("https://gitlab.example.com/projects/123", "awesome-project"),
-        ("https://gitlab.example.com/projects/456", "backend-service"),
-        ("https://gitlab.example.com/projects/789", "frontend-app"),
+    # Assert - Check that project nodes exist
+    expected_nodes = {
+        ("https://gitlab.example.com/myorg/awesome-project", "awesome-project"),
+        (
+            "https://gitlab.example.com/myorg/platform/backend-service",
+            "backend-service",
+        ),
+        ("https://gitlab.example.com/myorg/apps/frontend-app", "frontend-app"),
     }
+    assert check_nodes(neo4j_session, "GitLabProject", ["id", "name"]) == expected_nodes
 
-    # Verify groups were loaded
-    assert check_nodes(
+
+def test_load_gitlab_projects_to_organization_relationships(neo4j_session):
+    """Test that RESOURCE relationships to organization are created."""
+    # Arrange
+    _create_test_organization(neo4j_session)
+
+    # Act
+    load_projects(
         neo4j_session,
-        "GitLabGroup",
-        ["name"],
-    ) == {
-        ("Engineering",),
-        ("Services",),
-        ("Apps",),
-    }
+        TRANSFORMED_PROJECTS,
+        TEST_ORG_URL,
+        TEST_UPDATE_TAG,
+    )
 
-    # Verify languages were loaded
+    # Assert - Check RESOURCE relationships from Organization to Project
+    expected = {
+        (TEST_ORG_URL, "https://gitlab.example.com/myorg/awesome-project"),
+        (TEST_ORG_URL, "https://gitlab.example.com/myorg/platform/backend-service"),
+        (TEST_ORG_URL, "https://gitlab.example.com/myorg/apps/frontend-app"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitLabOrganization",
+            "id",
+            "GitLabProject",
+            "id",
+            "RESOURCE",
+        )
+        == expected
+    )
+
+
+def test_load_gitlab_projects_to_group_relationships(neo4j_session):
+    """Test that CAN_ACCESS relationships to nested groups are created."""
+    # Arrange
+    _create_test_organization(neo4j_session)
+    _create_test_groups(neo4j_session)
+
+    # Act
+    load_projects(
+        neo4j_session,
+        TRANSFORMED_PROJECTS,
+        TEST_ORG_URL,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert - Check CAN_ACCESS relationships from Group to Project
+    # Only projects in nested groups should have this relationship
+    expected = {
+        (
+            "https://gitlab.example.com/myorg/platform",
+            "https://gitlab.example.com/myorg/platform/backend-service",
+        ),
+        (
+            "https://gitlab.example.com/myorg/apps",
+            "https://gitlab.example.com/myorg/apps/frontend-app",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitLabGroup",
+            "id",
+            "GitLabProject",
+            "id",
+            "CAN_ACCESS",
+        )
+        == expected
+    )
+
+
+def test_load_gitlab_projects_properties(neo4j_session):
+    """Test that project properties are loaded correctly."""
+    # Arrange
+    _create_test_organization(neo4j_session)
+
+    # Act
+    load_projects(
+        neo4j_session,
+        TRANSFORMED_PROJECTS,
+        TEST_ORG_URL,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert - Check that all project properties are loaded correctly
+    expected_nodes = {
+        (
+            "https://gitlab.example.com/myorg/awesome-project",
+            "awesome-project",
+            "private",
+            "main",
+            False,
+        ),
+        (
+            "https://gitlab.example.com/myorg/platform/backend-service",
+            "backend-service",
+            "internal",
+            "master",
+            False,
+        ),
+        (
+            "https://gitlab.example.com/myorg/apps/frontend-app",
+            "frontend-app",
+            "public",
+            "main",
+            False,
+        ),
+    }
+    assert (
+        check_nodes(
+            neo4j_session,
+            "GitLabProject",
+            ["id", "name", "visibility", "default_branch", "archived"],
+        )
+        == expected_nodes
+    )
+
+
+def test_load_gitlab_projects_languages_property(neo4j_session):
+    """Test that languages property is stored as JSON on projects."""
+    # Arrange
+    _create_test_organization(neo4j_session)
+
+    # Act
+    load_projects(
+        neo4j_session,
+        TRANSFORMED_PROJECTS,
+        TEST_ORG_URL,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert - Check that languages property is stored correctly
     result = neo4j_session.run(
         """
-        MATCH (l:ProgrammingLanguage)
-        RETURN count(l) as count
+        MATCH (p:GitLabProject)
+        WHERE p.id = 'https://gitlab.example.com/myorg/awesome-project'
+        RETURN p.languages as languages
         """,
     )
     record = result.single()
-    assert record["count"] == 7
+    languages = json.loads(record["languages"])
+    assert languages == {"Python": 65.5, "JavaScript": 34.5}
+
+    # Check another project
+    result = neo4j_session.run(
+        """
+        MATCH (p:GitLabProject)
+        WHERE p.id = 'https://gitlab.example.com/myorg/platform/backend-service'
+        RETURN p.languages as languages
+        """,
+    )
+    record = result.single()
+    languages = json.loads(record["languages"])
+    assert languages == {"Go": 85.0, "Shell": 15.0}
