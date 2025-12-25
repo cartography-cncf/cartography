@@ -477,7 +477,7 @@ When `cascade_delete=True`, the cleanup query becomes:
 WHERE n.lastupdated <> $UPDATE_TAG
 WITH n LIMIT $LIMIT_SIZE
 OPTIONAL MATCH (n)-[:RESOURCE]->(child)
-WHERE child.lastupdated <> $UPDATE_TAG
+WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
 DETACH DELETE child, n;
 ```
 
