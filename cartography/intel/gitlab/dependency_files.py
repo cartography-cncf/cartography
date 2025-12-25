@@ -6,10 +6,11 @@ import logging
 from typing import Any
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gitlab.util import check_rate_limit_remaining
+from cartography.intel.gitlab.util import make_request_with_retry
 from cartography.models.gitlab.manifests import GitLabDependencyFileSchema
 from cartography.util import timeit
 
@@ -24,6 +25,8 @@ def get_dependency_files(
 
     This recursively searches the entire repository tree for known dependency manifest files
     (package.json, requirements.txt, go.mod, etc.) using the Repository Tree API.
+
+    Uses retry logic with exponential backoff for rate limiting and transient errors.
     """
     # Known dependency manifest files to search for
     manifest_files = {
@@ -45,13 +48,13 @@ def get_dependency_files(
         "Content-Type": "application/json",
     }
 
-    logger.info(
+    logger.debug(
         f"Searching for dependency files in project ID {project_id} from {gitlab_url}"
     )
 
     # breadth first search to get manifest files in the repo tree
-    paths_to_search = [""]
-    found_files = []
+    paths_to_search: list[str] = [""]
+    found_files: list[dict[str, Any]] = []
 
     while paths_to_search:
         current_path = paths_to_search.pop(0)
@@ -68,7 +71,7 @@ def get_dependency_files(
 
         # Paginate through tree items at this path
         while True:
-            response = requests.get(api_url, headers=headers, params=params, timeout=60)
+            response = make_request_with_retry("GET", api_url, headers, params)
 
             if response.status_code == 404:
                 # Path doesn't exist or repository is empty
@@ -76,6 +79,7 @@ def get_dependency_files(
                 break
 
             response.raise_for_status()
+            check_rate_limit_remaining(response)
             tree_items = response.json()
 
             if not tree_items:
@@ -109,7 +113,7 @@ def get_dependency_files(
 
             params["page"] = int(next_page)
 
-    logger.info(
+    logger.debug(
         f"Found {len(found_files)} dependency manifest files in project ID {project_id}"
     )
     return found_files
@@ -188,11 +192,25 @@ def sync_gitlab_dependency_files(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     projects: list[dict[str, Any]],
-) -> None:
+) -> dict[str, list[dict[str, Any]]]:
     """
     Sync GitLab dependency files for all projects.
+
+    Returns a dict mapping project_url to transformed dependency files for use
+    by downstream sync functions (e.g., dependencies sync) to avoid duplicate API calls.
+
+    :param neo4j_session: Neo4j session.
+    :param gitlab_url: The GitLab instance URL.
+    :param token: The GitLab API token.
+    :param update_tag: Update tag for tracking data freshness.
+    :param common_job_parameters: Common job parameters.
+    :param projects: List of project dicts to sync.
+    :return: Dict mapping project_url to list of transformed dependency files.
     """
     logger.info(f"Syncing GitLab dependency files for {len(projects)} projects")
+
+    # Store dependency files per project to avoid re-fetching in dependencies sync
+    dependency_files_by_project: dict[str, list[dict[str, Any]]] = {}
 
     # Sync dependency files for each project
     for project in projects:
@@ -200,22 +218,27 @@ def sync_gitlab_dependency_files(
         project_name: str = project["name"]
         project_url: str = project["web_url"]
 
-        logger.info(f"Syncing dependency files for project: {project_name}")
+        logger.debug(f"Syncing dependency files for project: {project_name}")
 
         raw_dependency_files = get_dependency_files(gitlab_url, token, project_id)
 
         if not raw_dependency_files:
-            logger.info(f"No dependency files found for project {project_name}")
+            logger.debug(f"No dependency files found for project {project_name}")
+            dependency_files_by_project[project_url] = []
             continue
 
         transformed_files = transform_dependency_files(
             raw_dependency_files, project_url
         )
 
-        logger.info(
+        # Store for downstream use
+        dependency_files_by_project[project_url] = transformed_files
+
+        logger.debug(
             f"Found {len(transformed_files)} dependency files in project {project_name}"
         )
 
         load_dependency_files(neo4j_session, transformed_files, project_url, update_tag)
 
     logger.info("GitLab dependency files sync completed")
+    return dependency_files_by_project

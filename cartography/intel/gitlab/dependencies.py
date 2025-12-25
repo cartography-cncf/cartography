@@ -15,12 +15,15 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gitlab.dependency_files import get_dependency_files
-from cartography.intel.gitlab.dependency_files import transform_dependency_files
+from cartography.intel.gitlab.util import check_rate_limit_remaining
+from cartography.intel.gitlab.util import make_request_with_retry
 from cartography.models.gitlab.dependencies import GitLabDependencySchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Default dependency scanning job name (GitLab's default)
+DEFAULT_DEPENDENCY_SCAN_JOB_NAME = "gemnasium-dependency_scanning"
 
 
 def get_dependencies(
@@ -29,51 +32,63 @@ def get_dependencies(
     project_id: int,
     dependency_files: list[dict[str, Any]],
     default_branch: str = "main",
+    dependency_scan_job_name: str = DEFAULT_DEPENDENCY_SCAN_JOB_NAME,
 ) -> list[dict[str, Any]]:
     """
     Fetch dependencies from the latest dependency scanning job artifacts.
 
-    Finds the most recent successful gemnasium-dependency_scanning job,
-    downloads its artifacts, and parses the dependency scanning report.
+    Finds the most recent successful dependency scanning job, downloads its artifacts,
+    and parses the dependency scanning report.
+
+    Uses retry logic with exponential backoff for rate limiting and transient errors.
+
+    :param gitlab_url: The GitLab instance URL.
+    :param token: The GitLab API token.
+    :param project_id: The numeric project ID.
+    :param dependency_files: List of transformed dependency files for mapping.
+    :param default_branch: The default branch to fetch artifacts from.
+    :param dependency_scan_job_name: The name of the dependency scanning job
+        (default: 'gemnasium-dependency_scanning').
+    :return: List of dependency dictionaries.
     """
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
 
-    logger.info(
+    logger.debug(
         f"Fetching dependencies from scanning artifacts for project ID {project_id}"
     )
 
     # Find the latest successful dependency scanning job
     jobs_url = f"{gitlab_url}/api/v4/projects/{project_id}/jobs"
-    params: dict[str, int | list[str]] = {
+    params: dict[str, Any] = {
         "per_page": 10,
         "scope[]": ["success"],
     }
 
+    job_id: int | None = None
     try:
-        response = requests.get(jobs_url, headers=headers, params=params, timeout=60)
+        response = make_request_with_retry("GET", jobs_url, headers, params)
         response.raise_for_status()
+        check_rate_limit_remaining(response)
         jobs = response.json()
 
-        # Find the most recent gemnasium-dependency_scanning job
-        # TODO: In a future PR, make the job name configurable as gemnasium-dependency_scanning
-        # is the default GitLab job name, but users could have custom job names for dependency scanning
+        # Find the most recent dependency scanning job matching the configured name
         dep_scan_job = None
         for job in jobs:
-            if job.get("name") == "gemnasium-dependency_scanning":
+            if job.get("name") == dependency_scan_job_name:
                 dep_scan_job = job
                 break
 
         if not dep_scan_job:
-            logger.info(
-                f"No successful dependency scanning job found for project ID {project_id}"
+            logger.debug(
+                f"No successful '{dependency_scan_job_name}' job found for project ID {project_id}"
             )
             return []
 
         job_id = dep_scan_job.get("id")
-        logger.info(
+        logger.debug(
             f"Found dependency scanning job ID {job_id} for project ID {project_id}"
         )
 
@@ -83,24 +98,23 @@ def get_dependencies(
 
     # Download the job artifacts
     artifacts_url = f"{gitlab_url}/api/v4/projects/{project_id}/jobs/artifacts/{default_branch}/download"
-    # Note: Uses default GitLab job name - see TODO above about making this configurable
-    params_artifacts = {
-        "job": "gemnasium-dependency_scanning",
+    params_artifacts: dict[str, str] = {
+        "job": dependency_scan_job_name,
     }
 
-    logger.info(
+    logger.debug(
         f"Downloading artifacts from branch '{default_branch}' for project ID {project_id}"
     )
 
     try:
-        response = requests.get(
-            artifacts_url, headers=headers, params=params_artifacts, timeout=60
+        response = make_request_with_retry(
+            "GET", artifacts_url, headers, params_artifacts
         )
 
-        logger.info(f"Artifacts download response status: {response.status_code}")
+        logger.debug(f"Artifacts download response status: {response.status_code}")
 
         if response.status_code == 404:
-            logger.warning(
+            logger.debug(
                 f"No artifacts found for dependency scanning job in project {project_id}"
             )
             return []
@@ -113,6 +127,7 @@ def get_dependencies(
             )
 
         response.raise_for_status()
+        check_rate_limit_remaining(response)
 
         # The response is a ZIP file containing the artifacts
         artifacts_zip = zipfile.ZipFile(io.BytesIO(response.content))
@@ -126,22 +141,22 @@ def get_dependencies(
         ]
 
         if not cdx_files:
-            logger.warning(
+            logger.debug(
                 f"No CycloneDX SBOM files found in artifacts for project ID {project_id}"
             )
-            logger.info(f"Available files: {artifacts_zip.namelist()}")
+            logger.debug(f"Available files: {artifacts_zip.namelist()}")
             return []
 
         # Parse all CycloneDX files (there may be multiple for different package managers)
-        all_dependencies = []
+        all_dependencies: list[dict[str, Any]] = []
         for cdx_file in cdx_files:
-            logger.info(f"Parsing CycloneDX SBOM file: {cdx_file}")
+            logger.debug(f"Parsing CycloneDX SBOM file: {cdx_file}")
             with artifacts_zip.open(cdx_file) as report_file:
                 report_data = json.load(report_file)
                 deps = _parse_cyclonedx_sbom(report_data, dependency_files)
                 all_dependencies.extend(deps)
 
-        logger.info(
+        logger.debug(
             f"Successfully parsed {len(cdx_files)} CycloneDX SBOM file(s) for project ID {project_id}"
         )
 
@@ -155,7 +170,7 @@ def get_dependencies(
         logger.error(f"Invalid JSON in CycloneDX SBOM: {e}")
         return []
 
-    logger.info(
+    logger.debug(
         f"Extracted {len(all_dependencies)} dependencies for project ID {project_id}"
     )
     return all_dependencies
@@ -324,9 +339,19 @@ def sync_gitlab_dependencies(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     projects: list[dict[str, Any]],
+    dependency_files_by_project: dict[str, list[dict[str, Any]]] | None = None,
 ) -> None:
     """
     Sync GitLab dependencies for all projects.
+
+    :param neo4j_session: Neo4j session.
+    :param gitlab_url: The GitLab instance URL.
+    :param token: The GitLab API token.
+    :param update_tag: Update tag for tracking data freshness.
+    :param common_job_parameters: Common job parameters.
+    :param projects: List of project dicts to sync.
+    :param dependency_files_by_project: Pre-fetched dependency files from dependency_files sync.
+        If provided, avoids duplicate API calls. Dict maps project_url to list of files.
     """
     logger.info(f"Syncing GitLab dependencies for {len(projects)} projects")
 
@@ -337,29 +362,45 @@ def sync_gitlab_dependencies(
         project_url: str = project["web_url"]
         default_branch: str = project.get("default_branch") or "main"
 
-        logger.info(f"Syncing dependencies for project: {project_name}")
+        logger.debug(f"Syncing dependencies for project: {project_name}")
 
-        raw_dependency_files = get_dependency_files(gitlab_url, token, project_id)
+        # Use pre-fetched dependency files if available, otherwise fetch them
+        if dependency_files_by_project is not None:
+            transformed_files = dependency_files_by_project.get(project_url, [])
+        else:
+            # Fallback: import here to avoid circular import at module level
+            from cartography.intel.gitlab.dependency_files import get_dependency_files
+            from cartography.intel.gitlab.dependency_files import (
+                transform_dependency_files,
+            )
 
-        if not raw_dependency_files:
-            logger.info(f"No dependency files found for project {project_name}")
+            raw_dependency_files = get_dependency_files(gitlab_url, token, project_id)
+            if not raw_dependency_files:
+                logger.debug(f"No dependency files found for project {project_name}")
+                continue
+            transformed_files = transform_dependency_files(
+                raw_dependency_files, project_url
+            )
+
+        if not transformed_files:
+            logger.debug(f"No dependency files found for project {project_name}")
             continue
 
-        transformed_files = transform_dependency_files(
-            raw_dependency_files, project_url
-        )
-
         raw_dependencies = get_dependencies(
-            gitlab_url, token, project_id, transformed_files, default_branch
+            gitlab_url,
+            token,
+            project_id,
+            transformed_files,
+            default_branch,
         )
 
         if not raw_dependencies:
-            logger.info(f"No dependencies found for project {project_name}")
+            logger.debug(f"No dependencies found for project {project_name}")
             continue
 
         transformed_dependencies = transform_dependencies(raw_dependencies, project_url)
 
-        logger.info(
+        logger.debug(
             f"Found {len(transformed_dependencies)} dependencies in project {project_name}"
         )
 

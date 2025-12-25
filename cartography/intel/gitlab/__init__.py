@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import neo4j
 
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
     If this module is configured, perform ingestion of GitLab data. Otherwise warn and exit.
+
     :param neo4j_session: Neo4J session for database interface
     :param config: A cartography.config object
     :return: None
@@ -29,11 +31,11 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
         return
 
-    gitlab_url = config.gitlab_url
-    token = config.gitlab_token
-    organization_id = config.gitlab_organization_id
+    gitlab_url: str = config.gitlab_url
+    token: str = config.gitlab_token
+    organization_id: int = config.gitlab_organization_id
 
-    common_job_parameters = {
+    common_job_parameters: dict[str, Any] = {
         "UPDATE_TAG": config.update_tag,
         "ORGANIZATION_ID": organization_id,
     }
@@ -55,6 +57,8 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         logger.warning(f"Organization {organization_id} not found")
         return
 
+    org_url: str = organization["web_url"]
+
     # Sync groups (nested subgroups within this organization)
     cartography.intel.gitlab.groups.sync_gitlab_groups(
         neo4j_session,
@@ -74,9 +78,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         common_job_parameters,
     )
 
-    org_url: str = organization["web_url"]
-
-    # Sync branches  - pass projects to avoid re-fetching
+    # Sync branches - pass projects to avoid re-fetching
     cartography.intel.gitlab.branches.sync_gitlab_branches(
         neo4j_session,
         gitlab_url,
@@ -86,17 +88,19 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         all_projects,
     )
 
-    # Sync dependency files
-    cartography.intel.gitlab.dependency_files.sync_gitlab_dependency_files(
-        neo4j_session,
-        gitlab_url,
-        token,
-        config.update_tag,
-        common_job_parameters,
-        all_projects,
+    # Sync dependency files - returns data to avoid duplicate API calls in dependencies sync
+    dependency_files_by_project = (
+        cartography.intel.gitlab.dependency_files.sync_gitlab_dependency_files(
+            neo4j_session,
+            gitlab_url,
+            token,
+            config.update_tag,
+            common_job_parameters,
+            all_projects,
+        )
     )
 
-    # Sync dependencies
+    # Sync dependencies - pass pre-fetched dependency files to avoid duplicate API calls
     cartography.intel.gitlab.dependencies.sync_gitlab_dependencies(
         neo4j_session,
         gitlab_url,
@@ -104,6 +108,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         config.update_tag,
         common_job_parameters,
         all_projects,
+        dependency_files_by_project,
     )
 
     # ========================================
@@ -112,7 +117,6 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     logger.info("Starting GitLab cleanup phase")
 
     # Cleanup leaf nodes (dependencies, dependency_files, branches) for each project
-    logger.info(f"Cleaning up leaf nodes for {len(all_projects)} projects")
     for project in all_projects:
         project_url: str = project["web_url"]
 
@@ -132,19 +136,16 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
 
     # Cleanup projects with cascade delete
-    logger.info("Cleaning up projects with cascade delete")
     cartography.intel.gitlab.projects.cleanup_projects(
         neo4j_session, common_job_parameters, org_url
     )
 
     # Cleanup groups with cascade delete
-    logger.info("Cleaning up groups with cascade delete")
     cartography.intel.gitlab.groups.cleanup_groups(
         neo4j_session, common_job_parameters, org_url
     )
 
     # Cleanup organizations
-    logger.info("Cleaning up organizations")
     cartography.intel.gitlab.organizations.cleanup_organizations(
         neo4j_session, common_job_parameters, gitlab_url
     )
