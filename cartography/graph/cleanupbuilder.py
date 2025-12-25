@@ -182,12 +182,13 @@ def _build_cleanup_node_and_rel_queries(
 
     # The cleanup node query must always be before the cleanup rel query
     if cascade_delete:
-        # When cascade_delete is enabled, also delete all children that point to stale nodes via RESOURCE relationships
+        # When cascade_delete is enabled, also delete all children that have RESOURCE relationships from stale nodes
+        # In Cartography, RESOURCE relationships point from parent to child: (Parent)-[:RESOURCE]->(Child)
         delete_action_clauses = [
             """
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (child)-[:RESOURCE]->(n)
+        OPTIONAL MATCH (n)-[:RESOURCE]->(child)
         DETACH DELETE child, n;
         """,
         ]
@@ -259,11 +260,12 @@ def _build_cleanup_node_query_unscoped(
 
     # The cleanup node query must always be before the cleanup rel query
     if cascade_delete:
-        # When cascade_delete is enabled, also delete all children that point to stale nodes via RESOURCE relationships
+        # When cascade_delete is enabled, also delete all children that have RESOURCE relationships from stale nodes
+        # In Cartography, RESOURCE relationships point from parent to child: (Parent)-[:RESOURCE]->(Child)
         delete_action_clause = """
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (child)-[:RESOURCE]->(n)
+        OPTIONAL MATCH (n)-[:RESOURCE]->(child)
         DETACH DELETE child, n;
     """
     else:

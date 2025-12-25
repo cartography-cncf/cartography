@@ -46,7 +46,8 @@ def test_cascade_delete_true_generates_cascade_delete():
     node_cleanup_query = actual_queries[0]
 
     # Should have OPTIONAL MATCH to find children with RESOURCE relationship
-    assert "OPTIONAL MATCH (child)-[:RESOURCE]->(n)" in node_cleanup_query
+    # In Cartography, RESOURCE points from parent to child: (Parent)-[:RESOURCE]->(Child)
+    assert "OPTIONAL MATCH (n)-[:RESOURCE]->(child)" in node_cleanup_query
     # Should delete both child and parent
     assert "DETACH DELETE child, n;" in node_cleanup_query
 
@@ -80,7 +81,7 @@ def test_build_cleanup_queries_cascade_delete_true():
 
     # First query should be node cleanup with cascade
     node_cleanup_query = actual_queries[0]
-    assert "OPTIONAL MATCH (child)-[:RESOURCE]->(n)" in node_cleanup_query
+    assert "OPTIONAL MATCH (n)-[:RESOURCE]->(child)" in node_cleanup_query
     assert "DETACH DELETE child, n;" in node_cleanup_query
 
 
@@ -113,7 +114,7 @@ def test_cascade_delete_full_query_structure():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (child)-[:RESOURCE]->(n)
+        OPTIONAL MATCH (n)-[:RESOURCE]->(child)
         DETACH DELETE child, n;
     """
 

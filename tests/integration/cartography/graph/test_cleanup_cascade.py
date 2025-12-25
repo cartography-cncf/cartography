@@ -26,7 +26,8 @@ def _create_child_nodes_with_resource_rel(
     neo4j_session, parent_id: str, lastupdated: int
 ):
     """
-    Create child nodes that have RESOURCE relationships pointing to the parent InterestingAsset.
+    Create child nodes that have RESOURCE relationships from the parent InterestingAsset.
+    In Cartography, RESOURCE relationships point from parent to child: (Parent)-[:RESOURCE]->(Child).
     This simulates a hierarchical relationship like GitLab Organization -> Groups -> Projects.
     """
     neo4j_session.run(
@@ -36,7 +37,7 @@ def _create_child_nodes_with_resource_rel(
             c1.name = 'Child One'
         WITH c1
         MATCH (p:InterestingAsset{id: $parent_id})
-        MERGE (c1)-[:RESOURCE]->(p)
+        MERGE (p)-[:RESOURCE]->(c1)
         """,
         parent_id=parent_id,
         lastupdated=lastupdated,
@@ -48,7 +49,7 @@ def _create_child_nodes_with_resource_rel(
             c2.name = 'Child Two'
         WITH c2
         MATCH (p:InterestingAsset{id: $parent_id})
-        MERGE (c2)-[:RESOURCE]->(p)
+        MERGE (p)-[:RESOURCE]->(c2)
         """,
         parent_id=parent_id,
         lastupdated=lastupdated,
@@ -62,7 +63,7 @@ def test_cascade_delete_removes_children(neo4j_session):
 
     Arrange:
         - Create InterestingAsset (parent) at lastupdated=1
-        - Create ChildNode nodes with RESOURCE->InterestingAsset relationships
+        - Create ChildNode nodes with InterestingAsset-[:RESOURCE]->ChildNode relationships
 
     Act:
         - Create new InterestingAsset at lastupdated=2 (making old one stale)
@@ -91,22 +92,23 @@ def test_cascade_delete_removes_children(neo4j_session):
         neo4j_session, "interesting-node-id", lastupdated=1
     )
 
-    # Sanity check: verify child nodes exist and have RESOURCE relationship to parent
+    # Sanity check: verify child nodes exist and have RESOURCE relationship from parent
     assert check_nodes(neo4j_session, "ChildNode", ["id"]) == {
         ("child-1",),
         ("child-2",),
     }
+    # In Cartography, RESOURCE points from parent to child: (Parent)-[:RESOURCE]->(Child)
     assert check_rels(
         neo4j_session,
-        "ChildNode",
-        "id",
         "InterestingAsset",
+        "id",
+        "ChildNode",
         "id",
         "RESOURCE",
         rel_direction_right=True,
     ) == {
-        ("child-1", "interesting-node-id"),
-        ("child-2", "interesting-node-id"),
+        ("interesting-node-id", "child-1"),
+        ("interesting-node-id", "child-2"),
     }
 
     # Act: Make the parent stale by not updating it (we just run cleanup with UPDATE_TAG=2)
@@ -134,7 +136,7 @@ def test_no_cascade_delete_preserves_children(neo4j_session):
 
     Arrange:
         - Create InterestingAsset (parent) at lastupdated=1
-        - Create ChildNode nodes with RESOURCE->InterestingAsset relationships
+        - Create ChildNode nodes with InterestingAsset-[:RESOURCE]->ChildNode relationships
 
     Act:
         - Run cleanup with cascade_delete=False (default)
