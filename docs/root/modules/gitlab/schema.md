@@ -5,8 +5,8 @@ graph LR
 
 O(GitLabOrganization) -- RESOURCE --> G(GitLabGroup)
 O -- RESOURCE --> P(GitLabProject)
-G -- RESOURCE --> G
-G -- CAN_ACCESS --> P
+G -- MEMBER_OF --> G
+P -- MEMBER_OF --> G
 U(GitLabUser) -- MEMBER_OF --> O
 U -- MEMBER_OF --> G
 U -- MEMBER_OF --> P
@@ -82,16 +82,16 @@ Representation of a GitLab nested subgroup. Groups can contain other groups (cre
     (GitLabOrganization)-[RESOURCE]->(GitLabGroup)
     ```
 
-- GitLabGroups can have child GitLabGroups (nested structure).
+- GitLabGroups can be members of parent GitLabGroups (nested structure).
 
     ```
-    (GitLabGroup)-[RESOURCE]->(GitLabGroup)
+    (GitLabGroup)-[MEMBER_OF]->(GitLabGroup)
     ```
 
-- GitLabGroups can have access to GitLabProjects (group sharing).
+- GitLabProjects can be members of GitLabGroups.
 
     ```
-    (GitLabGroup)-[CAN_ACCESS{access_level}]->(GitLabProject)
+    (GitLabProject)-[MEMBER_OF]->(GitLabGroup)
     ```
 
 - GitLabUsers can be members of GitLabGroups with different access levels.
@@ -163,10 +163,10 @@ ORDER BY project_count DESC
     (GitLabOrganization)-[RESOURCE]->(GitLabProject)
     ```
 
-- GitLabGroups can have access to GitLabProjects.
+- GitLabProjects can be members of GitLabGroups.
 
     ```
-    (GitLabGroup)-[CAN_ACCESS{access_level}]->(GitLabProject)
+    (GitLabProject)-[MEMBER_OF]->(GitLabGroup)
     ```
 
 - GitLabUsers can be members of GitLabProjects with different access levels.
