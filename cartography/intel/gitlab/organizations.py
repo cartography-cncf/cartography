@@ -167,11 +167,8 @@ def sync_gitlab_organizations(
 
     logger.info(f"Syncing GitLab organization ID {organization_id}")
 
+    # get_organization raises HTTPError on 404, so no need to check for empty response
     raw_org = get_organization(gitlab_url, token, organization_id)
-
-    if not raw_org:
-        logger.info(f"Organization {organization_id} not found")
-        return {}
 
     transformed_orgs = transform_organizations([raw_org], gitlab_url)
 

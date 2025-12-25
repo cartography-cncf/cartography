@@ -9,7 +9,6 @@ import json
 import logging
 import zipfile
 from typing import Any
-from typing import cast
 
 import neo4j
 import requests
@@ -107,10 +106,11 @@ def get_dependencies(
             return []
 
         if response.status_code == 401:
-            logger.error(
-                "Unauthorized (401) - token may need 'api' or 'read_api' scope"
+            # Auth errors are systemic - fail fast rather than silently skipping
+            raise requests.exceptions.HTTPError(
+                "Unauthorized (401) - token may need 'api' or 'read_api' scope",
+                response=response,
             )
-            return []
 
         response.raise_for_status()
 
@@ -332,10 +332,10 @@ def sync_gitlab_dependencies(
 
     # Sync dependencies for each project
     for project in projects:
-        project_id = cast(int, project.get("id"))
-        project_name = cast(str, project.get("name"))
-        project_url = cast(str, project.get("web_url"))
-        default_branch = cast(str, project.get("default_branch", "main"))
+        project_id: int = project["id"]
+        project_name: str = project["name"]
+        project_url: str = project["web_url"]
+        default_branch: str = project.get("default_branch") or "main"
 
         logger.info(f"Syncing dependencies for project: {project_name}")
 

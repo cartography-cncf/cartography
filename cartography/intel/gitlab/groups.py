@@ -7,7 +7,6 @@ Root-level groups (organizations) are handled by the organizations module.
 
 import logging
 from typing import Any
-from typing import cast
 
 import neo4j
 import requests
@@ -162,8 +161,8 @@ def sync_gitlab_groups(
 
     # Fetch the organization to get its URL
     org = get_organization(gitlab_url, token, organization_id)
-    org_url = cast(str, org.get("web_url"))
-    org_name = cast(str, org.get("name"))
+    org_url: str = org["web_url"]
+    org_name: str = org["name"]
 
     logger.info(f"Syncing groups for organization: {org_name} ({org_url})")
 

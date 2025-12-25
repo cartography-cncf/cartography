@@ -6,7 +6,6 @@ import asyncio
 import json
 import logging
 from typing import Any
-from typing import cast
 
 import httpx
 import neo4j
@@ -108,8 +107,8 @@ def fetch_all_projects(gitlab_url: str, token: str) -> list[dict[str, Any]]:
 
     all_projects = []
     for org in organizations:
-        org_id = cast(int, org.get("id"))
-        org_name = cast(str, org.get("name"))
+        org_id: int = org["id"]
+        org_name: str = org["name"]
         logger.info(f"Fetching projects for organization: {org_name}")
         org_projects = get_projects(gitlab_url, token, org_id)
         if org_projects:
@@ -275,12 +274,14 @@ def sync_gitlab_projects(
     token: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[dict[str, Any]]:
     """
     Sync GitLab projects for a specific organization.
 
     The organization ID should be passed in common_job_parameters["ORGANIZATION_ID"].
     This also fetches and stores language information for each project.
+
+    Returns the raw projects list to avoid redundant API calls in downstream sync functions.
     """
     organization_id = common_job_parameters.get("ORGANIZATION_ID")
     if not organization_id:
@@ -290,8 +291,8 @@ def sync_gitlab_projects(
 
     # Fetch the organization to get its URL
     org = get_organization(gitlab_url, token, organization_id)
-    org_url = cast(str, org.get("web_url"))
-    org_name = cast(str, org.get("name"))
+    org_url: str = org["web_url"]
+    org_name: str = org["name"]
 
     logger.info(f"Syncing projects for organization: {org_name}")
 
@@ -300,7 +301,7 @@ def sync_gitlab_projects(
 
     if not raw_projects:
         logger.info(f"No projects found for organization {org_name}")
-        return
+        return []
 
     # Fetch languages for all projects concurrently
     logger.info(f"Fetching languages for {len(raw_projects)} projects")
@@ -316,7 +317,7 @@ def sync_gitlab_projects(
 
     if not transformed_projects:
         logger.info(f"No group projects found for organization {org_name}")
-        return
+        return raw_projects
 
     logger.info(
         f"Found {len(transformed_projects)} projects in organization {org_name}"
@@ -325,3 +326,4 @@ def sync_gitlab_projects(
     load_projects(neo4j_session, transformed_projects, org_url, update_tag)
 
     logger.info("GitLab projects sync completed")
+    return raw_projects

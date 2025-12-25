@@ -4,7 +4,6 @@ GitLab Branches Intelligence Module
 
 import logging
 from typing import Any
-from typing import cast
 
 import neo4j
 import requests
@@ -146,9 +145,9 @@ def sync_gitlab_branches(
 
     # Sync branches for each project
     for project in projects:
-        project_id = cast(int, project.get("id"))
-        project_name = cast(str, project.get("name"))
-        project_url = cast(str, project.get("web_url"))
+        project_id: int = project["id"]
+        project_name: str = project["name"]
+        project_url: str = project["web_url"]
 
         logger.info(f"Syncing branches for project: {project_name}")
 

@@ -75,8 +75,8 @@ class GitLabGroupCanAccessProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitLabProjectToGroupRelProperties(CartographyRelProperties):
     """
-    Properties for the RESOURCE relationship between GitLabProject and GitLabGroup.
-    Represents the parent-child hierarchy for projects in groups.
+    Properties for the CAN_ACCESS relationship between GitLabProject and GitLabGroup.
+    Represents the immediate parent group of a project (for projects in nested groups).
     """
 
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -85,7 +85,7 @@ class GitLabProjectToGroupRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class GitLabProjectToGroupRel(CartographyRelSchema):
     """
-    Relationship from GitLabProject to GitLabGroup.
+    Relationship from GitLabGroup to GitLabProject via CAN_ACCESS.
     Represents the immediate parent group of a project (for projects in nested groups).
     """
 
