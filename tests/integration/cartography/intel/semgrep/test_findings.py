@@ -232,3 +232,57 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "HIGH",
         ),
     }
+
+
+@patch.object(
+    cartography.intel.semgrep.deployment,
+    "get_deployment",
+    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
+)
+@patch.object(
+    cartography.intel.semgrep.findings,
+    "get_sca_vulns",
+    return_value=tests.data.semgrep.sca.RAW_VULNS_WITH_UNKNOWN,
+)
+def test_sync_findings_with_unknown_vuln_identifier(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
+    """
+    Test that vulnerabilities with unknown identifier formats (not CVE or GHSA) 
+    result in empty ref_urls list instead of list with None values.
+    This prevents the Neo4j "Collections containing null values can not be stored" error.
+    """
+    # Arrange
+    create_github_repos(neo4j_session)
+    create_dependency_nodes(neo4j_session)
+    semgrep_app_token = "your_semgrep_app_token"
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+    }
+
+    # Act
+    sync_deployment(
+        neo4j_session,
+        semgrep_app_token,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    sync_findings(
+        neo4j_session,
+        semgrep_app_token,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert - Check that the vulnerability was created with empty ref_urls (not None)
+    assert check_nodes_as_list(
+        neo4j_session,
+        "SemgrepSCAFinding",
+        [
+            "id",
+            "cve_id", 
+            "ref_urls",
+        ],
+    ) == [
+        tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+        "UNKNOWN-2022-31129",
+        [],  # Should be empty list, not [None]
+    ]
