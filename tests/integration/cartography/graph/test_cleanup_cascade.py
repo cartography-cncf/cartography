@@ -90,3 +90,70 @@ def test_default_no_cascade_preserves_children(neo4j_session):
         ("child-1",),
         ("child-2",),
     }
+
+
+def _setup_parent_without_children(neo4j_session, lastupdated: int):
+    """Create an InterestingAsset parent with NO children."""
+    neo4j_session.run(MERGE_SUB_RESOURCE_QUERY)
+    neo4j_session.run(MERGE_HELLO_ASSET_QUERY)
+    neo4j_session.run(MERGE_WORLD_ASSET_QUERY)
+
+    query = build_ingestion_query(InterestingAssetSchema())
+    load_graph_data(
+        neo4j_session,
+        query,
+        INTERESTING_NODE_WITH_ALL_RELS,
+        lastupdated=lastupdated,
+        sub_resource_id="sub-resource-id",
+    )
+
+
+def test_cascade_delete_works_for_childless_parents(neo4j_session):
+    """
+    Test cascade_delete=True still deletes parents that have no children.
+    Regression test: OPTIONAL MATCH with WHERE on null child must not filter out the row.
+    """
+    _setup_parent_without_children(neo4j_session, lastupdated=1)
+
+    # Verify parent exists and has no children
+    assert check_nodes(neo4j_session, "InterestingAsset", ["id"]) == {
+        ("interesting-node-id",),
+    }
+    assert check_nodes(neo4j_session, "ChildNode", ["id"]) == set()
+
+    # Cleanup with cascade_delete=True should still delete the childless parent
+    GraphJob.from_node_schema(
+        InterestingAssetSchema(),
+        {"UPDATE_TAG": 2, "sub_resource_id": "sub-resource-id"},
+        cascade_delete=True,
+    ).run(neo4j_session)
+
+    assert check_nodes(neo4j_session, "InterestingAsset", ["id"]) == set()
+
+
+def test_cascade_delete_protects_reparented_children(neo4j_session):
+    """
+    Test that children re-parented in the current sync are NOT deleted.
+    A child with lastupdated matching UPDATE_TAG was touched in this sync,
+    so it should be preserved even if its old parent is stale.
+    """
+    _setup_parent_with_children(neo4j_session, lastupdated=1)
+
+    # Simulate re-parenting: update one child's lastupdated to match the new UPDATE_TAG
+    neo4j_session.run(
+        """
+        MATCH (c:ChildNode{id: 'child-1'})
+        SET c.lastupdated = 2
+        """,
+    )
+
+    # Cleanup with UPDATE_TAG=2 makes parent stale, but child-1 has lastupdated=2
+    GraphJob.from_node_schema(
+        InterestingAssetSchema(),
+        {"UPDATE_TAG": 2, "sub_resource_id": "sub-resource-id"},
+        cascade_delete=True,
+    ).run(neo4j_session)
+
+    # Parent deleted, child-2 (stale) deleted, but child-1 (re-parented) preserved
+    assert check_nodes(neo4j_session, "InterestingAsset", ["id"]) == set()
+    assert check_nodes(neo4j_session, "ChildNode", ["id"]) == {("child-1",)}
