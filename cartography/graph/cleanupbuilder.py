@@ -22,9 +22,17 @@ def build_cleanup_queries(
     Note that auto-cleanups for a node with no relationships is not currently supported.
     :param node_schema: The given CartographyNodeSchema
     :param cascade_delete: If True, also delete all child nodes that have a RESOURCE relationship to stale nodes.
-    Defaults to False to preserve existing behavior.
+    Defaults to False to preserve existing behavior. Only valid when scoped_cleanup=True.
     :return: A list of Neo4j queries to clean up nodes and relationships.
     """
+    # Validate: cascade_delete only makes sense with scoped cleanup
+    if cascade_delete and not node_schema.scoped_cleanup:
+        raise ValueError(
+            f"Invalid configuration for {node_schema.label}: cascade_delete=True requires scoped_cleanup=True. "
+            "Cascade delete is designed for scoped cleanups where parent nodes own children via RESOURCE relationships. "
+            "Unscoped cleanups delete all stale nodes globally and typically don't have a parent-child ownership model.",
+        )
+
     # If the node has no relationships, do not delete the node. Leave this behind for the user to manage.
     # Oftentimes these are SyncMetadata nodes.
     if (
@@ -68,7 +76,7 @@ def build_cleanup_queries(
 
     # Case 4: The node has no sub resource and scoped cleanup is false => clean up the stale nodes. Continue on to clean up the other_relationships too.
     else:
-        queries = [_build_cleanup_node_query_unscoped(node_schema, cascade_delete)]
+        queries = [_build_cleanup_node_query_unscoped(node_schema)]
 
     if node_schema.other_relationships:
         for rel in node_schema.other_relationships.rels:
@@ -247,11 +255,11 @@ def _build_cleanup_node_and_rel_queries(
 
 def _build_cleanup_node_query_unscoped(
     node_schema: CartographyNodeSchema,
-    cascade_delete: bool = False,
 ) -> str:
     """
     Generates a cleanup query for a node_schema to allow unscoped cleanup.
-    :param cascade_delete: If True, also delete all child nodes that have a RESOURCE relationship to stale nodes.
+    Note: cascade_delete is not supported for unscoped cleanup because unscoped cleanups
+    delete all stale nodes globally and don't have a parent-child ownership model.
     """
     if node_schema.scoped_cleanup:
         raise ValueError(
@@ -260,20 +268,7 @@ def _build_cleanup_node_query_unscoped(
             "definition is what you expect.",
         )
 
-    # The cleanup node query must always be before the cleanup rel query
-    if cascade_delete:
-        # When cascade_delete is enabled, also delete stale children that have RESOURCE relationships from stale nodes.
-        # We check child.lastupdated to avoid deleting children that were re-parented to a new tenant in the current sync.
-        # In Cartography, RESOURCE relationships point from parent to child: (Parent)-[:RESOURCE]->(Child)
-        delete_action_clause = """
-        WHERE n.lastupdated <> $UPDATE_TAG
-        WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (n)-[:RESOURCE]->(child)
-        WHERE child.lastupdated <> $UPDATE_TAG
-        DETACH DELETE child, n;
-    """
-    else:
-        delete_action_clause = """
+    delete_action_clause = """
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
         DETACH DELETE n;
