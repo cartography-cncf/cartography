@@ -1,5 +1,4 @@
 import logging
-from typing import cast
 
 import neo4j
 
@@ -66,7 +65,8 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync projects (within this organization and its groups)
-    cartography.intel.gitlab.projects.sync_gitlab_projects(
+    # Returns the projects list to avoid redundant API calls
+    all_projects = cartography.intel.gitlab.projects.sync_gitlab_projects(
         neo4j_session,
         gitlab_url,
         token,
@@ -74,12 +74,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         common_job_parameters,
     )
 
-    # Fetch all projects for this organization to avoid redundant API calls
-    all_projects = cartography.intel.gitlab.projects.get_projects(
-        gitlab_url, token, organization_id
-    )
-
-    org_url = cast(str, organization.get("web_url"))
+    org_url: str = organization["web_url"]
 
     # Sync branches  - pass projects to avoid re-fetching
     cartography.intel.gitlab.branches.sync_gitlab_branches(
@@ -91,7 +86,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         all_projects,
     )
 
-    # Sync dependency files - pass projects to avoid re-fetching
+    # Sync dependency files
     cartography.intel.gitlab.dependency_files.sync_gitlab_dependency_files(
         neo4j_session,
         gitlab_url,
@@ -101,7 +96,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         all_projects,
     )
 
-    # Sync dependencies  - pass projects to avoid re-fetching
+    # Sync dependencies
     cartography.intel.gitlab.dependencies.sync_gitlab_dependencies(
         neo4j_session,
         gitlab_url,
@@ -119,7 +114,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     # Cleanup leaf nodes (dependencies, dependency_files, branches) for each project
     logger.info(f"Cleaning up leaf nodes for {len(all_projects)} projects")
     for project in all_projects:
-        project_url = cast(str, project.get("web_url"))
+        project_url: str = project["web_url"]
 
         # Cleanup dependencies
         cartography.intel.gitlab.dependencies.cleanup_dependencies(
