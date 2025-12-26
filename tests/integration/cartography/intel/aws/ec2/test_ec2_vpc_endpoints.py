@@ -3,9 +3,15 @@ from unittest.mock import patch
 
 import cartography.intel.aws.ec2.vpc_endpoint
 from cartography.intel.aws.ec2.vpc_endpoint import load_vpc_endpoints
-from cartography.intel.aws.ec2.vpc_endpoint import load_vpc_endpoint_route_table_relationships
-from cartography.intel.aws.ec2.vpc_endpoint import load_vpc_endpoint_security_group_relationships
-from cartography.intel.aws.ec2.vpc_endpoint import load_vpc_endpoint_subnet_relationships
+from cartography.intel.aws.ec2.vpc_endpoint import (
+    load_vpc_endpoint_route_table_relationships,
+)
+from cartography.intel.aws.ec2.vpc_endpoint import (
+    load_vpc_endpoint_security_group_relationships,
+)
+from cartography.intel.aws.ec2.vpc_endpoint import (
+    load_vpc_endpoint_subnet_relationships,
+)
 from cartography.intel.aws.ec2.vpc_endpoint import sync_vpc_endpoints
 from cartography.intel.aws.ec2.vpc_endpoint import transform_vpc_endpoint_data
 from tests.data.aws.ec2.vpc_endpoints import DESCRIBE_VPC_ENDPOINTS
@@ -33,7 +39,7 @@ def test_load_vpc_endpoints(neo4j_session):
     assert check_nodes(
         neo4j_session,
         "AWSVpcEndpoint",
-        ["vpc_endpoint_id", "vpc_endpoint_type", "state"]
+        ["vpc_endpoint_id", "vpc_endpoint_type", "state"],
     ) == {
         ("vpce-1234567890abcdef0", "Interface", "available"),
         ("vpce-gateway123", "Gateway", "available"),
@@ -329,7 +335,9 @@ def test_sync_vpc_endpoints(mock_get_vpc_endpoints, neo4j_session):
     )
 
     # Assert VPC endpoints exist with correct types
-    assert check_nodes(neo4j_session, "AWSVpcEndpoint", ["vpc_endpoint_id", "vpc_endpoint_type"]) == {
+    assert check_nodes(
+        neo4j_session, "AWSVpcEndpoint", ["vpc_endpoint_id", "vpc_endpoint_type"]
+    ) == {
         ("vpce-1234567890abcdef0", "Interface"),
         ("vpce-gateway123", "Gateway"),
         ("vpce-gwlb456", "GatewayLoadBalancer"),
@@ -356,7 +364,9 @@ def test_sync_vpc_endpoints(mock_get_vpc_endpoints, neo4j_session):
     "get_vpc_endpoints",
     return_value=DESCRIBE_VPC_ENDPOINTS,
 )
-def test_cleanup_vpc_endpoints_removes_stale_nodes(mock_get_vpc_endpoints, neo4j_session):
+def test_cleanup_vpc_endpoints_removes_stale_nodes(
+    mock_get_vpc_endpoints, neo4j_session
+):
     """
     Test that cleanup removes stale VPC endpoint nodes
     """
@@ -393,7 +403,9 @@ def test_cleanup_vpc_endpoints_removes_stale_nodes(mock_get_vpc_endpoints, neo4j
     )
 
     # Verify stale node exists
-    result = neo4j_session.run("MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-STALE-OLD'}) RETURN count(vpce) as count")
+    result = neo4j_session.run(
+        "MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-STALE-OLD'}) RETURN count(vpce) as count"
+    )
     assert result.single()["count"] == 1
 
     # Act - Run sync with new update tag
@@ -408,7 +420,9 @@ def test_cleanup_vpc_endpoints_removes_stale_nodes(mock_get_vpc_endpoints, neo4j
     )
 
     # Assert - Stale node should be removed
-    result = neo4j_session.run("MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-STALE-OLD'}) RETURN count(vpce) as count")
+    result = neo4j_session.run(
+        "MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-STALE-OLD'}) RETURN count(vpce) as count"
+    )
     assert result.single()["count"] == 0
 
     # Assert - Fresh nodes should still exist
@@ -424,7 +438,9 @@ def test_cleanup_vpc_endpoints_removes_stale_nodes(mock_get_vpc_endpoints, neo4j
     "get_vpc_endpoints",
     return_value=DESCRIBE_VPC_ENDPOINTS,
 )
-def test_cleanup_vpc_endpoints_removes_stale_manual_relationships(mock_get_vpc_endpoints, neo4j_session):
+def test_cleanup_vpc_endpoints_removes_stale_manual_relationships(
+    mock_get_vpc_endpoints, neo4j_session
+):
     """
     Test that cleanup removes stale manual relationships (ROUTES_THROUGH, USES_SUBNET, MEMBER_OF_SECURITY_GROUP)
     """

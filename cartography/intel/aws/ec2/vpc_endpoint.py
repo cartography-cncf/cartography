@@ -98,7 +98,9 @@ def load_vpc_endpoints(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(vpc_endpoints)} VPC Endpoints for region '{region}' into graph.")
+    logger.info(
+        f"Loading {len(vpc_endpoints)} VPC Endpoints for region '{region}' into graph."
+    )
     load(
         neo4j_session,
         AWSVpcEndpointSchema(),
@@ -221,7 +223,10 @@ def load_vpc_endpoint_route_table_relationships(
 
     # Filter to only endpoints with route tables
     endpoints_with_route_tables = [
-        {"VpcEndpointId": ep["VpcEndpointId"], "RouteTableIds": ep.get("RouteTableIds", [])}
+        {
+            "VpcEndpointId": ep["VpcEndpointId"],
+            "RouteTableIds": ep.get("RouteTableIds", []),
+        }
         for ep in vpc_endpoints
         if ep.get("RouteTableIds")
     ]
