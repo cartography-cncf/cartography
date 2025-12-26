@@ -349,3 +349,173 @@ def test_sync_vpc_endpoints(mock_get_vpc_endpoints, neo4j_session):
         ("vpce-gateway123", TEST_ACCOUNT_ID),
         ("vpce-gwlb456", TEST_ACCOUNT_ID),
     }
+
+
+@patch.object(
+    cartography.intel.aws.ec2.vpc_endpoint,
+    "get_vpc_endpoints",
+    return_value=DESCRIBE_VPC_ENDPOINTS,
+)
+def test_cleanup_vpc_endpoints_removes_stale_nodes(mock_get_vpc_endpoints, neo4j_session):
+    """
+    Test that cleanup removes stale VPC endpoint nodes
+    """
+    OLD_UPDATE_TAG = 111111
+    NEW_UPDATE_TAG = 222222
+
+    # Arrange - Create account and stale VPC endpoint
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, NEW_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        MATCH (account:AWSAccount {id: $AccountId})
+        CREATE (stale:AWSVpcEndpoint {
+            id: 'vpce-STALE-OLD',
+            vpc_endpoint_id: 'vpce-STALE-OLD',
+            vpc_id: 'vpc-12345678',
+            service_name: 'com.amazonaws.us-east-1.dynamodb',
+            vpc_endpoint_type: 'Gateway',
+            state: 'deleted',
+            region: $Region,
+            lastupdated: $OldTag,
+            _module_name: 'cartography:aws',
+            _module_version: '0.0.0'
+        })
+        CREATE (account)-[:RESOURCE {
+            lastupdated: $OldTag,
+            _module_name: 'cartography:aws',
+            _module_version: '0.0.0',
+            firstseen: timestamp()
+        }]->(stale)
+        """,
+        AccountId=TEST_ACCOUNT_ID,
+        Region=TEST_REGION,
+        OldTag=OLD_UPDATE_TAG,
+    )
+
+    # Verify stale node exists
+    result = neo4j_session.run("MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-STALE-OLD'}) RETURN count(vpce) as count")
+    assert result.single()["count"] == 1
+
+    # Act - Run sync with new update tag
+    boto3_session = MagicMock()
+    sync_vpc_endpoints(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        NEW_UPDATE_TAG,
+        {"UPDATE_TAG": NEW_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert - Stale node should be removed
+    result = neo4j_session.run("MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-STALE-OLD'}) RETURN count(vpce) as count")
+    assert result.single()["count"] == 0
+
+    # Assert - Fresh nodes should still exist
+    assert check_nodes(neo4j_session, "AWSVpcEndpoint", ["vpc_endpoint_id"]) == {
+        ("vpce-1234567890abcdef0",),
+        ("vpce-gateway123",),
+        ("vpce-gwlb456",),
+    }
+
+
+@patch.object(
+    cartography.intel.aws.ec2.vpc_endpoint,
+    "get_vpc_endpoints",
+    return_value=DESCRIBE_VPC_ENDPOINTS,
+)
+def test_cleanup_vpc_endpoints_removes_stale_manual_relationships(mock_get_vpc_endpoints, neo4j_session):
+    """
+    Test that cleanup removes stale manual relationships (ROUTES_THROUGH, USES_SUBNET, MEMBER_OF_SECURITY_GROUP)
+    """
+    OLD_UPDATE_TAG = 111111
+    NEW_UPDATE_TAG = 222222
+
+    # Arrange - Create account, VPC endpoint, and related resources
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, NEW_UPDATE_TAG)
+    neo4j_session.run(
+        """
+        MERGE (subnet:EC2Subnet {subnetid: 'subnet-stale'})
+        ON CREATE SET subnet.firstseen = timestamp()
+        SET subnet.lastupdated = $NewTag
+
+        MERGE (sg:EC2SecurityGroup {id: 'sg-stale'})
+        ON CREATE SET sg.firstseen = timestamp()
+        SET sg.lastupdated = $NewTag
+
+        MERGE (rtb:AWSRouteTable {id: 'rtb-stale'})
+        ON CREATE SET rtb.firstseen = timestamp()
+        SET rtb.lastupdated = $NewTag
+        """,
+        NewTag=NEW_UPDATE_TAG,
+    )
+
+    # Act - First sync creates endpoints with relationships
+    boto3_session = MagicMock()
+    sync_vpc_endpoints(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        NEW_UPDATE_TAG,
+        {"UPDATE_TAG": NEW_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Create stale manual relationships
+    neo4j_session.run(
+        """
+        MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-1234567890abcdef0'})
+        MATCH (subnet:EC2Subnet {subnetid: 'subnet-stale'})
+        MATCH (sg:EC2SecurityGroup {id: 'sg-stale'})
+        MATCH (rtb:AWSRouteTable {id: 'rtb-stale'})
+        CREATE (vpce)-[:USES_SUBNET {lastupdated: $OldTag, _module_name: 'cartography:aws', _module_version: '0.0.0', firstseen: timestamp()}]->(subnet)
+        CREATE (vpce)-[:MEMBER_OF_SECURITY_GROUP {lastupdated: $OldTag, _module_name: 'cartography:aws', _module_version: '0.0.0', firstseen: timestamp()}]->(sg)
+        CREATE (vpce)-[:ROUTES_THROUGH {lastupdated: $OldTag, _module_name: 'cartography:aws', _module_version: '0.0.0', firstseen: timestamp()}]->(rtb)
+        """,
+        OldTag=OLD_UPDATE_TAG,
+    )
+
+    # Verify stale relationships exist
+    result = neo4j_session.run(
+        """
+        MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-1234567890abcdef0'})-[r:USES_SUBNET|MEMBER_OF_SECURITY_GROUP|ROUTES_THROUGH]->()
+        WHERE r.lastupdated = $OldTag
+        RETURN count(r) as count
+        """,
+        OldTag=OLD_UPDATE_TAG,
+    )
+    assert result.single()["count"] == 3
+
+    # Act - Run sync again with new update tag
+    NEWER_UPDATE_TAG = 333333
+    sync_vpc_endpoints(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        NEWER_UPDATE_TAG,
+        {"UPDATE_TAG": NEWER_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert - Stale manual relationships should be removed
+    result = neo4j_session.run(
+        """
+        MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-1234567890abcdef0'})-[r:USES_SUBNET|MEMBER_OF_SECURITY_GROUP|ROUTES_THROUGH]->()
+        WHERE r.lastupdated = $OldTag
+        RETURN count(r) as count
+        """,
+        OldTag=OLD_UPDATE_TAG,
+    )
+    assert result.single()["count"] == 0
+
+    # Assert - Fresh relationships should still exist (from test data)
+    result = neo4j_session.run(
+        """
+        MATCH (vpce:AWSVpcEndpoint {vpc_endpoint_id: 'vpce-1234567890abcdef0'})-[r:USES_SUBNET|MEMBER_OF_SECURITY_GROUP]->()
+        WHERE r.lastupdated = $NewTag
+        RETURN count(r) as count
+        """,
+        NewTag=NEWER_UPDATE_TAG,
+    )
+    # Interface endpoint should have 2 subnets + 1 security group = 3 relationships
+    assert result.single()["count"] == 3

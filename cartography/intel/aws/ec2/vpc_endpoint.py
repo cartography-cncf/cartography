@@ -239,6 +239,27 @@ def load_vpc_endpoint_route_table_relationships(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
+    # Clean up manually created relationships that aren't part of the schema
+    cleanup_manual_relationships_query = """
+    MATCH (vpce:AWSVpcEndpoint)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})
+    OPTIONAL MATCH (vpce)-[r1:USES_SUBNET]->(:EC2Subnet)
+    WHERE r1.lastupdated <> $UPDATE_TAG
+    OPTIONAL MATCH (vpce)-[r2:MEMBER_OF_SECURITY_GROUP]->(:EC2SecurityGroup)
+    WHERE r2.lastupdated <> $UPDATE_TAG
+    OPTIONAL MATCH (vpce)-[r3:ROUTES_THROUGH]->(:AWSRouteTable)
+    WHERE r3.lastupdated <> $UPDATE_TAG
+    WITH collect(r1) + collect(r2) + collect(r3) as stale_rels
+    UNWIND stale_rels as r
+    DELETE r
+    """
+    run_write_query(
+        neo4j_session,
+        cleanup_manual_relationships_query,
+        AWS_ID=common_job_parameters["AWS_ID"],
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+    )
+
+    # Clean up schema-based nodes and relationships
     GraphJob.from_node_schema(AWSVpcEndpointSchema(), common_job_parameters).run(
         neo4j_session
     )
