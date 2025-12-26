@@ -97,7 +97,7 @@ cis_5_1_unrestricted_ssh = Rule(
     ),
     output_model=UnrestrictedSshOutput,
     facts=(_aws_unrestricted_ssh,),
-    tags=("cis_5_1", "cis:aws-5.0", "networking", "security-groups", "ssh"),
+    tags=("cis:5.1", "cis:aws-5.0", "networking", "security-groups", "ssh"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -173,7 +173,7 @@ cis_5_2_unrestricted_rdp = Rule(
     ),
     output_model=UnrestrictedRdpOutput,
     facts=(_aws_unrestricted_rdp,),
-    tags=("cis_5_2", "cis:aws-5.0", "networking", "security-groups", "rdp"),
+    tags=("cis:5.2", "cis:aws-5.0", "networking", "security-groups", "rdp"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -253,7 +253,7 @@ cis_5_4_default_sg_traffic = Rule(
     ),
     output_model=DefaultSgAllowsTrafficOutput,
     facts=(_aws_default_sg_allows_traffic,),
-    tags=("cis_5_4", "cis:aws-5.0", "networking", "security-groups"),
+    tags=("cis:5.4", "cis:aws-5.0", "networking", "security-groups"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )

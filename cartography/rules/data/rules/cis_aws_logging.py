@@ -79,7 +79,7 @@ cis_3_1_cloudtrail_multi_region = Rule(
     ),
     output_model=CloudTrailMultiRegionOutput,
     facts=(_aws_cloudtrail_not_multi_region,),
-    tags=("cis_3_1", "cis:aws-5.0", "logging", "cloudtrail"),
+    tags=("cis:3.1", "cis:aws-5.0", "logging", "cloudtrail"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -137,7 +137,7 @@ cis_3_4_cloudtrail_log_validation = Rule(
     ),
     output_model=CloudTrailLogValidationOutput,
     facts=(_aws_cloudtrail_log_validation_disabled,),
-    tags=("cis_3_4", "cis:aws-5.0", "logging", "cloudtrail"),
+    tags=("cis:3.4", "cis:aws-5.0", "logging", "cloudtrail"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -195,7 +195,7 @@ cis_3_5_cloudtrail_cloudwatch = Rule(
     ),
     output_model=CloudTrailCloudWatchOutput,
     facts=(_aws_cloudtrail_no_cloudwatch,),
-    tags=("cis_3_5", "cis:aws-5.0", "logging", "cloudtrail", "cloudwatch"),
+    tags=("cis:3.5", "cis:aws-5.0", "logging", "cloudtrail", "cloudwatch"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -253,7 +253,7 @@ cis_3_7_cloudtrail_encryption = Rule(
     ),
     output_model=CloudTrailEncryptionOutput,
     facts=(_aws_cloudtrail_not_encrypted,),
-    tags=("cis_3_7", "cis:aws-5.0", "logging", "cloudtrail", "encryption"),
+    tags=("cis:3.7", "cis:aws-5.0", "logging", "cloudtrail", "encryption"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
