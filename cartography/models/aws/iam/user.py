@@ -25,7 +25,9 @@ class AWSUserNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     path: PropertyRef = PropertyRef("path")
     createdate: PropertyRef = PropertyRef("createdate")
+    createdate_dt: PropertyRef = PropertyRef("createdate_dt")
     passwordlastused: PropertyRef = PropertyRef("passwordlastused")
+    passwordlastused_dt: PropertyRef = PropertyRef("passwordlastused_dt")
 
 
 @dataclass(frozen=True)
