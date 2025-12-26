@@ -89,7 +89,7 @@ cis_1_14_access_key_not_rotated = Rule(
     ),
     output_model=AccessKeyNotRotatedOutput,
     facts=(_aws_access_key_not_rotated,),
-    tags=("cis:1.14", "cis:aws-5.0", "iam", "credentials"),
+    tags=("cis:1.14", "cis:aws-5.0", "iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -166,7 +166,7 @@ cis_1_12_unused_credentials = Rule(
     ),
     output_model=UnusedCredentialsOutput,
     facts=(_aws_unused_credentials,),
-    tags=("cis:1.12", "cis:aws-5.0", "iam", "credentials"),
+    tags=("cis:1.12", "cis:aws-5.0", "iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -222,7 +222,13 @@ cis_1_15_user_direct_policies = Rule(
     ),
     output_model=UserDirectPoliciesOutput,
     facts=(_aws_user_direct_policies,),
-    tags=("cis:1.15", "cis:aws-5.0", "iam", "policies"),
+    tags=(
+        "cis:1.15",
+        "cis:aws-5.0",
+        "iam",
+        "policies",
+        "stride:elevation_of_privilege",
+    ),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -284,7 +290,7 @@ cis_1_13_multiple_access_keys = Rule(
     ),
     output_model=MultipleAccessKeysOutput,
     facts=(_aws_multiple_access_keys,),
-    tags=("cis:1.13", "cis:aws-5.0", "iam", "credentials"),
+    tags=("cis:1.13", "cis:aws-5.0", "iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
@@ -350,7 +356,7 @@ cis_1_18_expired_certificates = Rule(
     ),
     output_model=ExpiredCertificatesOutput,
     facts=(_aws_expired_certificates,),
-    tags=("cis:1.18", "cis:aws-5.0", "certificates", "acm"),
+    tags=("cis:1.18", "cis:aws-5.0", "certificates", "acm", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
 )
