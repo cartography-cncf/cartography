@@ -148,7 +148,9 @@ def _transform_route_table_routes(
         # Gateway VPC endpoints appear in GatewayId field (e.g. vpce-xxxxx)
         # Extract to vpc_endpoint_id for proper relationship matching
         gateway_id = route.get("GatewayId")
-        vpc_endpoint_id = gateway_id if gateway_id and gateway_id.startswith("vpce-") else None
+        vpc_endpoint_id = (
+            gateway_id if gateway_id and gateway_id.startswith("vpce-") else None
+        )
 
         transformed_route = {
             "id": route_id,

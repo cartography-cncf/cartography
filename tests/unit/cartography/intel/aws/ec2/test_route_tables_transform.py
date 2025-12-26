@@ -31,7 +31,9 @@ def test_transform_route_table_with_vpc_endpoint_gateway():
     assert len(routes) == 2
 
     # First route should extract vpc_endpoint_id from gateway_id
-    vpc_endpoint_route = [r for r in routes if r.get("gateway_id", "").startswith("vpce-")][0]
+    vpc_endpoint_route = [
+        r for r in routes if r.get("gateway_id", "").startswith("vpce-")
+    ][0]
     assert vpc_endpoint_route["gateway_id"] == "vpce-0bb6d13007d949b82"
     assert vpc_endpoint_route["vpc_endpoint_id"] == "vpce-0bb6d13007d949b82"
     assert vpc_endpoint_route["destination_prefix_list_id"] == "pl-63a5400a"

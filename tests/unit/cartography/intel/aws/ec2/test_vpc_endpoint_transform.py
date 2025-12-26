@@ -21,16 +21,17 @@ def test_transform_vpc_endpoint_interface_endpoint():
             "SubnetIds": ["subnet-12345", "subnet-67890"],
             "NetworkInterfaceIds": ["eni-11111", "eni-22222"],
             "DnsEntries": [
-                {"DnsName": "vpce-1234567890abcdef0.s3.us-east-1.vpce.amazonaws.com", "HostedZoneId": "Z123"}
+                {
+                    "DnsName": "vpce-1234567890abcdef0.s3.us-east-1.vpce.amazonaws.com",
+                    "HostedZoneId": "Z123",
+                }
             ],
             "PrivateDnsEnabled": True,
             "RequesterManaged": False,
             "IpAddressType": "ipv4",
             "OwnerId": "123456789012",
             "CreationTimestamp": datetime(2023, 1, 15, 10, 30, 0),
-            "Groups": [
-                {"GroupId": "sg-12345", "GroupName": "default"}
-            ],
+            "Groups": [{"GroupId": "sg-12345", "GroupName": "default"}],
         }
     ]
 
@@ -96,7 +97,14 @@ def test_transform_vpc_endpoint_with_dict_policy():
     """Test transforming VPC endpoint with dict policy document"""
     policy_dict = {
         "Version": "2012-10-17",
-        "Statement": [{"Effect": "Allow", "Principal": "*", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::mybucket/*"}]
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::mybucket/*",
+            }
+        ],
     }
 
     raw_endpoints = [

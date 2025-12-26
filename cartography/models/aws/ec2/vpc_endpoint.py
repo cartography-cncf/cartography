@@ -47,7 +47,9 @@ class VPCEndpointToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: VPCEndpointToAWSAccountRelProperties = VPCEndpointToAWSAccountRelProperties()
+    properties: VPCEndpointToAWSAccountRelProperties = (
+        VPCEndpointToAWSAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
