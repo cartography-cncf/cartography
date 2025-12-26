@@ -54,26 +54,22 @@ _aws_access_key_not_rotated = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
-      AND key.createdate IS NOT NULL
-      AND key.createdate <> 'None'
-    WITH a, user, key
-    WHERE date(datetime(replace(toString(key.createdate), ' ', 'T'))) < date() - duration('P90D')
+      AND key.createdate_dt IS NOT NULL
+      AND date(key.createdate_dt) < date() - duration('P90D')
     RETURN
         key.accesskeyid AS access_key_id,
         user.name AS user_name,
         user.arn AS user_arn,
         key.createdate AS key_create_date,
-        duration.inDays(date(datetime(replace(toString(key.createdate), ' ', 'T'))), date()).days AS days_since_rotation,
+        duration.inDays(date(key.createdate_dt), date()).days AS days_since_rotation,
         a.id AS account_id,
         a.name AS account
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
-      AND key.createdate IS NOT NULL
-      AND key.createdate <> 'None'
-    WITH p, a, user, key
-    WHERE date(datetime(replace(toString(key.createdate), ' ', 'T'))) < date() - duration('P90D')
+      AND key.createdate_dt IS NOT NULL
+      AND date(key.createdate_dt) < date() - duration('P90D')
     RETURN *
     """,
     module=Module.AWS,
@@ -121,15 +117,10 @@ _aws_unused_credentials = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
-    WITH a, user, key,
-         CASE WHEN key.lastuseddate IS NOT NULL AND key.lastuseddate <> 'None'
-              THEN date(datetime(replace(toString(key.lastuseddate), ' ', 'T')))
-              ELSE null END AS last_used,
-         CASE WHEN key.createdate IS NOT NULL AND key.createdate <> 'None'
-              THEN date(datetime(replace(toString(key.createdate), ' ', 'T')))
-              ELSE null END AS created
-    WHERE (last_used IS NOT NULL AND last_used < date() - duration('P45D'))
-       OR (last_used IS NULL AND created IS NOT NULL AND created < date() - duration('P45D'))
+    WITH a, user, key
+    WHERE (key.lastuseddate_dt IS NOT NULL AND date(key.lastuseddate_dt) < date() - duration('P45D'))
+       OR (key.lastuseddate_dt IS NULL AND key.createdate_dt IS NOT NULL
+           AND date(key.createdate_dt) < date() - duration('P45D'))
     RETURN
         key.accesskeyid AS access_key_id,
         user.name AS user_name,
@@ -142,15 +133,10 @@ _aws_unused_credentials = Fact(
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:AWS_ACCESS_KEY]->(key:AccountAccessKey)
     WHERE key.status = 'Active'
-    WITH p, a, user, key,
-         CASE WHEN key.lastuseddate IS NOT NULL AND key.lastuseddate <> 'None'
-              THEN date(datetime(replace(toString(key.lastuseddate), ' ', 'T')))
-              ELSE null END AS last_used,
-         CASE WHEN key.createdate IS NOT NULL AND key.createdate <> 'None'
-              THEN date(datetime(replace(toString(key.createdate), ' ', 'T')))
-              ELSE null END AS created
-    WHERE (last_used IS NOT NULL AND last_used < date() - duration('P45D'))
-       OR (last_used IS NULL AND created IS NOT NULL AND created < date() - duration('P45D'))
+    WITH p, a, user, key
+    WHERE (key.lastuseddate_dt IS NOT NULL AND date(key.lastuseddate_dt) < date() - duration('P45D'))
+       OR (key.lastuseddate_dt IS NULL AND key.createdate_dt IS NOT NULL
+           AND date(key.createdate_dt) < date() - duration('P45D'))
     RETURN *
     """,
     module=Module.AWS,
@@ -323,9 +309,7 @@ _aws_expired_certificates = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
     WHERE cert.not_after IS NOT NULL
-      AND cert.not_after <> 'None'
-    WITH a, cert
-    WHERE date(datetime(replace(toString(cert.not_after), ' ', 'T'))) < date()
+      AND date(cert.not_after) < date()
     RETURN
         cert.domainname AS domain_name,
         cert.arn AS certificate_arn,
@@ -338,9 +322,7 @@ _aws_expired_certificates = Fact(
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(cert:ACMCertificate)
     WHERE cert.not_after IS NOT NULL
-      AND cert.not_after <> 'None'
-    WITH p, a, cert
-    WHERE date(datetime(replace(toString(cert.not_after), ' ', 'T'))) < date()
+      AND date(cert.not_after) < date()
     RETURN *
     """,
     module=Module.AWS,
