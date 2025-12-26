@@ -51,6 +51,7 @@ dependencies = [
     "statsd",
     "packaging",
     "python-digitalocean>=1.16.0",
+    "python-gitlab>=3.0.0",
     "adal>=1.2.4",
     "azure-cli-core>=2.26.0",
     "azure-mgmt-compute>=5.0.0",

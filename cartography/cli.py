@@ -621,6 +621,51 @@ class CLI:
             help=("The Duo api hostname"),
         )
         parser.add_argument(
+            "--gitlab-url",
+            type=str,
+            default=None,
+            help=(
+                "The GitLab instance URL (e.g., https://gitlab.com or https://gitlab.example.com). "
+                "Required if you are using the GitLab intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--gitlab-token-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of environment variable containing the GitLab personal access token. "
+                "Required if you are using the GitLab intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--workday-api-url",
+            type=str,
+            default=None,
+            help=(
+                "The Workday API URL. "
+                "Required if you are using the Workday intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--workday-api-login",
+            type=str,
+            default=None,
+            help=(
+                "The Workday API login username. "
+                "Required if you are using the Workday intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--workday-api-password-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of environment variable containing the Workday API password. "
+                "Required if you are using the Workday intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
             "--semgrep-app-token-env-var",
             type=str,
             default=None,
@@ -1223,6 +1268,30 @@ class CLI:
         else:
             config.duo_api_key = None
             config.duo_api_secret = None
+
+        # GitLab config
+        if config.gitlab_url and config.gitlab_token_env_var:
+            logger.debug(
+                f"Reading GitLab token from environment variable {config.gitlab_token_env_var}",
+            )
+            config.gitlab_token = os.environ.get(config.gitlab_token_env_var)
+        else:
+            config.gitlab_token = None
+
+        # Workday config
+        if (
+            config.workday_api_url
+            and config.workday_api_login
+            and config.workday_api_password_env_var
+        ):
+            logger.debug(
+                f"Reading Workday API password from environment variable {config.workday_api_password_env_var}",
+            )
+            config.workday_api_password = os.environ.get(
+                config.workday_api_password_env_var
+            )
+        else:
+            config.workday_api_password = None
 
         # Semgrep config
         if config.semgrep_app_token_env_var:

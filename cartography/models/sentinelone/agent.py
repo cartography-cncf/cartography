@@ -33,7 +33,7 @@ class S1AgentToAccountRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:S1Agent)<-[:RESOURCE]-(:S1Account)
-class S1AgentToAccount(CartographyRelSchema):
+class S1AgentToAccountRel(CartographyRelSchema):
     target_node_label: str = "S1Account"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("S1_ACCOUNT_ID", set_in_kwargs=True)},
@@ -47,4 +47,4 @@ class S1AgentToAccount(CartographyRelSchema):
 class S1AgentSchema(CartographyNodeSchema):
     label: str = "S1Agent"
     properties: S1AgentNodeProperties = S1AgentNodeProperties()
-    sub_resource_relationship: S1AgentToAccount = S1AgentToAccount()
+    sub_resource_relationship: S1AgentToAccountRel = S1AgentToAccountRel()
