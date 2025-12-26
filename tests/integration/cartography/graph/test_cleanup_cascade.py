@@ -94,6 +94,9 @@ def test_default_no_cascade_preserves_children(neo4j_session):
 
 def _setup_parent_without_children(neo4j_session, lastupdated: int):
     """Create an InterestingAsset parent with NO children."""
+    # Clean up any leftover ChildNodes from previous tests
+    neo4j_session.run("MATCH (c:ChildNode) DETACH DELETE c")
+
     neo4j_session.run(MERGE_SUB_RESOURCE_QUERY)
     neo4j_session.run(MERGE_HELLO_ASSET_QUERY)
     neo4j_session.run(MERGE_WORLD_ASSET_QUERY)
