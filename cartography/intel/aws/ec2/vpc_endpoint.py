@@ -35,6 +35,9 @@ def get_vpc_endpoints(
         for page in paginator.paginate():
             vpc_endpoints.extend(page.get("VpcEndpoints", []))
     except botocore.exceptions.ClientError as e:
+        # Note: @aws_handle_regions decorator handles region-specific permission errors
+        # by returning [] for opt-in or disabled regions. This is the established pattern.
+        # For other errors (e.g., Throttling, ServiceUnavailable), log and skip.
         logger.warning(
             "Could not retrieve VPC Endpoints due to boto3 error %s: %s. Skipping.",
             e.response["Error"]["Code"],
