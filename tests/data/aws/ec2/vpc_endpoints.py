@@ -15,7 +15,7 @@ DESCRIBE_VPC_ENDPOINTS = [
         "DnsEntries": [
             {
                 "DnsName": "vpce-1234567890abcdef0.s3.us-east-1.vpce.amazonaws.com",
-                "HostedZoneId": "Z2O1EMRO9K5GLX"
+                "HostedZoneId": "Z2O1EMRO9K5GLX",
             }
         ],
         "PrivateDnsEnabled": True,
@@ -23,9 +23,7 @@ DESCRIBE_VPC_ENDPOINTS = [
         "IpAddressType": "ipv4",
         "OwnerId": "123456789012",
         "CreationTimestamp": datetime(2023, 1, 15, 10, 30, 0),
-        "Groups": [
-            {"GroupId": "sg-12345", "GroupName": "default"}
-        ],
+        "Groups": [{"GroupId": "sg-12345", "GroupName": "default"}],
     },
     {
         "VpcEndpointId": "vpce-gateway123",
@@ -63,8 +61,6 @@ DESCRIBE_VPC_ENDPOINTS = [
         "IpAddressType": "ipv4",
         "OwnerId": "123456789012",
         "CreationTimestamp": datetime(2023, 3, 10, 8, 0, 0),
-        "Groups": [
-            {"GroupId": "sg-gwlb", "GroupName": "gwlb-sg"}
-        ],
+        "Groups": [{"GroupId": "sg-gwlb", "GroupName": "gwlb-sg"}],
     },
 ]

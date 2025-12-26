@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2.vpc_endpoint
-from cartography.intel.aws.ec2.vpc_endpoint import load_vpc_endpoints
 from cartography.intel.aws.ec2.vpc_endpoint import (
     load_vpc_endpoint_route_table_relationships,
 )
@@ -12,6 +11,7 @@ from cartography.intel.aws.ec2.vpc_endpoint import (
 from cartography.intel.aws.ec2.vpc_endpoint import (
     load_vpc_endpoint_subnet_relationships,
 )
+from cartography.intel.aws.ec2.vpc_endpoint import load_vpc_endpoints
 from cartography.intel.aws.ec2.vpc_endpoint import sync_vpc_endpoints
 from cartography.intel.aws.ec2.vpc_endpoint import transform_vpc_endpoint_data
 from tests.data.aws.ec2.vpc_endpoints import DESCRIBE_VPC_ENDPOINTS
