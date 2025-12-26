@@ -710,7 +710,7 @@ def get_db_threat_detection_policies(
     """
     try:
         client = get_client(credentials, subscription_id)
-        db_threat_detection_policies = client.database_threat_detection_policies.get(
+        db_threat_detection_policies = client.database_security_alert_policies.get(
             database["resource_group_name"],
             database["server_name"],
             database["name"],
