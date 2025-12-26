@@ -61,6 +61,7 @@ from .ec2.subnets import sync_subnets
 from .ec2.tgw import sync_transit_gateways
 from .ec2.volumes import sync_ebs_volumes
 from .ec2.vpc import sync_vpc
+from .ec2.vpc_endpoint import sync_vpc_endpoints
 from .ec2.vpc_peerings import sync_vpc_peerings
 from .iam_instance_profiles import sync_iam_instance_profiles
 
@@ -85,6 +86,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "ec2:subnet": sync_subnets,
     "ec2:tgw": sync_transit_gateways,
     "ec2:vpc": sync_vpc,
+    "ec2:vpc_endpoint": sync_vpc_endpoints,
     "ec2:vpc_peering": sync_vpc_peerings,
     "ec2:internet_gateway": sync_internet_gateways,
     "ec2:reserved_instances": sync_ec2_reserved_instances,
