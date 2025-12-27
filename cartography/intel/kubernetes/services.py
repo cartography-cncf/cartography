@@ -28,6 +28,23 @@ def _format_service_selector(selector: dict[str, str]) -> str:
     return json.dumps(selector)
 
 
+def _extract_load_balancer_dns_names(
+    ingress: list[V1LoadBalancerIngress] | None,
+) -> list[str]:
+    """
+    Extract DNS hostnames from load balancer ingress entries.
+    These can be used to match Kubernetes Services to AWS LoadBalancerV2 nodes.
+    """
+    if ingress is None:
+        return []
+
+    dns_names = []
+    for item in ingress:
+        if item.hostname:
+            dns_names.append(item.hostname)
+    return dns_names
+
+
 def _format_load_balancer_ingress(ingress: list[V1LoadBalancerIngress] | None) -> str:
 
     def _format_ingress_ports(
@@ -84,6 +101,10 @@ def transform_services(
         if service.spec.type == "LoadBalancer":
             if service.status.load_balancer:
                 item["load_balancer_ingress"] = _format_load_balancer_ingress(
+                    service.status.load_balancer.ingress
+                )
+                # Extract DNS names for relationship matching with AWS LoadBalancerV2
+                item["load_balancer_dns_names"] = _extract_load_balancer_dns_names(
                     service.status.load_balancer.ingress
                 )
 
