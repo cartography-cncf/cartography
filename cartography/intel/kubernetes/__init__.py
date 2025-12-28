@@ -6,6 +6,7 @@ from neo4j import Session
 from cartography.config import Config
 from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
+from cartography.intel.kubernetes.ingress import sync_ingress
 from cartography.intel.kubernetes.namespaces import sync_namespaces
 from cartography.intel.kubernetes.pods import sync_pods
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
@@ -82,6 +83,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 config.update_tag,
                 common_job_parameters,
             )
+            sync_ingress(session, client, config.update_tag, common_job_parameters)
         except Exception:
             logger.exception(f"Failed to sync data for k8s cluster {client.name}...")
             raise
