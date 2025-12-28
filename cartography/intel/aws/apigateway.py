@@ -6,6 +6,7 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
+import backoff
 import boto3
 import botocore
 import neo4j
@@ -31,6 +32,7 @@ from cartography.models.aws.apigateway.apigatewayresource import (
 )
 from cartography.models.aws.apigateway.apigatewaystage import APIGatewayStageSchema
 from cartography.util import aws_handle_regions
+from cartography.util import backoff_handler
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -42,7 +44,11 @@ def get_apigateway_rest_apis(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict]:
-    client = boto3_session.client("apigateway", region_name=region)
+    client = boto3_session.client(
+        "apigateway",
+        region_name=region,
+        config=get_botocore_config(),
+    )
     paginator = client.get_paginator("get_rest_apis")
     apis: List[Any] = []
     for page in paginator.paginate():
@@ -92,7 +98,11 @@ def get_rest_api_details(
     """
     Iterates over all API Gateway REST APIs.
     """
-    client = boto3_session.client("apigateway", region_name=region)
+    client = boto3_session.client(
+        "apigateway",
+        region_name=region,
+        config=get_botocore_config(),
+    )
     apis = []
     for api in rest_apis:
         stages = get_rest_api_stages(api, client)
@@ -151,6 +161,30 @@ def get_rest_api_client_certificate(
     return response
 
 
+def _giveup_on_non_throttling_errors(error: ClientError) -> bool:
+    return error.response.get("Error", {}).get("Code") != "TooManyRequestsException"
+
+
+@backoff.on_exception(
+    backoff.expo,
+    ClientError,
+    max_tries=5,
+    on_backoff=backoff_handler,
+    giveup=_giveup_on_non_throttling_errors,
+)
+def _get_integration_with_backoff(
+    client: botocore.client.BaseClient,
+    api_id: str,
+    resource_id: str,
+    http_method: str,
+) -> Dict[str, Any]:
+    return client.get_integration(
+        restApiId=api_id,
+        resourceId=resource_id,
+        httpMethod=http_method,
+    )
+
+
 @timeit
 @aws_handle_regions
 def get_rest_api_resources_methods_integrations(
@@ -179,10 +213,11 @@ def get_rest_api_resources_methods_integrations(
                 method["httpMethod"] = http_method
                 methods.append(method)
                 try:
-                    integration = client.get_integration(
-                        restApiId=api["id"],
-                        resourceId=resource_id,
-                        httpMethod=http_method,
+                    integration = _get_integration_with_backoff(
+                        client,
+                        api["id"],
+                        resource_id,
+                        http_method,
                     )
                 except ClientError as e:
                     error_code = e.response.get("Error", {}).get("Code")
