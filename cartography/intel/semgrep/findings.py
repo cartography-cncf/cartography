@@ -167,7 +167,8 @@ def transform_sca_vulns(
         if vuln.get("vulnerability_identifier"):
             vuln_id = vuln["vulnerability_identifier"].upper()
             sca_vuln["cveId"] = vuln_id
-            sca_vuln["ref_urls"] = [_build_vuln_url(vuln_id)]
+            ref_url = _build_vuln_url(vuln_id)
+            sca_vuln["ref_urls"] = [ref_url] if ref_url is not None else []
         if vuln.get("fix_recommendations") and len(vuln["fix_recommendations"]) > 0:
             fix = vuln["fix_recommendations"][0]
             dep_fix = f"{fix['package']}|{fix['version']}"
