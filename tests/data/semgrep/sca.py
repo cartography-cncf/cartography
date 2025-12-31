@@ -1,4 +1,5 @@
 VULN_ID = 73537136
+VULN_ID_UNKNOWN = 73537137
 USAGE_ID = hash(
     "simpsoncorp/sample_repo/blob/commit_id/src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx#L274",
 )
@@ -73,13 +74,6 @@ SCA_RESPONSE = {
                 "external_ticket": None,
             },
         },
-    ],
-}
-
-# Test data for vulnerability with unknown identifier format (should result in empty ref_urls)
-VULN_ID_UNKNOWN = 73537137
-SCA_RESPONSE_UNKNOWN_VULN = {
-    "findings": [
         {
             "id": VULN_ID_UNKNOWN,
             "ref": "main",
@@ -99,13 +93,6 @@ SCA_RESPONSE_UNKNOWN_VULN = {
             "relevant_since": "2024-07-11T20:46:25.268845Z",
             "rule_name": "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
             "rule_message": "description",
-            "location": {
-                "file_path": "src/packages/linked-accounts/components/LinkedAccountsTable/constants.tsx",
-                "line": 274,
-                "column": 37,
-                "end_line": 274,
-                "end_column": 62,
-            },
             "triaged_at": None,
             "triage_comment": None,
             "triage_reason": None,
@@ -126,7 +113,7 @@ SCA_RESPONSE_UNKNOWN_VULN = {
             },
             "severity": "high",
             "vulnerability_identifier": "UNKNOWN-2022-31129",  # This will cause _build_vuln_url to return None
-            "reachability": "reachable",
+            "reachability": "unreachable",
             "reachable_condition": None,
             "found_dependency": {
                 "package": "moment",
@@ -142,7 +129,6 @@ SCA_RESPONSE_UNKNOWN_VULN = {
 }
 
 RAW_VULNS = SCA_RESPONSE["findings"]
-RAW_VULNS_WITH_UNKNOWN = SCA_RESPONSE_UNKNOWN_VULN["findings"]
 
 USAGES = [
     {

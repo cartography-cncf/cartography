@@ -102,6 +102,25 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "https://nvd.nist.gov/vuln/detail/CVE-2022-31129",
         ],
         "2024-07-11T20:46:25.269650Z",
+        tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+        TEST_UPDATE_TAG,
+        "simpsoncorp/sample_repo",
+        "main",
+        "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
+        "moment:Denial-of-Service (DoS)",
+        "description",
+        "npm",
+        "HIGH",
+        "UNKNOWN-2022-31129",
+        "UNREACHABLE",
+        "UNREACHABLE",
+        "DIRECT",
+        "moment|2.29.2",
+        "moment|2.29.4",
+        "package-lock.json",
+        "https: //github.com/simpsoncorp/sample_repo/blob/commit_id/package-lock.json#L14373",
+        [],
+        "2024-07-11T20:46:25.269650Z",
     ]
 
     assert check_nodes(
@@ -140,6 +159,10 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "123456",
             tests.data.semgrep.sca.VULN_ID,
         ),
+        (
+            "123456",
+            tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+        ),
     }
 
     assert check_rels(
@@ -169,6 +192,10 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "simpsoncorp/sample_repo",
             tests.data.semgrep.sca.VULN_ID,
         ),
+        (
+            "simpsoncorp/sample_repo",
+            tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+        ),
     }
 
     assert check_rels(
@@ -195,6 +222,10 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     ) == {
         (
             tests.data.semgrep.sca.VULN_ID,
+            "moment|2.29.2",
+        ),
+        (
+            tests.data.semgrep.sca.VULN_ID_UNKNOWN,
             "moment|2.29.2",
         ),
     }
@@ -231,58 +262,11 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "HIGH",
             "HIGH",
         ),
+        (
+           73537137,
+            'UNREACHABLE',
+            'UNREACHABLE',
+            'HIGH',
+            'INFO',
+        ),
     }
-
-
-@patch.object(
-    cartography.intel.semgrep.deployment,
-    "get_deployment",
-    return_value=tests.data.semgrep.deployment.DEPLOYMENTS,
-)
-@patch.object(
-    cartography.intel.semgrep.findings,
-    "get_sca_vulns",
-    return_value=tests.data.semgrep.sca.RAW_VULNS_WITH_UNKNOWN,
-)
-def test_sync_findings_with_unknown_vuln_identifier(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
-    """
-    Test that vulnerabilities with unknown identifier formats (not CVE or GHSA)
-    result in empty ref_urls list instead of list with None values.
-    This prevents the Neo4j "Collections containing null values can not be stored" error.
-    """
-    # Arrange
-    create_github_repos(neo4j_session)
-    create_dependency_nodes(neo4j_session)
-    semgrep_app_token = "your_semgrep_app_token"
-    common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG,
-    }
-
-    # Act
-    sync_deployment(
-        neo4j_session,
-        semgrep_app_token,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-    sync_findings(
-        neo4j_session,
-        semgrep_app_token,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-
-    # Assert - Check that the vulnerability was created with empty ref_urls (not None)
-    assert check_nodes_as_list(
-        neo4j_session,
-        "SemgrepSCAFinding",
-        [
-            "id",
-            "cve_id",
-            "ref_urls",
-        ],
-    ) == [
-        tests.data.semgrep.sca.VULN_ID_UNKNOWN,
-        "UNKNOWN-2022-31129",
-        [],  # Should be empty list, not [None]
-    ]

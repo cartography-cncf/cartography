@@ -115,6 +115,8 @@ def _build_vuln_url(vuln: str) -> str | None:
         return f"https://nvd.nist.gov/vuln/detail/{vuln}"
     if "GHSA" in vuln:
         return f"https://github.com/advisories/{vuln}"
+    if "MAL" in vuln:
+        return f"https://osv.dev/vulnerability/{vuln}"
     return None
 
 
