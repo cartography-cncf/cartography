@@ -263,10 +263,10 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "HIGH",
         ),
         (
-           73537137,
-            'UNREACHABLE',
-            'UNREACHABLE',
-            'HIGH',
-            'INFO',
+           tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+           "UNREACHABLE",
+           "UNREACHABLE",
+           "HIGH",
+           "INFO",
         ),
     }
