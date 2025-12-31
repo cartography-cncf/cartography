@@ -28,6 +28,7 @@ import cartography.intel.duo
 import cartography.intel.entra
 import cartography.intel.gcp
 import cartography.intel.github
+import cartography.intel.gitlab
 import cartography.intel.googleworkspace
 import cartography.intel.gsuite
 import cartography.intel.jamf
@@ -48,6 +49,7 @@ import cartography.intel.snipeit
 import cartography.intel.spacelift
 import cartography.intel.tailscale
 import cartography.intel.trivy
+import cartography.intel.workday
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -74,6 +76,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "okta": cartography.intel.okta.start_okta_ingestion,
         "openai": cartography.intel.openai.start_openai_ingestion,
         "github": cartography.intel.github.start_github_ingestion,
+        "gitlab": cartography.intel.gitlab.start_gitlab_ingestion,
         "digitalocean": cartography.intel.digitalocean.start_digitalocean_ingestion,
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
         "keycloak": cartography.intel.keycloak.start_keycloak_ingestion,
@@ -81,6 +84,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
         "duo": cartography.intel.duo.start_duo_ingestion,
+        "workday": cartography.intel.workday.start_workday_ingestion,
         "scaleway": cartography.intel.scaleway.start_scaleway_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
