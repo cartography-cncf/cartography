@@ -15,6 +15,9 @@ U -- COMMITTED_TO --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
 R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
+R -- HAS_RULESET --> RS(GitHubRuleset)
+RS -- CONTAINS_RULE --> RR(GitHubRulesetRule)
+RS -- ALLOWS_BYPASS --> BA(GitHubRulesetBypassActor)
 R -- REQUIRES --> D(Dependency)
 R -- HAS_MANIFEST --> M(DependencyGraphManifest)
 M -- HAS_DEP --> D
@@ -86,6 +89,10 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
 - GitHubRepositories have GitHubBranchProtectionRules.
     ```
    (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
+    ```
+- GitHubRepositories have GitHubRulesets.
+    ```
+   (GitHubRepository)-[:HAS_RULESET]->(GitHubRuleset)
     ```
 - GitHubTeams can have various levels of [access](https://docs.github.com/en/graphql/reference/enums#repositorypermission) to GitHubRepositories.
 
@@ -327,6 +334,94 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
 
     ```
     (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
+    ```
+
+### GitHubRuleset
+
+Representation of a GitHub Repository Ruleset [RepositoryRuleset object](https://docs.github.com/en/graphql/reference/objects#repositoryruleset). This node contains ruleset configuration that enforces rules on branches or tags in a repository.
+
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node  |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The GitHub ruleset id |
+| database_id | The GitHub database id for this ruleset |
+| name | Name of the ruleset |
+| target | Target type: BRANCH or TAG |
+| enforcement | Enforcement level: ACTIVE, EVALUATE, or DISABLED |
+| created_at | When the ruleset was created |
+| updated_at | When the ruleset was last updated |
+| conditions_ref_name_include | Array of branch/tag patterns to include (e.g., ["~DEFAULT_BRANCH", "refs/heads/release/*"]) |
+| conditions_ref_name_exclude | Array of branch/tag patterns to exclude (e.g., ["refs/heads/dependabot/**/*"]) |
+
+
+#### Relationships
+
+- GitHubRepositories have GitHubRulesets.
+
+    ```
+    (GitHubRepository)-[:HAS_RULESET]->(GitHubRuleset)
+    ```
+
+- GitHubRulesets contain GitHubRulesetRules.
+
+    ```
+    (GitHubRuleset)-[:CONTAINS_RULE]->(GitHubRulesetRule)
+    ```
+
+- GitHubRulesets allow bypass by GitHubRulesetBypassActors.
+
+    ```
+    (GitHubRuleset)-[:ALLOWS_BYPASS]->(GitHubRulesetBypassActor)
+    ```
+
+### GitHubRulesetRule
+
+Representation of a rule within a GitHub Repository Ruleset [RepositoryRule union](https://docs.github.com/en/graphql/reference/unions#repositoryrule). This node contains individual rule configuration.
+
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node  |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The GitHub rule id |
+| type | Rule type (e.g., DELETION, PULL_REQUEST, REQUIRED_STATUS_CHECKS) |
+| parameters | JSON string of rule parameters (e.g., {"requiredApprovingReviewCount": 2}) or null if no parameters |
+
+
+#### Relationships
+
+- GitHubRulesets contain GitHubRulesetRules.
+
+    ```
+    (GitHubRuleset)-[:CONTAINS_RULE]->(GitHubRulesetRule)
+    ```
+
+### GitHubRulesetBypassActor
+
+Representation of a bypass actor for a GitHub Repository Ruleset [RepositoryRulesetBypassActor object](https://docs.github.com/en/graphql/reference/objects#repositoryrulesetbypassactor). This node represents an actor (team, app, role, etc.) that can bypass ruleset enforcement.
+
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node  |
+| lastupdated | Timestamp of the last time the node was updated |
+| id | The GitHub bypass actor id |
+| bypass_mode | When the actor can bypass: ALWAYS or PULL_REQUEST |
+| actor_type | Type of actor: Team, App, OrganizationAdmin, EnterpriseOwner, DeployKey, or RepositoryRole |
+| actor_id | GitHub id of the actor (for Team/App types) |
+| actor_database_id | GitHub database id of the actor |
+| actor_name | Name of the actor (e.g., "maintainers", "Dependabot") |
+| actor_slug | Slug of the actor (for App type only) |
+
+
+#### Relationships
+
+- GitHubRulesets allow bypass by GitHubRulesetBypassActors.
+
+    ```
+    (GitHubRuleset)-[:ALLOWS_BYPASS]->(GitHubRulesetBypassActor)
     ```
 
 ### ProgrammingLanguage
