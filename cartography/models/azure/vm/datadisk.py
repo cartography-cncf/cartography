@@ -29,7 +29,7 @@ class AzureDataDiskProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureDataDiskToVirtualMachineProperties(CartographyRelProperties):
+class AzureDataDiskToVirtualMachineRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -42,8 +42,8 @@ class AzureDataDiskToVirtualMachineRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "ATTACHED_TO"
-    properties: AzureDataDiskToVirtualMachineProperties = (
-        AzureDataDiskToVirtualMachineProperties()
+    properties: AzureDataDiskToVirtualMachineRelProperties = (
+        AzureDataDiskToVirtualMachineRelProperties()
     )
 
 

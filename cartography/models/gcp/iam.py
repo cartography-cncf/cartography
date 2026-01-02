@@ -47,7 +47,7 @@ class GCPIAMToProjectRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:GCPUser|GCPServiceAccount|GCPRole)<-[:RESOURCE]-(:GCPProject)
-class GCPPrincipalToProject(CartographyRelSchema):
+class GCPPrincipalToProjectRel(CartographyRelSchema):
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("projectId", set_in_kwargs=True)},
@@ -61,7 +61,7 @@ class GCPPrincipalToProject(CartographyRelSchema):
 class GCPServiceAccountSchema(CartographyNodeSchema):
     label: str = "GCPServiceAccount"
     properties: GCPServiceAccountNodeProperties = GCPServiceAccountNodeProperties()
-    sub_resource_relationship: GCPPrincipalToProject = GCPPrincipalToProject()
+    sub_resource_relationship: GCPPrincipalToProjectRel = GCPPrincipalToProjectRel()
     # Service accounts are principals; add shared label for cross-module queries
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
 
@@ -70,4 +70,4 @@ class GCPServiceAccountSchema(CartographyNodeSchema):
 class GCPRoleSchema(CartographyNodeSchema):
     label: str = "GCPRole"
     properties: GCPRoleNodeProperties = GCPRoleNodeProperties()
-    sub_resource_relationship: GCPPrincipalToProject = GCPPrincipalToProject()
+    sub_resource_relationship: GCPPrincipalToProjectRel = GCPPrincipalToProjectRel()

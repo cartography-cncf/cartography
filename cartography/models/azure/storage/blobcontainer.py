@@ -32,7 +32,9 @@ class AzureStorageBlobContainerProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureStorageBlobContainerToStorageBlobServiceProperties(CartographyRelProperties):
+class AzureStorageBlobContainerToStorageBlobServiceRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -45,8 +47,8 @@ class AzureStorageBlobContainerToStorageBlobServiceRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureStorageBlobContainerToStorageBlobServiceProperties = (
-        AzureStorageBlobContainerToStorageBlobServiceProperties()
+    properties: AzureStorageBlobContainerToStorageBlobServiceRelProperties = (
+        AzureStorageBlobContainerToStorageBlobServiceRelProperties()
     )
 
 

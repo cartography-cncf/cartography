@@ -21,7 +21,9 @@ class AzureTransparentDataEncryptionProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureTransparentDataEncryptionToSQLDatabaseProperties(CartographyRelProperties):
+class AzureTransparentDataEncryptionToSQLDatabaseRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -34,8 +36,8 @@ class AzureTransparentDataEncryptionToSQLDatabaseRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: AzureTransparentDataEncryptionToSQLDatabaseProperties = (
-        AzureTransparentDataEncryptionToSQLDatabaseProperties()
+    properties: AzureTransparentDataEncryptionToSQLDatabaseRelProperties = (
+        AzureTransparentDataEncryptionToSQLDatabaseRelProperties()
     )
 
 
