@@ -1118,10 +1118,19 @@ def sync_role_assumptions(
 
 @timeit
 def transform_server_certificates(certificates: List[Dict]) -> List[Dict]:
+    transformed_certs = []
     for cert in certificates:
-        cert["Expiration"] = str(cert["Expiration"])
-        cert["UploadDate"] = str(cert["UploadDate"])
-    return certificates
+        transformed_certs.append(
+            {
+                "ServerCertificateName": cert["ServerCertificateName"],
+                "ServerCertificateId": cert["ServerCertificateId"],
+                "Arn": cert["Arn"],
+                "Path": cert["Path"],
+                "Expiration": str(cert["Expiration"]),
+                "UploadDate": str(cert["UploadDate"]),
+            }
+        )
+    return transformed_certs
 
 
 @timeit
