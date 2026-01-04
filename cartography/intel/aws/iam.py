@@ -1312,9 +1312,9 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
     GraphJob.from_node_schema(AWSGroupSchema(), common_job_parameters).run(
         neo4j_session
     )
-    GraphJob.from_node_schema(
-        AWSServerCertificateSchema(), common_job_parameters
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(AWSServerCertificateSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 def sync_root_principal(

@@ -1,6 +1,7 @@
 from cartography.intel.aws import iam
 from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
+from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES_RESPONSE
 
 SINGLE_STATEMENT = {
     "Resource": "*",
@@ -154,3 +155,14 @@ def test_transform_policy_data_correctly_creates_lists_of_statements():
         }
     ]
     assert statements == expected_statements
+
+
+def test_transform_server_certificates():
+    raw_data = LIST_SERVER_CERTIFICATES_RESPONSE["ServerCertificateMetadataList"]
+    result = iam.transform_server_certificates(raw_data)
+    assert len(result) == 1
+    assert result[0]["ServerCertificateName"] == "test-cert"
+    assert isinstance(result[0]["Expiration"], str)
+    assert isinstance(result[0]["UploadDate"], str)
+    assert "2024-01-01" in result[0]["Expiration"]
+    assert "2023-01-01" in result[0]["UploadDate"]
