@@ -95,6 +95,10 @@ object_storage_public = Rule(
         _aws_s3_public,
         _azure_storage_public_blob_access,
     ),
-    tags=("infrastructure", "attack_surface"),
+    tags=(
+        "infrastructure",
+        "attack_surface",
+        "stride:information_disclosure",
+    ),
     version="0.1.0",
 )

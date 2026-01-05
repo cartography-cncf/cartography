@@ -65,6 +65,6 @@ def test_sync_metric_alerts(mock_get, neo4j_session):
         "id",
         "AzureMonitorMetricAlert",
         "id",
-        "HAS_METRIC_ALERT",
+        "RESOURCE",
     )
     assert actual_rels == expected_rels
