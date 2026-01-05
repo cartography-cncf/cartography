@@ -29,14 +29,14 @@ class S1CVEToAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:S1CVE)<-[:RISK]-(:S1Account)
-class S1CVEToAccount(CartographyRelSchema):
+# (:S1CVE)<-[:RESOURCE]-(:S1Account)
+class S1CVEToAccountRel(CartographyRelSchema):
     target_node_label: str = "S1Account"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("S1_ACCOUNT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RISK"
+    rel_label: str = "RESOURCE"
     properties: S1CVEToAccountRelProperties = S1CVEToAccountRelProperties()
 
 
@@ -52,7 +52,7 @@ class S1AffectsRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 # (:S1CVE)-[:AFFECTS]->(:S1ApplicationVersion)
-class S1CVEAffectsApplicationVersion(CartographyRelSchema):
+class S1CVEAffectsApplicationVersionRel(CartographyRelSchema):
     target_node_label: str = "S1ApplicationVersion"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("application_version_id")},
@@ -67,7 +67,7 @@ class S1CVESchema(CartographyNodeSchema):
     label: str = "S1CVE"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "CVE"])
     properties: S1CVENodeProperties = S1CVENodeProperties()
-    sub_resource_relationship: S1CVEToAccount = S1CVEToAccount()
+    sub_resource_relationship: S1CVEToAccountRel = S1CVEToAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [S1CVEAffectsApplicationVersion()]
+        [S1CVEAffectsApplicationVersionRel()]
     )
