@@ -8,6 +8,8 @@ Each Rule represents a distinct security concept with a consistent main node typ
 Facts within a Rule are provider-specific implementations of the same concept.
 """
 
+from datetime import datetime
+
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
 from cartography.rules.spec.model import Maturity
@@ -37,7 +39,7 @@ class AccessKeyNotRotatedOutput(Finding):
     access_key_id: str | None = None
     user_name: str | None = None
     user_arn: str | None = None
-    key_create_date: str | None = None
+    key_create_date: datetime | None = None
     days_since_rotation: int | None = None
     account_id: str | None = None
     account: str | None = None
@@ -60,7 +62,7 @@ _aws_access_key_not_rotated = Fact(
         key.accesskeyid AS access_key_id,
         user.name AS user_name,
         user.arn AS user_arn,
-        key.createdate AS key_create_date,
+        key.createdate_dt AS key_create_date,
         duration.inDays(date(key.createdate_dt), date()).days AS days_since_rotation,
         a.id AS account_id,
         a.name AS account
@@ -101,8 +103,8 @@ class UnusedCredentialsOutput(Finding):
     access_key_id: str | None = None
     user_name: str | None = None
     user_arn: str | None = None
-    last_used_date: str | None = None
-    key_create_date: str | None = None
+    last_used_date: datetime | None = None
+    key_create_date: datetime | None = None
     account_id: str | None = None
     account: str | None = None
 
@@ -125,8 +127,8 @@ _aws_unused_credentials = Fact(
         key.accesskeyid AS access_key_id,
         user.name AS user_name,
         user.arn AS user_arn,
-        key.lastuseddate AS last_used_date,
-        key.createdate AS key_create_date,
+        key.lastuseddate_dt AS last_used_date,
+        key.createdate_dt AS key_create_date,
         a.id AS account_id,
         a.name AS account
     """,
@@ -292,7 +294,7 @@ class ExpiredCertificatesOutput(Finding):
     domain_name: str | None = None
     certificate_arn: str | None = None
     status: str | None = None
-    expiry_date: str | None = None
+    expiry_date: datetime | None = None
     certificate_type: str | None = None
     account_id: str | None = None
     account: str | None = None
