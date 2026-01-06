@@ -1126,8 +1126,8 @@ def transform_server_certificates(certificates: List[Dict]) -> List[Dict]:
                 "ServerCertificateId": cert["ServerCertificateId"],
                 "Arn": cert["Arn"],
                 "Path": cert["Path"],
-                "Expiration": str(cert["Expiration"]),
-                "UploadDate": str(cert["UploadDate"]),
+                "Expiration": cert["Expiration"],
+                "UploadDate": cert["UploadDate"],
             }
         )
     return transformed_certs

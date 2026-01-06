@@ -12,7 +12,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class AWSServerCertificateNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("Arn")
+    id: PropertyRef = PropertyRef("ServerCertificateId")
     arn: PropertyRef = PropertyRef("Arn", extra_index=True)
     server_certificate_id: PropertyRef = PropertyRef(
         "ServerCertificateId", extra_index=True

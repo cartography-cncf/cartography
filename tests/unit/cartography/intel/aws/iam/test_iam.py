@@ -1,3 +1,5 @@
+import datetime
+
 from cartography.intel.aws import iam
 from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
@@ -162,7 +164,7 @@ def test_transform_server_certificates():
     result = iam.transform_server_certificates(raw_data)
     assert len(result) == 1
     assert result[0]["ServerCertificateName"] == "test-cert"
-    assert isinstance(result[0]["Expiration"], str)
-    assert isinstance(result[0]["UploadDate"], str)
-    assert "2024-01-01" in result[0]["Expiration"]
-    assert "2023-01-01" in result[0]["UploadDate"]
+    assert isinstance(result[0]["Expiration"], datetime.datetime)
+    assert isinstance(result[0]["UploadDate"], datetime.datetime)
+    assert result[0]["Expiration"] == datetime.datetime(2024, 1, 1, 0, 0, 0)
+    assert result[0]["UploadDate"] == datetime.datetime(2023, 1, 1, 0, 0, 0)
