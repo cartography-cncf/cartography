@@ -59,6 +59,7 @@ Current rules include:
 - **policy_administration_privileges** - Policy administration capabilities
 - **unmanaged_accounts** - Unmanaged cloud accounts
 - **workload_identity_admin_capabilities** - Workload identity escalation surface
+- **cis_gcp_3_1_default_network**, **cis_gcp_3_6_unrestricted_ssh**, **cis_gcp_3_7_unrestricted_rdp**, **cis_gcp_4_9_public_ip**, **cis_gcp_5_2_bucket_uniform_access** - CIS Google Cloud Platform Foundation Benchmark v4.0.0 controls (network exposure, VM public IPs, and bucket access controls)
 
 You can list all available rules and their details from the CLI, see [below](#list).
 
@@ -369,6 +370,24 @@ cartography-rules run object_storage_public aws_s3_public
 ```bash
 cartography-rules run object_storage_public --no-experimental
 ```
+
+### CIS GCP 4.0 ruleset
+
+Cartography ships a CIS Google Cloud Platform Foundation Benchmark v4.0.0 ruleset focused on the controls that align with data already present in the graph:
+
+- 3.1 (`cis_gcp_3_1_default_network`): Default network still present in a project
+- 3.6 (`cis_gcp_3_6_unrestricted_ssh`): SSH (22/TCP) exposed to `0.0.0.0/0` by an ingress firewall rule
+- 3.7 (`cis_gcp_3_7_unrestricted_rdp`): RDP (3389/TCP) exposed to `0.0.0.0/0` by an ingress firewall rule
+- 4.9 (`cis_gcp_4_9_public_ip`): Compute instances with public NAT IPs attached
+- 5.2 (`cis_gcp_5_2_bucket_uniform_access`): GCS buckets without uniform bucket-level access (bucket policy only) enabled
+
+Run each control like any other rule. For example:
+
+```bash
+cartography-rules run cis_gcp_3_1_default_network
+```
+
+The output includes the CIS control ID, severity (mapped from the CIS profile), and the GCP project/resource context returned by each fact.
 
 
 ### Authentication Options
