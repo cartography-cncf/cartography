@@ -2,7 +2,8 @@
 Integration tests for cascade_delete cleanup feature.
 
 Tests the core behavior: when cascade_delete=True, deleting a stale parent
-also deletes its children (nodes with RESOURCE relationships from the parent).
+also deletes its children (nodes with relationships from the parent matching the
+sub_resource_relationship rel_label).
 """
 
 from cartography.client.core.tx import load_graph_data
@@ -27,7 +28,7 @@ from tests.integration.util import check_nodes
 
 
 def _setup_parent_with_children(neo4j_session, lastupdated: int):
-    """Create an InterestingAsset parent with two child nodes connected via RESOURCE."""
+    """Create an InterestingAsset parent with two child nodes connected via sub_resource rel label."""
     neo4j_session.run(MERGE_SUB_RESOURCE_QUERY)
     neo4j_session.run(MERGE_HELLO_ASSET_QUERY)
     neo4j_session.run(MERGE_WORLD_ASSET_QUERY)
@@ -41,7 +42,7 @@ def _setup_parent_with_children(neo4j_session, lastupdated: int):
         sub_resource_id="sub-resource-id",
     )
 
-    # Create children with RESOURCE relationship from parent: (Parent)-[:RESOURCE]->(Child)
+    # Create children with sub_resource relationship label from parent: (Parent)-[:RELATIONSHIP_LABEL]->(Child)
     neo4j_session.run(
         """
         UNWIND ['child-1', 'child-2'] AS child_id
@@ -49,7 +50,7 @@ def _setup_parent_with_children(neo4j_session, lastupdated: int):
         SET c.lastupdated = $lastupdated
         WITH c
         MATCH (p:InterestingAsset{id: 'interesting-node-id'})
-        MERGE (p)-[:RESOURCE]->(c)
+        MERGE (p)-[:RELATIONSHIP_LABEL]->(c)
         """,
         lastupdated=lastupdated,
     )

@@ -30,7 +30,7 @@ def test_cascade_cleanup_sub_rel():
     Test that cascade_delete=True generates the correct cleanup query with OPTIONAL MATCH for children.
     The query should:
     1. Match the parent node attached to its sub resource
-    2. Use OPTIONAL MATCH to find children via RESOURCE relationship
+    2. Use OPTIONAL MATCH to find children via sub_resource_relationship rel_label
     3. Only delete children that are also stale (lastupdated <> UPDATE_TAG)
     4. Handle parents with no children (child IS NULL)
     """
@@ -44,7 +44,7 @@ def test_cascade_cleanup_sub_rel():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (n)-[:RESOURCE]->(child)
+        OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
         WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
         DETACH DELETE child, n;
         """,
@@ -74,7 +74,7 @@ def test_cascade_cleanup_with_selected_rel():
         MATCH (n)-[r:ASSOCIATED_WITH]->(:HelloAsset)
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (n)-[:RESOURCE]->(child)
+        OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
         WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
         DETACH DELETE child, n;
         """,
@@ -103,7 +103,7 @@ def test_build_cleanup_queries_with_cascade():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (n)-[:RESOURCE]->(child)
+        OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
         WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
         DETACH DELETE child, n;
         """,
