@@ -33,6 +33,13 @@ from cartography.intel.gcp.clients import get_gcp_credentials
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
+from cartography.intel.gcp.vertex.datasets import sync_vertex_ai_datasets
+from cartography.intel.gcp.vertex.deployed_models import sync_vertex_ai_deployed_models
+from cartography.intel.gcp.vertex.endpoints import sync_vertex_ai_endpoints
+from cartography.intel.gcp.vertex.feature_groups import sync_feature_groups
+from cartography.intel.gcp.vertex.instances import sync_workbench_instances
+from cartography.intel.gcp.vertex.models import sync_vertex_ai_models
+from cartography.intel.gcp.vertex.training_pipelines import sync_training_pipelines
 from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
@@ -43,7 +50,7 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam bigtable cai")
+Services = namedtuple("Services", "compute storage gke dns iam bigtable cai aiplatform")
 service_names = Services(
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
@@ -52,6 +59,7 @@ service_names = Services(
     iam="iam.googleapis.com",
     bigtable="bigtableadmin.googleapis.com",
     cai="cloudasset.googleapis.com",
+    aiplatform="aiplatform.googleapis.com",
 )
 
 
@@ -288,6 +296,62 @@ def _sync_project_resources(
                         gcp_update_tag,
                         common_job_parameters,
                     )
+
+        if service_names.aiplatform in enabled_services:
+            logger.info(f"Syncing GCP project {project_id} for Vertex AI.")
+            aiplatform_client = build_client(
+                "aiplatform", "v1", credentials=credentials
+            )
+            sync_vertex_ai_models(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            endpoints_raw = sync_vertex_ai_endpoints(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            if endpoints_raw:
+                sync_vertex_ai_deployed_models(
+                    neo4j_session,
+                    endpoints_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+            sync_workbench_instances(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            sync_training_pipelines(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            sync_feature_groups(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            sync_vertex_ai_datasets(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
 
         # Policy bindings sync uses CAI gRPC client.
         # We attempt policy bindings for all projects unless we've already encountered a permission error.

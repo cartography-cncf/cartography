@@ -26,6 +26,7 @@ class AWSRoleNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     path: PropertyRef = PropertyRef("path")
     createdate: PropertyRef = PropertyRef("createdate")
+    createdate_dt: PropertyRef = PropertyRef("createdate_dt")
 
 
 @dataclass(frozen=True)

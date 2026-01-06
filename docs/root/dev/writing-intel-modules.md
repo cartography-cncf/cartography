@@ -56,6 +56,8 @@ On the other hand, we should use `data.get('SomeField')` if `SomeField` is somet
 
 For the sake of consistency, if a field does not exist, set it to `None` and not `""`.
 
+Neo4j handles fields in `datetime` format, so when a date is returned as a string, it's best to parse it to enable the use of operators during querying.
+
 ### Load
 
 [As seen in our AWS EMR example](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L113-L132), the `load` function ingests a list of dicts to Neo4j by calling [cartography.client.core.tx.load()](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/client/core/tx.py#L191-L212):
@@ -76,9 +78,15 @@ def load_emr_clusters(
         Region=region,
         AWS_ID=current_aws_account_id,
     )
-
 ```
 
+```{tip}
+When defining nodes and properties, please follow the naming convention below:
+- **Node classes** should end with `Schema`
+- **Relationship classes** should end with `Rel`
+- **Node property classes** should end with `Properties`
+- **Relationship property classes** should end with `RelProperties`
+```
 
 #### Defining a node
 
@@ -168,6 +176,74 @@ This class is best described by explaining how it is processed: `build_ingestion
 class EMRClusterToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 ```
+
+```{important}
+**Relationship Naming Guidelines**
+
+When naming relationships in Cartography:
+- Prefer clear verbs (e.g., OWNS, CONTAINS)
+- Avoid ambiguous or passive phrasing (e.g., IS, CAN)
+- Use direct and active forms
+    - Prefer OWNS over OWNED_BY
+    - Prefer CONTAINS over BELONGS_TO
+
+Consistent, action-oriented naming improves graph readability and makes Cypher queries more intuitive.
+```
+
+### Sub-Resources relationship
+
+A *sub-resource* is a specific type of composition relationship in which a node "belongs to" a higher-level entity such as an Account, Subscription, etc.
+
+Examples:
+
+* In **AWS**, the parent is typically an `AWSAccount`.
+* In **Azure**, it's a `Tenant` or `Subscription`.
+* In **GCP**, it's a `GCPProject`.
+
+To define a sub-resource relationship, use the `sub_resource_relationship` property on the node class. It must follow these constraints:
+
+* The target node matcher must have `set_in_kwargs=True` (required for auto-cleanup functionality).
+* All `sub_resource_relationship`s must:
+
+  * Use the label `RESOURCE`
+  * Have the direction set to `INWARD`
+* Each module:
+
+  * **Must have at least one root node** (a node without a `sub_resource_relationship`)
+  * **Must have at most one root node**
+
+#### Common Relationship Types
+
+While you're free to define custom relationships, using standardized types improves maintainability and facilitates querying and analysis.
+
+**Composition**
+
+* `(:Parent)-[:CONTAINS]->(:Child)`
+* `(:Parent)-[:HAS]->(:Child)`
+
+**Tagging**
+
+* `(:Entity)-[:TAGGED]->(:Tag)`
+
+**Group Membership**
+
+* `(:Element)-[:MEMBER_OF]->(:Group)`
+* `(:Element)-[:ADMIN_OF]->(:Group)`
+    ```{note}
+    If an element is an admin, both relationships (`MEMBER_OF` and `ADMIN_OF`) should be present for consistency.
+    ```
+
+**Ownership**
+
+* `(:Entity)-[:OWNS]->(:OtherEntity)`
+
+**Permissions (ACL)**
+
+* `(:Actor)-[:CAN_ACCESS]->(:Entity)`
+* `(:Actor)-[:CAN_READ]->(:Entity)`
+* `(:Actor)-[:CAN_WRITE]->(:Entity)`
+* `(:Actor)-[:CAN_ADD]->(:Entity)`
+* `(:Actor)-[:CAN_DELETE]->(:Entity)`
 
 #### The result
 
@@ -369,6 +445,53 @@ synced.
 
 For some other modules that don't have a clear tenant-like relationship, you can set `scoped_cleanup` to False on the
 node_schema. This might make sense for a vuln scanner module where there is no logical tenant object.
+
+#### Hierarchical data and cascade_delete
+
+Some data sources have multi-tier hierarchical structures where nodes own other nodes via RESOURCE relationships. Examples include:
+
+- **GCP**: Organization → Folders → Projects → Compute instances, Storage buckets, etc.
+- **GitLab**: Organization → Groups → Projects → Branches, Dependencies, etc.
+
+In Cartography, RESOURCE relationships point from parent to child:
+
+```
+(Parent)-[:RESOURCE]->(Child)
+```
+
+When a parent node becomes stale and is deleted, you may want its children to be deleted as well. The `cascade_delete` parameter enables this behavior:
+
+```python
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+    cleanup_job = GraphJob.from_node_schema(
+        MyParentSchema(),
+        common_job_parameters,
+        cascade_delete=True,  # Also delete children when parent is stale
+    )
+    cleanup_job.run(neo4j_session)
+```
+
+When `cascade_delete=True`, the cleanup query becomes:
+
+```cypher
+WHERE n.lastupdated <> $UPDATE_TAG
+WITH n LIMIT $LIMIT_SIZE
+OPTIONAL MATCH (n)-[:RESOURCE]->(child)
+WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
+DETACH DELETE child, n;
+```
+
+**When to use cascade_delete:**
+
+- Use `cascade_delete=True` when child nodes are meaningless without their parent (e.g., GitLab branches without their project)
+- Use `cascade_delete=False` (default) when children should persist independently or when another module manages their lifecycle
+
+**Important notes:**
+
+- Only affects direct children (one level deep via `RESOURCE` relationships). Grandchildren require cleaning up intermediate levels first.
+- Children that were re-parented in the current sync (matching `UPDATE_TAG`) are protected from deletion.
+- Only valid with scoped cleanup (`scoped_cleanup=True`). Unscoped cleanups will raise an error if `cascade_delete=True`.
+- Default is `False` for backward compatibility.
 
 #### Legacy notes
 

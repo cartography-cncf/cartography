@@ -37,6 +37,7 @@ from . import resourcegroupstaggingapi
 from . import route53
 from . import s3
 from . import s3accountpublicaccessblock
+from . import sagemaker
 from . import secretsmanager
 from . import securityhub
 from . import sns
@@ -110,6 +111,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "secretsmanager": secretsmanager.sync,
     "securityhub": securityhub.sync,
     "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
+    "sagemaker": sagemaker.sync,
     "sns": sns.sync,
     "sqs": sqs.sync,
     "ssm": ssm.sync,

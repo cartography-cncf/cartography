@@ -28,5 +28,5 @@ Representation of a Kandji device.
 - Kandji devices are enrolled to a Kandji Tenant
 
     ```
-    (KandjiDevice)-[ENROLLED_TO]->(KandjiTenant)
+    (KandjiDevice)<-[RESOURCE]-(KandjiTenant)
     ```

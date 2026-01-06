@@ -409,7 +409,9 @@ def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "name": user["UserName"],
             "path": user["Path"],
             "createdate": str(user["CreateDate"]),
+            "createdate_dt": user["CreateDate"],
             "passwordlastused": str(user.get("PasswordLastUsed", "")),
+            "passwordlastused_dt": user.get("PasswordLastUsed"),
         }
         user_data.append(user_record)
 
@@ -427,6 +429,7 @@ def transform_groups(
             "name": group["GroupName"],
             "path": group["Path"],
             "createdate": str(group["CreateDate"]),
+            "createdate_dt": group["CreateDate"],
             "user_arns": group_memberships.get(group["Arn"], []),
         }
         group_data.append(group_record)
@@ -444,8 +447,10 @@ def transform_access_keys(
                 access_key_record = {
                     "accesskeyid": access_key["AccessKeyId"],
                     "createdate": str(access_key["CreateDate"]),
+                    "createdate_dt": access_key["CreateDate"],
                     "status": access_key["Status"],
                     "lastuseddate": str(access_key.get("LastUsedDate", "")),
+                    "lastuseddate_dt": access_key.get("LastUsedDate"),
                     "lastusedservice": access_key.get("LastUsedService", ""),
                     "lastusedregion": access_key.get("LastUsedRegion", ""),
                     "user_arn": user_arn,  # For the sub-resource relationship
@@ -524,6 +529,7 @@ def transform_role_trust_policies(
             "name": role["RoleName"],
             "path": role["Path"],
             "createdate": str(role["CreateDate"]),
+            "createdate_dt": role["CreateDate"],
             "trusted_aws_principals": list(trusted_aws_principals),
             "account_id": get_account_from_arn(role["Arn"]),
         }
