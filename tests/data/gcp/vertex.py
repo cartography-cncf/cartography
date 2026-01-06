@@ -87,14 +87,8 @@ VERTEX_TRAINING_PIPELINES_RESPONSE = [
         "state": "PIPELINE_STATE_SUCCEEDED",
         "inputDataConfig": {
             "datasetId": "dataset-456",
-            "gcsSource": {
-                "uris": [
-                    "gs://test-bucket/training-data/data1.csv",
-                    "gs://test-bucket-2/training-data/data2.csv",
-                ],
-            },
         },
-        "modelId": "projects/test-project/locations/us-central1/models/1234567890",
+        "modelId": "1234567890",
         "modelToUpload": {
             "displayName": "test-model",
         },

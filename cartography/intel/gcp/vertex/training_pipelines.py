@@ -2,7 +2,6 @@ import json
 import logging
 from typing import Dict
 from typing import List
-from urllib.parse import urlparse
 
 import neo4j
 from googleapiclient.discovery import Resource
@@ -60,20 +59,8 @@ def transform_training_pipelines(training_pipelines: List[Dict]) -> List[Dict]:
     transformed_pipelines = []
 
     for pipeline in training_pipelines:
-        # Extract ALL GCS buckets from input data config (if GCS source is used)
-        gcs_bucket_ids = []
-        input_data_config = pipeline.get("inputDataConfig", {})
-        gcs_source = input_data_config.get("gcsSource", {})
-        uris = gcs_source.get("uris", [])
-        for uri in uris:
-            # Extract bucket name from each GCS URI
-            # Format: gs://bucket-name/path/to/data → bucket-name
-            if uri.startswith("gs://"):
-                bucket_name = urlparse(uri).netloc
-                if bucket_name and bucket_name not in gcs_bucket_ids:
-                    gcs_bucket_ids.append(bucket_name)
-
         # Extract dataset ID from input data config (if Vertex AI Dataset is used)
+        input_data_config = pipeline.get("inputDataConfig", {})
         # NOTE: datasetId is a numeric string, need to convert to full resource name
         dataset_id_numeric = input_data_config.get("datasetId")
         if dataset_id_numeric:
@@ -91,11 +78,25 @@ def transform_training_pipelines(training_pipelines: List[Dict]) -> List[Dict]:
             dataset_id = None
 
         # Extract model ID (the model produced by this training pipeline)
-        # modelId field is often None, so check modelToUpload.name as fallback
-        model_id = pipeline.get("modelId")
-        if not model_id:
+        # NOTE: modelId is a short ID, need to convert to full resource name
+        model_id_short = pipeline.get("modelId")
+        if model_id_short:
+            # Expand short ID to full resource name
+            # Pipeline name format: projects/{project}/locations/{location}/trainingPipelines/{id}
+            pipeline_name = pipeline.get("name", "")
+            parts = pipeline_name.split("/")
+            if len(parts) >= 4:
+                project = parts[1]
+                location = parts[3]
+                model_id = (
+                    f"projects/{project}/locations/{location}/models/{model_id_short}"
+                )
+            else:
+                model_id = None
+        else:
+            # Fallback: check modelToUpload.name (already a full resource name)
             model_to_upload = pipeline.get("modelToUpload", {})
-            model_id = model_to_upload.get("name")  # Full resource name
+            model_id = model_to_upload.get("name")
 
         # Serialize nested dicts to JSON strings (Neo4j doesn't support nested dicts)
         error = pipeline.get("error")
@@ -116,10 +117,7 @@ def transform_training_pipelines(training_pipelines: List[Dict]) -> List[Dict]:
             "error": error_json,
             "model_to_upload": model_to_upload_json,
             "training_task_definition": pipeline.get("trainingTaskDefinition"),
-            # Relationship fields (can be lists for multiple relationships)
-            "gcs_bucket_id": (
-                gcs_bucket_ids if gcs_bucket_ids else None
-            ),  # For READS_FROM GCSBucket relationship
+            # Relationship fields
             "dataset_id": dataset_id,  # For READS_FROM GCPVertexAIDataset relationship
             "model_id": model_id,  # For PRODUCES GCPVertexAIModel relationship
         }

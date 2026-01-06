@@ -69,10 +69,16 @@ def transform_vertex_ai_datasets(datasets: List[Dict]) -> List[Dict]:
         encryption_spec = dataset.get("encryptionSpec")
         encryption_spec_json = json.dumps(encryption_spec) if encryption_spec else None
 
+        # Serialize labels to JSON string if present
+        labels = dataset.get("labels")
+        labels_json = json.dumps(labels) if labels else None
+
         transformed_dataset = {
             "id": dataset.get("name"),  # Full resource name
             "name": dataset.get("name"),
             "display_name": dataset.get("displayName"),
+            "description": dataset.get("description"),
+            "labels": labels_json,
             "create_time": dataset.get("createTime"),
             "update_time": dataset.get("updateTime"),
             "etag": dataset.get("etag"),

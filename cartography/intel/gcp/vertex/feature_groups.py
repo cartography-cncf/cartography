@@ -76,9 +76,15 @@ def transform_feature_groups(feature_groups: List[Dict]) -> List[Dict]:
         time_series = bigquery_config.get("timeSeries", {})
         timestamp_column = time_series.get("timestampColumn")
 
+        # Serialize labels to JSON string if present
+        labels = group.get("labels")
+        labels_json = json.dumps(labels) if labels else None
+
         transformed_group = {
             "id": group.get("name"),  # Full resource name
             "name": group.get("name"),
+            "description": group.get("description"),
+            "labels": labels_json,
             "create_time": group.get("createTime"),
             "update_time": group.get("updateTime"),
             "etag": group.get("etag"),

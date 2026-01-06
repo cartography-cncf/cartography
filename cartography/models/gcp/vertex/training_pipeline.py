@@ -34,9 +34,6 @@ class GCPVertexAITrainingPipelineNodeProperties(CartographyNodeProperties):
         "dataset_id"
     )  # For READS_FROM Dataset relationship
     model_id: PropertyRef = PropertyRef("model_id")  # For PRODUCES Model relationship
-    gcs_bucket_id: PropertyRef = PropertyRef(
-        "gcs_bucket_id"
-    )  # For READS_FROM GCSBucket relationship
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -56,25 +53,6 @@ class GCPVertexAITrainingPipelineToProjectRel(CartographyRelSchema):
     rel_label: str = "RESOURCE"
     properties: GCPVertexAITrainingPipelineToProjectRelProperties = (
         GCPVertexAITrainingPipelineToProjectRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class GCPVertexAITrainingPipelineToGCSBucketRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-# (:GCPVertexAITrainingPipeline)-[:READS_FROM]->(:GCPBucket)
-class GCPVertexAITrainingPipelineToGCSBucketRel(CartographyRelSchema):
-    target_node_label: str = "GCPBucket"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("gcs_bucket_id", one_to_many=True)}
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "READS_FROM"
-    properties: GCPVertexAITrainingPipelineToGCSBucketRelProperties = (
-        GCPVertexAITrainingPipelineToGCSBucketRelProperties()
     )
 
 
@@ -127,7 +105,6 @@ class GCPVertexAITrainingPipelineSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            GCPVertexAITrainingPipelineToGCSBucketRel(),
             GCPVertexAITrainingPipelineToDatasetRel(),
             GCPVertexAITrainingPipelineToModelRel(),
         ]

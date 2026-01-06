@@ -20,6 +20,8 @@ class GCPVertexAIDatasetNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)  # Full resource name
     name: PropertyRef = PropertyRef("name")  # Resource name (same as id)
     display_name: PropertyRef = PropertyRef("display_name")
+    description: PropertyRef = PropertyRef("description")
+    labels: PropertyRef = PropertyRef("labels")
     create_time: PropertyRef = PropertyRef("create_time")
     update_time: PropertyRef = PropertyRef("update_time")
     etag: PropertyRef = PropertyRef("etag")

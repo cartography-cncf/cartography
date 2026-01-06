@@ -124,18 +124,17 @@ def test_sync_vertex_ai_end_to_end(
         update_tag=TEST_UPDATE_TAG,
     )
 
-    # Create test GCS buckets (for model and training pipeline relationships)
-    for bucket_id in ["test-bucket", "test-bucket-2"]:
-        neo4j_session.run(
-            """
-            MERGE (bucket:GCPBucket{id: $bucket_id})
-            ON CREATE SET bucket.firstseen = timestamp()
-            SET bucket.lastupdated = $update_tag,
-                bucket.name = $bucket_id
-            """,
-            bucket_id=bucket_id,
-            update_tag=TEST_UPDATE_TAG,
-        )
+    # Create test GCS bucket (for model STORED_IN relationship)
+    neo4j_session.run(
+        """
+        MERGE (bucket:GCPBucket{id: $bucket_id})
+        ON CREATE SET bucket.firstseen = timestamp()
+        SET bucket.lastupdated = $update_tag,
+            bucket.name = $bucket_id
+        """,
+        bucket_id="test-bucket",
+        update_tag=TEST_UPDATE_TAG,
+    )
 
     # Create test service account (for notebook relationship)
     neo4j_session.run(
@@ -361,26 +360,6 @@ def test_sync_vertex_ai_end_to_end(
         (
             "projects/test-project/locations/us-central1/trainingPipelines/training-123",
             "projects/test-project/locations/us-central1/datasets/dataset-456",
-        ),
-    }
-
-    # Verify TrainingPipeline -> GCS Bucket relationships (one-to-many)
-    assert check_rels(
-        neo4j_session,
-        "GCPVertexAITrainingPipeline",
-        "id",
-        "GCPBucket",
-        "id",
-        "READS_FROM",
-        rel_direction_right=True,
-    ) == {
-        (
-            "projects/test-project/locations/us-central1/trainingPipelines/training-123",
-            "test-bucket",
-        ),
-        (
-            "projects/test-project/locations/us-central1/trainingPipelines/training-123",
-            "test-bucket-2",
         ),
     }
 
