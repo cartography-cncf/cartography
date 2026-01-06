@@ -883,3 +883,270 @@ Representation of a GCP [Bigtable Backup](https://cloud.google.com/bigtable/docs
     ```
     (GCPBigtableTable)-[:BACKED_UP_AS]->(GCPBigtableBackup)
     ```
+
+## Vertex AI Resources
+
+### Overview
+
+Google Cloud Vertex AI is a unified machine learning platform for building, deploying, and scaling ML models. Cartography ingests the following Vertex AI resources:
+
+```mermaid
+graph LR
+    Project[GCPProject]
+    Model[GCPVertexAIModel]
+    Endpoint[GCPVertexAIEndpoint]
+    DeployedModel[GCPVertexAIDeployedModel]
+    Instance[GCPVertexAIWorkbenchInstance]
+    Pipeline[GCPVertexAITrainingPipeline]
+    FeatureGroup[GCPVertexAIFeatureGroup]
+    Dataset[GCPVertexAIDataset]
+    Bucket[GCPBucket]
+    ServiceAccount[GCPServiceAccount]
+
+    Project -->|RESOURCE| Model
+    Project -->|RESOURCE| Endpoint
+    Project -->|RESOURCE| Instance
+    Project -->|RESOURCE| Pipeline
+    Project -->|RESOURCE| FeatureGroup
+    Project -->|RESOURCE| Dataset
+
+    Endpoint -->|SERVES| DeployedModel
+    DeployedModel -->|INSTANCE_OF| Model
+    Pipeline -->|PRODUCES| Model
+    Pipeline -->|READS_FROM| Dataset
+    Pipeline -->|READS_FROM| Bucket
+    Model -->|STORED_IN| Bucket
+    Instance -->|USES_SERVICE_ACCOUNT| ServiceAccount
+```
+
+### GCPVertexAIModel
+
+Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the model (e.g., `projects/{project}/locations/{location}/models/{model_id}`) |
+| name | Same as `id` |
+| display_name | User-provided display name of the model |
+| description | Description of the model |
+| version_id | The version ID of the model |
+| version_create_time | Timestamp when this model version was created |
+| version_update_time | Timestamp when this model version was last updated |
+| create_time | Timestamp when the model was originally created |
+| update_time | Timestamp when the model was last updated |
+| artifact_uri | The path to the directory containing the Model artifact and supporting files (GCS URI) |
+| etag | Used to perform consistent read-modify-write updates |
+| labels | JSON string of user-defined labels |
+| training_pipeline | Resource name of the Training Pipeline that created this model |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIModels are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAIModel)
+    ```
+
+- GCPVertexAIModels are stored in GCPBuckets.
+    ```
+    (GCPVertexAIModel)-[:STORED_IN]->(GCPBucket)
+    ```
+
+- GCPVertexAITrainingPipelines produce GCPVertexAIModels.
+    ```
+    (GCPVertexAITrainingPipeline)-[:PRODUCES]->(GCPVertexAIModel)
+    ```
+
+- GCPVertexAIDeployedModels are instances of GCPVertexAIModels.
+    ```
+    (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
+    ```
+
+### GCPVertexAIEndpoint
+
+Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the endpoint (e.g., `projects/{project}/locations/{location}/endpoints/{endpoint_id}`) |
+| name | Same as `id` |
+| display_name | User-provided display name of the endpoint |
+| description | Description of the endpoint |
+| create_time | Timestamp when the endpoint was created |
+| update_time | Timestamp when the endpoint was last updated |
+| etag | Used to perform consistent read-modify-write updates |
+| network | The full name of the Google Compute Engine network to which the endpoint should be peered |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIEndpoints are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAIEndpoint)
+    ```
+
+- GCPVertexAIEndpoints serve GCPVertexAIDeployedModels.
+    ```
+    (GCPVertexAIEndpoint)-[:SERVES]->(GCPVertexAIDeployedModel)
+    ```
+
+### GCPVertexAIDeployedModel
+
+Representation of a deployed model on a Vertex AI Endpoint. This is derived from the [deployedModels field](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints#DeployedModel) on an Endpoint.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Synthetic ID combining endpoint and deployed model ID (e.g., `{endpoint_id}/deployedModels/{deployed_model_id}`) |
+| deployed_model_id | The ID of the DeployedModel (unique within the endpoint) |
+| model | Full resource name of the Model that this DeployedModel is serving |
+| display_name | User-provided display name of the deployed model |
+| create_time | Timestamp when the deployed model was created |
+| dedicated_resources | JSON string of the dedicated resources for this deployed model |
+| automatic_resources | JSON string of the automatic resources for this deployed model |
+| enable_access_logging | Whether access logging is enabled for this deployed model |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIEndpoints serve GCPVertexAIDeployedModels.
+    ```
+    (GCPVertexAIEndpoint)-[:SERVES]->(GCPVertexAIDeployedModel)
+    ```
+
+- GCPVertexAIDeployedModels are instances of GCPVertexAIModels.
+    ```
+    (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
+    ```
+
+### GCPVertexAIWorkbenchInstance
+
+Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/vertex-ai/docs/workbench/reference/rest/v2/projects.locations.instances) (v2 API).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the instance (e.g., `projects/{project}/locations/{location}/instances/{instance_id}`) |
+| name | Same as `id` |
+| creator | Email address of the user who created the instance |
+| create_time | Timestamp when the instance was created |
+| update_time | Timestamp when the instance was last updated |
+| state | The state of the instance (e.g., `ACTIVE`, `STOPPED`) |
+| health_state | The health state of the instance (e.g., `HEALTHY`) |
+| health_info | JSON string with detailed health information |
+| gce_setup | JSON string with GCE setup configuration |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIWorkbenchInstances are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAIWorkbenchInstance)
+    ```
+
+- GCPVertexAIWorkbenchInstances use GCPServiceAccounts.
+    ```
+    (GCPVertexAIWorkbenchInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPVertexAITrainingPipeline
+
+Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.trainingPipelines).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the training pipeline (e.g., `projects/{project}/locations/{location}/trainingPipelines/{pipeline_id}`) |
+| name | Same as `id` |
+| display_name | User-provided display name of the training pipeline |
+| create_time | Timestamp when the pipeline was created |
+| update_time | Timestamp when the pipeline was last updated |
+| start_time | Timestamp when the pipeline started running |
+| end_time | Timestamp when the pipeline finished |
+| state | The state of the pipeline (e.g., `PIPELINE_STATE_SUCCEEDED`) |
+| error | JSON string with error information if the pipeline failed |
+| model_to_upload | JSON string describing the model that was uploaded |
+| training_task_definition | The training task definition schema URI |
+| dataset_id | Full resource name of the Dataset used for training (used for relationships) |
+| model_id | Full resource name of the Model produced by training (used for relationships) |
+| gcs_bucket_id | List of GCS bucket names read during training (used for relationships) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAITrainingPipelines are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAITrainingPipeline)
+    ```
+
+- GCPVertexAITrainingPipelines produce GCPVertexAIModels.
+    ```
+    (GCPVertexAITrainingPipeline)-[:PRODUCES]->(GCPVertexAIModel)
+    ```
+
+- GCPVertexAITrainingPipelines read from GCPVertexAIDatasets.
+    ```
+    (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPVertexAIDataset)
+    ```
+
+- GCPVertexAITrainingPipelines read from GCPBuckets.
+    ```
+    (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPBucket)
+    ```
+
+### GCPVertexAIFeatureGroup
+
+Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.featureGroups). Feature Groups are the new architecture for Vertex AI Feature Store.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the feature group (e.g., `projects/{project}/locations/{location}/featureGroups/{feature_group_id}`) |
+| name | Same as `id` |
+| create_time | Timestamp when the feature group was created |
+| update_time | Timestamp when the feature group was last updated |
+| etag | Used to perform consistent read-modify-write updates |
+| bigquery_source_uri | The BigQuery source URI for the feature group |
+| entity_id_columns | JSON array of entity ID column names |
+| timestamp_column | The timestamp column name (for time series features) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIFeatureGroups are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAIFeatureGroup)
+    ```
+
+### GCPVertexAIDataset
+
+Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.datasets).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the dataset (e.g., `projects/{project}/locations/{location}/datasets/{dataset_id}`) |
+| name | Same as `id` |
+| display_name | User-provided display name of the dataset |
+| create_time | Timestamp when the dataset was created |
+| update_time | Timestamp when the dataset was last updated |
+| etag | Used to perform consistent read-modify-write updates |
+| data_item_count | The number of data items in the dataset |
+| metadata_schema_uri | The metadata schema URI for the dataset |
+| metadata | JSON string with dataset metadata |
+| encryption_spec | JSON string with encryption configuration |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIDatasets are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAIDataset)
+    ```
+
+- GCPVertexAITrainingPipelines read from GCPVertexAIDatasets.
+    ```
+    (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPVertexAIDataset)
+    ```
