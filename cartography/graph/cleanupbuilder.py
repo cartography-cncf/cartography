@@ -197,13 +197,23 @@ def _build_cleanup_node_and_rel_queries(
         # matching the sub_resource_relationship rel_label. We check child.lastupdated to avoid deleting children
         # that were re-parented to a new tenant in the current sync.
         cascade_rel_label = node_schema.sub_resource_relationship.rel_label
+        if node_schema.sub_resource_relationship.direction == LinkDirection.INWARD:
+            cascade_rel_clause = f"<-[:{cascade_rel_label}]-"
+        else:
+            cascade_rel_clause = f"-[:{cascade_rel_label}]->"
+        # Use a unit subquery to delete many children without collecting them and without
+        # risking the parent row being filtered out by OPTIONAL MATCH + WHERE.
         delete_action_clauses = [
             f"""
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (n)-[:{cascade_rel_label}]->(child)
-        WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
-        DETACH DELETE child, n;
+        CALL {{
+            WITH n
+            OPTIONAL MATCH (n){cascade_rel_clause}(child)
+            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+            DETACH DELETE child
+        }}
+        DETACH DELETE n;
         """,
         ]
     else:

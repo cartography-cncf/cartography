@@ -32,7 +32,7 @@ def test_cascade_cleanup_sub_rel():
     1. Match the parent node attached to its sub resource
     2. Use OPTIONAL MATCH to find children via sub_resource_relationship rel_label
     3. Only delete children that are also stale (lastupdated <> UPDATE_TAG)
-    4. Handle parents with no children (child IS NULL)
+    4. Handle parents with no children (empty children list)
     """
     actual_queries: list[str] = _build_cleanup_node_and_rel_queries(
         InterestingAssetSchema(),
@@ -44,9 +44,13 @@ def test_cascade_cleanup_sub_rel():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
-        WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
-        DETACH DELETE child, n;
+        CALL {
+            WITH n
+            OPTIONAL MATCH (n)<-[:RELATIONSHIP_LABEL]-(child)
+            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+            DETACH DELETE child
+        }
+        DETACH DELETE n;
         """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
@@ -74,9 +78,13 @@ def test_cascade_cleanup_with_selected_rel():
         MATCH (n)-[r:ASSOCIATED_WITH]->(:HelloAsset)
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
-        WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
-        DETACH DELETE child, n;
+        CALL {
+            WITH n
+            OPTIONAL MATCH (n)<-[:RELATIONSHIP_LABEL]-(child)
+            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+            DETACH DELETE child
+        }
+        DETACH DELETE n;
         """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
@@ -103,9 +111,13 @@ def test_build_cleanup_queries_with_cascade():
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
-        OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
-        WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
-        DETACH DELETE child, n;
+        CALL {
+            WITH n
+            OPTIONAL MATCH (n)<-[:RELATIONSHIP_LABEL]-(child)
+            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+            DETACH DELETE child
+        }
+        DETACH DELETE n;
         """,
         """
         MATCH (n:InterestingAsset)<-[s:RELATIONSHIP_LABEL]-(:SubResource{id: $sub_resource_id})
