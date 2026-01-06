@@ -25,7 +25,7 @@ class AWSBedrockCustomModelNodeProperties(CartographyNodeProperties):
     base_model_arn: PropertyRef = PropertyRef("baseModelArn")
     base_model_name: PropertyRef = PropertyRef("baseModelName")
     customization_type: PropertyRef = PropertyRef("customizationType")
-    status: PropertyRef = PropertyRef("status")
+    status: PropertyRef = PropertyRef("modelStatus")
     creation_time: PropertyRef = PropertyRef("creationTime")
     training_data_s3_uri: PropertyRef = PropertyRef("trainingDataConfig.s3Uri")
     output_data_s3_uri: PropertyRef = PropertyRef("outputDataConfig.s3Uri")
@@ -102,7 +102,7 @@ class AWSBedrockCustomModelToS3Bucket(CartographyRelSchema):
 
     target_node_label: str = "S3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("training_data_bucket_name", set_in_kwargs=True)},
+        {"name": PropertyRef("training_data_bucket_name")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "TRAINED_FROM"

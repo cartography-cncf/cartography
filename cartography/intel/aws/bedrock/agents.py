@@ -13,11 +13,8 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.models.aws.bedrock.agent import AWSBedrockAgentSchema
-from cartography.models.aws.bedrock.guardrail import GuardrailToCustomModelMatchLink
-from cartography.models.aws.bedrock.guardrail import GuardrailToFoundationModelMatchLink
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
@@ -48,34 +45,29 @@ def get_agents(
     # Get detailed information for each agent including knowledge bases and action groups
     agents = []
     for summary in agent_summaries:
-        agent_id = summary.get("agentId")
-        if not agent_id:
-            continue
+        agent_id = summary["agentId"]
 
         # Get agent details
         response = client.get_agent(agentId=agent_id)
         agent_details = response.get("agent", {})
 
-        # Get associated knowledge bases
-        kb_response = client.list_agent_knowledge_bases(
-            agentId=agent_id, agentVersion="DRAFT"
-        )
-        agent_details["knowledgeBaseSummaries"] = kb_response.get(
-            "agentKnowledgeBaseSummaries", []
-        )
+        # Get associated knowledge bases (with pagination)
+        kb_paginator = client.get_paginator("list_agent_knowledge_bases")
+        kb_summaries = []
+        for page in kb_paginator.paginate(agentId=agent_id, agentVersion="DRAFT"):
+            kb_summaries.extend(page.get("agentKnowledgeBaseSummaries", []))
+        agent_details["knowledgeBaseSummaries"] = kb_summaries
 
-        # Get action groups and their Lambda function details
-        ag_response = client.list_agent_action_groups(
-            agentId=agent_id, agentVersion="DRAFT"
-        )
-        action_group_summaries = ag_response.get("actionGroupSummaries", [])
+        # Get action groups (with pagination)
+        ag_paginator = client.get_paginator("list_agent_action_groups")
+        action_group_summaries = []
+        for page in ag_paginator.paginate(agentId=agent_id, agentVersion="DRAFT"):
+            action_group_summaries.extend(page.get("actionGroupSummaries", []))
 
         # For each action group, get full details to extract Lambda ARN
         action_groups_with_details = []
         for ag_summary in action_group_summaries:
-            action_group_id = ag_summary.get("actionGroupId")
-            if not action_group_id:
-                continue
+            action_group_id = ag_summary["actionGroupId"]
 
             ag_details_response = client.get_agent_action_group(
                 agentId=agent_id,
@@ -101,23 +93,36 @@ def transform_agents(
     Transform agent data for ingestion into the graph.
 
     Extracts knowledge base ARNs and Lambda function ARNs for relationship creation.
-    Also handles guardrail configuration and builds full model ARN.
+    Also handles guardrail configuration and model identifier parsing.
+
+    The foundationModel field can contain:
+    - Base model ID (e.g., "anthropic.claude-v2")
+    - Foundation model ARN (arn:aws:bedrock:region::foundation-model/...)
+    - Provisioned throughput ARN (arn:aws:bedrock:region:account:provisioned-model/...)
+    - Custom model ARN (arn:aws:bedrock:region:account:custom-model/...)
+    - Inference profile ARN (not supported yet)
+    - Imported model ARN (not supported yet)
     """
     for agent in agents:
         agent["Region"] = region
 
-        # Build full model ARN for [:USES_MODEL] relationships
-        # The foundationModel field contains just the model ID, we need the full ARN
+        # Parse foundationModel to set appropriate relationship fields
         model_identifier = agent.get("foundationModel")
-        if model_identifier and not model_identifier.startswith("arn:"):
-            # It's just a model ID, build the full ARN
-            # Check if it's a foundation model (most common) or custom model
-            if ":" in model_identifier and not model_identifier.startswith("arn:"):
-                # Foundation model format: provider.model-name-version
-                agent["foundationModel"] = (
+        if model_identifier:
+            if model_identifier.startswith("arn:"):
+                # Already an ARN - determine type from ARN format
+                if "::foundation-model/" in model_identifier:
+                    agent["foundation_model_arn"] = model_identifier
+                elif ":custom-model/" in model_identifier:
+                    agent["custom_model_arn"] = model_identifier
+                elif ":provisioned-model/" in model_identifier:
+                    agent["provisioned_model_arn"] = model_identifier
+                # Skip inference profiles and imported models (would need new node types)
+            else:
+                # Bare model ID - assume foundation model
+                agent["foundation_model_arn"] = (
                     f"arn:aws:bedrock:{region}::foundation-model/{model_identifier}"
                 )
-            # If it's already an ARN or custom model ARN, leave it as is
 
         # Extract knowledge base ARNs for [:USES_KNOWLEDGE_BASE] relationships
         kb_summaries = agent.get("knowledgeBaseSummaries", [])
@@ -152,11 +157,14 @@ def transform_agents(
         if guardrail_config:
             guardrail_id = guardrail_config.get("guardrailIdentifier")
             if guardrail_id:
-                # Build full ARN from guardrail ID
-                # Format: arn:aws:bedrock:region:account:guardrail/guardrail-id
-                agent["guardrail_arn"] = (
-                    f"arn:aws:bedrock:{region}:{account_id}:guardrail/{guardrail_id}"
-                )
+                # guardrailIdentifier can be ID or ARN
+                if guardrail_id.startswith("arn:"):
+                    agent["guardrail_arn"] = guardrail_id
+                else:
+                    # Build full ARN from guardrail ID
+                    agent["guardrail_arn"] = (
+                        f"arn:aws:bedrock:{region}:{account_id}:guardrail/{guardrail_id}"
+                    )
 
     return agents
 
@@ -182,101 +190,6 @@ def load_agents(
         AWS_ID=aws_account_id,
         lastupdated=update_tag,
     )
-
-
-def extract_guardrail_model_links(
-    agents: List[Dict[str, Any]],
-) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """
-    Extract guardrail-to-model mappings from agent data for creating match links.
-
-    For agents that have both a guardrail and a model configured, we create
-    guardrail→model relationships. We distinguish between foundation models
-    and custom models based on the ARN format.
-    """
-    foundation_model_links = []
-    custom_model_links = []
-
-    for agent in agents:
-        guardrail_arn = agent.get("guardrail_arn")
-        model_identifier = agent.get("foundationModel")  # Can be model ID or full ARN
-        region = agent.get("Region")
-
-        # Only create link if agent has both guardrail and model
-        if not guardrail_arn or not model_identifier:
-            continue
-
-        # Build the full model ARN
-        # The foundationModel field can contain either:
-        # 1. Just the model ID (e.g., "anthropic.claude-3-5-sonnet-20240620-v1:0")
-        # 2. A full ARN (e.g., "arn:aws:bedrock:region::foundation-model/model-id" or "arn:aws:bedrock:region:account:custom-model/model-id")
-        if model_identifier.startswith("arn:"):
-            # It's already a full ARN
-            model_arn = model_identifier
-        else:
-            # It's just a model ID, build the foundation model ARN
-            # Foundation models: arn:aws:bedrock:region::foundation-model/model-id (double colon, no account)
-            model_arn = f"arn:aws:bedrock:{region}::foundation-model/{model_identifier}"
-
-        # Distinguish between foundation models and custom models by ARN format
-        if "::foundation-model/" in model_arn:
-            foundation_model_links.append(
-                {
-                    "guardrail_arn": guardrail_arn,
-                    "foundation_model_arn": model_arn,
-                }
-            )
-        elif ":custom-model/" in model_arn:
-            custom_model_links.append(
-                {
-                    "guardrail_arn": guardrail_arn,
-                    "custom_model_arn": model_arn,
-                }
-            )
-
-    return foundation_model_links, custom_model_links
-
-
-@timeit
-def load_guardrail_model_links(
-    neo4j_session: neo4j.Session,
-    foundation_model_links: List[Dict[str, Any]],
-    custom_model_links: List[Dict[str, Any]],
-    aws_account_id: str,
-    update_tag: int,
-) -> None:
-    """
-    Load guardrail-to-model relationships using match links.
-
-    These relationships are derived from agent data: if a guardrail protects an agent,
-    and that agent uses a model, then the guardrail also applies to that model.
-    """
-    if foundation_model_links:
-        logger.info(
-            "Creating %d guardrail→foundation model relationships",
-            len(foundation_model_links),
-        )
-        load_matchlinks(
-            neo4j_session,
-            GuardrailToFoundationModelMatchLink(),
-            foundation_model_links,
-            _sub_resource_label="AWSBedrockGuardrail",
-            _sub_resource_id=aws_account_id,
-            lastupdated=update_tag,
-        )
-
-    if custom_model_links:
-        logger.info(
-            "Creating %d guardrail→custom model relationships", len(custom_model_links)
-        )
-        load_matchlinks(
-            neo4j_session,
-            GuardrailToCustomModelMatchLink(),
-            custom_model_links,
-            _sub_resource_label="AWSBedrockGuardrail",
-            _sub_resource_id=aws_account_id,
-            lastupdated=update_tag,
-        )
 
 
 @timeit
@@ -306,16 +219,12 @@ def sync(
 ) -> None:
     """
     Sync AWS Bedrock Agents across all specified regions.
-    Also creates guardrail-to-model relationships derived from agent configurations.
     """
     logger.info(
         "Syncing Bedrock agents for account %s across %d regions",
         current_aws_account_id,
         len(regions),
     )
-
-    # Collect all transformed agents across regions for match link creation
-    all_transformed_agents = []
 
     for region in regions:
         # Fetch agents from AWS
@@ -333,23 +242,6 @@ def sync(
             neo4j_session,
             transformed_agents,
             region,
-            current_aws_account_id,
-            update_tag,
-        )
-
-        # Collect for match link creation
-        all_transformed_agents.extend(transformed_agents)
-
-    # Create guardrail-to-model relationships using match links
-    # These are derived from agents that have both a guardrail and a model configured
-    if all_transformed_agents:
-        foundation_model_links, custom_model_links = extract_guardrail_model_links(
-            all_transformed_agents
-        )
-        load_guardrail_model_links(
-            neo4j_session,
-            foundation_model_links,
-            custom_model_links,
             current_aws_account_id,
             update_tag,
         )

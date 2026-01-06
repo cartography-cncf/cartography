@@ -45,24 +45,22 @@ def get_knowledge_bases(
     # Get detailed information for each knowledge base
     knowledge_bases = []
     for summary in kb_summaries:
-        kb_id = summary.get("knowledgeBaseId")
-        if not kb_id:
-            continue
+        kb_id = summary["knowledgeBaseId"]
 
         # Get knowledge base details
         kb_response = client.get_knowledge_base(knowledgeBaseId=kb_id)
         kb_details = kb_response.get("knowledgeBase", {})
 
-        # Get data sources for S3 bucket relationships
-        ds_response = client.list_data_sources(knowledgeBaseId=kb_id)
-        data_source_summaries = ds_response.get("dataSourceSummaries", [])
+        # Get data sources for S3 bucket relationships (with pagination)
+        ds_paginator = client.get_paginator("list_data_sources")
+        data_source_summaries = []
+        for page in ds_paginator.paginate(knowledgeBaseId=kb_id):
+            data_source_summaries.extend(page.get("dataSourceSummaries", []))
 
         # Get full details for each data source to extract S3 bucket ARN
         data_sources_with_details = []
         for ds_summary in data_source_summaries:
-            ds_id = ds_summary.get("dataSourceId")
-            if not ds_id:
-                continue
+            ds_id = ds_summary["dataSourceId"]
 
             ds_details_response = client.get_data_source(
                 knowledgeBaseId=kb_id,

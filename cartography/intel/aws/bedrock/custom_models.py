@@ -28,13 +28,25 @@ def get_custom_models(
 ) -> List[Dict[str, Any]]:
     """
     Retrieve all custom models in AWS Bedrock for a given region.
+
+    Uses pagination for list_custom_models and calls get_custom_model for each
+    to retrieve full details (jobArn, jobName, trainingDataConfig, outputDataConfig).
     """
     logger.info("Fetching Bedrock custom models in region %s", region)
     client = boto3_session.client("bedrock", region_name=region)
 
-    # list_custom_models returns all models in a single response (no pagination)
-    response = client.list_custom_models()
-    models = response.get("modelSummaries", [])
+    # Use pagination for list_custom_models
+    paginator = client.get_paginator("list_custom_models")
+    model_summaries = []
+    for page in paginator.paginate():
+        model_summaries.extend(page.get("modelSummaries", []))
+
+    # Get full details for each model (includes jobArn, trainingDataConfig, etc.)
+    models = []
+    for summary in model_summaries:
+        model_arn = summary["modelArn"]
+        response = client.get_custom_model(modelIdentifier=model_arn)
+        models.append(response)
 
     logger.info("Retrieved %d custom models in region %s", len(models), region)
 

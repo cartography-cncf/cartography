@@ -76,11 +76,12 @@ class AWSBedrockAgentToFoundationModelRelProperties(CartographyRelProperties):
 class AWSBedrockAgentToFoundationModel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSBedrockFoundationModel.
+    Only created when the agent uses a foundation model directly (not via provisioned throughput).
     """
 
     target_node_label: str = "AWSBedrockFoundationModel"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"arn": PropertyRef("foundationModel")},
+        {"arn": PropertyRef("foundation_model_arn")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES_MODEL"
@@ -102,16 +103,44 @@ class AWSBedrockAgentToCustomModelRelProperties(CartographyRelProperties):
 class AWSBedrockAgentToCustomModel(CartographyRelSchema):
     """
     Defines the relationship from AWSBedrockAgent to AWSBedrockCustomModel.
+    Only created when the agent uses a custom model directly.
     """
 
     target_node_label: str = "AWSBedrockCustomModel"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"arn": PropertyRef("foundationModel")},
+        {"arn": PropertyRef("custom_model_arn")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "USES_MODEL"
     properties: AWSBedrockAgentToCustomModelRelProperties = (
         AWSBedrockAgentToCustomModelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSBedrockAgentToProvisionedThroughputRelProperties(CartographyRelProperties):
+    """
+    Properties for the relationship between AWSBedrockAgent and AWSBedrockProvisionedModelThroughput.
+    """
+
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSBedrockAgentToProvisionedThroughput(CartographyRelSchema):
+    """
+    Defines the relationship from AWSBedrockAgent to AWSBedrockProvisionedModelThroughput.
+    Created when the agent uses a provisioned throughput for model inference.
+    """
+
+    target_node_label: str = "AWSBedrockProvisionedModelThroughput"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("provisioned_model_arn")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_MODEL"
+    properties: AWSBedrockAgentToProvisionedThroughputRelProperties = (
+        AWSBedrockAgentToProvisionedThroughputRelProperties()
     )
 
 
@@ -234,6 +263,7 @@ class AWSBedrockAgentSchema(CartographyNodeSchema):
         [
             AWSBedrockAgentToFoundationModel(),
             AWSBedrockAgentToCustomModel(),
+            AWSBedrockAgentToProvisionedThroughput(),
             AWSBedrockAgentToKnowledgeBase(),
             AWSBedrockAgentToLambda(),
             AWSBedrockAgentToRole(),
