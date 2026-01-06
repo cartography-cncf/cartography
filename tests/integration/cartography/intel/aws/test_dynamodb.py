@@ -44,6 +44,9 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         [
             "id",
             "rows",
+            "size",
+            "provisioned_throughput_read_capacity_units",
+            "provisioned_throughput_write_capacity_units",
             "archival_backup_arn",
             "archival_date_time",
             "archival_reason",
@@ -67,6 +70,9 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/example-table",
             1000000,
+            100000000,
+            10,
+            10,
             None,
             None,
             None,
@@ -89,6 +95,9 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/sample-table",
             1000000,
+            100000000,
+            10,
+            10,
             None,
             None,
             None,
@@ -111,6 +120,9 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/model-table",
             1000000,
+            100000000,
+            10,
+            10,
             None,
             None,
             None,
@@ -133,6 +145,9 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/basic-table",
             1000000,
+            100000000,
+            10,
+            10,
             None,
             None,
             None,
@@ -155,6 +170,9 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table",
             500000,
+            50000000,
+            5,
+            5,
             "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table/backup/archived-backup-123",
             neo4j.time.DateTime(2022, 8, 20, 9, 15, 0),
             "Manual archival by administrator",
@@ -177,6 +195,9 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/encrypted-table",
             750000,
+            75000000,
+            25,
+            25,
             None,
             None,
             None,
@@ -199,6 +220,9 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table",
             600000,
+            60000000,
+            15,
+            15,
             None,
             None,
             None,
