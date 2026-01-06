@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import neo4j
+import requests
 
 import cartography.intel.gitlab.branches
 import cartography.intel.gitlab.dependencies
@@ -45,16 +46,29 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     )
 
     # Sync the specified organization (top-level group)
-    organization = cartography.intel.gitlab.organizations.sync_gitlab_organizations(
-        neo4j_session,
-        gitlab_url,
-        token,
-        config.update_tag,
-        common_job_parameters,
-    )
-
-    if not organization:
-        logger.warning(f"Organization {organization_id} not found")
+    try:
+        organization = cartography.intel.gitlab.organizations.sync_gitlab_organizations(
+            neo4j_session,
+            gitlab_url,
+            token,
+            config.update_tag,
+            common_job_parameters,
+        )
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            logger.error(
+                f"Organization {organization_id} not found at {gitlab_url}. "
+                "Please verify the organization ID is correct and the token has access."
+            )
+        elif e.response is not None and e.response.status_code == 401:
+            logger.error(
+                f"Authentication failed for GitLab at {gitlab_url}. "
+                "Please verify the token is valid and has required scopes (read_api)."
+            )
+        else:
+            logger.error(
+                f"Failed to fetch organization {organization_id} from {gitlab_url}: {e}"
+            )
         return
 
     org_url: str = organization["web_url"]

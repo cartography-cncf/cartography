@@ -74,7 +74,7 @@ async def _fetch_all_languages(
     if not projects:
         return {}
 
-    headers = {"PRIVATE-TOKEN": token}
+    headers = {"Authorization": f"Bearer {token}"}
     semaphore = asyncio.Semaphore(max_concurrent_requests)
 
     async with httpx.AsyncClient(
