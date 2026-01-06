@@ -28,7 +28,7 @@ CIS_REFERENCES = [
 
 
 # =============================================================================
-# CIS 5.1: Unrestricted SSH Access
+# CIS AWS 5.1: Unrestricted SSH Access
 # Main node: EC2SecurityGroup
 # =============================================================================
 class UnrestrictedSshOutput(Finding):
@@ -90,7 +90,7 @@ _aws_unrestricted_ssh = Fact(
 
 cis_5_1_unrestricted_ssh = Rule(
     id="cis_5_1_unrestricted_ssh",
-    name="CIS 5.1: Unrestricted SSH Access",
+    name="CIS AWS 5.1: Unrestricted SSH Access",
     description=(
         "Security groups should not allow SSH access (port 22) from any IP address. "
         "Unrestricted SSH access increases the risk of unauthorized access."
@@ -112,7 +112,7 @@ cis_5_1_unrestricted_ssh = Rule(
 
 
 # =============================================================================
-# CIS 5.2: Unrestricted RDP Access
+# CIS AWS 5.2: Unrestricted RDP Access
 # Main node: EC2SecurityGroup
 # =============================================================================
 class UnrestrictedRdpOutput(Finding):
@@ -174,7 +174,7 @@ _aws_unrestricted_rdp = Fact(
 
 cis_5_2_unrestricted_rdp = Rule(
     id="cis_5_2_unrestricted_rdp",
-    name="CIS 5.2: Unrestricted RDP Access",
+    name="CIS AWS 5.2: Unrestricted RDP Access",
     description=(
         "Security groups should not allow RDP access (port 3389) from any IP address. "
         "Unrestricted RDP access increases the risk of unauthorized access."
@@ -196,7 +196,7 @@ cis_5_2_unrestricted_rdp = Rule(
 
 
 # =============================================================================
-# CIS 5.4: Default Security Group Restricts All Traffic
+# CIS AWS 5.4: Default Security Group Restricts All Traffic
 # Main node: EC2SecurityGroup
 # =============================================================================
 class DefaultSgAllowsTrafficOutput(Finding):
@@ -262,7 +262,7 @@ _aws_default_sg_allows_traffic = Fact(
 
 cis_5_4_default_sg_traffic = Rule(
     id="cis_5_4_default_sg_traffic",
-    name="CIS 5.4: Default Security Group Restricts Traffic",
+    name="CIS AWS 5.4: Default Security Group Restricts Traffic",
     description=(
         "The default security group of every VPC should restrict all traffic to "
         "prevent accidental exposure of resources."
