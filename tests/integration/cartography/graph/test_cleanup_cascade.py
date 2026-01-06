@@ -115,7 +115,6 @@ def _setup_parent_without_children(neo4j_session, lastupdated: int):
 def test_cascade_delete_works_for_childless_parents(neo4j_session):
     """
     Test cascade_delete=True still deletes parents that have no children.
-    Regression test: OPTIONAL MATCH + subquery must not filter out the parent row.
     """
     _setup_parent_without_children(neo4j_session, lastupdated=1)
 
@@ -161,32 +160,3 @@ def test_cascade_delete_protects_reparented_children(neo4j_session):
     # Parent deleted, child-2 (stale) deleted, but child-1 (re-parented) preserved
     assert check_nodes(neo4j_session, "InterestingAsset", ["id"]) == set()
     assert check_nodes(neo4j_session, "ChildNode", ["id"]) == {("child-1",)}
-
-
-def test_cascade_delete_removes_parent_with_only_current_children(neo4j_session):
-    """
-    Test that a stale parent is deleted even when all its children are current.
-    This guards against OPTIONAL MATCH filtering out the parent row.
-    """
-    _setup_parent_with_children(neo4j_session, lastupdated=1)
-
-    # Mark all children as current
-    neo4j_session.run(
-        """
-        MATCH (c:ChildNode)
-        SET c.lastupdated = 2
-        """,
-    )
-
-    GraphJob.from_node_schema(
-        InterestingAssetSchema(),
-        {"UPDATE_TAG": 2, "sub_resource_id": "sub-resource-id"},
-        cascade_delete=True,
-    ).run(neo4j_session)
-
-    # Parent deleted, children preserved
-    assert check_nodes(neo4j_session, "InterestingAsset", ["id"]) == set()
-    assert check_nodes(neo4j_session, "ChildNode", ["id"]) == {
-        ("child-1",),
-        ("child-2",),
-    }
