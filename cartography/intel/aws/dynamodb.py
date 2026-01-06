@@ -51,48 +51,43 @@ def transform_dynamodb_tables(
     gsi_nodes: List[Dict[str, Any]] = []
 
     for entry in dynamodb_tables:
-        t = entry["Table"]
+        table_data = entry["Table"]
 
-        billing = t.get("BillingModeSummary", {})
-        sse = t.get("SSEDescription", {})
-        stream = t.get("StreamSpecification", {})
-        archival = t.get("ArchivalSummary", {})
-        restore = t.get("RestoreSummary", {})
+        billing = table_data.get("BillingModeSummary", {})
+        sse = table_data.get("SSEDescription", {})
+        stream = table_data.get("StreamSpecification", {})
+        archival = table_data.get("ArchivalSummary", {})
+        restore = table_data.get("RestoreSummary", {})
 
         table_nodes.append(
             {
-                "Arn": t["TableArn"],
-                "TableName": t["TableName"],
+                "Arn": table_data["TableArn"],
+                "TableName": table_data["TableName"],
                 "Region": region,
-                "Rows": t.get("ItemCount"),
-                "Size": t.get("TableSizeBytes"),
-                "TableStatus": t.get("TableStatus"),
-                "CreationDateTime": t.get("CreationDateTime"),
-                "ProvisionedThroughputReadCapacityUnits": t["ProvisionedThroughput"][
-                    "ReadCapacityUnits"
-                ],
-                "ProvisionedThroughputWriteCapacityUnits": t["ProvisionedThroughput"][
-                    "WriteCapacityUnits"
-                ],
-                # ---- Billing ----
+                "Rows": table_data.get("ItemCount"),
+                "Size": table_data.get("TableSizeBytes"),
+                "TableStatus": table_data.get("TableStatus"),
+                "CreationDateTime": table_data.get("CreationDateTime"),
+                "ProvisionedThroughputReadCapacityUnits": table_data[
+                    "ProvisionedThroughput"
+                ]["ReadCapacityUnits"],
+                "ProvisionedThroughputWriteCapacityUnits": table_data[
+                    "ProvisionedThroughput"
+                ]["WriteCapacityUnits"],
                 "BillingMode": billing.get("BillingMode"),
                 "LastUpdateToPayPerRequestDateTime": billing.get(
                     "LastUpdateToPayPerRequestDateTime"
                 ),
-                # ---- Streams ----
-                "LatestStreamArn": t.get("LatestStreamArn"),
-                "LatestStreamLabel": t.get("LatestStreamLabel"),
+                "LatestStreamArn": table_data.get("LatestStreamArn"),
+                "LatestStreamLabel": table_data.get("LatestStreamLabel"),
                 "StreamEnabled": stream.get("StreamEnabled"),
                 "StreamViewType": stream.get("StreamViewType"),
-                # ---- Encryption ----
                 "SSEStatus": sse.get("Status"),
                 "SSEType": sse.get("SSEType"),
                 "SSEKMSKeyArn": sse.get("KMSMasterKeyArn"),
-                # ---- Archival ----
                 "ArchivalBackupArn": archival.get("ArchivalBackupArn"),
                 "ArchivalDateTime": archival.get("ArchivalDateTime"),
                 "ArchivalReason": archival.get("ArchivalReason"),
-                # ---- Restore ----
                 "RestoreDateTime": restore.get("RestoreDateTime"),
                 "RestoreInProgress": restore.get("RestoreInProgress"),
                 "SourceBackupArn": restore.get("SourceBackupArn"),
@@ -101,11 +96,11 @@ def transform_dynamodb_tables(
         )
 
         # Transform GSIs
-        for gsi in t.get("GlobalSecondaryIndexes", []):
+        for gsi in table_data.get("GlobalSecondaryIndexes", []):
             gsi_nodes.append(
                 {
                     "Arn": gsi["IndexArn"],
-                    "TableArn": t["TableArn"],
+                    "TableArn": table_data["TableArn"],
                     "Region": region,
                     "GSIName": gsi["IndexName"],
                     "ProvisionedThroughputReadCapacityUnits": gsi[
