@@ -149,8 +149,8 @@ class GraphJob:
         For a given node, the fields used in the node_schema.sub_resource_relationship.target_node_node_matcher.keys()
         must be provided as keys and values in the params dict.
         :param iterationsize: The number of items to process in each iteration. Defaults to 100.
-        :param cascade_delete: If True, also delete all child nodes that have a RESOURCE relationship to stale nodes.
-        Defaults to False to preserve existing behavior.
+        :param cascade_delete: If True, also delete all child nodes that have a relationship to stale nodes matching
+        node_schema.sub_resource_relationship.rel_label. Defaults to False to preserve existing behavior.
         """
         queries: List[str] = build_cleanup_queries(node_schema, cascade_delete)
 

@@ -4902,3 +4902,363 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     ```
     (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
+
+### AWS SageMaker
+
+```mermaid
+graph LR
+    Account[AWSAccount] -- RESOURCE --> Domain[AWSSageMakerDomain]
+    Account -- RESOURCE --> UserProfile[AWSSageMakerUserProfile]
+    Account -- RESOURCE --> NotebookInstance[AWSSageMakerNotebookInstance]
+    Account -- RESOURCE --> TrainingJob[AWSSageMakerTrainingJob]
+    Account -- RESOURCE --> Model[AWSSageMakerModel]
+    Account -- RESOURCE --> EndpointConfig[AWSSageMakerEndpointConfig]
+    Account -- RESOURCE --> Endpoint[AWSSageMakerEndpoint]
+    Account -- RESOURCE --> TransformJob[AWSSageMakerTransformJob]
+    Account -- RESOURCE --> ModelPackageGroup[AWSSageMakerModelPackageGroup]
+    Account -- RESOURCE --> ModelPackage[AWSSageMakerModelPackage]
+
+    Domain -- CONTAINS --> UserProfile
+
+    NotebookInstance -- HAS_EXECUTION_ROLE --> Role[AWSRole]
+    NotebookInstance -- CAN_INVOKE --> TrainingJob
+
+    TrainingJob -- HAS_EXECUTION_ROLE --> Role
+    TrainingJob -- READS_FROM --> S3[S3Bucket]
+    TrainingJob -- PRODUCES_MODEL_ARTIFACT --> S3
+
+    Model -- HAS_EXECUTION_ROLE --> Role
+    Model -- REFERENCES_ARTIFACTS_IN --> S3
+    Model -- DERIVES_FROM --> ModelPackage
+
+    EndpointConfig -- USES --> Model
+
+    Endpoint -- USES --> EndpointConfig
+
+    TransformJob -- USES --> Model
+    TransformJob -- WRITES_TO --> S3
+
+    ModelPackageGroup -- CONTAINS --> ModelPackage
+    ModelPackage -- REFERENCES_ARTIFACTS_IN --> S3
+
+    UserProfile -- HAS_EXECUTION_ROLE --> Role
+```
+
+#### AWSSageMakerDomain
+
+Represents an [AWS SageMaker Domain](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeDomain.html). A Domain is a centralized environment for SageMaker Studio users and their resources.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Domain |
+| arn | The ARN of the Domain |
+| domain_id | The Domain ID |
+| domain_name | The name of the Domain |
+| status | The status of the Domain |
+| creation_time | When the Domain was created |
+| last_modified_time | When the Domain was last modified |
+| region | The AWS region where the Domain exists |
+
+##### Relationships
+
+- Domain is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerDomain)
+    ```
+- Domain contains User Profiles
+    ```
+    (AWSSageMakerDomain)-[:CONTAINS]->(AWSSageMakerUserProfile)
+    ```
+
+#### AWSSageMakerUserProfile
+
+Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeUserProfile.html). A User Profile represents a user within a SageMaker Studio Domain.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the User Profile |
+| arn | The ARN of the User Profile |
+| user_profile_name | The name of the User Profile |
+| domain_id | The Domain ID that this profile belongs to |
+| status | The status of the User Profile |
+| creation_time | When the User Profile was created |
+| last_modified_time | When the User Profile was last modified |
+| execution_role | The IAM execution role ARN for the user |
+| region | The AWS region where the User Profile exists |
+
+##### Relationships
+
+- User Profile is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerUserProfile)
+    ```
+- User Profile belongs to a Domain
+    ```
+    (AWSSageMakerDomain)-[:CONTAINS]->(AWSSageMakerUserProfile)
+    ```
+- User Profile has an execution role
+    ```
+    (AWSSageMakerUserProfile)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    ```
+
+#### AWSSageMakerNotebookInstance
+
+Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeNotebookInstance.html). A Notebook Instance is a fully managed ML compute instance running Jupyter notebooks.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Notebook Instance |
+| arn | The ARN of the Notebook Instance |
+| notebook_instance_name | The name of the Notebook Instance |
+| notebook_instance_status | The status of the Notebook Instance |
+| instance_type | The ML compute instance type |
+| url | The URL to connect to the Jupyter notebook |
+| creation_time | When the Notebook Instance was created |
+| last_modified_time | When the Notebook Instance was last modified |
+| role_arn | The IAM role ARN associated with the instance |
+| region | The AWS region where the Notebook Instance exists |
+
+##### Relationships
+
+- Notebook Instance is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerNotebookInstance)
+    ```
+- Notebook Instance has an execution role
+    ```
+    (AWSSageMakerNotebookInstance)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    ```
+- Notebook Instance can invoke Training Jobs (probabilistic relationship based on shared execution role)
+    ```
+    (AWSSageMakerNotebookInstance)-[:CAN_INVOKE]->(AWSSageMakerTrainingJob)
+    ```
+
+#### AWSSageMakerTrainingJob
+
+Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTrainingJob.html). A Training Job trains ML models using specified algorithms and datasets.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Training Job |
+| arn | The ARN of the Training Job |
+| training_job_name | The name of the Training Job |
+| training_job_status | The status of the Training Job |
+| creation_time | When the Training Job was created |
+| training_start_time | When training started |
+| training_end_time | When training ended |
+| role_arn | The IAM role ARN used by the training job |
+| algorithm_specification_training_image | The Docker image for the training algorithm |
+| input_data_s3_bucket_id | The S3 bucket ID where input data is stored |
+| output_data_s3_bucket_id | The S3 bucket ID where output artifacts are stored |
+| region | The AWS region where the Training Job runs |
+
+##### Relationships
+
+- Training Job is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerTrainingJob)
+    ```
+- Training Job has an execution role
+    ```
+    (AWSSageMakerTrainingJob)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    ```
+- Training Job reads data from S3 Bucket
+    ```
+    (AWSSageMakerTrainingJob)-[:READS_FROM]->(S3Bucket)
+    ```
+- Training Job produces model artifacts in S3 Bucket
+    ```
+    (AWSSageMakerTrainingJob)-[:PRODUCES_MODEL_ARTIFACT]->(S3Bucket)
+    ```
+
+#### AWSSageMakerModel
+
+Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Model |
+| arn | The ARN of the Model |
+| model_name | The name of the Model |
+| creation_time | When the Model was created |
+| execution_role_arn | The IAM role ARN that SageMaker assumes to perform operations |
+| primary_container_image | The Docker image for the primary container |
+| model_package_name | The Model Package name if the model is based on one |
+| model_artifacts_s3_bucket_id | The S3 bucket ID where model artifacts are stored |
+| region | The AWS region where the Model exists |
+
+##### Relationships
+
+- Model is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerModel)
+    ```
+- Model has an execution role
+    ```
+    (AWSSageMakerModel)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    ```
+- Model references artifacts (Knowledge from training ) that is stored in an S3 bucket
+    ```
+    (AWSSageMakerModel)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
+    ```
+- Model derives model blueprint from a model package
+    ```
+    (AWSSageMakerModel)-[:DERIVES_FROM]->(AWSSageMakerModelPackage)
+    ```
+
+#### AWSSageMakerEndpointConfig
+
+Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpointConfig.html). An Endpoint Config specifies the ML compute instances and model variants for deploying models. Allows for a model to provide a prediction to a request in real time.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Endpoint Config |
+| arn | The ARN of the Endpoint Config |
+| endpoint_config_name | The name of the Endpoint Config |
+| creation_time | When the Endpoint Config was created |
+| model_name | The name of the model to deploy |
+| region | The AWS region where the Endpoint Config exists |
+
+##### Relationships
+
+- Endpoint Config is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerEndpointConfig)
+    ```
+- Endpoint Config uses a Model
+    ```
+    (AWSSageMakerEndpointConfig)-[:USES]->(AWSSageMakerModel)
+    ```
+
+#### AWSSageMakerEndpoint
+
+Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpoint.html). An Endpoint provides a persistent HTTPS endpoint for real-time inference.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Endpoint |
+| arn | The ARN of the Endpoint |
+| endpoint_name | The name of the Endpoint |
+| endpoint_status | The status of the Endpoint |
+| creation_time | When the Endpoint was created |
+| last_modified_time | When the Endpoint was last modified |
+| endpoint_config_name | The name of the Endpoint Config used |
+| region | The AWS region where the Endpoint exists |
+
+##### Relationships
+
+- Endpoint is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerEndpoint)
+    ```
+- Endpoint uses an Endpoint Config
+    ```
+    (AWSSageMakerEndpoint)-[:USES]->(AWSSageMakerEndpointConfig)
+    ```
+
+#### AWSSageMakerTransformJob
+
+Represents an [AWS SageMaker Transform Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTransformJob.html). A Transform Job performs batch inference on datasets. Takes
+a large dataset and uses batch inference to write multiple predictions to an S3 Bucket.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Transform Job |
+| arn | The ARN of the Transform Job |
+| transform_job_name | The name of the Transform Job |
+| transform_job_status | The status of the Transform Job |
+| creation_time | When the Transform Job was created |
+| model_name | The name of the model used for the transform |
+| output_data_s3_bucket_id | The S3 bucket ID where transform output is stored |
+| region | The AWS region where the Transform Job runs |
+
+##### Relationships
+
+- Transform Job is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerTransformJob)
+    ```
+- Transform Job uses a Model
+    ```
+    (AWSSageMakerTransformJob)-[:USES]->(AWSSageMakerModel)
+    ```
+- Transform Job writes output to S3 Bucket
+    ```
+    (AWSSageMakerTransformJob)-[:WRITES_TO]->(S3Bucket)
+    ```
+
+#### AWSSageMakerModelPackageGroup
+
+Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackageGroup.html). A Model Package Group is a collection of versioned model packages in the SageMaker Model Registry.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Model Package Group |
+| arn | The ARN of the Model Package Group |
+| model_package_group_name | The name of the Model Package Group |
+| creation_time | When the Model Package Group was created |
+| model_package_group_status | The status of the Model Package Group |
+| region | The AWS region where the Model Package Group exists |
+
+##### Relationships
+
+- Model Package Group is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerModelPackageGroup)
+    ```
+- Model Package Group contains Model Packages
+    ```
+    (AWSSageMakerModelPackageGroup)-[:CONTAINS]->(AWSSageMakerModelPackage)
+    ```
+
+#### AWSSageMakerModelPackage
+
+Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackage.html). A Model Package is a versioned model in the SageMaker Model Registry that acts as a blueprint for a deployed model.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Model Package |
+| arn | The ARN of the Model Package |
+| model_package_name | The name of the Model Package |
+| model_package_group_name | The name of the group this package belongs to |
+| model_package_version | The version number of the Model Package |
+| model_package_status | The status of the Model Package |
+| model_approval_status | The approval status of the Model Package |
+| creation_time | When the Model Package was created |
+| model_artifacts_s3_bucket_id | The S3 bucket ID where model artifacts are stored |
+| region | The AWS region where the Model Package exists |
+
+##### Relationships
+
+- Model Package is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerModelPackage)
+    ```
+- Model Package belongs to a Model Package Group
+    ```
+    (AWSSageMakerModelPackageGroup)-[:CONTAINS]->(AWSSageMakerModelPackage)
+    ```
+- Model Package references artifacts in S3 Bucket
+    ```
+    (AWSSageMakerModelPackage)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
+    ```
