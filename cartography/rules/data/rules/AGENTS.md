@@ -99,5 +99,3 @@ CIS_REFERENCES = [
 ## Additional Resources
 
 - [AWS Security Hub CIS Controls](https://docs.aws.amazon.com/securityhub/latest/userguide/cis-aws-foundations-benchmark.html)
-- [Steampipe AWS Compliance Mod](https://hub.steampipe.io/mods/turbot/aws_compliance)
-- [Prowler CIS Checks](https://docs.prowler.com/)
