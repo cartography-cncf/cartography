@@ -651,6 +651,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         The decorator handles these specific AWS error codes:
         - AccessDenied / AccessDeniedException
         - AuthFailure
+        - AuthorizationError / AuthorizationErrorException
         - InvalidClientTokenId
         - UnauthorizedOperation
         - UnrecognizedClientException

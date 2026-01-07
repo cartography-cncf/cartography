@@ -308,7 +308,7 @@ class CartographyRelSchema(abc.ABC):
         relationship syntax as [:LABEL].
 
         Returns:
-            The string label of the relationship type..
+            The string label of the relationship type.
         """
         pass
 

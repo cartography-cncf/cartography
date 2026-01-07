@@ -998,7 +998,7 @@ class CLI:
 
         return parser
 
-    def main(self, argv: str) -> int:
+    def main(self, argv: list[str]) -> int:
         """
         Main entrypoint for the command line interface.
 

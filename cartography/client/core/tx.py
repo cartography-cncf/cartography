@@ -491,7 +491,7 @@ def write_list_of_dicts_tx(
         ...     {'id': 2, 'name': 'Bob', 'age': 25}
         ... ]
         >>>
-        >>> neo4j_session.write_transaction(
+        >>> neo4j_session.execute_write(
         ...     write_list_of_dicts_tx,
         ...     '''
         ...     UNWIND $DictList as data

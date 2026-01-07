@@ -289,8 +289,9 @@ class GraphJob:
         reconstructing all statements and their parameters.
 
         Args:
-            blob (str): The JSON string to deserialize. Must contain a 'name' field
-                and a 'statements' field with a list of statement definitions.
+            blob (Union[str, dict]): The JSON string or dictionary to deserialize. Must contain a 'name' field
+                and a 'statements' field with a list of statement definitions. If a string is provided,
+                it will be parsed as JSON. If a dictionary is provided, it will be used directly.
             short_name (Optional[str]): Override the short name for the job.
                 If not provided, uses the short_name from JSON if available.
 
@@ -495,7 +496,9 @@ class GraphJob:
 
         Args:
             neo4j_session (neo4j.Session): The Neo4j session to use for execution.
-            blob (str): The JSON string containing the job definition.
+            blob (Union[str, dict]): The JSON string or dictionary containing the job definition.
+                If a string is provided, it will be parsed as JSON. If a dictionary is provided,
+                it will be used directly.
             parameters (Dict): Parameters to merge into all job statements.
             short_name (Optional[str]): Override the short name for the job.
         """

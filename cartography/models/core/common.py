@@ -84,9 +84,9 @@ class PropertyRef:
 
                     class InstanceProfileSchema(Schema):
                         target_node_label: str = 'AWSRole'
-                        target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+                        target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
                             'arn': PropertyRef('Roles', one_to_many=True),
-                        )
+                        })
 
                 This searches for AWSRoles to attach by checking if each role's ``arn`` field
                 is in the ``Roles`` list of the data dict.
