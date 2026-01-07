@@ -21,6 +21,8 @@ from cartography.models.aws.bedrock.foundation_model import (
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
+from .util import get_botocore_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +35,11 @@ def get_foundation_models(
     Retrieve all foundation models available in AWS Bedrock for a given region.
     """
     logger.info("Fetching Bedrock foundation models in region %s", region)
-    client = boto3_session.client("bedrock", region_name=region)
+    client = boto3_session.client(
+        "bedrock",
+        region_name=region,
+        config=get_botocore_config(),
+    )
 
     # list_foundation_models returns all models in a single response (no pagination)
     response = client.list_foundation_models()

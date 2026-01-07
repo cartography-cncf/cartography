@@ -18,6 +18,8 @@ from cartography.models.aws.bedrock.custom_model import AWSBedrockCustomModelSch
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
+from .util import get_botocore_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +35,11 @@ def get_custom_models(
     to retrieve full details (jobArn, jobName, trainingDataConfig, outputDataConfig).
     """
     logger.info("Fetching Bedrock custom models in region %s", region)
-    client = boto3_session.client("bedrock", region_name=region)
+    client = boto3_session.client(
+        "bedrock",
+        region_name=region,
+        config=get_botocore_config(),
+    )
 
     # Use pagination for list_custom_models
     paginator = client.get_paginator("list_custom_models")

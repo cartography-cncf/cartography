@@ -18,6 +18,8 @@ from cartography.models.aws.bedrock.agent import AWSBedrockAgentSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
+from .util import get_botocore_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +34,11 @@ def get_agents(
     This function first lists all agents, then gets detailed information for each agent
     """
     logger.info("Fetching Bedrock agents in region %s", region)
-    client = boto3_session.client("bedrock-agent", region_name=region)
+    client = boto3_session.client(
+        "bedrock-agent",
+        region_name=region,
+        config=get_botocore_config(),
+    )
 
     # List all agents (with pagination)
     paginator = client.get_paginator("list_agents")
@@ -162,6 +168,7 @@ def transform_agents(
                     agent["guardrail_arn"] = guardrail_id
                 else:
                     # Build full ARN from guardrail ID
+                    # Note: Version is not included in ARN - guardrail nodes use base ARN
                     agent["guardrail_arn"] = (
                         f"arn:aws:bedrock:{region}:{account_id}:guardrail/{guardrail_id}"
                     )

@@ -18,6 +18,8 @@ from cartography.models.aws.bedrock.knowledge_base import AWSBedrockKnowledgeBas
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
+from .util import get_botocore_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +32,11 @@ def get_knowledge_bases(
     Retrieve all knowledge bases in AWS Bedrock for a given region.
     """
     logger.info("Fetching Bedrock knowledge bases in region %s", region)
-    client = boto3_session.client("bedrock-agent", region_name=region)
+    client = boto3_session.client(
+        "bedrock-agent",
+        region_name=region,
+        config=get_botocore_config(),
+    )
 
     # List all knowledge bases (with pagination)
     paginator = client.get_paginator("list_knowledge_bases")

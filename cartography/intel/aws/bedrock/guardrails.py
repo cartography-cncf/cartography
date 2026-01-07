@@ -18,6 +18,8 @@ from cartography.models.aws.bedrock.guardrail import AWSBedrockGuardrailSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
+from .util import get_botocore_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +32,11 @@ def get_guardrails(
     Retrieve all guardrails in AWS Bedrock for a given region.
     """
     logger.info("Fetching Bedrock guardrails in region %s", region)
-    client = boto3_session.client("bedrock", region_name=region)
+    client = boto3_session.client(
+        "bedrock",
+        region_name=region,
+        config=get_botocore_config(),
+    )
 
     paginator = client.get_paginator("list_guardrails")
     guardrails = []

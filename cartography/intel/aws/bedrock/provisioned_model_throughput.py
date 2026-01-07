@@ -20,6 +20,8 @@ from cartography.models.aws.bedrock.provisioned_model_throughput import (
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
+from .util import get_botocore_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +34,11 @@ def get_provisioned_throughputs(
     Retrieve all provisioned model throughputs in AWS Bedrock for a given region.
     """
     logger.info("Fetching Bedrock provisioned model throughputs in region %s", region)
-    client = boto3_session.client("bedrock", region_name=region)
+    client = boto3_session.client(
+        "bedrock",
+        region_name=region,
+        config=get_botocore_config(),
+    )
 
     # List all provisioned throughputs (with pagination)
     paginator = client.get_paginator("list_provisioned_model_throughputs")
@@ -49,10 +55,7 @@ def get_provisioned_throughputs(
     # Get detailed information for each provisioned throughput
     throughputs = []
     for summary in throughput_summaries:
-        throughput_arn = summary.get("provisionedModelArn")
-        if not throughput_arn:
-            continue
-
+        throughput_arn = summary["provisionedModelArn"]
         response = client.get_provisioned_model_throughput(
             provisionedModelId=throughput_arn
         )
