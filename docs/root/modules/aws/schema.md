@@ -4922,7 +4922,7 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 
 ### AWS Bedrock
 
-### AWSBedrockFoundationModel
+#### AWSBedrockFoundationModel
 
 Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others.
 
