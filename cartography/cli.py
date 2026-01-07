@@ -623,10 +623,10 @@ class CLI:
         parser.add_argument(
             "--gitlab-url",
             type=str,
-            default=None,
+            default="https://gitlab.com",
             help=(
-                "The GitLab instance URL (e.g., https://gitlab.com or https://gitlab.example.com). "
-                "Required if you are using the GitLab intel module. Ignored otherwise."
+                "The GitLab instance URL. Defaults to https://gitlab.com. "
+                "Set to your self-hosted instance URL if applicable (e.g., https://gitlab.example.com)."
             ),
         )
         parser.add_argument(
@@ -635,6 +635,15 @@ class CLI:
             default=None,
             help=(
                 "The name of environment variable containing the GitLab personal access token. "
+                "Required if you are using the GitLab intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--gitlab-organization-id",
+            type=int,
+            default=None,
+            help=(
+                "The GitLab organization (top-level group) ID to sync. "
                 "Required if you are using the GitLab intel module. Ignored otherwise."
             ),
         )
@@ -1277,6 +1286,7 @@ class CLI:
             config.gitlab_token = os.environ.get(config.gitlab_token_env_var)
         else:
             config.gitlab_token = None
+        # gitlab_organization_id is passed directly from CLI arg (type=int)
 
         # Workday config
         if (
