@@ -147,6 +147,8 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
     ec2_instance_id = "i-0f76fade"
     private_ip_address = "10.0.0.1"
     lambda_arn = "arn:aws:lambda:us-east-1:000000000000:function:example"
+    target_alb_arn = "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/target-alb/1234567890abcdef"
+    target_alb_id = "target-alb.us-east-1.elb.amazonaws.com"
 
     target_groups = tests.data.aws.ec2.load_balancers.TARGET_GROUPS
 
@@ -169,6 +171,10 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         ON CREATE SET lambda_fn.firstseen = timestamp()
         SET lambda_fn.lastupdated = $aws_update_tag
 
+        MERGE (target_alb:LoadBalancerV2{id: $target_alb_id, arn: $target_alb_arn})
+        ON CREATE SET target_alb.firstseen = timestamp()
+        SET target_alb.lastupdated = $aws_update_tag
+
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
         SET aws.lastupdated = $aws_update_tag
@@ -177,6 +183,8 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         ec2_instance_id=ec2_instance_id,
         private_ip_address=private_ip_address,
         lambda_arn=lambda_arn,
+        target_alb_id=target_alb_id,
+        target_alb_arn=target_alb_arn,
         aws_account_id=TEST_ACCOUNT_ID,
         aws_update_tag=TEST_UPDATE_TAG,
     )
@@ -217,6 +225,15 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         lambda_arn=lambda_arn,
     )
 
+    alb_nodes = neo4j_session.run(
+        """
+        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(target_alb:LoadBalancerV2{arn: $target_alb_arn})
+        RETURN elbv2.id, target_alb.id
+        """,
+        ID=load_balancer_id,
+        target_alb_arn=target_alb_arn,
+    )
+
     expected_nodes = {
         (
             load_balancer_id,
@@ -230,12 +247,17 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
             load_balancer_id,
             lambda_arn,
         ),
+        (
+            load_balancer_id,
+            target_alb_id,
+        ),
     }
-    actual_nodes = {
-        (n["elbv2.id"], n["instance.instanceid"]) for n in instance_nodes
-    } | {(n["elbv2.id"], n["ip.private_ip_address"]) for n in ip_nodes} | {
-        (n["elbv2.id"], n["lambda_fn.id"]) for n in lambda_nodes
-    }
+    actual_nodes = (
+        {(n["elbv2.id"], n["instance.instanceid"]) for n in instance_nodes}
+        | {(n["elbv2.id"], n["ip.private_ip_address"]) for n in ip_nodes}
+        | {(n["elbv2.id"], n["lambda_fn.id"]) for n in lambda_nodes}
+        | {(n["elbv2.id"], n["target_alb.id"]) for n in alb_nodes}
+    )
     assert actual_nodes == expected_nodes
 
 

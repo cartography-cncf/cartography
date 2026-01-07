@@ -16,12 +16,20 @@ TARGET_GROUPS = [
         "Targets": ["arn:aws:lambda:us-east-1:000000000000:function:example"],
         "Protocol": "HTTPS",
     },
+    {
+        "TargetType": "alb",
+        "Targets": [
+            "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/target-alb/1234567890abcdef"
+        ],
+        "Port": 80,
+        "Protocol": "HTTP",
+    },
 ]
 
 # 'TargetGroups': [
 #         'TargetGroupArn': 'string',
 #         ...
-#         'TargetType': 'instance'|'ip'|'lambda',
+#         'TargetType': 'instance'|'ip'|'lambda'|'alb',
 #         'Targets': ["i-0f76fade"]
 #     ]
 
