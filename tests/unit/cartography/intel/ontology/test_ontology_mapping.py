@@ -23,7 +23,7 @@ OLD_FORMAT_NODES = [
     "OktaApplication",
     "OktaOrganization",
     "AWSAccount",
-    "EntraTenant",  # A bit specific, main label is AzureTenant
+    "EntraTenant",  # main label is AzureTenant
 ]
 
 

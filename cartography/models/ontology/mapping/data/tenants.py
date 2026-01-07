@@ -131,7 +131,7 @@ gcp_mapping = OntologyMapping(
             node_label="GCPOrganization",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="name", node_field="orgname", required=True
+                    ontology_field="name", node_field="displayname", required=True
                 ),
                 OntologyFieldMapping(
                     ontology_field="status", node_field="lifecyclestate"
