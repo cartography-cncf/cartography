@@ -787,7 +787,6 @@ dependencies = [
     { name = "policyuniverse" },
     { name = "python-dateutil" },
     { name = "python-digitalocean" },
-    { name = "python-gitlab" },
     { name = "pyyaml" },
     { name = "requests" },
     { name = "scaleway" },
@@ -875,7 +874,6 @@ requires-dist = [
     { name = "policyuniverse", specifier = ">=1.1.0.0" },
     { name = "python-dateutil" },
     { name = "python-digitalocean", specifier = ">=1.16.0" },
-    { name = "python-gitlab", specifier = ">=3.0.0" },
     { name = "pyyaml", specifier = ">=5.3.1" },
     { name = "requests", specifier = ">=2.22.0" },
     { name = "scaleway", specifier = ">=2.10.0" },
@@ -3243,19 +3241,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python-gitlab"
-version = "7.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-    { name = "requests-toolbelt" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5e/c4/0b613303b4f0fcda69b3d2e03d0a1fb1b6b079a7c7832e03a8d92461e9fe/python_gitlab-7.0.0.tar.gz", hash = "sha256:e4d934430f64efc09e6208b782c61cc0a3389527765e03ffbef17f4323dce441", size = 400568, upload-time = "2025-10-29T15:06:02.069Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4f/9e/811edc46a15f8deb828cba7ef8aab3451dc11ca72d033f3df72a5af865d9/python_gitlab-7.0.0-py3-none-any.whl", hash = "sha256:712a6c8c5e79e7e66f6dabb25d8fe7831a6b238d4a5132f8231df6b3b890ceff", size = 144415, upload-time = "2025-10-29T15:06:00.232Z" },
-]
-
-[[package]]
 name = "pytokens"
 version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3390,18 +3375,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/42/f2/05f29bc3913aea15eb670be136045bf5c5bbf4b99ecb839da9b422bb2c85/requests-oauthlib-2.0.0.tar.gz", hash = "sha256:b3dffaebd884d8cd778494369603a9e7b58d29111bf6b41bdc2dcd87203af4e9", size = 55650, upload-time = "2024-03-22T20:32:29.939Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3b/5d/63d4ae3b9daea098d5d6f5da83984853c1bbacd5dc826764b249fe119d24/requests_oauthlib-2.0.0-py2.py3-none-any.whl", hash = "sha256:7dd8a5c40426b779b0868c404bdef9768deccf22749cde15852df527e6269b36", size = 24179, upload-time = "2024-03-22T20:32:28.055Z" },
-]
-
-[[package]]
-name = "requests-toolbelt"
-version = "1.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/61/d7545dafb7ac2230c70d38d31cbfe4cc64f7144dc41f6e4e4b78ecd9f5bb/requests-toolbelt-1.0.0.tar.gz", hash = "sha256:7681a0a3d047012b5bdc0ee37d7f8f07ebe76ab08caeccfc3921ce23c88d5bc6", size = 206888, upload-time = "2023-05-01T04:11:33.229Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/51/d4db610ef29373b879047326cbf6fa98b6c1969d6f6dc423279de2b1be2c/requests_toolbelt-1.0.0-py2.py3-none-any.whl", hash = "sha256:cccfdd665f0a24fcf4726e690f65639d272bb0637b9b92dfd91a5568ccf6bd06", size = 54481, upload-time = "2023-05-01T04:11:28.427Z" },
 ]
 
 [[package]]
