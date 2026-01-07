@@ -2540,6 +2540,7 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 | **dnsname** | The DNS name of the load balancer. |
 | exposed_internet | The `exposed_internet` flag is set to `True` when the load balancer's `scheme` field is set to `internet-facing`.  This indicates that the load balancer has a public DNS name that resolves to a public IP address. |
 | **id** |  Currently set to the `dnsname` of the load balancer. |
+| arn | The Amazon Resource Name (ARN) of the load balancer. |
 | type | Can be `application` or `network` |
 | region| The region of the load balancer |
 |createdtime | The date and time the load balancer was created. |
@@ -2553,7 +2554,23 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
     ```
     (LoadBalancerV2)-[EXPOSE]->(EC2Instance)
     ```
-`EXPOSE` relationshiohip also holds the protocol, port and TargetGroupArn the load balancer points to.
+
+- LoadBalancerV2's can expose IP addresses when using `ip` target type.
+    ```
+    (LoadBalancerV2)-[EXPOSE]->(EC2PrivateIp)
+    ```
+
+- LoadBalancerV2's can expose Lambda functions when using `lambda` target type.
+    ```
+    (LoadBalancerV2)-[EXPOSE]->(AWSLambda)
+    ```
+
+- LoadBalancerV2's can chain to other LoadBalancerV2's when using `alb` target type (ALB-to-ALB chaining).
+    ```
+    (LoadBalancerV2)-[EXPOSE]->(LoadBalancerV2)
+    ```
+
+The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load balancer points to.
 
 - LoadBalancerV2's can be part of EC2SecurityGroups but only if their `type` = "application". NLBs don't have SGs.
     ```
