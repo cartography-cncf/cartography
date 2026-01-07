@@ -28,7 +28,7 @@ CIS_REFERENCES = [
 
 
 # =============================================================================
-# CIS 3.1: CloudTrail Multi-Region
+# CIS AWS 3.1: CloudTrail Multi-Region
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailMultiRegionOutput(Finding):
@@ -72,7 +72,7 @@ _aws_cloudtrail_not_multi_region = Fact(
 
 cis_3_1_cloudtrail_multi_region = Rule(
     id="cis_3_1_cloudtrail_multi_region",
-    name="CIS 3.1: CloudTrail Multi-Region",
+    name="CIS AWS 3.1: CloudTrail Multi-Region",
     description=(
         "CloudTrail should be enabled in all regions to ensure complete visibility "
         "into API activity across the entire AWS infrastructure."
@@ -86,7 +86,7 @@ cis_3_1_cloudtrail_multi_region = Rule(
 
 
 # =============================================================================
-# CIS 3.4: CloudTrail Log File Validation
+# CIS AWS 3.4: CloudTrail Log File Validation
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailLogValidationOutput(Finding):
@@ -130,7 +130,7 @@ _aws_cloudtrail_log_validation_disabled = Fact(
 
 cis_3_4_cloudtrail_log_validation = Rule(
     id="cis_3_4_cloudtrail_log_validation",
-    name="CIS 3.4: CloudTrail Log File Validation",
+    name="CIS AWS 3.4: CloudTrail Log File Validation",
     description=(
         "CloudTrail should have log file validation enabled to ensure the integrity "
         "of log files through digitally signed digest files."
@@ -151,7 +151,7 @@ cis_3_4_cloudtrail_log_validation = Rule(
 
 
 # =============================================================================
-# CIS 3.5: CloudTrail CloudWatch Integration
+# CIS AWS 3.5: CloudTrail CloudWatch Integration
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailCloudWatchOutput(Finding):
@@ -195,7 +195,7 @@ _aws_cloudtrail_no_cloudwatch = Fact(
 
 cis_3_5_cloudtrail_cloudwatch = Rule(
     id="cis_3_5_cloudtrail_cloudwatch",
-    name="CIS 3.5: CloudTrail CloudWatch Integration",
+    name="CIS AWS 3.5: CloudTrail CloudWatch Integration",
     description=(
         "CloudTrail should be integrated with CloudWatch Logs to enable real-time "
         "analysis and alerting on API activity."
@@ -216,7 +216,7 @@ cis_3_5_cloudtrail_cloudwatch = Rule(
 
 
 # =============================================================================
-# CIS 3.7: CloudTrail KMS Encryption
+# CIS AWS 3.7: CloudTrail KMS Encryption
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailEncryptionOutput(Finding):
@@ -260,7 +260,7 @@ _aws_cloudtrail_not_encrypted = Fact(
 
 cis_3_7_cloudtrail_encryption = Rule(
     id="cis_3_7_cloudtrail_encryption",
-    name="CIS 3.7: CloudTrail KMS Encryption",
+    name="CIS AWS 3.7: CloudTrail KMS Encryption",
     description=(
         "CloudTrail logs should be encrypted using AWS KMS customer managed keys "
         "to provide an additional layer of security for sensitive API activity data."
