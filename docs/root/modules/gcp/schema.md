@@ -1150,3 +1150,122 @@ Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/d
     ```
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPVertexAIDataset)
     ```
+
+## Cloud SQL Resources
+
+### GCPCloudSQLInstance
+
+Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The instance's `selfLink`, which is its unique URI. |
+| name | The user-assigned name of the instance. |
+| database\_version | The database engine type and version (e.g., `POSTGRES_15`). |
+| region | The GCP region the instance lives in. |
+| gce\_zone | The specific Compute Engine zone the instance is serving from. |
+| state | The current state of the instance (e.g., `RUNNABLE`). |
+| backend\_type | The type of instance (e.g., `SECOND_GEN`). |
+| service\_account\_email | The email of the service account used by this instance. |
+| connection\_name | The connection string for accessing the instance (e.g., `project:region:instance`). |
+| tier | The machine type tier (e.g., `db-custom-1-3840`). |
+| disk\_size\_gb | Storage capacity in gigabytes. |
+| disk\_type | Storage disk type (e.g., `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED`). |
+| availability\_type | Availability configuration (`ZONAL` or `REGIONAL` for high availability). |
+| backup\_enabled | Boolean indicating if automated backups are enabled. |
+| require\_ssl | Boolean indicating if SSL/TLS encryption is required for connections. |
+| ip\_addresses | JSON string containing array of IP addresses with their types (PRIMARY, PRIVATE, OUTGOING). |
+| backup\_configuration | JSON string containing full backup configuration including retention and point-in-time recovery settings. |
+
+#### Relationships
+
+  - GCPCloudSQLInstances are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLInstance)
+    ```
+  - GCPCloudSQLInstances are associated with GCPVpcs.
+    ```
+    (GCPCloudSQLInstance)-[:ASSOCIATED_WITH]->(GCPVpc)
+    ```
+  - GCPCloudSQLInstances use GCPServiceAccounts.
+    ```
+    (GCPCloudSQLInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudSQLDatabase
+
+Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/databases).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID and database name. |
+| name | The name of the database. |
+| charset | The character set for the database. |
+| collation | The collation for the database. |
+
+#### Relationships
+
+  - GCPCloudSQLDatabases are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLDatabase)
+    ```
+  - GCPCloudSQLInstances contain GCPCloudSQLDatabases.
+    ```
+    (GCPCloudSQLInstance)-[:CONTAINS]->(GCPCloudSQLDatabase)
+    ```
+
+### GCPCloudSQLUser
+
+Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/users).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID and the user's name and host. |
+| name | The name of the user. |
+| host | The host from which the user is allowed to connect. |
+
+#### Relationships
+
+  - GCPCloudSQLUsers are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLUser)
+    ```
+  - GCPCloudSQLInstances have GCPCloudSQLUsers.
+    ```
+    (GCPCloudSQLInstance)-[:HAS_USER]->(GCPCloudSQLUser)
+    ```
+
+### GCPCloudSQLBackupConfiguration
+
+Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#backupconfiguration). This node captures the backup settings for a Cloud SQL instance.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID with `/backupConfig` suffix. |
+| enabled | Boolean indicating whether automated backups are enabled. |
+| start\_time | The start time for the daily backup window in UTC (HH:MM format). |
+| location | The location where backups are stored. |
+| point\_in\_time\_recovery\_enabled | Boolean indicating whether point-in-time recovery is enabled. |
+| transaction\_log\_retention\_days | Number of days of transaction logs retained for point-in-time recovery. |
+| backup\_retention\_settings | String representation of backup retention configuration (e.g., retained backup count). |
+| binary\_log\_enabled | Boolean indicating whether binary logging is enabled. |
+| instance\_id | The ID of the parent Cloud SQL instance. |
+
+#### Relationships
+
+  - GCPCloudSQLBackupConfigurations are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLBackupConfiguration)
+    ```
+  - GCPCloudSQLInstances have GCPCloudSQLBackupConfigurations.
+    ```
+    (GCPCloudSQLInstance)-[:HAS_BACKUP_CONFIG]->(GCPCloudSQLBackupConfiguration)
+    ```
