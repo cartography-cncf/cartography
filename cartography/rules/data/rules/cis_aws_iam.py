@@ -30,7 +30,7 @@ CIS_REFERENCES = [
 
 
 # =============================================================================
-# CIS 1.14: Access keys not rotated in 90 days
+# CIS AWS 1.14: Access keys not rotated in 90 days
 # Main node: AccountAccessKey
 # =============================================================================
 class AccessKeyNotRotatedOutput(Finding):
@@ -80,7 +80,7 @@ _aws_access_key_not_rotated = Fact(
 
 cis_1_14_access_key_not_rotated = Rule(
     id="cis_1_14_access_key_not_rotated",
-    name="CIS 1.14: Access Keys Not Rotated",
+    name="CIS AWS 1.14: Access Keys Not Rotated",
     description=(
         "Access keys should be rotated every 90 days or less to reduce the window "
         "of opportunity for compromised keys to be used maliciously."
@@ -94,7 +94,7 @@ cis_1_14_access_key_not_rotated = Rule(
 
 
 # =============================================================================
-# CIS 1.12: Unused credentials (45+ days)
+# CIS AWS 1.12: Unused credentials (45+ days)
 # Main node: AccountAccessKey
 # =============================================================================
 class UnusedCredentialsOutput(Finding):
@@ -147,7 +147,7 @@ _aws_unused_credentials = Fact(
 
 cis_1_12_unused_credentials = Rule(
     id="cis_1_12_unused_credentials",
-    name="CIS 1.12: Unused Credentials",
+    name="CIS AWS 1.12: Unused Credentials",
     description=(
         "Credentials unused for 45 days or greater should be disabled to reduce "
         "the attack surface and prevent unauthorized access."
@@ -161,7 +161,7 @@ cis_1_12_unused_credentials = Rule(
 
 
 # =============================================================================
-# CIS 1.15: Users with directly attached policies
+# CIS AWS 1.15: Users with directly attached policies
 # Main node: AWSUser
 # =============================================================================
 class UserDirectPoliciesOutput(Finding):
@@ -203,7 +203,7 @@ _aws_user_direct_policies = Fact(
 
 cis_1_15_user_direct_policies = Rule(
     id="cis_1_15_user_direct_policies",
-    name="CIS 1.15: Users With Direct Policy Attachments",
+    name="CIS AWS 1.15: Users With Direct Policy Attachments",
     description=(
         "IAM users should receive permissions only through groups. Direct policy "
         "attachments make permission management complex and error-prone."
@@ -223,7 +223,7 @@ cis_1_15_user_direct_policies = Rule(
 
 
 # =============================================================================
-# CIS 1.13: Users with multiple active access keys
+# CIS AWS 1.13: Users with multiple active access keys
 # Main node: AWSUser
 # =============================================================================
 class MultipleAccessKeysOutput(Finding):
@@ -271,7 +271,7 @@ _aws_multiple_access_keys = Fact(
 
 cis_1_13_multiple_access_keys = Rule(
     id="cis_1_13_multiple_access_keys",
-    name="CIS 1.13: Users With Multiple Active Access Keys",
+    name="CIS AWS 1.13: Users With Multiple Active Access Keys",
     description=(
         "Each IAM user should have only one active access key. Multiple active keys "
         "increase the attack surface and complicate key rotation."
@@ -285,7 +285,7 @@ cis_1_13_multiple_access_keys = Rule(
 
 
 # =============================================================================
-# CIS 1.18: Expired SSL/TLS certificates
+# CIS AWS 1.18: Expired SSL/TLS certificates
 # Main node: ACMCertificate
 # =============================================================================
 class ExpiredCertificatesOutput(Finding):
@@ -333,7 +333,7 @@ _aws_expired_certificates = Fact(
 
 cis_1_18_expired_certificates = Rule(
     id="cis_1_18_expired_certificates",
-    name="CIS 1.18: Expired SSL/TLS Certificates",
+    name="CIS AWS 1.18: Expired SSL/TLS Certificates",
     description=(
         "Expired SSL/TLS certificates should be removed from ACM to maintain "
         "security hygiene and avoid confusion with valid certificates."

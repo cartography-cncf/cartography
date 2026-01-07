@@ -28,7 +28,7 @@ CIS_REFERENCES = [
 
 
 # =============================================================================
-# CIS 2.1.1: S3 bucket versioning
+# CIS AWS 2.1.1: S3 bucket versioning
 # Main node: S3Bucket
 # =============================================================================
 class S3VersioningOutput(Finding):
@@ -71,7 +71,7 @@ _aws_s3_versioning_disabled = Fact(
 
 cis_2_1_1_s3_versioning = Rule(
     id="cis_2_1_1_s3_versioning",
-    name="CIS 2.1.1: S3 Bucket Versioning",
+    name="CIS AWS 2.1.1: S3 Bucket Versioning",
     description=(
         "S3 buckets should have versioning enabled to protect against accidental "
         "deletion and enable recovery of objects."
@@ -85,7 +85,7 @@ cis_2_1_1_s3_versioning = Rule(
 
 
 # =============================================================================
-# CIS 2.1.2: S3 bucket MFA Delete
+# CIS AWS 2.1.2: S3 bucket MFA Delete
 # Main node: S3Bucket
 # =============================================================================
 class S3MfaDeleteOutput(Finding):
@@ -129,7 +129,7 @@ _aws_s3_mfa_delete_disabled = Fact(
 
 cis_2_1_2_s3_mfa_delete = Rule(
     id="cis_2_1_2_s3_mfa_delete",
-    name="CIS 2.1.2: S3 Bucket MFA Delete",
+    name="CIS AWS 2.1.2: S3 Bucket MFA Delete",
     description=(
         "S3 buckets should have MFA Delete enabled to require MFA authentication "
         "for deleting object versions or changing versioning state."
@@ -143,7 +143,7 @@ cis_2_1_2_s3_mfa_delete = Rule(
 
 
 # =============================================================================
-# CIS 2.1.4: S3 Block Public Access
+# CIS AWS 2.1.4: S3 Block Public Access
 # Main node: S3Bucket
 # =============================================================================
 class S3BlockPublicAccessOutput(Finding):
@@ -198,7 +198,7 @@ _aws_s3_block_public_access_disabled = Fact(
 
 cis_2_1_4_s3_block_public_access = Rule(
     id="cis_2_1_4_s3_block_public_access",
-    name="CIS 2.1.4: S3 Block Public Access",
+    name="CIS AWS 2.1.4: S3 Block Public Access",
     description=(
         "S3 buckets should have all Block Public Access settings enabled to prevent "
         "accidental public exposure of data."
@@ -212,7 +212,7 @@ cis_2_1_4_s3_block_public_access = Rule(
 
 
 # =============================================================================
-# CIS 2.1.5: S3 Access Logging
+# CIS AWS 2.1.5: S3 Access Logging
 # Main node: S3Bucket
 # =============================================================================
 class S3AccessLoggingOutput(Finding):
@@ -255,7 +255,7 @@ _aws_s3_access_logging_disabled = Fact(
 
 cis_2_1_5_s3_access_logging = Rule(
     id="cis_2_1_5_s3_access_logging",
-    name="CIS 2.1.5: S3 Bucket Access Logging",
+    name="CIS AWS 2.1.5: S3 Bucket Access Logging",
     description=(
         "S3 buckets should have server access logging enabled to provide detailed "
         "records for access requests."
@@ -269,7 +269,7 @@ cis_2_1_5_s3_access_logging = Rule(
 
 
 # =============================================================================
-# CIS 2.1.6: S3 Default Encryption
+# CIS AWS 2.1.6: S3 Default Encryption
 # Main node: S3Bucket
 # =============================================================================
 class S3EncryptionOutput(Finding):
@@ -314,7 +314,7 @@ _aws_s3_encryption_disabled = Fact(
 
 cis_2_1_6_s3_encryption = Rule(
     id="cis_2_1_6_s3_encryption",
-    name="CIS 2.1.6: S3 Default Encryption",
+    name="CIS AWS 2.1.6: S3 Default Encryption",
     description=(
         "S3 buckets should have default encryption enabled to ensure all objects "
         "are encrypted at rest."
@@ -335,7 +335,7 @@ cis_2_1_6_s3_encryption = Rule(
 
 
 # =============================================================================
-# CIS 2.2.1: RDS Encryption at Rest
+# CIS AWS 2.2.1: RDS Encryption at Rest
 # Main node: RDSInstance
 # =============================================================================
 class RdsEncryptionOutput(Finding):
@@ -385,7 +385,7 @@ _aws_rds_encryption_disabled = Fact(
 
 cis_2_2_1_rds_encryption = Rule(
     id="cis_2_2_1_rds_encryption",
-    name="CIS 2.2.1: RDS Encryption at Rest",
+    name="CIS AWS 2.2.1: RDS Encryption at Rest",
     description=(
         "RDS instances should have storage encryption enabled to protect data at rest "
         "and meet compliance requirements."
@@ -406,7 +406,7 @@ cis_2_2_1_rds_encryption = Rule(
 
 
 # =============================================================================
-# CIS 2.3.1: EBS Volume Encryption
+# CIS AWS 2.3.1: EBS Volume Encryption
 # Main node: EBSVolume
 # =============================================================================
 class EbsEncryptionOutput(Finding):
@@ -453,7 +453,7 @@ _aws_ebs_encryption_disabled = Fact(
 
 cis_2_3_1_ebs_encryption = Rule(
     id="cis_2_3_1_ebs_encryption",
-    name="CIS 2.3.1: EBS Volume Encryption",
+    name="CIS AWS 2.3.1: EBS Volume Encryption",
     description=(
         "EBS volumes should be encrypted to protect data at rest and in transit "
         "between the volume and instance."

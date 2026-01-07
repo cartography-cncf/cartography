@@ -25,7 +25,8 @@ def _ensure_local_neo4j_has_test_route53_records(neo4j_session):
     neo4j_session.run(
         """
         MERGE (a:AWSAccount{id:$AccountId})
-        SET a.lastupdated=$UpdateTag
+        ON CREATE SET a.firstseen = timestamp()
+        SET a.lastupdated=$UpdateTag, a :Tenant
         """,
         AccountId=TEST_AWS_ACCOUNTID,
         UpdateTag=TEST_UPDATE_TAG,
@@ -280,7 +281,8 @@ def test_link_sub_zones_handles_cycles(neo4j_session):
     neo4j_session.run(
         """
         MERGE (a:AWSAccount{id:$AccountId})
-        SET a.lastupdated=$UpdateTag
+        ON CREATE SET a.firstseen = timestamp()
+        SET a.lastupdated=$UpdateTag, a :Tenant
         """,
         AccountId=TEST_AWS_ACCOUNTID,
         UpdateTag=TEST_UPDATE_TAG,
