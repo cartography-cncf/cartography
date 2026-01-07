@@ -6,6 +6,7 @@ from cartography.intel.aws.ec2.route_tables import sync_route_tables
 from . import acm
 from . import apigateway
 from . import apigatewayv2
+from . import bedrock
 from . import cloudtrail
 from . import cloudtrail_management_events
 from . import cloudwatch
@@ -36,6 +37,7 @@ from . import resourcegroupstaggingapi
 from . import route53
 from . import s3
 from . import s3accountpublicaccessblock
+from . import sagemaker
 from . import secretsmanager
 from . import securityhub
 from . import sns
@@ -105,9 +107,11 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "resourcegroupstaggingapi": resourcegroupstaggingapi.sync,
     "apigateway": apigateway.sync,
     "apigatewayv2": apigatewayv2.sync,
+    "bedrock": bedrock.sync,
     "secretsmanager": secretsmanager.sync,
     "securityhub": securityhub.sync,
     "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
+    "sagemaker": sagemaker.sync,
     "sns": sns.sync,
     "sqs": sqs.sync,
     "ssm": ssm.sync,
