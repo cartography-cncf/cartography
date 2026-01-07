@@ -27,7 +27,7 @@ def test_sync_roles_for_users(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(u1:OktaUser{id: 'user-admin-001', email: 'admin1@example.com'})
         SET u1.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: 'user-admin-002', email: 'admin2@example.com'})
@@ -115,7 +115,7 @@ def test_sync_roles_for_groups(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(g1:OktaGroup{id: 'group-admin-001', name: 'Admins'})
         SET g1.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(g2:OktaGroup{id: 'group-admin-002', name: 'Support'})
@@ -179,7 +179,7 @@ def test_sync_roles_for_users_and_groups(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(u:OktaUser{id: 'user-mixed', email: 'mixed@example.com'})
         SET u.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(g:OktaGroup{id: 'group-mixed', name: 'Mixed'})
@@ -244,7 +244,7 @@ def test_sync_roles_handles_empty_state(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=test_org_id,
         UPDATE_TAG=TEST_UPDATE_TAG,
@@ -297,7 +297,7 @@ def test_sync_roles_handles_users_with_no_roles(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(u:OktaUser{id: 'user-noroles', email: 'noroles@example.com'})
         SET u.lastupdated = $UPDATE_TAG
         """,
@@ -352,7 +352,7 @@ def test_sync_roles_updates_existing(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(u:OktaUser{id: 'user-update-role', email: 'update@example.com'})
         SET u.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(r:OktaAdministrationRole{id: 'APP_ADMIN', type: 'APP_ADMIN'})
