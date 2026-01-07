@@ -14,7 +14,7 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 TEST_PROJECT_ID = "test-project"
 TEST_INSTANCE_NAME = "carto-sql-test-instance"
-TEST_INSTANCE_ID = f"projects/{TEST_PROJECT_ID}/instances/{TEST_INSTANCE_NAME}"
+TEST_INSTANCE_ID = f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{TEST_PROJECT_ID}/instances/{TEST_INSTANCE_NAME}"
 TEST_VPC_ID = f"projects/{TEST_PROJECT_ID}/global/networks/carto-sql-vpc"
 TEST_SA_EMAIL = "test-sa@test-project.iam.gserviceaccount.com"
 

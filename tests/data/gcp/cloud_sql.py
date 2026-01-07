@@ -1,7 +1,7 @@
 MOCK_INSTANCES = {
     "items": [
         {
-            "selfLink": "projects/test-project/instances/carto-sql-test-instance",
+            "selfLink": "https://sqladmin.googleapis.com/sql/v1beta4/projects/test-project/instances/carto-sql-test-instance",
             "name": "carto-sql-test-instance",
             "connectionName": "test-project:us-central1:carto-sql-test-instance",
             "databaseVersion": "POSTGRES_15",
@@ -28,7 +28,7 @@ MOCK_INSTANCES = {
                     },
                 },
                 "ipConfiguration": {
-                    "privateNetwork": "projects/test-project/global/networks/carto-sql-vpc",
+                    "privateNetwork": "/projects/test-project/global/networks/carto-sql-vpc",
                     "requireSsl": True,
                 },
             },

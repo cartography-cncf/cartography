@@ -57,6 +57,13 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
         if backup_config:
             backup_config_json = json.dumps(backup_config)
 
+        # Normalize privateNetwork to match GCPVpc ID format
+        # Cloud SQL API returns: /projects/.../global/networks/...
+        # GCPVpc uses: projects/.../global/networks/... (no leading slash)
+        network_id = ip_config.get("privateNetwork")
+        if network_id and network_id.startswith("/"):
+            network_id = network_id.lstrip("/")
+
         transformed.append(
             {
                 "selfLink": inst.get("selfLink"),
@@ -74,7 +81,7 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
                 "availability_type": settings.get("availabilityType"),
                 "backup_enabled": backup_config.get("enabled"),
                 "require_ssl": ip_config.get("requireSsl"),
-                "network_id": ip_config.get("privateNetwork"),
+                "network_id": network_id,
                 "ip_addresses": ip_addresses_json,
                 "backup_configuration": backup_config_json,
                 "project_id": project_id,
