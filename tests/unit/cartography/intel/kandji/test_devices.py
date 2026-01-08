@@ -95,3 +95,25 @@ def test_get_devices_with_pagination(
     assert result == mock_device_data_page1 + mock_device_data_page2
     # Called three times: twice for data, once for empty response
     assert mock_session.return_value.get.call_count == 3
+
+
+@patch("cartography.intel.kandji.devices.Session")
+def test_get_devices_respects_page_limit(
+    mock_session: Mock,
+    mock_device_data_page1: list[dict[str, Any]],
+    monkeypatch,
+) -> None:
+    import cartography.intel.kandji.devices as devices_module
+
+    monkeypatch.setattr(devices_module, "MAX_PAGINATION_PAGES", 1)
+    mock_session.return_value.get.return_value = Mock(
+        json=lambda: mock_device_data_page1,
+        raise_for_status=lambda: None,
+    )
+    base_uri = "https://test.kandji.io"
+    token = "test-token"
+
+    result = get(base_uri, token)
+
+    assert len(result) == 300
+    assert mock_session.return_value.get.call_count == 1
