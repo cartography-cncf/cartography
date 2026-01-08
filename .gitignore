@@ -22,7 +22,6 @@ cartography/_version.py
 poetry.lock
 .cursor-server
 .gitconfig
-.python-version
 .python_history
 github_config.json
 .env.local
