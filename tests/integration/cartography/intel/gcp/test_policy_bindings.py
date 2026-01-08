@@ -11,7 +11,7 @@ import tests.data.gcp.policy_bindings
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-TEST_PROJECT_ID = "project-123"
+TEST_PROJECT_ID = "project-abc"
 TEST_UPDATE_TAG = 123456789
 COMMON_JOB_PARAMS = {
     "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -122,17 +122,17 @@ def test_sync_gcp_policy_bindings(
         neo4j_session, "GCPPolicyBinding", ["id", "role", "resource_type"]
     ) == {
         (
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/editor",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/editor",
             "roles/editor",
             "project",
         ),
         (
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/viewer",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/viewer",
             "roles/viewer",
             "project",
         ),
         (
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin_5982c9d5",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
             "roles/storage.admin",
             "project",
         ),
@@ -155,15 +155,15 @@ def test_sync_gcp_policy_bindings(
     ) == {
         (
             TEST_PROJECT_ID,
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/editor",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/editor",
         ),
         (
             TEST_PROJECT_ID,
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/viewer",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/viewer",
         ),
         (
             TEST_PROJECT_ID,
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin_5982c9d5",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
         ),
         (
             TEST_PROJECT_ID,
@@ -184,7 +184,7 @@ def test_sync_gcp_policy_bindings(
         # GSuite users
         (
             "alice@example.com",
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/editor",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/editor",
         ),
         (
             "alice@example.com",
@@ -192,17 +192,17 @@ def test_sync_gcp_policy_bindings(
         ),
         (
             "bob@example.com",
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin_5982c9d5",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
         ),
         # IAM service account
         (
-            "sa@project-123.iam.gserviceaccount.com",
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/editor",
+            "sa@project-abc.iam.gserviceaccount.com",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/editor",
         ),
         # GSuite group
         (
             "viewers@example.com",
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/viewer",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/viewer",
         ),
     }
 
@@ -217,15 +217,15 @@ def test_sync_gcp_policy_bindings(
         rel_direction_right=True,
     ) == {
         (
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/editor",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/editor",
             "roles/editor",
         ),
         (
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/viewer",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/viewer",
             "roles/viewer",
         ),
         (
-            "//cloudresourcemanager.googleapis.com/projects/project-123_roles/storage.admin_5982c9d5",
+            "//cloudresourcemanager.googleapis.com/projects/project-abc_roles/storage.admin_5982c9d5",
             "roles/storage.admin",
         ),
         (
