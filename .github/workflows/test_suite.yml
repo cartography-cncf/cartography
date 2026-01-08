@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
-          python-version: "3.10"
+          python-version: "3.12"
       - name: Install uv
         uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
       - name: Check lockfile is up-to-date
@@ -42,7 +42,7 @@ jobs:
             neo4j:4.4-community
       - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
-          python-version: "3.10"
+          python-version: "3.12"
       - name: Install uv
         uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
         with:
@@ -74,7 +74,7 @@ jobs:
             neo4j:5
       - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
-          python-version: "3.10"
+          python-version: "3.12"
       - name: Install uv
         uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
         with:
