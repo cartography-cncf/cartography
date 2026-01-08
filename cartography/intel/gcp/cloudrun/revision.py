@@ -19,23 +19,55 @@ logger = logging.getLogger(__name__)
 def get_revisions(client: Resource, project_id: str, location: str = "-") -> list[dict]:
     """
     Gets GCP Cloud Run Revisions for a project and location.
-
-    :param client: The Cloud Run API client
-    :param project_id: The GCP project ID
-    :param location: The location to query. Use "-" to query all locations (default)
-    :return: List of Cloud Run Revision dictionaries
     """
     revisions: list[dict] = []
     try:
-        parent = f"projects/{project_id}/locations/{location}"
-        request = client.revisions().list(parent=parent)
-        while request is not None:
-            response = request.execute()
-            revisions.extend(response.get("revisions", []))
-            request = client.revisions().list_next(
-                previous_request=request,
-                previous_response=response,
+        # First, get all services so we can iterate through them to get revisions
+        # The v2 API doesn't support double wildcards for location and service
+        services_parent = f"projects/{project_id}/locations/{location}"
+        services_request = (
+            client.projects().locations().services().list(parent=services_parent)
+        )
+
+        while services_request is not None:
+            services_response = services_request.execute()
+            services = services_response.get("services", [])
+
+            # For each service, get its revisions
+            for service in services:
+                service_name = service.get("name", "")
+                revisions_request = (
+                    client.projects()
+                    .locations()
+                    .services()
+                    .revisions()
+                    .list(parent=service_name)
+                )
+
+                while revisions_request is not None:
+                    revisions_response = revisions_request.execute()
+                    revisions.extend(revisions_response.get("revisions", []))
+                    revisions_request = (
+                        client.projects()
+                        .locations()
+                        .services()
+                        .revisions()
+                        .list_next(
+                            previous_request=revisions_request,
+                            previous_response=revisions_response,
+                        )
+                    )
+
+            services_request = (
+                client.projects()
+                .locations()
+                .services()
+                .list_next(
+                    previous_request=services_request,
+                    previous_response=services_response,
+                )
             )
+
         return revisions
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
@@ -47,10 +79,6 @@ def get_revisions(client: Resource, project_id: str, location: str = "-") -> lis
 def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dict]:
     """
     Transforms the list of Cloud Run Revision dicts for ingestion.
-
-    :param revisions_data: Raw revision data from the Cloud Run API
-    :param project_id: The GCP project ID
-    :return: Transformed list of revision dictionaries
     """
     transformed: list[dict] = []
     for revision in revisions_data:
@@ -112,11 +140,6 @@ def load_revisions(
 ) -> None:
     """
     Loads GCPCloudRunRevision nodes and their relationships.
-
-    :param neo4j_session: The Neo4j session
-    :param data: Transformed revision data
-    :param project_id: The GCP project ID
-    :param update_tag: Timestamp for tracking updates
     """
     load(
         neo4j_session,
@@ -134,9 +157,6 @@ def cleanup_revisions(
 ) -> None:
     """
     Cleans up stale Cloud Run revisions.
-
-    :param neo4j_session: The Neo4j session
-    :param common_job_parameters: Common job parameters for cleanup
     """
     GraphJob.from_node_schema(GCPCloudRunRevisionSchema(), common_job_parameters).run(
         neo4j_session,
@@ -153,12 +173,6 @@ def sync_revisions(
 ) -> None:
     """
     Syncs GCP Cloud Run Revisions for a project.
-
-    :param neo4j_session: The Neo4j session
-    :param client: The Cloud Run API client
-    :param project_id: The GCP project ID
-    :param update_tag: Timestamp for tracking updates
-    :param common_job_parameters: Common job parameters for cleanup
     """
     logger.info(f"Syncing Cloud Run Revisions for project {project_id}.")
     revisions_raw = get_revisions(client, project_id)

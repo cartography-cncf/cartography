@@ -9,6 +9,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.models.gcp.cloudrun.job import GCPCloudRunJobSchema
 from cartography.util import timeit
 
@@ -19,23 +20,33 @@ logger = logging.getLogger(__name__)
 def get_jobs(client: Resource, project_id: str, location: str = "-") -> list[dict]:
     """
     Gets GCP Cloud Run Jobs for a project and location.
-
-    :param client: The Cloud Run API client
-    :param project_id: The GCP project ID
-    :param location: The location to query. Use "-" to query all locations (default)
-    :return: List of Cloud Run Job dictionaries
     """
     jobs: list[dict] = []
     try:
-        parent = f"projects/{project_id}/locations/{location}"
-        request = client.jobs().list(parent=parent)
-        while request is not None:
-            response = request.execute()
-            jobs.extend(response.get("jobs", []))
-            request = client.jobs().list_next(
-                previous_request=request,
-                previous_response=response,
-            )
+        # Determine which locations to query
+        if location == "-":
+            # Discover locations by listing services (Cloud Run v2 API workaround)
+            locations = discover_cloud_run_locations(client, project_id)
+        else:
+            # Query specific location
+            locations = {f"projects/{project_id}/locations/{location}"}
+
+        # Query jobs for each location
+        for loc_name in locations:
+            request = client.projects().locations().jobs().list(parent=loc_name)
+            while request is not None:
+                response = request.execute()
+                jobs.extend(response.get("jobs", []))
+                request = (
+                    client.projects()
+                    .locations()
+                    .jobs()
+                    .list_next(
+                        previous_request=request,
+                        previous_response=response,
+                    )
+                )
+
         return jobs
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
@@ -47,10 +58,6 @@ def get_jobs(client: Resource, project_id: str, location: str = "-") -> list[dic
 def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
     """
     Transforms the list of Cloud Run Job dicts for ingestion.
-
-    :param jobs_data: Raw job data from the Cloud Run API
-    :param project_id: The GCP project ID
-    :return: Transformed list of job dictionaries
     """
     transformed: list[dict] = []
     for job in jobs_data:
@@ -98,11 +105,6 @@ def load_jobs(
 ) -> None:
     """
     Loads GCPCloudRunJob nodes and their relationships.
-
-    :param neo4j_session: The Neo4j session
-    :param data: Transformed job data
-    :param project_id: The GCP project ID
-    :param update_tag: Timestamp for tracking updates
     """
     load(
         neo4j_session,
@@ -120,9 +122,6 @@ def cleanup_jobs(
 ) -> None:
     """
     Cleans up stale Cloud Run jobs.
-
-    :param neo4j_session: The Neo4j session
-    :param common_job_parameters: Common job parameters for cleanup
     """
     GraphJob.from_node_schema(GCPCloudRunJobSchema(), common_job_parameters).run(
         neo4j_session,
@@ -139,12 +138,6 @@ def sync_jobs(
 ) -> None:
     """
     Syncs GCP Cloud Run Jobs for a project.
-
-    :param neo4j_session: The Neo4j session
-    :param client: The Cloud Run API client
-    :param project_id: The GCP project ID
-    :param update_tag: Timestamp for tracking updates
-    :param common_job_parameters: Common job parameters for cleanup
     """
     logger.info(f"Syncing Cloud Run Jobs for project {project_id}.")
     jobs_raw = get_jobs(client, project_id)

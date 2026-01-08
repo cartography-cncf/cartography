@@ -9,6 +9,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
 from cartography.models.gcp.cloudrun.execution import GCPCloudRunExecutionSchema
 from cartography.util import timeit
 
@@ -22,22 +23,64 @@ def get_executions(
     """
     Gets GCP Cloud Run Executions for a project and location.
 
-    :param client: The Cloud Run API client
-    :param project_id: The GCP project ID
-    :param location: The location to query. Use "-" to query all locations (default)
-    :return: List of Cloud Run Execution dictionaries
+    Executions are nested under jobs, so we need to:
+    1. Discover locations (if querying all locations)
+    2. For each location, get all jobs
+    3. For each job, get all executions
     """
     executions: list[dict] = []
     try:
-        parent = f"projects/{project_id}/locations/{location}"
-        request = client.executions().list(parent=parent)
-        while request is not None:
-            response = request.execute()
-            executions.extend(response.get("executions", []))
-            request = client.executions().list_next(
-                previous_request=request,
-                previous_response=response,
-            )
+        # Determine which locations to query
+        if location == "-":
+            # Discover locations by listing services (Cloud Run v2 API workaround)
+            locations = discover_cloud_run_locations(client, project_id)
+        else:
+            # Query specific location
+            locations = {f"projects/{project_id}/locations/{location}"}
+
+        # For each location, get jobs and their executions
+        for loc_name in locations:
+            # Get all jobs in this location
+            jobs_request = client.projects().locations().jobs().list(parent=loc_name)
+            while jobs_request is not None:
+                jobs_response = jobs_request.execute()
+                jobs = jobs_response.get("jobs", [])
+
+                # For each job, get its executions
+                for job in jobs:
+                    job_name = job.get("name", "")
+                    executions_request = (
+                        client.projects()
+                        .locations()
+                        .jobs()
+                        .executions()
+                        .list(parent=job_name)
+                    )
+
+                    while executions_request is not None:
+                        executions_response = executions_request.execute()
+                        executions.extend(executions_response.get("executions", []))
+                        executions_request = (
+                            client.projects()
+                            .locations()
+                            .jobs()
+                            .executions()
+                            .list_next(
+                                previous_request=executions_request,
+                                previous_response=executions_response,
+                            )
+                        )
+
+                jobs_request = (
+                    client.projects()
+                    .locations()
+                    .jobs()
+                    .list_next(
+                        previous_request=jobs_request,
+                        previous_response=jobs_response,
+                    )
+                )
+
         return executions
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
@@ -49,10 +92,6 @@ def get_executions(
 def transform_executions(executions_data: list[dict], project_id: str) -> list[dict]:
     """
     Transforms the list of Cloud Run Execution dicts for ingestion.
-
-    :param executions_data: Raw execution data from the Cloud Run API
-    :param project_id: The GCP project ID
-    :return: Transformed list of execution dictionaries
     """
     transformed: list[dict] = []
     for execution in executions_data:
@@ -107,11 +146,6 @@ def load_executions(
 ) -> None:
     """
     Loads GCPCloudRunExecution nodes and their relationships.
-
-    :param neo4j_session: The Neo4j session
-    :param data: Transformed execution data
-    :param project_id: The GCP project ID
-    :param update_tag: Timestamp for tracking updates
     """
     load(
         neo4j_session,
@@ -129,9 +163,6 @@ def cleanup_executions(
 ) -> None:
     """
     Cleans up stale Cloud Run executions.
-
-    :param neo4j_session: The Neo4j session
-    :param common_job_parameters: Common job parameters for cleanup
     """
     GraphJob.from_node_schema(GCPCloudRunExecutionSchema(), common_job_parameters).run(
         neo4j_session,
@@ -148,12 +179,6 @@ def sync_executions(
 ) -> None:
     """
     Syncs GCP Cloud Run Executions for a project.
-
-    :param neo4j_session: The Neo4j session
-    :param client: The Cloud Run API client
-    :param project_id: The GCP project ID
-    :param update_tag: Timestamp for tracking updates
-    :param common_job_parameters: Common job parameters for cleanup
     """
     logger.info(f"Syncing Cloud Run Executions for project {project_id}.")
     executions_raw = get_executions(client, project_id)

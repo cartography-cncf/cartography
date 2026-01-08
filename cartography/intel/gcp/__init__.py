@@ -34,7 +34,6 @@ from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
-from cartography.intel.gcp.cloudrun import domain_mapping as cloudrun_domain_mapping
 from cartography.intel.gcp.cloudrun import execution as cloudrun_execution
 from cartography.intel.gcp.cloudrun import job as cloudrun_job
 from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
@@ -484,13 +483,6 @@ def _sync_project_resources(
                 common_job_parameters,
             )
             cloudrun_execution.sync_executions(
-                neo4j_session,
-                cloud_run_cred,
-                project_id,
-                gcp_update_tag,
-                common_job_parameters,
-            )
-            cloudrun_domain_mapping.sync_domain_mappings(
                 neo4j_session,
                 cloud_run_cred,
                 project_id,

@@ -21,7 +21,6 @@ class GCPCloudRunExecutionProperties(CartographyNodeProperties):
     failed_count: PropertyRef = PropertyRef("failed_count")
     succeeded_count: PropertyRef = PropertyRef("succeeded_count")
     project_id: PropertyRef = PropertyRef("project_id")
-    firstseen: PropertyRef = PropertyRef("firstseen", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -34,7 +33,7 @@ class ProjectToCloudRunExecutionRelProperties(CartographyRelProperties):
 class ProjectToCloudRunExecutionRel(CartographyRelSchema):
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_id")},
+        {"id": PropertyRef("project_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"

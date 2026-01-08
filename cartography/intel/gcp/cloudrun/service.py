@@ -19,22 +19,22 @@ logger = logging.getLogger(__name__)
 def get_services(client: Resource, project_id: str, location: str = "-") -> list[dict]:
     """
     Gets GCP Cloud Run Services for a project and location.
-
-    :param client: The Cloud Run API client
-    :param project_id: The GCP project ID
-    :param location: The location to query. Use "-" to query all locations (default)
-    :return: List of Cloud Run Service dictionaries
     """
     services: list[dict] = []
     try:
         parent = f"projects/{project_id}/locations/{location}"
-        request = client.services().list(parent=parent)
+        request = client.projects().locations().services().list(parent=parent)
         while request is not None:
             response = request.execute()
             services.extend(response.get("services", []))
-            request = client.services().list_next(
-                previous_request=request,
-                previous_response=response,
+            request = (
+                client.projects()
+                .locations()
+                .services()
+                .list_next(
+                    previous_request=request,
+                    previous_response=response,
+                )
             )
         return services
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
@@ -47,10 +47,6 @@ def get_services(client: Resource, project_id: str, location: str = "-") -> list
 def transform_services(services_data: list[dict], project_id: str) -> list[dict]:
     """
     Transforms the list of Cloud Run Service dicts for ingestion.
-
-    :param services_data: Raw service data from the Cloud Run API
-    :param project_id: The GCP project ID
-    :return: Transformed list of service dictionaries
     """
     transformed: list[dict] = []
     for service in services_data:
@@ -97,11 +93,6 @@ def load_services(
 ) -> None:
     """
     Loads GCPCloudRunService nodes and their relationships.
-
-    :param neo4j_session: The Neo4j session
-    :param data: Transformed service data
-    :param project_id: The GCP project ID
-    :param update_tag: Timestamp for tracking updates
     """
     load(
         neo4j_session,
@@ -119,9 +110,6 @@ def cleanup_services(
 ) -> None:
     """
     Cleans up stale Cloud Run services.
-
-    :param neo4j_session: The Neo4j session
-    :param common_job_parameters: Common job parameters for cleanup
     """
     GraphJob.from_node_schema(GCPCloudRunServiceSchema(), common_job_parameters).run(
         neo4j_session,
@@ -138,12 +126,6 @@ def sync_services(
 ) -> None:
     """
     Syncs GCP Cloud Run Services for a project.
-
-    :param neo4j_session: The Neo4j session
-    :param client: The Cloud Run API client
-    :param project_id: The GCP project ID
-    :param update_tag: Timestamp for tracking updates
-    :param common_job_parameters: Common job parameters for cleanup
     """
     logger.info(f"Syncing Cloud Run Services for project {project_id}.")
     services_raw = get_services(client, project_id)

@@ -20,7 +20,6 @@ class GCPCloudRunRevisionProperties(CartographyNodeProperties):
     service_account_email: PropertyRef = PropertyRef("service_account_email")
     log_uri: PropertyRef = PropertyRef("log_uri")
     project_id: PropertyRef = PropertyRef("project_id")
-    firstseen: PropertyRef = PropertyRef("firstseen", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -33,7 +32,7 @@ class ProjectToCloudRunRevisionRelProperties(CartographyRelProperties):
 class ProjectToCloudRunRevisionRel(CartographyRelSchema):
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_id")},
+        {"id": PropertyRef("project_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
@@ -57,24 +56,6 @@ class CloudRunServiceToRevisionRel(CartographyRelSchema):
     rel_label: str = "HAS_REVISION"
     properties: CloudRunServiceToRevisionRelProperties = (
         CloudRunServiceToRevisionRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class CloudRunRevisionToImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CloudRunRevisionToImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPGCRImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("container_image")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "USES_IMAGE"
-    properties: CloudRunRevisionToImageRelProperties = (
-        CloudRunRevisionToImageRelProperties()
     )
 
 
@@ -106,7 +87,6 @@ class GCPCloudRunRevisionSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             CloudRunServiceToRevisionRel(),
-            CloudRunRevisionToImageRel(),
             CloudRunRevisionToServiceAccountRel(),
         ],
     )

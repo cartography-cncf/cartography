@@ -19,7 +19,6 @@ class GCPCloudRunServiceProperties(CartographyNodeProperties):
     uri: PropertyRef = PropertyRef("uri")
     latest_ready_revision: PropertyRef = PropertyRef("latest_ready_revision")
     project_id: PropertyRef = PropertyRef("project_id")
-    firstseen: PropertyRef = PropertyRef("firstseen", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -32,7 +31,7 @@ class ProjectToCloudRunServiceRelProperties(CartographyRelProperties):
 class ProjectToCloudRunServiceRel(CartographyRelSchema):
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("project_id")},
+        {"id": PropertyRef("project_id", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
