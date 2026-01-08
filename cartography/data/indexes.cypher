@@ -130,6 +130,8 @@ CREATE INDEX IF NOT EXISTS FOR (n:OktaTrustedOrigin) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:OktaTrustedOrigin) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:OktaAdministrationRole) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:OktaAdministrationRole) ON (n.lastupdated);
+CREATE INDEX IF NOT EXISTS FOR (n:OktaDevice) ON (n.id);
+CREATE INDEX IF NOT EXISTS FOR (n:OktaDevice) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:OCICompartment) ON (n.ocid);
 CREATE INDEX IF NOT EXISTS FOR (n:OCICompartment) ON (n.name);
 CREATE INDEX IF NOT EXISTS FOR (n:OCICompartment) ON (n.lastupdated);

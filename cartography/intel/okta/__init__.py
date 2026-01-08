@@ -7,6 +7,7 @@ from okta.framework.OktaError import OktaError
 from cartography.config import Config
 from cartography.intel.okta import applications
 from cartography.intel.okta import awssaml
+from cartography.intel.okta import devices
 from cartography.intel.okta import factors
 from cartography.intel.okta import groups
 from cartography.intel.okta import organization
@@ -101,6 +102,12 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         state,
     )
     origins.sync_trusted_origins(
+        neo4j_session,
+        config.okta_org_id,
+        config.update_tag,
+        config.okta_api_key,
+    )
+    devices.sync_okta_devices(
         neo4j_session,
         config.okta_org_id,
         config.update_tag,
