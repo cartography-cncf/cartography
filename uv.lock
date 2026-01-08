@@ -794,6 +794,7 @@ dependencies = [
     { name = "statsd" },
     { name = "typer" },
     { name = "types-aiobotocore-ecr" },
+    { name = "workos" },
     { name = "xmltodict" },
 ]
 
@@ -881,6 +882,7 @@ requires-dist = [
     { name = "statsd" },
     { name = "typer", specifier = ">=0.9.0" },
     { name = "types-aiobotocore-ecr" },
+    { name = "workos", specifier = ">=5.37.0" },
     { name = "xmltodict" },
 ]
 
@@ -3898,6 +3900,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/45/ea/b0f8eeb287f8df9066e56e831c7824ac6bab645dd6c7a8f4b2d767944f9b/werkzeug-3.1.4.tar.gz", hash = "sha256:cd3cd98b1b92dc3b7b3995038826c68097dcb16f9baa63abe35f20eafeb9fe5e", size = 864687, upload-time = "2025-11-29T02:15:22.841Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2f/f9/9e082990c2585c744734f85bec79b5dae5df9c974ffee58fe421652c8e91/werkzeug-3.1.4-py3-none-any.whl", hash = "sha256:2ad50fb9ed09cc3af22c54698351027ace879a0b60a3b5edf5730b2f7d876905", size = 224960, upload-time = "2025-11-29T02:15:21.13Z" },
+]
+
+[[package]]
+name = "workos"
+version = "5.37.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pyjwt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/76/5a/057e96927885dfb7ddf1ec89a063c27239e36043e65e5fcf6e3059675fd3/workos-5.37.0.tar.gz", hash = "sha256:1681f77714451cb2c7541cda92554c0494ba2af59eff2a0f9da9914513bb8f89", size = 86497, upload-time = "2025-12-17T02:57:25.551Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d1/e5/e1373d744062e4d72118eab85caadf9693a57d4b347c8c203bf3164d73fe/workos-5.37.0-py3-none-any.whl", hash = "sha256:0883fa50d47b08e58e6415cdb5e1405e0fdb8eb8d3fd9cbe50d6b24bb356691a", size = 94676, upload-time = "2025-12-17T02:57:24.237Z" },
 ]
 
 [[package]]

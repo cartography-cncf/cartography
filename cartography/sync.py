@@ -50,6 +50,7 @@ import cartography.intel.spacelift
 import cartography.intel.tailscale
 import cartography.intel.trivy
 import cartography.intel.workday
+import cartography.intel.workos
 from cartography.config import Config
 from cartography.stats import set_stats_client
 from cartography.util import STATUS_FAILURE
@@ -85,6 +86,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
         "duo": cartography.intel.duo.start_duo_ingestion,
         "workday": cartography.intel.workday.start_workday_ingestion,
+        "workos": cartography.intel.workos.start_workos_ingestion,
         "scaleway": cartography.intel.scaleway.start_scaleway_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,

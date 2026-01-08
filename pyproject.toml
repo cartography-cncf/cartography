@@ -84,6 +84,7 @@ dependencies = [
     "types-aiobotocore-ecr",
     "typer>=0.9.0",
     "slack-sdk>=3.37.0",
+    "workos>=5.37.0",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]
