@@ -68,3 +68,59 @@ def test_sync_function_apps(mock_get, neo4j_session):
         "RESOURCE",
     )
     assert actual_rels == expected_rels
+
+
+def test_load_function_app_tags(neo4j_session):
+    """
+    Test that tags are correctly loaded and linked to Azure Function Apps.
+    """
+    # 1. Arrange: Create the prerequisite AzureSubscription node
+    neo4j_session.run(
+        """
+        MERGE (s:AzureSubscription{id: $sub_id})
+        SET s.lastupdated = $update_tag
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    transformed_apps = functions.transform_function_apps(MOCK_FUNCTION_APPS)
+
+    # Load the function apps so the parent node exists
+    functions.load_function_apps(
+        neo4j_session, transformed_apps, TEST_SUBSCRIPTION_ID, TEST_UPDATE_TAG
+    )
+
+    # 2. Act: Load the tags
+    functions.load_function_app_tags(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        transformed_apps,
+        TEST_UPDATE_TAG,
+    )
+
+    # 3. Assert: Check that the AzureTag nodes exist
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:function-app",
+    }
+    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # 4. Assert: Check the relationships
+    func_app_id = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Web/sites/my-test-func-app"
+
+    expected_rels = {
+        (func_app_id, f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (func_app_id, f"{TEST_SUBSCRIPTION_ID}|service:function-app"),
+    }
+
+    result = neo4j_session.run(
+        """
+        MATCH (fa:AzureFunctionApp)-[:TAGGED]->(t:AzureTag)
+        RETURN fa.id, t.id
+        """
+    )
+    actual_rels = {(r["fa.id"], r["t.id"]) for r in result}
+    assert actual_rels == expected_rels
