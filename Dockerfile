@@ -1,5 +1,5 @@
 # Base image
-FROM python:3.12-slim AS base
+FROM python:3.12-slim@sha256:a75662dfec8d90bd7161c91050be2e0a9b21d284f3b7a7253d5db25f7d583fb3 AS base
 # Default to ''. Overridden with a specific version specifier e.g. '==0.98.0' by build args or from GitHub actions.
 ARG VERSION_SPECIFIER
 # the UID and GID to run cartography as
