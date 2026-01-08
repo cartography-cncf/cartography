@@ -188,7 +188,7 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
 ![yourowntestmachine.png](images/yourowntestmachine.png)
 
-1. **Ensure that you have Python 3.10 set up on your machine.**
+1. **Ensure that you have Python 3.12 set up on your machine.**
 
     Older or newer versions of Python may work but are not explicitly supported. You will probably have more luck with newer versions.
 
