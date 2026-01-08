@@ -55,6 +55,18 @@
       "__comment__": "Delete stale OktaAdministrationRole relationships"
     },
     {
+      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(:OktaDevice)<-[r:OWNS]-(:OktaUser) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE (r)",
+      "iterative": true,
+      "iterationsize": 100,
+      "__comment__": "Delete stale OktaUser to OktaDevice OWNS relationship"
+    },
+    {
+      "query": "MATCH (:OktaOrganization{id: $OKTA_ORG_ID})-[:RESOURCE]->(n:OktaDevice) WHERE n.lastupdated <> $UPDATE_TAG WITH n LIMIT $LIMIT_SIZE DETACH DELETE (n)",
+      "iterative": true,
+      "iterationsize": 100,
+      "__comment__": "Delete stale OktaDevice"
+    },
+    {
       "query": "MATCH (n:OktaOrganization{id: $OKTA_ORG_ID}) WHERE n.lastupdated <> $UPDATE_TAG DELETE (n)",
       "iterative": false,
       "__comment__": "Delete stale OktaOrganization"
