@@ -26,12 +26,12 @@ classifiers = [
   'Natural Language :: English',
   'Programming Language :: Python',
   'Programming Language :: Python :: 3',
-  'Programming Language :: Python :: 3.10',
+  'Programming Language :: Python :: 3.12',
   'Topic :: Security',
   'Topic :: Software Development :: Libraries',
   'Topic :: Software Development :: Libraries :: Python Modules',
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "backoff>=2.1.2",
     "boto3>=1.15.1",
