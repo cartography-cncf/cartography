@@ -1,12 +1,16 @@
+import logging
 from typing import Any
 
 import requests
 
+from cartography.intel.pagination import get_pagination_limits
 from cartography.util import backoff_handler
 from cartography.util import retries_with_backoff
 
 # Connect and read timeouts of 60 seconds each
 _TIMEOUT = (60, 60)
+logger = logging.getLogger(__name__)
+MAX_PAGINATION_PAGES, MAX_PAGINATION_ITEMS = get_pagination_limits(logger)
 
 
 def _call_sentinelone_api_base(
@@ -98,9 +102,18 @@ def get_paginated_results(
         query_params["limit"] = 100
 
     next_cursor = None
-    total_items = []
+    total_items: list[dict[str, Any]] = []
+    page_count = 0
 
     while True:
+        page_count += 1
+        if page_count > MAX_PAGINATION_PAGES:
+            logger.warning(
+                "SentinelOne: reached max pagination pages (%d). Stopping with %d items.",
+                MAX_PAGINATION_PAGES,
+                len(total_items),
+            )
+            break
         if next_cursor:
             query_params["cursor"] = next_cursor
 
@@ -116,6 +129,13 @@ def get_paginated_results(
             break
 
         total_items.extend(items)
+        if len(total_items) > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "SentinelOne: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count,
+            )
+            break
         pagination = response.get("pagination", {})
         next_cursor = pagination.get("nextCursor")
         if not next_cursor:

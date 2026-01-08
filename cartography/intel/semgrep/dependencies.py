@@ -11,6 +11,7 @@ from requests.exceptions import ReadTimeout
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.pagination import get_pagination_limits
 from cartography.models.semgrep.dependencies import SemgrepGoLibrarySchema
 from cartography.models.semgrep.dependencies import SemgrepNpmLibrarySchema
 from cartography.stats import get_stats_client
@@ -22,6 +23,7 @@ stat_handler = get_stats_client(__name__)
 _PAGE_SIZE = 10000
 _TIMEOUT = (60, 60)
 _MAX_RETRIES = 3
+MAX_PAGINATION_PAGES, MAX_PAGINATION_ITEMS = get_pagination_limits(logger)
 
 # The keys in this dictionary must be in Semgrep's list of supported ecosystems, defined here:
 # https://semgrep.dev/api/v1/docs/#tag/SupplyChainService/operation/semgrep_app.products.sca.handlers.dependency.list_dependencies_conexxion
@@ -60,11 +62,12 @@ def get_dependencies(
     param: deployment_id: The Semgrep deployment ID to use for retrieving dependencies.
     param: ecosystem: The ecosystem to import dependencies from, e.g. "gomod" or "npm".
     """
-    all_deps = []
+    all_deps: List[Dict[str, Any]] = []
     deps_url = f"https://semgrep.dev/api/v1/deployments/{deployment_id}/dependencies"
     has_more = True
     page = 0
     retries = 0
+    page_count = 0
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {semgrep_app_token}",
@@ -81,6 +84,13 @@ def get_dependencies(
         f"Retrieving Semgrep {ecosystem} dependencies for deployment '{deployment_id}'.",
     )
     while has_more:
+        if page_count >= MAX_PAGINATION_PAGES:
+            logger.warning(
+                "Semgrep dependencies: reached max pagination pages (%d). Stopping with %d dependencies.",
+                MAX_PAGINATION_PAGES,
+                len(all_deps),
+            )
+            break
         try:
             response = requests.post(
                 deps_url,
@@ -102,9 +112,17 @@ def get_dependencies(
         has_more = data.get("hasMore", False)
         logger.info(f"Processed page {page} of Semgrep {ecosystem} dependencies.")
         all_deps.extend(deps)
+        if len(all_deps) > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "Semgrep dependencies: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count + 1,
+            )
+            break
         retries = 0
         page += 1
         request_data["cursor"] = data.get("cursor")
+        page_count += 1
 
     logger.info(
         f"Retrieved {len(all_deps)} Semgrep {ecosystem} dependencies in {page} pages.",

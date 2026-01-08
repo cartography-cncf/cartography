@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.pagination import get_pagination_limits
 from cartography.models.snipeit.tenant import SnipeitTenantSchema
 from cartography.models.snipeit.user import SnipeitUserSchema
 from cartography.util import timeit
@@ -14,22 +15,46 @@ from cartography.util import timeit
 from .util import call_snipeit_api
 
 logger = logging.getLogger(__name__)
+MAX_PAGINATION_PAGES, MAX_PAGINATION_ITEMS = get_pagination_limits(logger)
 
 
 @timeit
 def get(base_uri: str, token: str) -> List[Dict]:
     api_endpoint = "/api/v1/users"
     results: List[Dict[str, Any]] = []
+    offset = 0
+    page_size = 500
+    page_count = 0
     while True:
-        offset = len(results)
-        api_endpoint = f"{api_endpoint}?order='asc'&offset={offset}"
-        response = call_snipeit_api(api_endpoint, base_uri, token)
-        results.extend(response["rows"])
-
-        total = response["total"]
-        results_count = len(results)
-        if results_count >= total:
+        page_count += 1
+        if page_count > MAX_PAGINATION_PAGES:
+            logger.warning(
+                "Snipe-IT: reached max pagination pages (%d). Stopping with %d users.",
+                MAX_PAGINATION_PAGES,
+                len(results),
+            )
             break
+
+        response = call_snipeit_api(
+            f"{api_endpoint}?order=asc&offset={offset}&limit={page_size}",
+            base_uri,
+            token,
+        )
+        rows = response.get("rows", [])
+        results.extend(rows)
+
+        if len(results) > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "Snipe-IT: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count,
+            )
+            break
+
+        total = response.get("total", 0)
+        if len(results) >= total or not rows:
+            break
+        offset += len(rows)
 
     return results
 

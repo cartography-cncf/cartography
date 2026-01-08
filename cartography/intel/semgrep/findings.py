@@ -11,6 +11,7 @@ from requests.exceptions import ReadTimeout
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.pagination import get_pagination_limits
 from cartography.models.semgrep.findings import SemgrepSCAFindingSchema
 from cartography.models.semgrep.locations import SemgrepSCALocationSchema
 from cartography.stats import get_stats_client
@@ -23,6 +24,7 @@ stat_handler = get_stats_client(__name__)
 _PAGE_SIZE = 500
 _TIMEOUT = (60, 60)
 _MAX_RETRIES = 3
+MAX_PAGINATION_PAGES, MAX_PAGINATION_ITEMS = get_pagination_limits(logger)
 
 
 @timeit
@@ -32,11 +34,12 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
     param: semgrep_app_token: The Semgrep App token to use for authentication.
     param: deployment_slug: The Semgrep deployment slug to use for retrieving SCA vulns.
     """
-    all_vulns = []
+    all_vulns: List[Dict[str, Any]] = []
     sca_url = f"https://semgrep.dev/api/v1/deployments/{deployment_slug}/findings"
     has_more = True
     page = 0
     retries = 0
+    page_count = 0
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {semgrep_app_token}",
@@ -52,6 +55,13 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
     }
     logger.info(f"Retrieving Semgrep SCA vulns for deployment '{deployment_slug}'.")
     while has_more:
+        if page_count >= MAX_PAGINATION_PAGES:
+            logger.warning(
+                "Semgrep findings: reached max pagination pages (%d). Stopping with %d findings.",
+                MAX_PAGINATION_PAGES,
+                len(all_vulns),
+            )
+            break
 
         try:
             response = requests.get(
@@ -75,9 +85,17 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
         if page % 10 == 0:
             logger.info(f"Processed page {page} of Semgrep SCA vulnerabilities.")
         all_vulns.extend(vulns)
+        if len(all_vulns) > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "Semgrep findings: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count + 1,
+            )
+            break
         retries = 0
         page += 1
         request_data["page"] = page
+        page_count += 1
 
     logger.info(f"Retrieved {len(all_vulns)} Semgrep SCA vulns in {page} pages.")
     return all_vulns

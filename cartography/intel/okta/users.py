@@ -11,9 +11,11 @@ from okta.models.user import User
 from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
+from cartography.intel.pagination import get_pagination_limits
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+MAX_PAGINATION_PAGES, MAX_PAGINATION_ITEMS = get_pagination_limits(logger)
 
 
 def _create_user_client(okta_org: str, okta_api_key: str) -> UsersClient:
@@ -41,13 +43,35 @@ def _get_okta_users(user_client: UsersClient) -> List[Dict]:
     """
     user_list: List[Dict] = []
     paged_users = user_client.get_paged_users()
+    page_count = 0
 
     # TODO: Fix bug, we miss last page :(
     while True:
+        page_count += 1
+        if page_count > MAX_PAGINATION_PAGES:
+            logger.warning(
+                "Okta users: reached max pagination pages (%d). Stopping with %d users.",
+                MAX_PAGINATION_PAGES,
+                len(user_list),
+            )
+            break
         user_list.extend(paged_users.result)
+        if len(user_list) > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "Okta users: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count,
+            )
+            break
         check_rate_limit(paged_users.response)
         if not paged_users.is_last_page():
             # Keep on fetching pages of users until the last page
+            if not paged_users.next_url:
+                logger.warning(
+                    "Okta users: missing next page URL; stopping after %d pages.",
+                    page_count,
+                )
+                break
             paged_users = user_client.get_paged_users(url=paged_users.next_url)
         else:
             break

@@ -1,6 +1,7 @@
 # Okta intel module - utility functions
 import logging
 import time
+from typing import Any
 
 from okta.framework import PagedResults
 from okta.framework.ApiClient import ApiClient
@@ -16,7 +17,16 @@ def is_last_page(response: PagedResults) -> bool:
     :return: boolean indicating if we are at the last page or not
     """
     # from https://github.com/okta/okta-sdk-python/blob/master/okta/framework/PagedResults.py
-    return not ("next" in response.links)
+    links = getattr(response, "links", None) or {}
+    return "next" not in links
+
+
+def get_next_url(response: PagedResults | Response) -> str | None:
+    links: dict[str, Any] = getattr(response, "links", None) or {}
+    next_link = links.get("next")
+    if not next_link:
+        return None
+    return next_link.get("url")
 
 
 def create_api_client(okta_org: str, path_name: str, api_key: str) -> ApiClient:

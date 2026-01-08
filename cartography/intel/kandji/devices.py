@@ -8,12 +8,14 @@ from requests import Session
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.pagination import get_pagination_limits
 from cartography.models.kandji.device import KandjiDeviceSchema
 from cartography.models.kandji.tenant import KandjiTenantSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
+MAX_PAGINATION_PAGES, MAX_PAGINATION_ITEMS = get_pagination_limits(logger)
 
 
 @timeit
@@ -34,7 +36,16 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
 
     devices: List[Dict[str, Any]] = []
     session = Session()
+    page_count = 0
     while True:
+        page_count += 1
+        if page_count > MAX_PAGINATION_PAGES:
+            logger.warning(
+                "Kandji: reached max pagination pages (%d). Stopping with %d devices.",
+                MAX_PAGINATION_PAGES,
+                len(devices),
+            )
+            break
         logger.debug("Kandji device offset: %s", offset)
 
         params["offset"] = offset
@@ -49,6 +60,13 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
             break
 
         devices.extend(result)
+        if len(devices) > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "Kandji: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count,
+            )
+            break
 
         offset += limit
 
