@@ -12,7 +12,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GCPCloudRunServiceProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
+    id: PropertyRef = PropertyRef("id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     description: PropertyRef = PropertyRef("description")
     location: PropertyRef = PropertyRef("location")
