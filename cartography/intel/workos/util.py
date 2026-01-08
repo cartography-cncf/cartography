@@ -36,12 +36,10 @@ def paginated_list(list_func: Callable, **kwargs: Any) -> List[Dict[str, Any]]:
             results.extend(response if isinstance(response, list) else [response])
 
         # Check if there's another page
-        if hasattr(response, "list_metadata") and response.list_metadata:
-            after = response.list_metadata.get("after")
-            if not after:
-                break
-        else:
-            # No pagination metadata, we're done
+        if not hasattr(response, "list_metadata"):
+            break
+        after = response.list_metadata.after
+        if not after:
             break
 
     logger.info(f"Fetched {len(results)} items from WorkOS API")

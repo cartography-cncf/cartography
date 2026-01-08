@@ -56,7 +56,7 @@ def get(client: WorkOSClient, directory_ids: list[str]) -> list[Any]:
     for directory_id in directory_ids:
         logger.debug(f"Fetching groups for directory: {directory_id}")
         all_groups.extend(
-            paginated_list(client.directory_sync.list_groups, directory=directory_id)
+            paginated_list(client.directory_sync.list_groups, directory_id=directory_id)
         )
 
     logger.debug(f"Fetched {len(all_groups)} directory groups")

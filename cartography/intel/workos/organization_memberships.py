@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 def sync(
     neo4j_session: neo4j.Session,
     client: WorkOSClient,
+    org_ids: list[str],
     common_job_parameters: Dict[str, Any],
 ) -> None:
     """
@@ -34,7 +35,7 @@ def sync(
     client_id = common_job_parameters["WORKOS_CLIENT_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
 
-    memberships = get(client)
+    memberships = get(client, org_ids)
     transformed_memberships = transform(memberships)
     load_organization_memberships(
         neo4j_session, transformed_memberships, client_id, update_tag
@@ -43,15 +44,23 @@ def sync(
 
 
 @timeit
-def get(client: WorkOSClient) -> List[Dict[str, Any]]:
+def get(client: WorkOSClient, org_ids: list[str]) -> List[Dict[str, Any]]:
     """
     Fetch all organization memberships from WorkOS API.
 
     :param client: WorkOS API client
     :return: List of organization membership dicts
     """
+    result = []
     logger.debug("Fetching WorkOS organization memberships")
-    return paginated_list(client.user_management.list_organization_memberships)
+    for org_id in org_ids:
+        result.extend(
+            paginated_list(
+                client.user_management.list_organization_memberships,
+                organization_id=org_id,
+            )
+        )
+    return result
 
 
 def transform(memberships: list[Any]) -> list[dict[str, Any]]:
@@ -74,7 +83,7 @@ def transform(memberships: list[Any]) -> list[dict[str, Any]]:
             "status": membership.status,
             "created_at": getattr(membership, "created_at", None),
             "updated_at": getattr(membership, "updated_at", None),
-            "roles": [r.slug for r in membership.roles],
+            "roles": [r["slug"] for r in membership.roles],
         }
 
         result.append(membership_dict)

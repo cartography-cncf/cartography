@@ -51,15 +51,12 @@ def get(client: WorkOSClient, org_id: str) -> list[dict[str, Any]]:
     :return: List of role objects with _org_id attached for organization roles
     """
     logger.debug("Fetching WorkOS environment-level roles")
-    all_roles = []
-
-    # Fetch environment-level roles (no organization filter)
-    env_roles = paginated_list(client.user_management.list_roles)
-    all_roles.extend(env_roles)
 
     # Fetch organization-level roles for each organization
     logger.debug(f"Fetching WorkOS roles for organization: {org_id}")
-    return paginated_list(client.user_management.list_roles, organization_id=org_id)
+    return paginated_list(
+        client.organizations.list_organization_roles, organization_id=org_id
+    )
 
 
 def transform(roles_by_org: dict[str, list[Role]]) -> list[dict[str, Any]]:

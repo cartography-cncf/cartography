@@ -70,19 +70,21 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         common_job_parameters,
     )
 
-    # Sync applications (OAuth and M2M)
-    cartography.intel.workos.applications.sync(
-        neo4j_session,
-        client,
-        common_job_parameters,
-    )
+    # WIP: Skip until Applications are supported in SDK
+    # # Sync applications (OAuth and M2M)
+    # cartography.intel.workos.applications.sync(
+    #    neo4j_session,
+    #    client,
+    #    common_job_parameters,
+    # )
 
+    # WIP: Skip until API keys are supported in SDK
     # Sync API keys
-    cartography.intel.workos.api_keys.sync(
-        neo4j_session,
-        client,
-        common_job_parameters,
-    )
+    # cartography.intel.workos.api_keys.sync(
+    #    neo4j_session,
+    #    client,
+    #    common_job_parameters,
+    # )
 
     # Sync users
     cartography.intel.workos.users.sync(
@@ -103,6 +105,7 @@ def start_workos_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     cartography.intel.workos.organization_memberships.sync(
         neo4j_session,
         client,
+        org_ids,
         common_job_parameters,
     )
 

@@ -56,7 +56,7 @@ def get(client: WorkOSClient, directory_ids: list[str]) -> list[dict[str, Any]]:
     for directory_id in directory_ids:
         logger.debug(f"Fetching users for directory: {directory_id}")
         all_users.extend(
-            paginated_list(client.directory_sync.list_users, directory=directory_id)
+            paginated_list(client.directory_sync.list_users, directory_id=directory_id)
         )
 
     logger.debug(f"Fetched {len(all_users)} directory users")
