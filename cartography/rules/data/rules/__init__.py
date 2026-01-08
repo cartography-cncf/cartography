@@ -25,6 +25,13 @@ from cartography.rules.data.rules.cis_aws_storage import cis_2_3_1_ebs_encryptio
 from cartography.rules.data.rules.cloud_security_product_deactivated import (
     cloud_security_product_deactivated,
 )
+from cartography.rules.data.rules.cis_4_0_gcp import (
+    cis_gcp_3_1_default_network,
+    cis_gcp_3_6_unrestricted_ssh,
+    cis_gcp_3_7_unrestricted_rdp,
+    cis_gcp_4_9_public_ip,
+    cis_gcp_5_2_bucket_uniform_access,
+)
 from cartography.rules.data.rules.compute_instance_exposed import (
     compute_instance_exposed,
 )
@@ -92,4 +99,9 @@ RULES = {
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
     cloud_security_product_deactivated.id: cloud_security_product_deactivated,
     malicious_npm_dependencies_shai_hulud.id: malicious_npm_dependencies_shai_hulud,
+    cis_gcp_3_1_default_network.id: cis_gcp_3_1_default_network,
+    cis_gcp_3_6_unrestricted_ssh.id: cis_gcp_3_6_unrestricted_ssh,
+    cis_gcp_3_7_unrestricted_rdp.id: cis_gcp_3_7_unrestricted_rdp,
+    cis_gcp_4_9_public_ip.id: cis_gcp_4_9_public_ip,
+    cis_gcp_5_2_bucket_uniform_access.id: cis_gcp_5_2_bucket_uniform_access,
 }
