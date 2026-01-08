@@ -52,6 +52,11 @@ from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
 )
+from cartography.rules.data.rules.google_workspace_cis import (
+    google_workspace_cis_1_1_enforce_2sv,
+    google_workspace_cis_1_2_admins_enrolled_2sv,
+    google_workspace_cis_2_1_high_risk_oauth,
+)
 
 # Rule registry - all available rules
 RULES = {
@@ -92,4 +97,9 @@ RULES = {
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
     cloud_security_product_deactivated.id: cloud_security_product_deactivated,
     malicious_npm_dependencies_shai_hulud.id: malicious_npm_dependencies_shai_hulud,
+    google_workspace_cis_1_1_enforce_2sv.id: google_workspace_cis_1_1_enforce_2sv,
+    google_workspace_cis_1_2_admins_enrolled_2sv.id: (
+        google_workspace_cis_1_2_admins_enrolled_2sv
+    ),
+    google_workspace_cis_2_1_high_risk_oauth.id: google_workspace_cis_2_1_high_risk_oauth,
 }
