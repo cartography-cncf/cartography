@@ -3,8 +3,8 @@ import logging
 import time
 from typing import Any
 
-from okta.framework import PagedResults
 from okta.framework.ApiClient import ApiClient
+from okta.framework.PagedResults import PagedResults
 from requests import Response
 
 logger = logging.getLogger(__name__)
