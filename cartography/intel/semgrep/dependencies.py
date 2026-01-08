@@ -112,17 +112,17 @@ def get_dependencies(
         has_more = data.get("hasMore", False)
         logger.info(f"Processed page {page} of Semgrep {ecosystem} dependencies.")
         all_deps.extend(deps)
+        page_count += 1
         if len(all_deps) > MAX_PAGINATION_ITEMS:
             logger.warning(
                 "Semgrep dependencies: reached max pagination items (%d). Stopping after %d pages.",
                 MAX_PAGINATION_ITEMS,
-                page_count + 1,
+                page_count,
             )
             break
         retries = 0
         page += 1
         request_data["cursor"] = data.get("cursor")
-        page_count += 1
 
     logger.info(
         f"Retrieved {len(all_deps)} Semgrep {ecosystem} dependencies in {page} pages.",

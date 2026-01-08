@@ -26,8 +26,7 @@ def get(base_uri: str, token: str) -> List[Dict]:
     page_size = 500
     page_count = 0
     while True:
-        page_count += 1
-        if page_count > MAX_PAGINATION_PAGES:
+        if page_count >= MAX_PAGINATION_PAGES:
             logger.warning(
                 "Snipe-IT: reached max pagination pages (%d). Stopping with %d assets.",
                 MAX_PAGINATION_PAGES,
@@ -42,6 +41,7 @@ def get(base_uri: str, token: str) -> List[Dict]:
         )
         rows = response.get("rows", [])
         results.extend(rows)
+        page_count += 1
 
         if len(results) > MAX_PAGINATION_ITEMS:
             logger.warning(

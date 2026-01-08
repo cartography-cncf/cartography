@@ -47,8 +47,7 @@ def _get_okta_users(user_client: UsersClient) -> List[Dict]:
 
     # TODO: Fix bug, we miss last page :(
     while True:
-        page_count += 1
-        if page_count > MAX_PAGINATION_PAGES:
+        if page_count >= MAX_PAGINATION_PAGES:
             logger.warning(
                 "Okta users: reached max pagination pages (%d). Stopping with %d users.",
                 MAX_PAGINATION_PAGES,
@@ -56,6 +55,7 @@ def _get_okta_users(user_client: UsersClient) -> List[Dict]:
             )
             break
         user_list.extend(paged_users.result)
+        page_count += 1
         if len(user_list) > MAX_PAGINATION_ITEMS:
             logger.warning(
                 "Okta users: reached max pagination items (%d). Stopping after %d pages.",

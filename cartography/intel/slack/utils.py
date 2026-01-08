@@ -41,13 +41,6 @@ def slack_paginate(
                 len(items),
             )
             break
-        if len(items) >= MAX_PAGINATION_ITEMS:
-            logger.warning(
-                "Slack: reached max pagination items (%d). Stopping after %d pages.",
-                MAX_PAGINATION_ITEMS,
-                page_count,
-            )
-            break
         kwargs["cursor"] = cursor
         response = endpoint_method(**kwargs)
         items.extend(response.get(data_key, []))

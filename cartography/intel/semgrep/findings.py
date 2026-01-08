@@ -85,17 +85,17 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
         if page % 10 == 0:
             logger.info(f"Processed page {page} of Semgrep SCA vulnerabilities.")
         all_vulns.extend(vulns)
+        page_count += 1
         if len(all_vulns) > MAX_PAGINATION_ITEMS:
             logger.warning(
                 "Semgrep findings: reached max pagination items (%d). Stopping after %d pages.",
                 MAX_PAGINATION_ITEMS,
-                page_count + 1,
+                page_count,
             )
             break
         retries = 0
         page += 1
         request_data["page"] = page
-        page_count += 1
 
     logger.info(f"Retrieved {len(all_vulns)} Semgrep SCA vulns in {page} pages.")
     return all_vulns

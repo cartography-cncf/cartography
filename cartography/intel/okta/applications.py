@@ -34,8 +34,7 @@ def _get_okta_applications(api_client: ApiClient) -> List[Dict]:
     next_url = None
     page_count = 0
     while True:
-        page_count += 1
-        if page_count > MAX_PAGINATION_PAGES:
+        if page_count >= MAX_PAGINATION_PAGES:
             logger.warning(
                 "Okta applications: reached max pagination pages (%d). Stopping with %d apps.",
                 MAX_PAGINATION_PAGES,
@@ -56,6 +55,7 @@ def _get_okta_applications(api_client: ApiClient) -> List[Dict]:
             break
 
         app_list.extend(json.loads(paged_response.text))
+        page_count += 1
         if len(app_list) > MAX_PAGINATION_ITEMS:
             logger.warning(
                 "Okta applications: reached max pagination items (%d). Stopping after %d pages.",
@@ -94,8 +94,7 @@ def _get_application_assigned_users(api_client: ApiClient, app_id: str) -> List[
     page_count = 0
     item_count = 0
     while True:
-        page_count += 1
-        if page_count > MAX_PAGINATION_PAGES:
+        if page_count >= MAX_PAGINATION_PAGES:
             logger.warning(
                 "Okta application users: reached max pagination pages (%d). Stopping with %d pages.",
                 MAX_PAGINATION_PAGES,
@@ -120,6 +119,7 @@ def _get_application_assigned_users(api_client: ApiClient, app_id: str) -> List[
         page_items = json.loads(paged_response.text)
         item_count += len(page_items)
         app_users.append(paged_response.text)
+        page_count += 1
         if item_count > MAX_PAGINATION_ITEMS:
             logger.warning(
                 "Okta application users: reached max pagination items (%d). Stopping after %d pages.",
@@ -159,8 +159,7 @@ def _get_application_assigned_groups(api_client: ApiClient, app_id: str) -> List
     item_count = 0
 
     while True:
-        page_count += 1
-        if page_count > MAX_PAGINATION_PAGES:
+        if page_count >= MAX_PAGINATION_PAGES:
             logger.warning(
                 "Okta application groups: reached max pagination pages (%d). Stopping with %d pages.",
                 MAX_PAGINATION_PAGES,
@@ -184,6 +183,7 @@ def _get_application_assigned_groups(api_client: ApiClient, app_id: str) -> List
         page_items = json.loads(paged_response.text)
         item_count += len(page_items)
         app_groups.append(paged_response.text)
+        page_count += 1
         if item_count > MAX_PAGINATION_ITEMS:
             logger.warning(
                 "Okta application groups: reached max pagination items (%d). Stopping after %d pages.",

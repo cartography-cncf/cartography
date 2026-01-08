@@ -106,8 +106,7 @@ def get_paginated_results(
     page_count = 0
 
     while True:
-        page_count += 1
-        if page_count > MAX_PAGINATION_PAGES:
+        if page_count >= MAX_PAGINATION_PAGES:
             logger.warning(
                 "SentinelOne: reached max pagination pages (%d). Stopping with %d items.",
                 MAX_PAGINATION_PAGES,
@@ -129,6 +128,7 @@ def get_paginated_results(
             break
 
         total_items.extend(items)
+        page_count += 1
         if len(total_items) > MAX_PAGINATION_ITEMS:
             logger.warning(
                 "SentinelOne: reached max pagination items (%d). Stopping after %d pages.",

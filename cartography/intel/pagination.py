@@ -1,3 +1,10 @@
+"""Pagination safety limits for intel modules.
+
+Environment variables:
+- CARTOGRAPHY_MAX_PAGINATION_PAGES (default: 10_000)
+- CARTOGRAPHY_MAX_PAGINATION_ITEMS (default: 1_000_000)
+"""
+
 import logging
 import os
 

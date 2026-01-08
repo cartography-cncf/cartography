@@ -39,8 +39,7 @@ def _get_okta_groups(api_client: ApiClient) -> List[str]:
     # get_paged_groups returns User object instead of UserGroup
 
     while True:
-        page_count += 1
-        if page_count > MAX_PAGINATION_PAGES:
+        if page_count >= MAX_PAGINATION_PAGES:
             logger.warning(
                 "Okta groups: reached max pagination pages (%d). Stopping with %d groups.",
                 MAX_PAGINATION_PAGES,
@@ -59,6 +58,7 @@ def _get_okta_groups(api_client: ApiClient) -> List[str]:
         paged_results = PagedResults(paged_response, UserGroup)
 
         group_list.extend(paged_results.result)
+        page_count += 1
         if len(group_list) > MAX_PAGINATION_ITEMS:
             logger.warning(
                 "Okta groups: reached max pagination items (%d). Stopping after %d pages.",
@@ -96,8 +96,7 @@ def get_okta_group_members(api_client: ApiClient, group_id: str) -> List[Dict]:
     page_count = 0
 
     while True:
-        page_count += 1
-        if page_count > MAX_PAGINATION_PAGES:
+        if page_count >= MAX_PAGINATION_PAGES:
             logger.warning(
                 "Okta group members: reached max pagination pages (%d). Stopping with %d members.",
                 MAX_PAGINATION_PAGES,
@@ -119,6 +118,7 @@ def get_okta_group_members(api_client: ApiClient, group_id: str) -> List[Dict]:
 
         members = json.loads(paged_response.text)
         member_list.extend(members)
+        page_count += 1
         if len(member_list) > MAX_PAGINATION_ITEMS:
             logger.warning(
                 "Okta group members: reached max pagination items (%d). Stopping after %d pages.",

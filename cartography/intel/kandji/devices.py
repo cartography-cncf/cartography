@@ -38,8 +38,7 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
     session = Session()
     page_count = 0
     while True:
-        page_count += 1
-        if page_count > MAX_PAGINATION_PAGES:
+        if page_count >= MAX_PAGINATION_PAGES:
             logger.warning(
                 "Kandji: reached max pagination pages (%d). Stopping with %d devices.",
                 MAX_PAGINATION_PAGES,
@@ -55,6 +54,7 @@ def get(kandji_base_uri: str, kandji_token: str) -> List[Dict[str, Any]]:
         response.raise_for_status()
 
         result = response.json()
+        page_count += 1
         # If no more result, we are done
         if len(result) == 0:
             break
