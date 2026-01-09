@@ -3,7 +3,7 @@
 This module requires a registered Azure AD Application with specific permissions to access the Microsoft Defender for Endpoint API.
 
 ## 1. API Permissions
-Ensure your Azure AD application is granted the following **Microsoft Graph API** (Application) permissions:
+Ensure your Azure AD application is granted the following **WindowsDefenderATP API** (Application) permissions (found under 'APIs my organization uses' in Azure portal):
 * `Machine.Read.All`: Required to ingest device metadata and health status.
 * `Software.Read.All`: (Recommended) For future software inventory support.
 * `Vulnerability.Read.All`: (Recommended) For future vulnerability risk assessment.
