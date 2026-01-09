@@ -1452,13 +1452,14 @@ class CLI:
             config.sentinelone_api_token = None
 
         # Microsoft Defender for Endpoint config
-        if config.mde_client_secret_env_var:
+        if (
+            config.mde_tenant_id
+            and config.mde_client_id
+            and config.mde_client_secret_env_var
+        ):
             logger.debug(
                 f"Reading MDE Client Secret from environment variable {config.mde_client_secret_env_var}",
             )
-            config.mde_client_secret = os.environ.get(config.mde_client_secret_env_var)
-        else:
-            config.mde_client_secret = None
             
         # Keycloak config
         if config.keycloak_client_secret_env_var:

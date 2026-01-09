@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from dataclasses import field  # <--- Added missing import
+from dataclasses import field
 from typing import Dict
 
 from cartography.models.core.common import PropertyRef
@@ -7,12 +7,12 @@ from cartography.models.core.common import TargetNodeMatcher
 from cartography.models.core.common import make_target_node_matcher
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection  # <--- Added Import
 
 
 @dataclass(frozen=True)
 class MDEDeviceNodeSchema(CartographyNodeSchema):
     label: str = 'MDEDevice'
-    # Fixed: Changed 'dataclass_field' to 'field'
     attributes: Dict[str, PropertyRef] = field(default_factory=lambda: {
         'id': PropertyRef('id'),
         'computer_name': PropertyRef('computerDnsName'),
@@ -31,7 +31,8 @@ class MDEDeviceToTenantRel(CartographyRelSchema):
         {'id': PropertyRef('tenant_id')},
     )
     rel_label: str = "RESOURCE"
-    direction: str = "IN"
+    # Fixed: Use Enum instead of string
+    direction: LinkDirection = LinkDirection.INWARD
 
 
 @dataclass(frozen=True)
@@ -41,3 +42,5 @@ class MDEDeviceToAzureVMRel(CartographyRelSchema):
         {'externalid': PropertyRef('aad_device_id')},
     )
     rel_label: str = "HAS_MDE_AGENT"
+    # Fixed: Added missing direction field using Enum
+    direction: LinkDirection = LinkDirection.OUTWARD

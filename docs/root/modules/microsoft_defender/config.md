@@ -16,5 +16,7 @@ The module expects the following credentials to be available during the sync pro
 
 ## 3. Execution
 To run this module manually via the CLI:
+
 ```bash
-cartography --mde-tenant-id <id> --mde-client-id <id> --mde-client-secret <secret>
+cartography --mde-tenant-id <id> --mde-client-id <id> --mde-client-secret-env-var MDE_CLIENT_SECRET
+```  
