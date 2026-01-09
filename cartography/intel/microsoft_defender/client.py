@@ -73,8 +73,7 @@ class MDEClient:
 
             except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to fetch MDE page: {e}")
-                # We stop pagination on error but return what we have so far
-                break
+                raise  # CHANGED: Raise exception to ensure fail-fast behavior
 
         logger.info(f"Retrieved {len(all_machines)} machines from MDE.")
         return all_machines
