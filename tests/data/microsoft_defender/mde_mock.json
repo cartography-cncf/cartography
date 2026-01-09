@@ -1,0 +1,28 @@
+{
+    "value": [
+      {
+        "id": "machine-1",
+        "computerDnsName": "laptop-01",
+        "riskScore": "High",
+        "healthStatus": "Active",
+        "osPlatform": "Windows10",
+        "aadDeviceId": "azure-vm-1"
+      },
+      {
+        "id": "machine-2",
+        "computerDnsName": "server-01",
+        "riskScore": "Low",
+        "healthStatus": "Active",
+        "osPlatform": "Linux",
+        "aadDeviceId": "azure-vm-2"
+      },
+      {
+        "id": "machine-3",
+        "computerDnsName": "ghost-machine",
+        "riskScore": "Medium",
+        "healthStatus": "Inactive",
+        "osPlatform": "Windows11",
+        "aadDeviceId": "unknown-device"
+      }
+    ]
+  }

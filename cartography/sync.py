@@ -36,6 +36,7 @@ import cartography.intel.kandji
 import cartography.intel.keycloak
 import cartography.intel.kubernetes
 import cartography.intel.lastpass
+import cartography.intel.microsoft_defender
 import cartography.intel.oci
 import cartography.intel.okta
 import cartography.intel.ontology
@@ -72,6 +73,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "googleworkspace": cartography.intel.googleworkspace.start_googleworkspace_ingestion,
         "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
         "cve": cartography.intel.cve.start_cve_ingestion,
+        'microsoft_defender': cartography.intel.microsoft_defender.start_microsoft_defender_ingestion,
         "oci": cartography.intel.oci.start_oci_ingestion,
         "okta": cartography.intel.okta.start_okta_ingestion,
         "openai": cartography.intel.openai.start_openai_ingestion,
