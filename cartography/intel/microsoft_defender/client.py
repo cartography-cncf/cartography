@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 # Note: MDE data is often accessed via the Microsoft Graph API nowadays
 GRAPH_URL = "https://graph.microsoft.com/v1.0"
 
+
 class MDEClient:
     def __init__(self, tenant_id: str, client_id: str, client_secret: str):
         self.tenant_id = tenant_id
@@ -25,7 +26,7 @@ class MDEClient:
             "scope": "https://graph.microsoft.com/.default",
             "client_id": self.client_id,
             "client_secret": self.client_secret,
-            "grant_type": "client_credentials"
+            "grant_type": "client_credentials",
         }
         try:
             response = self.session.post(url, data=payload)
@@ -46,34 +47,34 @@ class MDEClient:
 
         headers = {
             "Authorization": f"Bearer {self._auth_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         # NOTE: Adjust endpoint if using the legacy MDE API vs MS Graph
         # Using the standard machine list endpoint for demonstration
-        # url = "https://api.securitycenter.microsoft.com/api/machines" 
+        # url = "https://api.securitycenter.microsoft.com/api/machines"
         # Or MS Graph:
         url = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
 
         all_machines = []
-        
+
         while url:
             try:
                 response = self.session.get(url, headers=headers)
                 response.raise_for_status()
                 data = response.json()
-                
+
                 # Normalize MS Graph 'value' list
-                machines_page = data.get('value', [])
+                machines_page = data.get("value", [])
                 all_machines.extend(machines_page)
-                
+
                 # Handle Pagination
-                url = data.get('@odata.nextLink', None)
-                
+                url = data.get("@odata.nextLink", None)
+
             except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to fetch MDE page: {e}")
                 # We stop pagination on error but return what we have so far
                 break
-                
+
         logger.info(f"Retrieved {len(all_machines)} machines from MDE.")
         return all_machines
