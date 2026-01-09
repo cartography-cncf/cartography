@@ -78,7 +78,7 @@ class GraphStatement:
         if self.iterative:
             self._run_iterative(session)
         else:
-            session.write_transaction(self._run_noniterative)
+            session.execute_write(self._run_noniterative)
 
         logger.info(
             f"Completed {self.parent_job_name} statement #{self.parent_job_sequence_num}"
@@ -133,9 +133,7 @@ class GraphStatement:
         self.parameters["LIMIT_SIZE"] = self.iterationsize
 
         while True:
-            summary: neo4j.ResultSummary = session.write_transaction(
-                self._run_noniterative
-            )
+            summary: neo4j.ResultSummary = session.execute_write(self._run_noniterative)
 
             if not summary.counters.contains_updates:
                 break

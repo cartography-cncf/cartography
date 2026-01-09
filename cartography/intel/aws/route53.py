@@ -452,7 +452,7 @@ def link_sub_zones(
         NOT z = z2
     RETURN z.id as zone_id, z2.id as subzone_id
     """
-    zone_to_subzone = neo4j_session.read_transaction(
+    zone_to_subzone = neo4j_session.execute_read(
         read_list_of_dicts_tx, query, AWS_ID=current_aws_id
     )
     load_matchlinks(

@@ -16,4 +16,4 @@ def test_load_empty_dict_list():
     # Assert
     mock_session.run.assert_not_called()  # Ensure no database calls were made
     # Verify that ensure_indexes was not called since we short-circuit on empty list
-    mock_session.write_transaction.assert_not_called()
+    mock_session.execute_write.assert_not_called()
