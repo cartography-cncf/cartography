@@ -883,3 +883,389 @@ Representation of a GCP [Bigtable Backup](https://cloud.google.com/bigtable/docs
     ```
     (GCPBigtableTable)-[:BACKED_UP_AS]->(GCPBigtableBackup)
     ```
+
+### Vertex AI Resources
+
+#### Overview
+
+Google Cloud Vertex AI is a unified machine learning platform for building, deploying, and scaling ML models. Cartography ingests the following Vertex AI resources:
+
+```mermaid
+graph LR
+    Project[GCPProject]
+    Model[GCPVertexAIModel]
+    Endpoint[GCPVertexAIEndpoint]
+    DeployedModel[GCPVertexAIDeployedModel]
+    Instance[GCPVertexAIWorkbenchInstance]
+    Pipeline[GCPVertexAITrainingPipeline]
+    FeatureGroup[GCPVertexAIFeatureGroup]
+    Dataset[GCPVertexAIDataset]
+    Bucket[GCPBucket]
+    ServiceAccount[GCPServiceAccount]
+
+    Project -->|RESOURCE| Model
+    Project -->|RESOURCE| Endpoint
+    Project -->|RESOURCE| Instance
+    Project -->|RESOURCE| Pipeline
+    Project -->|RESOURCE| FeatureGroup
+    Project -->|RESOURCE| Dataset
+
+    Endpoint -->|SERVES| DeployedModel
+    DeployedModel -->|INSTANCE_OF| Model
+    Pipeline -->|PRODUCES| Model
+    Pipeline -->|READS_FROM| Dataset
+    Pipeline -->|READS_FROM| Bucket
+    Model -->|STORED_IN| Bucket
+    Instance -->|USES_SERVICE_ACCOUNT| ServiceAccount
+```
+
+#### GCPVertexAIModel
+
+Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the model (e.g., `projects/{project}/locations/{location}/models/{model_id}`) |
+| name | Same as `id` |
+| display_name | User-provided display name of the model |
+| description | Description of the model |
+| version_id | The version ID of the model |
+| version_create_time | Timestamp when this model version was created |
+| version_update_time | Timestamp when this model version was last updated |
+| create_time | Timestamp when the model was originally created |
+| update_time | Timestamp when the model was last updated |
+| artifact_uri | The path to the directory containing the Model artifact and supporting files (GCS URI) |
+| etag | Used to perform consistent read-modify-write updates |
+| labels | JSON string of user-defined labels |
+| training_pipeline | Resource name of the Training Pipeline that created this model |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIModels are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAIModel)
+    ```
+
+- GCPVertexAIModels are stored in GCPBuckets.
+    ```
+    (GCPVertexAIModel)-[:STORED_IN]->(GCPBucket)
+    ```
+
+- GCPVertexAITrainingPipelines produce GCPVertexAIModels.
+    ```
+    (GCPVertexAITrainingPipeline)-[:PRODUCES]->(GCPVertexAIModel)
+    ```
+
+- GCPVertexAIDeployedModels are instances of GCPVertexAIModels.
+    ```
+    (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
+    ```
+
+#### GCPVertexAIEndpoint
+
+Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the endpoint (e.g., `projects/{project}/locations/{location}/endpoints/{endpoint_id}`) |
+| name | Same as `id` |
+| display_name | User-provided display name of the endpoint |
+| description | Description of the endpoint |
+| create_time | Timestamp when the endpoint was created |
+| update_time | Timestamp when the endpoint was last updated |
+| etag | Used to perform consistent read-modify-write updates |
+| network | The full name of the Google Compute Engine network to which the endpoint should be peered |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIEndpoints are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAIEndpoint)
+    ```
+
+- GCPVertexAIEndpoints serve GCPVertexAIDeployedModels.
+    ```
+    (GCPVertexAIEndpoint)-[:SERVES]->(GCPVertexAIDeployedModel)
+    ```
+
+#### GCPVertexAIDeployedModel
+
+Representation of a deployed model on a Vertex AI Endpoint. This is derived from the [deployedModels field](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints#DeployedModel) on an Endpoint.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Synthetic ID combining endpoint and deployed model ID (e.g., `{endpoint_id}/deployedModels/{deployed_model_id}`) |
+| deployed_model_id | The ID of the DeployedModel (unique within the endpoint) |
+| model | Full resource name of the Model that this DeployedModel is serving |
+| display_name | User-provided display name of the deployed model |
+| create_time | Timestamp when the deployed model was created |
+| dedicated_resources | JSON string of the dedicated resources for this deployed model |
+| automatic_resources | JSON string of the automatic resources for this deployed model |
+| enable_access_logging | Whether access logging is enabled for this deployed model |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIEndpoints serve GCPVertexAIDeployedModels.
+    ```
+    (GCPVertexAIEndpoint)-[:SERVES]->(GCPVertexAIDeployedModel)
+    ```
+
+- GCPVertexAIDeployedModels are instances of GCPVertexAIModels.
+    ```
+    (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
+    ```
+
+#### GCPVertexAIWorkbenchInstance
+
+Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/vertex-ai/docs/workbench/reference/rest/v2/projects.locations.instances) (v2 API).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the instance (e.g., `projects/{project}/locations/{location}/instances/{instance_id}`) |
+| name | Same as `id` |
+| creator | Email address of the user who created the instance |
+| create_time | Timestamp when the instance was created |
+| update_time | Timestamp when the instance was last updated |
+| state | The state of the instance (e.g., `ACTIVE`, `STOPPED`) |
+| health_state | The health state of the instance (e.g., `HEALTHY`) |
+| health_info | JSON string with detailed health information |
+| gce_setup | JSON string with GCE setup configuration |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIWorkbenchInstances are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAIWorkbenchInstance)
+    ```
+
+- GCPVertexAIWorkbenchInstances use GCPServiceAccounts.
+    ```
+    (GCPVertexAIWorkbenchInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+#### GCPVertexAITrainingPipeline
+
+Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.trainingPipelines).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the training pipeline (e.g., `projects/{project}/locations/{location}/trainingPipelines/{pipeline_id}`) |
+| name | Same as `id` |
+| display_name | User-provided display name of the training pipeline |
+| create_time | Timestamp when the pipeline was created |
+| update_time | Timestamp when the pipeline was last updated |
+| start_time | Timestamp when the pipeline started running |
+| end_time | Timestamp when the pipeline finished |
+| state | The state of the pipeline (e.g., `PIPELINE_STATE_SUCCEEDED`) |
+| error | JSON string with error information if the pipeline failed |
+| model_to_upload | JSON string describing the model that was uploaded |
+| training_task_definition | The training task definition schema URI |
+| dataset_id | Full resource name of the Dataset used for training (used for relationships) |
+| model_id | Full resource name of the Model produced by training (used for relationships) |
+| gcs_bucket_id | List of GCS bucket names read during training (used for relationships) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAITrainingPipelines are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAITrainingPipeline)
+    ```
+
+- GCPVertexAITrainingPipelines produce GCPVertexAIModels.
+    ```
+    (GCPVertexAITrainingPipeline)-[:PRODUCES]->(GCPVertexAIModel)
+    ```
+
+- GCPVertexAITrainingPipelines read from GCPVertexAIDatasets.
+    ```
+    (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPVertexAIDataset)
+    ```
+
+- GCPVertexAITrainingPipelines read from GCPBuckets.
+    ```
+    (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPBucket)
+    ```
+
+#### GCPVertexAIFeatureGroup
+
+Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.featureGroups). Feature Groups are the new architecture for Vertex AI Feature Store.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the feature group (e.g., `projects/{project}/locations/{location}/featureGroups/{feature_group_id}`) |
+| name | Same as `id` |
+| create_time | Timestamp when the feature group was created |
+| update_time | Timestamp when the feature group was last updated |
+| etag | Used to perform consistent read-modify-write updates |
+| bigquery_source_uri | The BigQuery source URI for the feature group |
+| entity_id_columns | JSON array of entity ID column names |
+| timestamp_column | The timestamp column name (for time series features) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIFeatureGroups are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAIFeatureGroup)
+    ```
+
+#### GCPVertexAIDataset
+
+Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.datasets).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the dataset (e.g., `projects/{project}/locations/{location}/datasets/{dataset_id}`) |
+| name | Same as `id` |
+| display_name | User-provided display name of the dataset |
+| create_time | Timestamp when the dataset was created |
+| update_time | Timestamp when the dataset was last updated |
+| etag | Used to perform consistent read-modify-write updates |
+| data_item_count | The number of data items in the dataset |
+| metadata_schema_uri | The metadata schema URI for the dataset |
+| metadata | JSON string with dataset metadata |
+| encryption_spec | JSON string with encryption configuration |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPVertexAIDatasets are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPVertexAIDataset)
+    ```
+
+- GCPVertexAITrainingPipelines read from GCPVertexAIDatasets.
+    ```
+    (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPVertexAIDataset)
+    ```
+
+### Cloud SQL Resources
+
+#### GCPCloudSQLInstance
+
+Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The instance's `selfLink`, which is its unique URI. |
+| name | The user-assigned name of the instance. |
+| database\_version | The database engine type and version (e.g., `POSTGRES_15`). |
+| region | The GCP region the instance lives in. |
+| gce\_zone | The specific Compute Engine zone the instance is serving from. |
+| state | The current state of the instance (e.g., `RUNNABLE`). |
+| backend\_type | The type of instance (e.g., `SECOND_GEN`). |
+| service\_account\_email | The email of the service account used by this instance. |
+| connection\_name | The connection string for accessing the instance (e.g., `project:region:instance`). |
+| tier | The machine type tier (e.g., `db-custom-1-3840`). |
+| disk\_size\_gb | Storage capacity in gigabytes. |
+| disk\_type | Storage disk type (e.g., `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED`). |
+| availability\_type | Availability configuration (`ZONAL` or `REGIONAL` for high availability). |
+| backup\_enabled | Boolean indicating if automated backups are enabled. |
+| require\_ssl | Boolean indicating if SSL/TLS encryption is required for connections. |
+| ip\_addresses | JSON string containing array of IP addresses with their types (PRIMARY, PRIVATE, OUTGOING). |
+| backup\_configuration | JSON string containing full backup configuration including retention and point-in-time recovery settings. |
+
+#### Relationships
+
+  - GCPCloudSQLInstances are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLInstance)
+    ```
+  - GCPCloudSQLInstances are associated with GCPVpcs.
+    ```
+    (GCPCloudSQLInstance)-[:ASSOCIATED_WITH]->(GCPVpc)
+    ```
+  - GCPCloudSQLInstances use GCPServiceAccounts.
+    ```
+    (GCPCloudSQLInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+#### GCPCloudSQLDatabase
+
+Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/databases).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID and database name. |
+| name | The name of the database. |
+| charset | The character set for the database. |
+| collation | The collation for the database. |
+
+#### Relationships
+
+  - GCPCloudSQLDatabases are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLDatabase)
+    ```
+  - GCPCloudSQLInstances contain GCPCloudSQLDatabases.
+    ```
+    (GCPCloudSQLInstance)-[:CONTAINS]->(GCPCloudSQLDatabase)
+    ```
+
+#### GCPCloudSQLUser
+
+Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/users).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID and the user's name and host. |
+| name | The name of the user. |
+| host | The host from which the user is allowed to connect. |
+
+#### Relationships
+
+  - GCPCloudSQLUsers are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLUser)
+    ```
+  - GCPCloudSQLInstances have GCPCloudSQLUsers.
+    ```
+    (GCPCloudSQLInstance)-[:HAS_USER]->(GCPCloudSQLUser)
+    ```
+
+#### GCPCloudSQLBackupConfiguration
+
+Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#backupconfiguration). This node captures the backup settings for a Cloud SQL instance.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID with `/backupConfig` suffix. |
+| enabled | Boolean indicating whether automated backups are enabled. |
+| start\_time | The start time for the daily backup window in UTC (HH:MM format). |
+| location | The location where backups are stored. |
+| point\_in\_time\_recovery\_enabled | Boolean indicating whether point-in-time recovery is enabled. |
+| transaction\_log\_retention\_days | Number of days of transaction logs retained for point-in-time recovery. |
+| backup\_retention\_settings | String representation of backup retention configuration (e.g., retained backup count). |
+| binary\_log\_enabled | Boolean indicating whether binary logging is enabled. |
+| instance\_id | The ID of the parent Cloud SQL instance. |
+
+#### Relationships
+
+  - GCPCloudSQLBackupConfigurations are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLBackupConfiguration)
+    ```
+  - GCPCloudSQLInstances have GCPCloudSQLBackupConfigurations.
+    ```
+    (GCPCloudSQLInstance)-[:HAS_BACKUP_CONFIG]->(GCPCloudSQLBackupConfiguration)
+    ```

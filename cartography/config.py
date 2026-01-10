@@ -142,9 +142,11 @@ class Config:
     :type workday_api_password: str
     :param workday_api_password: The Workday API password. Optional.
     :type gitlab_url: str
-    :param gitlab_url: The GitLab instance URL, e.g. "https://gitlab.com" or "https://gitlab.example.com". Optional.
+    :param gitlab_url: The GitLab instance URL. Defaults to "https://gitlab.com".
     :type gitlab_token: str
     :param gitlab_token: GitLab personal access token for API authentication. Optional.
+    :type gitlab_organization_id: int
+    :param gitlab_organization_id: GitLab organization (top-level group) ID to sync. Optional.
     :param semgrep_app_token: The Semgrep api token. Optional.
     :type semgrep_app_token: str
     :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
@@ -297,8 +299,9 @@ class Config:
         workday_api_url=None,
         workday_api_login=None,
         workday_api_password=None,
-        gitlab_url=None,
+        gitlab_url="https://gitlab.com",
         gitlab_token=None,
+        gitlab_organization_id=None,
         semgrep_app_token=None,
         semgrep_dependency_ecosystems=None,
         snipeit_base_uri=None,
@@ -412,6 +415,7 @@ class Config:
         self.workday_api_password = workday_api_password
         self.gitlab_url = gitlab_url
         self.gitlab_token = gitlab_token
+        self.gitlab_organization_id = gitlab_organization_id
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.snipeit_base_uri = snipeit_base_uri

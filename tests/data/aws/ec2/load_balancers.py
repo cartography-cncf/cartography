@@ -1,14 +1,41 @@
 TARGET_GROUPS = [
     {
+        "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/instance-tg/1234567890abcdef",
         "TargetType": "instance",
         "Targets": ["i-0f76fade"],
+        "Port": 80,
+        "Protocol": "HTTP",
+    },
+    {
+        "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/ip-tg/abcdef1234567890",
+        "TargetType": "ip",
+        "Targets": ["10.0.0.1"],
+        "Port": 443,
+        "Protocol": "HTTPS",
+    },
+    {
+        # Lambda target groups don't have Port (Port is None in AWS API)
+        "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/lambda-tg/fedcba0987654321",
+        "TargetType": "lambda",
+        "Targets": ["arn:aws:lambda:us-east-1:000000000000:function:example"],
+        "Protocol": "HTTPS",
+    },
+    {
+        # ALB targets require TCP/TLS protocol on NLB (not HTTP/HTTPS)
+        "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/alb-tg/0123456789abcdef",
+        "TargetType": "alb",
+        "Targets": [
+            "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/target-alb/1234567890abcdef"
+        ],
+        "Port": 80,
+        "Protocol": "TCP",
     },
 ]
 
 # 'TargetGroups': [
 #         'TargetGroupArn': 'string',
 #         ...
-#         'TargetType': 'instance'|'ip'|'lambda',
+#         'TargetType': 'instance'|'ip'|'lambda'|'alb',
 #         'Targets': ["i-0f76fade"]
 #     ]
 

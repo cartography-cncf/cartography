@@ -22,8 +22,10 @@ class AccountAccessKeyNodeProperties(CartographyNodeProperties):
 
     # Business fields from AWS IAM access keys
     createdate: PropertyRef = PropertyRef("createdate")
+    createdate_dt: PropertyRef = PropertyRef("createdate_dt")
     status: PropertyRef = PropertyRef("status")
     lastuseddate: PropertyRef = PropertyRef("lastuseddate")
+    lastuseddate_dt: PropertyRef = PropertyRef("lastuseddate_dt")
     lastusedservice: PropertyRef = PropertyRef("lastusedservice")
     lastusedregion: PropertyRef = PropertyRef("lastusedregion")
 
