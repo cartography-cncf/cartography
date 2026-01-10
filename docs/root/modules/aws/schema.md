@@ -3205,7 +3205,7 @@ Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIRef
     (AWSAccount)-[:RESOURCE]->(KMSKey)
     ```
 
-- AWS KMS Key may also be refered as KMSAlias via aliases.
+- AWS KMS Key may also be referred as KMSAlias via aliases.
     ```
     (KMSAlias)-[:KNOWN_AS]->(KMSKey)
     ```
@@ -3238,7 +3238,7 @@ Representation of an AWS [KMS Key Alias](https://docs.aws.amazon.com/kms/latest/
     (AWSAccount)-[:RESOURCE]->(KMSAlias)
     ```
 
-- AWS KMS Key may also be refered as KMSAlias via aliases.
+- AWS KMS Key may also be referred as KMSAlias via aliases.
     ```
     (KMSAlias)-[KNOWN_AS]->(KMSKey)
     ```
