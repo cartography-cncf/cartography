@@ -56,7 +56,7 @@ This is the fastest way to get started if you already have Python 3.10+ and Neo4
         neo4j:4.4-community
     ```
 
-    If you prefer to install Neo4j manually, see the instructions in [Option 2](#option-2-run-docker-compose).
+    If you prefer to install Neo4j manually, see the instructions in [Option 4](#option-4-native-install-with-pip-alternative).
 
 1. **Configure your data sources.**
 
