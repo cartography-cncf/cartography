@@ -2,15 +2,9 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2.vpc_endpoint
-from cartography.intel.aws.ec2.vpc_endpoint import (
-    load_vpc_endpoint_route_table_relationships,
-)
-from cartography.intel.aws.ec2.vpc_endpoint import (
-    load_vpc_endpoint_security_group_relationships,
-)
-from cartography.intel.aws.ec2.vpc_endpoint import (
-    load_vpc_endpoint_subnet_relationships,
-)
+from cartography.intel.aws.ec2.vpc_endpoint import load_vpc_endpoint_route_tables
+from cartography.intel.aws.ec2.vpc_endpoint import load_vpc_endpoint_security_groups
+from cartography.intel.aws.ec2.vpc_endpoint import load_vpc_endpoint_subnets
 from cartography.intel.aws.ec2.vpc_endpoint import load_vpc_endpoints
 from cartography.intel.aws.ec2.vpc_endpoint import sync_vpc_endpoints
 from cartography.intel.aws.ec2.vpc_endpoint import transform_vpc_endpoint_data
@@ -26,10 +20,10 @@ TEST_UPDATE_TAG = 123456789
 
 def test_load_vpc_endpoints(neo4j_session):
     """Test that VPC endpoints are loaded correctly"""
-    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS, TEST_REGION)
+    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS)
     load_vpc_endpoints(
         neo4j_session,
-        transformed_data,
+        transformed_data.vpc_endpoint_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -52,10 +46,10 @@ def test_load_vpc_endpoint_to_account_relationship(neo4j_session):
     # Create test AWS account
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS, TEST_REGION)
+    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS)
     load_vpc_endpoints(
         neo4j_session,
-        transformed_data,
+        transformed_data.vpc_endpoint_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -97,10 +91,10 @@ def test_load_vpc_endpoint_to_vpc_relationship(neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS, TEST_REGION)
+    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS)
     load_vpc_endpoints(
         neo4j_session,
-        transformed_data,
+        transformed_data.vpc_endpoint_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -123,35 +117,22 @@ def test_load_vpc_endpoint_to_vpc_relationship(neo4j_session):
 
 def test_load_vpc_endpoint_subnet_relationships(neo4j_session):
     """Test that interface and gateway load balancer VPC endpoints are linked to subnets"""
-    # Create test subnets
-    neo4j_session.run(
-        """
-        MERGE (subnet1:EC2Subnet{subnetid: 'subnet-12345'})
-        ON CREATE SET subnet1.firstseen = timestamp()
-        SET subnet1.lastupdated = $update_tag
+    # Create test account (required for schema-based loading)
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-        MERGE (subnet2:EC2Subnet{subnetid: 'subnet-67890'})
-        ON CREATE SET subnet2.firstseen = timestamp()
-        SET subnet2.lastupdated = $update_tag
-
-        MERGE (subnet3:EC2Subnet{subnetid: 'subnet-gwlb-1'})
-        ON CREATE SET subnet3.firstseen = timestamp()
-        SET subnet3.lastupdated = $update_tag
-        """,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS, TEST_REGION)
+    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS)
     load_vpc_endpoints(
         neo4j_session,
-        transformed_data,
+        transformed_data.vpc_endpoint_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    load_vpc_endpoint_subnet_relationships(
+    load_vpc_endpoint_subnets(
         neo4j_session,
-        transformed_data,
+        transformed_data.subnet_list,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -175,31 +156,22 @@ def test_load_vpc_endpoint_subnet_relationships(neo4j_session):
 
 def test_load_vpc_endpoint_security_group_relationships(neo4j_session):
     """Test that interface and gateway load balancer VPC endpoints are linked to security groups"""
-    # Create test security groups
-    neo4j_session.run(
-        """
-        MERGE (sg1:EC2SecurityGroup{id: 'sg-12345'})
-        ON CREATE SET sg1.firstseen = timestamp()
-        SET sg1.lastupdated = $update_tag
+    # Create test account (required for schema-based loading)
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-        MERGE (sg2:EC2SecurityGroup{id: 'sg-gwlb'})
-        ON CREATE SET sg2.firstseen = timestamp()
-        SET sg2.lastupdated = $update_tag
-        """,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS, TEST_REGION)
+    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS)
     load_vpc_endpoints(
         neo4j_session,
-        transformed_data,
+        transformed_data.vpc_endpoint_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    load_vpc_endpoint_security_group_relationships(
+    load_vpc_endpoint_security_groups(
         neo4j_session,
-        transformed_data,
+        transformed_data.security_group_list,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -222,31 +194,22 @@ def test_load_vpc_endpoint_security_group_relationships(neo4j_session):
 
 def test_load_vpc_endpoint_route_table_relationships(neo4j_session):
     """Test that gateway VPC endpoints are linked to route tables"""
-    # Create test route tables
-    neo4j_session.run(
-        """
-        MERGE (rtb1:AWSRouteTable{id: 'rtb-12345'})
-        ON CREATE SET rtb1.firstseen = timestamp()
-        SET rtb1.lastupdated = $update_tag
+    # Create test account (required for schema-based loading)
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-        MERGE (rtb2:AWSRouteTable{id: 'rtb-67890'})
-        ON CREATE SET rtb2.firstseen = timestamp()
-        SET rtb2.lastupdated = $update_tag
-        """,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS, TEST_REGION)
+    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS)
     load_vpc_endpoints(
         neo4j_session,
-        transformed_data,
+        transformed_data.vpc_endpoint_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
-    load_vpc_endpoint_route_table_relationships(
+    load_vpc_endpoint_route_tables(
         neo4j_session,
-        transformed_data,
+        transformed_data.route_table_list,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
@@ -269,10 +232,10 @@ def test_load_vpc_endpoint_route_table_relationships(neo4j_session):
 
 def test_vpc_endpoint_properties(neo4j_session):
     """Test that VPC endpoint properties are stored correctly"""
-    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS, TEST_REGION)
+    transformed_data = transform_vpc_endpoint_data(DESCRIBE_VPC_ENDPOINTS)
     load_vpc_endpoints(
         neo4j_session,
-        transformed_data,
+        transformed_data.vpc_endpoint_list,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -448,21 +411,28 @@ def test_cleanup_vpc_endpoints_removes_stale_manual_relationships(
     NEW_UPDATE_TAG = 222222
 
     # Arrange - Create account, VPC endpoint, and related resources
+    # Note: Stub nodes must have RESOURCE relationship to account for schema-based cleanup to work
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, NEW_UPDATE_TAG)
     neo4j_session.run(
         """
+        MATCH (account:AWSAccount {id: $AccountId})
+
         MERGE (subnet:EC2Subnet {subnetid: 'subnet-stale'})
         ON CREATE SET subnet.firstseen = timestamp()
         SET subnet.lastupdated = $NewTag
+        MERGE (account)-[:RESOURCE {lastupdated: $NewTag}]->(subnet)
 
         MERGE (sg:EC2SecurityGroup {id: 'sg-stale'})
         ON CREATE SET sg.firstseen = timestamp()
         SET sg.lastupdated = $NewTag
+        MERGE (account)-[:RESOURCE {lastupdated: $NewTag}]->(sg)
 
         MERGE (rtb:AWSRouteTable {id: 'rtb-stale'})
         ON CREATE SET rtb.firstseen = timestamp()
         SET rtb.lastupdated = $NewTag
+        MERGE (account)-[:RESOURCE {lastupdated: $NewTag}]->(rtb)
         """,
+        AccountId=TEST_ACCOUNT_ID,
         NewTag=NEW_UPDATE_TAG,
     )
 

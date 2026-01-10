@@ -1,5 +1,6 @@
 import json
 import logging
+from collections import namedtuple
 from typing import Any
 
 import boto3
@@ -7,8 +8,14 @@ import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.models.aws.ec2.routetable_vpc_endpoint import (
+    AWSRouteTableVPCEndpointSchema,
+)
+from cartography.models.aws.ec2.securitygroup_vpc_endpoint import (
+    EC2SecurityGroupVPCEndpointSchema,
+)
+from cartography.models.aws.ec2.subnet_vpc_endpoint import EC2SubnetVPCEndpointSchema
 from cartography.models.aws.ec2.vpc_endpoint import AWSVpcEndpointSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -16,6 +23,16 @@ from cartography.util import timeit
 from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
+
+VpcEndpointData = namedtuple(
+    "VpcEndpointData",
+    [
+        "vpc_endpoint_list",
+        "subnet_list",
+        "security_group_list",
+        "route_table_list",
+    ],
+)
 
 
 @timeit
@@ -47,11 +64,16 @@ def get_vpc_endpoints(
 
 
 def transform_vpc_endpoint_data(
-    vpc_endpoint_list: list[dict[str, Any]], region: str
-) -> list[dict[str, Any]]:
+    vpc_endpoint_list: list[dict[str, Any]],
+) -> VpcEndpointData:
     vpc_endpoint_data: list[dict[str, Any]] = []
+    subnet_list: list[dict[str, Any]] = []
+    security_group_list: list[dict[str, Any]] = []
+    route_table_list: list[dict[str, Any]] = []
 
     for endpoint in vpc_endpoint_list:
+        vpc_endpoint_id = endpoint.get("VpcEndpointId")
+
         # Convert policy document to string if present
         policy_doc = endpoint.get("PolicyDocument")
         if policy_doc:
@@ -69,7 +91,7 @@ def transform_vpc_endpoint_data(
             creation_ts = creation_ts.isoformat()
 
         endpoint_record = {
-            "VpcEndpointId": endpoint.get("VpcEndpointId"),
+            "VpcEndpointId": vpc_endpoint_id,
             "VpcId": endpoint.get("VpcId"),
             "ServiceName": endpoint.get("ServiceName"),
             "ServiceRegion": endpoint.get("ServiceRegion"),
@@ -90,7 +112,39 @@ def transform_vpc_endpoint_data(
         }
         vpc_endpoint_data.append(endpoint_record)
 
-    return vpc_endpoint_data
+        # Flatten subnets for Interface and GatewayLoadBalancer endpoints
+        for subnet_id in endpoint.get("SubnetIds", []):
+            subnet_list.append(
+                {
+                    "SubnetId": subnet_id,
+                    "VpcEndpointId": vpc_endpoint_id,
+                },
+            )
+
+        # Flatten security groups for Interface and GatewayLoadBalancer endpoints
+        for group in endpoint.get("Groups", []):
+            security_group_list.append(
+                {
+                    "GroupId": group.get("GroupId"),
+                    "VpcEndpointId": vpc_endpoint_id,
+                },
+            )
+
+        # Flatten route tables for Gateway endpoints
+        for route_table_id in endpoint.get("RouteTableIds", []):
+            route_table_list.append(
+                {
+                    "RouteTableId": route_table_id,
+                    "VpcEndpointId": vpc_endpoint_id,
+                },
+            )
+
+    return VpcEndpointData(
+        vpc_endpoint_list=vpc_endpoint_data,
+        subnet_list=subnet_list,
+        security_group_list=security_group_list,
+        route_table_list=route_table_list,
+    )
 
 
 @timeit
@@ -115,131 +169,78 @@ def load_vpc_endpoints(
 
 
 @timeit
-def load_vpc_endpoint_subnet_relationships(
+def load_vpc_endpoint_subnets(
     neo4j_session: neo4j.Session,
-    vpc_endpoints: list[dict[str, Any]],
+    subnet_list: list[dict[str, Any]],
+    region: str,
+    aws_account_id: str,
     update_tag: int,
 ) -> None:
     """
-    Create relationships between VPC endpoints and subnets (for Interface and GatewayLoadBalancer endpoints)
-
-    NOTE: Uses MERGE for subnet nodes to create stub nodes if subnets haven't been synced yet.
-    This removes sync order dependency. The subnet sync will fill in full details later.
+    Load subnet nodes and USES_SUBNET relationships from VPC endpoints.
+    Uses schema-based loading for automatic cleanup handling.
     """
-    ingest_query = """
-    UNWIND $Endpoints as endpoint
-    MATCH (vpce:AWSVpcEndpoint {id: endpoint.VpcEndpointId})
-    WITH vpce, endpoint
-    UNWIND endpoint.SubnetIds as subnet_id
-    MERGE (subnet:EC2Subnet {subnetid: subnet_id})
-    ON CREATE SET subnet.firstseen = timestamp()
-    SET subnet.lastupdated = $update_tag
-    WITH vpce, subnet
-    MERGE (vpce)-[r:USES_SUBNET]->(subnet)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
-    """
-
-    # Filter to only endpoints with subnets
-    endpoints_with_subnets = [
-        {"VpcEndpointId": ep["VpcEndpointId"], "SubnetIds": ep.get("SubnetIds", [])}
-        for ep in vpc_endpoints
-        if ep.get("SubnetIds")
-    ]
-
-    if endpoints_with_subnets:
-        run_write_query(
+    if subnet_list:
+        logger.info(f"Loading {len(subnet_list)} VPC endpoint subnet relationships.")
+        load(
             neo4j_session,
-            ingest_query,
-            Endpoints=endpoints_with_subnets,
-            update_tag=update_tag,
+            EC2SubnetVPCEndpointSchema(),
+            subnet_list,
+            lastupdated=update_tag,
+            Region=region,
+            AWS_ID=aws_account_id,
         )
 
 
 @timeit
-def load_vpc_endpoint_security_group_relationships(
+def load_vpc_endpoint_security_groups(
     neo4j_session: neo4j.Session,
-    vpc_endpoints: list[dict[str, Any]],
+    security_group_list: list[dict[str, Any]],
+    region: str,
+    aws_account_id: str,
     update_tag: int,
 ) -> None:
     """
-    Create relationships between VPC endpoints and security groups (for Interface and GatewayLoadBalancer endpoints)
-
-    NOTE: Uses MERGE for security group nodes to create stub nodes if security groups haven't been synced yet.
-    This removes sync order dependency. The security group sync will fill in full details later.
+    Load security group nodes and MEMBER_OF_SECURITY_GROUP relationships from VPC endpoints.
+    Uses schema-based loading for automatic cleanup handling.
     """
-    ingest_query = """
-    UNWIND $Endpoints as endpoint
-    MATCH (vpce:AWSVpcEndpoint {id: endpoint.VpcEndpointId})
-    WITH vpce, endpoint
-    UNWIND endpoint.Groups as group
-    MERGE (sg:EC2SecurityGroup {id: group.GroupId})
-    ON CREATE SET sg.firstseen = timestamp()
-    SET sg.lastupdated = $update_tag
-    WITH vpce, sg
-    MERGE (vpce)-[r:MEMBER_OF_SECURITY_GROUP]->(sg)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
-    """
-
-    # Filter to only endpoints with security groups
-    endpoints_with_groups = [
-        {"VpcEndpointId": ep["VpcEndpointId"], "Groups": ep.get("Groups", [])}
-        for ep in vpc_endpoints
-        if ep.get("Groups")
-    ]
-
-    if endpoints_with_groups:
-        run_write_query(
+    if security_group_list:
+        logger.info(
+            f"Loading {len(security_group_list)} VPC endpoint security group relationships."
+        )
+        load(
             neo4j_session,
-            ingest_query,
-            Endpoints=endpoints_with_groups,
-            update_tag=update_tag,
+            EC2SecurityGroupVPCEndpointSchema(),
+            security_group_list,
+            lastupdated=update_tag,
+            Region=region,
+            AWS_ID=aws_account_id,
         )
 
 
 @timeit
-def load_vpc_endpoint_route_table_relationships(
+def load_vpc_endpoint_route_tables(
     neo4j_session: neo4j.Session,
-    vpc_endpoints: list[dict[str, Any]],
+    route_table_list: list[dict[str, Any]],
+    region: str,
+    aws_account_id: str,
     update_tag: int,
 ) -> None:
     """
-    Create relationships between VPC endpoints and route tables (for Gateway endpoints)
-
-    NOTE: Uses MERGE for route table nodes to create stub nodes if route tables haven't been synced yet.
-    This removes sync order dependency. The route table sync will fill in full details later.
+    Load route table nodes and ROUTES_THROUGH relationships from Gateway VPC endpoints.
+    Uses schema-based loading for automatic cleanup handling.
     """
-    ingest_query = """
-    UNWIND $Endpoints as endpoint
-    MATCH (vpce:AWSVpcEndpoint {id: endpoint.VpcEndpointId})
-    WITH vpce, endpoint
-    UNWIND endpoint.RouteTableIds as route_table_id
-    MERGE (rtb:AWSRouteTable {id: route_table_id})
-    ON CREATE SET rtb.firstseen = timestamp()
-    SET rtb.lastupdated = $update_tag
-    WITH vpce, rtb
-    MERGE (vpce)-[r:ROUTES_THROUGH]->(rtb)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $update_tag
-    """
-
-    # Filter to only endpoints with route tables
-    endpoints_with_route_tables = [
-        {
-            "VpcEndpointId": ep["VpcEndpointId"],
-            "RouteTableIds": ep.get("RouteTableIds", []),
-        }
-        for ep in vpc_endpoints
-        if ep.get("RouteTableIds")
-    ]
-
-    if endpoints_with_route_tables:
-        run_write_query(
+    if route_table_list:
+        logger.info(
+            f"Loading {len(route_table_list)} VPC endpoint route table relationships."
+        )
+        load(
             neo4j_session,
-            ingest_query,
-            Endpoints=endpoints_with_route_tables,
-            update_tag=update_tag,
+            AWSRouteTableVPCEndpointSchema(),
+            route_table_list,
+            lastupdated=update_tag,
+            Region=region,
+            AWS_ID=aws_account_id,
         )
 
 
@@ -247,30 +248,22 @@ def load_vpc_endpoint_route_table_relationships(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    # Clean up manually created relationships that aren't part of the schema
-    cleanup_manual_relationships_query = """
-    MATCH (vpce:AWSVpcEndpoint)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})
-    OPTIONAL MATCH (vpce)-[r1:USES_SUBNET]->(:EC2Subnet)
-    WHERE r1.lastupdated <> $UPDATE_TAG
-    OPTIONAL MATCH (vpce)-[r2:MEMBER_OF_SECURITY_GROUP]->(:EC2SecurityGroup)
-    WHERE r2.lastupdated <> $UPDATE_TAG
-    OPTIONAL MATCH (vpce)-[r3:ROUTES_THROUGH]->(:AWSRouteTable)
-    WHERE r3.lastupdated <> $UPDATE_TAG
-    WITH collect(r1) + collect(r2) + collect(r3) as stale_rels
-    UNWIND stale_rels as r
-    DELETE r
     """
-    run_write_query(
-        neo4j_session,
-        cleanup_manual_relationships_query,
-        AWS_ID=common_job_parameters["AWS_ID"],
-        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-    )
-
-    # Clean up schema-based nodes and relationships
+    Clean up stale VPC endpoint nodes and all related relationships.
+    GraphJob.from_node_schema automatically handles cleanup for schema-defined relationships.
+    """
     GraphJob.from_node_schema(AWSVpcEndpointSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(EC2SubnetVPCEndpointSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(
+        EC2SecurityGroupVPCEndpointSchema(), common_job_parameters
+    ).run(neo4j_session)
+    GraphJob.from_node_schema(
+        AWSRouteTableVPCEndpointSchema(), common_job_parameters
+    ).run(neo4j_session)
 
 
 @timeit
@@ -289,27 +282,33 @@ def sync_vpc_endpoints(
             current_aws_account_id,
         )
         raw_vpc_endpoint_data = get_vpc_endpoints(boto3_session, region)
-        vpc_endpoint_data = transform_vpc_endpoint_data(raw_vpc_endpoint_data, region)
+        vpc_endpoint_data = transform_vpc_endpoint_data(raw_vpc_endpoint_data)
         load_vpc_endpoints(
             neo4j_session,
-            vpc_endpoint_data,
+            vpc_endpoint_data.vpc_endpoint_list,
             region,
             current_aws_account_id,
             update_tag,
         )
-        load_vpc_endpoint_subnet_relationships(
+        load_vpc_endpoint_subnets(
             neo4j_session,
-            vpc_endpoint_data,
+            vpc_endpoint_data.subnet_list,
+            region,
+            current_aws_account_id,
             update_tag,
         )
-        load_vpc_endpoint_security_group_relationships(
+        load_vpc_endpoint_security_groups(
             neo4j_session,
-            vpc_endpoint_data,
+            vpc_endpoint_data.security_group_list,
+            region,
+            current_aws_account_id,
             update_tag,
         )
-        load_vpc_endpoint_route_table_relationships(
+        load_vpc_endpoint_route_tables(
             neo4j_session,
-            vpc_endpoint_data,
+            vpc_endpoint_data.route_table_list,
+            region,
+            current_aws_account_id,
             update_tag,
         )
     cleanup(neo4j_session, common_job_parameters)

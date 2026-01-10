@@ -81,12 +81,14 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "ec2:load_balancer_v2": sync_load_balancer_v2s,
     "ec2:network_acls": sync_network_acls,
     "ec2:network_interface": sync_network_interfaces,
-    "ec2:route_table": sync_route_tables,
     "ec2:security_group": sync_ec2_security_groupinfo,
     "ec2:subnet": sync_subnets,
     "ec2:tgw": sync_transit_gateways,
     "ec2:vpc": sync_vpc,
+    # `ec2:vpc_endpoint` must be synced before `ec2:route_table` so that
+    # ROUTES_TO_VPC_ENDPOINT relationships can be created when routes sync.
     "ec2:vpc_endpoint": sync_vpc_endpoints,
+    "ec2:route_table": sync_route_tables,
     "ec2:vpc_peering": sync_vpc_peerings,
     "ec2:internet_gateway": sync_internet_gateways,
     "ec2:reserved_instances": sync_ec2_reserved_instances,
