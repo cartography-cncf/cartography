@@ -35,6 +35,13 @@ DESCRIBE_ROUTE_TABLES = {
                     "Origin": "CreateRoute",
                     "State": "active",
                 },
+                {
+                    # Route to S3 Gateway VPC Endpoint
+                    "DestinationPrefixListId": "pl-63a5400a",
+                    "GatewayId": "vpce-gateway123",
+                    "Origin": "CreateRoute",
+                    "State": "active",
+                },
             ],
             "Tags": [],
             "VpcId": "vpc-038cf",
