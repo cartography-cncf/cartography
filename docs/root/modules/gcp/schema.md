@@ -884,9 +884,9 @@ Representation of a GCP [Bigtable Backup](https://cloud.google.com/bigtable/docs
     (GCPBigtableTable)-[:BACKED_UP_AS]->(GCPBigtableBackup)
     ```
 
-## Vertex AI Resources
+### Vertex AI Resources
 
-### Overview
+#### Overview
 
 Google Cloud Vertex AI is a unified machine learning platform for building, deploying, and scaling ML models. Cartography ingests the following Vertex AI resources:
 
@@ -919,7 +919,7 @@ graph LR
     Instance -->|USES_SERVICE_ACCOUNT| ServiceAccount
 ```
 
-### GCPVertexAIModel
+#### GCPVertexAIModel
 
 Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models).
 
@@ -963,7 +963,7 @@ Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/doc
     (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
     ```
 
-### GCPVertexAIEndpoint
+#### GCPVertexAIEndpoint
 
 Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints).
 
@@ -992,7 +992,7 @@ Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/
     (GCPVertexAIEndpoint)-[:SERVES]->(GCPVertexAIDeployedModel)
     ```
 
-### GCPVertexAIDeployedModel
+#### GCPVertexAIDeployedModel
 
 Representation of a deployed model on a Vertex AI Endpoint. This is derived from the [deployedModels field](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints#DeployedModel) on an Endpoint.
 
@@ -1021,7 +1021,7 @@ Representation of a deployed model on a Vertex AI Endpoint. This is derived from
     (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
     ```
 
-### GCPVertexAIWorkbenchInstance
+#### GCPVertexAIWorkbenchInstance
 
 Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/vertex-ai/docs/workbench/reference/rest/v2/projects.locations.instances) (v2 API).
 
@@ -1051,7 +1051,7 @@ Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/
     (GCPVertexAIWorkbenchInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
 
-### GCPVertexAITrainingPipeline
+#### GCPVertexAITrainingPipeline
 
 Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.trainingPipelines).
 
@@ -1096,7 +1096,7 @@ Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/v
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPBucket)
     ```
 
-### GCPVertexAIFeatureGroup
+#### GCPVertexAIFeatureGroup
 
 Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.featureGroups). Feature Groups are the new architecture for Vertex AI Feature Store.
 
@@ -1120,7 +1120,7 @@ Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/verte
     (GCPProject)-[:RESOURCE]->(GCPVertexAIFeatureGroup)
     ```
 
-### GCPVertexAIDataset
+#### GCPVertexAIDataset
 
 Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.datasets).
 
@@ -1151,9 +1151,9 @@ Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/d
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPVertexAIDataset)
     ```
 
-## Cloud SQL Resources
+### Cloud SQL Resources
 
-### GCPCloudSQLInstance
+#### GCPCloudSQLInstance
 
 Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
 
@@ -1194,7 +1194,7 @@ Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/m
     (GCPCloudSQLInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
 
-### GCPCloudSQLDatabase
+#### GCPCloudSQLDatabase
 
 Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/databases).
 
@@ -1218,7 +1218,7 @@ Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/m
     (GCPCloudSQLInstance)-[:CONTAINS]->(GCPCloudSQLDatabase)
     ```
 
-### GCPCloudSQLUser
+#### GCPCloudSQLUser
 
 Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/users).
 
@@ -1241,7 +1241,7 @@ Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql
     (GCPCloudSQLInstance)-[:HAS_USER]->(GCPCloudSQLUser)
     ```
 
-### GCPCloudSQLBackupConfiguration
+#### GCPCloudSQLBackupConfiguration
 
 Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#backupconfiguration). This node captures the backup settings for a Cloud SQL instance.
 
