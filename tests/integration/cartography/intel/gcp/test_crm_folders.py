@@ -68,7 +68,7 @@ def test_sync_gcp_folders(mock_get_folders, neo4j_session):
         "GCPFolder",
         "id",
         "PARENT",
-    ) == {("this-project-has-a-parent-232323", "folders/1414")}
+    ) == {("project-abc", "folders/1414")}
 
 
 @patch.object(
