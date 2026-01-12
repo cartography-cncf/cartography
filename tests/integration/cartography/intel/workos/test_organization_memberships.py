@@ -117,8 +117,8 @@ def test_load_workos_organization_memberships(mock_api, neo4j_session):
 
     # Assert memberships are linked to roles
     expected_rels = {
-        ("om_01HXYZ1234567890ABCDEFGHIJ", "role_01HXYZ1234567890ABCDEFGHIJ"),
-        ("om_02HXYZ0987654321ZYXWVUTSRQ", "role_02HXYZ0987654321ZYXWVUTSRQ"),
+        ("om_01HXYZ1234567890ABCDEFGHIJ", "admin"),
+        ("om_02HXYZ0987654321ZYXWVUTSRQ", "member"),
     }
     assert (
         check_rels(
