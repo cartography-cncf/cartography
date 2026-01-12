@@ -17,9 +17,14 @@ TEST_CLIENT_ID = "client_1234567890abcdef"
 
 
 def _ensure_local_neo4j_has_test_roles(neo4j_session):
+    # Transform expects a dict mapping org_id to list of roles
+    roles_by_org = {
+        "org_01HXYZ1234567890ABCDEFGHIJ": tests.data.workos.roles.WORKOS_ROLES
+    }
+    transformed_roles = cartography.intel.workos.roles.transform(roles_by_org)
     cartography.intel.workos.roles.load_roles(
         neo4j_session,
-        tests.data.workos.roles.WORKOS_ROLES,
+        transformed_roles,
         TEST_CLIENT_ID,
         TEST_UPDATE_TAG,
     )

@@ -17,9 +17,12 @@ TEST_CLIENT_ID = "client_1234567890abcdef"
 
 
 def _ensure_local_neo4j_has_test_directories(neo4j_session):
+    transformed_dirs = cartography.intel.workos.directories.transform(
+        tests.data.workos.directories.WORKOS_DIRECTORIES
+    )
     cartography.intel.workos.directories.load_directories(
         neo4j_session,
-        tests.data.workos.directories.WORKOS_DIRECTORIES,
+        transformed_dirs,
         TEST_CLIENT_ID,
         TEST_UPDATE_TAG,
     )

@@ -24,9 +24,12 @@ def _ensure_local_neo4j_has_test_environment(neo4j_session):
 
 
 def _ensure_local_neo4j_has_test_organizations(neo4j_session):
+    transformed_orgs = cartography.intel.workos.organizations.transform(
+        tests.data.workos.organizations.WORKOS_ORGANIZATIONS
+    )
     cartography.intel.workos.organizations.load_organizations(
         neo4j_session,
-        tests.data.workos.organizations.WORKOS_ORGANIZATIONS,
+        transformed_orgs,
         TEST_CLIENT_ID,
         TEST_UPDATE_TAG,
     )

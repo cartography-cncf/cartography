@@ -14,9 +14,12 @@ TEST_CLIENT_ID = "client_1234567890abcdef"
 
 
 def _ensure_local_neo4j_has_test_users(neo4j_session):
+    transformed_users = cartography.intel.workos.users.transform(
+        tests.data.workos.users.WORKOS_USERS
+    )
     cartography.intel.workos.users.load_users(
         neo4j_session,
-        tests.data.workos.users.WORKOS_USERS,
+        transformed_users,
         TEST_CLIENT_ID,
         TEST_UPDATE_TAG,
     )
