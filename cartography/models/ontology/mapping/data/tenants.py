@@ -307,6 +307,23 @@ spacelift_mapping = OntologyMapping(
 # Tailscale
 # TailscaleTailnet: No field to map in TailscaleTailnet (minimal properties)
 
+# WorkOS Tenant mapping
+workos_tenants_mapping = OntologyMapping(
+    module_name="workos",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="WorkOSOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # status: Not available
+                # domain: Available via WorkOSOrganizationDomain relationship
+            ],
+        ),
+    ],
+)
+
 
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
@@ -324,4 +341,5 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "digitalocean": digitalocean_mapping,
     "sentinelone": sentinelone_mapping,
     "spacelift": spacelift_mapping,
+    "workos": workos_tenants_mapping,
 }

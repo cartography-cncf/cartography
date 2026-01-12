@@ -131,3 +131,6 @@
 
 ```{include} ../modules/workday/schema.md
 ```
+
+```{include} ../modules/workos/schema.md
+```
