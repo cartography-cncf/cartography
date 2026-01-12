@@ -4,6 +4,8 @@
 
 Represents a SentinelOne account, which is the top-level organizational unit for managing SentinelOne resources.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
