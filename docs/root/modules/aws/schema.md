@@ -4920,9 +4920,9 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
-## AWS Bedrock
+### AWS Bedrock
 
-### AWSBedrockFoundationModel
+#### AWSBedrockFoundationModel
 
 Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others.
 
@@ -4975,7 +4975,7 @@ Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/
     (AWSBedrockProvisionedModelThroughput)-[PROVIDES_CAPACITY_FOR]->(AWSBedrockFoundationModel)
     ```
 
-### AWSBedrockCustomModel
+#### AWSBedrockCustomModel
 
 Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html). Custom models are created through fine-tuning or continued pre-training of foundation models using customer-provided training data.
 
@@ -5028,7 +5028,7 @@ Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedr
     (AWSBedrockProvisionedModelThroughput)-[PROVIDES_CAPACITY_FOR]->(AWSBedrockCustomModel)
     ```
 
-### AWSBedrockAgent
+#### AWSBedrockAgent
 
 Representation of an AWS [Bedrock Agent](https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html). Agents are autonomous AI assistants that can break down tasks, use tools (Lambda functions), and search knowledge bases to accomplish complex goals.
 
@@ -5084,7 +5084,7 @@ Representation of an AWS [Bedrock Agent](https://docs.aws.amazon.com/bedrock/lat
     (AWSBedrockGuardrail)-[APPLIED_TO]->(AWSBedrockAgent)
     ```
 
-### AWSBedrockKnowledgeBase
+#### AWSBedrockKnowledgeBase
 
 Representation of an AWS [Bedrock Knowledge Base](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html). Knowledge bases enable RAG (Retrieval Augmented Generation) by converting documents from S3 into vector embeddings for semantic search.
 
@@ -5125,7 +5125,7 @@ Representation of an AWS [Bedrock Knowledge Base](https://docs.aws.amazon.com/be
     (AWSBedrockAgent)-[USES_KNOWLEDGE_BASE]->(AWSBedrockKnowledgeBase)
     ```
 
-### AWSBedrockGuardrail
+#### AWSBedrockGuardrail
 
 Representation of an AWS [Bedrock Guardrail](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html). Guardrails provide content filtering, safety controls, and policy enforcement for models and agents by blocking harmful content and enforcing responsible AI usage.
 
@@ -5168,7 +5168,7 @@ Representation of an AWS [Bedrock Guardrail](https://docs.aws.amazon.com/bedrock
     (AWSBedrockGuardrail)-[APPLIED_TO]->(AWSBedrockCustomModel)
     ```
 
-### AWSBedrockProvisionedModelThroughput
+#### AWSBedrockProvisionedModelThroughput
 
 Representation of AWS [Bedrock Provisioned Throughput](https://docs.aws.amazon.com/bedrock/latest/userguide/prov-throughput.html). Provisioned throughput provides reserved capacity for foundation models and custom models, ensuring consistent performance and availability for production workloads.
 
@@ -5208,7 +5208,7 @@ Representation of AWS [Bedrock Provisioned Throughput](https://docs.aws.amazon.c
     (AWSBedrockProvisionedModelThroughput)-[PROVIDES_CAPACITY_FOR]->(AWSBedrockCustomModel)
     ```
 
-## AWS SageMaker
+### AWS SageMaker
 
 ```mermaid
 graph LR
@@ -5249,7 +5249,7 @@ graph LR
     UserProfile -- HAS_EXECUTION_ROLE --> Role
 ```
 
-### AWSSageMakerDomain
+#### AWSSageMakerDomain
 
 Represents an [AWS SageMaker Domain](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeDomain.html). A Domain is a centralized environment for SageMaker Studio users and their resources.
 
@@ -5277,7 +5277,7 @@ Represents an [AWS SageMaker Domain](https://docs.aws.amazon.com/sagemaker/lates
     (AWSSageMakerDomain)-[:CONTAINS]->(AWSSageMakerUserProfile)
     ```
 
-### AWSSageMakerUserProfile
+#### AWSSageMakerUserProfile
 
 Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeUserProfile.html). A User Profile represents a user within a SageMaker Studio Domain.
 
@@ -5310,7 +5310,7 @@ Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker
     (AWSSageMakerUserProfile)-[:HAS_EXECUTION_ROLE]->(AWSRole)
     ```
 
-### AWSSageMakerNotebookInstance
+#### AWSSageMakerNotebookInstance
 
 Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeNotebookInstance.html). A Notebook Instance is a fully managed ML compute instance running Jupyter notebooks.
 
@@ -5344,7 +5344,7 @@ Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sage
     (AWSSageMakerNotebookInstance)-[:CAN_INVOKE]->(AWSSageMakerTrainingJob)
     ```
 
-### AWSSageMakerTrainingJob
+#### AWSSageMakerTrainingJob
 
 Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTrainingJob.html). A Training Job trains ML models using specified algorithms and datasets.
 
@@ -5384,7 +5384,7 @@ Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker
     (AWSSageMakerTrainingJob)-[:PRODUCES_MODEL_ARTIFACT]->(S3Bucket)
     ```
 
-### AWSSageMakerModel
+#### AWSSageMakerModel
 
 Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference.
 
@@ -5421,7 +5421,7 @@ Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest
     (AWSSageMakerModel)-[:DERIVES_FROM]->(AWSSageMakerModelPackage)
     ```
 
-### AWSSageMakerEndpointConfig
+#### AWSSageMakerEndpointConfig
 
 Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpointConfig.html). An Endpoint Config specifies the ML compute instances and model variants for deploying models. Allows for a model to provide a prediction to a request in real time.
 
@@ -5447,7 +5447,7 @@ Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com
     (AWSSageMakerEndpointConfig)-[:USES]->(AWSSageMakerModel)
     ```
 
-### AWSSageMakerEndpoint
+#### AWSSageMakerEndpoint
 
 Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpoint.html). An Endpoint provides a persistent HTTPS endpoint for real-time inference.
 
@@ -5475,7 +5475,7 @@ Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/lat
     (AWSSageMakerEndpoint)-[:USES]->(AWSSageMakerEndpointConfig)
     ```
 
-### AWSSageMakerTransformJob
+#### AWSSageMakerTransformJob
 
 Represents an [AWS SageMaker Transform Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTransformJob.html). A Transform Job performs batch inference on datasets. Takes
 a large dataset and uses batch inference to write multiple predictions to an S3 Bucket.
@@ -5508,7 +5508,7 @@ a large dataset and uses batch inference to write multiple predictions to an S3 
     (AWSSageMakerTransformJob)-[:WRITES_TO]->(S3Bucket)
     ```
 
-### AWSSageMakerModelPackageGroup
+#### AWSSageMakerModelPackageGroup
 
 Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackageGroup.html). A Model Package Group is a collection of versioned model packages in the SageMaker Model Registry.
 
@@ -5534,7 +5534,7 @@ Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sa
     (AWSSageMakerModelPackageGroup)-[:CONTAINS]->(AWSSageMakerModelPackage)
     ```
 
-### AWSSageMakerModelPackage
+#### AWSSageMakerModelPackage
 
 Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackage.html). A Model Package is a versioned model in the SageMaker Model Registry that acts as a blueprint for a deployed model.
 
