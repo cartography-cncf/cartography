@@ -97,3 +97,88 @@ There are many ways to allow Cartography to pull from more than one AWS account.
 		```
 1. [Optional] Configure AWS Retry settings using `AWS_MAX_ATTEMPTS` and `AWS_RETRY_MODE` environment variables. This helps in API Rate Limit throttling and TooManyRequestException related errors. For details, see AWS' [official guide](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables).
 1. [Optional] Use regional STS endpoints to avoid `InvalidToken` errors when assuming roles across regions. Add `sts_regional_endpoints = regional` to your AWS config file or set the `AWS_STS_REGIONAL_ENDPOINTS=regional` environment variable. [AWS Docs](https://docs.aws.amazon.com/sdkref/latest/guide/feature-sts-regionalized-endpoints.html).
+
+### Selective Syncing with `--aws-requested-syncs`
+
+By default, Cartography syncs all available AWS resource types. If you want to sync only specific AWS resources, you can use the `--aws-requested-syncs` command-line flag. This accepts a comma-separated list of resource identifiers.
+
+#### Usage Examples
+
+Sync only EC2 instances, S3 buckets, and IAM resources:
+```bash
+cartography --neo4j-uri bolt://localhost:7687 --aws-requested-syncs "ec2:instance,s3,iam"
+```
+
+Sync only ECR and Lambda:
+```bash
+cartography --neo4j-uri bolt://localhost:7687 --aws-requested-syncs "ecr,lambda_function"
+```
+
+#### Available Resource Identifiers
+
+The following resource identifiers can be specified with `--aws-requested-syncs`:
+
+- `acm:certificate` - AWS Certificate Manager certificates
+- `apigateway` - API Gateway REST APIs
+- `apigatewayv2` - API Gateway v2 (HTTP and WebSocket APIs)
+- `bedrock` - Amazon Bedrock resources
+- `cloudtrail` - CloudTrail trails
+- `cloudtrail_management_events` - CloudTrail management events
+- `cloudwatch` - CloudWatch resources
+- `codebuild` - CodeBuild projects
+- `cognito` - Cognito user pools
+- `config` - AWS Config resources
+- `dynamodb` - DynamoDB tables
+- `ec2:autoscalinggroup` - EC2 Auto Scaling groups
+- `ec2:images` - EC2 AMIs
+- `ec2:instance` - EC2 instances
+- `ec2:internet_gateway` - Internet gateways
+- `ec2:keypair` - EC2 key pairs
+- `ec2:launch_templates` - EC2 launch templates
+- `ec2:load_balancer` - Classic Load Balancers
+- `ec2:load_balancer_v2` - Application and Network Load Balancers
+- `ec2:network_acls` - Network ACLs
+- `ec2:network_interface` - Network interfaces
+- `ec2:reserved_instances` - EC2 Reserved Instances
+- `ec2:route_table` - Route tables
+- `ec2:security_group` - Security groups
+- `ec2:snapshots` - EBS snapshots
+- `ec2:subnet` - Subnets
+- `ec2:tgw` - Transit gateways
+- `ec2:volumes` - EBS volumes
+- `ec2:vpc` - VPCs
+- `ec2:vpc_endpoint` - VPC endpoints
+- `ec2:vpc_peering` - VPC peering connections
+- `ecr` - Elastic Container Registry repositories
+- `ecr:image_layers` - ECR image layers
+- `ecs` - Elastic Container Service clusters and services
+- `efs` - Elastic File System file systems
+- `eks` - Elastic Kubernetes Service clusters
+- `elasticache` - ElastiCache clusters
+- `elastic_ip_addresses` - Elastic IP addresses
+- `elasticsearch` - Elasticsearch domains
+- `emr` - Elastic MapReduce clusters
+- `eventbridge` - EventBridge rules
+- `glue` - AWS Glue resources
+- `guardduty` - GuardDuty findings
+- `iam` - IAM users, groups, roles, and policies
+- `iaminstanceprofiles` - IAM instance profiles
+- `identitycenter` - Identity Center (AWS SSO) instances
+- `inspector` - AWS Inspector findings
+- `kms` - KMS keys
+- `lambda_function` - Lambda functions
+- `permission_relationships` - IAM permission relationships
+- `rds` - RDS database instances and clusters
+- `redshift` - Redshift clusters
+- `resourcegroupstaggingapi` - AWS resource tags
+- `route53` - Route 53 hosted zones and records
+- `s3` - S3 buckets
+- `s3accountpublicaccessblock` - S3 account-level public access block configuration
+- `sagemaker` - SageMaker resources
+- `secretsmanager` - Secrets Manager secrets
+- `securityhub` - Security Hub findings
+- `sns` - SNS topics
+- `sqs` - SQS queues
+- `ssm` - Systems Manager
+
+**Note**: Cartography automatically handles resource dependencies and sync order internally, so you don't need to worry about the order in which you specify resources in the list. Using `--aws-requested-syncs` can significantly reduce sync time and API calls when you only need specific resources.
