@@ -13,6 +13,8 @@ U -- HAS_CHECKED_OUT --> A
 
 Representation of a SnipeIT Tenant.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
+
 |Field | Description|
 |-------|-------------|
 |id | SnipeIT Tenant ID e.g. "company name"|
@@ -32,6 +34,8 @@ Representation of a SnipeIT Tenant.
 ### SnipeitUser
 
 Representation of a SnipeIT User.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 |Field | Description|
 |-------|-------------|
@@ -58,6 +62,8 @@ Representation of a SnipeIT User.
 ### SnipeitAsset
 
 Representation of a SnipeIT asset.
+
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, KandjiDevice).
 
 |Field | Description|
 |-------|-------------|

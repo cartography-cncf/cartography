@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -58,6 +59,9 @@ class SpaceliftUserSchema(CartographyNodeSchema):
     """
 
     label: str = "SpaceliftUser"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: SpaceliftUserNodeProperties = SpaceliftUserNodeProperties()
     sub_resource_relationship: SpaceliftUserToAccountRel = SpaceliftUserToAccountRel()
     other_relationships = None

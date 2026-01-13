@@ -10,7 +10,7 @@ def test_transform_gcp_buckets():
     # Test buckets
     assert len(buckets) == 1
     bucket = buckets[0]
-    assert bucket["project_number"] == 9999
+    assert bucket["project_number"] == 123456789012
     assert bucket["id"] == "bucket_name"
     assert bucket["self_link"] == "https://www.googleapis.com/storage/v1/b/bucket_name"
     assert bucket["retention_period"] is None

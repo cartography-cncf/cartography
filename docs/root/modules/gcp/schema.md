@@ -4,6 +4,7 @@
 
 Representation of a GCP [Organization](https://cloud.google.com/resource-manager/reference/rest/v1/organizations) object.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount, AzureTenant).
 
 | Field          | Description                                                                                                                                                                             |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -79,6 +80,8 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
 
  Representation of a GCP [Project](https://cloud.google.com/resource-manager/reference/rest/v1/projects).  An additional helpful reference is the [Google Compute Platform resource hierarchy](https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy).
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount, AzureTenant).
+
  | Field          | Description                                                                                                                                                                   |
  | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
  | firstseen      | Timestamp of when a sync job first discovered this node                                                                                                                       |
@@ -123,25 +126,25 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
 
 | Field                         | Description                                                                                                                                                                                                                                         |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| firstseen                     | Timestamp of when a sync job first discovered this node                                                                                                                                                                                             |
-| lastupdated                   | Timestamp of the last time the node was updated                                                                                                                                                                                                     |
-| id                            | The ID of the storage bucket, e.g. "bucket-12345"                                                                                                                                                                                                   |
-| projectnumber                 | The number uniquely identifying the project associated with the storage bucket, e.g. '987654'                                                                                                                                                       |
-| self_link                     | The URI of the storage bucket                                                                                                                                                                                                                       |
-| kind                          | The kind of item this is. For storage buckets, this is always storage#bucket                                                                                                                                                                        |
+| firstseen                     | Timestamp of when a sync job first discovered this node |
+| lastupdated                   | Timestamp of the last time the node was updated |
+| id                            | The ID of the storage bucket, e.g. "bucket-12345" |
+| projectnumber                 | The number uniquely identifying the project associated with the storage bucket, e.g. '987654' |
+| self_link                     | The URI of the storage bucket |
+| kind                          | The kind of item this is. For storage buckets, this is always storage#bucket |
 | location                      | The location of the bucket. Object data for objects in the bucket resides in physical storage within this region. Defaults to US. See [Cloud Storage bucket locations](https://cloud.google.com/storage/docs/locations) for the authoritative list. |
-| location_type                 | The type of location that the bucket resides in, as determined by the `location` property                                                                                                                                                           |
-| meta_generation               | The metadata generation of this bucket                                                                                                                                                                                                              |
-| storage_class                 | The bucket's default storage class, used whenever no `storageClass` is specified for a newly-created object. For more information, see [storage classes](https://cloud.google.com/storage/docs/storage-classes)                                     |
-| time_created                  | The creation time of the bucket in RFC 3339 format                                                                                                                                                                                                  |
-| retention_period              | The period of time, in seconds, that objects in the bucket must be retained and cannot be deleted, overwritten, or archived                                                                                                                         |
-| iam_config_bucket_policy_only | The bucket's [Bucket Policy Only](https://cloud.google.com/storage/docs/bucket-policy-only) configuration                                                                                                                                           |
-| owner_entity                  | The entity, in the form `project-owner-projectId`                                                                                                                                                                                                   |
-| owner_entity_id               | The ID for the entity                                                                                                                                                                                                                               |
-| versioning_enabled            | The bucket's versioning configuration (if set to `True`, versioning is fully enabled for this bucket)                                                                                                                                               |
-| log_bucket                    | The destination bucket where the current bucket's logs should be placed                                                                                                                                                                             |
-| requester_pays                | The bucket's billing configuration (if set to true, Requester Pays is enabled for this bucket)                                                                                                                                                      |
-| default_kms_key_name          | A Cloud KMS key that will be used to encrypt objects inserted into this bucket, if no encryption method is specified                                                                                                                                |
+| location_type                 | The type of location that the bucket resides in, as determined by the `location` property |
+| meta_generation               | The metadata generation of this bucket |
+| storage_class                 | The bucket's default storage class, used whenever no `storageClass` is specified for a newly-created object. For more information, see [storage classes](https://cloud.google.com/storage/docs/storage-classes) |
+| time_created                  | The creation time of the bucket in RFC 3339 format |
+| retention_period              | The period of time, in seconds, that objects in the bucket must be retained and cannot be deleted, overwritten, or archived |
+| iam_config_bucket_policy_only | The bucket's [Bucket Policy Only](https://cloud.google.com/storage/docs/bucket-policy-only) configuration |
+| owner_entity                  | The entity, in the form `project-owner-projectId` |
+| owner_entity_id               | The ID for the entity |
+| versioning_enabled            | The bucket's versioning configuration (if set to `True`, versioning is fully enabled for this bucket) |
+| log_bucket                    | The destination bucket where the current bucket's logs should be placed |
+| requester_pays                | The bucket's billing configuration (if set to true, Requester Pays is enabled for this bucket) |
+| default_kms_key_name          | A Cloud KMS key that will be used to encrypt objects inserted into this bucket, if no encryption method is specified |
 
 #### Relationships
 
@@ -205,18 +208,18 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
 
 Representation of a GCP [Instance](https://cloud.google.com/compute/docs/reference/rest/v1/instances).  Additional references can be found in the [official documentation]( https://cloud.google.com/compute/docs/concepts).
 
-| Field            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| firstseen        | Timestamp of when a sync job first discovered this node                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| lastupdated      | Timestamp of the last time the node was updated                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| id               | The partial resource URI representing this instance. Has the form `projects/{project_name}/zones/{zone_name}/instances/{instance_name}`.                                                                                                                                                                                                                                                                                                                                 |
-| partial_uri      | Same as `id` above.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| self_link        | The full resource URI representing this instance. Has the form `https://www.googleapis.com/compute/v1/{partial_uri}`                                                                                                                                                                                                                                                                                                                                                     |
-| instancename     | The name of the instance, e.g. "my-instance"                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| zone_name        | The zone that the instance is installed on                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| hostname         | If present, the hostname of the instance                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Field            | Description |
+| ---------------- | ----------- |
+| firstseen        | Timestamp of when a sync job first discovered this node |
+| lastupdated      | Timestamp of the last time the node was updated |
+| id               | The partial resource URI representing this instance. Has the form `projects/{project_name}/zones/{zone_name}/instances/{instance_name}`. |
+| partial_uri      | Same as `id` above. |
+| self_link        | The full resource URI representing this instance. Has the form `https://www.googleapis.com/compute/v1/{partial_uri}` |
+| instancename     | The name of the instance, e.g. "my-instance" |
+| zone_name        | The zone that the instance is installed on |
+| hostname         | If present, the hostname of the instance |
 | exposed_internet | Set to True  with `exposed_internet_type = 'direct'` if there is an 'allow' IPRule attached to one of the instance's ingress firewalls with the following conditions:  The 'allow' IpRule allows traffic from one or more TCP ports, and the 'allow' IpRule is not superceded by a 'deny' IPRule (in GCP, a firewall rule of priority 1 gets applied ahead of a firewall rule of priority 100, and 'deny' rules of the same priority are applied ahead of 'allow' rules) |
-| status           | The [GCP Instance Lifecycle](https://cloud.google.com/compute/docs/instances/instance-life-cycle) state of the instance                                                                                                                                                                                                                                                                                                                                                  |
+| status           | The [GCP Instance Lifecycle](https://cloud.google.com/compute/docs/instances/instance-life-cycle) state of the instance |
 #### Relationships
 
 - GCPInstances are resources of GCPProjects.
@@ -300,18 +303,18 @@ Representation of a Tag defined on a GCP Instance or GCP Firewall.  Tags are def
 
 Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/rest/v1/networks/).  In GCP documentation this is also known simply as a "Network" object.
 
-| Field                      | Description                                                                                                                                                                                                                                                                                                                         |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| firstseen                  | Timestamp of when a sync job first discovered this node                                                                                                                                                                                                                                                                             |
-| lastupdated                | Timestamp of the last time the node was updated                                                                                                                                                                                                                                                                                     |
-| id                         | The partial resource URI representing this VPC.  Has the form `projects/{project_name}/global/networks/{vpc name}`.                                                                                                                                                                                                                 |
-| partial_uri                | Same as `id`                                                                                                                                                                                                                                                                                                                        |
-| self_link                  | The full resource URI representing this VPC. Has the form `https://www.googleapis.com/compute/v1/{partial_uri}`                                                                                                                                                                                                                     |
-| name                       | The name of the VPC                                                                                                                                                                                                                                                                                                                 |
-| project_id                 | The project ID that this VPC belongs to                                                                                                                                                                                                                                                                                             |
+| Field                      | Description |
+| -------------------------- | ----------- |
+| firstseen                  | Timestamp of when a sync job first discovered this node |
+| lastupdated                | Timestamp of the last time the node was updated |
+| id                         | The partial resource URI representing this VPC.  Has the form `projects/{project_name}/global/networks/{vpc name}`. |
+| partial_uri                | Same as `id` |
+| self_link                  | The full resource URI representing this VPC. Has the form `https://www.googleapis.com/compute/v1/{partial_uri}` |
+| name                       | The name of the VPC |
+| project_id                 | The project ID that this VPC belongs to |
 | auto_create_subnetworks    | When set to true, the VPC network is created in "auto" mode. When set to false, the VPC network is created in "custom" mode.  An auto mode VPC network starts with one subnet per region. Each subnet has a predetermined range as described in [Auto mode VPC network IP ranges](https://cloud.google.com/vpc/docs/vpc#ip-ranges). |
-| routing_confg_routing_mode | The network-wide routing mode to use. If set to REGIONAL, this network's Cloud Routers will only advertise routes with subnets of this network in the same region as the router. If set to GLOBAL, this network's Cloud Routers will advertise routes with all subnets of this network, across regions.                             |
-| description                | A description for the VPC                                                                                                                                                                                                                                                                                                           |
+| routing_confg_routing_mode | The network-wide routing mode to use. If set to REGIONAL, this network's Cloud Routers will only advertise routes with subnets of this network in the same region as the router. If set to GLOBAL, this network's Cloud Routers will advertise routes with all subnets of this network, across regions. |
+| description                | A description for the VPC |
 
 #### Relationships
 
@@ -355,14 +358,14 @@ Representation of a GCP [VPC](https://cloud.google.com/compute/docs/reference/re
 
 Representation of a GCP Instance's [network interface](https://cloud.google.com/compute/docs/reference/rest/v1/instances/list) (scroll down to the fields on "networkInterface").
 
-| Field       | Description                                                                                                                                                                                                                                                                                                                                |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| firstseen   | Timestamp of when a sync job first discovered this node                                                                                                                                                                                                                                                                                    |
-| lastupdated | Timestamp of the last time the node was updated                                                                                                                                                                                                                                                                                            |
+| Field       | Description |
+| ----------- | ----------- |
+| firstseen   | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | id          | A partial resource URI representing this network interface.  Note: GCP does not define a partial resource URI for network interfaces, so we create one so we can uniquely identify GCP network interfaces.  Has the form `projects/{project_name}/zones/{zone_name}/instances/{instance_name}/networkinterfaces/{network interface name}`. |
-| nic_id      | Same as `id`                                                                                                                                                                                                                                                                                                                               |
-| name        | The name of the network interface                                                                                                                                                                                                                                                                                                          |
-| private_ip  | The private IP address of this network interface.  This IP is valid on the network interface's VPC.                                                                                                                                                                                                                                        |
+| nic_id      | Same as `id` |
+| name        | The name of the network interface |
+| private_ip  | The private IP address of this network interface.  This IP is valid on the network interface's VPC. |
 
 #### Relationships
 
@@ -389,18 +392,18 @@ Representation of a GCP Instance's [network interface](https://cloud.google.com/
 
 Representation of the AccessConfig object on a GCP Instance's [network interface](https://cloud.google.com/compute/docs/reference/rest/v1/instances/list) (scroll down to the fields on "networkInterface").
 
-| Field                  | Description                                                                                                                                                                                                                                                                                                                                                                       |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| firstseen              | Timestamp of when a sync job first discovered this node                                                                                                                                                                                                                                                                                                                           |
-| lastupdated            | Timestamp of the last time the node was updated                                                                                                                                                                                                                                                                                                                                   |
+| Field                  | Description |
+| ---------------------- | ----------- |
+| firstseen              | Timestamp of when a sync job first discovered this node |
+| lastupdated            | Timestamp of the last time the node was updated |
 | id                     | A partial resource URI representing this AccessConfig.  Note: GCP does not define a partial resource URI for AccessConfigs, so we create one so we can uniquely identify GCP network interface access configs.  Has the form `projects/{project_name}/zones/{zone_name}/instances/{instance_name}/networkinterfaces/{network interface name}/accessconfigs/{access config type}`. |
-| partial_uri            | Same as `id`                                                                                                                                                                                                                                                                                                                                                                      |
-| type                   | The type of configuration. GCP docs say: "The default and only option is ONE_TO_ONE_NAT."                                                                                                                                                                                                                                                                                         |
-| name                   | The name of this access configuration. The default and recommended name is External NAT, but you can use any arbitrary string, such as My external IP or Network Access.                                                                                                                                                                                                          |
-| public_ip              | The external IP associated with this instance                                                                                                                                                                                                                                                                                                                                     |
-| set_public_ptr         | Specifies whether a public DNS 'PTR' record should be created to map the external IP address of the instance to a DNS domain name.                                                                                                                                                                                                                                                |
-| public_ptr_domain_name | The DNS domain name for the public PTR record. You can set this field only if the setPublicPtr field is enabled.                                                                                                                                                                                                                                                                  |
-| network_tier           | This signifies the networking tier used for configuring this access configuration and can only take the following values: PREMIUM, STANDARD.                                                                                                                                                                                                                                      |
+| partial_uri            | Same as `id` |
+| type                   | The type of configuration. GCP docs say: "The default and only option is ONE_TO_ONE_NAT." |
+| name                   | The name of this access configuration. The default and recommended name is External NAT, but you can use any arbitrary string, such as My external IP or Network Access. |
+| public_ip              | The external IP associated with this instance |
+| set_public_ptr         | Specifies whether a public DNS 'PTR' record should be created to map the external IP address of the instance to a DNS domain name. |
+| public_ptr_domain_name | The DNS domain name for the public PTR record. You can set this field only if the setPublicPtr field is enabled. |
+| network_tier           | This signifies the networking tier used for configuring this access configuration and can only take the following values: PREMIUM, STANDARD. |
 
 #### Relationships
 
@@ -478,16 +481,16 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 
 Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/reference/rest/v1/firewalls/list).
 
-| Field                       | Description                                                                                                                                                                                                                                                                         |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| firstseen                   | Timestamp of when a sync job first discovered this node                                                                                                                                                                                                                             |
-| lastupdated                 | Timestamp of the last time the node was updated                                                                                                                                                                                                                                     |
-| id                          | A partial resource URI representing this Firewall.                                                                                                                                                                                                                                  |
-| partial_uri                 | Same as `id`                                                                                                                                                                                                                                                                        |
-| direction                   | Either 'INGRESS' for inbound or 'EGRESS' for outbound                                                                                                                                                                                                                               |
-| disabled                    | Whether this firewall object is disabled                                                                                                                                                                                                                                            |
-| priority                    | The priority of this firewall rule from 1 (apply this first)-65535 (apply this last)                                                                                                                                                                                                |
-| self_link                   | The full resource URI to this firewall                                                                                                                                                                                                                                              |
+| Field                       | Description |
+| --------------------------- | ----------- |
+| firstseen                   | Timestamp of when a sync job first discovered this node |
+| lastupdated                 | Timestamp of the last time the node was updated |
+| id                          | A partial resource URI representing this Firewall. |
+| partial_uri                 | Same as `id` |
+| direction                   | Either 'INGRESS' for inbound or 'EGRESS' for outbound |
+| disabled                    | Whether this firewall object is disabled |
+| priority                    | The priority of this firewall rule from 1 (apply this first)-65535 (apply this last) |
+| self_link                   | The full resource URI to this firewall |
 | has_target_service_accounts | Set to True if this Firewall has target service accounts defined. This field is currently a placeholder for future functionality to add GCP IAM objects to Cartography. If True, this firewall rule will only apply to GCP instances that use the specified target service account. |
 
 #### Relationships
@@ -757,6 +760,8 @@ Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/r
 
 Representation of a GCP [Bigtable Instance](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances).
 
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, DynamoDBTable, AzureSQLDatabase).
+
 | Field | Description |
 |---|---|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -884,9 +889,9 @@ Representation of a GCP [Bigtable Backup](https://cloud.google.com/bigtable/docs
     (GCPBigtableTable)-[:BACKED_UP_AS]->(GCPBigtableBackup)
     ```
 
-## Vertex AI Resources
+### Vertex AI Resources
 
-### Overview
+#### Overview
 
 Google Cloud Vertex AI is a unified machine learning platform for building, deploying, and scaling ML models. Cartography ingests the following Vertex AI resources:
 
@@ -919,7 +924,7 @@ graph LR
     Instance -->|USES_SERVICE_ACCOUNT| ServiceAccount
 ```
 
-### GCPVertexAIModel
+#### GCPVertexAIModel
 
 Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models).
 
@@ -963,7 +968,7 @@ Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/doc
     (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
     ```
 
-### GCPVertexAIEndpoint
+#### GCPVertexAIEndpoint
 
 Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints).
 
@@ -992,7 +997,7 @@ Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/
     (GCPVertexAIEndpoint)-[:SERVES]->(GCPVertexAIDeployedModel)
     ```
 
-### GCPVertexAIDeployedModel
+#### GCPVertexAIDeployedModel
 
 Representation of a deployed model on a Vertex AI Endpoint. This is derived from the [deployedModels field](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints#DeployedModel) on an Endpoint.
 
@@ -1021,7 +1026,7 @@ Representation of a deployed model on a Vertex AI Endpoint. This is derived from
     (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
     ```
 
-### GCPVertexAIWorkbenchInstance
+#### GCPVertexAIWorkbenchInstance
 
 Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/vertex-ai/docs/workbench/reference/rest/v2/projects.locations.instances) (v2 API).
 
@@ -1051,7 +1056,7 @@ Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/
     (GCPVertexAIWorkbenchInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
 
-### GCPVertexAITrainingPipeline
+#### GCPVertexAITrainingPipeline
 
 Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.trainingPipelines).
 
@@ -1096,7 +1101,7 @@ Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/v
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPBucket)
     ```
 
-### GCPVertexAIFeatureGroup
+#### GCPVertexAIFeatureGroup
 
 Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.featureGroups). Feature Groups are the new architecture for Vertex AI Feature Store.
 
@@ -1120,7 +1125,7 @@ Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/verte
     (GCPProject)-[:RESOURCE]->(GCPVertexAIFeatureGroup)
     ```
 
-### GCPVertexAIDataset
+#### GCPVertexAIDataset
 
 Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.datasets).
 
@@ -1149,4 +1154,123 @@ Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/d
 - GCPVertexAITrainingPipelines read from GCPVertexAIDatasets.
     ```
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPVertexAIDataset)
+    ```
+
+### Cloud SQL Resources
+
+#### GCPCloudSQLInstance
+
+Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The instance's `selfLink`, which is its unique URI. |
+| name | The user-assigned name of the instance. |
+| database\_version | The database engine type and version (e.g., `POSTGRES_15`). |
+| region | The GCP region the instance lives in. |
+| gce\_zone | The specific Compute Engine zone the instance is serving from. |
+| state | The current state of the instance (e.g., `RUNNABLE`). |
+| backend\_type | The type of instance (e.g., `SECOND_GEN`). |
+| service\_account\_email | The email of the service account used by this instance. |
+| connection\_name | The connection string for accessing the instance (e.g., `project:region:instance`). |
+| tier | The machine type tier (e.g., `db-custom-1-3840`). |
+| disk\_size\_gb | Storage capacity in gigabytes. |
+| disk\_type | Storage disk type (e.g., `PD_SSD`, `PD_HDD`, `HYPERDISK_BALANCED`). |
+| availability\_type | Availability configuration (`ZONAL` or `REGIONAL` for high availability). |
+| backup\_enabled | Boolean indicating if automated backups are enabled. |
+| require\_ssl | Boolean indicating if SSL/TLS encryption is required for connections. |
+| ip\_addresses | JSON string containing array of IP addresses with their types (PRIMARY, PRIVATE, OUTGOING). |
+| backup\_configuration | JSON string containing full backup configuration including retention and point-in-time recovery settings. |
+
+#### Relationships
+
+  - GCPCloudSQLInstances are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLInstance)
+    ```
+  - GCPCloudSQLInstances are associated with GCPVpcs.
+    ```
+    (GCPCloudSQLInstance)-[:ASSOCIATED_WITH]->(GCPVpc)
+    ```
+  - GCPCloudSQLInstances use GCPServiceAccounts.
+    ```
+    (GCPCloudSQLInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+#### GCPCloudSQLDatabase
+
+Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/databases).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID and database name. |
+| name | The name of the database. |
+| charset | The character set for the database. |
+| collation | The collation for the database. |
+
+#### Relationships
+
+  - GCPCloudSQLDatabases are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLDatabase)
+    ```
+  - GCPCloudSQLInstances contain GCPCloudSQLDatabases.
+    ```
+    (GCPCloudSQLInstance)-[:CONTAINS]->(GCPCloudSQLDatabase)
+    ```
+
+#### GCPCloudSQLUser
+
+Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/users).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID and the user's name and host. |
+| name | The name of the user. |
+| host | The host from which the user is allowed to connect. |
+
+#### Relationships
+
+  - GCPCloudSQLUsers are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLUser)
+    ```
+  - GCPCloudSQLInstances have GCPCloudSQLUsers.
+    ```
+    (GCPCloudSQLInstance)-[:HAS_USER]->(GCPCloudSQLUser)
+    ```
+
+#### GCPCloudSQLBackupConfiguration
+
+Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#backupconfiguration). This node captures the backup settings for a Cloud SQL instance.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | A unique ID constructed from the parent instance ID with `/backupConfig` suffix. |
+| enabled | Boolean indicating whether automated backups are enabled. |
+| start\_time | The start time for the daily backup window in UTC (HH:MM format). |
+| location | The location where backups are stored. |
+| point\_in\_time\_recovery\_enabled | Boolean indicating whether point-in-time recovery is enabled. |
+| transaction\_log\_retention\_days | Number of days of transaction logs retained for point-in-time recovery. |
+| backup\_retention\_settings | String representation of backup retention configuration (e.g., retained backup count). |
+| binary\_log\_enabled | Boolean indicating whether binary logging is enabled. |
+| instance\_id | The ID of the parent Cloud SQL instance. |
+
+#### Relationships
+
+  - GCPCloudSQLBackupConfigurations are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudSQLBackupConfiguration)
+    ```
+  - GCPCloudSQLInstances have GCPCloudSQLBackupConfigurations.
+    ```
+    (GCPCloudSQLInstance)-[:HAS_BACKUP_CONFIG]->(GCPCloudSQLBackupConfiguration)
     ```

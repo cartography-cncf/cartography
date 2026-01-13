@@ -26,6 +26,8 @@ U -- MEMBER_OF --> W
 
 Provides details of a single organization for a user.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | id | The organization UUID |
@@ -94,6 +96,8 @@ Provides details of a single workspace.
 ### AirbyteUser
 
 Provides details of a single user in an organization.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field | Description |
 |-------|-------------|

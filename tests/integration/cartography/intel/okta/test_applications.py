@@ -52,7 +52,7 @@ def test_sync_okta_applications(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
         ON CREATE SET o.firstseen = timestamp()
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=TEST_ORG_ID,
         UPDATE_TAG=TEST_UPDATE_TAG,
@@ -115,7 +115,7 @@ def test_sync_okta_applications_with_users(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(u1:OktaUser{id: '00ui2sVIFZNCNKFFNBPM'})
         SET u1.email = 'user1@example.com', u1.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: '00ujsgVNDRESKKXERBUJ'})
@@ -180,7 +180,7 @@ def test_sync_okta_applications_with_groups(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(g1:OktaGroup{id: '00gbkkGFFWZDLCNTAGQR'})
         SET g1.name = 'Engineering', g1.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(g2:OktaGroup{id: '00gg0xVALADWBPXOFZAS'})
@@ -260,7 +260,7 @@ def test_sync_okta_applications_with_reply_urls(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=TEST_ORG_ID,
         UPDATE_TAG=TEST_UPDATE_TAG,
@@ -323,7 +323,7 @@ def test_sync_okta_applications_updates_existing(
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(app:OktaApplication{id: 'app-existing'})
         SET app.name = 'old_name',
             app.label = 'Old Label',

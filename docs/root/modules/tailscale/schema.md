@@ -19,6 +19,8 @@ D -- TAGGED --> T
 
 Settings for a tailnet (aka Tenant).
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | id    | ID of the Tailnet (name of the organization)
@@ -48,6 +50,8 @@ Settings for a tailnet (aka Tenant).
 ### TailscaleUser
 
 Representation of a user within a tailnet.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field | Description |
 |-------|-------------|
@@ -89,6 +93,8 @@ Representation of a user within a tailnet.
 ### TailscaleDevice
 
 A Tailscale device (sometimes referred to as *node* or *machine*), is any computer or mobile device that joins a tailnet.
+
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, KandjiDevice).
 
 | Field | Description |
 |-------|-------------|

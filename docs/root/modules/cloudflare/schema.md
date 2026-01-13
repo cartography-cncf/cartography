@@ -13,6 +13,8 @@ Z -- RESOURCE --> CloudflareDNSRecord
 
 Represents the Cloudflare Account (aka Tenant)
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | id | Identifier |
@@ -62,6 +64,8 @@ Represents a user role in Cloudflare
 ### CloudflareMember
 
 Represents a membership in a Cloudflare account.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field | Description |
 |-------|-------------|

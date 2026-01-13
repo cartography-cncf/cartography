@@ -20,6 +20,10 @@ from cartography.intel.gcp import bigtable_cluster
 from cartography.intel.gcp import bigtable_instance
 from cartography.intel.gcp import bigtable_table
 from cartography.intel.gcp import cai
+from cartography.intel.gcp import cloud_sql_backup_config
+from cartography.intel.gcp import cloud_sql_database
+from cartography.intel.gcp import cloud_sql_instance
+from cartography.intel.gcp import cloud_sql_user
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
@@ -50,7 +54,9 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam bigtable cai aiplatform")
+Services = namedtuple(
+    "Services", "compute storage gke dns iam bigtable cai aiplatform cloud_sql"
+)
 service_names = Services(
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
@@ -60,6 +66,7 @@ service_names = Services(
     bigtable="bigtableadmin.googleapis.com",
     cai="cloudasset.googleapis.com",
     aiplatform="aiplatform.googleapis.com",
+    cloud_sql="sqladmin.googleapis.com",
 )
 
 
@@ -405,6 +412,45 @@ def _sync_project_resources(
             gcp_update_tag,
             common_job_parameters,
         )
+
+        if service_names.cloud_sql in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
+            cloud_sql_cred = build_client("sqladmin", "v1beta4")
+
+            instances_raw = cloud_sql_instance.sync_sql_instances(
+                neo4j_session,
+                cloud_sql_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+            if instances_raw:
+                cloud_sql_database.sync_sql_databases(
+                    neo4j_session,
+                    cloud_sql_cred,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                cloud_sql_user.sync_sql_users(
+                    neo4j_session,
+                    cloud_sql_cred,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                cloud_sql_backup_config.sync_sql_backup_configs(
+                    neo4j_session,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         del common_job_parameters["PROJECT_ID"]
 

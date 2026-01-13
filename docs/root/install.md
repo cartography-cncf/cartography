@@ -63,6 +63,7 @@ machine to pull data from AWS.
 
         - `AWS_DEFAULT_REGION` must be specified.
         - The docker-compose.yml maps in `~/.aws/` on your host machine to `/var/cartography/.aws` in the cartography container so that the container has access to AWS profile and credential files.
+        - You can use `--aws-requested-syncs` to sync only specific AWS resources instead of all of them. This accepts a comma-separated list of resource identifiers. For example, to sync only EC2 instances, S3 buckets, and IAM resources: `--aws-requested-syncs "ec2:instance,s3,iam"`. See [AWS Configuration](https://cartography-cncf.github.io/cartography/modules/aws/config.html#selective-syncing-with---aws-requested-syncs) for the full list of available resources.
 
 1. **Run security frameworks against your graph.**
 

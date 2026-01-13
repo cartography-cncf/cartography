@@ -44,6 +44,8 @@ Regular links shows relationships pulled from Keycloak API, think links are infe
 
 Represents a Keycloak realm, which is a security domain where users, groups, roles, and other entities are managed.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
@@ -157,6 +159,8 @@ Represents a Keycloak realm, which is a security domain where users, groups, rol
 
 Represents a Keycloak client application that can request authentication and authorization services from the realm.
 
+> **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable cross-platform queries for client applications across different systems (e.g., OktaApplication, EntraApplication).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
@@ -253,6 +257,8 @@ Represents a group of users in Keycloak that can be used for organizing users an
 ### KeycloakUser
 
 Represents a user in the Keycloak realm with authentication and profile information.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field | Description |
 |-------|-------------|

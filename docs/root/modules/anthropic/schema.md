@@ -16,6 +16,8 @@ U -- ADMIN_OF --> W
 
 Represents an Anthropic Organization
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | id | The identifier, which can be referenced in API endpoints |
@@ -35,6 +37,8 @@ Represents an Anthropic Organization
 ### AnthropicUser
 
 Represents an individual `user` within an organization.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field | Description |
 |-------|-------------|
@@ -101,6 +105,8 @@ Represents an individual workspace.
 ### AnthropicApiKey
 
 Represents an individual API key in a project.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API keys across different systems (e.g., OpenAIApiKey, ScalewayAPIKey).
 
 | Field | Description |
 |-------|-------------|
