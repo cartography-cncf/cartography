@@ -31,6 +31,10 @@ DESCRIBE_FIREWALLS = [
                 "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/azureFirewalls/test-firewall-1/azureFirewallIpConfigurations/ipconfig1",
                 "name": "ipconfig1",
                 "private_ip_address": "10.0.1.4",
+                "private_ip_allocation_method": "Dynamic",
+                "provisioning_state": "Succeeded",
+                "type": "Microsoft.Network/azureFirewalls/azureFirewallIpConfigurations",
+                "etag": 'W/"11111111-1111-1111-1111-111111111111"',
                 "subnet": {
                     "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/test-vnet/subnets/AzureFirewallSubnet",
                 },
@@ -38,7 +42,37 @@ DESCRIBE_FIREWALLS = [
                     "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/fw-pip-1",
                 },
             },
+            {
+                "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/azureFirewalls/test-firewall-1/azureFirewallIpConfigurations/ipconfig2",
+                "name": "ipconfig2",
+                "private_ip_address": "10.0.1.5",
+                "private_ip_allocation_method": "Dynamic",
+                "provisioning_state": "Succeeded",
+                "type": "Microsoft.Network/azureFirewalls/azureFirewallIpConfigurations",
+                "etag": 'W/"22222222-2222-2222-2222-222222222222"',
+                "subnet": {
+                    "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/test-vnet/subnets/AzureFirewallSubnet",
+                },
+                "public_ip_address": {
+                    "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/fw-pip-2",
+                },
+            },
         ],
+        "management_ip_configuration": {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/azureFirewalls/test-firewall-1/azureFirewallIpConfigurations/mgmt-ipconfig",
+            "name": "mgmt-ipconfig",
+            "private_ip_address": "10.0.1.10",
+            "private_ip_allocation_method": "Dynamic",
+            "provisioning_state": "Succeeded",
+            "type": "Microsoft.Network/azureFirewalls/azureFirewallIpConfigurations",
+            "etag": 'W/"33333333-3333-3333-3333-333333333333"',
+            "subnet": {
+                "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/virtualNetworks/test-vnet/subnets/AzureFirewallManagementSubnet",
+            },
+            "public_ip_address": {
+                "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/fw-mgmt-pip",
+            },
+        },
         "network_rule_collections": [
             {
                 "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/azureFirewalls/test-firewall-1/networkRuleCollections/allow-ssh",

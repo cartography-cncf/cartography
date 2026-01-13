@@ -12,6 +12,13 @@ S -- RESOURCE --> SA(StorageAccount)
 S -- RESOURCE --> CA(CosmosDBAccount)
 S -- RESOURCE --> NIC(NetworkInterface)
 S -- RESOURCE --> PIP(PublicIPAddress)
+S -- RESOURCE --> FW(Firewall)
+S -- RESOURCE --> FWP(FirewallPolicy)
+S -- RESOURCE --> FWIP(FirewallIPConfig)
+FW -- HAS_IP_CONFIGURATION --> FWIP
+FW -- USES_POLICY --> FWP
+FWIP -- IN_SUBNET --> Subnet
+FWIP -- USES_PUBLIC_IP --> PIP
 S -- RESOURCE --> RA(RoleAssignment)
 S -- RESOURCE --> RD(RoleDefinition)
 S -- RESOURCE --> Permissions
@@ -2157,9 +2164,14 @@ The following fields capture critical security configuration:
     (AzureFirewall)-[:USES_POLICY]->(:AzureFirewallPolicy)
     ```
 
-  - An Azure Firewall is connected to a Virtual Network (for AZFW_VNet deployments).
+  - An Azure Firewall has one or more IP Configurations.
     ```cypher
-    (AzureFirewall)-[:CONNECTED_VNET]->(:AzureVirtualNetwork)
+    (AzureFirewall)-[:HAS_IP_CONFIGURATION]->(:AzureFirewallIPConfiguration)
+    ```
+
+  - An Azure Firewall is a member of a Virtual Network (for AZFW_VNet deployments).
+    ```cypher
+    (AzureFirewall)-[:MEMBER_OF]->(:AzureVirtualNetwork)
     ```
 
   - An Azure Firewall is deployed to a Virtual Hub (for AZFW_Hub deployments).
@@ -2225,6 +2237,57 @@ The following fields capture critical security configuration:
   - An Azure Firewall Policy can inherit from a parent policy.
     ```cypher
     (AzureFirewallPolicy)-[:INHERITS_FROM]->(:AzureFirewallPolicy)
+    ```
+
+### AzureFirewallIPConfiguration
+
+Representation of an [Azure Firewall IP Configuration](https://learn.microsoft.com/en-us/rest/api/firewall/azure-firewalls/get).
+
+Azure Firewall IP Configurations define the network connectivity settings for an Azure Firewall instance. Each IP configuration associates the firewall with a subnet and a public IP address. Firewalls can have multiple IP configurations for load balancing and high availability. Management IP configurations provide dedicated connectivity for control plane operations.
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the IP Configuration.   |
+| name        | The name of the IP Configuration.               |
+| private_ip_address    | The private IP address assigned to the Firewall in the subnet.           |
+| private_ip_allocation_method    | IP allocation method: Dynamic or Static.           |
+| provisioning_state    | The provisioning state (e.g., Succeeded).           |
+| type    | The resource type (Microsoft.Network/azureFirewalls/azureFirewallIpConfigurations).           |
+| etag    | A unique read-only string that changes when the resource is updated.           |
+| subnet_id    | Resource ID of the subnet this IP configuration connects to.           |
+| public_ip_address_id    | Resource ID of the public IP address used by this configuration.           |
+| firewall_id    | Resource ID of the parent Azure Firewall.           |
+
+#### Security Properties
+
+The following fields capture critical network configuration:
+
+- **subnet_id**: Identifies which Azure subnet the firewall protects (typically AzureFirewallSubnet or AzureFirewallManagementSubnet)
+- **public_ip_address_id**: Public IP used for outbound traffic and management
+- **private_ip_address**: Internal IP for routing protected subnet traffic through the firewall
+
+#### Relationships
+
+  - An Azure Firewall IP Configuration is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureFirewallIPConfiguration)
+    ```
+
+  - An Azure Firewall has one or more IP Configurations.
+    ```cypher
+    (AzureFirewall)-[:HAS_IP_CONFIGURATION]->(:AzureFirewallIPConfiguration)
+    ```
+
+  - An Azure Firewall IP Configuration connects to a Subnet.
+    ```cypher
+    (AzureFirewallIPConfiguration)-[:IN_SUBNET]->(:AzureSubnet)
+    ```
+
+  - An Azure Firewall IP Configuration uses a Public IP Address.
+    ```cypher
+    (AzureFirewallIPConfiguration)-[:USES_PUBLIC_IP]->(:AzurePublicIPAddress)
     ```
 
 ### AzureNetworkInterface
