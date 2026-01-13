@@ -44,7 +44,7 @@ def test_sync_okta_groups(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
         ON CREATE SET o.firstseen = timestamp()
-        SET o.lastupdated = $UPDATE_TAG
+        SET o.lastupdated = $UPDATE_TAG, o :Tenant
         """,
         ORG_ID=TEST_ORG_ID,
         UPDATE_TAG=TEST_UPDATE_TAG,
@@ -131,7 +131,7 @@ def test_cleanup_okta_groups(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
         ON CREATE SET o.firstseen = timestamp()
-        SET o.lastupdated = $NEW_UPDATE_TAG
+        SET o.lastupdated = $NEW_UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(g:OktaGroup{id: 'stale-group', lastupdated: $OLD_UPDATE_TAG})
         """,
         ORG_ID=TEST_ORG_ID,
@@ -190,7 +190,7 @@ def test_cleanup_okta_group_memberships(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
         ON CREATE SET o.firstseen = timestamp()
-        SET o.lastupdated = $NEW_UPDATE_TAG
+        SET o.lastupdated = $NEW_UPDATE_TAG, o :Tenant
         MERGE (o)-[:RESOURCE]->(g:OktaGroup{id: 'test-group', lastupdated: $NEW_UPDATE_TAG})
         MERGE (g)<-[r1:MEMBER_OF_OKTA_GROUP]-(u1:OktaUser{id: 'stale-user', lastupdated: $OLD_UPDATE_TAG})
         MERGE (g)<-[r2:MEMBER_OF_OKTA_GROUP]-(u2:OktaUser{id: 'fresh-user', lastupdated: $NEW_UPDATE_TAG})

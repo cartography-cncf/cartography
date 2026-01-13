@@ -43,7 +43,7 @@ def test_load_kms_keys_relationships(neo4j_session):
         """
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
         """,
         aws_account_id=TEST_ACCOUNT_ID,
         aws_update_tag=TEST_UPDATE_TAG,
@@ -180,7 +180,7 @@ def test_load_kms_key_grants_relationships(neo4j_session):
         """
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
         """,
         aws_account_id=TEST_ACCOUNT_ID,
         aws_update_tag=TEST_UPDATE_TAG,

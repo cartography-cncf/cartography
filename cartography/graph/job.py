@@ -142,14 +142,17 @@ class GraphJob:
         node_schema: CartographyNodeSchema,
         parameters: Dict[str, Any],
         iterationsize: int = 100,
+        cascade_delete: bool = False,
     ) -> "GraphJob":
         """
         Create a cleanup job from a CartographyNodeSchema object.
         For a given node, the fields used in the node_schema.sub_resource_relationship.target_node_node_matcher.keys()
         must be provided as keys and values in the params dict.
         :param iterationsize: The number of items to process in each iteration. Defaults to 100.
+        :param cascade_delete: If True, also delete all child nodes that have a relationship to stale nodes matching
+        node_schema.sub_resource_relationship.rel_label. Defaults to False to preserve existing behavior.
         """
-        queries: List[str] = build_cleanup_queries(node_schema)
+        queries: List[str] = build_cleanup_queries(node_schema, cascade_delete)
 
         expected_param_keys: Set[str] = get_parameters(queries)
         actual_param_keys: Set[str] = set(parameters.keys())

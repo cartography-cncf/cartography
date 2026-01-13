@@ -2,7 +2,9 @@
 
 ### DuoApiHost
 
-Represents a Duo API Host to conain Duo resources.
+Represents a Duo API Host to contain Duo resources.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., GitHubOrganization, AWSAccount, SpaceliftAccount).
 
 | Field | Description |
 |-------|--------------|
@@ -85,6 +87,8 @@ Represents a [group](https://duo.com/docs/adminapi#groups) in Duo.
 
 Represents a [user](https://duo.com/docs/adminapi#users) in Duo.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser, EntraUser).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first discovered this node  |
@@ -160,6 +164,8 @@ Represents a [user](https://duo.com/docs/adminapi#users) in Duo.
 
 Represents a [endpoint](https://duo.com/docs/adminapi#endpoints) in Duo.
 
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, KandjiDevice).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first discovered this node  |
@@ -213,6 +219,8 @@ Represents a [endpoint](https://duo.com/docs/adminapi#endpoints) in Duo.
 ### DuoPhone
 
 Represents a [phone](https://duo.com/docs/adminapi#phones) in Duo.
+
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, KandjiDevice).
 
 | Field | Description |
 |-------|--------------|

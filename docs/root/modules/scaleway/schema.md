@@ -24,6 +24,8 @@ APP -- HAS --> APIKEY(ScalewayApiKey)
 
 Represents an Organization in Scaleway.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field      | Description                                  |
 |------------|----------------------------------------------|
 | id         | ID of the Scaleway Organization              |
@@ -44,6 +46,8 @@ Represents an Organization in Scaleway.
 ### ScalewayProject
 
 Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
 
 | Field       | Description                                  |
 |-------------|----------------------------------------------|
@@ -73,6 +77,8 @@ Represents a Project in Scaleway. Projects are groupings of Scaleway resources.
 ### ScalewayUser
 
 Represents a User in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field              | Description                                  |
 |--------------------|----------------------------------------------|
@@ -175,6 +181,8 @@ Represents an Application (Service Account) in Scaleway
 ### ScalewayApiKey
 
 Represents an ApiKey in Scaleway.
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API keys across different systems (e.g., OpenAIApiKey, AnthropicApiKey).
 
 | Field            | Description                                  |
 |------------------|----------------------------------------------|
@@ -291,6 +299,8 @@ Flexible IP addresses are public IP addresses that you can hold independently of
 ### ScalewayInstance
 
 An Instance is a virtual computing unit that provides resources, such as processing power, memory, and network connectivity, to run your applications.
+
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, DigitalOceanDroplet).
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|

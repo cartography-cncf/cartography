@@ -97,3 +97,25 @@ There are many ways to allow Cartography to pull from more than one AWS account.
 		```
 1. [Optional] Configure AWS Retry settings using `AWS_MAX_ATTEMPTS` and `AWS_RETRY_MODE` environment variables. This helps in API Rate Limit throttling and TooManyRequestException related errors. For details, see AWS' [official guide](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables).
 1. [Optional] Use regional STS endpoints to avoid `InvalidToken` errors when assuming roles across regions. Add `sts_regional_endpoints = regional` to your AWS config file or set the `AWS_STS_REGIONAL_ENDPOINTS=regional` environment variable. [AWS Docs](https://docs.aws.amazon.com/sdkref/latest/guide/feature-sts-regionalized-endpoints.html).
+
+### Selective Syncing with `--aws-requested-syncs`
+
+By default, Cartography syncs all available AWS resource types. If you want to sync only specific AWS resources, you can use the `--aws-requested-syncs` command-line flag. This accepts a comma-separated list of resource identifiers.
+
+#### Usage Examples
+
+Sync only EC2 instances, S3 buckets, and IAM resources:
+```bash
+cartography --neo4j-uri bolt://localhost:7687 --aws-requested-syncs "ec2:instance,s3,iam"
+```
+
+Sync only ECR and Lambda:
+```bash
+cartography --neo4j-uri bolt://localhost:7687 --aws-requested-syncs "ecr,lambda_function"
+```
+
+#### Available Resource Identifiers
+
+For a complete and up-to-date list of resource identifiers that can be specified with `--aws-requested-syncs`, refer to the `RESOURCE_FUNCTIONS` dictionary in `cartography/cartography/intel/aws/resources.py`.
+
+**Note**: Cartography automatically handles resource dependencies and sync order internally, so you don't need to worry about the order in which you specify resources in the list. Using `--aws-requested-syncs` can significantly reduce sync time and API calls when you only need specific resources.

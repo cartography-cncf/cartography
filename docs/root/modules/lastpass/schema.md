@@ -27,6 +27,8 @@ Human nodes are not created by Lastpass module, link is made using analysis job.
 
 Representation of a Lastpass Tenant
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first created this node  |
@@ -43,6 +45,8 @@ Representation of a Lastpass Tenant
 ### LastpassUser
 
 Representation of a single User in Lastpass
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field | Description |
 |-------|--------------|

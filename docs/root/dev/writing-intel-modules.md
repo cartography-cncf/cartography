@@ -446,6 +446,53 @@ synced.
 For some other modules that don't have a clear tenant-like relationship, you can set `scoped_cleanup` to False on the
 node_schema. This might make sense for a vuln scanner module where there is no logical tenant object.
 
+#### Hierarchical data and cascade_delete
+
+Some data sources have multi-tier hierarchical structures where nodes own other nodes via RESOURCE relationships. Examples include:
+
+- **GCP**: Organization → Folders → Projects → Compute instances, Storage buckets, etc.
+- **GitLab**: Organization → Groups → Projects → Branches, Dependencies, etc.
+
+In Cartography, RESOURCE relationships point from parent to child:
+
+```
+(Parent)-[:RESOURCE]->(Child)
+```
+
+When a parent node becomes stale and is deleted, you may want its children to be deleted as well. The `cascade_delete` parameter enables this behavior:
+
+```python
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+    cleanup_job = GraphJob.from_node_schema(
+        MyParentSchema(),
+        common_job_parameters,
+        cascade_delete=True,  # Also delete children when parent is stale
+    )
+    cleanup_job.run(neo4j_session)
+```
+
+When `cascade_delete=True`, the cleanup query becomes:
+
+```cypher
+WHERE n.lastupdated <> $UPDATE_TAG
+WITH n LIMIT $LIMIT_SIZE
+OPTIONAL MATCH (n)-[:RESOURCE]->(child)
+WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
+DETACH DELETE child, n;
+```
+
+**When to use cascade_delete:**
+
+- Use `cascade_delete=True` when child nodes are meaningless without their parent (e.g., GitLab branches without their project)
+- Use `cascade_delete=False` (default) when children should persist independently or when another module manages their lifecycle
+
+**Important notes:**
+
+- Only affects direct children (one level deep via `RESOURCE` relationships). Grandchildren require cleaning up intermediate levels first.
+- Children that were re-parented in the current sync (matching `UPDATE_TAG`) are protected from deletion.
+- Only valid with scoped cleanup (`scoped_cleanup=True`). Unscoped cleanups will raise an error if `cascade_delete=True`.
+- Default is `False` for backward compatibility.
+
 #### Legacy notes
 
 Older intel modules still do this process with hand-written cleanup jobs that work like this:
