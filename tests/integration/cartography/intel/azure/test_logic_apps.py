@@ -68,3 +68,56 @@ def test_sync_logic_apps(mock_get, neo4j_session):
         "RESOURCE",
     )
     assert actual_rels == expected_rels
+
+
+def test_load_logic_app_tags(neo4j_session):
+    """
+    Test that tags are correctly loaded for Logic Apps.
+    """
+    # 1. Arrange
+    neo4j_session.run(
+        """
+        MERGE (s:AzureSubscription{id: $sub_id})
+        SET s.lastupdated = $update_tag
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    transformed_apps = logic_apps.transform_logic_apps(MOCK_LOGIC_APPS)
+
+    logic_apps.load_logic_apps(
+        neo4j_session, transformed_apps, TEST_SUBSCRIPTION_ID, TEST_UPDATE_TAG
+    )
+
+    # 2. Act
+    logic_apps.load_logic_app_tags(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        transformed_apps,
+        TEST_UPDATE_TAG,
+    )
+
+    # 3. Assert
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:logic-app",
+    }
+    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # 4. Check Relationship
+    expected_rels = {
+        (MOCK_LOGIC_APPS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (MOCK_LOGIC_APPS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:logic-app"),
+    }
+    actual_rels = check_rels(
+        neo4j_session,
+        "AzureLogicApp",
+        "id",
+        "AzureTag",
+        "id",
+        "TAGGED",
+    )
+    assert actual_rels == expected_rels
