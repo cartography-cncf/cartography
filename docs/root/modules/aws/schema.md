@@ -5,6 +5,8 @@
 
 Representation of an AWS Account.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -708,6 +710,8 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 ### AWSPrincipal::AWSUser
 Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReference/API_User.html).  An AWS User is a type of AWS Principal.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., EntraUser, OktaUser).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -838,10 +842,11 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(:AWSRole)
     ```
 
-- Cartography records SAML-based role assumptions from CloudTrail management events
+- Cartography records SAML-based role assumptions from CloudTrail management events. This tracks when AWSSSOUsers (federated from identity providers like Okta or Entra) actually assume AWS roles.
     ```cypher
     (AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
     ```
+    See [AWSSSOUser](#awsssouser) for more details on this relationship and the [Okta Schema](../okta/schema.md#cross-platform-integration-okta-to-aws) for the complete Okta → AWS SSO → AWS Role integration pattern.
 
 - Cartography records GitHub Actions role assumptions from CloudTrail management events
     ```cypher
@@ -1428,6 +1433,8 @@ Representation of an AWS DNS [HostedZone](https://docs.aws.amazon.com/Route53/la
 
 Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ListTables.html).
 
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -1447,6 +1454,8 @@ Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynam
 ### EC2Instance
 
 Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html).
+
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute resources across different systems (e.g., ScalewayInstance, DigitalOceanDroplet).
 
 | Field | Description |
 |-------|-------------|
@@ -2774,6 +2783,8 @@ Representation of an AWS [RedshiftCluster](https://docs.aws.amazon.com/redshift/
 
 Representation of an AWS Relational Database Service [DBCluster](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBCluster.html)
 
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -2830,6 +2841,8 @@ Representation of an AWS Relational Database Service [DBCluster](https://docs.aw
 ### RDSInstance
 
 Representation of an AWS Relational Database Service [DBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBInstance.html).
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -4310,6 +4323,8 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 
 Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Container.html)
 
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for container instances across different systems (e.g., KubernetesContainer, AzureContainerInstance).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4641,6 +4656,10 @@ Representation of an AWS Identity Center.
 
 Representation of an AWS SSO User.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GitHubUser).
+
+> **Cross-Platform Integration**: AWSSSOUser nodes can be federated with external identity providers like Okta, Entra (Azure AD), and others. See the complete Okta → AWS SSO → AWS Role relationship path documentation in the [Okta Schema](../okta/schema.md#cross-platform-integration-okta-to-aws).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Unique identifier for the SSO user |
@@ -4685,8 +4704,15 @@ Representation of an AWS SSO User.
 
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
-    (:AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML]->(:AWSRole)
+    (:AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML {times_used, first_seen_in_time_window, last_used, lastupdated}]->(:AWSRole)
     ```
+    This relationship is created by analyzing CloudTrail `AssumeRoleWithSAML` events. The relationship properties track:
+    - `times_used`: Number of times the role was assumed during the lookback window
+    - `first_seen_in_time_window`: Earliest assumption time in the lookback window
+    - `last_used`: Most recent assumption time
+    - `lastupdated`: When this relationship was last updated by Cartography
+
+    Note: This relationship represents **actual role usage** (what roles were assumed), while `ALLOWED_BY` represents **permitted access** (what roles can be assumed based on permission set assignments).
 
 - Entra users can sign on to AWSSSOUser via SAML federation through AWS Identity Center. See https://docs.aws.amazon.com/singlesignon/latest/userguide/idp-microsoft-entra.html and https://learn.microsoft.com/en-us/entra/identity/saas-apps/aws-single-sign-on-tutorial.
     ```
