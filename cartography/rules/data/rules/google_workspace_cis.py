@@ -43,24 +43,24 @@ _cis_1_1_2sv_not_enforced = Fact(
     maturity=Maturity.EXPERIMENTAL,
     cypher_query="""
     MATCH (u:GoogleWorkspaceUser)
-    WHERE coalesce(u.isEnforcedIn2Sv, false) = false
+    WHERE coalesce(u.is_enforced_in_2_sv, false) = false
     RETURN
         u.id AS target_id,
-        u.primaryEmail AS target_email,
+        u.primary_email AS target_email,
         'Control 1.1 - Enforce 2-Step Verification for all users' AS control_name,
-        u.isAdmin AS is_admin,
-        u.orgUnitPath AS org_unit_path,
-        u.isEnrolledIn2Sv AS is_enrolled_in_2sv,
+        u.is_admin AS is_admin,
+        u.org_unit_path AS org_unit_path,
+        u.is_enrolled_in_2_sv AS is_enrolled_in_2sv,
         'GoogleWorkspaceUser' AS target_label,
         '1.1' AS cis_id,
         'HIGH' AS severity,
-        'isEnforcedIn2Sv=false' AS property_check,
+        'is_enforced_in_2_sv=false' AS property_check,
         'Enforce 2-Step Verification for all user org units.' AS remediation,
         'CIS 1.1 - Enforce 2-Step Verification' AS reference
     """,
     cypher_visual_query="""
-    MATCH p=(u:GoogleWorkspaceUser)-[:RESOURCE]->(:GoogleWorkspaceTenant)
-    WHERE coalesce(u.isEnforcedIn2Sv, false) = false
+    MATCH p=(t:GoogleWorkspaceTenant)-[:RESOURCE]->(u:GoogleWorkspaceUser)
+    WHERE coalesce(u.is_enforced_in_2_sv, false) = false
     RETURN p
     """,
 )
@@ -77,23 +77,23 @@ _cis_1_2_admin_not_enrolled = Fact(
     maturity=Maturity.EXPERIMENTAL,
     cypher_query="""
     MATCH (u:GoogleWorkspaceUser)
-    WHERE u.isAdmin = true AND coalesce(u.isEnrolledIn2Sv, false) = false
+    WHERE u.is_admin = true AND coalesce(u.is_enrolled_in_2_sv, false) = false
     RETURN
         u.id AS target_id,
-        u.primaryEmail AS target_email,
+        u.primary_email AS target_email,
         'Control 1.2 - Super admins enrolled in 2-Step Verification' AS control_name,
-        u.isEnforcedIn2Sv AS is_enforced_in_2sv,
-        u.orgUnitPath AS org_unit_path,
+        u.is_enforced_in_2_sv AS is_enforced_in_2sv,
+        u.org_unit_path AS org_unit_path,
         'GoogleWorkspaceUser' AS target_label,
         '1.2' AS cis_id,
         'CRITICAL' AS severity,
-        'isAdmin=true AND isEnrolledIn2Sv=false' AS property_check,
+        'is_admin=true AND is_enrolled_in_2_sv=false' AS property_check,
         'Enroll super admins in 2-Step Verification with enforcement.' AS remediation,
         'CIS 1.2 - Ensure super admin accounts use 2-Step Verification' AS reference
     """,
     cypher_visual_query="""
-    MATCH p=(u:GoogleWorkspaceUser)-[:RESOURCE]->(:GoogleWorkspaceTenant)
-    WHERE u.isAdmin = true AND coalesce(u.isEnrolledIn2Sv, false) = false
+    MATCH p=(t:GoogleWorkspaceTenant)-[:RESOURCE]->(u:GoogleWorkspaceUser)
+    WHERE u.is_admin = true AND coalesce(u.is_enrolled_in_2_sv, false) = false
     RETURN p
     """,
 )
@@ -125,7 +125,7 @@ _cis_2_1_high_risk_oauth_scopes = Fact(
     RETURN
         app.client_id AS target_id,
         app.display_text AS app_name,
-        u.primaryEmail AS target_email,
+        u.primary_email AS target_email,
         violating_scopes AS violating_scopes,
         'Control 2.1 - Review high-risk OAuth access' AS control_name,
         'GoogleWorkspaceOAuthApp' AS target_label,
