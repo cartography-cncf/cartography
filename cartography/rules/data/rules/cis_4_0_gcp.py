@@ -12,7 +12,6 @@ from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
 
-
 CIS_REFERENCES = [
     RuleReference(
         text="CIS Google Cloud Platform Foundation Benchmark v4.0.0",
@@ -81,11 +80,12 @@ cis_gcp_3_1_default_network = Rule(
 _cis_gcp_3_6_unrestricted_ssh = Fact(
     id="cis_gcp_3_6_unrestricted_ssh",
     name="CIS 3.6: SSH open to the internet",
-    description="Flags ingress firewall rules that allow SSH (port 22) from 0.0.0.0/0.",
+    description="Flags ingress firewall rules that allow SSH (port 22) from the internet (0.0.0.0/0 or ::/0).",
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
-    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange {range: '0.0.0.0/0'})
-    WHERE coalesce(fw.disabled, false) = false
+    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+    WHERE range.range IN ['0.0.0.0/0', '::/0']
+      AND coalesce(fw.disabled, false) = false
       AND rule.protocol = 'tcp'
       AND rule.fromport IS NOT NULL
       AND rule.toport IS NOT NULL
@@ -107,8 +107,9 @@ _cis_gcp_3_6_unrestricted_ssh = Fact(
     """,
     cypher_visual_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
-    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange {range: '0.0.0.0/0'})
-    WHERE coalesce(fw.disabled, false) = false
+    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+    WHERE range.range IN ['0.0.0.0/0', '::/0']
+      AND coalesce(fw.disabled, false) = false
       AND rule.protocol = 'tcp'
       AND rule.fromport IS NOT NULL
       AND rule.toport IS NOT NULL
@@ -122,7 +123,7 @@ _cis_gcp_3_6_unrestricted_ssh = Fact(
 cis_gcp_3_6_unrestricted_ssh = Rule(
     id="cis_gcp_3_6_unrestricted_ssh",
     name="CIS 3.6: SSH open to the internet",
-    description="Ingress firewall rules should not allow SSH from 0.0.0.0/0.",
+    description="Ingress firewall rules should not allow SSH from the internet (0.0.0.0/0 or ::/0).",
     output_model=GCPCISFinding,
     facts=(_cis_gcp_3_6_unrestricted_ssh,),
     tags=("cis:3.6", "cis:gcp-4.0", "gcp", "compliance", "networking", "ssh"),
@@ -137,11 +138,12 @@ cis_gcp_3_6_unrestricted_ssh = Rule(
 _cis_gcp_3_7_unrestricted_rdp = Fact(
     id="cis_gcp_3_7_unrestricted_rdp",
     name="CIS 3.7: RDP open to the internet",
-    description="Flags ingress firewall rules that allow RDP (port 3389) from 0.0.0.0/0.",
+    description="Flags ingress firewall rules that allow RDP (port 3389) from the internet (0.0.0.0/0 or ::/0).",
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
-    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange {range: '0.0.0.0/0'})
-    WHERE coalesce(fw.disabled, false) = false
+    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+    WHERE range.range IN ['0.0.0.0/0', '::/0']
+      AND coalesce(fw.disabled, false) = false
       AND rule.protocol = 'tcp'
       AND rule.fromport IS NOT NULL
       AND rule.toport IS NOT NULL
@@ -163,8 +165,9 @@ _cis_gcp_3_7_unrestricted_rdp = Fact(
     """,
     cypher_visual_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
-    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange {range: '0.0.0.0/0'})
-    WHERE coalesce(fw.disabled, false) = false
+    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+    WHERE range.range IN ['0.0.0.0/0', '::/0']
+      AND coalesce(fw.disabled, false) = false
       AND rule.protocol = 'tcp'
       AND rule.fromport IS NOT NULL
       AND rule.toport IS NOT NULL
@@ -178,7 +181,7 @@ _cis_gcp_3_7_unrestricted_rdp = Fact(
 cis_gcp_3_7_unrestricted_rdp = Rule(
     id="cis_gcp_3_7_unrestricted_rdp",
     name="CIS 3.7: RDP open to the internet",
-    description="Ingress firewall rules should not allow RDP from 0.0.0.0/0.",
+    description="Ingress firewall rules should not allow RDP from the internet (0.0.0.0/0 or ::/0).",
     output_model=GCPCISFinding,
     facts=(_cis_gcp_3_7_unrestricted_rdp,),
     tags=("cis:3.7", "cis:gcp-4.0", "gcp", "compliance", "networking", "rdp"),
