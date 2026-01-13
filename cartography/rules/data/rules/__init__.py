@@ -34,6 +34,15 @@ from cartography.rules.data.rules.database_instance_exposed import (
 from cartography.rules.data.rules.delegation_boundary_modifiable import (
     delegation_boundary_modifiable,
 )
+from cartography.rules.data.rules.google_workspace_cis import (
+    google_workspace_cis_1_1_enforce_2sv,
+)
+from cartography.rules.data.rules.google_workspace_cis import (
+    google_workspace_cis_1_2_admins_enrolled_2sv,
+)
+from cartography.rules.data.rules.google_workspace_cis import (
+    google_workspace_cis_2_1_high_risk_oauth,
+)
 from cartography.rules.data.rules.identity_administration_privileges import (
     identity_administration_privileges,
 )
@@ -51,11 +60,6 @@ from cartography.rules.data.rules.policy_administration_privileges import (
 from cartography.rules.data.rules.unmanaged_accounts import unmanaged_accounts
 from cartography.rules.data.rules.workload_identity_admin_capabilities import (
     workload_identity_admin_capabilities,
-)
-from cartography.rules.data.rules.google_workspace_cis import (
-    google_workspace_cis_1_1_enforce_2sv,
-    google_workspace_cis_1_2_admins_enrolled_2sv,
-    google_workspace_cis_2_1_high_risk_oauth,
 )
 
 # Rule registry - all available rules

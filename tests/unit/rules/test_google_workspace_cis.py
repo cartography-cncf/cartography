@@ -1,6 +1,10 @@
 from cartography.rules.data.rules.google_workspace_cis import (
     google_workspace_cis_1_1_enforce_2sv,
+)
+from cartography.rules.data.rules.google_workspace_cis import (
     google_workspace_cis_1_2_admins_enrolled_2sv,
+)
+from cartography.rules.data.rules.google_workspace_cis import (
     google_workspace_cis_2_1_high_risk_oauth,
 )
 from cartography.rules.spec.model import Module
