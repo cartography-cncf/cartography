@@ -10,6 +10,9 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.azure.firewall.azure_firewall import AzureFirewallSchema
 from cartography.models.azure.firewall.firewall_policy import AzureFirewallPolicySchema
+from cartography.models.azure.firewall.ip_configuration import (
+    AzureFirewallIPConfigurationSchema,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -350,6 +353,65 @@ def transform_firewall_policies(policies: list[dict[str, Any]]) -> list[dict[str
     return result
 
 
+def transform_ip_configurations(
+    firewalls: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Transform Azure Firewall IP Configurations for ingestion
+    Extracts IP configurations from firewalls and creates separate records
+    """
+    result = []
+    for fw in firewalls:
+        firewall_id = fw["id"]
+        ip_configs = fw.get("ip_configurations", [])
+
+        for ip_config in ip_configs:
+            transformed = {
+                # Required fields
+                "id": ip_config["id"],
+                "name": ip_config.get("name"),
+                # IP addressing
+                "private_ip_address": ip_config.get("private_ip_address"),
+                "private_ip_allocation_method": ip_config.get(
+                    "private_ip_allocation_method"
+                ),
+                # Standard fields
+                "provisioning_state": ip_config.get("provisioning_state"),
+                "type": ip_config.get("type"),
+                "etag": ip_config.get("etag"),
+                # Relationship fields
+                "subnet_id": ip_config.get("subnet", {}).get("id"),
+                "public_ip_address_id": ip_config.get("public_ip_address", {}).get(
+                    "id"
+                ),
+                "firewall_id": firewall_id,
+            }
+            result.append(transformed)
+
+        # Also handle management IP configuration if present
+        mgmt_ip_config = fw.get("management_ip_configuration")
+        if mgmt_ip_config:
+            transformed = {
+                "id": mgmt_ip_config["id"],
+                "name": mgmt_ip_config.get("name"),
+                "private_ip_address": mgmt_ip_config.get("private_ip_address"),
+                "private_ip_allocation_method": mgmt_ip_config.get(
+                    "private_ip_allocation_method"
+                ),
+                "provisioning_state": mgmt_ip_config.get("provisioning_state"),
+                "type": mgmt_ip_config.get("type"),
+                "etag": mgmt_ip_config.get("etag"),
+                "subnet_id": mgmt_ip_config.get("subnet", {}).get("id"),
+                "public_ip_address_id": mgmt_ip_config.get("public_ip_address", {}).get(
+                    "id"
+                ),
+                "firewall_id": firewall_id,
+            }
+            result.append(transformed)
+
+    return result
+
+
 @timeit
 def load_firewalls(
     neo4j_session: neo4j.Session,
@@ -389,16 +451,40 @@ def load_firewall_policies(
 
 
 @timeit
+def load_ip_configurations(
+    neo4j_session: neo4j.Session,
+    ip_configurations: list[dict[str, Any]],
+    azure_subscription_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Load Azure Firewall IP Configurations into Neo4j
+    """
+    load(
+        neo4j_session,
+        AzureFirewallIPConfigurationSchema(),
+        ip_configurations,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=azure_subscription_id,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
-    Remove stale Azure Firewall and Firewall Policy data
+    Remove stale Azure Firewall, IP Configuration, and Firewall Policy data
     """
     logger.debug("Running Azure Firewall cleanup job")
     GraphJob.from_node_schema(AzureFirewallSchema(), common_job_parameters).run(
         neo4j_session
     )
+
+    logger.debug("Running Azure Firewall IP Configuration cleanup job")
+    GraphJob.from_node_schema(
+        AzureFirewallIPConfigurationSchema(), common_job_parameters
+    ).run(neo4j_session)
 
     logger.debug("Running Azure Firewall Policy cleanup job")
     GraphJob.from_node_schema(AzureFirewallPolicySchema(), common_job_parameters).run(
@@ -460,12 +546,19 @@ def sync(
     # TRANSFORM - Shape data
     transformed_firewalls = transform_firewalls(firewalls_data)
     transformed_policies = transform_firewall_policies(policies_data)
+    transformed_ip_configurations = transform_ip_configurations(firewalls_data)
 
     # LOAD - Ingest to Neo4j
+    # Load policies first (they're referenced by firewalls)
     load_firewall_policies(
         neo4j_session, transformed_policies, subscription_id, update_tag
     )
+    # Load firewalls next (they're referenced by IP configurations)
     load_firewalls(neo4j_session, transformed_firewalls, subscription_id, update_tag)
+    # Load IP configurations last (they reference firewalls, subnets, and public IPs)
+    load_ip_configurations(
+        neo4j_session, transformed_ip_configurations, subscription_id, update_tag
+    )
 
     # CLEANUP - Remove stale data
     cleanup(neo4j_session, common_job_parameters)
