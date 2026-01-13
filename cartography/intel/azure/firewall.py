@@ -28,12 +28,8 @@ def get_firewalls(client: NetworkManagementClient) -> list[dict[str, Any]]:
     """
     Get all Azure Firewalls in the subscription
     """
-    try:
-        firewalls = list(client.azure_firewalls.list_all())
-        return [fw.as_dict() for fw in firewalls]
-    except HttpResponseError as e:
-        logger.warning(f"Failed to retrieve Azure Firewalls: {e}")
-        return []
+    firewalls = list(client.azure_firewalls.list_all())
+    return [fw.as_dict() for fw in firewalls]
 
 
 @timeit
@@ -41,12 +37,8 @@ def get_firewall_policies(client: NetworkManagementClient) -> list[dict[str, Any
     """
     Get all Azure Firewall Policies in the subscription
     """
-    try:
-        policies = list(client.firewall_policies.list_all())
-        return [policy.as_dict() for policy in policies]
-    except HttpResponseError as e:
-        logger.warning(f"Failed to retrieve Azure Firewall Policies: {e}")
-        return []
+    policies = list(client.firewall_policies.list_all())
+    return [policy.as_dict() for policy in policies]
 
 
 @timeit
@@ -124,6 +116,16 @@ def transform_firewalls(firewalls: list[dict[str, Any]]) -> list[dict[str, Any]]
             # Policy and virtual hub references
             "firewall_policy_id": fw.get("firewall_policy", {}).get("id"),
             "virtual_hub_id": fw.get("virtual_hub", {}).get("id"),
+            # VNet ID from first IP configuration's subnet
+            "vnet_id": (
+                fw.get("ip_configurations", [{}])[0]
+                .get("subnet", {})
+                .get("id", "")
+                .rsplit("/subnets/", 1)[0]
+                if fw.get("ip_configurations")
+                and fw.get("ip_configurations", [{}])[0].get("subnet", {}).get("id")
+                else None
+            ),
             # Extended location
             "extended_location_name": fw.get("extended_location", {}).get("name"),
             "extended_location_type": fw.get("extended_location", {}).get("type"),

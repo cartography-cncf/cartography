@@ -2162,9 +2162,9 @@ The following fields capture critical security configuration:
     (AzureFirewall)-[:CONNECTED_VNET]->(:AzureVirtualNetwork)
     ```
 
-  - An Azure Firewall is connected to a Virtual Hub (for AZFW_Hub deployments).
+  - An Azure Firewall is deployed to a Virtual Hub (for AZFW_Hub deployments).
     ```cypher
-    (AzureFirewall)-[:CONNECTED_VHUB]->(:AzureVirtualHub)
+    (AzureFirewall)-[:DEPLOYED_TO]->(:AzureVirtualHub)
     ```
 
 ### AzureFirewallPolicy
