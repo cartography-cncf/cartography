@@ -47,7 +47,7 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         """
         MERGE (aa:AWSAccount{id: $account_id})
         ON CREATE SET aa.firstseen = timestamp()
-        SET aa.lastupdated = $update_tag
+        SET aa.lastupdated = $update_tag, aa :Tenant
         """,
         account_id=TEST_ACCOUNT_ID,
         update_tag=TEST_UPDATE_TAG,

@@ -79,7 +79,7 @@ def test_load_snipeit_user_relationship(neo4j_session):
             "id",
             "SnipeitUser",
             "id",
-            "HAS_USER",
+            "RESOURCE",
             rel_direction_right=True,
         )
         == expected_nodes_relationships
@@ -142,7 +142,7 @@ def test_cleanup_snipeit_users(neo4j_session):
             "id",
             "SnipeitUser",
             "id",
-            "HAS_USER",
+            "RESOURCE",
             rel_direction_right=True,
         )
         == expected_nodes_relationships

@@ -2,8 +2,10 @@
 
 ```mermaid
 graph LR
-A(Human) -- IDENTITY_LASTPASS --> B(LastpassUser)
+T(LastpassTenant) -- RESOURCE --> U(LastpassUser)
+A(Human) -- IDENTITY_LASTPASS --> U
 ```
+
 
 ### Human
 
@@ -20,9 +22,31 @@ Human nodes are not created by Lastpass module, link is made using analysis job.
     (Human)-[IDENTITY_LASTPASS]->(LastpassUser)
     ```
 
+
+### LastpassTenant
+
+Representation of a Lastpass Tenant
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | Lastpass Tenant ID |
+
+#### Relationships
+- `User` belongs to a `Tenant`.
+    ```
+    (:LastpassTenant)-[:RESOURCE]->(:LastpassUser)
+    ```
+
+
 ### LastpassUser
 
 Representation of a single User in Lastpass
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field | Description |
 |-------|--------------|
@@ -46,3 +70,9 @@ Representation of a single User in Lastpass
 | attachments | Number of file attachments stored |
 | password_reset_required | Flag indicating user requested password reset |
 | multifactor | MFA method (null if None) |
+
+#### Relationships
+- `User` belongs to a `Tenant`.
+    ```
+    (:LastpassTenant)-[:RESOURCE]->(:LastpassUser)
+    ```

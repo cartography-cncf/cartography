@@ -20,7 +20,7 @@ class AzureDataFactoryPipelineProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     description: PropertyRef = PropertyRef("description")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    factory_id: PropertyRef = PropertyRef("factory_id", set_in_kwargs=True)
+    factory_id: PropertyRef = PropertyRef("factory_id")
     subscription_id: PropertyRef = PropertyRef("subscription_id", set_in_kwargs=True)
 
 
@@ -33,7 +33,7 @@ class AzureDataFactoryPipelineToFactoryRelProperties(CartographyRelProperties):
 class AzureDataFactoryPipelineToFactoryRel(CartographyRelSchema):
     target_node_label: str = "AzureDataFactory"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("factory_id", set_in_kwargs=True)},
+        {"id": PropertyRef("factory_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
