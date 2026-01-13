@@ -8,6 +8,7 @@ from typing import Set
 
 import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
+from google.cloud.asset_v1 import AssetServiceClient
 from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
@@ -18,15 +19,31 @@ from cartography.intel.gcp import bigtable_backup
 from cartography.intel.gcp import bigtable_cluster
 from cartography.intel.gcp import bigtable_instance
 from cartography.intel.gcp import bigtable_table
+from cartography.intel.gcp import cai
+from cartography.intel.gcp import cloud_sql_backup_config
+from cartography.intel.gcp import cloud_sql_database
+from cartography.intel.gcp import cloud_sql_instance
+from cartography.intel.gcp import cloud_sql_user
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
+from cartography.intel.gcp import permission_relationships
+from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import storage
+from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
+from cartography.intel.gcp.clients import get_gcp_credentials
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
+from cartography.intel.gcp.vertex.datasets import sync_vertex_ai_datasets
+from cartography.intel.gcp.vertex.deployed_models import sync_vertex_ai_deployed_models
+from cartography.intel.gcp.vertex.endpoints import sync_vertex_ai_endpoints
+from cartography.intel.gcp.vertex.feature_groups import sync_feature_groups
+from cartography.intel.gcp.vertex.instances import sync_workbench_instances
+from cartography.intel.gcp.vertex.models import sync_vertex_ai_models
+from cartography.intel.gcp.vertex.training_pipelines import sync_training_pipelines
 from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
@@ -37,7 +54,9 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam bigtable")
+Services = namedtuple(
+    "Services", "compute storage gke dns iam bigtable cai aiplatform cloud_sql"
+)
 service_names = Services(
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
@@ -45,6 +64,9 @@ service_names = Services(
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
     bigtable="bigtableadmin.googleapis.com",
+    cai="cloudasset.googleapis.com",
+    aiplatform="aiplatform.googleapis.com",
+    cloud_sql="sqladmin.googleapis.com",
 )
 
 
@@ -90,7 +112,7 @@ def _sync_project_resources(
     projects: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
-    credentials: Optional[GoogleCredentials] = None,
+    credentials: GoogleCredentials,
 ) -> None:
     """
     Syncs GCP service-specific resources (Compute, Storage, GKE, DNS, IAM) for each project.
@@ -98,9 +120,32 @@ def _sync_project_resources(
     :param projects: A list of projects containing at minimum a "projectId" field.
     :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
     :param common_job_parameters: Other parameters sent to Neo4j
+    :param credentials: GCP credentials to use for API calls.
     :return: Nothing
     """
     logger.info("Syncing resources for %d GCP projects.", len(projects))
+
+    # Cloud Asset Inventory (CAI) clients are lazily initialized and reused across all projects.
+    # CAI is used for:
+    # 1. Fallback IAM sync when IAM API is disabled on target projects (cai_rest_client)
+    # 2. Policy bindings sync (cai_grpc_client)
+    #
+    # Note: We do NOT explicitly set a quota project for CAI clients. Google's default behavior
+    # will use the service account's host project for quota/billing, which doesn't require
+    # the serviceusage.serviceUsageConsumer permission.
+    cai_rest_client: Optional[Resource] = None  # REST client for asset listing
+    cai_grpc_client: Optional[AssetServiceClient] = None  # gRPC client for policy APIs
+    cai_enabled_on_first_project: Optional[bool] = (
+        None  # Cached check for CAI enablement
+    )
+    policy_bindings_permission_ok: Optional[bool] = (
+        None  # Track if we have permission for policy bindings
+    )
+
+    # Predefined roles are global (not project-specific), so we fetch them once
+    # and reuse them for all target projects that use the CAI fallback.
+    predefined_roles: Optional[List[Dict]] = None
+
     # Per-project sync across services
     for project in projects:
         project_id = project["projectId"]
@@ -164,9 +209,55 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
+        else:
+            # Fallback to Cloud Asset Inventory even if the target project does not have the IAM API enabled.
+            # CAI uses the service account's host project for quota by default (no explicit quota project needed).
+            # Lazily initialize the CAI REST client once and reuse it for all projects.
+            if cai_rest_client is None:
+                cai_rest_client = build_client(
+                    "cloudasset",
+                    "v1",
+                    credentials=credentials,
+                )
+
+            # Fetch predefined roles once for CAI fallback (they're global, not project-specific)
+            if predefined_roles is None:
+                logger.info("Fetching predefined IAM roles for CAI fallback")
+                iam_client = build_client("iam", "v1", credentials=credentials)
+                predefined_roles = iam.get_gcp_predefined_roles(iam_client)
+                logger.info(
+                    "Fetched %d predefined IAM roles",
+                    len(predefined_roles),
+                )
+
+            logger.info(
+                "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory.",
+                project_id,
+            )
+            try:
+                cai.sync(
+                    neo4j_session,
+                    cai_rest_client,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    predefined_roles=predefined_roles,
+                )
+            except HttpError as e:
+                if e.resp.status == 403:
+                    logger.warning(
+                        "CAI fallback skipped for project %s: %s. "
+                        "Ensure Cloud Asset API is enabled and roles/cloudasset.viewer is granted.",
+                        project_id,
+                        e.reason,
+                    )
+                else:
+                    raise
         if service_names.bigtable in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Bigtable.")
-            bigtable_client = build_client("bigtableadmin", "v2")
+            bigtable_client = build_client(
+                "bigtableadmin", "v2", credentials=credentials
+            )
             instances_raw = bigtable_instance.sync_bigtable_instances(
                 neo4j_session,
                 bigtable_client,
@@ -213,6 +304,154 @@ def _sync_project_resources(
                         common_job_parameters,
                     )
 
+        if service_names.aiplatform in enabled_services:
+            logger.info(f"Syncing GCP project {project_id} for Vertex AI.")
+            aiplatform_client = build_client(
+                "aiplatform", "v1", credentials=credentials
+            )
+            sync_vertex_ai_models(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            endpoints_raw = sync_vertex_ai_endpoints(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            if endpoints_raw:
+                sync_vertex_ai_deployed_models(
+                    neo4j_session,
+                    endpoints_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+            sync_workbench_instances(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            sync_training_pipelines(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            sync_feature_groups(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            sync_vertex_ai_datasets(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        # Policy bindings sync uses CAI gRPC client.
+        # We attempt policy bindings for all projects unless we've already encountered a permission error.
+        # CAI uses the service account's host project for quota by default.
+        if policy_bindings_permission_ok is not False:
+            # Check if CAI is enabled (cached after first check on first project)
+            if cai_enabled_on_first_project is None:
+                first_project_services = _services_enabled_on_project(
+                    build_client("serviceusage", "v1", credentials=credentials),
+                    project_id,
+                )
+                cai_enabled_on_first_project = (
+                    service_names.cai in first_project_services
+                )
+                if cai_enabled_on_first_project:
+                    logger.info(
+                        "CAI enabled, will sync policy bindings for all projects.",
+                    )
+                else:
+                    logger.info(
+                        "CAI not enabled on project %s, skipping policy bindings sync. "
+                        "Enable the Cloud Asset Inventory API to sync IAM policy bindings.",
+                        project_id,
+                    )
+
+            if cai_enabled_on_first_project:
+                # Lazily initialize CAI gRPC client for policy bindings.
+                if cai_grpc_client is None:
+                    cai_grpc_client = build_asset_client(
+                        credentials=credentials,
+                    )
+                logger.info(
+                    "Syncing IAM policies for GCP project %s.",
+                    project_id,
+                )
+                success = policy_bindings.sync(
+                    neo4j_session,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                    cai_grpc_client,
+                )
+                # Track if we have permission. Once set to False (permission denied),
+                # the outer condition will skip policy_bindings for remaining projects.
+                if not success:
+                    policy_bindings_permission_ok = False
+
+        permission_relationships.sync(
+            neo4j_session,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+
+        if service_names.cloud_sql in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
+            cloud_sql_cred = build_client("sqladmin", "v1beta4")
+
+            instances_raw = cloud_sql_instance.sync_sql_instances(
+                neo4j_session,
+                cloud_sql_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+            if instances_raw:
+                cloud_sql_database.sync_sql_databases(
+                    neo4j_session,
+                    cloud_sql_cred,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                cloud_sql_user.sync_sql_users(
+                    neo4j_session,
+                    cloud_sql_cred,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                cloud_sql_backup_config.sync_sql_backup_configs(
+                    neo4j_session,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
         del common_job_parameters["PROJECT_ID"]
 
 
@@ -228,10 +467,21 @@ def start_gcp_ingestion(
     context to all intel modules.
     :param neo4j_session: The Neo4j session
     :param config: A `cartography.config` object
+    :param credentials: Optional GCP credentials. If not provided, ADC will be used.
     :return: Nothing
     """
+    # Initialize credentials from ADC if not provided. This ensures we have a single
+    # credentials object used consistently across all API clients.
+    if credentials is None:
+        credentials = get_gcp_credentials()
+        if credentials is None:
+            raise RuntimeError(
+                "GCP credentials are not available; cannot start GCP ingestion."
+            )
+
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
+        "gcp_permission_relationships_file": config.gcp_permission_relationships_file,
     }
 
     # IMPORTANT: We defer cleanup for hierarchical resources (orgs, folders, projects) and run them

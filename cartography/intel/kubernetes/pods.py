@@ -30,6 +30,36 @@ def _extract_pod_containers(pod: V1Pod) -> dict[str, Any]:
             "pod_id": pod.metadata.uid,
             "imagePullPolicy": container.image_pull_policy,
         }
+
+        # Extract resource requests and limits
+        if container.resources:
+            if container.resources.requests:
+                containers[container.name]["memory_request"] = (
+                    container.resources.requests.get("memory")
+                )
+                containers[container.name]["cpu_request"] = (
+                    container.resources.requests.get("cpu")
+                )
+            else:
+                containers[container.name]["memory_request"] = None
+                containers[container.name]["cpu_request"] = None
+
+            if container.resources.limits:
+                containers[container.name]["memory_limit"] = (
+                    container.resources.limits.get("memory")
+                )
+                containers[container.name]["cpu_limit"] = (
+                    container.resources.limits.get("cpu")
+                )
+            else:
+                containers[container.name]["memory_limit"] = None
+                containers[container.name]["cpu_limit"] = None
+        else:
+            containers[container.name]["memory_request"] = None
+            containers[container.name]["cpu_request"] = None
+            containers[container.name]["memory_limit"] = None
+            containers[container.name]["cpu_limit"] = None
+
         if pod.status and pod.status.container_statuses:
             for status in pod.status.container_statuses:
                 if status.name in containers:

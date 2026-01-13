@@ -375,6 +375,15 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--gcp-permission-relationships-file",
+            type=str,
+            default="cartography/data/gcp_permission_relationships.yaml",
+            help=(
+                "The path to the GCP permission relationships mapping file. "
+                "If omitted the default GCP permission relationships will be used"
+            ),
+        )
+        parser.add_argument(
             "--jamf-base-uri",
             type=str,
             default=None,
@@ -610,6 +619,60 @@ class CLI:
             type=str,
             default=None,
             help=("The Duo api hostname"),
+        )
+        parser.add_argument(
+            "--gitlab-url",
+            type=str,
+            default="https://gitlab.com",
+            help=(
+                "The GitLab instance URL. Defaults to https://gitlab.com. "
+                "Set to your self-hosted instance URL if applicable (e.g., https://gitlab.example.com)."
+            ),
+        )
+        parser.add_argument(
+            "--gitlab-token-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of environment variable containing the GitLab personal access token. "
+                "Required if you are using the GitLab intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--gitlab-organization-id",
+            type=int,
+            default=None,
+            help=(
+                "The GitLab organization (top-level group) ID to sync. "
+                "Required if you are using the GitLab intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--workday-api-url",
+            type=str,
+            default=None,
+            help=(
+                "The Workday API URL. "
+                "Required if you are using the Workday intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--workday-api-login",
+            type=str,
+            default=None,
+            help=(
+                "The Workday API login username. "
+                "Required if you are using the Workday intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--workday-api-password-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of environment variable containing the Workday API password. "
+                "Required if you are using the Workday intel module. Ignored otherwise."
+            ),
         )
         parser.add_argument(
             "--semgrep-app-token-env-var",
@@ -874,6 +937,28 @@ class CLI:
                 "Should be `master` (default value) in most of the cases. "
                 "Required if you are using the Keycloak intel module. Ignored otherwise. "
             ),
+        )
+        parser.add_argument(
+            "--slack-token-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of environment variable containing the Slack Token. "
+                "Required if you are using the Slack intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--slack-teams",
+            type=str,
+            default=None,
+            help=(
+                "The Slack Team ID to sync, comma separated. If not provided, all accessible teams will be synced. "
+            ),
+        )
+        parser.add_argument(
+            "--slack-channels-memberships",
+            action="store_true",
+            help=("Pull memberships for Slack Channels (can be time consuming)."),
         )
         parser.add_argument(
             "--spacelift-api-endpoint",
@@ -1193,6 +1278,31 @@ class CLI:
             config.duo_api_key = None
             config.duo_api_secret = None
 
+        # GitLab config
+        if config.gitlab_url and config.gitlab_token_env_var:
+            logger.debug(
+                f"Reading GitLab token from environment variable {config.gitlab_token_env_var}",
+            )
+            config.gitlab_token = os.environ.get(config.gitlab_token_env_var)
+        else:
+            config.gitlab_token = None
+        # gitlab_organization_id is passed directly from CLI arg (type=int)
+
+        # Workday config
+        if (
+            config.workday_api_url
+            and config.workday_api_login
+            and config.workday_api_password_env_var
+        ):
+            logger.debug(
+                f"Reading Workday API password from environment variable {config.workday_api_password_env_var}",
+            )
+            config.workday_api_password = os.environ.get(
+                config.workday_api_password_env_var
+            )
+        else:
+            config.workday_api_password = None
+
         # Semgrep config
         if config.semgrep_app_token_env_var:
             logger.debug(
@@ -1323,6 +1433,7 @@ class CLI:
         else:
             config.sentinelone_api_token = None
 
+        # Keycloak config
         if config.keycloak_client_secret_env_var:
             logger.debug(
                 f"Reading Client Secret for Keycloak from environment variable {config.keycloak_client_secret_env_var}",
@@ -1332,6 +1443,15 @@ class CLI:
             )
         else:
             config.keycloak_client_secret = None
+
+        # Slack config
+        if config.slack_token_env_var:
+            logger.debug(
+                f"Reading Slack token from environment variable {config.slack_token_env_var}",
+            )
+            config.slack_token = os.environ.get(config.slack_token_env_var)
+        else:
+            config.slack_token = None
 
         # Spacelift config
         # Read endpoint from CLI arg or env var

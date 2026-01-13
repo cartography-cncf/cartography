@@ -80,7 +80,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
             OR action = 'iam:*'
             OR action = '*'
         )
-        WITH p, p1, p2, p3, ec2
+        WITH p, p1, p2, p3, a, ec2
         // Include the SG and rules for the instances that are internet open
         MATCH p4=(ec2{exposed_internet: true})-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:IpPermissionInbound)
         RETURN *
@@ -188,6 +188,11 @@ workload_identity_admin_capabilities = Rule(
         _aws_service_account_manipulation_via_ec2,
         _aws_service_account_manipulation_via_lambda,
     ),
-    tags=("iam", "privilege_escalation"),
+    tags=(
+        "iam",
+        "stride:elevation_of_privilege",
+        "stride:spoofing",
+        "stride:tampering",
+    ),
     version="0.1.0",
 )

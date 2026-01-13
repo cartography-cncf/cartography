@@ -32,15 +32,15 @@ def test_load_gcp_projects(neo4j_session):
     )
 
     nodes = neo4j_session.run("MATCH (d:GCPProject) return d.id")
-    assert {(n["d.id"]) for n in nodes} == {"this-project-has-a-parent-232323"}
+    assert {(n["d.id"]) for n in nodes} == {"project-abc"}
 
     query = (
         "MATCH (p:GCPProject{id:$ProjectId})-[:PARENT]->(f:GCPFolder)-[:PARENT]->(o:GCPOrganization)\n"
         "RETURN p.id, f.id, o.id"
     )
-    nodes = neo4j_session.run(query, ProjectId="this-project-has-a-parent-232323")
+    nodes = neo4j_session.run(query, ProjectId="project-abc")
     assert {(n["p.id"], n["f.id"], n["o.id"]) for n in nodes} == {
-        ("this-project-has-a-parent-232323", "folders/1414", "organizations/1337")
+        ("project-abc", "folders/1414", "organizations/1337")
     }
 
 
@@ -60,7 +60,7 @@ def test_load_gcp_projects_without_parent(neo4j_session):
     nodes = neo4j_session.run(
         "MATCH (d:GCPProject) WHERE NOT (d)-[:PARENT]->(:GCPFolder) RETURN d.id"
     )
-    assert {(n["d.id"]) for n in nodes} == {"my-parentless-project-987654"}
+    assert {(n["d.id"]) for n in nodes} == {"project-abc"}
 
 
 @patch.object(
@@ -100,17 +100,15 @@ def test_sync_gcp_projects(
         COMMON_JOB_PARAMS,
     )
 
-    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
-        ("this-project-has-a-parent-232323",)
-    }
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {("project-abc",)}
 
     query = (
         "MATCH (p:GCPProject{id:$ProjectId})-[:PARENT]->(f:GCPFolder)-[:PARENT]->(o:GCPOrganization)\n"
         "RETURN p.id, f.id, o.id"
     )
-    nodes = neo4j_session.run(query, ProjectId="this-project-has-a-parent-232323")
+    nodes = neo4j_session.run(query, ProjectId="project-abc")
     assert {(n["p.id"], n["f.id"], n["o.id"]) for n in nodes} == {
-        ("this-project-has-a-parent-232323", "folders/1414", "organizations/1337")
+        ("project-abc", "folders/1414", "organizations/1337")
     }
 
 
@@ -133,9 +131,7 @@ def test_sync_gcp_projects_without_parent(_mock_get_projects, neo4j_session) -> 
         COMMON_JOB_PARAMS,
     )
 
-    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
-        ("my-parentless-project-987654",)
-    }
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {("project-abc",)}
     assert (
         check_rels(neo4j_session, "GCPProject", "id", "GCPFolder", "id", "PARENT")
         == set()
@@ -161,15 +157,13 @@ def test_sync_gcp_projects_with_org_parent(_mock_get_projects, neo4j_session) ->
         COMMON_JOB_PARAMS,
     )
 
-    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {
-        ("project-under-org-55555",)
-    }
+    assert check_nodes(neo4j_session, "GCPProject", ["id"]) == {("project-abc",)}
     assert check_rels(
         neo4j_session, "GCPProject", "id", "GCPOrganization", "id", "PARENT"
-    ) == {("project-under-org-55555", "organizations/1337")}
+    ) == {("project-abc", "organizations/1337")}
     assert check_rels(
         neo4j_session, "GCPOrganization", "id", "GCPProject", "id", "RESOURCE"
-    ) == {("organizations/1337", "project-under-org-55555")}
+    ) == {("organizations/1337", "project-abc")}
     assert (
         check_rels(neo4j_session, "GCPProject", "id", "GCPFolder", "id", "PARENT")
         == set()

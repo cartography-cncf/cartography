@@ -6,6 +6,7 @@ import pytest
 
 from cartography.client.core.tx import _entity_not_found_backoff_handler
 from cartography.client.core.tx import _is_retryable_client_error
+from cartography.client.core.tx import _run_index_query_with_retry
 from cartography.client.core.tx import _run_with_retry
 from cartography.client.core.tx import execute_write_with_retry
 
@@ -431,3 +432,58 @@ def test_network_error_recovery_logging(mock_sleep, mock_logger):
         if "Successfully recovered from network error" in str(call)
     ]
     assert len(success_logs) == 1
+
+
+# Tests for _run_index_query_with_retry
+
+
+@patch("cartography.client.core.tx.logger")
+def test_run_index_query_ignores_equivalent_schema_rule_already_exists(mock_logger):
+    """
+    Should ignore EquivalentSchemaRuleAlreadyExists errors during parallel sync.
+
+    This error occurs when multiple parallel sync operations attempt to create
+    the same index simultaneously. Even though we use CREATE INDEX IF NOT EXISTS,
+    Neo4j has a race condition where concurrent index creation can fail if another
+    session creates the index between the existence check and the actual creation.
+    """
+    mock_session = MagicMock()
+    mock_session.run.side_effect = _create_client_error(
+        "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists",
+        "An equivalent index already exists, 'Index( id=619, name='index_164cdc93', "
+        "type='RANGE', schema=(:GCPPolicyBinding {id}), indexProvider='range-1.0' )'.",
+    )
+
+    # Should NOT raise an exception
+    _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
+
+    # Should log at debug level
+    mock_logger.debug.assert_called_once()
+    call_args = mock_logger.debug.call_args[0][0]
+    assert "Index already exists" in call_args
+    assert "parallel sync" in call_args
+
+
+def test_run_index_query_raises_other_client_errors():
+    """Should raise other ClientErrors that are not EquivalentSchemaRuleAlreadyExists."""
+    mock_session = MagicMock()
+    mock_session.run.side_effect = _create_client_error(
+        "Neo.ClientError.Statement.SyntaxError",
+        "Invalid syntax",
+    )
+
+    with pytest.raises(neo4j.exceptions.ClientError) as exc_info:
+        _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
+
+    assert exc_info.value.code == "Neo.ClientError.Statement.SyntaxError"
+
+
+def test_run_index_query_succeeds_normally():
+    """Should execute index query successfully when no error occurs."""
+    mock_session = MagicMock()
+    mock_session.run.return_value = MagicMock()
+
+    # Should NOT raise an exception
+    _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
+
+    mock_session.run.assert_called_once_with("CREATE INDEX IF NOT EXISTS ...")

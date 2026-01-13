@@ -9,6 +9,7 @@ graph LR
 U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
+U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 ```
 
 :::{note}
@@ -139,6 +140,7 @@ A client computer is a host that accesses a service made available by a server o
     (:User)-[:OWNS]->(:Device)
     ```
 
+
 ### APIKey
 
 ```{note}
@@ -163,3 +165,118 @@ API keys are used across different cloud providers and SaaS platforms for authen
     ```
     (:User)-[:OWNS]->(:APIKey)
     ```
+
+
+
+### ComputeInstance
+
+```{note}
+ComputeInstance is a semantic label.
+```
+
+A compute instance represents a virtual machine or server instance running in a cloud environment.
+It generalizes concepts like EC2 Instances, DigitalOcean Droplets, and Scaleway Instances.
+
+| Field | Description |
+|-------|-------------|
+| _ont_id | The unique identifier for the instance. |
+| _ont_name | The name of the instance. |
+| _ont_region | The region or zone where the instance is located. |
+| _ont_public_ip_address | The public IP address of the instance. |
+| _ont_private_ip_address | The private IP address of the instance. |
+| _ont_state | The current state of the instance (e.g., running, stopped). |
+| _ont_type | The type or size of the instance (e.g., t2.micro, s-1vcpu-1gb). |
+| _ont_created_at | Timestamp when the instance was created. |
+
+
+### Container
+
+```{note}
+Container is a semantic label.
+```
+
+A container represents a lightweight, standalone executable package that includes everything needed to run an application.
+It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Container Instances.
+
+| Field | Description |
+|-------|-------------|
+| _ont_id | The unique identifier for the container. |
+| _ont_name | The name of the container. |
+| _ont_image | The container image (e.g., nginx:latest). |
+| _ont_image_digest | The digest/SHA256 of the container image. |
+| _ont_state | The current state of the container (e.g., running, stopped, waiting). |
+| _ont_cpu | CPU allocated to the container. |
+| _ont_memory | Memory allocated to the container (in MB). |
+| _ont_region | The region or zone where the container is running. |
+| _ont_namespace | Namespace for logical isolation (e.g., Kubernetes namespace). |
+| _ont_health_status | The health status of the container. |
+
+
+### ThirdPartyApp
+
+```{note}
+ThirdPartyApp is a semantic label.
+```
+
+An OAuth application (or OAuth client) represents a third-party application that has been authorized to access user data via OAuth 2.0, OpenID Connect, or SAML protocols.
+OAuth apps span across identity providers (Google Workspace, Okta, Entra, Keycloak) and represent potential security risks when users grant excessive permissions.
+
+| Field | Description |
+|-------|-------------|
+| _ont_client_id | The OAuth client ID - unique identifier for the application (REQUIRED). |
+| _ont_name | Human-readable display name of the OAuth application (REQUIRED). |
+| _ont_enabled | Whether the OAuth application is currently enabled/active. |
+| _ont_native_app | Whether this is a native/mobile application (vs web application). |
+| _ont_protocol | The authentication protocol used (e.g., oauth2, openid-connect, saml). |
+| _ont_source | Source module of the data (e.g., googleworkspace, keycloak, entra, okta). |
+
+
+#### Relationships
+
+- `User` can authorize `ThirdPartyApp` (for modules that track user-level OAuth authorizations):
+    ```
+    (:User)-[:AUTHORIZED]->(:ThirdPartyApp)
+    ```
+
+
+### Database
+
+```{note}
+Database is a semantic label.
+```
+
+A database represents a managed data storage system across different cloud providers and database technologies.
+It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure SQL databases, Azure CosmosDB databases, and GCP Bigtable instances.
+
+| Field | Description |
+|-------|-------------|
+| _ont_db_name | The name/identifier of the database (REQUIRED). |
+| _ont_db_type | The database engine/type (e.g., "mysql", "postgres", "dynamodb", "mongodb", "cassandra", "cosmosdb-sql", "bigtable"). |
+| _ont_db_version | The database engine version. |
+| _ont_db_endpoint | The connection endpoint/address for the database. |
+| _ont_db_port | The port number the database listens on. |
+| _ont_db_encrypted | Whether the database storage is encrypted. |
+| _ont_db_location | The physical location/region of the database. |
+
+
+### Tenant
+
+```{note}
+Tenant is a semantic label.
+```
+
+A tenant represents the top-level organizational boundary or billing entity within a cloud provider or SaaS platform.
+Tenants serve as the root container for all resources, users, and configurations within a given service.
+We add a Tenant semantic label to all nodes that have outward 'RESOURCE' relationships.
+
+Common tenant concepts across platforms include:
+- **Cloud Providers**: AWS Accounts, Azure Tenants, GCP Organizations/Projects
+- **Identity Providers**: Entra Tenants, Okta Organizations, Keycloak Organizations
+- **SaaS Platforms**: GitHub Organizations, Anthropic Workspaces, OpenAI Projects, Cloudflare Accounts
+- **MDM/Security**: Kandji Tenants, SentinelOne Accounts, LastPass Tenants
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name or friendly name of the tenant/organization (REQUIRED for most modules). |
+| _ont_status | Current status/state of the tenant (e.g., active, suspended, archived). |
+| _ont_domain | Primary domain name associated with the tenant (for workspace/domain-based services). |

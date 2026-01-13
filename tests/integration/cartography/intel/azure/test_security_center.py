@@ -65,7 +65,7 @@ def test_sync_assessments(mock_get, neo4j_session):
         "id",
         "AzureSecurityAssessment",
         "id",
-        "HAS_ASSESSMENT",
+        "RESOURCE",
     )
     assert actual_rels == expected_rels
 

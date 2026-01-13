@@ -81,6 +81,8 @@ class Config:
     :param permission_relationships_file: File path for the resource permission relationships file. Optional.
     :type azure_permission_relationships_file: str
     :param azure_permission_relationships_file: File path for the Azure permission relationships file. Optional.
+    :type gcp_permission_relationships_file: str
+    :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
     :param jamf_base_uri: Jamf data provider base URI, e.g. https://example.com/JSSResource. Optional.
     :type jamf_user: string
@@ -133,6 +135,18 @@ class Config:
     :param duo_api_key: The Duo api secret. Optional.
     :type duo_api_hostname: str
     :param duo_api_hostname: The Duo api hostname, e.g. "api-abc123.duosecurity.com". Optional.
+    :type workday_api_url: str
+    :param workday_api_url: The Workday API URL. Optional.
+    :type workday_api_login: str
+    :param workday_api_login: The Workday API login username. Optional.
+    :type workday_api_password: str
+    :param workday_api_password: The Workday API password. Optional.
+    :type gitlab_url: str
+    :param gitlab_url: The GitLab instance URL. Defaults to "https://gitlab.com".
+    :type gitlab_token: str
+    :param gitlab_token: GitLab personal access token for API authentication. Optional.
+    :type gitlab_organization_id: int
+    :param gitlab_organization_id: GitLab organization (top-level group) ID to sync. Optional.
     :param semgrep_app_token: The Semgrep api token. Optional.
     :type semgrep_app_token: str
     :param semgrep_dependency_ecosystems: Comma-separated list of Semgrep dependency ecosystems to fetch. Optional.
@@ -206,6 +220,12 @@ class Config:
     :param keycloak_realm: Keycloak realm for authentication (all realms will be synced). Optional.
     :type keycloak_url: str
     :param keycloak_url: Keycloak base URL, e.g. https://keycloak.example.com. Optional.
+    :type slack_token: str
+    :param slack_token: Slack API token. Optional.
+    :type slack_teams: list[str]
+    :param slack_teams: List of Slack team IDs to sync. Optional.
+    :type slack_channels_memberships: bool
+    :param slack_channels_memberships: If True, sync Slack channel membership data. Optional.
     """
 
     def __init__(
@@ -243,6 +263,7 @@ class Config:
         digitalocean_token=None,
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
+        gcp_permission_relationships_file=None,
         jamf_base_uri=None,
         jamf_user=None,
         jamf_password=None,
@@ -275,6 +296,12 @@ class Config:
         duo_api_key=None,
         duo_api_secret=None,
         duo_api_hostname=None,
+        workday_api_url=None,
+        workday_api_login=None,
+        workday_api_password=None,
+        gitlab_url="https://gitlab.com",
+        gitlab_token=None,
+        gitlab_organization_id=None,
         semgrep_app_token=None,
         semgrep_dependency_ecosystems=None,
         snipeit_base_uri=None,
@@ -311,6 +338,9 @@ class Config:
         keycloak_client_secret=None,
         keycloak_realm=None,
         keycloak_url=None,
+        slack_token=None,
+        slack_teams=None,
+        slack_channels_memberships=False,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -347,6 +377,7 @@ class Config:
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
+        self.gcp_permission_relationships_file = gcp_permission_relationships_file
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
         self.jamf_password = jamf_password
@@ -379,6 +410,12 @@ class Config:
         self.duo_api_key = duo_api_key
         self.duo_api_secret = duo_api_secret
         self.duo_api_hostname = duo_api_hostname
+        self.workday_api_url = workday_api_url
+        self.workday_api_login = workday_api_login
+        self.workday_api_password = workday_api_password
+        self.gitlab_url = gitlab_url
+        self.gitlab_token = gitlab_token
+        self.gitlab_organization_id = gitlab_organization_id
         self.semgrep_app_token = semgrep_app_token
         self.semgrep_dependency_ecosystems = semgrep_dependency_ecosystems
         self.snipeit_base_uri = snipeit_base_uri
@@ -415,3 +452,6 @@ class Config:
         self.keycloak_client_secret = keycloak_client_secret
         self.keycloak_realm = keycloak_realm
         self.keycloak_url = keycloak_url
+        self.slack_token = slack_token
+        self.slack_teams = slack_teams
+        self.slack_channels_memberships = slack_channels_memberships

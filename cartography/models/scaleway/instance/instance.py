@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -43,7 +44,7 @@ class ScalewayInstanceProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class ScalewayInstanceToVolumeProperties(CartographyRelProperties):
+class ScalewayInstanceToVolumeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -56,13 +57,13 @@ class ScalewayInstanceToVolumeRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MOUNTS"
-    properties: ScalewayInstanceToVolumeProperties = (
-        ScalewayInstanceToVolumeProperties()
+    properties: ScalewayInstanceToVolumeRelProperties = (
+        ScalewayInstanceToVolumeRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class ScalewayInstanceToFlexibleIpProperties(CartographyRelProperties):
+class ScalewayInstanceToFlexibleIpRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -75,8 +76,8 @@ class ScalewayInstanceToFlexibleIpRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "IDENTIFIES"
-    properties: ScalewayInstanceToFlexibleIpProperties = (
-        ScalewayInstanceToFlexibleIpProperties()
+    properties: ScalewayInstanceToFlexibleIpRelProperties = (
+        ScalewayInstanceToFlexibleIpRelProperties()
     )
 
 
@@ -107,6 +108,7 @@ class ScalewayInstanceToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayInstanceSchema(CartographyNodeSchema):
     label: str = "ScalewayInstance"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeInstance"])
     properties: ScalewayInstanceProperties = ScalewayInstanceProperties()
     sub_resource_relationship: ScalewayInstanceToProjectRel = (
         ScalewayInstanceToProjectRel()

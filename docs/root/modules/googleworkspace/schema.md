@@ -5,9 +5,11 @@ graph LR
     T(GoogleWorkspaceTenant) -- RESOURCE --> U(GoogleWorkspaceUser)
     T -- RESOURCE --> G(GoogleWorkspaceGroup)
     T -- RESOURCE --> D(GoogleWorkspaceDevice)
+    T -- RESOURCE --> A(GoogleWorkspaceOAuthApp)
     U -- MEMBER_OF --> G
     U -- OWNER_OF --> G
     U -- OWNS --> D
+    U -- "AUTHORIZED {scopes}" --> A
     U -. INHERITED_MEMBER_OF .-> G
     U -. INHERITED_OWNER_OF .-> G
     G -- MEMBER_OF --> G
@@ -21,6 +23,8 @@ graph LR
 
 ### GoogleWorkspaceTenant
 Represents a Google Workspace tenant (customer account).
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
 
 | Field | Description |
 |-------|-------------|
@@ -46,12 +50,18 @@ Represents a Google Workspace tenant (customer account).
     ```
     (:GoogleWorkspaceTenant)-[:RESOURCE]->(:GoogleWorkspaceDevice)
     ```
+- Tenant has OAuth apps:
+    ```
+    (:GoogleWorkspaceTenant)-[:RESOURCE]->(:GoogleWorkspaceOAuthApp)
+    ```
 
 
 ### GoogleWorkspaceUser
 
 Reference:
 https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., GitHubUser, DuoUser, SlackUser).
 
 | Field | Description |
 |-------|--------------|
@@ -129,6 +139,12 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
     (GoogleWorkspaceUser)-[INHERITED_OWNER_OF]->(GoogleWorkspaceGroup)
     ```
 
+- User has authorized OAuth apps:
+
+    ```
+    (GoogleWorkspaceUser)-[AUTHORIZED {scopes: [...]}]->(GoogleWorkspaceOAuthApp)
+    ```
+
 
 ### GoogleWorkspaceGroup
 
@@ -204,6 +220,8 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
 
 Represents a device managed by Google Workspace.
 
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, KandjiDevice).
+
 | Field | Description |
 |-------|-------------|
 | id | Unique device identifier (deviceId) |
@@ -253,3 +271,44 @@ Represents a device managed by Google Workspace.
     ```
     (:GoogleWorkspaceUser)-[:OWNS]->(:GoogleWorkspaceDevice)
     ```
+
+
+## GoogleWorkspaceOAuthApp
+
+Represents third-party OAuth applications that have been authorized by users in the Google Workspace organization.
+
+Reference:
+https://developers.google.com/workspace/admin/directory/reference/rest/v1/tokens
+
+> **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable cross-platform queries for OAuth applications across different systems (e.g., OktaApplication, EntraApplication).
+
+| Field | Description |
+|-------|-------------|
+| id | Unique identifier for the app (equal to client_id) |
+| client_id | The Client ID of the application (indexed) |
+| display_text | The displayable name of the application |
+| anonymous | Whether the application is granted access anonymously |
+| native_app | Whether this is a native/installed application |
+| customer_id | The Google Workspace customer ID |
+| lastupdated | Timestamp of when a sync job last updated this node |
+| firstseen | Timestamp of when a sync job first discovered this node |
+
+#### Node Labels
+
+- `GoogleWorkspaceOAuthApp`
+
+### Relationships
+
+- App belongs to tenant:
+
+    ```
+    (:GoogleWorkspaceOAuthApp)<-[:RESOURCE]-(:GoogleWorkspaceTenant)
+    ```
+
+- User authorized app (with scopes on the relationship):
+
+    ```
+    (:GoogleWorkspaceUser)-[:AUTHORIZED {scopes: [...]}]->(:GoogleWorkspaceOAuthApp)
+    ```
+
+    The `AUTHORIZED` relationship includes a `scopes` property containing the list of OAuth scopes granted by the user to the application.

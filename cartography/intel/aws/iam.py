@@ -29,6 +29,7 @@ from cartography.models.aws.iam.service_principal import AWSServicePrincipalSche
 from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMatchLink
 from cartography.models.aws.iam.user import AWSUserSchema
 from cartography.stats import get_stats_client
+from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
 
@@ -107,6 +108,7 @@ def get_group_membership_data(
 
 
 @timeit
+@aws_handle_regions
 def get_group_policy_data(
     boto3_session: boto3.Session,
     group_list: List[Dict],
@@ -125,6 +127,7 @@ def get_group_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_group_managed_policy_data(
     boto3_session: boto3.Session,
     group_list: List[Dict],
@@ -143,6 +146,7 @@ def get_group_managed_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_user_policy_data(
     boto3_session: boto3.Session,
     user_list: List[Dict],
@@ -166,6 +170,7 @@ def get_user_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_user_managed_policy_data(
     boto3_session: boto3.Session,
     user_list: List[Dict],
@@ -189,6 +194,7 @@ def get_user_managed_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_role_policy_data(
     boto3_session: boto3.Session,
     role_list: List[Dict],
@@ -212,6 +218,7 @@ def get_role_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_role_managed_policy_data(
     boto3_session: boto3.Session,
     role_list: List[Dict],
@@ -235,6 +242,7 @@ def get_role_managed_policy_data(
 
 
 @timeit
+@aws_handle_regions
 def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
     role_list = get_role_list_data(boto3_session)["Roles"]
     resource_client = boto3_session.resource("iam")
@@ -401,7 +409,9 @@ def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "name": user["UserName"],
             "path": user["Path"],
             "createdate": str(user["CreateDate"]),
+            "createdate_dt": user["CreateDate"],
             "passwordlastused": str(user.get("PasswordLastUsed", "")),
+            "passwordlastused_dt": user.get("PasswordLastUsed"),
         }
         user_data.append(user_record)
 
@@ -419,6 +429,7 @@ def transform_groups(
             "name": group["GroupName"],
             "path": group["Path"],
             "createdate": str(group["CreateDate"]),
+            "createdate_dt": group["CreateDate"],
             "user_arns": group_memberships.get(group["Arn"], []),
         }
         group_data.append(group_record)
@@ -436,8 +447,10 @@ def transform_access_keys(
                 access_key_record = {
                     "accesskeyid": access_key["AccessKeyId"],
                     "createdate": str(access_key["CreateDate"]),
+                    "createdate_dt": access_key["CreateDate"],
                     "status": access_key["Status"],
                     "lastuseddate": str(access_key.get("LastUsedDate", "")),
+                    "lastuseddate_dt": access_key.get("LastUsedDate"),
                     "lastusedservice": access_key.get("LastUsedService", ""),
                     "lastusedregion": access_key.get("LastUsedRegion", ""),
                     "user_arn": user_arn,  # For the sub-resource relationship
@@ -516,6 +529,7 @@ def transform_role_trust_policies(
             "name": role["RoleName"],
             "path": role["Path"],
             "createdate": str(role["CreateDate"]),
+            "createdate_dt": role["CreateDate"],
             "trusted_aws_principals": list(trusted_aws_principals),
             "account_id": get_account_from_arn(role["Arn"]),
         }

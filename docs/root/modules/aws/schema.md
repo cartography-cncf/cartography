@@ -5,6 +5,8 @@
 
 Representation of an AWS Account.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -708,6 +710,8 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
 ### AWSPrincipal::AWSUser
 Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReference/API_User.html).  An AWS User is a type of AWS Principal.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., EntraUser, OktaUser).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -838,10 +842,11 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
     (:AWSPrincipal)-[:ASSUMED_ROLE {times_used, first_seen, last_seen, lastused}]->(:AWSRole)
     ```
 
-- Cartography records SAML-based role assumptions from CloudTrail management events
+- Cartography records SAML-based role assumptions from CloudTrail management events. This tracks when AWSSSOUsers (federated from identity providers like Okta or Entra) actually assume AWS roles.
     ```cypher
     (AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML {times_used, first_seen_in_time_window, last_used, lastupdated}]->(AWSRole)
     ```
+    See [AWSSSOUser](#awsssouser) for more details on this relationship and the [Okta Schema](../okta/schema.md#cross-platform-integration-okta-to-aws) for the complete Okta → AWS SSO → AWS Role integration pattern.
 
 - Cartography records GitHub Actions role assumptions from CloudTrail management events
     ```cypher
@@ -1428,6 +1433,8 @@ Representation of an AWS DNS [HostedZone](https://docs.aws.amazon.com/Route53/la
 
 Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ListTables.html).
 
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -1447,6 +1454,8 @@ Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynam
 ### EC2Instance
 
 Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html).
+
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute resources across different systems (e.g., ScalewayInstance, DigitalOceanDroplet).
 
 | Field | Description |
 |-------|-------------|
@@ -1476,6 +1485,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | bootmode | The boot mode of the instance.|
 | instancelifecycle | Indicates whether this is a Spot Instance or a Scheduled Instance.|
 | hibernationoptions | Indicates whether the instance is enabled for hibernation.|
+| eks_cluster_name | The name of the EKS cluster this instance belongs to, if applicable. Extracted from instance tags.|
 
 
 #### Relationships
@@ -1543,6 +1553,11 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 - EC2Instances can have SSMInstancePatches
     ```
     (EC2Instance)-[HAS_PATCH]->(SSMInstancePatch)
+    ```
+
+- EC2Instances can be members of EKS Clusters
+    ```
+    (EC2Instance)-[MEMBER_OF_EKS_CLUSTER]->(EKSCluster)
     ```
 
 ### EC2KeyPair
@@ -2159,7 +2174,7 @@ Representation of a software package, as found by an AWS ECR vulnerability scan.
 - A TrivyImageFinding is a vulnerability that affects a software Package.
 
     ```
-    (:Package)-[:AFFECTS]->(:TrivyImageFinding)
+    (:TrivyImageFinding)-[:AFFECTS]->(:Package)
     ```
 
 - We should update a vulnerable package to a fixed version described by a TrivyFix.
@@ -2534,6 +2549,7 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 | **dnsname** | The DNS name of the load balancer. |
 | exposed_internet | The `exposed_internet` flag is set to `True` when the load balancer's `scheme` field is set to `internet-facing`.  This indicates that the load balancer has a public DNS name that resolves to a public IP address. |
 | **id** |  Currently set to the `dnsname` of the load balancer. |
+| arn | The Amazon Resource Name (ARN) of the load balancer. |
 | type | Can be `application` or `network` |
 | region| The region of the load balancer |
 |createdtime | The date and time the load balancer was created. |
@@ -2547,7 +2563,23 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
     ```
     (LoadBalancerV2)-[EXPOSE]->(EC2Instance)
     ```
-`EXPOSE` relationshiohip also holds the protocol, port and TargetGroupArn the load balancer points to.
+
+- LoadBalancerV2's can expose IP addresses when using `ip` target type.
+    ```
+    (LoadBalancerV2)-[EXPOSE]->(EC2PrivateIp)
+    ```
+
+- LoadBalancerV2's can expose Lambda functions when using `lambda` target type.
+    ```
+    (LoadBalancerV2)-[EXPOSE]->(AWSLambda)
+    ```
+
+- LoadBalancerV2's can chain to other LoadBalancerV2's when using `alb` target type (ALB-to-ALB chaining).
+    ```
+    (LoadBalancerV2)-[EXPOSE]->(LoadBalancerV2)
+    ```
+
+The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load balancer points to.
 
 - LoadBalancerV2's can be part of EC2SecurityGroups but only if their `type` = "application". NLBs don't have SGs.
     ```
@@ -2751,6 +2783,8 @@ Representation of an AWS [RedshiftCluster](https://docs.aws.amazon.com/redshift/
 
 Representation of an AWS Relational Database Service [DBCluster](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBCluster.html)
 
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -2807,6 +2841,8 @@ Representation of an AWS Relational Database Service [DBCluster](https://docs.aw
 ### RDSInstance
 
 Representation of an AWS Relational Database Service [DBInstance](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBInstance.html).
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -3182,7 +3218,7 @@ Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIRef
     (AWSAccount)-[:RESOURCE]->(KMSKey)
     ```
 
-- AWS KMS Key may also be refered as KMSAlias via aliases.
+- AWS KMS Key may also be referred as KMSAlias via aliases.
     ```
     (KMSAlias)-[:KNOWN_AS]->(KMSKey)
     ```
@@ -3215,7 +3251,7 @@ Representation of an AWS [KMS Key Alias](https://docs.aws.amazon.com/kms/latest/
     (AWSAccount)-[:RESOURCE]->(KMSAlias)
     ```
 
-- AWS KMS Key may also be refered as KMSAlias via aliases.
+- AWS KMS Key may also be referred as KMSAlias via aliases.
     ```
     (KMSAlias)-[KNOWN_AS]->(KMSKey)
     ```
@@ -4287,6 +4323,8 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 
 Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Container.html)
 
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for container instances across different systems (e.g., KubernetesContainer, AzureContainerInstance).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -4595,16 +4633,17 @@ Representation of an AWS Identity Center.
 | instance_status | The status of the Identity Center instance |
 | created_date | The date the Identity Center instance was created |
 | last_modified_date | The date the Identity Center instance was last modified |
+| region | The AWS region where the Identity Center instance is located |
 
 #### Relationships
-- AWSIdentityCenter is part of an AWSAccount.
+- An AWSIdentityCenter instance is part of an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(AWSIdentityCenter)
+    (:AWSAccount)-[:RESOURCE]->(:AWSIdentityCenter)
     ```
 
-- AWSIdentityCenter has permission sets.
+- AWSIdentityCenter instance has permission sets.
     ```
-    (AWSIdentityCenter)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    (:AWSIdentityCenter)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
 
 - Entra service principals can federate to AWS Identity Center via SAML
@@ -4616,6 +4655,10 @@ Representation of an AWS Identity Center.
 ### AWSSSOUser
 
 Representation of an AWS SSO User.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GitHubUser).
+
+> **Cross-Platform Integration**: AWSSSOUser nodes can be federated with external identity providers like Okta, Entra (Azure AD), and others. See the complete Okta → AWS SSO → AWS Role relationship path documentation in the [Okta Schema](../okta/schema.md#cross-platform-integration-okta-to-aws).
 
 | Field | Description |
 |-------|-------------|
@@ -4632,12 +4675,17 @@ Representation of an AWS SSO User.
     (:AWSAccount)-[:RESOURCE]->(:AWSSSOUser)
     ```
 
-- AWSSSOUser can have roles assigned.
+- An AWSSSOUser can be a member of one or more AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
+    ```
+    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
+    ```
+
+- AWSSSOUsers can be assigned to AWSRoles. This happens when the user is assigned to a permission set for a specific account. This includes both direct assignments to the user and assignments inherited through AWSSSOGroup membership. Note: The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `ALLOWED_BY` relationships for roles they can access through groups they belong to.
     ```
     (:AWSSSOUser)<-[:ALLOWED_BY]-(:AWSRole)
     ```
 
- - OktaUsers can assume AWS SSO users via SAML federation
+- OktaUsers can assume AWS SSO users via SAML federation
      ```
     (:OktaUser)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
@@ -4646,15 +4694,25 @@ Representation of an AWS SSO User.
     (:UserAccount)-[:CAN_ASSUME_IDENTITY]->(:AWSSSOUser)
     ```
 
-- AWSSSOUser has permission set assignments. These include direct assignments and via Identity Center groups.
+- An AWSSSOUser can be assigned to one or more AWSPermissionSets. This includes both direct assignments and assignments inherited through AWSSSOGroup membership.
     ```
     (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
     ```
+    Notes:
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+    - This is a **summary relationship** that does not indicate which specific accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 
 - AWSSSOUser can assume AWS roles via SAML (recorded from CloudTrail management events).
     ```
-    (:AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML]->(:AWSRole)
+    (:AWSSSOUser)-[:ASSUMED_ROLE_WITH_SAML {times_used, first_seen_in_time_window, last_used, lastupdated}]->(:AWSRole)
     ```
+    This relationship is created by analyzing CloudTrail `AssumeRoleWithSAML` events. The relationship properties track:
+    - `times_used`: Number of times the role was assumed during the lookback window
+    - `first_seen_in_time_window`: Earliest assumption time in the lookback window
+    - `last_used`: Most recent assumption time
+    - `lastupdated`: When this relationship was last updated by Cartography
+
+    Note: This relationship represents **actual role usage** (what roles were assumed), while `ALLOWED_BY` represents **permitted access** (what roles can be assumed based on permission set assignments).
 
 - Entra users can sign on to AWSSSOUser via SAML federation through AWS Identity Center. See https://docs.aws.amazon.com/singlesignon/latest/userguide/idp-microsoft-entra.html and https://learn.microsoft.com/en-us/entra/identity/saas-apps/aws-single-sign-on-tutorial.
     ```
@@ -4678,22 +4736,25 @@ Representation of an AWS SSO Group.
 #### Relationships
 - AWSSSOGroup is part of an AWSAccount.
     ```
-    (AWSAccount)-[RESOURCE]->(AWSSSOGroup)
+    (:AWSAccount)-[:RESOURCE]->(:AWSSSOGroup)
     ```
 
-- AWSSSOGroup can have roles assigned.
+- An AWSSSOGroup can have roles assigned. This happens if the group is assigned to a permission set for a specific account.
     ```
-    (AWSSSOGroup)<-[ALLOWED_BY]-(AWSRole)
-    ```
-
-- AWSSSOGroup has assigned permission sets.
-    ```
-    (AWSSSOGroup)-[HAS_PERMISSION_SET]->(AWSPermissionSet)
+    (:AWSSSOGroup)<-[:ALLOWED_BY]-(:AWSRole)
     ```
 
-- AWSSSOUser membership in SSO groups.
+- An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
     ```
-    (AWSSSOUser)-[MEMBER_OF_SSO_GROUP]->(AWSSSOGroup)
+    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    ```
+    Notes:
+    - This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+
+- AWSSSOUsers can be members of AWSSSOGroups. In effect, the AWSSSOUser will receive all permission sets that the group is assigned to.
+    ```
+    (:AWSSSOUser)-[:MEMBER_OF_SSO_GROUP]->(:AWSSSOGroup)
     ```
 
 ### AWSPermissionSet
@@ -4709,19 +4770,34 @@ Representation of an AWS Identity Center Permission Set.
 | description | The description of the Permission Set |
 | session_duration | The session duration of the Permission Set |
 | instance_arn | The ARN of the Identity Center instance the Permission Set belongs to |
+| region | The AWS region where the Permission Set is located |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
 #### Relationships
-- AWSPermissionSet is part of an AWSIdentityCenter.
+- An AWSPermissionSet is part of an AWSIdentityCenter instance.
     ```
-    (AWSIdentityCenter)<-[HAS_PERMISSION_SET]-(AWSPermissionSet)
+    (:AWSIdentityCenter)<-[:HAS_PERMISSION_SET]-(:AWSPermissionSet)
     ```
 
-- AWSPermissionSet can be assigned to roles.
+- An AWSPermissionSet creates AWSRoles in all of the AWS accounts that its associated permission set assigns it to.
     ```
-    (AWSPermissionSet)-[ASSIGNED_TO_ROLE]->(AWSRole)
+    (:AWSPermissionSet)-[:ASSIGNED_TO_ROLE]->(:AWSRole)
     ```
+
+- An AWSSSOUser can be assigned to one or more AWSPermissionSets. This includes both direct assignments and assignments inherited through AWSSSOGroup membership.
+    ```
+    (:AWSSSOUser)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    ```
+    Notes:
+    - The AWS Identity Center API (`list_account_assignments_for_principal`) automatically resolves group memberships server-side, so users receive `HAS_PERMISSION_SET` relationships for permission sets they have access to through groups they belong to. This means if a user is only in a group that has a permission set assignment, the user will still have a direct `HAS_PERMISSION_SET` relationship to that permission set.
+    - This is a **summary relationship** that does not indicate which specific accounts the user has access to, only that they have been assigned to the permission set. For a user to have access to an AWS account, they must be assigned to a permission set _for that specific account_. This is captured by the `ALLOWED_BY` relationship.
+
+- An AWSSSOGroup has assigned permission sets. AWSSSOUsers in the group will receive all permission sets that the group is assigned to.
+    ```
+    (:AWSSSOGroup)-[:HAS_PERMISSION_SET]->(:AWSPermissionSet)
+    ```
+    Note: This relationship does not indicate which accounts the group has access to, only that it has been assigned to the permission set. For a group to have access to an AWS account, it must be assigned to a permission set for that specific account. This is captured by the `ALLOWED_BY` relationship.
 
 ### EC2RouteTable
 
@@ -4868,4 +4944,652 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 - If the secret version is encrypted with a KMS key, it has a relationship to that key.
     ```
     (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
+    ```
+
+### AWS Bedrock
+
+#### AWSBedrockFoundationModel
+
+Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the foundation model |
+| arn | The ARN of the foundation model |
+| model_id | The model identifier (e.g., "anthropic.claude-3-5-sonnet-20240620-v1:0") |
+| model_name | The human-readable name of the model |
+| provider_name | The provider of the model (e.g., "Anthropic", "Amazon", "Meta") |
+| input_modalities | List of input modalities the model supports (e.g., ["TEXT", "IMAGE"]) |
+| output_modalities | List of output modalities the model supports (e.g., ["TEXT"]) |
+| response_streaming_supported | Whether the model supports streaming responses |
+| customizations_supported | List of customization types supported (e.g., ["FINE_TUNING"]) |
+| inference_types_supported | List of inference types supported (e.g., ["ON_DEMAND", "PROVISIONED"]) |
+| model_lifecycle_status | The lifecycle status of the model (e.g., "ACTIVE", "LEGACY") |
+| region | The AWS region where the model is available |
+
+#### Relationships
+
+- Foundation models are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSBedrockFoundationModel)
+    ```
+
+- Agents use foundation models for inference.
+    ```
+    (AWSBedrockAgent)-[USES_MODEL]->(AWSBedrockFoundationModel)
+    ```
+
+- Custom models can be based on foundation models.
+    ```
+    (AWSBedrockCustomModel)-[BASED_ON]->(AWSBedrockFoundationModel)
+    ```
+
+- Knowledge bases use foundation models for embeddings.
+    ```
+    (AWSBedrockKnowledgeBase)-[USES_EMBEDDING_MODEL]->(AWSBedrockFoundationModel)
+    ```
+
+- Guardrails can be applied to foundation models.
+    ```
+    (AWSBedrockGuardrail)-[APPLIED_TO]->(AWSBedrockFoundationModel)
+    ```
+
+- Provisioned throughput provides capacity for foundation models.
+    ```
+    (AWSBedrockProvisionedModelThroughput)-[PROVIDES_CAPACITY_FOR]->(AWSBedrockFoundationModel)
+    ```
+
+#### AWSBedrockCustomModel
+
+Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html). Custom models are created through fine-tuning or continued pre-training of foundation models using customer-provided training data.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the custom model |
+| arn | The ARN of the custom model |
+| model_name | The name of the custom model |
+| base_model_arn | The ARN of the foundation model this custom model is based on |
+| creation_time | The timestamp when the custom model was created |
+| job_name | The name of the training job that created this model |
+| job_arn | The ARN of the training job |
+| customization_type | The type of customization (e.g., "FINE_TUNING", "CONTINUED_PRE_TRAINING") |
+| model_kms_key_arn | The KMS key ARN used to encrypt the custom model |
+| training_data_s3_uri | The S3 URI of the training data |
+| output_data_s3_uri | The S3 URI where training output is stored |
+| region | The AWS region where the custom model exists |
+
+#### Relationships
+
+- Custom models are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSBedrockCustomModel)
+    ```
+
+- Custom models are based on foundation models.
+    ```
+    (AWSBedrockCustomModel)-[BASED_ON]->(AWSBedrockFoundationModel)
+    ```
+
+- Custom models are trained from data in S3 buckets.
+    ```
+    (AWSBedrockCustomModel)-[TRAINED_FROM]->(S3Bucket)
+    ```
+
+- Agents use custom models for inference.
+    ```
+    (AWSBedrockAgent)-[USES_MODEL]->(AWSBedrockCustomModel)
+    ```
+
+- Guardrails can be applied to custom models.
+    ```
+    (AWSBedrockGuardrail)-[APPLIED_TO]->(AWSBedrockCustomModel)
+    ```
+
+- Provisioned throughput provides capacity for custom models.
+    ```
+    (AWSBedrockProvisionedModelThroughput)-[PROVIDES_CAPACITY_FOR]->(AWSBedrockCustomModel)
+    ```
+
+#### AWSBedrockAgent
+
+Representation of an AWS [Bedrock Agent](https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html). Agents are autonomous AI assistants that can break down tasks, use tools (Lambda functions), and search knowledge bases to accomplish complex goals.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the agent |
+| arn | The ARN of the agent |
+| agent_id | The unique identifier of the agent |
+| agent_name | The name of the agent |
+| agent_status | The status of the agent (e.g., "CREATING", "PREPARED", "FAILED") |
+| description | The description of the agent |
+| instruction | The instructions that guide the agent's behavior |
+| foundation_model | The ARN of the foundation or custom model the agent uses |
+| agent_resource_role_arn | The ARN of the IAM role that the agent assumes |
+| idle_session_ttl_in_seconds | The time in seconds before idle sessions expire |
+| created_at | The timestamp when the agent was created |
+| updated_at | The timestamp when the agent was last updated |
+| prepared_at | The timestamp when the agent was last prepared |
+| region | The AWS region where the agent exists |
+
+#### Relationships
+
+- Agents are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSBedrockAgent)
+    ```
+
+- Agents use foundation or custom models for inference.
+    ```
+    (AWSBedrockAgent)-[USES_MODEL]->(AWSBedrockFoundationModel)
+    (AWSBedrockAgent)-[USES_MODEL]->(AWSBedrockCustomModel)
+    ```
+
+- Agents can use multiple knowledge bases for RAG (Retrieval Augmented Generation).
+    ```
+    (AWSBedrockAgent)-[USES_KNOWLEDGE_BASE]->(AWSBedrockKnowledgeBase)
+    ```
+
+- Agents can invoke Lambda functions as action groups (tools).
+    ```
+    (AWSBedrockAgent)-[INVOKES]->(AWSLambda)
+    ```
+
+- Agents assume IAM roles for permissions.
+    ```
+    (AWSBedrockAgent)-[HAS_ROLE]->(AWSRole)
+    ```
+
+- Guardrails can be applied to agents.
+    ```
+    (AWSBedrockGuardrail)-[APPLIED_TO]->(AWSBedrockAgent)
+    ```
+
+#### AWSBedrockKnowledgeBase
+
+Representation of an AWS [Bedrock Knowledge Base](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html). Knowledge bases enable RAG (Retrieval Augmented Generation) by converting documents from S3 into vector embeddings for semantic search.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the knowledge base |
+| arn | The ARN of the knowledge base |
+| knowledge_base_id | The unique identifier of the knowledge base |
+| name | The name of the knowledge base |
+| description | The description of the knowledge base |
+| role_arn | The ARN of the IAM role that the knowledge base uses |
+| status | The status of the knowledge base (e.g., "CREATING", "ACTIVE", "DELETING") |
+| created_at | The timestamp when the knowledge base was created |
+| updated_at | The timestamp when the knowledge base was last updated |
+| region | The AWS region where the knowledge base exists |
+
+#### Relationships
+
+- Knowledge bases are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSBedrockKnowledgeBase)
+    ```
+
+- Knowledge bases source data from S3 buckets.
+    ```
+    (AWSBedrockKnowledgeBase)-[SOURCES_DATA_FROM]->(S3Bucket)
+    ```
+
+- Knowledge bases use embedding models to convert documents to vectors.
+    ```
+    (AWSBedrockKnowledgeBase)-[USES_EMBEDDING_MODEL]->(AWSBedrockFoundationModel)
+    ```
+
+- Agents use knowledge bases for RAG.
+    ```
+    (AWSBedrockAgent)-[USES_KNOWLEDGE_BASE]->(AWSBedrockKnowledgeBase)
+    ```
+
+#### AWSBedrockGuardrail
+
+Representation of an AWS [Bedrock Guardrail](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html). Guardrails provide content filtering, safety controls, and policy enforcement for models and agents by blocking harmful content and enforcing responsible AI usage.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the guardrail |
+| arn | The ARN of the guardrail |
+| guardrail_id | The unique identifier of the guardrail |
+| name | The name of the guardrail |
+| description | The description of the guardrail |
+| version | The version of the guardrail |
+| status | The status of the guardrail (e.g., "CREATING", "READY", "FAILED") |
+| blocked_input_messaging | The message returned when input is blocked |
+| blocked_outputs_messaging | The message returned when output is blocked |
+| created_at | The timestamp when the guardrail was created |
+| updated_at | The timestamp when the guardrail was last updated |
+| region | The AWS region where the guardrail exists |
+
+#### Relationships
+
+- Guardrails are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSBedrockGuardrail)
+    ```
+
+- Guardrails are applied to agents to enforce safety policies.
+    ```
+    (AWSBedrockGuardrail)-[APPLIED_TO]->(AWSBedrockAgent)
+    ```
+
+- Guardrails are applied to foundation models (derived from agent configurations).
+    ```
+    (AWSBedrockGuardrail)-[APPLIED_TO]->(AWSBedrockFoundationModel)
+    ```
+
+- Guardrails are applied to custom models (derived from agent configurations).
+    ```
+    (AWSBedrockGuardrail)-[APPLIED_TO]->(AWSBedrockCustomModel)
+    ```
+
+#### AWSBedrockProvisionedModelThroughput
+
+Representation of AWS [Bedrock Provisioned Throughput](https://docs.aws.amazon.com/bedrock/latest/userguide/prov-throughput.html). Provisioned throughput provides reserved capacity for foundation models and custom models, ensuring consistent performance and availability for production workloads.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the provisioned throughput |
+| arn | The ARN of the provisioned throughput |
+| provisioned_model_name | The name of the provisioned model throughput |
+| model_arn | The ARN of the model (foundation or custom) |
+| desired_model_arn | The desired model ARN (used during updates) |
+| foundation_model_arn | The ARN of the foundation model |
+| model_units | The number of model units allocated |
+| desired_model_units | The desired number of model units (used during updates) |
+| status | The status of the provisioned throughput (e.g., "Creating", "InService", "Updating") |
+| commitment_duration | The commitment duration for the purchase (e.g., "OneMonth", "SixMonths") |
+| commitment_expiration_time | The timestamp when the commitment expires |
+| creation_time | The timestamp when the provisioned throughput was created |
+| last_modified_time | The timestamp when the provisioned throughput was last modified |
+| region | The AWS region where the provisioned throughput exists |
+
+#### Relationships
+
+- Provisioned throughputs are resources under an AWS Account.
+    ```
+    (AWSAccount)-[RESOURCE]->(AWSBedrockProvisionedModelThroughput)
+    ```
+
+- Provisioned throughput provides capacity for foundation models.
+    ```
+    (AWSBedrockProvisionedModelThroughput)-[PROVIDES_CAPACITY_FOR]->(AWSBedrockFoundationModel)
+    ```
+
+- Provisioned throughput provides capacity for custom models.
+    ```
+    (AWSBedrockProvisionedModelThroughput)-[PROVIDES_CAPACITY_FOR]->(AWSBedrockCustomModel)
+    ```
+
+### AWS SageMaker
+
+```mermaid
+graph LR
+    Account[AWSAccount] -- RESOURCE --> Domain[AWSSageMakerDomain]
+    Account -- RESOURCE --> UserProfile[AWSSageMakerUserProfile]
+    Account -- RESOURCE --> NotebookInstance[AWSSageMakerNotebookInstance]
+    Account -- RESOURCE --> TrainingJob[AWSSageMakerTrainingJob]
+    Account -- RESOURCE --> Model[AWSSageMakerModel]
+    Account -- RESOURCE --> EndpointConfig[AWSSageMakerEndpointConfig]
+    Account -- RESOURCE --> Endpoint[AWSSageMakerEndpoint]
+    Account -- RESOURCE --> TransformJob[AWSSageMakerTransformJob]
+    Account -- RESOURCE --> ModelPackageGroup[AWSSageMakerModelPackageGroup]
+    Account -- RESOURCE --> ModelPackage[AWSSageMakerModelPackage]
+
+    Domain -- CONTAINS --> UserProfile
+
+    NotebookInstance -- HAS_EXECUTION_ROLE --> Role[AWSRole]
+    NotebookInstance -- CAN_INVOKE --> TrainingJob
+
+    TrainingJob -- HAS_EXECUTION_ROLE --> Role
+    TrainingJob -- READS_FROM --> S3[S3Bucket]
+    TrainingJob -- PRODUCES_MODEL_ARTIFACT --> S3
+
+    Model -- HAS_EXECUTION_ROLE --> Role
+    Model -- REFERENCES_ARTIFACTS_IN --> S3
+    Model -- DERIVES_FROM --> ModelPackage
+
+    EndpointConfig -- USES --> Model
+
+    Endpoint -- USES --> EndpointConfig
+
+    TransformJob -- USES --> Model
+    TransformJob -- WRITES_TO --> S3
+
+    ModelPackageGroup -- CONTAINS --> ModelPackage
+    ModelPackage -- REFERENCES_ARTIFACTS_IN --> S3
+
+    UserProfile -- HAS_EXECUTION_ROLE --> Role
+```
+
+#### AWSSageMakerDomain
+
+Represents an [AWS SageMaker Domain](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeDomain.html). A Domain is a centralized environment for SageMaker Studio users and their resources.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Domain |
+| arn | The ARN of the Domain |
+| domain_id | The Domain ID |
+| domain_name | The name of the Domain |
+| status | The status of the Domain |
+| creation_time | When the Domain was created |
+| last_modified_time | When the Domain was last modified |
+| region | The AWS region where the Domain exists |
+
+#### Relationships
+
+- Domain is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerDomain)
+    ```
+- Domain contains User Profiles
+    ```
+    (AWSSageMakerDomain)-[:CONTAINS]->(AWSSageMakerUserProfile)
+    ```
+
+#### AWSSageMakerUserProfile
+
+Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeUserProfile.html). A User Profile represents a user within a SageMaker Studio Domain.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the User Profile |
+| arn | The ARN of the User Profile |
+| user_profile_name | The name of the User Profile |
+| domain_id | The Domain ID that this profile belongs to |
+| status | The status of the User Profile |
+| creation_time | When the User Profile was created |
+| last_modified_time | When the User Profile was last modified |
+| execution_role | The IAM execution role ARN for the user |
+| region | The AWS region where the User Profile exists |
+
+#### Relationships
+
+- User Profile is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerUserProfile)
+    ```
+- User Profile belongs to a Domain
+    ```
+    (AWSSageMakerDomain)-[:CONTAINS]->(AWSSageMakerUserProfile)
+    ```
+- User Profile has an execution role
+    ```
+    (AWSSageMakerUserProfile)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    ```
+
+#### AWSSageMakerNotebookInstance
+
+Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeNotebookInstance.html). A Notebook Instance is a fully managed ML compute instance running Jupyter notebooks.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Notebook Instance |
+| arn | The ARN of the Notebook Instance |
+| notebook_instance_name | The name of the Notebook Instance |
+| notebook_instance_status | The status of the Notebook Instance |
+| instance_type | The ML compute instance type |
+| url | The URL to connect to the Jupyter notebook |
+| creation_time | When the Notebook Instance was created |
+| last_modified_time | When the Notebook Instance was last modified |
+| role_arn | The IAM role ARN associated with the instance |
+| region | The AWS region where the Notebook Instance exists |
+
+#### Relationships
+
+- Notebook Instance is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerNotebookInstance)
+    ```
+- Notebook Instance has an execution role
+    ```
+    (AWSSageMakerNotebookInstance)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    ```
+- Notebook Instance can invoke Training Jobs (probabilistic relationship based on shared execution role)
+    ```
+    (AWSSageMakerNotebookInstance)-[:CAN_INVOKE]->(AWSSageMakerTrainingJob)
+    ```
+
+#### AWSSageMakerTrainingJob
+
+Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTrainingJob.html). A Training Job trains ML models using specified algorithms and datasets.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Training Job |
+| arn | The ARN of the Training Job |
+| training_job_name | The name of the Training Job |
+| training_job_status | The status of the Training Job |
+| creation_time | When the Training Job was created |
+| training_start_time | When training started |
+| training_end_time | When training ended |
+| role_arn | The IAM role ARN used by the training job |
+| algorithm_specification_training_image | The Docker image for the training algorithm |
+| input_data_s3_bucket_id | The S3 bucket ID where input data is stored |
+| output_data_s3_bucket_id | The S3 bucket ID where output artifacts are stored |
+| region | The AWS region where the Training Job runs |
+
+#### Relationships
+
+- Training Job is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerTrainingJob)
+    ```
+- Training Job has an execution role
+    ```
+    (AWSSageMakerTrainingJob)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    ```
+- Training Job reads data from S3 Bucket
+    ```
+    (AWSSageMakerTrainingJob)-[:READS_FROM]->(S3Bucket)
+    ```
+- Training Job produces model artifacts in S3 Bucket
+    ```
+    (AWSSageMakerTrainingJob)-[:PRODUCES_MODEL_ARTIFACT]->(S3Bucket)
+    ```
+
+#### AWSSageMakerModel
+
+Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Model |
+| arn | The ARN of the Model |
+| model_name | The name of the Model |
+| creation_time | When the Model was created |
+| execution_role_arn | The IAM role ARN that SageMaker assumes to perform operations |
+| primary_container_image | The Docker image for the primary container |
+| model_package_name | The Model Package name if the model is based on one |
+| model_artifacts_s3_bucket_id | The S3 bucket ID where model artifacts are stored |
+| region | The AWS region where the Model exists |
+
+#### Relationships
+
+- Model is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerModel)
+    ```
+- Model has an execution role
+    ```
+    (AWSSageMakerModel)-[:HAS_EXECUTION_ROLE]->(AWSRole)
+    ```
+- Model references artifacts (Knowledge from training ) that is stored in an S3 bucket
+    ```
+    (AWSSageMakerModel)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
+    ```
+- Model derives model blueprint from a model package
+    ```
+    (AWSSageMakerModel)-[:DERIVES_FROM]->(AWSSageMakerModelPackage)
+    ```
+
+#### AWSSageMakerEndpointConfig
+
+Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpointConfig.html). An Endpoint Config specifies the ML compute instances and model variants for deploying models. Allows for a model to provide a prediction to a request in real time.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Endpoint Config |
+| arn | The ARN of the Endpoint Config |
+| endpoint_config_name | The name of the Endpoint Config |
+| creation_time | When the Endpoint Config was created |
+| model_name | The name of the model to deploy |
+| region | The AWS region where the Endpoint Config exists |
+
+#### Relationships
+
+- Endpoint Config is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerEndpointConfig)
+    ```
+- Endpoint Config uses a Model
+    ```
+    (AWSSageMakerEndpointConfig)-[:USES]->(AWSSageMakerModel)
+    ```
+
+#### AWSSageMakerEndpoint
+
+Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpoint.html). An Endpoint provides a persistent HTTPS endpoint for real-time inference.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Endpoint |
+| arn | The ARN of the Endpoint |
+| endpoint_name | The name of the Endpoint |
+| endpoint_status | The status of the Endpoint |
+| creation_time | When the Endpoint was created |
+| last_modified_time | When the Endpoint was last modified |
+| endpoint_config_name | The name of the Endpoint Config used |
+| region | The AWS region where the Endpoint exists |
+
+#### Relationships
+
+- Endpoint is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerEndpoint)
+    ```
+- Endpoint uses an Endpoint Config
+    ```
+    (AWSSageMakerEndpoint)-[:USES]->(AWSSageMakerEndpointConfig)
+    ```
+
+#### AWSSageMakerTransformJob
+
+Represents an [AWS SageMaker Transform Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTransformJob.html). A Transform Job performs batch inference on datasets. Takes
+a large dataset and uses batch inference to write multiple predictions to an S3 Bucket.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Transform Job |
+| arn | The ARN of the Transform Job |
+| transform_job_name | The name of the Transform Job |
+| transform_job_status | The status of the Transform Job |
+| creation_time | When the Transform Job was created |
+| model_name | The name of the model used for the transform |
+| output_data_s3_bucket_id | The S3 bucket ID where transform output is stored |
+| region | The AWS region where the Transform Job runs |
+
+#### Relationships
+
+- Transform Job is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerTransformJob)
+    ```
+- Transform Job uses a Model
+    ```
+    (AWSSageMakerTransformJob)-[:USES]->(AWSSageMakerModel)
+    ```
+- Transform Job writes output to S3 Bucket
+    ```
+    (AWSSageMakerTransformJob)-[:WRITES_TO]->(S3Bucket)
+    ```
+
+#### AWSSageMakerModelPackageGroup
+
+Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackageGroup.html). A Model Package Group is a collection of versioned model packages in the SageMaker Model Registry.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Model Package Group |
+| arn | The ARN of the Model Package Group |
+| model_package_group_name | The name of the Model Package Group |
+| creation_time | When the Model Package Group was created |
+| model_package_group_status | The status of the Model Package Group |
+| region | The AWS region where the Model Package Group exists |
+
+#### Relationships
+
+- Model Package Group is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerModelPackageGroup)
+    ```
+- Model Package Group contains Model Packages
+    ```
+    (AWSSageMakerModelPackageGroup)-[:CONTAINS]->(AWSSageMakerModelPackage)
+    ```
+
+#### AWSSageMakerModelPackage
+
+Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackage.html). A Model Package is a versioned model in the SageMaker Model Registry that acts as a blueprint for a deployed model.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the Model Package |
+| arn | The ARN of the Model Package |
+| model_package_name | The name of the Model Package |
+| model_package_group_name | The name of the group this package belongs to |
+| model_package_version | The version number of the Model Package |
+| model_package_status | The status of the Model Package |
+| model_approval_status | The approval status of the Model Package |
+| creation_time | When the Model Package was created |
+| model_artifacts_s3_bucket_id | The S3 bucket ID where model artifacts are stored |
+| region | The AWS region where the Model Package exists |
+
+#### Relationships
+
+- Model Package is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(AWSSageMakerModelPackage)
+    ```
+- Model Package belongs to a Model Package Group
+    ```
+    (AWSSageMakerModelPackageGroup)-[:CONTAINS]->(AWSSageMakerModelPackage)
+    ```
+- Model Package references artifacts in S3 Bucket
+    ```
+    (AWSSageMakerModelPackage)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
     ```
