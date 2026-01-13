@@ -1,3 +1,8 @@
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_1_default_network
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_6_unrestricted_ssh
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_7_unrestricted_rdp
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_9_public_ip
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_5_2_bucket_uniform_access
 from cartography.rules.data.rules.cis_aws_iam import cis_1_12_unused_credentials
 from cartography.rules.data.rules.cis_aws_iam import cis_1_13_multiple_access_keys
 from cartography.rules.data.rules.cis_aws_iam import cis_1_14_access_key_not_rotated
@@ -24,13 +29,6 @@ from cartography.rules.data.rules.cis_aws_storage import cis_2_2_1_rds_encryptio
 from cartography.rules.data.rules.cis_aws_storage import cis_2_3_1_ebs_encryption
 from cartography.rules.data.rules.cloud_security_product_deactivated import (
     cloud_security_product_deactivated,
-)
-from cartography.rules.data.rules.cis_4_0_gcp import (
-    cis_gcp_3_1_default_network,
-    cis_gcp_3_6_unrestricted_ssh,
-    cis_gcp_3_7_unrestricted_rdp,
-    cis_gcp_4_9_public_ip,
-    cis_gcp_5_2_bucket_uniform_access,
 )
 from cartography.rules.data.rules.compute_instance_exposed import (
     compute_instance_exposed,

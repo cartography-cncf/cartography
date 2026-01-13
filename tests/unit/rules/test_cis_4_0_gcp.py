@@ -1,12 +1,10 @@
 from cartography.rules.data.rules import RULES
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_1_default_network
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_6_unrestricted_ssh
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_7_unrestricted_rdp
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_9_public_ip
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_5_2_bucket_uniform_access
 from cartography.rules.data.rules.cis_4_0_gcp import GCPCISFinding
-from cartography.rules.data.rules.cis_4_0_gcp import (
-    cis_gcp_3_1_default_network,
-    cis_gcp_3_6_unrestricted_ssh,
-    cis_gcp_3_7_unrestricted_rdp,
-    cis_gcp_4_9_public_ip,
-    cis_gcp_5_2_bucket_uniform_access,
-)
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
