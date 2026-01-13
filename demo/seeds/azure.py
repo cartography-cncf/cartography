@@ -296,14 +296,22 @@ class AzureSeed(Seed):
         )
 
     def _seed_firewall(self) -> None:
+        from typing import Any
+        from typing import cast
+
         # Transform the test data
         transformed_firewalls = cartography.intel.azure.firewall.transform_firewalls(
-            tests.data.azure.firewall.DESCRIBE_FIREWALLS,
+            cast(list[dict[str, Any]], tests.data.azure.firewall.DESCRIBE_FIREWALLS),
         )
-        transformed_policies = cartography.intel.azure.firewall.transform_firewall_policies(
-            tests.data.azure.firewall.DESCRIBE_FIREWALL_POLICIES,
+        transformed_policies = (
+            cartography.intel.azure.firewall.transform_firewall_policies(
+                cast(
+                    list[dict[str, Any]],
+                    tests.data.azure.firewall.DESCRIBE_FIREWALL_POLICIES,
+                ),
+            )
         )
-        
+
         # Load firewall policies first (firewalls reference them)
         cartography.intel.azure.firewall.load_firewall_policies(
             self.neo4j_session,
@@ -311,7 +319,7 @@ class AzureSeed(Seed):
             SUBSCRIPTION_ID,
             self.update_tag,
         )
-        
+
         # Load firewalls
         cartography.intel.azure.firewall.load_firewalls(
             self.neo4j_session,

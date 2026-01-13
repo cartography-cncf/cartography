@@ -47,16 +47,20 @@ class AzureFirewallProperties(CartographyNodeProperties):
     network_rule_collection_count: PropertyRef = PropertyRef(
         "network_rule_collection_count"
     )
-    
+
     # IP Configurations - captures public IPs and subnet assignments
     ip_configurations: PropertyRef = PropertyRef("ip_configurations")
-    management_ip_configuration: PropertyRef = PropertyRef("management_ip_configuration")
-    
+    management_ip_configuration: PropertyRef = PropertyRef(
+        "management_ip_configuration"
+    )
+
     # Rule Collections - actual firewall rules with ports, addresses, protocols
     network_rule_collections: PropertyRef = PropertyRef("network_rule_collections")
-    application_rule_collections: PropertyRef = PropertyRef("application_rule_collections")
+    application_rule_collections: PropertyRef = PropertyRef(
+        "application_rule_collections"
+    )
     nat_rule_collections: PropertyRef = PropertyRef("nat_rule_collections")
-    
+
     # IP Groups - collections of IP addresses/ranges used in firewall rules
     ip_groups_detail: PropertyRef = PropertyRef("ip_groups_detail")
 

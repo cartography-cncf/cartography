@@ -10,7 +10,7 @@ DESCRIBE_FIREWALLS = [
         "name": "test-firewall-1",
         "type": "Microsoft.Network/azureFirewalls",
         "location": "eastus",
-        "etag": "W/\"00000000-0000-0000-0000-000000000000\"",
+        "etag": 'W/"00000000-0000-0000-0000-000000000000"',
         "zones": ["1", "2", "3"],
         "tags": {
             "environment": "production",
@@ -139,7 +139,7 @@ DESCRIBE_FIREWALL_POLICIES = [
         "name": "test-policy-1",
         "type": "Microsoft.Network/firewallPolicies",
         "location": "eastus",
-        "etag": "W/\"00000000-0000-0000-0000-000000000000\"",
+        "etag": 'W/"00000000-0000-0000-0000-000000000000"',
         "tags": {
             "environment": "production",
         },
