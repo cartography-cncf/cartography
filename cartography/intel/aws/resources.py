@@ -7,6 +7,7 @@ from . import acm
 from . import apigateway
 from . import apigatewayv2
 from . import bedrock
+from . import cloudfront
 from . import cloudtrail
 from . import cloudtrail_management_events
 from . import cloudwatch
@@ -112,6 +113,7 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "apigateway": apigateway.sync,
     "apigatewayv2": apigatewayv2.sync,
     "bedrock": bedrock.sync,
+    "cloudfront": cloudfront.sync,
     "secretsmanager": secretsmanager.sync,
     "securityhub": securityhub.sync,
     "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
