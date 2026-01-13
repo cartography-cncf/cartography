@@ -26,7 +26,10 @@ def get_client(credentials: Any, subscription_id: str) -> NetworkManagementClien
 @timeit
 def get_firewalls(client: NetworkManagementClient) -> list[dict[str, Any]]:
     """
-    Get all Azure Firewalls in the subscription
+    Get all Azure Firewalls in the subscription.
+
+    :raises HttpResponseError: If the Azure API request fails (e.g., auth errors, network issues)
+    :return: List of firewall dictionaries
     """
     firewalls = list(client.azure_firewalls.list_all())
     return [fw.as_dict() for fw in firewalls]
@@ -35,7 +38,10 @@ def get_firewalls(client: NetworkManagementClient) -> list[dict[str, Any]]:
 @timeit
 def get_firewall_policies(client: NetworkManagementClient) -> list[dict[str, Any]]:
     """
-    Get all Azure Firewall Policies in the subscription
+    Get all Azure Firewall Policies in the subscription.
+
+    :raises HttpResponseError: If the Azure API request fails (e.g., auth errors, network issues)
+    :return: List of firewall policy dictionaries
     """
     policies = list(client.firewall_policies.list_all())
     return [policy.as_dict() for policy in policies]
