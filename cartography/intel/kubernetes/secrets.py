@@ -47,6 +47,7 @@ def transform_secrets(secrets: list[V1Secret]) -> list[dict[str, Any]]:
     for secret in secrets:
         secrets_list.append(
             {
+                "composite_id": f"{secret.metadata.namespace}/{secret.metadata.name}",
                 "uid": secret.metadata.uid,
                 "name": secret.metadata.name,
                 "creation_timestamp": get_epoch(secret.metadata.creation_timestamp),

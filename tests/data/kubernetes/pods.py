@@ -62,6 +62,11 @@ KUBERNETES_PODS_DATA = [
         "containers": [
             KUBERNETES_CONTAINER_DATA[0],
         ],
+        "secret_volume_ids": [
+            f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/db-credentials",
+            f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/tls-cert",
+        ],
+        "secret_env_ids": [],
     },
     {
         "uid": RANDOM_ID[1],
@@ -79,6 +84,11 @@ KUBERNETES_PODS_DATA = [
         ),
         "containers": [
             KUBERNETES_CONTAINER_DATA[1],
+        ],
+        "secret_volume_ids": [],
+        "secret_env_ids": [
+            f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/api-key",
+            f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/oauth-token",
         ],
     },
 ]

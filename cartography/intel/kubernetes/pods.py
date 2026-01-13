@@ -81,6 +81,43 @@ def _extract_pod_containers(pod: V1Pod) -> dict[str, Any]:
     return containers
 
 
+def _extract_pod_secrets(pod: V1Pod) -> tuple[list[str], list[str]]:
+    """
+    Extract all secret names referenced by a pod.
+    Returns a tuple of (volume_secret_ids, env_secret_ids).
+    Each list contains unique secret IDs in the format: {namespace}/{secret_name}
+    """
+    volume_secrets = []
+    env_secrets = []
+    namespace = pod.metadata.namespace
+
+    # 1. Secrets mounted as volumes
+    if pod.spec.volumes:
+        for volume in pod.spec.volumes:
+            if volume.secret and volume.secret.secret_name:
+                volume_secrets.append(f"{namespace}/{volume.secret.secret_name}")
+
+    # 2. Secrets from env / envFrom
+    if pod.spec.containers:
+        for container in pod.spec.containers:
+            # env[].valueFrom.secretKeyRef
+            if container.env:
+                for env in container.env:
+                    if env.value_from and env.value_from.secret_key_ref:
+                        env_secrets.append(
+                            f"{namespace}/{env.value_from.secret_key_ref.name}"
+                        )
+
+            # envFrom[].secretRef
+            if container.env_from:
+                for env_from in container.env_from:
+                    if env_from.secret_ref:
+                        env_secrets.append(f"{namespace}/{env_from.secret_ref.name}")
+
+    # Return unique secret IDs for each type
+    return list(set(volume_secrets)), list(set(env_secrets))
+
+
 @timeit
 def get_pods(client: K8sClient) -> list[V1Pod]:
     items = k8s_paginate(client.core.list_pod_for_all_namespaces)
@@ -96,6 +133,7 @@ def transform_pods(pods: list[V1Pod]) -> list[dict[str, Any]]:
 
     for pod in pods:
         containers = _extract_pod_containers(pod)
+        volume_secrets, env_secrets = _extract_pod_secrets(pod)
         transformed_pods.append(
             {
                 "uid": pod.metadata.uid,
@@ -107,6 +145,8 @@ def transform_pods(pods: list[V1Pod]) -> list[dict[str, Any]]:
                 "node": pod.spec.node_name,
                 "labels": _format_pod_labels(pod.metadata.labels),
                 "containers": list(containers.values()),
+                "secret_volume_ids": volume_secrets,
+                "secret_env_ids": env_secrets,
             },
         )
     return transformed_pods
