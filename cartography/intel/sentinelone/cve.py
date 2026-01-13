@@ -43,7 +43,7 @@ def transform(cves_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
         )
         transformed_cve = {
             # Required fields - let them fail if missing
-            "id": f"S1|{cve['cveId']}",  # Use CVE ID as the unique identifier for the node
+            "id": cve["id"],  # Use API ID as the unique identifier for the node
             "cve_id": cve["cveId"],
             # Optional fields - use .get() with None default
             "application_version_id": app_version_id,
@@ -51,12 +51,30 @@ def transform(cves_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "cvss_version": cve.get("cvssVersion"),
             "published_date": cve.get("publishedDate"),
             "severity": cve.get("severity"),
-            # Relationship properties
+            "nvd_base_score": cve.get("nvdBaseScore"),
+            "nvd_cvss_version": cve.get("nvdCvssVersion"),
+            "remediation_level": cve.get("remediationLevel"),
+            "exploit_code_maturity": cve.get("exploitCodeMaturity"),
+            "risk_score": cve.get("riskScore"),
+            "report_confidence": cve.get("reportConfidence"),
+            # Instance properties
             "days_detected": cve.get("daysDetected"),
             "detection_date": cve.get("detectionDate"),
             "last_scan_date": cve.get("lastScanDate"),
             "last_scan_result": cve.get("lastScanResult"),
             "status": cve.get("status"),
+            "mitigation_status": cve.get("mitigationStatus"),
+            "mitigation_status_reason": cve.get("mitigationStatusReason"),
+            "mitigation_status_changed_by": cve.get("mitigationStatusChangedBy"),
+            "mitigation_status_change_time": cve.get("mitigationStatusChangeTime"),
+            "marked_by": cve.get("markedBy"),
+            "marked_date": cve.get("markedDate"),
+            "mark_type_description": (cve.get("markType") or {}).get("description"),
+            "reason": cve.get("reason"),
+            "endpoint_id": cve.get("endpointId"),
+            "endpoint_name": cve.get("endpointName"),
+            "endpoint_type": cve.get("endpointType"),
+            "os_type": cve.get("osType"),
         }
 
         transformed_cves.append(transformed_cve)
