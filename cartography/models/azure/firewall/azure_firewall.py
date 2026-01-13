@@ -28,6 +28,7 @@ class AzureFirewallProperties(CartographyNodeProperties):
     sku_tier: PropertyRef = PropertyRef("sku_tier")
     firewall_policy_id: PropertyRef = PropertyRef("firewall_policy_id")
     virtual_hub_id: PropertyRef = PropertyRef("virtual_hub_id")
+    vnet_id: PropertyRef = PropertyRef("vnet_id")
     zones: PropertyRef = PropertyRef("zones")
     tags: PropertyRef = PropertyRef("tags")
     extended_location_name: PropertyRef = PropertyRef("extended_location_name")
