@@ -188,7 +188,7 @@ def test_sync_network(
     )
     actual_nsg_tag_rels = {(r["n.id"], r["t.id"]) for r in result_nsg}
     assert actual_nsg_tag_rels == expected_nsg_tag_rels
-    
+
     # Assert Public IP Address nodes
     expected_public_ips = set()
     for pip in MOCK_PUBLIC_IPS:

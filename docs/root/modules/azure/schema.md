@@ -1923,7 +1923,7 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
     ```cypher
     (AzureNetworkSecurityGroup)-[:TAGGED]->(AzureTag)
     ```
-    
+
 ### AzureNetworkInterface
 
 Representation of an [Azure Network Interface](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-interfaces/get).

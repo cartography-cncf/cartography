@@ -16,12 +16,8 @@ from azure.mgmt.sql.models import TransparentDataEncryptionName
 from msrestazure.azure_exceptions import CloudError
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.intel.azure.util.tag import transform_tags
-from cartography.models.azure.tags.sql_tag import AzureSQLServerTagsSchema
-from cartography.util import run_cleanup_job
-from cartography.graph.job import GraphJob
 from cartography.models.azure.sql.databasethreatdetectionpolicy import (
     AzureDatabaseThreatDetectionPolicySchema,
 )
@@ -44,6 +40,7 @@ from cartography.models.azure.sql.sqlserver import AzureSQLServerSchema
 from cartography.models.azure.sql.transparentdataencryption import (
     AzureTransparentDataEncryptionSchema,
 )
+from cartography.models.azure.tags.sql_tag import AzureSQLServerTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
