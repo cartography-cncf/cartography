@@ -3,10 +3,12 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -32,8 +34,22 @@ class SnipeitTenantToSnipeitUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:SnipeitTenant)-[:HAS_USER]->(:SnipeitUser)
+# (:SnipeitTenant)-[:RESOURCE]->(:SnipeitUser)
 class SnipeitTenantToSnipeitUserRel(CartographyRelSchema):
+    target_node_label: str = "SnipeitTenant"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: SnipeitTenantToSnipeitUserRelProperties = (
+        SnipeitTenantToSnipeitUserRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:SnipeitTenant)-[:HAS_USER]->(:SnipeitUser) - Backwards compatibility
+class SnipeitTenantToSnipeitUserDeprecatedRel(CartographyRelSchema):
     target_node_label: str = "SnipeitTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -48,9 +64,16 @@ class SnipeitTenantToSnipeitUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class SnipeitUserSchema(CartographyNodeSchema):
     label: str = "SnipeitUser"  # The label of the node
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: SnipeitUserNodeProperties = (
         SnipeitUserNodeProperties()
     )  # An object representing all properties
     sub_resource_relationship: SnipeitTenantToSnipeitUserRel = (
         SnipeitTenantToSnipeitUserRel()
+    )
+    # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[SnipeitTenantToSnipeitUserDeprecatedRel()],
     )

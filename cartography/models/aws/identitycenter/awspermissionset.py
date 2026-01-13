@@ -21,6 +21,7 @@ class PermissionSetProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("Description")
     session_duration: PropertyRef = PropertyRef("SessionDuration")
     instance_arn: PropertyRef = PropertyRef("InstanceArn", set_in_kwargs=True)
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -97,10 +98,11 @@ class RoleAssignmentAllowedByRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class RoleAssignmentAllowedByMatchLink(CartographyRelSchema):
+class AWSRoleToSSOUserMatchLink(CartographyRelSchema):
     """
-    MatchLink schema for ALLOWED_BY relationships from role assignments.
-    Creates relationships like: (AWSRole)-[:ALLOWED_BY]->(AWSSSOUser)
+    MatchLink for (AWSRole)-[:ALLOWED_BY]->(AWSSSOUser).
+
+    See schema documentation for details.
     """
 
     # MatchLink-specific fields for AWSRole as source
@@ -122,10 +124,11 @@ class RoleAssignmentAllowedByMatchLink(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class RoleAssignmentAllowedByGroupMatchLink(CartographyRelSchema):
+class AWSRoleToSSOGroupMatchLink(CartographyRelSchema):
     """
-    MatchLink schema for ALLOWED_BY relationships from group role assignments.
-    Creates relationships like: (AWSRole)-[:ALLOWED_BY]->(AWSSSOGroup)
+    MatchLink for (AWSRole)-[:ALLOWED_BY]->(AWSSSOGroup).
+
+    See schema documentation for details.
     """
 
     source_node_label: str = "AWSRole"

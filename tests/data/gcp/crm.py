@@ -27,8 +27,8 @@ GCP_PROJECTS = [
         "lifecycleState": "ACTIVE",
         "name": "Group 1",
         "parent": "folders/1414",
-        "projectId": "this-project-has-a-parent-232323",
-        "projectNumber": "232323",
+        "projectId": "project-abc",
+        "projectNumber": "123456789012",
     },
 ]
 
@@ -38,7 +38,7 @@ GCP_PROJECTS_WITHOUT_PARENT = [
         "lifecycleState": "ACTIVE",
         "name": "my-parentless-project",
         "parent": "organizations/1337",
-        "projectId": "my-parentless-project-987654",
+        "projectId": "project-abc",
         "projectNumber": "123456789012",
     },
 ]
@@ -67,7 +67,7 @@ GCP_PROJECTS_WITH_ORG_PARENT = [
         "lifecycleState": "ACTIVE",
         "name": "project-under-org",
         "parent": "organizations/1337",
-        "projectId": "project-under-org-55555",
-        "projectNumber": "55555",
+        "projectId": "project-abc",
+        "projectNumber": "123456789012",
     },
 ]
