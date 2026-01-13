@@ -4,6 +4,8 @@
 
 Represents a computer tracked by BigFix.
 
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., CrowdstrikeHost, KandjiDevice, TailscaleDevice).
+
 | Field | Description |
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first created this node  |

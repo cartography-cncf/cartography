@@ -4,6 +4,8 @@
 
 Representation of an Entra (formerly Azure AD) Tenant.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount, GCPOrganization).
+
 |Field | Description|
 |-------|-------------|
 |id | Entra Tenant ID (GUID)|
@@ -25,6 +27,8 @@ Representation of an Entra (formerly Azure AD) Tenant.
 ### EntraUser
 
 Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0&tabs=http).
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser, GitHubUser).
 
 |Field | Description|
 |-------|-------------|
@@ -156,6 +160,8 @@ Representation of an Entra [Group](https://learn.microsoft.com/en-us/graph/api/g
 ### EntraApplication
 
 Representation of an Entra [Application](https://learn.microsoft.com/en-us/graph/api/application-get?view=graph-rest-1.0&tabs=http).
+
+> **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable cross-platform queries for OAuth/SAML applications across different systems (e.g., OktaApplication, KeycloakClient).
 
 |Field | Description|
 |-------|-------------|

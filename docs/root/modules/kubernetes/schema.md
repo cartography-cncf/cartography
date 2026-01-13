@@ -96,6 +96,8 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 ### KubernetesContainer
 Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/workloads/pods/#how-pods-manage-multiple-containers)
 
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for containers across different systems (e.g., ECSContainer, AzureContainerInstance).
+
 | Field | Description |
 |-------|-------------|
 | id | Identifier for the container which is derived from the UID of pod and the name of container |
