@@ -18,6 +18,13 @@ EXPECTED_APP_VERSION_IDS = {
     CVE_ID_3: "nodejs_foundation:nodejs:16.14.2",
 }
 
+# Expected Agent IDs based on the test data
+EXPECTED_AGENT_IDS = {
+    CVE_ID_1: "agent-123",
+    CVE_ID_2: "agent-456",
+    CVE_ID_3: "agent-789",
+}
+
 
 @patch.object(
     cartography.intel.sentinelone.cve,
@@ -26,7 +33,7 @@ EXPECTED_APP_VERSION_IDS = {
 def test_sync_cves(mock_get_paginated_results, neo4j_session):
     """
     Test that CVE sync works properly by syncing CVEs and verifying nodes and relationships
-    including relationships between S1CVE and S1ApplicationVersion
+    including relationships between S1CVE, S1ApplicationVersion and S1Agent
     """
     # Mock the API call to return test data
     mock_get_paginated_results.return_value = CVES_DATA
@@ -47,6 +54,14 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
             update_tag=TEST_UPDATE_TAG,
         )
 
+    # Create prerequisite S1Agent nodes for the relationships
+    for agent_id in EXPECTED_AGENT_IDS.values():
+        neo4j_session.run(
+            "CREATE (ag:S1Agent {id: $agent_id, lastupdated: $update_tag})",
+            agent_id=agent_id,
+            update_tag=TEST_UPDATE_TAG,
+        )
+
     # Act: Run the sync
     cartography.intel.sentinelone.cve.sync(
         neo4j_session,
@@ -54,31 +69,46 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
     )
 
     # Assert:
-    # Verify that the correct CVE nodes were created
+    # Verify that the correct CVE finding nodes were created
     expected_nodes = {
         (
-            "S1|CVE-2023-1234",
+            CVE_ID_1,
             "CVE-2023-1234",
             7.5,
             "3.1",
             "2023-10-15T00:00:00Z",
             "High",
+            45,
+            "2023-11-01T10:00:00Z",
+            "2023-12-15T14:30:00Z",
+            "vulnerable",
+            "active",
         ),
         (
-            "S1|CVE-2023-5678",
+            CVE_ID_2,
             "CVE-2023-5678",
             9.8,
             "3.1",
             "2023-11-20T00:00:00Z",
             "Critical",
+            12,
+            "2023-12-01T08:45:00Z",
+            "2023-12-15T16:20:00Z",
+            "vulnerable",
+            "active",
         ),
         (
-            "S1|CVE-2023-9012",
+            CVE_ID_3,
             "CVE-2023-9012",
             5.3,
             "3.1",
             "2023-08-30T00:00:00Z",
             "Medium",
+            90,
+            "2023-09-15T12:00:00Z",
+            "2023-12-15T09:15:00Z",
+            "patched",
+            "resolved",
         ),
     }
 
@@ -92,6 +122,11 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
             "cvss_version",
             "published_date",
             "severity",
+            "days_detected",
+            "detection_date",
+            "last_scan_date",
+            "last_scan_result",
+            "status",
         ],
     )
 
@@ -99,9 +134,9 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
 
     # Verify that relationships to the account were created
     expected_rels = {
-        ("S1|CVE-2023-1234", TEST_ACCOUNT_ID),
-        ("S1|CVE-2023-5678", TEST_ACCOUNT_ID),
-        ("S1|CVE-2023-9012", TEST_ACCOUNT_ID),
+        (CVE_ID_1, TEST_ACCOUNT_ID),
+        (CVE_ID_2, TEST_ACCOUNT_ID),
+        (CVE_ID_3, TEST_ACCOUNT_ID),
     }
 
     actual_rels = check_rels(
@@ -118,9 +153,9 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
 
     # Verify that relationships to application versions were created
     expected_app_rels = {
-        ("S1|CVE-2023-1234", EXPECTED_APP_VERSION_IDS[CVE_ID_1]),
-        ("S1|CVE-2023-5678", EXPECTED_APP_VERSION_IDS[CVE_ID_2]),
-        ("S1|CVE-2023-9012", EXPECTED_APP_VERSION_IDS[CVE_ID_3]),
+        (CVE_ID_1, EXPECTED_APP_VERSION_IDS[CVE_ID_1]),
+        (CVE_ID_2, EXPECTED_APP_VERSION_IDS[CVE_ID_2]),
+        (CVE_ID_3, EXPECTED_APP_VERSION_IDS[CVE_ID_3]),
     }
 
     actual_app_rels = check_rels(
@@ -135,25 +170,24 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
 
     assert actual_app_rels == expected_app_rels
 
-    # Verify properties on the relationships
-    # We query for the properties on the relationship for one of the CVEs
-    query = """
-    MATCH (c:S1CVE {id: $cve_id})-[r:AFFECTS]->(av:S1ApplicationVersion)
-    RETURN r.days_detected as days_detected,
-           r.detection_date as detection_date,
-           r.last_scan_date as last_scan_date,
-           r.last_scan_result as last_scan_result,
-           r.status as status
-    """
+    # Verify that relationships to agents were created
+    expected_agent_rels = {
+        (CVE_ID_1, EXPECTED_AGENT_IDS[CVE_ID_1]),
+        (CVE_ID_2, EXPECTED_AGENT_IDS[CVE_ID_2]),
+        (CVE_ID_3, EXPECTED_AGENT_IDS[CVE_ID_3]),
+    }
 
-    # Check CVE 1
-    result = neo4j_session.run(query, cve_id="S1|CVE-2023-1234")
-    record = result.single()
-    assert record["days_detected"] == 45
-    assert record["detection_date"] == "2023-11-01T10:00:00Z"
-    assert record["last_scan_date"] == "2023-12-15T14:30:00Z"
-    assert record["last_scan_result"] == "vulnerable"
-    assert record["status"] == "active"
+    actual_agent_rels = check_rels(
+        neo4j_session,
+        "S1CVE",
+        "id",
+        "S1Agent",
+        "id",
+        "AFFECTS",
+        rel_direction_right=True,  # (:S1CVE)-[:AFFECTS]->(:S1Agent)
+    )
+
+    assert actual_agent_rels == expected_agent_rels
 
     # Verify that the lastupdated field was set correctly
     result = neo4j_session.run(
@@ -169,13 +203,13 @@ def test_sync_cves(mock_get_paginated_results, neo4j_session):
 )
 def test_sync_cves_cleanup(mock_get_paginated_results, neo4j_session):
     """
-    Test that CVE sync properly cleans up stale CVEs
+    Test that CVE sync properly cleans up stale CVE findings
     """
     # Clean up any existing data from previous tests
     neo4j_session.run("MATCH (c:S1CVE) DETACH DELETE c")
     neo4j_session.run("MATCH (a:S1Account) DETACH DELETE a")
 
-    # Create an old CVE that should be cleaned up
+    # Create an old CVE finding that should be cleaned up
     old_update_tag = TEST_UPDATE_TAG - 1000
     neo4j_session.run(
         """
@@ -202,9 +236,9 @@ def test_sync_cves_cleanup(mock_get_paginated_results, neo4j_session):
         TEST_COMMON_JOB_PARAMETERS,
     )
 
-    # Verify that only the new CVE exists
+    # Verify that only the new CVE finding exists
     result = neo4j_session.run("MATCH (c:S1CVE) RETURN c.id as id")
     existing_cves = {record["id"] for record in result}
 
     assert "old-cve-123" not in existing_cves
-    assert "S1|CVE-2023-1234" in existing_cves
+    assert CVE_ID_1 in existing_cves
