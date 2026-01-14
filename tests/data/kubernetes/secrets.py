@@ -4,24 +4,22 @@ from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DAT
 
 KUBERNETES_SECRETS_DATA = [
     {
-        "composite_id": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/db-credentials",
+        "composite_id": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/my-secret-1",
         "uid": uuid4().hex,
-        "name": "db-credentials",
+        "name": "my-secret-1",
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
-        "owner_references": None,
         "type": "Opaque",
     },
     {
-        "composite_id": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/tls-cert",
+        "composite_id": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/my-secret-2",
         "uid": uuid4().hex,
-        "name": "tls-cert",
+        "name": "my-secret-2",
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
-        "owner_references": None,
-        "type": "kubernetes.io/tls",
+        "type": "Opaque",
     },
     {
         "composite_id": f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/api-key",
@@ -30,7 +28,6 @@ KUBERNETES_SECRETS_DATA = [
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
-        "owner_references": None,
         "type": "Opaque",
     },
     {
@@ -40,7 +37,6 @@ KUBERNETES_SECRETS_DATA = [
         "creation_timestamp": 1633581666,
         "deletion_timestamp": None,
         "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
-        "owner_references": None,
         "type": "Opaque",
     },
 ]

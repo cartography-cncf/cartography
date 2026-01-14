@@ -293,8 +293,8 @@ def test_load_pod_to_secret_relationships(neo4j_session, _create_test_cluster):
     # Assert: Verify USES_SECRET_VOLUME relationships
     # my-pod should have volume relationships to db-credentials and tls-cert
     expected_volume_rels = {
-        ("my-pod", "db-credentials"),
-        ("my-pod", "tls-cert"),
+        ("my-pod", "my-secret-1"),
+        ("my-pod", "my-secret-2"),
     }
     assert (
         check_rels(

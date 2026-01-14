@@ -63,8 +63,8 @@ KUBERNETES_PODS_DATA = [
             KUBERNETES_CONTAINER_DATA[0],
         ],
         "secret_volume_ids": [
-            f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/db-credentials",
-            f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/tls-cert",
+            f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/my-secret-1",
+            f"{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/my-secret-2",
         ],
         "secret_env_ids": [],
     },
