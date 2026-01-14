@@ -10,6 +10,7 @@ from typing import Dict
 from typing import List
 
 import boto3
+import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
@@ -44,8 +45,22 @@ def get_custom_models(
     # Use pagination for list_custom_models
     paginator = client.get_paginator("list_custom_models")
     model_summaries = []
-    for page in paginator.paginate():
-        model_summaries.extend(page.get("modelSummaries", []))
+    try:
+        for page in paginator.paginate():
+            model_summaries.extend(page.get("modelSummaries", []))
+    except botocore.exceptions.ClientError as e:
+        # Custom models are only supported in us-east-1 and us-west-2.
+        # Other regions return ValidationException with "Unknown Operation".
+        # See https://docs.aws.amazon.com/bedrock/latest/userguide/custom-model-supported.html
+        error_code = e.response.get("Error", {}).get("Code")
+        error_message = e.response.get("Error", {}).get("Message", "")
+        if error_code == "ValidationException" and "Unknown Operation" in error_message:
+            logger.info(
+                "Bedrock custom models not supported in region %s. Skipping.",
+                region,
+            )
+            return []
+        raise
 
     # Get full details for each model (includes jobArn, trainingDataConfig, etc.)
     models = []
