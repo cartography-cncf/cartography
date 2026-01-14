@@ -80,7 +80,7 @@ class KubernetesPodToSecretVolumeRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
-            "id": PropertyRef("secret_volume_ids", one_to_many=True),
+            "composite_id": PropertyRef("secret_volume_ids", one_to_many=True),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
@@ -97,7 +97,7 @@ class KubernetesPodToSecretEnvRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "cluster_name": PropertyRef("CLUSTER_NAME", set_in_kwargs=True),
-            "id": PropertyRef("secret_env_ids", one_to_many=True),
+            "composite_id": PropertyRef("secret_env_ids", one_to_many=True),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD

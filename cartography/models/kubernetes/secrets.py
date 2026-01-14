@@ -13,7 +13,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class KubernetesSecretNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("composite_id", extra_index=True)
+    id: PropertyRef = PropertyRef("uid")
+    composite_id: PropertyRef = PropertyRef("composite_id", extra_index=True)
     uid: PropertyRef = PropertyRef("uid")
     name: PropertyRef = PropertyRef("name", extra_index=True)
     creation_timestamp: PropertyRef = PropertyRef("creation_timestamp")
