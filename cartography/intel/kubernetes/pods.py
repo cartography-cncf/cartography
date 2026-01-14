@@ -98,21 +98,33 @@ def _extract_pod_secrets(pod: V1Pod) -> tuple[list[str], list[str]]:
                 volume_secrets.append(f"{namespace}/{volume.secret.secret_name}")
 
     # 2. Secrets from env / envFrom
+    containers_to_scan = []
     if pod.spec.containers:
-        for container in pod.spec.containers:
-            # env[].valueFrom.secretKeyRef
-            if container.env:
-                for env in container.env:
-                    if env.value_from and env.value_from.secret_key_ref:
-                        env_secrets.append(
-                            f"{namespace}/{env.value_from.secret_key_ref.name}"
-                        )
+        containers_to_scan.extend(pod.spec.containers)
+    if getattr(pod.spec, "init_containers", None):
+        containers_to_scan.extend(pod.spec.init_containers)
+    if getattr(pod.spec, "ephemeral_containers", None):
+        containers_to_scan.extend(pod.spec.ephemeral_containers)
 
-            # envFrom[].secretRef
-            if container.env_from:
-                for env_from in container.env_from:
-                    if env_from.secret_ref:
-                        env_secrets.append(f"{namespace}/{env_from.secret_ref.name}")
+    for container in containers_to_scan:
+        # env[].valueFrom.secretKeyRef
+        if container.env:
+            for env in container.env:
+                if (
+                    env.value_from
+                    and env.value_from.secret_key_ref
+                    and namespace
+                    and env.value_from.secret_key_ref.name
+                ):
+                    env_secrets.append(
+                        f"{namespace}/{env.value_from.secret_key_ref.name}"
+                    )
+
+        # envFrom[].secretRef
+        if container.env_from:
+            for env_from in container.env_from:
+                if env_from.secret_ref and namespace and env_from.secret_ref.name:
+                    env_secrets.append(f"{namespace}/{env_from.secret_ref.name}")
 
     # Return unique secret IDs for each type
     return list(set(volume_secrets)), list(set(env_secrets))
