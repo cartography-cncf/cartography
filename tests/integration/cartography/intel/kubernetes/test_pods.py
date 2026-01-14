@@ -345,4 +345,3 @@ def test_load_pod_to_secret_relationships(neo4j_session, _create_test_cluster):
         pod_name="my-service-pod",
     )
     assert result.single()["count"] == 0
-
