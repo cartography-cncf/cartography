@@ -39,7 +39,7 @@ def get_custom_models(
     to retrieve full details (jobArn, jobName, trainingDataConfig, outputDataConfig).
     """
     if region not in CUSTOM_MODELS_SUPPORTED_REGIONS:
-        logger.info(
+        logger.debug(
             "Bedrock custom models not supported in region %s. Skipping.",
             region,
         )
