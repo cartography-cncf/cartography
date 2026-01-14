@@ -304,24 +304,45 @@ spacelift_mapping = OntologyMapping(
     ],
 )
 
+# Slack
+slack_mapping = OntologyMapping(
+    module_name="slack",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SlackTeam",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="domain", node_field="domain"),
+                # status: Not available
+            ],
+        ),
+    ],
+)
+
+# Duo
+# DuoApiHost: No field to map in DuoApiHost (minimal properties)
+
 # Tailscale
 # TailscaleTailnet: No field to map in TailscaleTailnet (minimal properties)
 
 
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    "airbyte": airbyte_mapping,
     "aws": aws_mapping,
     "azure": azure_mapping,
+    "cloudflare": cloudflare_mapping,
+    "digitalocean": digitalocean_mapping,
     "entra": entra_mapping,
     "gcp": gcp_mapping,
     "github": github_mapping,
     "googleworkspace": googleworkspace_mapping,
+    "keycloak": keycloak_mapping,
     "okta": okta_mapping,
-    "cloudflare": cloudflare_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
-    "airbyte": airbyte_mapping,
-    "keycloak": keycloak_mapping,
-    "digitalocean": digitalocean_mapping,
     "sentinelone": sentinelone_mapping,
+    "slack": slack_mapping,
     "spacelift": spacelift_mapping,
 }
