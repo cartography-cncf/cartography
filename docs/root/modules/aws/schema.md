@@ -1091,6 +1091,58 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
     (:CloudTrailTrail)-[:SENDS_LOGS_TO_CLOUDWATCH]->(:CloudWatchLogGroup)
     ```
 
+### CloudFrontDistribution
+
+Representation of an AWS [CloudFront Distribution](https://docs.aws.amazon.com/cloudfront/latest/APIReference/API_DistributionSummary.html).
+
+CloudFront is AWS's global content delivery network (CDN) service. CloudFront distributions are the primary resource that defines how content is cached and delivered to end users.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the CloudFront distribution |
+| **arn** | The ARN of the CloudFront distribution |
+| distribution_id | The unique identifier for the distribution (e.g., E1A2B3C4D5E6F7) |
+| domain_name | The CloudFront domain name (e.g., d1234567890abc.cloudfront.net) |
+| status | The current status of the distribution (e.g., Deployed, InProgress) |
+| enabled | Whether the distribution is enabled |
+| comment | Optional comment describing the distribution |
+| price_class | The price class for the distribution (e.g., PriceClass_100, PriceClass_All) |
+| http_version | The HTTP version supported (e.g., http2, http2and3) |
+| is_ipv6_enabled | Whether IPv6 is enabled for the distribution |
+| staging | Whether this is a staging distribution |
+| etag | The entity tag for the distribution configuration |
+| web_acl_id | The AWS WAF Web ACL ID associated with the distribution |
+| aliases | List of CNAMEs (alternate domain names) for the distribution |
+| viewer_protocol_policy | The viewer protocol policy from the default cache behavior |
+| acm_certificate_arn | The ARN of the ACM certificate for HTTPS |
+| cloudfront_default_certificate | Whether the default CloudFront certificate is used |
+| minimum_protocol_version | The minimum TLS protocol version (e.g., TLSv1.2_2021) |
+| ssl_support_method | The SSL/TLS support method (e.g., sni-only) |
+| iam_certificate_id | The IAM certificate ID if using IAM certificates |
+| geo_restriction_type | The type of geo restriction (none, whitelist, blacklist) |
+| geo_restriction_locations | List of country codes for geo restrictions |
+
+#### Relationships
+
+- CloudFront Distributions are resources in an AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:CloudFrontDistribution)
+    ```
+- CloudFront Distributions can serve content from S3 Buckets.
+    ```
+    (:CloudFrontDistribution)-[:SERVES_FROM]->(:S3Bucket)
+    ```
+- CloudFront Distributions can use ACM Certificates for HTTPS.
+    ```
+    (:CloudFrontDistribution)-[:USES_CERTIFICATE]->(:ACMCertificate)
+    ```
+- CloudFront Distributions can use Lambda@Edge functions.
+    ```
+    (:CloudFrontDistribution)-[:USES_LAMBDA_EDGE]->(:AWSLambda)
+    ```
+
 ### CloudWatchLogGroup
 Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_LogGroup.html)
 
