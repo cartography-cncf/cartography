@@ -10,7 +10,6 @@ from typing import Dict
 from typing import List
 
 import boto3
-import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
@@ -22,6 +21,10 @@ from cartography.util import timeit
 from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
+
+# Custom models are only supported in us-east-1 and us-west-2.
+# See https://docs.aws.amazon.com/bedrock/latest/userguide/custom-model-supported.html
+CUSTOM_MODELS_SUPPORTED_REGIONS = {"us-east-1", "us-west-2"}
 
 
 @timeit
@@ -35,6 +38,13 @@ def get_custom_models(
     Uses pagination for list_custom_models and calls get_custom_model for each
     to retrieve full details (jobArn, jobName, trainingDataConfig, outputDataConfig).
     """
+    if region not in CUSTOM_MODELS_SUPPORTED_REGIONS:
+        logger.info(
+            "Bedrock custom models not supported in region %s. Skipping.",
+            region,
+        )
+        return []
+
     logger.info("Fetching Bedrock custom models in region %s", region)
     client = boto3_session.client(
         "bedrock",
@@ -45,22 +55,8 @@ def get_custom_models(
     # Use pagination for list_custom_models
     paginator = client.get_paginator("list_custom_models")
     model_summaries = []
-    try:
-        for page in paginator.paginate():
-            model_summaries.extend(page.get("modelSummaries", []))
-    except botocore.exceptions.ClientError as e:
-        # Custom models are only supported in us-east-1 and us-west-2.
-        # Other regions return ValidationException with "Unknown Operation".
-        # See https://docs.aws.amazon.com/bedrock/latest/userguide/custom-model-supported.html
-        error_code = e.response.get("Error", {}).get("Code")
-        error_message = e.response.get("Error", {}).get("Message", "")
-        if error_code == "ValidationException" and "Unknown Operation" in error_message:
-            logger.info(
-                "Bedrock custom models not supported in region %s. Skipping.",
-                region,
-            )
-            return []
-        raise
+    for page in paginator.paginate():
+        model_summaries.extend(page.get("modelSummaries", []))
 
     # Get full details for each model (includes jobArn, trainingDataConfig, etc.)
     models = []
