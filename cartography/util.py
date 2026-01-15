@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import re
+from datetime import datetime
+from datetime import timezone
 from functools import partial
 from functools import wraps
 from importlib.resources import open_binary
@@ -19,8 +21,6 @@ from typing import Optional
 from typing import Set
 from typing import Type
 from typing import TypeVar
-from datetime import datetime
-from datetime import timezone
 from typing import Union
 
 import backoff
@@ -556,20 +556,24 @@ def to_datetime(value: Any) -> Union[datetime, None]:
 
     # Handle neo4j.time.DateTime
     # neo4j.time.DateTime has a to_native() method that returns a Python datetime
-    if hasattr(value, 'to_native'):
-        return value.to_native()
+    if hasattr(value, "to_native"):
+        return cast(datetime, value.to_native())
 
     # Fallback: try to construct datetime from neo4j.time.DateTime attributes
-    if hasattr(value, 'year') and hasattr(value, 'month') and hasattr(value, 'day'):
-        tzinfo = getattr(value, 'tzinfo', None) or timezone.utc
+    if hasattr(value, "year") and hasattr(value, "month") and hasattr(value, "day"):
+        tzinfo = getattr(value, "tzinfo", None) or timezone.utc
         return datetime(
             year=value.year,
             month=value.month,
             day=value.day,
-            hour=getattr(value, 'hour', 0),
-            minute=getattr(value, 'minute', 0),
-            second=getattr(value, 'second', 0),
-            microsecond=getattr(value, 'nanosecond', 0) // 1000 if hasattr(value, 'nanosecond') else 0,
+            hour=getattr(value, "hour", 0),
+            minute=getattr(value, "minute", 0),
+            second=getattr(value, "second", 0),
+            microsecond=(
+                getattr(value, "nanosecond", 0) // 1000
+                if hasattr(value, "nanosecond")
+                else 0
+            ),
             tzinfo=tzinfo,
         )
 

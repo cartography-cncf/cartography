@@ -329,9 +329,18 @@ def test_to_datetime_neo4j_datetime_fallback_attributes():
     from cartography.util import to_datetime
 
     # Mock neo4j.time.DateTime without to_native method
-    mock_neo4j_dt = MagicMock(spec=[
-        'year', 'month', 'day', 'hour', 'minute', 'second', 'nanosecond', 'tzinfo',
-    ])
+    mock_neo4j_dt = MagicMock(
+        spec=[
+            "year",
+            "month",
+            "day",
+            "hour",
+            "minute",
+            "second",
+            "nanosecond",
+            "tzinfo",
+        ]
+    )
     mock_neo4j_dt.year = 2025
     mock_neo4j_dt.month = 1
     mock_neo4j_dt.day = 15
@@ -353,9 +362,18 @@ def test_to_datetime_neo4j_datetime_fallback_with_nanoseconds():
 
     from cartography.util import to_datetime
 
-    mock_neo4j_dt = MagicMock(spec=[
-        'year', 'month', 'day', 'hour', 'minute', 'second', 'nanosecond', 'tzinfo',
-    ])
+    mock_neo4j_dt = MagicMock(
+        spec=[
+            "year",
+            "month",
+            "day",
+            "hour",
+            "minute",
+            "second",
+            "nanosecond",
+            "tzinfo",
+        ]
+    )
     mock_neo4j_dt.year = 2025
     mock_neo4j_dt.month = 1
     mock_neo4j_dt.day = 15
@@ -377,9 +395,18 @@ def test_to_datetime_neo4j_datetime_fallback_default_timezone():
 
     from cartography.util import to_datetime
 
-    mock_neo4j_dt = MagicMock(spec=[
-        'year', 'month', 'day', 'hour', 'minute', 'second', 'nanosecond', 'tzinfo',
-    ])
+    mock_neo4j_dt = MagicMock(
+        spec=[
+            "year",
+            "month",
+            "day",
+            "hour",
+            "minute",
+            "second",
+            "nanosecond",
+            "tzinfo",
+        ]
+    )
     mock_neo4j_dt.year = 2025
     mock_neo4j_dt.month = 1
     mock_neo4j_dt.day = 15
