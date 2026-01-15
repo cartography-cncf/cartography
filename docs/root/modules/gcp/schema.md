@@ -1431,3 +1431,131 @@ Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com
     ```
     (GCPSecretManagerSecretVersion)-[:VERSION_OF]->(GCPSecretManagerSecret)
     ```
+
+### Artifact Registry Resources
+
+#### Overview
+
+Google Cloud Artifact Registry is a universal package manager for managing container images and language packages. Cartography ingests the following Artifact Registry resources:
+
+```mermaid
+graph LR
+    Project[GCPProject]
+    Repository[GCPArtifactRegistryRepository]
+    Artifact[GCPArtifactRegistryArtifact]
+    Manifest[GCPArtifactRegistryImageManifest]
+
+    Project -->|RESOURCE| Repository
+    Project -->|RESOURCE| Artifact
+    Project -->|RESOURCE| Manifest
+    Repository -->|CONTAINS| Artifact
+    Artifact -->|HAS_MANIFEST| Manifest
+```
+
+#### GCPArtifactRegistryRepository
+
+Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the repository (e.g., `projects/{project}/locations/{location}/repositories/{repo}`) |
+| name | The short name of the repository |
+| format | The format of packages stored in the repository (e.g., `DOCKER`, `MAVEN`, `NPM`, `PYTHON`, `GO`, `APT`, `YUM`) |
+| mode | The mode of the repository (e.g., `STANDARD_REPOSITORY`, `VIRTUAL_REPOSITORY`, `REMOTE_REPOSITORY`) |
+| description | User-provided description of the repository |
+| location | The GCP region where the repository is located |
+| registry_uri | The Docker registry URI for Docker format repositories (e.g., `us-east1-docker.pkg.dev/{project}/{repo}`) |
+| size_bytes | The size of the repository in bytes |
+| kms_key_name | The Cloud KMS key name used to encrypt the repository |
+| create_time | Timestamp when the repository was created |
+| update_time | Timestamp when the repository was last updated |
+| cleanup_policy_dry_run | Whether cleanup policies are in dry run mode |
+| vulnerability_scanning_enabled | Whether vulnerability scanning is enabled |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryRepositories are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryRepository)
+    ```
+
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryArtifacts.
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryArtifact)
+    ```
+
+#### GCPArtifactRegistryArtifact
+
+Representation of an artifact in a GCP Artifact Registry repository. This is a unified node type that represents artifacts across all supported formats including [Docker Images](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages), [Maven Artifacts](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.mavenArtifacts), [npm Packages](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.npmPackages), [Python Packages](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.pythonPackages), and others.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the artifact |
+| name | The short name of the artifact |
+| format | The format of the artifact (`DOCKER`, `MAVEN`, `NPM`, `PYTHON`, `GO`, `APT`, `YUM`) |
+| uri | The URI of the artifact |
+| create_time | Timestamp when the artifact was created |
+| update_time | Timestamp when the artifact was last updated |
+| repository_id | Full resource name of the parent repository |
+| project_id | The GCP project ID |
+| digest | (Docker) The image digest (e.g., `sha256:...`) |
+| tags | (Docker/npm) Tags associated with the artifact |
+| image_size_bytes | (Docker) Size of the image in bytes |
+| media_type | (Docker) The media type of the image manifest |
+| upload_time | (Docker) Timestamp when the image was uploaded |
+| build_time | (Docker) Timestamp when the image was built |
+| version | (Maven/npm/Python/Go) The version of the package |
+| display_name | (Maven/npm/Python) Human-readable package name |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryArtifacts are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryArtifact)
+    ```
+
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryArtifacts.
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryArtifact)
+    ```
+
+- GCPArtifactRegistryArtifacts have GCPArtifactRegistryImageManifests (Docker only, for multi-architecture images).
+    ```
+    (GCPArtifactRegistryArtifact)-[:HAS_MANIFEST]->(GCPArtifactRegistryImageManifest)
+    ```
+
+#### GCPArtifactRegistryImageManifest
+
+Representation of a platform-specific manifest within a multi-architecture Docker image. This node captures the individual platform configurations (architecture, OS) for images that support multiple platforms.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier combining parent artifact and manifest digest |
+| digest | The digest of this specific platform manifest |
+| architecture | CPU architecture (e.g., `amd64`, `arm64`) |
+| os | Operating system (e.g., `linux`, `windows`) |
+| os_version | OS version if specified |
+| os_features | OS features if specified |
+| variant | Platform variant (e.g., `v8` for arm64) |
+| media_type | The media type of the manifest |
+| parent_artifact_id | Full resource name of the parent artifact |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryImageManifests are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryImageManifest)
+    ```
+
+- GCPArtifactRegistryArtifacts have GCPArtifactRegistryImageManifests.
+    ```
+    (GCPArtifactRegistryArtifact)-[:HAS_MANIFEST]->(GCPArtifactRegistryImageManifest)
+    ```
