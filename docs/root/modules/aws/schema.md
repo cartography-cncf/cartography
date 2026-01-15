@@ -2574,7 +2574,6 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
 |createdtime | The date and time the load balancer was created. |
 |canonicalhostedzonenameid| The ID of the Amazon Route 53 hosted zone for the load balancer. |
 | exposed\_internet | The `exposed_internet` flag is set to `True` when the load balancer's `scheme` field is set to `internet-facing`.  This indicates that the load balancer has a public DNS name that resolves to a public IP address. |
-| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
 
 
 #### Relationships
