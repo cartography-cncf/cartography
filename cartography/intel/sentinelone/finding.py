@@ -7,7 +7,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.sentinelone.api import get_paginated_results
 from cartography.intel.sentinelone.utils import get_application_version_id
-from cartography.models.sentinelone.cve import S1CVESchema
+from cartography.models.sentinelone.finding import S1AppFindingSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get(api_url: str, api_token: str, account_id: str) -> list[dict[str, Any]]:
-    logger.info("Retrieving SentinelOne CVE data")
+    logger.info("Retrieving SentinelOne AppFinding data")
     cves = get_paginated_results(
         api_url=api_url,
         endpoint="/web/api/v2.1/application-management/risks",
@@ -26,13 +26,13 @@ def get(api_url: str, api_token: str, account_id: str) -> list[dict[str, Any]]:
         },
     )
 
-    logger.info("Retrieved %d CVEs from SentinelOne", len(cves))
+    logger.info("Retrieved %d AppFindings from SentinelOne", len(cves))
     return cves
 
 
 def transform(cves_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
-    Transform SentinelOne CVE data for loading into Neo4j
+    Transform SentinelOne AppFinding data for loading into Neo4j
     """
     transformed_cves = []
     for cve in cves_list:
@@ -47,14 +47,7 @@ def transform(cves_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "cve_id": cve["cveId"],
             # Optional fields - use .get() with None default
             "application_version_id": app_version_id,
-            "base_score": cve.get("baseScore"),
-            "cvss_version": cve.get("cvssVersion"),
-            "published_date": cve.get("publishedDate"),
-            "severity": cve.get("severity"),
-            "nvd_base_score": cve.get("nvdBaseScore"),
-            "nvd_cvss_version": cve.get("nvdCvssVersion"),
             "remediation_level": cve.get("remediationLevel"),
-            "exploit_code_maturity": cve.get("exploitCodeMaturity"),
             "risk_score": cve.get("riskScore"),
             "report_confidence": cve.get("reportConfidence"),
             # Instance properties
@@ -72,9 +65,6 @@ def transform(cves_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "mark_type_description": (cve.get("markType") or {}).get("description"),
             "reason": cve.get("reason"),
             "endpoint_id": cve.get("endpointId"),
-            "endpoint_name": cve.get("endpointName"),
-            "endpoint_type": cve.get("endpointType"),
-            "os_type": cve.get("osType"),
         }
 
         transformed_cves.append(transformed_cve)
@@ -90,12 +80,12 @@ def load_cves(
     update_tag: int,
 ) -> None:
     """
-    Load SentinelOne CVE data into Neo4j
+    Load SentinelOne AppFinding data into Neo4j
     """
-    logger.info(f"Loading {len(data)} SentinelOne CVEs into Neo4j")
+    logger.info(f"Loading {len(data)} SentinelOne AppFindings into Neo4j")
     load(
         neo4j_session,
-        S1CVESchema(),
+        S1AppFindingSchema(),
         data,
         lastupdated=update_tag,
         S1_ACCOUNT_ID=account_id,  # Fixed parameter name to match model
@@ -106,9 +96,11 @@ def load_cves(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    """Remove CVE nodes that weren't updated in this sync run"""
-    logger.debug("Running S1CVEs cleanup")
-    GraphJob.from_node_schema(S1CVESchema(), common_job_parameters).run(neo4j_session)
+    """Remove AppFinding nodes that weren't updated in this sync run"""
+    logger.debug("Running S1AppFinding cleanup")
+    GraphJob.from_node_schema(S1AppFindingSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -117,10 +109,10 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Sync SentinelOne CVEs following the standard pattern:
+    Sync SentinelOne AppFindings following the standard pattern:
     GET -> TRANSFORM -> LOAD -> CLEANUP
     """
-    logger.info("Syncing SentinelOne CVE data")
+    logger.info("Syncing SentinelOne AppFinding data")
 
     api_url = common_job_parameters.get("API_URL", "")
     api_token = common_job_parameters.get("API_TOKEN", "")
@@ -128,7 +120,7 @@ def sync(
     update_tag = common_job_parameters.get("UPDATE_TAG", 0)
 
     if not api_url or not api_token or not account_id or not update_tag:
-        logger.error("Missing required parameters for SentinelOne CVE sync")
+        logger.error("Missing required parameters for SentinelOne AppFinding sync")
         return
 
     cves = get(api_url, api_token, account_id)
