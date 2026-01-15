@@ -4,7 +4,7 @@ import neo4j
 
 import cartography.intel.sentinelone.agent
 import cartography.intel.sentinelone.application
-import cartography.intel.sentinelone.cve
+import cartography.intel.sentinelone.finding
 from cartography.config import Config
 from cartography.intel.sentinelone.account import sync_accounts
 from cartography.stats import get_stats_client
@@ -56,7 +56,7 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
             common_job_parameters,
         )
 
-        cartography.intel.sentinelone.cve.sync(
+        cartography.intel.sentinelone.finding.sync(
             neo4j_session,
             common_job_parameters,
         )

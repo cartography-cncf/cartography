@@ -39,10 +39,10 @@ Represents a SentinelOne account, which is the top-level organizational unit for
     (S1Account)-[RESOURCE]->(S1ApplicationVersion)
     ```
 
-- A S1Account has security risks through S1CVEs.
+- A S1Account has security risks through S1AppFindings.
 
     ```
-    (S1Account)-[RESOURCE]->(S1CVE)
+    (S1Account)-[RESOURCE]->(S1AppFinding)
     ```
 
 ### S1Agent
@@ -79,10 +79,10 @@ Represents a SentinelOne agent installed on an endpoint device.
     (S1Agent)-[HAS_INSTALLED]->(S1ApplicationVersion)
     ```
 
-- A S1Agent is affected by S1CVEs.
+- A S1Agent is affected by S1AppFindings.
 
     ```
-    (S1Agent)<-[AFFECTS]-(S1CVE)
+    (S1Agent)<-[AFFECTS]-(S1AppFinding)
     ```
 
 ### S1Application
@@ -151,35 +151,27 @@ Represents a specific version of an application.
     (S1Application)-[VERSION]->(S1ApplicationVersion)
     ```
 
-- A S1ApplicationVersion is affected by S1CVEs.
+- A S1ApplicationVersion is affected by S1AppFindings.
 
     ```
-    (S1CVE)-[AFFECTS]->(S1ApplicationVersion)
+    (S1AppFinding)-[AFFECTS]->(S1ApplicationVersion)
     ```
 
-### S1CVE
+### S1AppFinding
 
-Represents a specific **instance** of a Common Vulnerability and Exposure (CVE) detection on a specific endpoint. Unlike generic CVE definitions, each `S1CVE` node represents a unique finding on a specific agent.
+Represents a specific **instance** of a vulnerability detection (finding) on a specific endpoint. Unlike generic CVE definitions, each `S1AppFinding` node represents a unique finding on a specific agent.
 
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The unique identifier for the specific CVE finding instance (API ID) |
+| **id** | The unique identifier for the specific finding instance (API ID) |
 | **cve_id** | The CVE identifier (e.g., CVE-2023-12345) |
-| base_score | The CVSS base score for the vulnerability |
-| cvss_version | The version of CVSS used for scoring |
-| published_date | ISO 8601 timestamp of when the CVE was published |
-| severity | The severity level of the vulnerability (e.g., Critical, High, Medium, Low) |
-| nvd_base_score | NVD Base Score |
-| nvd_cvss_version | NVD CVSS Version |
-| remediation_level | Remediation level of the vulnerability |
-| exploit_code_maturity | Exploit code maturity |
 | risk_score | Risk score |
 | report_confidence | Confidence level of the report |
 | days_detected | Number of days since detection |
-| detection_date | ISO 8601 timestamp of detection |
-| last_scan_date | ISO 8601 timestamp of last scan |
+| detection_date | ISO 8601 timestamp of detection (e.g. 2018-02-27T04:49:26.257525Z) |
+| last_scan_date | ISO 8601 timestamp of last scan (e.g. 2018-02-27T04:49:26.257525Z) |
 | last_scan_result | Result of the last scan |
 | status | Status of the finding (e.g., Active) |
 | mitigation_status | Status of mitigation |
@@ -190,27 +182,30 @@ Represents a specific **instance** of a Common Vulnerability and Exposure (CVE) 
 | marked_date | Date when finding was marked |
 | mark_type_description | Description of mark type |
 | reason | Reason for the finding |
-| endpoint_id | ID of the affected endpoint |
-| endpoint_name | Name of the affected endpoint |
-| endpoint_type | Type of the affected endpoint |
-| os_type | OS type of the affected endpoint |
+| remediation_level | Remediation level of the finding |
 
 #### Relationships
 
-- A S1CVE belongs to a S1Account (scoped cleanup).
+- A S1AppFinding belongs to a S1Account (scoped cleanup).
 
     ```
-    (S1Account)-[RESOURCE]->(S1CVE)
+    (S1Account)-[RESOURCE]->(S1AppFinding)
     ```
 
-- A S1CVE affects a specific S1Agent (the endpoint where it was found).
+- A S1AppFinding affects a specific S1Agent (the endpoint where it was found).
 
     ```
-    (S1CVE)-[AFFECTS]->(S1Agent)
+    (S1AppFinding)-[AFFECTS]->(S1Agent)
     ```
 
-- A S1CVE affects a specific S1ApplicationVersion (the vulnerable software).
+- A S1AppFinding affects a specific S1ApplicationVersion (the vulnerable software).
 
     ```
-    (S1CVE)-[AFFECTS]->(S1ApplicationVersion)
+    (S1AppFinding)-[AFFECTS]->(S1ApplicationVersion)
+    ```
+
+- A S1AppFinding is linked to a generic CVE definition.
+
+    ```
+    (S1AppFinding)-[LINKED_TO]->(CVE)
     ```

@@ -13,22 +13,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class S1CVENodeProperties(CartographyNodeProperties):
+class S1AppFindingNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
     # CVE specific
     cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
-    base_score: PropertyRef = PropertyRef("base_score")
-    cvss_version: PropertyRef = PropertyRef("cvss_version")
-    published_date: PropertyRef = PropertyRef("published_date")
-    severity: PropertyRef = PropertyRef("severity")
-    nvd_base_score: PropertyRef = PropertyRef("nvd_base_score")
-    nvd_cvss_version: PropertyRef = PropertyRef("nvd_cvss_version")
-    remediation_level: PropertyRef = PropertyRef("remediation_level")
-    exploit_code_maturity: PropertyRef = PropertyRef("exploit_code_maturity")
-    risk_score: PropertyRef = PropertyRef("risk_score")
-    report_confidence: PropertyRef = PropertyRef("report_confidence")
 
     # Instance specific (Finding)
     days_detected: PropertyRef = PropertyRef("days_detected")
@@ -48,74 +38,93 @@ class S1CVENodeProperties(CartographyNodeProperties):
     marked_date: PropertyRef = PropertyRef("marked_date")
     mark_type_description: PropertyRef = PropertyRef("mark_type_description")
     reason: PropertyRef = PropertyRef("reason")
-    endpoint_id: PropertyRef = PropertyRef("endpoint_id")
-    endpoint_name: PropertyRef = PropertyRef("endpoint_name")
-    endpoint_type: PropertyRef = PropertyRef("endpoint_type")
-    os_type: PropertyRef = PropertyRef("os_type")
+    remediation_level: PropertyRef = PropertyRef("remediation_level")
+    risk_score: PropertyRef = PropertyRef("risk_score")
+    report_confidence: PropertyRef = PropertyRef("report_confidence")
 
 
 @dataclass(frozen=True)
-class S1CVEToAccountRelProperties(CartographyRelProperties):
+class S1AppFindingToAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:S1CVE)<-[:RESOURCE]-(:S1Account)
-class S1CVEToAccountRel(CartographyRelSchema):
+# (:S1AppFinding)<-[:RESOURCE]-(:S1Account)
+class S1AppFindingToAccountRel(CartographyRelSchema):
     target_node_label: str = "S1Account"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("S1_ACCOUNT_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: S1CVEToAccountRelProperties = S1CVEToAccountRelProperties()
+    properties: S1AppFindingToAccountRelProperties = (
+        S1AppFindingToAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
-class S1CVEToApplicationVersionRelProperties(CartographyRelProperties):
+class S1AppFindingToApplicationVersionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:S1CVE)-[:AFFECTS]->(:S1ApplicationVersion)
-class S1CVEToApplicationVersionRel(CartographyRelSchema):
+# (:S1AppFinding)-[:AFFECTS]->(:S1ApplicationVersion)
+class S1AppFindingToApplicationVersionRel(CartographyRelSchema):
     target_node_label: str = "S1ApplicationVersion"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("application_version_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
-    properties: S1CVEToApplicationVersionRelProperties = (
-        S1CVEToApplicationVersionRelProperties()
+    properties: S1AppFindingToApplicationVersionRelProperties = (
+        S1AppFindingToApplicationVersionRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class S1CVEToAgentRelProperties(CartographyRelProperties):
+class S1AppFindingToAgentRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:S1CVE)-[:AFFECTS]->(:S1Agent)
-class S1CVEToAgentRel(CartographyRelSchema):
+# (:S1AppFinding)-[:AFFECTS]->(:S1Agent)
+class S1AppFindingToAgentRel(CartographyRelSchema):
     target_node_label: str = "S1Agent"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("endpoint_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "AFFECTS"
-    properties: S1CVEToAgentRelProperties = S1CVEToAgentRelProperties()
+    properties: S1AppFindingToAgentRelProperties = S1AppFindingToAgentRelProperties()
 
 
 @dataclass(frozen=True)
-class S1CVESchema(CartographyNodeSchema):
-    label: str = "S1CVE"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S1Finding", "Risk", "CVE"])
-    properties: S1CVENodeProperties = S1CVENodeProperties()
-    sub_resource_relationship: S1CVEToAccountRel = S1CVEToAccountRel()
+class S1AppFindingToCVERelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:S1AppFinding)-[:LINKED_TO]->(:CVE)
+class S1AppFindingToCVERel(CartographyRelSchema):
+    target_node_label: str = "CVE"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("cve_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "LINKED_TO"
+    properties: S1AppFindingToCVERelProperties = S1AppFindingToCVERelProperties()
+
+
+@dataclass(frozen=True)
+class S1AppFindingSchema(CartographyNodeSchema):
+    label: str = "S1AppFinding"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["S1Finding", "Risk"])
+    properties: S1AppFindingNodeProperties = S1AppFindingNodeProperties()
+    sub_resource_relationship: S1AppFindingToAccountRel = S1AppFindingToAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            S1CVEToApplicationVersionRel(),
-            S1CVEToAgentRel(),
+            S1AppFindingToApplicationVersionRel(),
+            S1AppFindingToAgentRel(),
+            S1AppFindingToCVERel(),
         ]
     )
