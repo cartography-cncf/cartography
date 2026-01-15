@@ -16,6 +16,7 @@ Grant the following roles to the identity at the **organization level**. This en
 | `roles/resourcemanager.organizationViewer` | List/get GCP Organizations | Yes |
 | `roles/resourcemanager.folderViewer` | List/get GCP Folders | Yes |
 | `roles/cloudasset.viewer` | Sync IAM policy bindings (effective policies across org hierarchy) | Optional |
+| `roles/artifactregistry.reader` | List/get Artifact Registry repositories and artifacts | Optional |
 
 To grant a role at the organization level:
 ```bash
