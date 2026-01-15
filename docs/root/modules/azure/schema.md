@@ -427,6 +427,21 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
     (AzureSQLServer)-[CONTAINS]->(AzureSQLDatabase)
     ```
 
+- Entra principals with appropriate permissions can manage Azure SQL Servers. Created from [azure_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml).
+    ```
+    (EntraUser, EntraGroup, EntraServicePrincipal)-[CAN_MANAGE]->(AzureSQLServer)
+    ```
+
+- Entra principals with appropriate permissions can read Azure SQL Servers. Created from [azure_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml).
+    ```
+    (EntraUser, EntraGroup, EntraServicePrincipal)-[CAN_READ]->(AzureSQLServer)
+    ```
+
+- Entra principals with appropriate permissions can write to Azure SQL Servers. Created from [azure_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml).
+    ```
+    (EntraUser, EntraGroup, EntraServicePrincipal)-[CAN_WRITE]->(AzureSQLServer)
+    ```
+
 ### AzureServerDNSAlias
 
 Representation of an [AzureServerDNSAlias](https://docs.microsoft.com/en-us/rest/api/sql/serverdnsaliases).
