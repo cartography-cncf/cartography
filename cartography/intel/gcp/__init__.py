@@ -177,6 +177,16 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
+        # Sync BigQuery datasets
+        logger.info("Syncing GCP project %s for BigQuery.", project_id)
+        from cartography.intel.gcp import bigquery
+        bigquery.sync(
+            neo4j_session,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+
         if service_names.gke in enabled_services:
             logger.info("Syncing GCP project %s for GKE.", project_id)
             container_cred = build_client("container", "v1", credentials=credentials)
