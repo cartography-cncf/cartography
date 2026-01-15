@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import re
+from datetime import datetime
+from datetime import timezone
 from functools import partial
 from functools import wraps
 from importlib.resources import open_binary
@@ -531,3 +533,67 @@ def to_synchronous(*awaitables: Awaitable[Any]) -> List[Any]:
     results = to_synchronous(future_1, future_2)
     """
     return asyncio.get_event_loop().run_until_complete(asyncio.gather(*awaitables))
+
+
+def to_datetime(value: Any) -> Union[datetime, None]:
+    """
+    Convert a neo4j.time.DateTime object to a Python datetime object.
+
+    Neo4j returns datetime fields as neo4j.time.DateTime objects, which are not
+    compatible with standard Python datetime or Pydantic datetime validation.
+    This function converts neo4j.time.DateTime to Python datetime.
+
+    :param value: A neo4j.time.DateTime object, Python datetime, or None
+    :return: A Python datetime object or None
+    :raises TypeError: If value is not a supported datetime type
+    """
+    if value is None:
+        return None
+
+    # Already a Python datetime
+    if isinstance(value, datetime):
+        return value
+
+    # Handle neo4j.time.DateTime
+    # neo4j.time.DateTime has a to_native() method that returns a Python datetime
+    if hasattr(value, "to_native"):
+        return cast(datetime, value.to_native())
+
+    # Fallback: try to construct datetime from neo4j.time.DateTime attributes
+    if hasattr(value, "year") and hasattr(value, "month") and hasattr(value, "day"):
+        tzinfo = getattr(value, "tzinfo", None) or timezone.utc
+        return datetime(
+            year=value.year,
+            month=value.month,
+            day=value.day,
+            hour=getattr(value, "hour", 0),
+            minute=getattr(value, "minute", 0),
+            second=getattr(value, "second", 0),
+            microsecond=(
+                getattr(value, "nanosecond", 0) // 1000
+                if hasattr(value, "nanosecond")
+                else 0
+            ),
+            tzinfo=tzinfo,
+        )
+
+    raise TypeError(f"Cannot convert {type(value).__name__} to datetime")
+
+
+def make_neo4j_datetime_validator() -> Callable[[Any], Union[datetime, None]]:
+    """
+    Create a Pydantic BeforeValidator for neo4j.time.DateTime conversion.
+
+    Usage with Pydantic v2:
+        from typing import Annotated
+        from pydantic import BeforeValidator
+        from cartography.util import to_datetime
+
+        Neo4jDateTime = Annotated[datetime, BeforeValidator(to_datetime)]
+
+        class MyModel(BaseModel):
+            created_at: Neo4jDateTime
+
+    Returns a lambda that can be used with BeforeValidator.
+    """
+    return lambda v: to_datetime(v)
