@@ -12,69 +12,67 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryGenericArtifactNodeProperties(CartographyNodeProperties):
+class GCPArtifactRegistryHelmChartNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
-    format: PropertyRef = PropertyRef("format")  # APT or YUM
-    package_name: PropertyRef = PropertyRef("package_name")
+    uri: PropertyRef = PropertyRef("uri")
+    version: PropertyRef = PropertyRef("version")
+    create_time: PropertyRef = PropertyRef("create_time")
+    update_time: PropertyRef = PropertyRef("update_time")
     repository_id: PropertyRef = PropertyRef("repository_id")
     project_id: PropertyRef = PropertyRef("project_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryGenericArtifactToProjectRelProperties(
-    CartographyRelProperties
-):
+class GCPArtifactRegistryHelmChartToProjectRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:GCPProject)-[:RESOURCE]->(:GCPArtifactRegistryGenericArtifact)
-class GCPArtifactRegistryGenericArtifactToProjectRel(CartographyRelSchema):
+# (:GCPProject)-[:RESOURCE]->(:GCPArtifactRegistryHelmChart)
+class GCPArtifactRegistryHelmChartToProjectRel(CartographyRelSchema):
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPArtifactRegistryGenericArtifactToProjectRelProperties = (
-        GCPArtifactRegistryGenericArtifactToProjectRelProperties()
+    properties: GCPArtifactRegistryHelmChartToProjectRelProperties = (
+        GCPArtifactRegistryHelmChartToProjectRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryGenericArtifactToRepositoryRelProperties(
-    CartographyRelProperties
-):
+class GCPArtifactRegistryHelmChartToRepositoryRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:GCPArtifactRegistryRepository)-[:CONTAINS]->(:GCPArtifactRegistryGenericArtifact)
-class GCPArtifactRegistryGenericArtifactToRepositoryRel(CartographyRelSchema):
+# (:GCPArtifactRegistryRepository)-[:CONTAINS]->(:GCPArtifactRegistryHelmChart)
+class GCPArtifactRegistryHelmChartToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GCPArtifactRegistryRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repository_id")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: GCPArtifactRegistryGenericArtifactToRepositoryRelProperties = (
-        GCPArtifactRegistryGenericArtifactToRepositoryRelProperties()
+    properties: GCPArtifactRegistryHelmChartToRepositoryRelProperties = (
+        GCPArtifactRegistryHelmChartToRepositoryRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryGenericArtifactSchema(CartographyNodeSchema):
-    label: str = "GCPArtifactRegistryGenericArtifact"
-    properties: GCPArtifactRegistryGenericArtifactNodeProperties = (
-        GCPArtifactRegistryGenericArtifactNodeProperties()
+class GCPArtifactRegistryHelmChartSchema(CartographyNodeSchema):
+    label: str = "GCPArtifactRegistryHelmChart"
+    properties: GCPArtifactRegistryHelmChartNodeProperties = (
+        GCPArtifactRegistryHelmChartNodeProperties()
     )
-    sub_resource_relationship: GCPArtifactRegistryGenericArtifactToProjectRel = (
-        GCPArtifactRegistryGenericArtifactToProjectRel()
+    sub_resource_relationship: GCPArtifactRegistryHelmChartToProjectRel = (
+        GCPArtifactRegistryHelmChartToProjectRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            GCPArtifactRegistryGenericArtifactToRepositoryRel(),
+            GCPArtifactRegistryHelmChartToRepositoryRel(),
         ]
     )
