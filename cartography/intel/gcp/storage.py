@@ -10,6 +10,7 @@ from googleapiclient.discovery import Resource
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp import compute
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.storage.bucket import GCPBucketLabelSchema
 from cartography.models.gcp.storage.bucket import GCPBucketSchema
 from cartography.util import timeit
@@ -33,7 +34,7 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
     """
     try:
         req = storage.buckets().list(project=project_id)
-        res = req.execute()
+        res = gcp_api_execute_with_retry(req)
         return res
     except HttpError as e:
         reason = compute._get_error_reason(e)

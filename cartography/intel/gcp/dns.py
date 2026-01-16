@@ -9,6 +9,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.dns import GCPDNSZoneSchema
 from cartography.models.gcp.dns import GCPRecordSetSchema
 from cartography.util import timeit
@@ -23,7 +24,7 @@ def get_dns_zones(dns: Resource, project_id: str) -> List[Dict]:
         zones: List[Dict] = []
         request = dns.managedZones().list(project=project_id)
         while request is not None:
-            response = request.execute()
+            response = gcp_api_execute_with_retry(request)
             for managed_zone in response["managedZones"]:
                 zones.append(managed_zone)
             request = dns.managedZones().list_next(
@@ -61,7 +62,7 @@ def get_dns_rrs(dns: Resource, dns_zones: List[Dict], project_id: str) -> List[D
                 managedZone=zone["id"],
             )
             while request is not None:
-                response = request.execute()
+                response = gcp_api_execute_with_retry(request)
                 for resource_record_set in response["rrsets"]:
                     resource_record_set["zone"] = zone["id"]
                     rrs.append(resource_record_set)
