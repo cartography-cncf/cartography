@@ -1517,6 +1517,7 @@ def main(argv=None):
     logging.getLogger("neo4j").setLevel(logging.WARNING)
     logging.getLogger("azure.identity").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("slack_sdk").setLevel(logging.WARNING)
     logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
         logging.WARNING
     )
