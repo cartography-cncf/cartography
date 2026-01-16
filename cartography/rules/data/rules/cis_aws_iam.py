@@ -9,6 +9,9 @@ Facts within a Rule are provider-specific implementations of the same concept.
 """
 
 from datetime import datetime
+from typing import Annotated
+
+from pydantic import BeforeValidator
 
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
@@ -16,6 +19,10 @@ from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
+from cartography.util import to_datetime
+
+# Type alias for datetime fields that may come from Neo4j as neo4j.time.DateTime
+Neo4jDateTime = Annotated[datetime | None, BeforeValidator(to_datetime)]
 
 CIS_REFERENCES = [
     RuleReference(
@@ -39,7 +46,7 @@ class AccessKeyNotRotatedOutput(Finding):
     access_key_id: str | None = None
     user_name: str | None = None
     user_arn: str | None = None
-    key_create_date: datetime | None = None
+    key_create_date: Neo4jDateTime = None
     days_since_rotation: int | None = None
     account_id: str | None = None
     account: str | None = None
@@ -103,8 +110,8 @@ class UnusedCredentialsOutput(Finding):
     access_key_id: str | None = None
     user_name: str | None = None
     user_arn: str | None = None
-    last_used_date: datetime | None = None
-    key_create_date: datetime | None = None
+    last_used_date: Neo4jDateTime = None
+    key_create_date: Neo4jDateTime = None
     account_id: str | None = None
     account: str | None = None
 
@@ -294,7 +301,7 @@ class ExpiredCertificatesOutput(Finding):
     domain_name: str | None = None
     certificate_arn: str | None = None
     status: str | None = None
-    expiry_date: datetime | None = None
+    expiry_date: Neo4jDateTime = None
     certificate_type: str | None = None
     account_id: str | None = None
     account: str | None = None

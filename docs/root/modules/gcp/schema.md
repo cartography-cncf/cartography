@@ -160,6 +160,24 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
     (GCPBucket)<-[LABELLED]-(GCPBucketLabels)
     ```
 
+- GCPPrincipals with appropriate permissions can read from GCP buckets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
+
+    ```
+    (GCPPrincipal)-[CAN_READ]->(GCPBucket)
+    ```
+
+- GCPPrincipals with appropriate permissions can write to GCP buckets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
+
+    ```
+    (GCPPrincipal)-[CAN_WRITE]->(GCPBucket)
+    ```
+
+- GCPPrincipals with appropriate permissions can delete from GCP buckets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
+
+    ```
+    (GCPPrincipal)-[CAN_DELETE]->(GCPBucket)
+    ```
+
 
 ### GCPDNSZone
 
@@ -219,6 +237,7 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
 | zone_name        | The zone that the instance is installed on |
 | hostname         | If present, the hostname of the instance |
 | exposed_internet | Set to True  with `exposed_internet_type = 'direct'` if there is an 'allow' IPRule attached to one of the instance's ingress firewalls with the following conditions:  The 'allow' IpRule allows traffic from one or more TCP ports, and the 'allow' IpRule is not superceded by a 'deny' IPRule (in GCP, a firewall rule of priority 1 gets applied ahead of a firewall rule of priority 100, and 'deny' rules of the same priority are applied ahead of 'allow' rules) |
+| exposed_internet_type | A string indicating the type of internet exposure. Currently only `'direct'` is supported (exposed via firewall rules). Set by the `gcp_compute_asset_inet_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/gcp_compute_asset_inet_exposure.json). |
 | status           | The [GCP Instance Lifecycle](https://cloud.google.com/compute/docs/instances/instance-life-cycle) state of the instance |
 #### Relationships
 
