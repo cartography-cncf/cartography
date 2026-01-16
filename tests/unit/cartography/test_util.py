@@ -1,16 +1,24 @@
+from datetime import datetime
+from datetime import timezone
 from unittest import mock
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
 import botocore
 import pytest
+from googleapiclient.errors import HttpError
 
 import cartography.util
 from cartography import util
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import GCP_API_MAX_RETRIES
+from cartography.intel.gcp.util import is_retryable_gcp_http_error
 from cartography.util import aws_handle_regions
 from cartography.util import batch
 from cartography.util import is_service_control_policy_explicit_deny
 from cartography.util import run_analysis_and_ensure_deps
+from cartography.util import to_datetime
 
 
 def test_run_analysis_job_default_package(mocker):
@@ -283,18 +291,11 @@ def test_aws_handle_regions_retries_on_response_parser_error(mocker):
 
 def test_to_datetime_none_returns_none():
     """Test that None input returns None."""
-    from cartography.util import to_datetime
-
     assert to_datetime(None) is None
 
 
 def test_to_datetime_python_datetime_returns_same():
     """Test that a Python datetime is returned unchanged."""
-    from datetime import datetime
-    from datetime import timezone
-
-    from cartography.util import to_datetime
-
     dt = datetime(2025, 1, 15, 10, 36, 31, tzinfo=timezone.utc)
     result = to_datetime(dt)
     assert result is dt
@@ -302,12 +303,6 @@ def test_to_datetime_python_datetime_returns_same():
 
 def test_to_datetime_neo4j_datetime_with_to_native():
     """Test conversion of neo4j.time.DateTime using to_native() method."""
-    from datetime import datetime
-    from datetime import timezone
-    from unittest.mock import MagicMock
-
-    from cartography.util import to_datetime
-
     expected = datetime(2025, 1, 15, 10, 36, 31, tzinfo=timezone.utc)
 
     # Mock neo4j.time.DateTime with to_native method
@@ -322,12 +317,6 @@ def test_to_datetime_neo4j_datetime_with_to_native():
 
 def test_to_datetime_neo4j_datetime_fallback_attributes():
     """Test fallback conversion using datetime attributes when to_native is not available."""
-    from datetime import datetime
-    from datetime import timezone
-    from unittest.mock import MagicMock
-
-    from cartography.util import to_datetime
-
     # Mock neo4j.time.DateTime without to_native method
     mock_neo4j_dt = MagicMock(
         spec=[
@@ -357,11 +346,6 @@ def test_to_datetime_neo4j_datetime_fallback_attributes():
 
 def test_to_datetime_neo4j_datetime_fallback_with_nanoseconds():
     """Test fallback conversion properly converts nanoseconds to microseconds."""
-    from datetime import timezone
-    from unittest.mock import MagicMock
-
-    from cartography.util import to_datetime
-
     mock_neo4j_dt = MagicMock(
         spec=[
             "year",
@@ -390,11 +374,6 @@ def test_to_datetime_neo4j_datetime_fallback_with_nanoseconds():
 
 def test_to_datetime_neo4j_datetime_fallback_default_timezone():
     """Test that fallback uses UTC when tzinfo is None."""
-    from datetime import timezone
-    from unittest.mock import MagicMock
-
-    from cartography.util import to_datetime
-
     mock_neo4j_dt = MagicMock(
         spec=[
             "year",
@@ -423,15 +402,121 @@ def test_to_datetime_neo4j_datetime_fallback_default_timezone():
 
 def test_to_datetime_unsupported_type_raises_error():
     """Test that unsupported types raise TypeError."""
-    from cartography.util import to_datetime
-
     with pytest.raises(TypeError, match="Cannot convert str to datetime"):
         to_datetime("not a datetime")
 
 
 def test_to_datetime_unsupported_type_int_raises_error():
     """Test that integer raises TypeError."""
-    from cartography.util import to_datetime
-
     with pytest.raises(TypeError, match="Cannot convert int to datetime"):
         to_datetime(12345)
+
+
+def test_is_retryable_gcp_http_error_503():
+    """Test that HTTP 503 is identified as retryable."""
+    mock_resp = MagicMock()
+    mock_resp.status = 503
+    error = HttpError(mock_resp, b"Service Unavailable")
+
+    assert is_retryable_gcp_http_error(error) is True
+
+
+def test_is_retryable_gcp_http_error_429():
+    """Test that HTTP 429 (rate limit) is identified as retryable."""
+    mock_resp = MagicMock()
+    mock_resp.status = 429
+    error = HttpError(mock_resp, b"Rate Limit Exceeded")
+
+    assert is_retryable_gcp_http_error(error) is True
+
+
+def test_is_retryable_gcp_http_error_5xx():
+    """Test that HTTP 5xx errors are identified as retryable."""
+    for status_code in [500, 502, 503, 504]:
+        mock_resp = MagicMock()
+        mock_resp.status = status_code
+        error = HttpError(mock_resp, b"Server Error")
+        assert (
+            is_retryable_gcp_http_error(error) is True
+        ), f"Expected {status_code} to be retryable"
+
+
+def test_is_retryable_gcp_http_error_4xx_not_retryable():
+    """Test that HTTP 4xx errors (except 429) are NOT identified as retryable."""
+    for status_code in [400, 401, 403, 404]:
+        mock_resp = MagicMock()
+        mock_resp.status = status_code
+        error = HttpError(mock_resp, b"Client Error")
+        assert (
+            is_retryable_gcp_http_error(error) is False
+        ), f"Expected {status_code} to NOT be retryable"
+
+
+def test_is_retryable_gcp_http_error_non_http_error():
+    """Test that non-HttpError exceptions are not retryable."""
+    assert is_retryable_gcp_http_error(ValueError("test")) is False
+    assert is_retryable_gcp_http_error(RuntimeError("test")) is False
+
+
+def test_gcp_api_execute_with_retry_success():
+    """Test successful execution without retry."""
+    mock_request = MagicMock()
+    mock_request.execute.return_value = {"items": ["data"]}
+
+    result = gcp_api_execute_with_retry(mock_request)
+
+    assert result == {"items": ["data"]}
+    mock_request.execute.assert_called_once()
+
+
+def test_gcp_api_execute_with_retry_retries_on_503(mocker):
+    """Test that 503 errors trigger retries."""
+    mock_resp = MagicMock()
+    mock_resp.status = 503
+
+    mock_request = MagicMock()
+    mock_request.execute.side_effect = [
+        HttpError(mock_resp, b"Service Unavailable"),
+        {"items": ["data"]},
+    ]
+
+    # Mock sleep to avoid delays
+    mocker.patch("time.sleep")
+
+    result = gcp_api_execute_with_retry(mock_request)
+
+    assert result == {"items": ["data"]}
+    assert mock_request.execute.call_count == 2
+
+
+def test_gcp_api_execute_with_retry_gives_up_on_403():
+    """Test that 403 errors are not retried and are raised immediately."""
+    mock_resp = MagicMock()
+    mock_resp.status = 403
+
+    mock_request = MagicMock()
+    mock_request.execute.side_effect = HttpError(mock_resp, b"Forbidden")
+
+    with pytest.raises(HttpError):
+        gcp_api_execute_with_retry(mock_request)
+
+    # Should only be called once since 403 is not retryable
+    mock_request.execute.assert_called_once()
+
+
+def test_gcp_api_execute_with_retry_exhausts_retries(mocker):
+    """Test that after max retries, the error is raised."""
+    mock_resp = MagicMock()
+    mock_resp.status = 503
+
+    mock_request = MagicMock()
+    mock_request.execute.side_effect = HttpError(mock_resp, b"Service Unavailable")
+
+    # Mock sleep to avoid delays
+    mocker.patch("time.sleep")
+
+    with pytest.raises(HttpError):
+        gcp_api_execute_with_retry(mock_request)
+
+    # Should be called max_retries times
+    assert mock_request.execute.call_count == GCP_API_MAX_RETRIES
