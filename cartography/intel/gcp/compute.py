@@ -18,16 +18,13 @@ from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.compute.vpc import GCPVpcSchema
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 InstanceUriPrefix = namedtuple("InstanceUriPrefix", "zone_name project_id")
-
-
-# Maximum number of retries for Google API requests
-GOOGLE_API_NUM_RETRIES = 5
 
 
 def _get_error_reason(http_error: HttpError) -> str:
@@ -72,7 +69,7 @@ def get_zones_in_project(
     """
     try:
         req = compute.zones().list(project=project_id, maxResults=max_results)
-        res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+        res = gcp_api_execute_with_retry(req)
         return res["items"]
     except HttpError as e:
         reason = _get_error_reason(e)
@@ -127,7 +124,7 @@ def get_gcp_instance_responses(
     for zone in zones:
         req = compute.instances().list(project=project_id, zone=zone["name"])
         try:
-            res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+            res = gcp_api_execute_with_retry(req)
             response_objects.append(res)
         except HttpError as e:
             reason = _get_error_reason(e)
@@ -159,7 +156,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Dict:
     response_id = f"projects/{projectid}/regions/{region}/subnetworks"
     while req is not None:
         try:
-            res = req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+            res = gcp_api_execute_with_retry(req)
         except TimeoutError:
             logger.warning(
                 "GCP: subnetworks.list for project %s region %s timed out; continuing with partial data.",
@@ -184,7 +181,7 @@ def get_gcp_vpcs(projectid: str, compute: Resource) -> Resource:
     :return: VPC response object
     """
     req = compute.networks().list(project=projectid)
-    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+    return gcp_api_execute_with_retry(req)
 
 
 @timeit
@@ -201,7 +198,7 @@ def get_gcp_regional_forwarding_rules(
     :return: Response object containing data on all GCP forwarding rules for a given project
     """
     req = compute.forwardingRules().list(project=project_id, region=region)
-    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+    return gcp_api_execute_with_retry(req)
 
 
 @timeit
@@ -213,7 +210,7 @@ def get_gcp_global_forwarding_rules(project_id: str, compute: Resource) -> Resou
     :return: Response object containing data on all GCP forwarding rules for a given project
     """
     req = compute.globalForwardingRules().list(project=project_id)
-    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+    return gcp_api_execute_with_retry(req)
 
 
 @timeit
@@ -225,7 +222,7 @@ def get_gcp_firewall_ingress_rules(project_id: str, compute: Resource) -> Resour
     :return: Firewall response object
     """
     req = compute.firewalls().list(project=project_id, filter='(direction="INGRESS")')
-    return req.execute(num_retries=GOOGLE_API_NUM_RETRIES)
+    return gcp_api_execute_with_retry(req)
 
 
 @timeit
