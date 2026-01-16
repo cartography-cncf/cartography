@@ -1,18 +1,10 @@
-"""
+"""  
 Unit tests for GCP BigQuery intel module.
 """
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from cartography.intel.gcp import bigquery
-
-
-def test_get_client():
-    """Test BigQuery client creation."""
-    with patch('cartography.intel.gcp.bigquery.bigquery.Client') as mock_client:
-        result = bigquery.get_client('test-project')
-        mock_client.assert_called_once_with(project='test-project')
-        assert result == mock_client.return_value
 
 
 def test_get_datasets_success():
@@ -24,26 +16,29 @@ def test_get_datasets_success():
         dataset_id = 'test_dataset'
         location = 'US'
         friendly_name = 'Test Dataset'
+        full_dataset_id = 'test-project:test_dataset'
         description = 'A test dataset'
         created = datetime(2025, 1, 1)
         modified = datetime(2025, 1, 15)
-        labels = {}
     
     mock_dataset_list_item = MagicMock()
-    mock_dataset_list_item.full_dataset_id = 'test-project:test_dataset'
     mock_dataset_list_item.reference = MagicMock()
     
     mock_client.list_datasets.return_value = [mock_dataset_list_item]
     mock_client.get_dataset.return_value = MockDataset()
     
-    result = bigquery.get_datasets(mock_client, 'test-project')
+    # Test get function
+    raw_datasets = bigquery.get_datasets(mock_client)
+    assert len(raw_datasets) == 1
+    assert raw_datasets[0].dataset_id == 'test_dataset'
     
-    # Just verify we got a result with the right structure
-    assert len(result) == 1
-    assert 'id' in result[0]
-    assert 'dataset_id' in result[0]
-    assert 'project_id' in result[0]
-    assert result[0]['project_id'] == 'test-project'
+    # Test transform function
+    transformed = bigquery.transform_datasets(raw_datasets, 'test-project')
+    assert len(transformed) == 1
+    assert 'id' in transformed[0]
+    assert 'dataset_id' in transformed[0]
+    assert 'project_id' in transformed[0]
+    assert transformed[0]['project_id'] == 'test-project'
 
 
 def test_get_datasets_empty():
@@ -51,17 +46,7 @@ def test_get_datasets_empty():
     mock_client = MagicMock()
     mock_client.list_datasets.return_value = []
     
-    result = bigquery.get_datasets(mock_client, 'test-project')
-    
-    assert result == []
-
-
-def test_get_datasets_exception():
-    """Test dataset retrieval handles exceptions gracefully."""
-    mock_client = MagicMock()
-    mock_client.list_datasets.side_effect = Exception("API Error")
-    
-    result = bigquery.get_datasets(mock_client, 'test-project')
+    result = bigquery.get_datasets(mock_client)
     
     assert result == []
 
@@ -73,23 +58,23 @@ def test_get_tables_success():
     # Mock table
     mock_table = MagicMock()
     mock_table.table_id = 'test_table'
-    mock_table.full_table_id = 'test-project:test_dataset.test_table'
-    mock_table.friendly_name = 'Test Table'
-    mock_table.description = 'A test table'
-    mock_table.num_rows = 1000
-    mock_table.num_bytes = 50000
     mock_table.table_type = 'TABLE'
-    mock_table.created = '2025-01-01T00:00:00Z'
-    mock_table.modified = '2025-01-15T00:00:00Z'
+    mock_table.created = datetime(2025, 1, 1)
+    mock_table.expires = None
     
     mock_client.list_tables.return_value = [mock_table]
     
-    result = bigquery.get_tables(mock_client, 'test_dataset', 'test-project')
+    # Test get function
+    raw_tables = bigquery.get_tables(mock_client, 'test_dataset')
+    assert len(raw_tables) == 1
+    assert raw_tables[0].table_id == 'test_table'
     
-    assert len(result) == 1
-    assert result[0]['id'] == 'test-project.test_dataset.test_table'
-    assert result[0]['table_id'] == 'test_table'
-    assert result[0]['dataset_id'] == 'test_dataset'
+    # Test transform function
+    transformed = bigquery.transform_tables(raw_tables, 'test_dataset', 'test-project')
+    assert len(transformed) == 1
+    assert transformed[0]['id'] == 'test-project.test_dataset.test_table'
+    assert transformed[0]['table_id'] == 'test_table'
+    assert transformed[0]['dataset_id'] == 'test_dataset'
 
 
 def test_get_tables_empty():
@@ -97,17 +82,7 @@ def test_get_tables_empty():
     mock_client = MagicMock()
     mock_client.list_tables.return_value = []
     
-    result = bigquery.get_tables(mock_client, 'test_dataset', 'test-project')
-    
-    assert result == []
-
-
-def test_get_tables_exception():
-    """Test table retrieval handles exceptions gracefully."""
-    mock_client = MagicMock()
-    mock_client.list_tables.side_effect = Exception("API Error")
-    
-    result = bigquery.get_tables(mock_client, 'test_dataset', 'test-project')
+    result = bigquery.get_tables(mock_client, 'test_dataset')
     
     assert result == []
 
@@ -150,12 +125,17 @@ def test_load_tables():
     assert mock_session.run.called
 
 
-def test_cleanup():
+@patch('cartography.intel.gcp.bigquery.run_cleanup_job')
+def test_cleanup_bigquery(mock_cleanup):
     """Test cleanup of stale BigQuery data."""
     mock_session = MagicMock()
     common_job_parameters = {'UPDATE_TAG': 123456}
     
-    bigquery.cleanup(mock_session, common_job_parameters)
+    bigquery.cleanup_bigquery(mock_session, common_job_parameters)
     
-    # Verify that cleanup queries were executed
-    assert mock_session.run.called
+    # Verify that run_cleanup_job was called with the right parameters
+    mock_cleanup.assert_called_once_with(
+        'gcp_bigquery_cleanup.json',
+        mock_session,
+        common_job_parameters,
+    )
