@@ -279,3 +279,159 @@ def test_aws_handle_regions_retries_on_response_parser_error(mocker):
     result = fails_then_succeeds()
     assert result == "success"
     assert call_count == 3
+
+
+def test_to_datetime_none_returns_none():
+    """Test that None input returns None."""
+    from cartography.util import to_datetime
+
+    assert to_datetime(None) is None
+
+
+def test_to_datetime_python_datetime_returns_same():
+    """Test that a Python datetime is returned unchanged."""
+    from datetime import datetime
+    from datetime import timezone
+
+    from cartography.util import to_datetime
+
+    dt = datetime(2025, 1, 15, 10, 36, 31, tzinfo=timezone.utc)
+    result = to_datetime(dt)
+    assert result is dt
+
+
+def test_to_datetime_neo4j_datetime_with_to_native():
+    """Test conversion of neo4j.time.DateTime using to_native() method."""
+    from datetime import datetime
+    from datetime import timezone
+    from unittest.mock import MagicMock
+
+    from cartography.util import to_datetime
+
+    expected = datetime(2025, 1, 15, 10, 36, 31, tzinfo=timezone.utc)
+
+    # Mock neo4j.time.DateTime with to_native method
+    mock_neo4j_dt = MagicMock()
+    mock_neo4j_dt.to_native.return_value = expected
+
+    result = to_datetime(mock_neo4j_dt)
+
+    assert result == expected
+    mock_neo4j_dt.to_native.assert_called_once()
+
+
+def test_to_datetime_neo4j_datetime_fallback_attributes():
+    """Test fallback conversion using datetime attributes when to_native is not available."""
+    from datetime import datetime
+    from datetime import timezone
+    from unittest.mock import MagicMock
+
+    from cartography.util import to_datetime
+
+    # Mock neo4j.time.DateTime without to_native method
+    mock_neo4j_dt = MagicMock(
+        spec=[
+            "year",
+            "month",
+            "day",
+            "hour",
+            "minute",
+            "second",
+            "nanosecond",
+            "tzinfo",
+        ]
+    )
+    mock_neo4j_dt.year = 2025
+    mock_neo4j_dt.month = 1
+    mock_neo4j_dt.day = 15
+    mock_neo4j_dt.hour = 10
+    mock_neo4j_dt.minute = 36
+    mock_neo4j_dt.second = 31
+    mock_neo4j_dt.nanosecond = 0
+    mock_neo4j_dt.tzinfo = timezone.utc
+
+    result = to_datetime(mock_neo4j_dt)
+
+    assert result == datetime(2025, 1, 15, 10, 36, 31, tzinfo=timezone.utc)
+
+
+def test_to_datetime_neo4j_datetime_fallback_with_nanoseconds():
+    """Test fallback conversion properly converts nanoseconds to microseconds."""
+    from datetime import timezone
+    from unittest.mock import MagicMock
+
+    from cartography.util import to_datetime
+
+    mock_neo4j_dt = MagicMock(
+        spec=[
+            "year",
+            "month",
+            "day",
+            "hour",
+            "minute",
+            "second",
+            "nanosecond",
+            "tzinfo",
+        ]
+    )
+    mock_neo4j_dt.year = 2025
+    mock_neo4j_dt.month = 1
+    mock_neo4j_dt.day = 15
+    mock_neo4j_dt.hour = 10
+    mock_neo4j_dt.minute = 36
+    mock_neo4j_dt.second = 31
+    mock_neo4j_dt.nanosecond = 500000000  # 500 milliseconds = 500000 microseconds
+    mock_neo4j_dt.tzinfo = timezone.utc
+
+    result = to_datetime(mock_neo4j_dt)
+
+    assert result.microsecond == 500000
+
+
+def test_to_datetime_neo4j_datetime_fallback_default_timezone():
+    """Test that fallback uses UTC when tzinfo is None."""
+    from datetime import timezone
+    from unittest.mock import MagicMock
+
+    from cartography.util import to_datetime
+
+    mock_neo4j_dt = MagicMock(
+        spec=[
+            "year",
+            "month",
+            "day",
+            "hour",
+            "minute",
+            "second",
+            "nanosecond",
+            "tzinfo",
+        ]
+    )
+    mock_neo4j_dt.year = 2025
+    mock_neo4j_dt.month = 1
+    mock_neo4j_dt.day = 15
+    mock_neo4j_dt.hour = 10
+    mock_neo4j_dt.minute = 36
+    mock_neo4j_dt.second = 31
+    mock_neo4j_dt.nanosecond = 0
+    mock_neo4j_dt.tzinfo = None
+
+    result = to_datetime(mock_neo4j_dt)
+
+    assert result.tzinfo == timezone.utc
+
+
+def test_to_datetime_unsupported_type_raises_error():
+    """Test that unsupported types raise TypeError."""
+    from cartography.util import to_datetime
+
+    with pytest.raises(TypeError, match="Cannot convert str to datetime"):
+        to_datetime("not a datetime")
+
+
+def test_to_datetime_unsupported_type_int_raises_error():
+    """Test that integer raises TypeError."""
+    from cartography.util import to_datetime
+
+    with pytest.raises(TypeError, match="Cannot convert int to datetime"):
+        to_datetime(12345)
