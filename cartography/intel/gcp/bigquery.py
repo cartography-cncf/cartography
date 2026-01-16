@@ -42,6 +42,7 @@ def get_datasets(client: bigquery.Client, project_id: str) -> List[Dict[str, Any
             })
     except Exception as e:
         logger.error(f"Failed to list datasets for project {project_id}: {e}")
+        raise
     return datasets
 
 
