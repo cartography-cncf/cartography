@@ -766,6 +766,12 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSUser)-[AWS_ACCESS_KEY]->(AccountAccessKey)
     ```
 
+- AWS Users can have service-specific credentials for specific AWS services.
+
+    ```cypher
+    (AWSUser)-[SERVICE_SPECIFIC_CREDENTIAL]->(ServiceSpecificCredential)
+    ```
+
 - AWS Accounts contain AWS Users.
 
     ```cypher
@@ -1082,6 +1088,31 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 - Account Access Keys are a resource under the AWS Account.
     ```
     (:AWSAccount)-[:RESOURCE]->(:AccountAccessKey)
+    ```
+
+### ServiceSpecificCredential
+
+Representation of an AWS [Service-Specific Credential](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ServiceSpecificCredential.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| createdate | Date when service-specific credential was created |
+| status | Active: valid for API calls.  Inactive: not valid for API calls|
+| service_name | The name of the AWS service associated with the credential (e.g., bedrock.amazonaws.com) |
+| service_user_name | The generated user name for the service-specific credential |
+| **service_specific_credential_id** | The unique identifier for this service-specific credential|
+
+#### Relationships
+- Service-Specific Credentials are associated with AWS Users.
+    ```
+    (:AWSUser)-[:SERVICE_SPECIFIC_CREDENTIAL]->(:ServiceSpecificCredential)
+    ```
+
+- Service-Specific Credentials are a resource under the AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:ServiceSpecificCredential)
     ```
 
 ### CloudTrailTrail
