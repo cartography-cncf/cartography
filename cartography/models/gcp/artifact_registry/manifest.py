@@ -51,9 +51,9 @@ class GCPArtifactRegistryImageManifestToArtifactRelProperties(CartographyRelProp
 
 
 @dataclass(frozen=True)
-# (:GCPArtifactRegistryArtifact)-[:HAS_MANIFEST]->(:GCPArtifactRegistryImageManifest)
-class GCPArtifactRegistryImageManifestToArtifactRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryArtifact"
+# (:GCPArtifactRegistryDockerImage)-[:HAS_MANIFEST]->(:GCPArtifactRegistryImageManifest)
+class GCPArtifactRegistryImageManifestToDockerImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryDockerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("parent_artifact_id")}
     )
@@ -75,6 +75,6 @@ class GCPArtifactRegistryImageManifestSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            GCPArtifactRegistryImageManifestToArtifactRel(),
+            GCPArtifactRegistryImageManifestToDockerImageRel(),
         ]
     )

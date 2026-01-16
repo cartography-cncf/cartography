@@ -5,12 +5,20 @@ from google.api_core.exceptions import PermissionDenied
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.artifact_registry.artifact import (
-    GCPArtifactRegistryArtifactSchema,
+    GCPArtifactRegistryGenericArtifactSchema,
+)
+from cartography.models.gcp.artifact_registry.docker_image import (
+    GCPArtifactRegistryDockerImageSchema,
+)
+from cartography.models.gcp.artifact_registry.helm_chart import (
+    GCPArtifactRegistryHelmChartSchema,
+)
+from cartography.models.gcp.artifact_registry.language_package import (
+    GCPArtifactRegistryLanguagePackageSchema,
 )
 from cartography.util import timeit
 
@@ -303,7 +311,7 @@ def transform_docker_images(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms Docker images to the unified artifact format.
+    Transforms Docker images to the GCPArtifactRegistryDockerImage node format.
     """
     transformed: list[dict] = []
     for image in images_data:
@@ -312,27 +320,52 @@ def transform_docker_images(
 
         transformed.append(
             {
-                # Common properties
                 "id": name,
                 "name": name.split("/")[-1] if name else None,
-                "format": "DOCKER",
                 "uri": uri,
-                "create_time": image.get("uploadTime"),
-                "update_time": image.get("updateTime"),
-                "repository_id": repository_id,
-                "project_id": project_id,
-                # Docker-specific properties
                 "digest": uri.split("@")[-1] if "@" in uri else None,
                 "tags": image.get("tags"),
                 "image_size_bytes": image.get("imageSizeBytes"),
                 "media_type": image.get("mediaType"),
-                "artifact_type": None,
                 "upload_time": image.get("uploadTime"),
                 "build_time": image.get("buildTime"),
-                # Package-specific properties (not applicable)
-                "version": None,
-                "display_name": None,
-                "annotations": None,
+                "update_time": image.get("updateTime"),
+                "repository_id": repository_id,
+                "project_id": project_id,
+            }
+        )
+    return transformed
+
+
+def transform_helm_charts(
+    charts_data: list[dict],
+    repository_id: str,
+    project_id: str,
+) -> list[dict]:
+    """
+    Transforms Helm charts to the GCPArtifactRegistryHelmChart node format.
+
+    Helm charts are stored as OCI artifacts in Docker-format repositories,
+    so they share a similar structure with Docker images.
+    """
+    transformed: list[dict] = []
+    for chart in charts_data:
+        name = chart.get("name", "")
+        uri = chart.get("uri", "")
+        # Extract version from tags if available, otherwise from URI
+        tags = chart.get("tags", [])
+        version = tags[0] if tags else None
+
+        transformed.append(
+            {
+                "id": name,
+                "name": name.split("/")[-1] if name else None,
+                "uri": uri,
+                "version": version,
+                "create_time": chart.get("uploadTime"),
+                "update_time": chart.get("updateTime"),
+                "repository_id": repository_id,
+                "project_id": project_id,
             }
         )
     return transformed
@@ -344,39 +377,32 @@ def transform_maven_artifacts(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms Maven artifacts to the unified artifact format.
+    Transforms Maven artifacts to the GCPArtifactRegistryLanguagePackage node format.
     """
     transformed: list[dict] = []
     for artifact in artifacts_data:
         name = artifact.get("name", "")
-        # Build display name from groupId:artifactId
         group_id = artifact.get("groupId", "")
         artifact_id = artifact.get("artifactId", "")
-        display_name = f"{group_id}:{artifact_id}" if group_id and artifact_id else None
+        package_name = f"{group_id}:{artifact_id}" if group_id and artifact_id else None
 
         transformed.append(
             {
-                # Common properties
                 "id": name,
                 "name": name.split("/")[-1] if name else None,
                 "format": "MAVEN",
                 "uri": artifact.get("pomUri"),
+                "version": artifact.get("version"),
+                "package_name": package_name,
                 "create_time": artifact.get("createTime"),
                 "update_time": artifact.get("updateTime"),
                 "repository_id": repository_id,
                 "project_id": project_id,
-                # Docker-specific properties (not applicable)
-                "digest": None,
+                # Maven-specific
+                "group_id": group_id if group_id else None,
+                "artifact_id": artifact_id if artifact_id else None,
+                # NPM-specific (not applicable)
                 "tags": None,
-                "image_size_bytes": None,
-                "media_type": None,
-                "artifact_type": None,
-                "upload_time": None,
-                "build_time": None,
-                # Package-specific properties
-                "version": artifact.get("version"),
-                "display_name": display_name,
-                "annotations": None,
             }
         )
     return transformed
@@ -388,7 +414,7 @@ def transform_npm_packages(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms npm packages to the unified artifact format.
+    Transforms npm packages to the GCPArtifactRegistryLanguagePackage node format.
     """
     transformed: list[dict] = []
     for package in packages_data:
@@ -396,27 +422,21 @@ def transform_npm_packages(
 
         transformed.append(
             {
-                # Common properties
                 "id": name,
                 "name": name.split("/")[-1] if name else None,
                 "format": "NPM",
                 "uri": package.get("uri"),
+                "version": package.get("version"),
+                "package_name": package.get("packageName"),
                 "create_time": package.get("createTime"),
                 "update_time": package.get("updateTime"),
                 "repository_id": repository_id,
                 "project_id": project_id,
-                # Docker-specific properties (not applicable)
-                "digest": None,
+                # Maven-specific (not applicable)
+                "group_id": None,
+                "artifact_id": None,
+                # NPM-specific
                 "tags": package.get("tags"),
-                "image_size_bytes": None,
-                "media_type": None,
-                "artifact_type": None,
-                "upload_time": None,
-                "build_time": None,
-                # Package-specific properties
-                "version": package.get("version"),
-                "display_name": package.get("packageName"),
-                "annotations": None,
             }
         )
     return transformed
@@ -428,7 +448,7 @@ def transform_python_packages(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms Python packages to the unified artifact format.
+    Transforms Python packages to the GCPArtifactRegistryLanguagePackage node format.
     """
     transformed: list[dict] = []
     for package in packages_data:
@@ -436,27 +456,21 @@ def transform_python_packages(
 
         transformed.append(
             {
-                # Common properties
                 "id": name,
                 "name": name.split("/")[-1] if name else None,
                 "format": "PYTHON",
                 "uri": package.get("uri"),
+                "version": package.get("version"),
+                "package_name": package.get("packageName"),
                 "create_time": package.get("createTime"),
                 "update_time": package.get("updateTime"),
                 "repository_id": repository_id,
                 "project_id": project_id,
-                # Docker-specific properties (not applicable)
-                "digest": None,
+                # Maven-specific (not applicable)
+                "group_id": None,
+                "artifact_id": None,
+                # NPM-specific (not applicable)
                 "tags": None,
-                "image_size_bytes": None,
-                "media_type": None,
-                "artifact_type": None,
-                "upload_time": None,
-                "build_time": None,
-                # Package-specific properties
-                "version": package.get("version"),
-                "display_name": package.get("packageName"),
-                "annotations": None,
             }
         )
     return transformed
@@ -468,7 +482,7 @@ def transform_go_modules(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms Go modules to the unified artifact format.
+    Transforms Go modules to the GCPArtifactRegistryLanguagePackage node format.
     """
     transformed: list[dict] = []
     for module in modules_data:
@@ -476,27 +490,21 @@ def transform_go_modules(
 
         transformed.append(
             {
-                # Common properties
                 "id": name,
                 "name": name.split("/")[-1] if name else None,
                 "format": "GO",
                 "uri": None,
+                "version": module.get("version"),
+                "package_name": None,
                 "create_time": module.get("createTime"),
                 "update_time": module.get("updateTime"),
                 "repository_id": repository_id,
                 "project_id": project_id,
-                # Docker-specific properties (not applicable)
-                "digest": None,
+                # Maven-specific (not applicable)
+                "group_id": None,
+                "artifact_id": None,
+                # NPM-specific (not applicable)
                 "tags": None,
-                "image_size_bytes": None,
-                "media_type": None,
-                "artifact_type": None,
-                "upload_time": None,
-                "build_time": None,
-                # Package-specific properties
-                "version": module.get("version"),
-                "display_name": None,
-                "annotations": None,
             }
         )
     return transformed
@@ -508,7 +516,7 @@ def transform_apt_artifacts(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms APT artifacts to the unified artifact format.
+    Transforms APT artifacts to the GCPArtifactRegistryGenericArtifact node format.
     """
     transformed: list[dict] = []
     for artifact in artifacts_data:
@@ -516,27 +524,12 @@ def transform_apt_artifacts(
 
         transformed.append(
             {
-                # Common properties
                 "id": name,
                 "name": name.split("/")[-1] if name else None,
                 "format": "APT",
-                "uri": None,
-                "create_time": None,
-                "update_time": None,
+                "package_name": artifact.get("packageName"),
                 "repository_id": repository_id,
                 "project_id": project_id,
-                # Docker-specific properties (not applicable)
-                "digest": None,
-                "tags": None,
-                "image_size_bytes": None,
-                "media_type": None,
-                "artifact_type": None,
-                "upload_time": None,
-                "build_time": None,
-                # Package-specific properties
-                "version": None,
-                "display_name": artifact.get("packageName"),
-                "annotations": None,
             }
         )
     return transformed
@@ -548,7 +541,7 @@ def transform_yum_artifacts(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms YUM artifacts to the unified artifact format.
+    Transforms YUM artifacts to the GCPArtifactRegistryGenericArtifact node format.
     """
     transformed: list[dict] = []
     for artifact in artifacts_data:
@@ -556,27 +549,12 @@ def transform_yum_artifacts(
 
         transformed.append(
             {
-                # Common properties
                 "id": name,
                 "name": name.split("/")[-1] if name else None,
                 "format": "YUM",
-                "uri": None,
-                "create_time": None,
-                "update_time": None,
+                "package_name": artifact.get("packageName"),
                 "repository_id": repository_id,
                 "project_id": project_id,
-                # Docker-specific properties (not applicable)
-                "digest": None,
-                "tags": None,
-                "image_size_bytes": None,
-                "media_type": None,
-                "artifact_type": None,
-                "upload_time": None,
-                "build_time": None,
-                # Package-specific properties
-                "version": None,
-                "display_name": artifact.get("packageName"),
-                "annotations": None,
             }
         )
     return transformed
@@ -595,18 +573,18 @@ FORMAT_HANDLERS = {
 
 
 @timeit
-def load_artifacts(
+def load_generic_artifacts(
     neo4j_session: neo4j.Session,
     data: list[dict],
     project_id: str,
     update_tag: int,
 ) -> None:
     """
-    Loads GCPArtifactRegistryArtifact nodes and their relationships.
+    Loads GCPArtifactRegistryGenericArtifact nodes and their relationships.
     """
     load(
         neo4j_session,
-        GCPArtifactRegistryArtifactSchema(),
+        GCPArtifactRegistryGenericArtifactSchema(),
         data,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
@@ -614,15 +592,115 @@ def load_artifacts(
 
 
 @timeit
-def cleanup_artifacts(
+def cleanup_generic_artifacts(
     neo4j_session: neo4j.Session, common_job_parameters: dict
 ) -> None:
     """
-    Cleans up stale Artifact Registry artifacts.
+    Cleans up stale generic artifact nodes.
     """
     GraphJob.from_node_schema(
-        GCPArtifactRegistryArtifactSchema(), common_job_parameters
+        GCPArtifactRegistryGenericArtifactSchema(), common_job_parameters
     ).run(neo4j_session)
+
+
+@timeit
+def load_docker_images(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Loads GCPArtifactRegistryDockerImage nodes and their relationships.
+    """
+    load(
+        neo4j_session,
+        GCPArtifactRegistryDockerImageSchema(),
+        data,
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+
+
+@timeit
+def cleanup_docker_images(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
+    """
+    Cleans up stale Docker image nodes.
+    """
+    GraphJob.from_node_schema(
+        GCPArtifactRegistryDockerImageSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
+def load_language_packages(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Loads GCPArtifactRegistryLanguagePackage nodes and their relationships.
+    """
+    load(
+        neo4j_session,
+        GCPArtifactRegistryLanguagePackageSchema(),
+        data,
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+
+
+@timeit
+def cleanup_language_packages(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
+    """
+    Cleans up stale language package nodes.
+    """
+    GraphJob.from_node_schema(
+        GCPArtifactRegistryLanguagePackageSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
+def load_helm_charts(
+    neo4j_session: neo4j.Session,
+    data: list[dict],
+    project_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Loads GCPArtifactRegistryHelmChart nodes and their relationships.
+    """
+    load(
+        neo4j_session,
+        GCPArtifactRegistryHelmChartSchema(),
+        data,
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
+    )
+
+
+@timeit
+def cleanup_helm_charts(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
+    """
+    Cleans up stale Helm chart nodes.
+    """
+    GraphJob.from_node_schema(
+        GCPArtifactRegistryHelmChartSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+# Helm chart media type identifier
+HELM_MEDIA_TYPE_IDENTIFIER = "helm"
+
+# Language package formats (Maven, NPM, Python, Go)
+LANGUAGE_PACKAGE_FORMATS = {"MAVEN", "NPM", "PYTHON", "GO"}
 
 
 @timeit
@@ -643,12 +721,16 @@ def sync_artifact_registry_artifacts(
     :param project_id: The GCP project ID.
     :param update_tag: The update tag for this sync.
     :param common_job_parameters: Common job parameters for cleanup.
-    :return: List of all raw artifact data from the API.
+    :return: List of raw Docker image data from the API (for manifest sync).
     """
     logger.info(f"Syncing Artifact Registry artifacts for project {project_id}.")
 
-    all_artifacts_raw: list[dict] = []
-    all_artifacts_transformed: list[dict] = []
+    # Separate collections for different artifact types
+    docker_images_raw: list[dict] = []
+    docker_images_transformed: list[dict] = []
+    helm_charts_transformed: list[dict] = []
+    language_packages_transformed: list[dict] = []
+    other_artifacts_transformed: list[dict] = []
 
     for repo in repositories:
         repo_name = repo.get("name")
@@ -664,27 +746,70 @@ def sync_artifact_registry_artifacts(
             )
             continue
 
-        get_func, transform_func = handlers
+        get_func, _ = handlers
 
-        try:
-            artifacts_raw = get_func(client, repo_name)
-            if artifacts_raw:
-                all_artifacts_raw.extend(artifacts_raw)
-                artifacts_transformed = transform_func(
-                    artifacts_raw, repo_name, project_id
-                )
-                all_artifacts_transformed.extend(artifacts_transformed)
-        except (PermissionDenied, DefaultCredentialsError, RefreshError, HttpError):
-            # Already logged in the individual get functions
+        artifacts_raw = get_func(client, repo_name)
+        if not artifacts_raw:
             continue
 
-    if not all_artifacts_transformed:
-        logger.info(f"No Artifact Registry artifacts found for project {project_id}.")
-    else:
-        load_artifacts(neo4j_session, all_artifacts_transformed, project_id, update_tag)
+        # Route to appropriate collection based on format
+        if repo_format == "DOCKER":
+            # Split Docker format artifacts by media type
+            # Helm charts are stored as OCI artifacts with helm in the media type
+            for artifact in artifacts_raw:
+                media_type = artifact.get("mediaType", "")
+                if HELM_MEDIA_TYPE_IDENTIFIER in media_type.lower():
+                    helm_charts_transformed.extend(
+                        transform_helm_charts([artifact], repo_name, project_id)
+                    )
+                else:
+                    # Actual Docker images - collect raw for manifest sync
+                    docker_images_raw.append(artifact)
+                    docker_images_transformed.extend(
+                        transform_docker_images([artifact], repo_name, project_id)
+                    )
+        elif repo_format in LANGUAGE_PACKAGE_FORMATS:
+            # Use the format-specific transformer from FORMAT_HANDLERS
+            _, transform_func = handlers
+            language_packages_transformed.extend(
+                transform_func(artifacts_raw, repo_name, project_id)
+            )
+        else:
+            # APT, YUM, and any other formats use the unified schema
+            _, transform_func = handlers
+            other_artifacts_transformed.extend(
+                transform_func(artifacts_raw, repo_name, project_id)
+            )
 
+    # Load Docker images with the dedicated schema
+    if docker_images_transformed:
+        load_docker_images(
+            neo4j_session, docker_images_transformed, project_id, update_tag
+        )
+
+    # Load Helm charts with the dedicated schema
+    if helm_charts_transformed:
+        load_helm_charts(neo4j_session, helm_charts_transformed, project_id, update_tag)
+
+    # Load language packages with the dedicated schema
+    if language_packages_transformed:
+        load_language_packages(
+            neo4j_session, language_packages_transformed, project_id, update_tag
+        )
+
+    # Load generic artifacts (APT, YUM) with the dedicated schema
+    if other_artifacts_transformed:
+        load_generic_artifacts(
+            neo4j_session, other_artifacts_transformed, project_id, update_tag
+        )
+
+    # Cleanup all node types
     cleanup_job_params = common_job_parameters.copy()
     cleanup_job_params["PROJECT_ID"] = project_id
-    cleanup_artifacts(neo4j_session, cleanup_job_params)
+    cleanup_docker_images(neo4j_session, cleanup_job_params)
+    cleanup_helm_charts(neo4j_session, cleanup_job_params)
+    cleanup_language_packages(neo4j_session, cleanup_job_params)
+    cleanup_generic_artifacts(neo4j_session, cleanup_job_params)
 
-    return all_artifacts_raw
+    # Return raw Docker images for manifest sync (excludes Helm charts)
+    return docker_images_raw
