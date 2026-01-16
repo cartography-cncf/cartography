@@ -19,6 +19,7 @@ class S1AppFindingNodeProperties(CartographyNodeProperties):
 
     # CVE specific
     cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
+    severity: PropertyRef = PropertyRef("severity")
 
     # Instance specific (Finding)
     days_detected: PropertyRef = PropertyRef("days_detected")
