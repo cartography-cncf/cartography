@@ -267,10 +267,7 @@ def sync(
     # Sync secret versions
     all_versions: List[Dict] = []
     for secret in secrets:
-        secret_name = secret["name"]
-        logger.info(f"Getting versions for secret {secret_name}")
-        versions = get_secret_versions(secretmanager, secret_name)
-        logger.info(f"Found {len(versions)} versions for secret {secret_name}")
+        versions = get_secret_versions(secretmanager, secret["name"])
         all_versions.extend(versions)
 
     transformed_versions = transform_secret_versions(all_versions)
