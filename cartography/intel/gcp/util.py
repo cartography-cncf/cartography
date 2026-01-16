@@ -4,6 +4,7 @@ Utility functions for GCP API calls with retry logic.
 This module provides helpers to handle transient errors from GCP APIs,
 including both network-level errors and HTTP 5xx server errors.
 """
+
 import logging
 from typing import Any
 from typing import Dict
