@@ -72,6 +72,22 @@ def gcp_api_backoff_handler(details: Dict) -> None:
     )
 
 
+@backoff.on_exception(  # type: ignore[misc]
+    backoff.expo,
+    HttpError,
+    max_tries=GCP_API_MAX_RETRIES,
+    giveup=lambda e: not is_retryable_gcp_http_error(e),
+    on_backoff=gcp_api_backoff_handler,
+    base=GCP_API_BACKOFF_BASE,
+    max_value=GCP_API_BACKOFF_MAX,
+)
+def _gcp_execute(request: Any) -> Any:
+    """Internal function that executes a GCP API request with network retry."""
+    # num_retries handles network-level errors (connection drops, timeouts, SSL errors)
+    # The backoff decorator handles HTTP 5xx and 429 errors
+    return request.execute(num_retries=GCP_API_NUM_RETRIES)
+
+
 def gcp_api_execute_with_retry(request: Any) -> Any:
     """
     Execute a GCP API request with retry on transient errors.
@@ -93,19 +109,4 @@ def gcp_api_execute_with_retry(request: Any) -> Any:
     :return: The response from the API call
     :raises HttpError: If the API call fails after all retries or with a non-retryable error
     """
-
-    @backoff.on_exception(
-        backoff.expo,
-        HttpError,
-        max_tries=GCP_API_MAX_RETRIES,
-        giveup=lambda e: not is_retryable_gcp_http_error(e),
-        on_backoff=gcp_api_backoff_handler,
-        base=GCP_API_BACKOFF_BASE,
-        max_value=GCP_API_BACKOFF_MAX,
-    )
-    def _execute() -> Any:
-        # num_retries handles network-level errors (connection drops, timeouts, SSL errors)
-        # Our backoff decorator handles HTTP 5xx and 429 errors
-        return request.execute(num_retries=GCP_API_NUM_RETRIES)
-
-    return _execute()
+    return _gcp_execute(request)
