@@ -5,10 +5,13 @@ from typing import Dict
 from typing import List
 
 import neo4j
+from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp import compute
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.secretsmanager.secret import GCPSecretManagerSecretSchema
 from cartography.models.gcp.secretsmanager.secret_version import (
     GCPSecretManagerSecretVersionSchema,
@@ -23,21 +26,46 @@ def get_secrets(secretmanager: Resource, project_id: str) -> List[Dict]:
     """
     Get all secrets from GCP Secret Manager for a given project.
     """
-    secrets: List[Dict] = []
-    parent = f"projects/{project_id}"
-    req = secretmanager.projects().secrets().list(parent=parent)
-    while req is not None:
-        res = req.execute()
-        secrets.extend(res.get("secrets", []))
-        req = (
-            secretmanager.projects()
-            .secrets()
-            .list_next(
-                previous_request=req,
-                previous_response=res,
+    try:
+        secrets: List[Dict] = []
+        parent = f"projects/{project_id}"
+        req = secretmanager.projects().secrets().list(parent=parent)
+        while req is not None:
+            res = gcp_api_execute_with_retry(req)
+            secrets.extend(res.get("secrets", []))
+            req = (
+                secretmanager.projects()
+                .secrets()
+                .list_next(
+                    previous_request=req,
+                    previous_response=res,
+                )
             )
-        )
-    return secrets
+        return secrets
+    except HttpError as e:
+        reason = compute._get_error_reason(e)
+        if reason == "invalid":
+            logger.warning(
+                (
+                    "The project %s is invalid - returned a 400 invalid error. "
+                    "Full details: %s"
+                ),
+                project_id,
+                e,
+            )
+            return []
+        elif reason == "forbidden":
+            logger.warning(
+                (
+                    "You do not have secretmanager.secrets.list access to the project %s. "
+                    "Full details: %s"
+                ),
+                project_id,
+                e,
+            )
+            return []
+        else:
+            raise
 
 
 @timeit
@@ -48,21 +76,46 @@ def get_secret_versions(
     """
     Get all versions of a secret from GCP Secret Manager.
     """
-    versions: List[Dict] = []
-    req = secretmanager.projects().secrets().versions().list(parent=secret_name)
-    while req is not None:
-        res = req.execute()
-        versions.extend(res.get("versions", []))
-        req = (
-            secretmanager.projects()
-            .secrets()
-            .versions()
-            .list_next(
-                previous_request=req,
-                previous_response=res,
+    try:
+        versions: List[Dict] = []
+        req = secretmanager.projects().secrets().versions().list(parent=secret_name)
+        while req is not None:
+            res = gcp_api_execute_with_retry(req)
+            versions.extend(res.get("versions", []))
+            req = (
+                secretmanager.projects()
+                .secrets()
+                .versions()
+                .list_next(
+                    previous_request=req,
+                    previous_response=res,
+                )
             )
-        )
-    return versions
+        return versions
+    except HttpError as e:
+        reason = compute._get_error_reason(e)
+        if reason == "invalid":
+            logger.warning(
+                (
+                    "The secret %s is invalid - returned a 400 invalid error. "
+                    "Full details: %s"
+                ),
+                secret_name,
+                e,
+            )
+            return []
+        elif reason == "forbidden":
+            logger.warning(
+                (
+                    "You do not have secretmanager.versions.list access to the secret %s. "
+                    "Full details: %s"
+                ),
+                secret_name,
+                e,
+            )
+            return []
+        else:
+            raise
 
 
 def transform_secrets(secrets: List[Dict]) -> List[Dict]:
