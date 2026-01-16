@@ -47,6 +47,7 @@ def transform(cves_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "cve_id": cve["cveId"],
             # Optional fields - use .get() with None default
             "application_version_id": app_version_id,
+            "severity": cve.get("severity"),
             "remediation_level": cve.get("remediationLevel"),
             "risk_score": cve.get("riskScore"),
             "report_confidence": cve.get("reportConfidence"),
