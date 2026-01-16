@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.azure.firewall as firewall
-from tests.data.azure.firewall import DESCRIBE_FIREWALLS
 from tests.data.azure.firewall import DESCRIBE_FIREWALL_POLICIES
+from tests.data.azure.firewall import DESCRIBE_FIREWALLS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -118,7 +118,9 @@ def test_sync_azure_firewalls(
         ),
     }
     assert (
-        check_nodes(neo4j_session, "AzureFirewall", ["id", "name", "location", "sku_tier"])
+        check_nodes(
+            neo4j_session, "AzureFirewall", ["id", "name", "location", "sku_tier"]
+        )
         == expected_firewall_nodes
     )
 
@@ -136,7 +138,9 @@ def test_sync_azure_firewalls(
         ),
     }
     assert (
-        check_nodes(neo4j_session, "AzureFirewallPolicy", ["id", "name", "threatIntelMode"])
+        check_nodes(
+            neo4j_session, "AzureFirewallPolicy", ["id", "name", "threat_intel_mode"]
+        )
         == expected_policy_nodes
     )
 
@@ -167,7 +171,8 @@ def test_sync_azure_firewalls(
         == expected_ip_config_nodes
     )
 
-    # Assert - Check AzureSubscription -> AzureFirewall relationship
+    # Assert - Check AzureSubscription <- AzureFirewall relationship
+    # The relationship direction is INWARD, meaning (:AzureSubscription)<-[:RESOURCE]-(:AzureFirewall)
     expected_sub_fw_rels = {
         (
             TEST_SUBSCRIPTION_ID,
@@ -186,7 +191,7 @@ def test_sync_azure_firewalls(
             "AzureFirewall",
             "id",
             "RESOURCE",
-            rel_direction_right=False,
+            rel_direction_right=True,  # Changed from False - relationship points from Firewall to Subscription
         )
         == expected_sub_fw_rels
     )
@@ -215,7 +220,8 @@ def test_sync_azure_firewalls(
         == expected_fw_policy_rels
     )
 
-    # Assert - Check AzureFirewall -> AzureFirewallIPConfiguration relationship
+    # Assert - Check AzureFirewall <- AzureFirewallIPConfiguration relationship
+    # The relationship direction is INWARD, meaning (:AzureFirewall)<-[:HAS_IP_CONFIGURATION]-(:AzureFirewallIPConfiguration)
     expected_fw_ipconfig_rels = {
         (
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/azureFirewalls/test-firewall-1",
@@ -238,7 +244,7 @@ def test_sync_azure_firewalls(
             "AzureFirewallIPConfiguration",
             "id",
             "HAS_IP_CONFIGURATION",
-            rel_direction_right=False,
+            rel_direction_right=True,  # Changed from False - relationship points from IPConfig to Firewall
         )
         == expected_fw_ipconfig_rels
     )
@@ -353,7 +359,8 @@ def test_sync_azure_firewalls_cleanup(
         SET fw.name = 'old-firewall', fw.lastupdated = $old_tag
         WITH fw
         MATCH (s:AzureSubscription{id: $sub_id})
-        MERGE (s)<-[:RESOURCE]-(fw)
+        MERGE (fw)<-[r:RESOURCE]-(s)
+        SET r.lastupdated = $old_tag
         """,
         fw_id="/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/azureFirewalls/old-firewall",
         sub_id=TEST_SUBSCRIPTION_ID,
@@ -367,7 +374,8 @@ def test_sync_azure_firewalls_cleanup(
         SET ip.name = 'old-ipconfig', ip.lastupdated = $old_tag
         WITH ip
         MATCH (s:AzureSubscription{id: $sub_id})
-        MERGE (s)<-[:RESOURCE]-(ip)
+        MERGE (ip)<-[r:RESOURCE]-(s)
+        SET r.lastupdated = $old_tag
         """,
         ip_id="/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/azureFirewalls/old-firewall/azureFirewallIpConfigurations/old-ipconfig",
         sub_id=TEST_SUBSCRIPTION_ID,
@@ -381,7 +389,8 @@ def test_sync_azure_firewalls_cleanup(
         SET p.name = 'old-policy', p.lastupdated = $old_tag
         WITH p
         MATCH (s:AzureSubscription{id: $sub_id})
-        MERGE (s)<-[:RESOURCE]-(p)
+        MERGE (p)-[r:RESOURCE]->(s)
+        SET r.lastupdated = $old_tag
         """,
         policy_id="/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/firewallPolicies/old-policy",
         sub_id=TEST_SUBSCRIPTION_ID,
