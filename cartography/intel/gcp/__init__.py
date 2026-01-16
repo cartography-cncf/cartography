@@ -30,6 +30,7 @@ from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import permission_relationships
 from cartography.intel.gcp import policy_bindings
+from cartography.intel.gcp import secretsmanager
 from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
@@ -55,7 +56,8 @@ logger = logging.getLogger(__name__)
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
-    "Services", "compute storage gke dns iam bigtable cai aiplatform cloud_sql"
+    "Services",
+    "compute storage gke dns iam bigtable cai aiplatform cloud_sql secretsmanager",
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -67,6 +69,7 @@ service_names = Services(
     cai="cloudasset.googleapis.com",
     aiplatform="aiplatform.googleapis.com",
     cloud_sql="sqladmin.googleapis.com",
+    secretsmanager="secretmanager.googleapis.com",
 )
 
 
@@ -451,6 +454,19 @@ def _sync_project_resources(
                     gcp_update_tag,
                     common_job_parameters,
                 )
+
+        if service_names.secretsmanager in enabled_services:
+            logger.info("Syncing GCP project %s for Secret Manager.", project_id)
+            secretsmanager_client = build_client(
+                "secretmanager", "v1", credentials=credentials
+            )
+            secretsmanager.sync(
+                neo4j_session,
+                secretsmanager_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
 
         del common_job_parameters["PROJECT_ID"]
 
