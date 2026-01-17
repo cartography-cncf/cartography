@@ -738,6 +738,51 @@ Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/
     (GCPRole)-[RESOURCE]->(GCPProject)
     ```
 
+### GCPKeyRing
+
+Representation of a GCP [Key Ring](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings).
+
+| Field | Description |
+|---|---|
+| id | The full resource name of the Key Ring. |
+| name | The short name of the Key Ring. |
+| location | The GCP location of the Key Ring. |
+| lastupdated | The timestamp of the last update. |
+| project\_id | The full project ID (projects/...) this Key Ring belongs to. |
+
+#### Relationships
+
+  - GCPKeyRings are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPKeyRing)
+    ```
+
+### GCPCryptoKey
+
+Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys).
+
+| Field | Description |
+|---|---|
+| id | The full resource name of the Crypto Key. |
+| name | The short name of the Crypto Key. |
+| rotation\_period | The rotation period of the key (e.g., `7776000s`). |
+| purpose | The key purpose (e.g., `ENCRYPT_DECRYPT`). |
+| state | The state of the primary key version (e.g., `ENABLED`). |
+| lastupdated | The timestamp of the last update. |
+| project\_id | The full project ID (projects/...) this key belongs to. |
+| key\_ring\_id | The full ID of the parent Key Ring. |
+
+#### Relationships
+
+  - GCPCryptoKeys are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCryptoKey)
+    ```
+  - GCPKeyRings contain GCPCryptoKeys.
+    ```
+    (GCPKeyRing)-[CONTAINS]->(GCPCryptoKey)
+    ```
+
 ### GCPPolicyBinding
 
 Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/reference/rest/v1/Policy#Binding). Policy bindings connect principals (users, service accounts, groups) to roles on specific resources.
@@ -874,7 +919,6 @@ Representation of a GCP [Bigtable App Profile](https://cloud.google.com/bigtable
     ```
     (GCPBigtableAppProfile)-[:ROUTES_TO]->(GCPBigtableCluster)
     ```
-
 
 ### GCPBigtableBackup
 
