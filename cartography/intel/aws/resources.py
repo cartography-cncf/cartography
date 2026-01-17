@@ -65,6 +65,7 @@ from .ec2.vpc import sync_vpc
 from .ec2.vpc_endpoint import sync_vpc_endpoints
 from .ec2.vpc_peerings import sync_vpc_peerings
 from .iam_instance_profiles import sync_iam_instance_profiles
+from .iam import sync_server_certificates
 
 RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "iam": iam.sync,
@@ -134,4 +135,5 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "cognito": cognito.sync,
     "eventbridge": eventbridge.sync,
     "glue": glue.sync,
+    "server_certificates": sync_server_certificates,
 }
