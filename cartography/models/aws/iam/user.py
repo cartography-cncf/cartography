@@ -25,7 +25,9 @@ class AWSUserNodeProperties(CartographyNodeProperties):
     name: PropertyRef = PropertyRef("name")
     path: PropertyRef = PropertyRef("path")
     createdate: PropertyRef = PropertyRef("createdate")
+    createdate_dt: PropertyRef = PropertyRef("createdate_dt")
     passwordlastused: PropertyRef = PropertyRef("passwordlastused")
+    passwordlastused_dt: PropertyRef = PropertyRef("passwordlastused_dt")
 
 
 @dataclass(frozen=True)
@@ -51,4 +53,9 @@ class AWSUserSchema(CartographyNodeSchema):
     label: str = "AWSUser"
     properties: AWSUserNodeProperties = AWSUserNodeProperties()
     sub_resource_relationship: AWSUserToAWSAccountRel = AWSUserToAWSAccountRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            "AWSPrincipal",
+            "UserAccount",
+        ]  # UserAccount label is used for ontology mapping
+    )

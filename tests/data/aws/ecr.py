@@ -219,6 +219,20 @@ ATTESTATION_MANIFEST = {
     ],
 }
 
+# SLSA provenance blob (in-toto attestation payload)
+SLSA_PROVENANCE_BLOB = {
+    "predicate": {
+        "materials": [
+            {
+                "uri": "pkg:docker/000000000000.dkr.ecr.us-east-1.amazonaws.com/base-image@sha256:parent123",
+                "digest": {
+                    "sha256": "parent1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                },
+            }
+        ]
+    }
+}
+
 # Multi-layer container image manifest
 MULTI_LAYER_MANIFEST = {
     "schemaVersion": 2,
@@ -293,23 +307,23 @@ MULTI_ARCH_INDEX = {
     "manifests": [
         {
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "size": 2198,
             "platform": {"architecture": "amd64", "os": "linux"},
         },
         {
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             "size": 2198,
             "platform": {"architecture": "arm64", "os": "linux", "variant": "v8"},
         },
         {
             "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
             "size": 566,
             "annotations": {
                 "vnd.docker.reference.type": "attestation-manifest",
-                "vnd.docker.reference.digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "vnd.docker.reference.digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             },
             "platform": {"architecture": "unknown", "os": "unknown"},
         },
@@ -373,3 +387,63 @@ MULTI_ARCH_ARM64_CONFIG = {
         ],
     },
 }
+
+MANIFEST_LIST_DIGEST = (
+    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+MANIFEST_LIST_AMD64_DIGEST = (
+    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+MANIFEST_LIST_ARM64_DIGEST = (
+    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+)
+MANIFEST_LIST_ATTESTATION_DIGEST = (
+    "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+)
+
+# Mock response for batch_get_image when fetching manifest list
+BATCH_GET_MANIFEST_LIST_RESPONSE = {
+    "images": [
+        {
+            "imageManifest": json.dumps(MULTI_ARCH_INDEX),
+            "imageManifestMediaType": "application/vnd.oci.image.index.v1+json",
+            "imageId": {
+                "imageDigest": MANIFEST_LIST_DIGEST,
+            },
+            "registryId": "000000000000",
+            "repositoryName": "multi-arch-repository",
+        }
+    ]
+}
+
+# Image details for a multi-arch manifest list
+MULTI_ARCH_IMAGE_DETAILS = {
+    "registryId": "000000000000",
+    "repositoryName": "multi-arch-repository",
+    "imageDigest": MANIFEST_LIST_DIGEST,
+    "imageTags": ["v1.0"],
+    "imageSizeInBytes": 50000000,
+    "imagePushedAt": "2025-01-01T00:00:00.000000-00:00",
+    "imageManifestMediaType": "application/vnd.oci.image.index.v1+json",
+    "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00",
+}
+
+# Single-platform image incorrectly marked as manifest list (bug scenario)
+SINGLE_PLATFORM_DIGEST = (
+    "sha256:914758fa1c15b12c7dfa8cab15eb53b7bbb5143386911da492b00c73c49eef6f"
+)
+
+SINGLE_PLATFORM_IMAGE_DETAILS = {
+    "registryId": "000000000000",
+    "repositoryName": "single-platform-repository",
+    "imageDigest": SINGLE_PLATFORM_DIGEST,
+    "imageTags": ["latest"],
+    "imageSizeInBytes": 12345678,
+    "imagePushedAt": "2025-01-01T00:00:00.000000-00:00",
+    # AWS ECR sometimes reports manifest list media type even for single-platform images
+    "imageManifestMediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+    "lastRecordedPullTime": "2025-01-01T01:01:01.000000-00:00",
+}
+
+# Empty response when trying to fetch as manifest list (the bug scenario)
+BATCH_GET_MANIFEST_LIST_EMPTY_RESPONSE: dict[str, list] = {"images": []}

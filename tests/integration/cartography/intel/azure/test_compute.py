@@ -1,39 +1,43 @@
-from cartography.intel.azure import compute
+from unittest.mock import patch
+
+import cartography.intel.azure.compute
 from tests.data.azure.compute import DESCRIBE_DISKS
 from tests.data.azure.compute import DESCRIBE_SNAPSHOTS
-from tests.data.azure.compute import DESCRIBE_VM_DATA_DISKS
 from tests.data.azure.compute import DESCRIBE_VMS
+from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_RESOURCE_GROUP = "TestRG"
 TEST_UPDATE_TAG = 123456789
 
 
-def test_load_vms(neo4j_session):
-    compute.load_vms(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        DESCRIBE_VMS,
-        TEST_UPDATE_TAG,
-    )
-
-    expected_nodes = {
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM1",
-    }
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (r:AzureVirtualMachine) RETURN r.id;
-        """,
-    )
-    actual_nodes = {n["r.id"] for n in nodes}
-
-    assert actual_nodes == expected_nodes
-
-
-def test_load_vms_relationships(neo4j_session):
-    # Create Test Azure Subscription
+@patch.object(
+    cartography.intel.azure.compute,
+    "get_snapshots_list",
+    return_value=DESCRIBE_SNAPSHOTS,
+)
+@patch.object(
+    cartography.intel.azure.compute,
+    "get_disks",
+    return_value=DESCRIBE_DISKS,
+)
+@patch.object(
+    cartography.intel.azure.compute,
+    "get_vm_list",
+    return_value=DESCRIBE_VMS,
+)
+def test_sync_compute_resources(
+    mock_get_vms,
+    mock_get_disks,
+    mock_get_snapshots,
+    neo4j_session,
+):
+    """
+    Test that compute resources (VMs, disks, snapshots) sync correctly
+    via the main sync() function
+    """
+    # Arrange - Create subscription
     neo4j_session.run(
         """
         MERGE (as:AzureSubscription{id: $subscription_id})
@@ -44,14 +48,57 @@ def test_load_vms_relationships(neo4j_session):
         update_tag=TEST_UPDATE_TAG,
     )
 
-    compute.load_vms(
+    # Act - Call the main sync function
+    cartography.intel.azure.compute.sync(
         neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        DESCRIBE_VMS,
-        TEST_UPDATE_TAG,
+        credentials=None,  # Mocked - not used
+        subscription_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+        common_job_parameters={
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AZURE_SUBSCRIPTION_ID": TEST_SUBSCRIPTION_ID,
+        },
     )
 
-    expected = {
+    # Assert - Check VMs were created
+    expected_vm_nodes = {
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
+        ),
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM1",
+        ),
+    }
+    assert (
+        check_nodes(neo4j_session, "AzureVirtualMachine", ["id"]) == expected_vm_nodes
+    )
+
+    # Assert - Check disks were created
+    expected_disk_nodes = {
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd0",
+        ),
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd1",
+        ),
+    }
+    assert check_nodes(neo4j_session, "AzureDisk", ["id"]) == expected_disk_nodes
+
+    # Assert - Check snapshots were created
+    expected_snapshot_nodes = {
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/snapshots/ss0",
+        ),
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/snapshots/ss1",
+        ),
+    }
+    assert (
+        check_nodes(neo4j_session, "AzureSnapshot", ["id"]) == expected_snapshot_nodes
+    )
+
+    # Assert - Check VM-to-subscription relationships
+    expected_vm_rels = {
         (
             TEST_SUBSCRIPTION_ID,
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
@@ -61,126 +108,21 @@ def test_load_vms_relationships(neo4j_session):
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM1",
         ),
     }
-
-    # Fetch relationships
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AzureSubscription)-[:RESOURCE]->(n2:AzureVirtualMachine) RETURN n1.id, n2.id;
-        """,
+    assert (
+        check_rels(
+            neo4j_session,
+            "AzureSubscription",
+            "id",
+            "AzureVirtualMachine",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_vm_rels
     )
 
-    actual = {(r["n1.id"], r["n2.id"]) for r in result}
-
-    assert actual == expected
-
-
-def test_load_vm_data_disks(neo4j_session):
-    compute.load_vm_data_disks(
-        neo4j_session,
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
-        DESCRIBE_VM_DATA_DISKS,
-        TEST_UPDATE_TAG,
-    )
-
-    expected_nodes = {
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd0",
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd1",
-    }
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (r:AzureDataDisk) RETURN r.id;
-        """,
-    )
-
-    actual_nodes = {n["r.id"] for n in nodes}
-
-    assert actual_nodes == expected_nodes
-
-
-def test_load_vm_data_disk_relationships(neo4j_session):
-    # Create Test Virtual Machines
-    compute.load_vms(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        [DESCRIBE_VMS[0]],
-        TEST_UPDATE_TAG,
-    )
-
-    compute.load_vm_data_disks(
-        neo4j_session,
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
-        DESCRIBE_VM_DATA_DISKS,
-        TEST_UPDATE_TAG,
-    )
-
-    expected = {
-        (
-            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
-            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd0",
-        ),
-        (
-            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
-            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd1",
-        ),
-    }
-
-    # Fetch relationships
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AzureVirtualMachine)-[:ATTACHED_TO]->(n2:AzureDataDisk) RETURN n1.id, n2.id;
-        """,
-    )
-
-    actual = {(r["n1.id"], r["n2.id"]) for r in result}
-
-    assert actual == expected
-
-
-def test_load_disks(neo4j_session):
-    compute.load_disks(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        DESCRIBE_DISKS,
-        TEST_UPDATE_TAG,
-    )
-
-    expected_nodes = {
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd0",
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd1",
-    }
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (r:AzureDisk) RETURN r.id;
-        """,
-    )
-
-    actual_nodes = {n["r.id"] for n in nodes}
-
-    assert actual_nodes == expected_nodes
-
-
-def test_load_disk_relationships(neo4j_session):
-    # Create Test Azure Subscription
-    neo4j_session.run(
-        """
-        MERGE (as:AzureSubscription{id: $subscription_id})
-        ON CREATE SET as.firstseen = timestamp()
-        SET as.lastupdated = $update_tag
-        """,
-        subscription_id=TEST_SUBSCRIPTION_ID,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    compute.load_disks(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        DESCRIBE_DISKS,
-        TEST_UPDATE_TAG,
-    )
-
-    expected = {
+    # Assert - Check disk-to-subscription relationships
+    expected_disk_rels = {
         (
             TEST_SUBSCRIPTION_ID,
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd0",
@@ -190,63 +132,21 @@ def test_load_disk_relationships(neo4j_session):
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd1",
         ),
     }
-
-    # Fetch relationships
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AzureSubscription)-[:RESOURCE]->(n2:AzureDisk) RETURN n1.id, n2.id;
-        """,
+    assert (
+        check_rels(
+            neo4j_session,
+            "AzureSubscription",
+            "id",
+            "AzureDisk",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_disk_rels
     )
 
-    actual = {(r["n1.id"], r["n2.id"]) for r in result}
-
-    assert actual == expected
-
-
-def test_load_snapshots(neo4j_session):
-    compute.load_snapshots(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        DESCRIBE_SNAPSHOTS,
-        TEST_UPDATE_TAG,
-    )
-
-    expected_nodes = {
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/snapshots/ss0",
-        "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/snapshots/ss1",
-    }
-
-    nodes = neo4j_session.run(
-        """
-        MATCH (r:AzureSnapshot) RETURN r.id;
-        """,
-    )
-
-    actual_nodes = {n["r.id"] for n in nodes}
-
-    assert actual_nodes == expected_nodes
-
-
-def test_load_snapshot_relationships(neo4j_session):
-    # Create Test Azure Subscription
-    neo4j_session.run(
-        """
-        MERGE (as:AzureSubscription{id: $subscription_id})
-        ON CREATE SET as.firstseen = timestamp()
-        SET as.lastupdated = $update_tag
-        """,
-        subscription_id=TEST_SUBSCRIPTION_ID,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    compute.load_snapshots(
-        neo4j_session,
-        TEST_SUBSCRIPTION_ID,
-        DESCRIBE_SNAPSHOTS,
-        TEST_UPDATE_TAG,
-    )
-
-    expected = {
+    # Assert - Check snapshot-to-subscription relationships
+    expected_snapshot_rels = {
         (
             TEST_SUBSCRIPTION_ID,
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/snapshots/ss0",
@@ -256,14 +156,15 @@ def test_load_snapshot_relationships(neo4j_session):
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/snapshots/ss1",
         ),
     }
-
-    # Fetch relationships
-    result = neo4j_session.run(
-        """
-        MATCH (n1:AzureSubscription)-[:RESOURCE]->(n2:AzureSnapshot) RETURN n1.id, n2.id;
-        """,
+    assert (
+        check_rels(
+            neo4j_session,
+            "AzureSubscription",
+            "id",
+            "AzureSnapshot",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_snapshot_rels
     )
-
-    actual = {(r["n1.id"], r["n2.id"]) for r in result}
-
-    assert actual == expected

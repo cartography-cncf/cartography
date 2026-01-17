@@ -362,7 +362,8 @@ def test_upinned_python_library_to_repo(neo4j_session):
 def test_setup_cfg_library_to_repo(neo4j_session):
     """
     Ensure that repositories are connected to Python libraries stated as dependencies in setup.cfg.
-    and verify that exactly 2 repos are connected to the PythonLibrary.
+    Verify that exactly 1 repo is connected to the PythonLibrary (repos with dependency graph data
+    skip requirements.txt/setup.cfg parsing).
     """
     _ensure_local_neo4j_has_test_data(neo4j_session)
 
@@ -373,7 +374,7 @@ def test_setup_cfg_library_to_repo(neo4j_session):
     """
     nodes = neo4j_session.run(query)
     actual_nodes = {n["repo_count"] for n in nodes}
-    expected_nodes = {2}
+    expected_nodes = {1}
     assert actual_nodes == expected_nodes
 
 
@@ -698,4 +699,53 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
     assert actual_manifest_dependency_relationships is not None
     assert expected_manifest_dependency_relationships.issubset(
         actual_manifest_dependency_relationships
+    )
+
+
+def test_sync_github_branch_protection_rules(neo4j_session):
+    """
+    Test that GitHub branch protection rules are correctly synced to Neo4j.
+    """
+    # Arrange - Set up test data (calls transform and load pipeline)
+    _ensure_local_neo4j_has_test_data(neo4j_session)
+
+    # Expected data from GET_REPOS[2] which has PROTECTED_BRANCH_STRONG
+    repo_url = "https://github.com/cartography-cncf/cartography"
+    branch_protection_rule_id = "BPR_kwDOAbc123=="
+
+    # Assert - Test that branch protection rule nodes were created
+    expected_branch_protection_rule_nodes = {
+        (branch_protection_rule_id, "main", False, True, 2),
+    }
+    actual_branch_protection_rule_nodes = check_nodes(
+        neo4j_session,
+        "GitHubBranchProtectionRule",
+        [
+            "id",
+            "pattern",
+            "allows_deletions",
+            "requires_approving_reviews",
+            "required_approving_review_count",
+        ],
+    )
+    assert actual_branch_protection_rule_nodes is not None
+    assert expected_branch_protection_rule_nodes.issubset(
+        actual_branch_protection_rule_nodes
+    )
+
+    # Assert - Test that repositories are connected to branch protection rules
+    expected_repo_branch_protection_rule_relationships = {
+        (repo_url, branch_protection_rule_id),
+    }
+    actual_repo_branch_protection_rule_relationships = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubBranchProtectionRule",
+        "id",
+        "HAS_RULE",
+    )
+    assert actual_repo_branch_protection_rule_relationships is not None
+    assert expected_repo_branch_protection_rule_relationships.issubset(
+        actual_repo_branch_protection_rule_relationships
     )

@@ -1,3 +1,7 @@
+from typing import cast
+from typing import Dict
+from typing import List
+from typing import Optional
 from unittest.mock import patch
 
 import cartography.intel.github.repos
@@ -60,7 +64,7 @@ class GithubSeed(Seed):
 
     def _seed_repos(self) -> None:
         repos_data = cartography.intel.github.repos.transform(
-            tests.data.github.repos.GET_REPOS,
+            cast(List[Optional[Dict]], tests.data.github.repos.GET_REPOS),
             tests.data.github.repos.DIRECT_COLLABORATORS,
             tests.data.github.repos.OUTSIDE_COLLABORATORS,
         )

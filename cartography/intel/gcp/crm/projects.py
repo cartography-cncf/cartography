@@ -1,8 +1,10 @@
 import logging
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from google.cloud import resourcemanager_v3
 
 from cartography.client.core.tx import load
@@ -13,7 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_projects(org_resource_name: str, folders: List[Dict]) -> List[Dict]:
+def get_gcp_projects(
+    org_resource_name: str,
+    folders: List[Dict],
+    credentials: Optional[GoogleCredentials] = None,
+) -> List[Dict]:
     """
     Return list of ACTIVE GCP projects under the specified organization
     and within the specified folders.
@@ -25,7 +31,7 @@ def get_gcp_projects(org_resource_name: str, folders: List[Dict]) -> List[Dict]:
     parents = set([org_resource_name] + folder_names)
     results: List[Dict] = []
     for parent in parents:
-        client = resourcemanager_v3.ProjectsClient()
+        client = resourcemanager_v3.ProjectsClient(credentials=credentials)
         for proj in client.list_projects(parent=parent):
             # list_projects returns ACTIVE projects by default
             name_field = proj.name  # "projects/<number>"
@@ -96,6 +102,7 @@ def sync_gcp_projects(
     folders: List[Dict],
     gcp_update_tag: int,
     common_job_parameters: Dict,
+    credentials: Optional[GoogleCredentials] = None,
 ) -> List[Dict]:
     """
     Get and sync GCP project data to Neo4j.
@@ -104,6 +111,10 @@ def sync_gcp_projects(
     :return: List of projects synced
     """
     logger.debug("Syncing GCP projects")
-    projects = get_gcp_projects(org_resource_name, folders)
+    projects = get_gcp_projects(
+        org_resource_name,
+        folders,
+        credentials=credentials,
+    )
     load_gcp_projects(neo4j_session, projects, gcp_update_tag, org_resource_name)
     return projects

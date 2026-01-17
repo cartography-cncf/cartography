@@ -96,6 +96,8 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 ### KubernetesContainer
 Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/workloads/pods/#how-pods-manage-multiple-containers)
 
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for containers across different systems (e.g., ECSContainer, AzureContainerInstance).
+
 | Field | Description |
 |-------|-------------|
 | id | Identifier for the container which is derived from the UID of pod and the name of container |
@@ -109,6 +111,10 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | status\_ready | Specifies whether the container has passed its readiness probe. |
 | status\_started | Specifies whether the container has passed its startup probe. |
 | status\_state | State of the container (running, terminated, waiting) |
+| memory\_request | Minimum amount of memory guaranteed to be available to the container (e.g. "128Mi", "1Gi") |
+| cpu\_request | Minimum amount of CPU guaranteed to be available to the container (e.g. "100m", "1") |
+| memory\_limit | Maximum amount of memory the container is allowed to use (e.g. "256Mi", "2Gi") |
+| cpu\_limit | Maximum amount of CPU the container is allowed to use (e.g. "500m", "2") |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
@@ -142,6 +148,11 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 - `KubernetesService` targets `KubernetesPod`.
     ```
     (:KubernetesService)-[:TARGETS]->(:KubernetesPod)
+    ```
+
+- `KubernetesService` of type `LoadBalancer` uses an AWS `LoadBalancerV2` (NLB/ALB). The relationship is matched by DNS hostname from the Kubernetes service's `status.loadBalancer.ingress[].hostname` field to the `LoadBalancerV2.dnsname` property. This allows linking EKS services to their backing AWS load balancers.
+    ```
+    (:KubernetesService)-[:USES_LOAD_BALANCER]->(:LoadBalancerV2)
     ```
 
 ### KubernetesSecret

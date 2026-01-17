@@ -1,0 +1,21 @@
+# Map principals that can read objects from a GCPBucket. Specifically,
+# create an (:GCPPrincipal)-[:CAN_READ]->(:GCPBucket) relationship
+# for principals that have a policy attached with _any_ of the below
+# permissions. Similar logic applies for the other entries in this file.
+- target_label: GCPBucket
+  permissions:
+  - storage.objects.get
+  relationship_name: CAN_READ
+
+# Map principals that can write objects to a GCPBucket.
+- target_label: GCPBucket
+  permissions:
+  - storage.objects.create
+  - storage.objects.update
+  relationship_name: CAN_WRITE
+
+# Map principals that can delete objects from a GCPBucket.
+- target_label: GCPBucket
+  permissions:
+  - storage.objects.delete
+  relationship_name: CAN_DELETE

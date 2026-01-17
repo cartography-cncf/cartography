@@ -110,7 +110,7 @@ def load_aws_accounts(
     query = """
     MERGE (aa:AWSAccount{id: $ACCOUNT_ID})
     ON CREATE SET aa.firstseen = timestamp()
-    SET aa.lastupdated = $aws_update_tag, aa.name = $ACCOUNT_NAME, aa.inscope=true
+    SET aa.lastupdated = $aws_update_tag, aa.name = $ACCOUNT_NAME, aa.inscope=true, aa :Tenant
     REMOVE aa.foreign
     """
     for account_name, account_id in aws_accounts.items():
