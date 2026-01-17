@@ -67,7 +67,7 @@ dependencies = [
     "azure-mgmt-monitor>=3.0.0",
     "msrestazure >= 0.6.4",
     "azure-mgmt-storage>=16.0.0",
-    "azure-mgmt-sql<=1.0.0",
+    "azure-mgmt-sql>=3.0.1,<4",
     "azure-mgmt-authorization>=0.60.0",
     "azure-identity>=1.5.0",
     "msgraph-sdk",
