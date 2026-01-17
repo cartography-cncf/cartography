@@ -4,7 +4,9 @@ from unittest.mock import patch
 import neo4j.exceptions
 import pytest
 
+from cartography.client.core.tx import _buffer_error_backoff_handler
 from cartography.client.core.tx import _entity_not_found_backoff_handler
+from cartography.client.core.tx import _is_retryable_buffer_error
 from cartography.client.core.tx import _is_retryable_client_error
 from cartography.client.core.tx import _run_index_query_with_retry
 from cartography.client.core.tx import _run_with_retry
@@ -487,3 +489,186 @@ def test_run_index_query_succeeds_normally():
     _run_index_query_with_retry(mock_session, "CREATE INDEX IF NOT EXISTS ...")
 
     mock_session.run.assert_called_once_with("CREATE INDEX IF NOT EXISTS ...")
+
+
+# Tests for _is_retryable_buffer_error
+
+
+def test_buffer_error_with_cannot_be_resized_is_retryable():
+    """BufferError with 'cannot be re-sized' should be retryable."""
+    exc = BufferError("Existing exports of data: object cannot be re-sized")
+    assert _is_retryable_buffer_error(exc) is True
+
+
+def test_buffer_error_without_cannot_be_resized_not_retryable():
+    """BufferError without 'cannot be re-sized' should NOT be retryable."""
+    exc = BufferError("some other buffer error")
+    assert _is_retryable_buffer_error(exc) is False
+
+
+def test_non_buffer_error_not_retryable_for_buffer_check():
+    """Non-BufferError exceptions should NOT be retryable for buffer error check."""
+    exc = ValueError("some error")
+    assert _is_retryable_buffer_error(exc) is False
+
+
+# Tests for _buffer_error_backoff_handler
+
+
+@patch("cartography.client.core.tx.logger")
+def test_logs_buffer_error_with_valid_wait(mock_logger):
+    """Should log warning for BufferError with valid wait time."""
+    exc = BufferError("Existing exports of data: object cannot be re-sized")
+    details = {
+        "exception": exc,
+        "tries": 2,
+        "wait": 1.5,
+        "target": "test_function",
+    }
+    _buffer_error_backoff_handler(details)
+
+    mock_logger.warning.assert_called_once()
+    call_args = mock_logger.warning.call_args[0][0]
+    assert "BufferError retry 2/5" in call_args
+    assert "1.5" in call_args
+
+
+@patch("cartography.client.core.tx.logger")
+def test_logs_buffer_error_first_encounter(mock_logger):
+    """Should log clear message on first BufferError encounter."""
+    exc = BufferError("Existing exports of data: object cannot be re-sized")
+    details = {
+        "exception": exc,
+        "tries": 1,
+        "wait": 1.0,
+        "target": "test_function",
+    }
+    _buffer_error_backoff_handler(details)
+
+    mock_logger.warning.assert_called_once()
+    call_args = mock_logger.warning.call_args[0][0]
+    assert "Encountered BufferError (attempt 1/5)" in call_args
+    assert "concurrent multi-threaded Neo4j operations" in call_args
+
+
+@patch("cartography.client.core.tx.logger")
+def test_logs_buffer_error_with_none_wait(mock_logger):
+    """Should handle None wait gracefully and log 'unknown'."""
+    exc = BufferError("Existing exports of data: object cannot be re-sized")
+    details = {
+        "exception": exc,
+        "tries": 2,
+        "wait": None,
+        "target": "test_function",
+    }
+    _buffer_error_backoff_handler(details)
+
+    mock_logger.warning.assert_called_once()
+    call_args = mock_logger.warning.call_args[0][0]
+    assert "unknown" in call_args
+
+
+@patch("cartography.client.core.tx.backoff_handler")
+@patch("cartography.client.core.tx.logger")
+def test_buffer_handler_falls_back_to_standard_handler_for_other_errors(
+    mock_logger, mock_backoff_handler
+):
+    """Should use standard backoff handler for non-BufferError errors."""
+    exc = ValueError("some error")
+    details = {
+        "exception": exc,
+        "tries": 2,
+        "wait": 1.5,
+        "target": "test_function",
+    }
+    _buffer_error_backoff_handler(details)
+
+    # Should not log BufferError warning
+    mock_logger.warning.assert_not_called()
+    # Should call standard backoff handler
+    mock_backoff_handler.assert_called_once_with(details)
+
+
+# Tests for _run_with_retry with BufferError
+
+
+@patch("cartography.client.core.tx.logger")
+@patch("cartography.client.core.tx.time.sleep")
+def test_retries_buffer_error(mock_sleep, mock_logger):
+    """Should retry BufferError up to MAX_RETRIES times."""
+    operation = MagicMock()
+    # Fail twice with BufferError, then succeed
+    operation.side_effect = [
+        BufferError("Existing exports of data: object cannot be re-sized"),
+        BufferError("Existing exports of data: object cannot be re-sized"),
+        "success",
+    ]
+
+    result = _run_with_retry(operation, "test_target")
+
+    assert result == "success"
+    assert operation.call_count == 3
+    assert mock_sleep.call_count == 2
+
+    # Should log success after recovery
+    success_logs = [
+        call
+        for call in mock_logger.info.call_args_list
+        if "Successfully recovered from BufferError" in str(call)
+    ]
+    assert len(success_logs) == 1
+
+
+def test_raises_non_retryable_buffer_error_immediately():
+    """Should raise non-retryable BufferErrors immediately without retry."""
+    operation = MagicMock()
+    operation.side_effect = BufferError("some other buffer error")
+
+    with pytest.raises(BufferError):
+        _run_with_retry(operation, "test_target")
+
+    # Should only be called once (no retries)
+    operation.assert_called_once()
+
+
+@patch("cartography.client.core.tx.time.sleep")
+def test_raises_after_max_buffer_error_retries(mock_sleep):
+    """Should raise BufferError after MAX_RETRIES attempts."""
+    operation = MagicMock()
+    # Fail all attempts with BufferError
+    operation.side_effect = BufferError(
+        "Existing exports of data: object cannot be re-sized"
+    )
+
+    with pytest.raises(BufferError):
+        _run_with_retry(operation, "test_target")
+
+    # Should try MAX_BUFFER_ERROR_RETRIES (5) times
+    assert operation.call_count == 5
+
+
+@patch("cartography.client.core.tx.time.sleep")
+@patch("cartography.client.core.tx.logger")
+def test_buffer_error_with_none_wait_time(mock_logger, mock_sleep):
+    """Should handle None wait time from backoff generator gracefully for BufferError."""
+    operation = MagicMock()
+    operation.side_effect = [
+        BufferError("Existing exports of data: object cannot be re-sized"),
+        "success",
+    ]
+
+    # Mock backoff.expo() to return None (edge case)
+    with patch("cartography.client.core.tx.backoff.expo") as mock_expo:
+        mock_expo.return_value = iter([None])
+        result = _run_with_retry(operation, "test_target")
+
+    assert result == "success"
+    # Should log error about None wait time
+    error_logs = [
+        call
+        for call in mock_logger.error.call_args_list
+        if "Unexpected: backoff generator returned None" in str(call)
+    ]
+    assert len(error_logs) == 1
+    # Should still sleep (with fallback 1.0 second)
+    mock_sleep.assert_called_once_with(1.0)
