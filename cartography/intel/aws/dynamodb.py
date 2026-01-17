@@ -40,42 +40,79 @@ def get_dynamodb_tables(
 
 
 @timeit
-def transform_dynamodb_tables(dynamodb_tables: List, region: str) -> Any:
-    ddb_table_data: List[Dict[str, Any]] = []
-    ddb_gsi_data: List[Dict[str, Any]] = []
+def transform_dynamodb_tables(
+    dynamodb_tables: List[Dict],
+    region: str,
+) -> Any:
+    """
+    Transform DynamoDB table data for Neo4j ingestion
+    """
+    table_nodes: List[Dict[str, Any]] = []
+    gsi_nodes: List[Dict[str, Any]] = []
 
-    for table in dynamodb_tables:
-        ddb_table_data.append(
+    for entry in dynamodb_tables:
+        table_data = entry["Table"]
+
+        billing = table_data.get("BillingModeSummary", {})
+        sse = table_data.get("SSEDescription", {})
+        stream = table_data.get("StreamSpecification", {})
+        archival = table_data.get("ArchivalSummary", {})
+        restore = table_data.get("RestoreSummary", {})
+
+        table_nodes.append(
             {
-                "Arn": table["Table"]["TableArn"],
-                "TableName": table["Table"]["TableName"],
+                "Arn": table_data["TableArn"],
+                "TableName": table_data["TableName"],
                 "Region": region,
-                "Rows": table["Table"]["ItemCount"],
-                "Size": table["Table"]["TableSizeBytes"],
-                "ProvisionedThroughputReadCapacityUnits": table["Table"][
+                "Rows": table_data.get("ItemCount"),
+                "Size": table_data.get("TableSizeBytes"),
+                "TableStatus": table_data.get("TableStatus"),
+                "CreationDateTime": table_data.get("CreationDateTime"),
+                "ProvisionedThroughputReadCapacityUnits": table_data[
                     "ProvisionedThroughput"
                 ]["ReadCapacityUnits"],
-                "ProvisionedThroughputWriteCapacityUnits": table["Table"][
+                "ProvisionedThroughputWriteCapacityUnits": table_data[
                     "ProvisionedThroughput"
                 ]["WriteCapacityUnits"],
-            },
+                "BillingMode": billing.get("BillingMode"),
+                "LastUpdateToPayPerRequestDateTime": billing.get(
+                    "LastUpdateToPayPerRequestDateTime"
+                ),
+                "LatestStreamArn": table_data.get("LatestStreamArn"),
+                "LatestStreamLabel": table_data.get("LatestStreamLabel"),
+                "StreamEnabled": stream.get("StreamEnabled"),
+                "StreamViewType": stream.get("StreamViewType"),
+                "SSEStatus": sse.get("Status"),
+                "SSEType": sse.get("SSEType"),
+                "SSEKMSKeyArn": sse.get("KMSMasterKeyArn"),
+                "ArchivalBackupArn": archival.get("ArchivalBackupArn"),
+                "ArchivalDateTime": archival.get("ArchivalDateTime"),
+                "ArchivalReason": archival.get("ArchivalReason"),
+                "RestoreDateTime": restore.get("RestoreDateTime"),
+                "RestoreInProgress": restore.get("RestoreInProgress"),
+                "SourceBackupArn": restore.get("SourceBackupArn"),
+                "SourceTableArn": restore.get("SourceTableArn"),
+            }
         )
-        for gsi in table["Table"].get("GlobalSecondaryIndexes", []):
-            ddb_gsi_data.append(
+
+        # Transform GSIs
+        for gsi in table_data.get("GlobalSecondaryIndexes", []):
+            gsi_nodes.append(
                 {
                     "Arn": gsi["IndexArn"],
-                    "TableArn": table["Table"]["TableArn"],
+                    "TableArn": table_data["TableArn"],
                     "Region": region,
+                    "GSIName": gsi["IndexName"],
                     "ProvisionedThroughputReadCapacityUnits": gsi[
                         "ProvisionedThroughput"
                     ]["ReadCapacityUnits"],
                     "ProvisionedThroughputWriteCapacityUnits": gsi[
                         "ProvisionedThroughput"
                     ]["WriteCapacityUnits"],
-                    "GSIName": gsi["IndexName"],
-                },
+                }
             )
-    return ddb_table_data, ddb_gsi_data
+
+    return table_nodes, gsi_nodes
 
 
 @timeit
