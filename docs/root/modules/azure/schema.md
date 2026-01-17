@@ -1726,6 +1726,11 @@ Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.c
 
 #### Relationships
 
+- An Azure Key Vault Secret is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultSecret)
+    ```
+
 - An Azure Key Vault contains one or more Secrets.
     ```cypher
     (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultSecret)
@@ -1746,6 +1751,11 @@ Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/
 |updated_on| The timestamp of when the key was last updated. |
 
 #### Relationships
+
+- An Azure Key Vault Key is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultKey)
+    ```
 
 - An Azure Key Vault contains one or more Keys.
     ```cypher
@@ -1768,6 +1778,11 @@ Representation of a [Certificate within an Azure Key Vault](https://learn.micros
 |x5t| The thumbprint of the certificate. |
 
 #### Relationships
+
+- An Azure Key Vault Certificate is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultCertificate)
+    ```
 
 - An Azure Key Vault contains one or more Certificates.
     ```cypher

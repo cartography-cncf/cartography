@@ -92,8 +92,13 @@ def test_sync_key_vaults_and_contents(
     key_id = MOCK_KEYS[0]["id"]
     cert_id = MOCK_CERTIFICATES[0]["id"]
 
-    expected_rels = {(vault_id, secret_id), (vault_id, key_id), (vault_id, cert_id)}
-    actual_rels = check_rels(
+    # Assert CONTAINS relationships from Vault to children
+    expected_contains_rels = {
+        (vault_id, secret_id),
+        (vault_id, key_id),
+        (vault_id, cert_id),
+    }
+    actual_contains_rels = check_rels(
         neo4j_session,
         "AzureKeyVault",
         "id",
@@ -101,7 +106,7 @@ def test_sync_key_vaults_and_contents(
         "id",
         "CONTAINS",
     )
-    actual_rels.update(
+    actual_contains_rels.update(
         check_rels(
             neo4j_session,
             "AzureKeyVault",
@@ -111,7 +116,7 @@ def test_sync_key_vaults_and_contents(
             "CONTAINS",
         ),
     )
-    actual_rels.update(
+    actual_contains_rels.update(
         check_rels(
             neo4j_session,
             "AzureKeyVault",
@@ -121,4 +126,40 @@ def test_sync_key_vaults_and_contents(
             "CONTAINS",
         ),
     )
-    assert actual_rels == expected_rels
+    assert actual_contains_rels == expected_contains_rels
+
+    # Assert RESOURCE relationships from Subscription to children
+    expected_resource_rels = {
+        (TEST_SUBSCRIPTION_ID, secret_id),
+        (TEST_SUBSCRIPTION_ID, key_id),
+        (TEST_SUBSCRIPTION_ID, cert_id),
+    }
+    actual_resource_rels = check_rels(
+        neo4j_session,
+        "AzureSubscription",
+        "id",
+        "AzureKeyVaultSecret",
+        "id",
+        "RESOURCE",
+    )
+    actual_resource_rels.update(
+        check_rels(
+            neo4j_session,
+            "AzureSubscription",
+            "id",
+            "AzureKeyVaultKey",
+            "id",
+            "RESOURCE",
+        ),
+    )
+    actual_resource_rels.update(
+        check_rels(
+            neo4j_session,
+            "AzureSubscription",
+            "id",
+            "AzureKeyVaultCertificate",
+            "id",
+            "RESOURCE",
+        ),
+    )
+    assert actual_resource_rels == expected_resource_rels

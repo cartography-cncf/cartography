@@ -162,6 +162,7 @@ def load_key_vaults(
 def load_secrets(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
+    subscription_id: str,
     vault_id: str,
     update_tag: int,
 ) -> None:
@@ -170,6 +171,7 @@ def load_secrets(
         AzureKeyVaultSecretSchema(),
         data,
         lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
         VAULT_ID=vault_id,
     )
 
@@ -178,6 +180,7 @@ def load_secrets(
 def load_keys(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
+    subscription_id: str,
     vault_id: str,
     update_tag: int,
 ) -> None:
@@ -186,6 +189,7 @@ def load_keys(
         AzureKeyVaultKeySchema(),
         data,
         lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
         VAULT_ID=vault_id,
     )
 
@@ -194,6 +198,7 @@ def load_keys(
 def load_certificates(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
+    subscription_id: str,
     vault_id: str,
     update_tag: int,
 ) -> None:
@@ -202,6 +207,7 @@ def load_certificates(
         AzureKeyVaultCertificateSchema(),
         data,
         lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
         VAULT_ID=vault_id,
     )
 
@@ -219,6 +225,7 @@ def cleanup_key_vaults(
 def sync_secrets(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
+    subscription_id: str,
     vault_id: str,
     vault_uri: str,
     update_tag: int,
@@ -226,7 +233,9 @@ def sync_secrets(
 ) -> None:
     raw_secrets = get_secrets(credentials, vault_uri)
     transformed_secrets = transform_secrets(raw_secrets)
-    load_secrets(neo4j_session, transformed_secrets, vault_id, update_tag)
+    load_secrets(
+        neo4j_session, transformed_secrets, subscription_id, vault_id, update_tag
+    )
 
     secret_cleanup_params = common_job_parameters.copy()
     secret_cleanup_params["VAULT_ID"] = vault_id
@@ -239,6 +248,7 @@ def sync_secrets(
 def sync_keys(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
+    subscription_id: str,
     vault_id: str,
     vault_uri: str,
     update_tag: int,
@@ -246,7 +256,7 @@ def sync_keys(
 ) -> None:
     raw_keys = get_keys(credentials, vault_uri)
     transformed_keys = transform_keys(raw_keys)
-    load_keys(neo4j_session, transformed_keys, vault_id, update_tag)
+    load_keys(neo4j_session, transformed_keys, subscription_id, vault_id, update_tag)
 
     key_cleanup_params = common_job_parameters.copy()
     key_cleanup_params["VAULT_ID"] = vault_id
@@ -259,6 +269,7 @@ def sync_keys(
 def sync_certificates(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
+    subscription_id: str,
     vault_id: str,
     vault_uri: str,
     update_tag: int,
@@ -266,7 +277,9 @@ def sync_certificates(
 ) -> None:
     raw_certs = get_certificates(credentials, vault_uri)
     transformed_certs = transform_certificates(raw_certs)
-    load_certificates(neo4j_session, transformed_certs, vault_id, update_tag)
+    load_certificates(
+        neo4j_session, transformed_certs, subscription_id, vault_id, update_tag
+    )
 
     cert_cleanup_params = common_job_parameters.copy()
     cert_cleanup_params["VAULT_ID"] = vault_id
@@ -315,6 +328,7 @@ def sync(
             sync_secrets(
                 neo4j_session,
                 credentials,
+                subscription_id,
                 vault_id,
                 vault_uri,
                 update_tag,
@@ -323,6 +337,7 @@ def sync(
             sync_keys(
                 neo4j_session,
                 credentials,
+                subscription_id,
                 vault_id,
                 vault_uri,
                 update_tag,
@@ -331,6 +346,7 @@ def sync(
             sync_certificates(
                 neo4j_session,
                 credentials,
+                subscription_id,
                 vault_id,
                 vault_uri,
                 update_tag,
