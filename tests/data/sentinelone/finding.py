@@ -19,6 +19,7 @@ CVES_DATA = [
         "applicationName": "OpenSSL",
         "applicationVendor": "OpenSSL Foundation",
         "applicationVersion": "1.1.1k",
+        "endpointId": "agent-123",
     },
     {
         "id": CVE_ID_2,
@@ -35,6 +36,7 @@ CVES_DATA = [
         "applicationName": "Apache HTTP Server",
         "applicationVendor": "Apache Software Foundation",
         "applicationVersion": "2.4.41",
+        "endpointId": "agent-456",
     },
     {
         "id": CVE_ID_3,
@@ -51,6 +53,7 @@ CVES_DATA = [
         "applicationName": "Node.js",
         "applicationVendor": "Node.js Foundation",
         "applicationVersion": "16.14.2",
+        "endpointId": "agent-789",
     },
 ]
 
