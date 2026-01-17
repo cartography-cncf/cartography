@@ -18,8 +18,8 @@ class AzureKeyVaultKeyProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     enabled: PropertyRef = PropertyRef("enabled")
-    created_on: PropertyRef = PropertyRef("createdOn")
-    updated_on: PropertyRef = PropertyRef("updatedOn")
+    created_on: PropertyRef = PropertyRef("created_on")
+    updated_on: PropertyRef = PropertyRef("updated_on")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
