@@ -19,6 +19,32 @@ This guide teaches you how to write intel modules for Cartography using the mode
 - `cartography/graph/job.py` - Cleanup job utilities
 - `cartography/models/core/` - Base data model classes
 
+## 📝 Git and Pull Request Guidelines
+
+**Signing Commits**: All commits must be signed using the `-s` flag. This adds a `Signed-off-by` line to your commit message, certifying that you have the right to submit the code under the project's license.
+
+```bash
+# Sign a commit with a message
+git commit -s -m "feat(module): add new feature"
+```
+
+**Pull Request Descriptions**: When creating a pull request, use the template at `.github/pull_request_template.md`.
+
+Example PR creation:
+```bash
+gh pr create --title "feat(core): add BufferError retry handling" --body "$(cat <<'EOF'
+### Summary
+Add retry handling for BufferError to cartography's core Neo4j retry logic.
+
+### Related issues or links
+- https://github.com/cartography-cncf/cartography/issues/1234
+
+### Checklist
+- [x] Update/add unit or integration tests.
+EOF
+)"
+```
+
 ## 📋 Table of Contents
 
 1. @Quick Start: Copy an Existing Module

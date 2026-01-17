@@ -432,6 +432,21 @@ Representation of an [AzureSQLServer](https://docs.microsoft.com/en-us/rest/api/
     (AzureSQLServer)-[:TAGGED]->(AzureTag)
     ```
 
+- Entra principals with appropriate permissions can manage Azure SQL Servers. Created from [azure_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml).
+    ```
+    (EntraUser, EntraGroup, EntraServicePrincipal)-[CAN_MANAGE]->(AzureSQLServer)
+    ```
+
+- Entra principals with appropriate permissions can read Azure SQL Servers. Created from [azure_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml).
+    ```
+    (EntraUser, EntraGroup, EntraServicePrincipal)-[CAN_READ]->(AzureSQLServer)
+    ```
+
+- Entra principals with appropriate permissions can write to Azure SQL Servers. Created from [azure_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/azure_permission_relationships.yaml).
+    ```
+    (EntraUser, EntraGroup, EntraServicePrincipal)-[CAN_WRITE]->(AzureSQLServer)
+    ```
+
 ### AzureServerDNSAlias
 
 Representation of an [AzureServerDNSAlias](https://docs.microsoft.com/en-us/rest/api/sql/serverdnsaliases).
@@ -1474,6 +1489,11 @@ Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest
     (AzureSubscription)-[RESOURCE]->(AzureFunctionApp)
     ```
 
+- Azure Function Apps can be tagged with Azure Tags.
+    ```cypher
+    (AzureFunctionApp)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureAppService
 
 Representation of an [Azure App Service](https://learn.microsoft.com/en-us/rest/api/appservice/web-apps/get).
@@ -1536,6 +1556,11 @@ Representation of an [Azure Logic App](https://learn.microsoft.com/en-us/rest/ap
 - An Azure Logic App is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[RESOURCE]->(AzureLogicApp)
+    ```
+
+- Azure Logic Apps can be tagged with Azure Tags.
+    ```cypher
+    (AzureLogicApp)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureResourceGroup
@@ -1762,6 +1787,11 @@ Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/res
     (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerBackendPool)
     (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerRule)
     (AzureLoadBalancer)-[:CONTAINS]->(:AzureLoadBalancerInboundNatRule)
+    ```
+
+- Azure Load Balancers can be tagged with Azure Tags.
+    ```cypher
+    (AzureLoadBalancer)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureLoadBalancerFrontendIPConfiguration
@@ -2027,9 +2057,14 @@ Representation of an Azure Monitor [Metric Alert](https://learn.microsoft.com/en
 
 #### Relationships
 
-  - An Azure Monitor Metric Alert is a resource within an Azure Subscription.
+- An Azure Monitor Metric Alert is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:HAS_METRIC_ALERT]->(AzureMonitorMetricAlert)
+    ```
+
+- Azure Monitor Metric Alerts can be tagged with Azure Tags.
+    ```cypher
+    (AzureMonitorMetricAlert)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureDataLakeFileSystem
