@@ -90,4 +90,4 @@ def test_load_tags_empty_data():
     )
 
     # Assert
-    mock_neo4j_session.write_transaction.assert_not_called()
+    mock_neo4j_session.execute_write.assert_not_called()
