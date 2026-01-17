@@ -171,6 +171,10 @@ class Config:
     :param openai_org_id: OpenAI organization id. Optional.
     :type anthropic_apikey: string
     :param anthropic_apikey: Anthropic API key. Optional.
+    :type workos_api_key: string
+    :param workos_api_key: WorkOS API key. Required if using WorkOS intel module.
+    :type workos_client_id: string
+    :param workos_client_id: WorkOS client ID that uniquely identifies the tenant. Required if using WorkOS intel module.
     :type airbyte_client_id: str
     :param airbyte_client_id: Airbyte client ID for API authentication. Optional.
     :type airbyte_client_secret: str
@@ -314,6 +318,8 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
+        workos_api_key=None,
+        workos_client_id=None,
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
@@ -428,6 +434,8 @@ class Config:
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
         self.anthropic_apikey = anthropic_apikey
+        self.workos_api_key = workos_api_key
+        self.workos_client_id = workos_client_id
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url

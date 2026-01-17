@@ -776,6 +776,24 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--workos-apikey-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of an environment variable containing a WorkOS API Key. "
+                "Required if you are using the WorkOS intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--workos-client-id",
+            type=str,
+            default=None,
+            help=(
+                "The WorkOS client ID that uniquely identifies the tenant. "
+                "Required if you are using the WorkOS intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
             "--airbyte-client-id",
             type=str,
             default=None,
@@ -1379,6 +1397,15 @@ class CLI:
             config.anthropic_apikey = os.environ.get(config.anthropic_apikey_env_var)
         else:
             config.anthropic_apikey = None
+
+        # WorkOS config
+        if config.workos_apikey_env_var:
+            logger.debug(
+                f"Reading WorkOS API key from environment variable {config.workos_apikey_env_var}",
+            )
+            config.workos_api_key = os.environ.get(config.workos_apikey_env_var)
+        else:
+            config.workos_api_key = None
 
         # Airbyte config
         if config.airbyte_client_id and config.airbyte_client_secret_env_var:
