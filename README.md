@@ -22,7 +22,7 @@ You can learn more about the story behind Cartography in our [presentation at BS
 
 ## Supported platforms
 - [Airbyte](https://cartography-cncf.github.io/cartography/modules/airbyte/index.html) - Organization, Workspace, User, Source, Destination, Connection, Tag, Stream
-- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, CloudWatch, CodeBuild, Config, Cognito, EC2, ECS, ECR (including multi-arch images, image layers, and attestations), EFS, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, Glue,  GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, Secrets Manager(Secret Versions), Security Hub, SNS, SQS, SSM, STS, Tags
+- [Amazon Web Services](https://cartography-cncf.github.io/cartography/modules/aws/index.html) - ACM, API Gateway, Bedrock, CloudWatch, CodeBuild, Config, Cognito, EC2, ECS, ECR (including multi-arch images, image layers, and attestations), EFS, Elasticsearch, Elastic Kubernetes Service (EKS), DynamoDB, Glue,  GuardDuty, IAM, Inspector, KMS, Lambda, RDS, Redshift, Route53, S3, SageMaker, Secrets Manager(Secret Versions), Security Hub, SNS, SQS, SSM, STS, Tags
 - [Anthropic](https://cartography-cncf.github.io/cartography/modules/anthropic/index.html) - Organization, ApiKey, User, Workspace
 - [BigFix](https://cartography-cncf.github.io/cartography/modules/bigfix/index.html) - Computers
 - [Cloudflare](https://cartography-cncf.github.io/cartography/modules/cloudflare/index.html) - Account, Role, Member, Zone, DNSRecord
@@ -30,7 +30,7 @@ You can learn more about the story behind Cartography in our [presentation at BS
 - [DigitalOcean](https://cartography-cncf.github.io/cartography/modules/digitalocean/index.html)
 - [Duo](https://cartography-cncf.github.io/cartography/modules/duo/index.html) - Users, Groups, Endpoints
 - [GitHub](https://cartography-cncf.github.io/cartography/modules/github/index.html) - repos, branches, users, teams, dependency graph manifests, dependencies
-- [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Bigtable, Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine
+- [Google Cloud Platform](https://cartography-cncf.github.io/cartography/modules/gcp/index.html) - Bigtable, Cloud SQL, Cloud Resource Manager, Compute, DNS, Storage, Google Kubernetes Engine, Vertex AI
 - [Google GSuite](https://cartography-cncf.github.io/cartography/modules/gsuite/index.html) - users, groups (deprecated - use Google Workspace instead)
 - [Google Workspace](https://cartography-cncf.github.io/cartography/modules/googleworkspace/index.html) - users, groups, devices, OAuth apps
 - [Kandji](https://cartography-cncf.github.io/cartography/modules/kandji/index.html) - Devices
@@ -142,6 +142,7 @@ Get started with our [developer documentation](https://cartography-cncf.github.i
 1. [Cloudanix](https://www.cloudanix.com/)
 1. [Corelight](https://www.corelight.com/)
 1. [SubImage](https://subimage.io)
+1. [Superhuman](https://superhuman.com/)
 1. {Your company here} :-)
 
 If your organization uses Cartography, please file a PR and update this list. Say hi on Slack too!

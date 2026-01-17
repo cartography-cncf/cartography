@@ -44,7 +44,7 @@ class ScalewayInstanceProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class ScalewayInstanceToVolumeProperties(CartographyRelProperties):
+class ScalewayInstanceToVolumeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -57,13 +57,13 @@ class ScalewayInstanceToVolumeRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MOUNTS"
-    properties: ScalewayInstanceToVolumeProperties = (
-        ScalewayInstanceToVolumeProperties()
+    properties: ScalewayInstanceToVolumeRelProperties = (
+        ScalewayInstanceToVolumeRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class ScalewayInstanceToFlexibleIpProperties(CartographyRelProperties):
+class ScalewayInstanceToFlexibleIpRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -76,8 +76,8 @@ class ScalewayInstanceToFlexibleIpRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "IDENTIFIES"
-    properties: ScalewayInstanceToFlexibleIpProperties = (
-        ScalewayInstanceToFlexibleIpProperties()
+    properties: ScalewayInstanceToFlexibleIpRelProperties = (
+        ScalewayInstanceToFlexibleIpRelProperties()
     )
 
 

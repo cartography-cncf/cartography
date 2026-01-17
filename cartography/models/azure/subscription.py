@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -20,7 +21,7 @@ class AzureSubscriptionProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureSubscriptionToTenantProperties(CartographyRelProperties):
+class AzureSubscriptionToTenantRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -33,14 +34,15 @@ class AzureSubscriptionToTenantRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AzureSubscriptionToTenantProperties = (
-        AzureSubscriptionToTenantProperties()
+    properties: AzureSubscriptionToTenantRelProperties = (
+        AzureSubscriptionToTenantRelProperties()
     )
 
 
 @dataclass(frozen=True)
 class AzureSubscriptionSchema(CartographyNodeSchema):
     label: str = "AzureSubscription"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])
     properties: AzureSubscriptionProperties = AzureSubscriptionProperties()
     sub_resource_relationship: AzureSubscriptionToTenantRel = (
         AzureSubscriptionToTenantRel()

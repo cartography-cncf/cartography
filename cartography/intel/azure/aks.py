@@ -121,6 +121,7 @@ def load_aks_clusters(
 def load_agent_pools(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
+    subscription_id: str,
     cluster_id: str,
     update_tag: int,
 ) -> None:
@@ -129,6 +130,7 @@ def load_agent_pools(
         AzureKubernetesNodePoolSchema(),
         data,
         lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
         CLUSTER_ID=cluster_id,
     )
 
@@ -164,7 +166,13 @@ def sync(
         if resource_group_name:
             agent_pools = get_agent_pools(client, cluster["name"], resource_group_name)
             transformed_pools = transform_agent_pools(agent_pools)
-            load_agent_pools(neo4j_session, transformed_pools, cluster_id, update_tag)
+            load_agent_pools(
+                neo4j_session,
+                transformed_pools,
+                subscription_id,
+                cluster_id,
+                update_tag,
+            )
 
             pool_cleanup_params = common_job_parameters.copy()
             pool_cleanup_params["CLUSTER_ID"] = cluster_id

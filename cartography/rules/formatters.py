@@ -6,6 +6,7 @@ import json
 import re
 from dataclasses import asdict
 from dataclasses import is_dataclass
+from enum import Enum
 from urllib.parse import quote
 
 from pydantic import BaseModel
@@ -58,6 +59,10 @@ def to_serializable(obj):
     # Pydantic model (v2)
     if isinstance(obj, BaseModel):
         return to_serializable(obj.model_dump())
+
+    # Enum
+    if isinstance(obj, Enum):
+        return obj.value
 
     # Dataclass
     if is_dataclass(obj):

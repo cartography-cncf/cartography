@@ -52,11 +52,26 @@ _aws_trust_relationship_manipulation = Fact(
     """,
     cypher_visual_query="""
         MATCH p = (a:AWSAccount)-[:RESOURCE]->(principal:AWSPrincipal)
-        MATCH p1 = (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
-        MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement)
+        MATCH p1 = (principal)-[:POLICY]->(policy:AWSPolicy)-[:STATEMENT]->(stmt:AWSPolicyStatement {effect:"Allow"})
         WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
+        AND NOT principal.name CONTAINS 'QuickSetup'
         AND principal.name <> 'OrganizationAccountAccessRole'
-        AND stmt.effect = 'Allow'
+        WITH a, principal, policy, stmt,
+            ['iam:UpdateAssumeRolePolicy', 'iam:CreateRole'] AS patterns
+        WITH a, principal, policy, stmt,
+            [action IN stmt.action
+                WHERE ANY(p IN patterns WHERE action = p)
+                OR action = 'iam:*'
+                OR action = '*'
+            ] AS matched_allow_actions
+        WHERE size(matched_allow_actions) > 0
+        OPTIONAL MATCH (principal)-[:POLICY]->(:AWSPolicy)-[:STATEMENT]->(deny_stmt:AWSPolicyStatement {effect:"Deny"})
+        WHERE ANY(action IN deny_stmt.action
+                WHERE action IN matched_allow_actions
+                    OR action = 'iam:*'
+                    OR action = '*')
+        WITH a, principal, policy, stmt, deny_stmt
+        WHERE deny_stmt IS NULL
         RETURN *
     """,
     module=Module.AWS,
@@ -85,6 +100,11 @@ delegation_boundary_modifiable = Rule(
     ),
     output_model=DelegationBoundaryModifiable,
     facts=(_aws_trust_relationship_manipulation,),
-    tags=("iam", "privilege_escalation"),
+    tags=(
+        "iam",
+        "stride:elevation_of_privilege",
+        "stride:spoofing",
+        "stride:tampering",
+    ),
     version="0.1.0",
 )

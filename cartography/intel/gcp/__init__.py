@@ -20,6 +20,10 @@ from cartography.intel.gcp import bigtable_cluster
 from cartography.intel.gcp import bigtable_instance
 from cartography.intel.gcp import bigtable_table
 from cartography.intel.gcp import cai
+from cartography.intel.gcp import cloud_sql_backup_config
+from cartography.intel.gcp import cloud_sql_database
+from cartography.intel.gcp import cloud_sql_instance
+from cartography.intel.gcp import cloud_sql_user
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
 from cartography.intel.gcp import gke
@@ -33,6 +37,13 @@ from cartography.intel.gcp.clients import get_gcp_credentials
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
+from cartography.intel.gcp.vertex.datasets import sync_vertex_ai_datasets
+from cartography.intel.gcp.vertex.deployed_models import sync_vertex_ai_deployed_models
+from cartography.intel.gcp.vertex.endpoints import sync_vertex_ai_endpoints
+from cartography.intel.gcp.vertex.feature_groups import sync_feature_groups
+from cartography.intel.gcp.vertex.instances import sync_workbench_instances
+from cartography.intel.gcp.vertex.models import sync_vertex_ai_models
+from cartography.intel.gcp.vertex.training_pipelines import sync_training_pipelines
 from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
@@ -43,7 +54,9 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam bigtable cai")
+Services = namedtuple(
+    "Services", "compute storage gke dns iam bigtable cai aiplatform cloud_sql"
+)
 service_names = Services(
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
@@ -52,6 +65,8 @@ service_names = Services(
     iam="iam.googleapis.com",
     bigtable="bigtableadmin.googleapis.com",
     cai="cloudasset.googleapis.com",
+    aiplatform="aiplatform.googleapis.com",
+    cloud_sql="sqladmin.googleapis.com",
 )
 
 
@@ -289,6 +304,62 @@ def _sync_project_resources(
                         common_job_parameters,
                     )
 
+        if service_names.aiplatform in enabled_services:
+            logger.info(f"Syncing GCP project {project_id} for Vertex AI.")
+            aiplatform_client = build_client(
+                "aiplatform", "v1", credentials=credentials
+            )
+            sync_vertex_ai_models(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            endpoints_raw = sync_vertex_ai_endpoints(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            if endpoints_raw:
+                sync_vertex_ai_deployed_models(
+                    neo4j_session,
+                    endpoints_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+            sync_workbench_instances(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            sync_training_pipelines(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            sync_feature_groups(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            sync_vertex_ai_datasets(
+                neo4j_session,
+                aiplatform_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
         # Policy bindings sync uses CAI gRPC client.
         # We attempt policy bindings for all projects unless we've already encountered a permission error.
         # CAI uses the service account's host project for quota by default.
@@ -341,6 +412,45 @@ def _sync_project_resources(
             gcp_update_tag,
             common_job_parameters,
         )
+
+        if service_names.cloud_sql in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
+            cloud_sql_cred = build_client("sqladmin", "v1beta4")
+
+            instances_raw = cloud_sql_instance.sync_sql_instances(
+                neo4j_session,
+                cloud_sql_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+            if instances_raw:
+                cloud_sql_database.sync_sql_databases(
+                    neo4j_session,
+                    cloud_sql_cred,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                cloud_sql_user.sync_sql_users(
+                    neo4j_session,
+                    cloud_sql_cred,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                cloud_sql_backup_config.sync_sql_backup_configs(
+                    neo4j_session,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         del common_job_parameters["PROJECT_ID"]
 

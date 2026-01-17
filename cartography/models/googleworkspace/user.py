@@ -110,4 +110,6 @@ class GoogleWorkspaceUserSchema(CartographyNodeSchema):
     sub_resource_relationship: GoogleWorkspaceUserToTenantRel = (
         GoogleWorkspaceUserToTenantRel()
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount", "GCPPrincipal"]
+    )
