@@ -39,6 +39,8 @@ class AWSLambdaNodeProperties(CartographyNodeProperties):
     architectures: PropertyRef = PropertyRef("Architectures")
     masterarn: PropertyRef = PropertyRef("MasterArn")
     kmskeyarn: PropertyRef = PropertyRef("KMSKeyArn")
+    anonymous_access: PropertyRef = PropertyRef("AnonymousAccess")
+    anonymous_actions: PropertyRef = PropertyRef("AnonymousActions")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

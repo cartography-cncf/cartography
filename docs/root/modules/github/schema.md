@@ -11,15 +11,17 @@ U -- UNAFFILIATED --> O
 U -- OWNER --> R
 U -- OUTSIDE_COLLAB_{ACTION} --> R
 U -- DIRECT_COLLAB_{ACTION} --> R
+U -- COMMITTED_TO --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
+R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
 R -- REQUIRES --> D(Dependency)
 R -- HAS_MANIFEST --> M(DependencyGraphManifest)
 M -- HAS_DEP --> D
 T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
-U -- MAINTENER --> T
+U -- MAINTAINER --> T
 ```
 
 ### GitHubRepository
@@ -81,16 +83,32 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
     ```
    (GitHubRepository)-[:BRANCH]->(GitHubBranch)
     ```
+- GitHubRepositories have GitHubBranchProtectionRules.
+    ```
+   (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
+    ```
 - GitHubTeams can have various levels of [access](https://docs.github.com/en/graphql/reference/enums#repositorypermission) to GitHubRepositories.
 
   ```
   (GitHubTeam)-[ADMIN|READ|WRITE|TRIAGE|MAINTAIN]->(GitHubRepository)
   ```
 
+- GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
+
+  ```
+  (GitHubUser)-[:COMMITTED_TO]->(GitHubRepository)
+  ```
+
+  This relationship includes the following properties:
+  - **commit_count**: Number of commits made by the user to the repository in the last 30 days
+  - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
+  - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
+
 ### GitHubOrganization
 
 Representation of a single GitHubOrganization [organization object](https://developer.github.com/v4/object/organization/). This node contains minimal data for the GitHub Organization.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
 
 | Field | Description |
 |-------|--------------|
@@ -177,6 +195,7 @@ A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/
 
 Representation of a single GitHubUser [user object](https://developer.github.com/v4/object/user/). This node contains minimal data for the GitHub User.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser, EntraUser).
 
 | Field | Description |
 |-------|--------------|
@@ -191,6 +210,7 @@ Representation of a single GitHubUser [user object](https://developer.github.com
 | permission | Only present if the user is an [outside collaborator](https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection) of this repo.  `permission` is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE ([ref](https://docs.github.com/en/graphql/reference/enums#repositorypermission)). |
 | email | The user's publicly visible profile email. |
 | company | The user's public profile company. |
+| organization_verified_domain_emails | List of emails verified by the user's organization. |
 
 
 #### Relationships
@@ -244,6 +264,17 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
     (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
     ```
 
+- GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
+
+    ```
+    (GitHubUser)-[:COMMITTED_TO]->(GitHubRepository)
+    ```
+
+    This relationship includes the following properties:
+    - **commit_count**: Number of commits made by the user to the repository in the last 30 days
+    - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
+    - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
+
 
 ### GitHubBranch
 
@@ -264,6 +295,40 @@ Representation of a single GitHubBranch [ref object](https://developer.github.co
 
     ```
     (GitHubBranch)<-[BRANCH]-(GitHubRepository)
+    ```
+
+### GitHubBranchProtectionRule
+
+Representation of a single GitHubBranchProtectionRule [BranchProtectionRule object](https://docs.github.com/en/graphql/reference/objects#branchprotectionrule). This node contains branch protection configuration for repositories.
+
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The GitHub branch protection rule id |
+| pattern | The branch name pattern protected by this rule (e.g., "main", "release/*") |
+| allows_deletions | Whether users can delete matching branches |
+| allows_force_pushes | Whether force pushes are allowed on matching branches |
+| dismisses_stale_reviews | Whether reviews are dismissed when new commits are pushed |
+| is_admin_enforced | Whether admins must follow this rule |
+| requires_approving_reviews | Whether pull requests require approval before merging |
+| required_approving_review_count | Number of approvals required (if requires_approving_reviews is true) |
+| requires_code_owner_reviews | Whether code owner review is required |
+| requires_commit_signatures | Whether commits must be signed |
+| requires_linear_history | Whether merge commits are prohibited |
+| requires_status_checks | Whether status checks must pass before merging |
+| requires_strict_status_checks | Whether branches must be up to date before merging |
+| restricts_pushes | Whether push access is restricted |
+| restricts_review_dismissals | Whether review dismissals are restricted |
+
+
+#### Relationships
+
+- GitHubRepositories have GitHubBranchProtectionRules.
+
+    ```
+    (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
     ```
 
 ### ProgrammingLanguage
@@ -326,13 +391,12 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Simple identifier: `{canonical_name}|{version}` or `{canonical_name}` - same dependency shared across repos |
+| **id** | Identifier: `{canonical_name}|{requirements}` when a requirements string exists, otherwise `{canonical_name}` |
 | **name** | Canonical name of the dependency (ecosystem-specific normalization) |
 | **original_name** | Original name as specified in the manifest file |
-| **version** | Pinned version if specified, otherwise null |
+| **requirements** | Unparsed requirement string from the manifest (e.g., `"18.2.0"`, `"==4.2.0"`, `"^4.17.21"`, `"1.*.*"`) |
 | **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
 | **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
-| **repo_name** | Repository name extracted from repo URL |
 | **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
 
 #### Relationships

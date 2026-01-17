@@ -5,6 +5,7 @@ import cartography.intel.aws.route53
 from cartography.intel.aws.route53 import sync
 from tests.data.aws.ec2.load_balancers import LOAD_BALANCER_DATA
 from tests.data.aws.route53 import GET_ZONES_SAMPLE_RESPONSE
+from tests.data.aws.route53 import GET_ZONES_WITH_SUBZONE
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -38,6 +39,18 @@ def test_sync_route53(mock_get_zones, neo4j_session):
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
     _ensure_local_neo4j_has_test_ec2_records(neo4j_session)
 
+    # Create IP nodes that DNS records will point to
+    neo4j_session.run(
+        """
+        UNWIND $ip_addresses as ip
+        MERGE (ip_node:Ip{id: ip})
+        ON CREATE SET ip_node.firstseen = timestamp(), ip_node.ip = ip
+        SET ip_node.lastupdated = $update_tag
+        """,
+        ip_addresses=["1.2.3.4", "5.6.7.8", "9.10.11.12", "2001:db8::1", "2001:db8::2"],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
     # Act
     sync(
         neo4j_session,
@@ -61,6 +74,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
 
     assert check_nodes(neo4j_session, "AWSDNSRecord", ["id", "name", "type"]) == {
         ("/hostedzone/HOSTED_ZONE/example.com/A", "example.com", "A"),
+        ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA", "ipv6.example.com", "AAAA"),
         ("/hostedzone/HOSTED_ZONE/example.com/NS", "example.com", "NS"),
         (
             "/hostedzone/HOSTED_ZONE/_b6e76e6a1b6853211abcdef123454.example.com/CNAME",
@@ -70,6 +84,11 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         (
             "/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS",
             "elbv2.example.com",
+            "ALIAS",
+        ),
+        (
+            "/hostedzone/HOSTED_ZONE/aliasv6.example.com/ALIAS_AAAA",
+            "aliasv6.example.com",
             "ALIAS",
         ),
         (
@@ -120,6 +139,10 @@ def test_sync_route53(mock_get_zones, neo4j_session):
         ),
         ("/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS", "/hostedzone/HOSTED_ZONE"),
         (
+            "/hostedzone/HOSTED_ZONE/aliasv6.example.com/ALIAS_AAAA",
+            "/hostedzone/HOSTED_ZONE",
+        ),
+        (
             "/hostedzone/HOSTED_ZONE/www.example.com/WEIGHTED_CNAME",
             "/hostedzone/HOSTED_ZONE",
         ),
@@ -131,6 +154,7 @@ def test_sync_route53(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE/hello.what.example.com/A",
             "/hostedzone/HOSTED_ZONE",
         ),
+        ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA", "/hostedzone/HOSTED_ZONE"),
     }, "DNS records aren't connected to DNS zones"
 
     assert check_nodes(neo4j_session, "NameServer", ["id", "name"]) == {
@@ -188,6 +212,26 @@ def test_sync_route53(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE/hello.what.example.com/A",
         ),
     }, "DNS records don't point to other DNS records"
+
+    # DNS records -- IP addresses
+    assert check_rels(
+        neo4j_session,
+        "AWSDNSRecord",
+        "id",
+        "Ip",
+        "id",
+        "DNS_POINTS_TO",
+        rel_direction_right=True,
+    ) == {
+        ("/hostedzone/HOSTED_ZONE/example.com/A", "1.2.3.4"),
+        (
+            "/hostedzone/HOSTED_ZONE/_1f9ee9f5c4304947879ee77d0a995cc9.something.something.aws/A",
+            "5.6.7.8",
+        ),
+        ("/hostedzone/HOSTED_ZONE/hello.what.example.com/A", "9.10.11.12"),
+        ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA", "2001:db8::1"),
+        ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA", "2001:db8::2"),
+    }, "DNS records don't point to IP addresses"
 
 
 @patch.object(
@@ -303,9 +347,11 @@ def test_sync_route53_cleanup(mock_get_zones, neo4j_session):
     # Assert - Stale record should be cleaned up (not present)
     assert check_nodes(neo4j_session, "AWSDNSRecord", ["id"]) == {
         ("/hostedzone/HOSTED_ZONE/example.com/A",),
+        ("/hostedzone/HOSTED_ZONE/ipv6.example.com/AAAA",),
         ("/hostedzone/HOSTED_ZONE/example.com/NS",),
         ("/hostedzone/HOSTED_ZONE/_b6e76e6a1b6853211abcdef123454.example.com/CNAME",),
         ("/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS",),
+        ("/hostedzone/HOSTED_ZONE/aliasv6.example.com/ALIAS_AAAA",),
         ("/hostedzone/HOSTED_ZONE/www.example.com/WEIGHTED_CNAME",),
         (
             "/hostedzone/HOSTED_ZONE/_1f9ee9f5c4304947879ee77d0a995cc9.something.something.aws/A",
@@ -317,7 +363,7 @@ def test_sync_route53_cleanup(mock_get_zones, neo4j_session):
 @patch.object(
     cartography.intel.aws.route53,
     "get_zones",
-    return_value=GET_ZONES_SAMPLE_RESPONSE,
+    return_value=GET_ZONES_WITH_SUBZONE,
 )
 def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
     """
@@ -326,26 +372,6 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
     # Arrange
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-
-    # Pre-create a sub-zone
-    neo4j_session.run(
-        """
-        MERGE (subzone:AWSDNSZone {id: "subzone", zoneid: "subzone", name: "example.com"})
-        SET subzone.lastupdated = $update_tag
-        """,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
-    # Pre-create a name server that points to the sub-zone
-    neo4j_session.run(
-        """
-        MERGE (ns:NameServer {id: "ec2-1-2-3-4.us-east-2.compute.amazonaws.com"})
-        SET ns.lastupdated = $update_tag
-        MERGE (subzone:AWSDNSZone {zoneid: "subzone"})
-        MERGE (ns)<-[:NAMESERVER]-(subzone)
-        """,
-        update_tag=TEST_UPDATE_TAG,
-    )
 
     # Act
     sync(
@@ -358,14 +384,16 @@ def test_sync_route53_sub_zones(mock_get_zones, neo4j_session):
     )
 
     # Assert - Sub-zone relationship should be created
-    assert check_rels(
+    expected_rels = {
+        ("/hostedzone/PARENT_ZONE", "/hostedzone/SUB_ZONE"),
+    }
+    actual_rels = check_rels(
         neo4j_session,
         "AWSDNSZone",
         "zoneid",
         "AWSDNSZone",
         "zoneid",
         "SUBZONE",
-        rel_direction_right=False,
-    ) == {
-        ("subzone", "/hostedzone/HOSTED_ZONE"),
-    }, "Sub-zone relationship should be created"
+        rel_direction_right=True,
+    )
+    assert actual_rels == expected_rels, "Sub-zone relationship should be created"

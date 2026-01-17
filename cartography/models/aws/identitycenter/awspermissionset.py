@@ -21,6 +21,7 @@ class PermissionSetProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("Description")
     session_duration: PropertyRef = PropertyRef("SessionDuration")
     instance_arn: PropertyRef = PropertyRef("InstanceArn", set_in_kwargs=True)
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -82,7 +83,7 @@ class AWSPermissionSetToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class RoleAssignmentAllowedByRelProperties(CartographyRelProperties):
     """
-    Properties for the ALLOWED_BY relationship between AWSRole and AWSSSOUser.
+    Properties for the ALLOWED_BY relationship between AWSRole and AWSSSO principals.
     """
 
     # Mandatory fields for MatchLinks
@@ -97,10 +98,11 @@ class RoleAssignmentAllowedByRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class RoleAssignmentAllowedByMatchLink(CartographyRelSchema):
+class AWSRoleToSSOUserMatchLink(CartographyRelSchema):
     """
-    MatchLink schema for ALLOWED_BY relationships from role assignments.
-    Creates relationships like: (AWSRole)-[:ALLOWED_BY]->(AWSSSOUser)
+    MatchLink for (AWSRole)-[:ALLOWED_BY]->(AWSSSOUser).
+
+    See schema documentation for details.
     """
 
     # MatchLink-specific fields for AWSRole as source
@@ -113,6 +115,30 @@ class RoleAssignmentAllowedByMatchLink(CartographyRelSchema):
     target_node_label: str = "AWSSSOUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("UserId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ALLOWED_BY"
+    properties: RoleAssignmentAllowedByRelProperties = (
+        RoleAssignmentAllowedByRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class AWSRoleToSSOGroupMatchLink(CartographyRelSchema):
+    """
+    MatchLink for (AWSRole)-[:ALLOWED_BY]->(AWSSSOGroup).
+
+    See schema documentation for details.
+    """
+
+    source_node_label: str = "AWSRole"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"arn": PropertyRef("RoleArn")},
+    )
+
+    target_node_label: str = "AWSSSOGroup"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("GroupId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ALLOWED_BY"

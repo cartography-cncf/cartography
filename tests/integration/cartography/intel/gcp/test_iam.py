@@ -1,9 +1,11 @@
 import cartography.intel.gcp.iam
 import tests.data.gcp.iam
+from cartography.intel.gcp.iam import transform_gcp_roles
+from cartography.intel.gcp.iam import transform_gcp_service_accounts
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-TEST_PROJECT_ID = "project-123"
+TEST_PROJECT_ID = "project-abc"
 TEST_UPDATE_TAG = 123456789
 
 
@@ -23,7 +25,9 @@ def _create_test_project(neo4j_session):
 def test_load_gcp_roles(neo4j_session):
     # Arrange
     _create_test_project(neo4j_session)
-    data = tests.data.gcp.iam.LIST_ROLES_RESPONSE["roles"]
+    data = transform_gcp_roles(
+        tests.data.gcp.iam.LIST_ROLES_RESPONSE["roles"], TEST_PROJECT_ID
+    )
 
     # Act
     cartography.intel.gcp.iam.load_gcp_roles(
@@ -35,17 +39,17 @@ def test_load_gcp_roles(neo4j_session):
 
     # Assert
     expected_nodes = {
-        ("projects/project-123/roles/customRole1",),
+        ("projects/project-abc/roles/customRole1",),
         ("roles/editor",),
-        ("projects/project-123/roles/customRole2",),
+        ("projects/project-abc/roles/customRole2",),
     }
     assert check_nodes(neo4j_session, "GCPRole", ["id"]) == expected_nodes
 
     # Check relationships
     expected_rels = {
-        (TEST_PROJECT_ID, "projects/project-123/roles/customRole1"),
+        (TEST_PROJECT_ID, "projects/project-abc/roles/customRole1"),
         (TEST_PROJECT_ID, "roles/editor"),
-        (TEST_PROJECT_ID, "projects/project-123/roles/customRole2"),
+        (TEST_PROJECT_ID, "projects/project-abc/roles/customRole2"),
     }
     assert (
         check_rels(
@@ -63,7 +67,9 @@ def test_load_gcp_roles(neo4j_session):
 def test_load_gcp_service_accounts(neo4j_session):
     # Arrange
     _create_test_project(neo4j_session)
-    data = tests.data.gcp.iam.LIST_SERVICE_ACCOUNTS_RESPONSE["accounts"]
+    data = transform_gcp_service_accounts(
+        tests.data.gcp.iam.LIST_SERVICE_ACCOUNTS_RESPONSE["accounts"], TEST_PROJECT_ID
+    )
 
     # Act
     cartography.intel.gcp.iam.load_gcp_service_accounts(

@@ -2,8 +2,11 @@ from unittest.mock import MagicMock
 
 import botocore.exceptions
 
+from cartography.intel.aws.identitycenter import (
+    _is_permission_set_sync_unsupported_error,
+)
 from cartography.intel.aws.identitycenter import get_permission_sets
-from cartography.intel.aws.identitycenter import get_role_assignments
+from cartography.intel.aws.identitycenter import get_user_permissionsets
 
 
 def test_get_permission_sets_access_denied():
@@ -61,7 +64,7 @@ def test_get_role_assignments_access_denied():
     )
 
     # Act: Call the function
-    result = get_role_assignments(
+    result = get_user_permissionsets(
         mock_session,
         users,
         "arn:aws:sso:::instance/test",
@@ -81,3 +84,48 @@ def test_get_role_assignments_access_denied():
         PrincipalId="test-user-id",
         PrincipalType="USER",
     )
+
+
+def test_is_permission_set_sync_unsupported_error():
+    """Test that we correctly identify the ValidationException for unsupported instances."""
+    error = botocore.exceptions.ClientError(
+        error_response={
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "The operation is not supported for this Identity Center instance",
+            },
+        },
+        operation_name="ListPermissionSets",
+    )
+
+    assert _is_permission_set_sync_unsupported_error(error)
+
+
+def test_is_permission_set_sync_unsupported_error_returns_false_for_other_errors():
+    """Test that other ValidationExceptions are not treated as unsupported instance errors."""
+    error = botocore.exceptions.ClientError(
+        error_response={
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "Some other validation error",
+            },
+        },
+        operation_name="ListPermissionSets",
+    )
+
+    assert not _is_permission_set_sync_unsupported_error(error)
+
+
+def test_is_permission_set_sync_unsupported_error_returns_false_for_access_denied():
+    """Test that AccessDeniedException is not treated as unsupported instance error."""
+    error = botocore.exceptions.ClientError(
+        error_response={
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "Access Denied",
+            },
+        },
+        operation_name="ListPermissionSets",
+    )
+
+    assert not _is_permission_set_sync_unsupported_error(error)

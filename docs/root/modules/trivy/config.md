@@ -4,7 +4,7 @@
 
 Currently, Cartography allows you to use Trivy to scan the following resources:
 
-- [ECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage)
+- [ECRImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrimage) (note that you scan ECRRepositoryImages but findings attach to their underlying ECRImage nodes)
 
 
 To use Trivy with Cartography,
@@ -31,9 +31,17 @@ To use Trivy with Cartography,
 
     **Naming conventions**:
 
-    - Each image URI should have its own S3 object key with the following naming convention: `<ECR Image URI>.json`. For example, if you have an ECR image URI of `123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3`, the S3 object key would be `123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3.json`.
+    - JSON files can be named using any convention. Cartography determines which ECR image each scan belongs to by inspecting the scan content (see below), not the filename.
 
-    - You can also use an s3 object prefix to organize the results. For example if your bucket is `s3://my-bucket/` and you want to put the results in a folder called `trivy-scans/`, the full S3 object key would be `trivy-scans/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3.json`.
+    - You can use an s3 object prefix to organize the results. For example if your bucket is `s3://my-bucket/` and you want to put the results in a folder called `trivy-scans/`, the full S3 object key could be `trivy-scans/123456789012.dkr.ecr.us-east-1.amazonaws.com/test-app:v1.2.3.json` or `trivy-scans/scan-12345.json`.
+
+    **Digest-qualified URIs**:
+
+    - Cartography supports scanning images by both tag URIs (e.g., `repo:tag`) and digest URIs (e.g., `repo@sha256:abc123...`).
+
+    - This enables scanning of multi-architecture images where each platform (amd64, arm64, etc.) has its own digest.
+
+    - Cartography matches scans to ECR images by inspecting the `ArtifactName`, `Metadata.RepoTags`, and `Metadata.RepoDigests` fields in the Trivy JSON output.
 
 1. Configure Cartography to use the Trivy module.
 
@@ -41,7 +49,7 @@ To use Trivy with Cartography,
     cartography --selected-modules trivy --trivy-s3-bucket my-bucket --trivy-s3-prefix trivy-scans/
     ```
 
-    Cartography will then search s3://my-bucket/trivy-scans/ for JSON files with the naming convention `<ECR Image URI>.json` and load them into the graph. Note that this requires the role running Cartography to have the `s3:ListObjects` and `s3:GetObject` permissions for the bucket and prefix.
+    Cartography will then search s3://my-bucket/trivy-scans/ for all `.json` files and load them into the graph. Note that this requires the role running Cartography to have the `s3:ListObjects` and `s3:GetObject` permissions for the bucket and prefix.
 
     The `--trivy-s3-prefix` parameter is optional and defaults to an empty string.
 
@@ -51,7 +59,7 @@ To use Trivy with Cartography,
     cartography --selected-modules trivy --trivy-results-dir /path/to/trivy-results
     ```
 
-    Cartography will ingest every `.json` file under the provided directory. The image URI is read from the `ArtifactName` field inside each file, so file names may contain any characters.
+    Cartography will ingest every `.json` file under the provided directory. Each scan is matched to an ECR image by inspecting the `ArtifactName`, `Metadata.RepoTags`, and `Metadata.RepoDigests` fields, so file names may contain any characters.
 
 ## Notes on running Trivy
 

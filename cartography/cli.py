@@ -235,6 +235,11 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--azure-subscription-id",
+            type=str,
+            help="The Azure Subscription ID to sync.",
+        )
+        parser.add_argument(
             "--entra-tenant-id",
             type=str,
             default=None,
@@ -272,6 +277,17 @@ class CLI:
                 "GuardDuty severity threshold filter. Only findings at or above this severity level will be synced. "
                 "Valid values: LOW, MEDIUM, HIGH, CRITICAL. If not specified, all findings (except archived) will be synced. "
                 "Example: 'HIGH' will sync only HIGH and CRITICAL findings, filtering out LOW and MEDIUM severity findings."
+            ),
+        )
+        parser.add_argument(
+            "--experimental-aws-inspector-batch",
+            type=int,
+            default=1000,
+            help=(
+                "EXPERIMENTAL: This feature is experimental and may be removed in the future. "
+                "Batch size for AWS Inspector findings sync. Controls how many findings are fetched, processed and cleaned up at a time. "
+                "Default is 1000. Increase this value if you have a large number of findings and want to reduce API calls, "
+                "or decrease it if you're experiencing memory issues."
             ),
         )
         parser.add_argument(
@@ -324,6 +340,14 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--github-commit-lookback-days",
+            type=int,
+            default=30,
+            help=(
+                "Number of days to look back for tracking GitHub users committing to repositories. Defaults to 30 days."
+            ),
+        )
+        parser.add_argument(
             "--digitalocean-token-env-var",
             type=str,
             default=None,
@@ -339,6 +363,24 @@ class CLI:
             help=(
                 "The path to the permission relationships mapping file."
                 "If omitted the default permission relationships will be created"
+            ),
+        )
+        parser.add_argument(
+            "--azure-permission-relationships-file",
+            type=str,
+            default="cartography/data/azure_permission_relationships.yaml",
+            help=(
+                "The path to the Azure permission relationships mapping file."
+                "If omitted the default Azure permission relationships will be created"
+            ),
+        )
+        parser.add_argument(
+            "--gcp-permission-relationships-file",
+            type=str,
+            default="cartography/data/gcp_permission_relationships.yaml",
+            help=(
+                "The path to the GCP permission relationships mapping file. "
+                "If omitted the default GCP permission relationships will be used"
             ),
         )
         parser.add_argument(
@@ -393,6 +435,12 @@ class CLI:
             help=(
                 "The path to kubeconfig file specifying context to access K8s cluster(s)."
             ),
+        )
+        parser.add_argument(
+            "--managed-kubernetes",
+            default=None,
+            type=str,
+            help=("Type of managed Kubernetes service (e.g., 'eks'). Optional."),
         )
         parser.add_argument(
             "--nist-cve-url",
@@ -501,6 +549,24 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--googleworkspace-auth-method",
+            type=str,
+            default="delegated",
+            choices=["delegated", "oauth", "default"],
+            help=(
+                'Google Workspace authentication method. Can be "delegated" for service account or "oauth" for OAuth. '
+                '"Default" best if using gcloud CLI.'
+            ),
+        )
+        parser.add_argument(
+            "--googleworkspace-tokens-env-var",
+            type=str,
+            default="GOOGLEWORKSPACE_GOOGLE_APPLICATION_CREDENTIALS",
+            help=(
+                "The name of environment variable containing secrets for Google Workspace authentication."
+            ),
+        )
+        parser.add_argument(
             "--lastpass-cid-env-var",
             type=str,
             default=None,
@@ -553,6 +619,60 @@ class CLI:
             type=str,
             default=None,
             help=("The Duo api hostname"),
+        )
+        parser.add_argument(
+            "--gitlab-url",
+            type=str,
+            default="https://gitlab.com",
+            help=(
+                "The GitLab instance URL. Defaults to https://gitlab.com. "
+                "Set to your self-hosted instance URL if applicable (e.g., https://gitlab.example.com)."
+            ),
+        )
+        parser.add_argument(
+            "--gitlab-token-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of environment variable containing the GitLab personal access token. "
+                "Required if you are using the GitLab intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--gitlab-organization-id",
+            type=int,
+            default=None,
+            help=(
+                "The GitLab organization (top-level group) ID to sync. "
+                "Required if you are using the GitLab intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--workday-api-url",
+            type=str,
+            default=None,
+            help=(
+                "The Workday API URL. "
+                "Required if you are using the Workday intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--workday-api-login",
+            type=str,
+            default=None,
+            help=(
+                "The Workday API login username. "
+                "Required if you are using the Workday intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--workday-api-password-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of environment variable containing the Workday API password. "
+                "Required if you are using the Workday intel module. Ignored otherwise."
+            ),
         )
         parser.add_argument(
             "--semgrep-app-token-env-var",
@@ -701,6 +821,26 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--ontology-users-source",
+            type=str,
+            default=None,
+            help=(
+                "Comma-separated list of sources of truth for user data in the ontology. "
+                "'User' nodes will only be created for users that exist in one of the sources. "
+                "Required if you are using the ontology module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--ontology-devices-source",
+            type=str,
+            default=None,
+            help=(
+                "Comma-separated list of sources of truth for client computer data in the ontology. "
+                "'Device' nodes will only be created for groups that exist in one of the sources. "
+                "Required if you are using the ontology module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
             "--trivy-results-dir",
             type=str,
             default=None,
@@ -760,6 +900,130 @@ class CLI:
             help=(
                 "The name of an environment variable containing the SentinelOne API token. "
                 "Required if you are using the SentinelOne intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-client-id",
+            type=str,
+            default=None,
+            help=(
+                "The Keycloak client ID to sync. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-client-secret-env-var",
+            type=str,
+            default="KEYCLOAK_CLIENT_SECRET",
+            help=(
+                "The name of an environment variable containing the Keycloak client secret. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-url",
+            type=str,
+            help=(
+                "The base URL for the Keycloak instance. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise. "
+            ),
+        )
+        parser.add_argument(
+            "--keycloak-realm",
+            type=str,
+            default="master",
+            help=(
+                "The Keycloak realm used for authentication (note: all available realms will be synced). "
+                "Should be `master` (default value) in most of the cases. "
+                "Required if you are using the Keycloak intel module. Ignored otherwise. "
+            ),
+        )
+        parser.add_argument(
+            "--slack-token-env-var",
+            type=str,
+            default=None,
+            help=(
+                "The name of environment variable containing the Slack Token. "
+                "Required if you are using the Slack intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--slack-teams",
+            type=str,
+            default=None,
+            help=(
+                "The Slack Team ID to sync, comma separated. If not provided, all accessible teams will be synced. "
+            ),
+        )
+        parser.add_argument(
+            "--slack-channels-memberships",
+            action="store_true",
+            help=("Pull memberships for Slack Channels (can be time consuming)."),
+        )
+        parser.add_argument(
+            "--spacelift-api-endpoint",
+            type=str,
+            default=None,
+            help=(
+                "Spacelift GraphQL API endpoint (e.g., https://yourorg.app.spacelift.io/graphql). "
+                "Required if you are using the Spacelift intel module. Ignored otherwise."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-token-env-var",
+            type=str,
+            default="SPACELIFT_API_TOKEN",
+            help=(
+                "The name of an environment variable containing the Spacelift API token. "
+                "Alternative to using API key ID/secret. Ignored if API key credentials are provided."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-key-id-env-var",
+            type=str,
+            default="SPACELIFT_API_KEY_ID",
+            help=(
+                "The name of an environment variable containing the Spacelift API key ID. "
+                "Use with --spacelift-api-key-secret-env-var for automatic token exchange. "
+                "Alternative to providing a pre-generated token."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-api-key-secret-env-var",
+            type=str,
+            default="SPACELIFT_API_KEY_SECRET",
+            help=(
+                "The name of an environment variable containing the Spacelift API key secret. "
+                "Use with --spacelift-api-key-id-env-var for automatic token exchange. "
+                "Alternative to providing a pre-generated token."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-aws-profile",
+            type=str,
+            default=None,
+            help=(
+                "AWS profile name to use for fetching EC2 ownership data from S3. "
+                "Optional. If not provided, uses default AWS credentials. "
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-s3-bucket",
+            type=str,
+            default=None,
+            help=(
+                "S3 bucket name containing CloudTrail data for EC2 ownership relationships. "
+                "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-prefix)."
+            ),
+        )
+        parser.add_argument(
+            "--spacelift-ec2-ownership-s3-prefix",
+            type=str,
+            default=None,
+            help=(
+                "S3 prefix for CloudTrail data for EC2 ownership relationships. "
+                "All JSON files under this prefix will be processed. "
+                "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-bucket)."
             ),
         )
 
@@ -912,8 +1176,8 @@ class CLI:
                 logger.warning("A Kandji base URI was provided but a token was not.")
                 config.kandji_token = None
         else:
-            logger.warning("A Kandji base URI was not provided.")
             config.kandji_base_uri = None
+            config.kandji_token = None
 
         if config.statsd_enabled:
             logger.debug(
@@ -960,6 +1224,17 @@ class CLI:
         else:
             config.gsuite_tokens_env_var = None
 
+        # Google Workspace config
+        if config.googleworkspace_tokens_env_var:
+            logger.debug(
+                f"Reading config string for Google Workspace from environment variable {config.googleworkspace_tokens_env_var}",
+            )
+            config.googleworkspace_config = os.environ.get(
+                config.googleworkspace_tokens_env_var
+            )
+        else:
+            config.googleworkspace_tokens_env_var = None
+
         # Lastpass config
         if config.lastpass_cid_env_var:
             logger.debug(
@@ -1003,6 +1278,31 @@ class CLI:
             config.duo_api_key = None
             config.duo_api_secret = None
 
+        # GitLab config
+        if config.gitlab_url and config.gitlab_token_env_var:
+            logger.debug(
+                f"Reading GitLab token from environment variable {config.gitlab_token_env_var}",
+            )
+            config.gitlab_token = os.environ.get(config.gitlab_token_env_var)
+        else:
+            config.gitlab_token = None
+        # gitlab_organization_id is passed directly from CLI arg (type=int)
+
+        # Workday config
+        if (
+            config.workday_api_url
+            and config.workday_api_login
+            and config.workday_api_password_env_var
+        ):
+            logger.debug(
+                f"Reading Workday API password from environment variable {config.workday_api_password_env_var}",
+            )
+            config.workday_api_password = os.environ.get(
+                config.workday_api_password_env_var
+            )
+        else:
+            config.workday_api_password = None
+
         # Semgrep config
         if config.semgrep_app_token_env_var:
             logger.debug(
@@ -1041,8 +1341,8 @@ class CLI:
                 logger.warning("A SnipeIT base URI was provided but a token was not.")
                 config.snipeit_token = None
         else:
-            logger.warning("A SnipeIT base URI was not provided.")
             config.snipeit_base_uri = None
+            config.snipeit_token = None
 
         # Tailscale config
         if config.tailscale_token_env_var:
@@ -1133,6 +1433,68 @@ class CLI:
         else:
             config.sentinelone_api_token = None
 
+        # Keycloak config
+        if config.keycloak_client_secret_env_var:
+            logger.debug(
+                f"Reading Client Secret for Keycloak from environment variable {config.keycloak_client_secret_env_var}",
+            )
+            config.keycloak_client_secret = os.environ.get(
+                config.keycloak_client_secret_env_var
+            )
+        else:
+            config.keycloak_client_secret = None
+
+        # Slack config
+        if config.slack_token_env_var:
+            logger.debug(
+                f"Reading Slack token from environment variable {config.slack_token_env_var}",
+            )
+            config.slack_token = os.environ.get(config.slack_token_env_var)
+        else:
+            config.slack_token = None
+
+        # Spacelift config
+        # Read endpoint from CLI arg or env var
+        if not config.spacelift_api_endpoint:
+            config.spacelift_api_endpoint = os.environ.get("SPACELIFT_API_ENDPOINT")
+
+        if config.spacelift_api_endpoint:
+            # Try to read API token
+            if config.spacelift_api_token_env_var:
+                logger.debug(
+                    f"Reading API token for Spacelift from environment variable {config.spacelift_api_token_env_var}",
+                )
+                config.spacelift_api_token = os.environ.get(
+                    config.spacelift_api_token_env_var
+                )
+            else:
+                config.spacelift_api_token = None
+
+            # Try to read API key ID and secret
+            if config.spacelift_api_key_id_env_var:
+                logger.debug(
+                    f"Reading API key ID for Spacelift from environment variable {config.spacelift_api_key_id_env_var}",
+                )
+                config.spacelift_api_key_id = os.environ.get(
+                    config.spacelift_api_key_id_env_var
+                )
+            else:
+                config.spacelift_api_key_id = None
+
+            if config.spacelift_api_key_secret_env_var:
+                logger.debug(
+                    f"Reading API key secret for Spacelift from environment variable {config.spacelift_api_key_secret_env_var}",
+                )
+                config.spacelift_api_key_secret = os.environ.get(
+                    config.spacelift_api_key_secret_env_var
+                )
+            else:
+                config.spacelift_api_key_secret = None
+        else:
+            config.spacelift_api_token = None
+            config.spacelift_api_key_id = None
+            config.spacelift_api_key_secret = None
+
         # Run cartography
         try:
             return cartography.sync.run_with_config(self.sync, config)
@@ -1155,6 +1517,7 @@ def main(argv=None):
     logging.getLogger("neo4j").setLevel(logging.WARNING)
     logging.getLogger("azure.identity").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("slack_sdk").setLevel(logging.WARNING)
     logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(
         logging.WARNING
     )

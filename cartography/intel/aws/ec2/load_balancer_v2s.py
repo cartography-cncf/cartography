@@ -6,6 +6,7 @@ import boto3
 import botocore
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -91,7 +92,8 @@ def load_load_balancer_v2s(
     SET elbv2.lastupdated = $update_tag, elbv2.name = $NAME, elbv2.dnsname = $DNS_NAME,
     elbv2.canonicalhostedzonenameid = $HOSTED_ZONE_NAME_ID,
     elbv2.type = $ELBv2_TYPE,
-    elbv2.scheme = $SCHEME, elbv2.region = $Region
+    elbv2.scheme = $SCHEME, elbv2.region = $Region,
+    elbv2.arn = $ARN
     WITH elbv2
     MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
     MERGE (aa)-[r:RESOURCE]->(elbv2)
@@ -104,7 +106,8 @@ def load_load_balancer_v2s(
             logger.warning("Skipping load balancer entry with missing DNSName: %r", lb)
             continue
 
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_load_balancer_v2,
             ID=load_balancer_id,
             CREATED_TIME=str(lb["CreatedTime"]),
@@ -115,6 +118,7 @@ def load_load_balancer_v2s(
             SCHEME=lb.get("Scheme"),
             AWS_ACCOUNT_ID=current_aws_account_id,
             Region=region,
+            ARN=lb.get("LoadBalancerArn"),
             update_tag=update_tag,
         )
 
@@ -138,7 +142,8 @@ def load_load_balancer_v2s(
             SET r.lastupdated = $update_tag
             """
             for group in lb["SecurityGroups"]:
-                neo4j_session.run(
+                run_write_query(
+                    neo4j_session,
                     ingest_load_balancer_v2_security_group,
                     ID=load_balancer_id,
                     GROUP_ID=str(group),
@@ -182,7 +187,8 @@ def load_load_balancer_v2_subnets(
     SET r.lastupdated = $update_tag
     """
     for az in az_data:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_load_balancer_subnet,
             ID=load_balancer_id,
             SubnetId=az["SubnetId"],
@@ -212,22 +218,94 @@ def load_load_balancer_v2_target_groups(
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $update_tag
     """
+    ingest_ips = """
+    MATCH (elbv2:LoadBalancerV2{id: $ID})
+    MATCH (ip:EC2PrivateIp{private_ip_address: $IP_ADDRESS})
+    MERGE (elbv2)-[r:EXPOSE]->(ip)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $update_tag,
+        r.port = $PORT,
+        r.protocol = $PROTOCOL,
+        r.target_group_arn = $TARGET_GROUP_ARN
+    """
+    ingest_lambdas = """
+    MATCH (elbv2:LoadBalancerV2{id: $ID})
+    MATCH (lambda_fn:AWSLambda{id: $LAMBDA_ARN})
+    MERGE (elbv2)-[r:EXPOSE]->(lambda_fn)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $update_tag,
+        r.port = $PORT,
+        r.protocol = $PROTOCOL,
+        r.target_group_arn = $TARGET_GROUP_ARN
+    """
+    ingest_albs = """
+    MATCH (elbv2:LoadBalancerV2{id: $ID})
+    MATCH (target_alb:LoadBalancerV2{arn: $TARGET_ALB_ARN})
+    MERGE (elbv2)-[r:EXPOSE]->(target_alb)
+    ON CREATE SET r.firstseen = timestamp()
+    SET r.lastupdated = $update_tag,
+        r.port = $PORT,
+        r.protocol = $PROTOCOL,
+        r.target_group_arn = $TARGET_GROUP_ARN
+    """
     for target_group in target_groups:
 
-        if not target_group["TargetType"] == "instance":
-            # Only working on EC2 Instances now. TODO: Add IP & Lambda EXPOSE.
-            continue
+        target_type = target_group.get("TargetType")
 
-        for instance in target_group["Targets"]:
-            neo4j_session.run(
-                ingest_instances,
-                ID=load_balancer_id,
-                INSTANCE_ID=instance,
-                AWS_ACCOUNT_ID=current_aws_account_id,
-                TARGET_GROUP_ARN=target_group.get("TargetGroupArn"),
-                PORT=target_group.get("Port"),
-                PROTOCOL=target_group.get("Protocol"),
-                update_tag=update_tag,
+        if target_type == "instance":
+            for instance in target_group["Targets"]:
+                run_write_query(
+                    neo4j_session,
+                    ingest_instances,
+                    ID=load_balancer_id,
+                    INSTANCE_ID=instance,
+                    AWS_ACCOUNT_ID=current_aws_account_id,
+                    TARGET_GROUP_ARN=target_group.get("TargetGroupArn"),
+                    PORT=target_group.get("Port"),
+                    PROTOCOL=target_group.get("Protocol"),
+                    update_tag=update_tag,
+                )
+        elif target_type == "ip":
+            for ip in target_group["Targets"]:
+                run_write_query(
+                    neo4j_session,
+                    ingest_ips,
+                    ID=load_balancer_id,
+                    IP_ADDRESS=ip,
+                    TARGET_GROUP_ARN=target_group.get("TargetGroupArn"),
+                    PORT=target_group.get("Port"),
+                    PROTOCOL=target_group.get("Protocol"),
+                    update_tag=update_tag,
+                )
+        elif target_type == "lambda":
+            for lambda_arn in target_group["Targets"]:
+                run_write_query(
+                    neo4j_session,
+                    ingest_lambdas,
+                    ID=load_balancer_id,
+                    LAMBDA_ARN=lambda_arn,
+                    TARGET_GROUP_ARN=target_group.get("TargetGroupArn"),
+                    PORT=target_group.get("Port"),
+                    PROTOCOL=target_group.get("Protocol"),
+                    update_tag=update_tag,
+                )
+        elif target_type == "alb":
+            for alb_arn in target_group["Targets"]:
+                run_write_query(
+                    neo4j_session,
+                    ingest_albs,
+                    ID=load_balancer_id,
+                    TARGET_ALB_ARN=alb_arn,
+                    TARGET_GROUP_ARN=target_group.get("TargetGroupArn"),
+                    PORT=target_group.get("Port"),
+                    PROTOCOL=target_group.get("Protocol"),
+                    update_tag=update_tag,
+                )
+        else:
+            logger.warning(
+                "Skipping unsupported ELBv2 target type '%s' for load balancer %s.",
+                target_type,
+                load_balancer_id,
             )
 
 
@@ -253,7 +331,8 @@ def load_load_balancer_v2_listeners(
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $update_tag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_listener,
         LoadBalancerId=load_balancer_id,
         Listeners=listener_data,

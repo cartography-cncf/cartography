@@ -63,6 +63,15 @@ machine to pull data from AWS.
 
         - `AWS_DEFAULT_REGION` must be specified.
         - The docker-compose.yml maps in `~/.aws/` on your host machine to `/var/cartography/.aws` in the cartography container so that the container has access to AWS profile and credential files.
+        - You can use `--aws-requested-syncs` to sync only specific AWS resources instead of all of them. This accepts a comma-separated list of resource identifiers. For example, to sync only EC2 instances, S3 buckets, and IAM resources: `--aws-requested-syncs "ec2:instance,s3,iam"`. See [AWS Configuration](https://cartography-cncf.github.io/cartography/modules/aws/config.html#selective-syncing-with---aws-requested-syncs) for the full list of available resources.
+
+1. **Run security frameworks against your graph.**
+
+    ```bash
+    docker-compose run --rm cartography cartography-rules run all --uri bolt://cartography-neo4j-1:7687 --neo4j-password-prompt
+    ```
+
+    Full docs [here](usage/rules).
 
 1. **View the graph.**
 
@@ -95,7 +104,6 @@ git ignored. neo4j config, logs, etc are all located at `.compose/neo4j/...`
     # Run cartography
     docker-compose run -e GITHUB_KEY -e NEO4j_PASSWORD cartography cartography --github-config-env-var GITHUB_KEY --neo4j-uri bolt://neo4j:7687 --neo4j-password-env-var NEO4j_PASSWORD --neo4j-user neo4j
     ```
-
 
 Read on to see [other things you can do with Cartography](#things-to-do-next).
 
@@ -152,6 +160,14 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
       - `AWS_DEFAULT_REGION` must be specified.
       - Our docker-compose.yml maps in `~/.aws/` on your host machine to `/var/cartography/.aws` in the cartography container, so the container has access to AWS profile and credential files.
     - You can view a full list of Cartography's CLI arguments by running `docker run cartography-cncf/cartography --help`.
+
+1. **Run security frameworks against your graph.**
+
+    ```bash
+    docker run --rm --network cartography-network cartography-cncf/cartography cartography-rules run all --uri bolt://cartography-neo4j:7687 --neo4j-password-prompt
+    ```
+
+    Full docs [here](usage/rules).
 
 1. **View the graph.**
 
@@ -240,6 +256,14 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
     If everything worked, the sync will pull data from your configured accounts and ingest data to Neo4j! This process might take a long time if your account has a lot of assets.
     ![nativeinstall-run.png](images/nativeinstall-run.png)
 
+1. **Run security frameworks against your graph.**
+
+    ```bash
+    cartography-rules run all
+    ```
+
+    Full docs [here](usage/rules).
+
 1. **View the graph.**
     You can view the graph while it is still syncing by visiting http://localhost:7474. Try a query like
 
@@ -251,10 +275,11 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
     ![dockercompose-result.png](images/dockercompose-result.png)
 
+
 ## Things to do next
 Here's some ideas to get the most out of Cartography:
 - [Set up other data providers](module-list)
 - View our [Operations Guide](ops) for tips on running Cartography in production
-- Read our [usage instructions](usage/tutorial) and [schema](usage/schema) to learn how to query the graph
+- Read our [graph querying tutorial](usage/tutorial) and [schema](usage/schema) to learn how to query the graph
 - Think of [applications](usage/applications) to build around it
 - Consider [writing your own Cartography custom modules](dev/writing-intel-modules)

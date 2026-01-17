@@ -1,0 +1,16 @@
+{
+  "name": "AWS ECS internet exposure",
+  "statements": [
+    {
+      "__comment": "Clean up any previous exposed_internet attribute on ECSContainer",
+      "query": "MATCH (container:ECSContainer) WHERE container.exposed_internet IS NOT NULL WITH container LIMIT $LIMIT_SIZE REMOVE container.exposed_internet RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment": "Mark ECS containers as exposed to the internet when they are behind an internet-facing load balancer",
+      "query": "MATCH (lb:LoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(container:ECSContainer) SET container.exposed_internet = true",
+      "iterative": false
+    }
+  ]
+}

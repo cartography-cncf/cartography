@@ -30,6 +30,32 @@ class KubernetesServiceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class KubernetesServiceToLoadBalancerV2RelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesService)-[:USES_LOAD_BALANCER]->(:LoadBalancerV2)
+class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
+    """
+    Relationship linking a KubernetesService of type LoadBalancer to the AWS
+    LoadBalancerV2 (NLB/ALB) that backs it. Matching is done by the DNS hostname
+    from the Kubernetes service's status.loadBalancer.ingress[].hostname field
+    to the LoadBalancerV2.dnsname property.
+    """
+
+    target_node_label: str = "LoadBalancerV2"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"dnsname": PropertyRef("load_balancer_dns_names", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesServiceToLoadBalancerV2RelProperties = (
+        KubernetesServiceToLoadBalancerV2RelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesServiceToKubernetesClusterRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -104,5 +130,6 @@ class KubernetesServiceSchema(CartographyNodeSchema):
         [
             KubernetesServiceToKubernetesNamespaceRel(),
             KubernetesServiceToKubernetesPodRel(),
+            KubernetesServiceToLoadBalancerV2Rel(),
         ]
     )
