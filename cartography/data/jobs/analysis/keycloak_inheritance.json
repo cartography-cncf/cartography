@@ -7,7 +7,7 @@
     },
     {
         "__comment__": "Assign roles to users based on group memberships",
-        "query": "MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OR]->(g:KeycloakGroup)-[:GRANTS]->(r:KeycloakRole) MERGE (u)-[r0:ASSUME_ROLE]-(r) ON CREATE SET r0.firstseen = $UPDATE_TAG SET r0.lastupdated = $UPDATE_TAG",
+        "query": "MATCH (u:KeycloakUser)-[:MEMBER_OF|INHERITED_MEMBER_OF]->(g:KeycloakGroup)-[:GRANTS]->(r:KeycloakRole) MERGE (u)-[r0:ASSUME_ROLE]-(r) ON CREATE SET r0.firstseen = $UPDATE_TAG SET r0.lastupdated = $UPDATE_TAG",
         "iterative": false
     },
     {

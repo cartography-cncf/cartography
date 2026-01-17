@@ -16,6 +16,8 @@ SG -- MEMBER_OF --> SC
 
 Representation of a Slack Workspace.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., GitHubOrganization, AWSAccount, SpaceliftAccount).
+
 | Field | Description |
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first created this node  |
@@ -50,6 +52,8 @@ Representation of a Slack Workspace.
 ### SlackUser
 
 Representation of a single [User in Slack](https://api.slack.com/types/user).
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser, EntraUser).
 
 | Field | Description |
 |-------|--------------|

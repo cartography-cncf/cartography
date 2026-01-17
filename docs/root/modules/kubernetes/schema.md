@@ -96,6 +96,8 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 ### KubernetesContainer
 Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/workloads/pods/#how-pods-manage-multiple-containers)
 
+> **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for containers across different systems (e.g., ECSContainer, AzureContainerInstance).
+
 | Field | Description |
 |-------|-------------|
 | id | Identifier for the container which is derived from the UID of pod and the name of container |
@@ -146,6 +148,11 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 - `KubernetesService` targets `KubernetesPod`.
     ```
     (:KubernetesService)-[:TARGETS]->(:KubernetesPod)
+    ```
+
+- `KubernetesService` of type `LoadBalancer` uses an AWS `LoadBalancerV2` (NLB/ALB). The relationship is matched by DNS hostname from the Kubernetes service's `status.loadBalancer.ingress[].hostname` field to the `LoadBalancerV2.dnsname` property. This allows linking EKS services to their backing AWS load balancers.
+    ```
+    (:KubernetesService)-[:USES_LOAD_BALANCER]->(:LoadBalancerV2)
     ```
 
 ### KubernetesSecret
