@@ -1682,6 +1682,113 @@ Representation of a [Linked Service within an Azure Data Factory](https://www.go
 
 *(External `[:CONNECTS_TO]` relationships will be added in a future PR.)*
 
+### AzureKeyVault
+
+Representation of an [Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/controlplane-stable/vaults/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Key Vault. |
+|name| The name of the Key Vault. |
+|location| The Azure region where the Key Vault is deployed. |
+|tenant_id| The ID of the Azure Tenant that owns the vault. |
+|sku_name| The pricing tier of the Key Vault (e.g., standard or premium). |
+
+#### Relationships
+
+- An Azure Key Vault is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVault)
+    ```
+
+- An Azure Key Vault contains Secrets, Keys, and Certificates.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultSecret)
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultKey)
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultCertificate)
+    ```
+
+### AzureKeyVaultSecret
+
+Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/secrets/get-secrets/get-secrets).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The unique URI of the secret. |
+|name| The name of the secret. |
+|enabled| A boolean indicating if the secret is active. |
+|created_on| The timestamp of when the secret was created. |
+|updated_on| The timestamp of when the secret was last updated. |
+
+#### Relationships
+
+- An Azure Key Vault Secret is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultSecret)
+    ```
+
+- An Azure Key Vault contains one or more Secrets.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultSecret)
+    ```
+
+### AzureKeyVaultKey
+
+Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/get-keys/get-keys).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The unique URI of the key. |
+|name| The name of the key. |
+|enabled| A boolean indicating if the key is active. |
+|created_on| The timestamp of when the key was created. |
+|updated_on| The timestamp of when the key was last updated. |
+
+#### Relationships
+
+- An Azure Key Vault Key is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultKey)
+    ```
+
+- An Azure Key Vault contains one or more Keys.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultKey)
+    ```
+
+### AzureKeyVaultCertificate
+
+Representation of a [Certificate within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/certificates/get-certificates).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The unique URI of the certificate. |
+|name| The name of the certificate. |
+|enabled| A boolean indicating if the certificate is active. |
+|created_on| The timestamp of when the certificate was created. |
+|updated_on| The timestamp of when the certificate was last updated. |
+|x5t| The thumbprint of the certificate. |
+
+#### Relationships
+
+- An Azure Key Vault Certificate is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultCertificate)
+    ```
+
+- An Azure Key Vault contains one or more Certificates.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultCertificate)
+    ```
+
 ### AzureKubernetesCluster
 
 Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
