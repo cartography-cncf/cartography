@@ -1,6 +1,7 @@
 import json
 from uuid import uuid4
 
+from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 
 RANDOM_ID = [uuid4().hex, uuid4().hex]
@@ -62,6 +63,11 @@ KUBERNETES_PODS_DATA = [
         "containers": [
             KUBERNETES_CONTAINER_DATA[0],
         ],
+        "secret_volume_ids": [
+            f"{KUBERNETES_CLUSTER_NAMES[0]}/{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/my-secret-1",
+            f"{KUBERNETES_CLUSTER_NAMES[0]}/{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/my-secret-2",
+        ],
+        "secret_env_ids": [],
     },
     {
         "uid": RANDOM_ID[1],
@@ -79,6 +85,11 @@ KUBERNETES_PODS_DATA = [
         ),
         "containers": [
             KUBERNETES_CONTAINER_DATA[1],
+        ],
+        "secret_volume_ids": [],
+        "secret_env_ids": [
+            f"{KUBERNETES_CLUSTER_NAMES[0]}/{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/api-key",
+            f"{KUBERNETES_CLUSTER_NAMES[0]}/{KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]['name']}/oauth-token",
         ],
     },
 ]

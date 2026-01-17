@@ -42,11 +42,14 @@ def _get_owner_references(
     return None
 
 
-def transform_secrets(secrets: list[V1Secret]) -> list[dict[str, Any]]:
+def transform_secrets(
+    secrets: list[V1Secret], cluster_name: str
+) -> list[dict[str, Any]]:
     secrets_list = []
     for secret in secrets:
         secrets_list.append(
             {
+                "composite_id": f"{cluster_name}/{secret.metadata.namespace}/{secret.metadata.name}",
                 "uid": secret.metadata.uid,
                 "name": secret.metadata.name,
                 "creation_timestamp": get_epoch(secret.metadata.creation_timestamp),
@@ -99,7 +102,7 @@ def sync_secrets(
     common_job_parameters: dict[str, Any],
 ) -> None:
     secrets = get_secrets(client)
-    transformed_secrets = transform_secrets(secrets)
+    transformed_secrets = transform_secrets(secrets, client.name)
     load_secrets(
         session=session,
         secrets=transformed_secrets,
