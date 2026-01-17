@@ -22,6 +22,10 @@ from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
+# Custom models are only supported in us-east-1 and us-west-2.
+# See https://docs.aws.amazon.com/bedrock/latest/userguide/custom-model-supported.html
+CUSTOM_MODELS_SUPPORTED_REGIONS = {"us-east-1", "us-west-2"}
+
 
 @timeit
 @aws_handle_regions
@@ -34,6 +38,13 @@ def get_custom_models(
     Uses pagination for list_custom_models and calls get_custom_model for each
     to retrieve full details (jobArn, jobName, trainingDataConfig, outputDataConfig).
     """
+    if region not in CUSTOM_MODELS_SUPPORTED_REGIONS:
+        logger.debug(
+            "Bedrock custom models not supported in region %s. Skipping.",
+            region,
+        )
+        return []
+
     logger.info("Fetching Bedrock custom models in region %s", region)
     client = boto3_session.client(
         "bedrock",

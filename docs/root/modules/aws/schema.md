@@ -707,6 +707,30 @@ Representation of an [AWSPrincipal](https://docs.aws.amazon.com/IAM/latest/APIRe
     (RedshiftCluster)-[STS_ASSUMEROLE_ALLOW]->(AWSPrincipal)
     ```
 
+- AWSPrincipals with appropriate permissions can read from S3 buckets. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
+
+    ```cypher
+    (AWSPrincipal)-[CAN_READ]->(S3Bucket)
+    ```
+
+- AWSPrincipals with appropriate permissions can write to S3 buckets. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
+
+    ```cypher
+    (AWSPrincipal)-[CAN_WRITE]->(S3Bucket)
+    ```
+
+- AWSPrincipals with appropriate permissions can query DynamoDB tables. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
+
+    ```cypher
+    (AWSPrincipal)-[CAN_QUERY]->(DynamoDBTable)
+    ```
+
+- AWSPrincipals with appropriate permissions can administer Redshift clusters. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
+
+    ```cypher
+    (AWSPrincipal)-[CAN_ADMINISTER]->(RedshiftCluster)
+    ```
+
 ### AWSPrincipal::AWSUser
 Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReference/API_User.html).  An AWS User is a type of AWS Principal.
 
@@ -1502,6 +1526,11 @@ Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynam
     (AWSAccount)-[RESOURCE]->(DynamoDBTable)
     ```
 
+- AWSPrincipals with appropriate permissions can query DynamoDB tables. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
+    ```
+    (AWSPrincipal)-[CAN_QUERY]->(DynamoDBTable)
+    ```
+
 
 ### EC2Instance
 
@@ -1528,6 +1557,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | launchtimeunix | The time the instance was launched in unix time |
 | region | The AWS region this Instance is running in|
 | exposed\_internet |  The `exposed_internet` flag on an EC2 instance is set to `True` when (1) the instance is part of an EC2 security group or is connected to a network interface connected to an EC2 security group that allows connectivity from the 0.0.0.0/0 subnet or (2) the instance is connected to an Elastic Load Balancer that has its own `exposed_internet` flag set to `True`. |
+| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Possible values are `direct` (directly exposed via security group), `elb` (exposed via classic LoadBalancer), or `elbv2` (exposed via LoadBalancerV2). Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
 | availabilityzone | The Availability Zone of the instance.|
 | tenancy | The tenancy of the instance.|
 | hostresourcegrouparn | The ARN of the host resource group in which to launch the instances.|
@@ -2600,6 +2630,7 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 | name| The name of the load balancer|
 | **dnsname** | The DNS name of the load balancer. |
 | exposed_internet | The `exposed_internet` flag is set to `True` when the load balancer's `scheme` field is set to `internet-facing`.  This indicates that the load balancer has a public DNS name that resolves to a public IP address. |
+| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
 | **id** |  Currently set to the `dnsname` of the load balancer. |
 | arn | The Amazon Resource Name (ARN) of the load balancer. |
 | type | Can be `application` or `network` |
@@ -2829,6 +2860,11 @@ Representation of an AWS [RedshiftCluster](https://docs.aws.amazon.com/redshift/
 - Redshift clusters can be members of AWSVpcs.
     ```
     (RedshiftCluster)-[MEMBER_OF_AWS_VPC]->(AWSVpc)
+    ```
+
+- AWSPrincipals with appropriate permissions can administer Redshift clusters. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
+    ```
+    (AWSPrincipal)-[CAN_ADMINISTER]->(RedshiftCluster)
     ```
 
 ### RDSCluster
@@ -3206,6 +3242,16 @@ Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest
 - S3 Buckets can send notifications to SNS Topics.
     ```
     (S3Bucket)-[NOTIFIES]->(SNSTopic)
+    ```
+
+- AWSPrincipals with appropriate permissions can read from S3 buckets. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
+    ```
+    (AWSPrincipal)-[CAN_READ]->(S3Bucket)
+    ```
+
+- AWSPrincipals with appropriate permissions can write to S3 buckets. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
+    ```
+    (AWSPrincipal)-[CAN_WRITE]->(S3Bucket)
     ```
 
 ### S3PolicyStatement
@@ -3602,6 +3648,8 @@ Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.c
 | maxinstancelifetime | The maximum amount of time, in seconds, that an instance can be in service. |
 | capacityrebalance | Indicates whether Capacity Rebalancing is enabled. |
 | region | The region of the auto scaling group. |
+| exposed\_internet | Set to `True` if any EC2 instance in this Auto Scaling Group is exposed to the internet. Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
+| exposed\_internet\_type | A list indicating the type(s) of internet exposure inherited from the EC2 instances in the group. Possible values are `direct`, `elb`, or `elbv2`. Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
 
 
 [Link to API Documentation](https://docs.aws.amazon.com/autoscaling/ec2/APIReference/API_AutoScalingGroup.html) of AWS Auto Scaling Groups
@@ -4397,6 +4445,7 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | memory | The hard limit (in MiB) of memory set for the container. |
 | memory\_reservation | The soft limit (in MiB) of memory set for the container. |
 | gpu\_ids | The IDs of each GPU assigned to the container. |
+| exposed\_internet | Set to `True` if this container is exposed to the internet via an internet-facing load balancer. Set by the `aws_ecs_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ecs_asset_exposure.json). |
 
 #### Relationships
 
