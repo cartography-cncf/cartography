@@ -2,14 +2,11 @@ import logging
 from typing import Any
 
 import neo4j
-from google.api_core.exceptions import PermissionDenied
-from google.auth.exceptions import DefaultCredentialsError
-from google.auth.exceptions import RefreshError
-from googleapiclient.discovery import HttpError
 from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.kms.cryptokey import GCPCryptoKeySchema
 from cartography.models.gcp.kms.keyring import GCPKeyRingSchema
 from cartography.util import timeit
@@ -18,117 +15,98 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_kms_locations(client: Resource, project_id: str) -> list[dict] | None:
-    try:
-        parent = f"projects/{project_id}"
-        request = client.projects().locations().list(name=parent)
+def get_kms_locations(client: Resource, project_id: str) -> list[dict]:
+    """
+    Retrieve KMS locations for a given project.
 
-        locations = []
-        while request is not None:
-            response = request.execute()
-            locations.extend(response.get("locations", []))
-            request = (
-                client.projects()
-                .locations()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
+    :param client: The KMS resource object created by googleapiclient.discovery.build().
+    :param project_id: The GCP Project ID to retrieve locations from.
+    :return: A list of dictionaries representing KMS locations.
+    """
+    parent = f"projects/{project_id}"
+    request = client.projects().locations().list(name=parent)
+
+    locations = []
+    while request is not None:
+        response = gcp_api_execute_with_retry(request)
+        locations.extend(response.get("locations", []))
+        request = (
+            client.projects()
+            .locations()
+            .list_next(
+                previous_request=request,
+                previous_response=response,
             )
-        return locations
-    except (PermissionDenied, DefaultCredentialsError, RefreshError):
-        logger.warning(
-            "Failed to get KMS locations for project due to permissions or auth error.",
-            exc_info=True,
         )
-        raise
-    except HttpError:
-        logger.warning(
-            "Failed to get KMS locations for project due to a transient HTTP error.",
-            exc_info=True,
-        )
-        return []
+    return locations
 
 
 @timeit
 def get_key_rings(
-    client: Resource, project_id: str, locations: list[dict]
+    client: Resource,
+    project_id: str,
+    locations: list[dict],
 ) -> list[dict]:
+    """
+    Retrieve KMS Key Rings for a given project across all locations.
+
+    :param client: The KMS resource object created by googleapiclient.discovery.build().
+    :param project_id: The GCP Project ID to retrieve key rings from.
+    :param locations: A list of location dictionaries.
+    :return: A list of dictionaries representing KMS Key Rings.
+    """
     rings = []
     for loc in locations:
         location_id = loc.get("locationId")
         if not location_id:
             continue
 
-        try:
-            parent = f"projects/{project_id}/locations/{location_id}"
-            request = client.projects().locations().keyRings().list(parent=parent)
+        parent = f"projects/{project_id}/locations/{location_id}"
+        request = client.projects().locations().keyRings().list(parent=parent)
 
-            while request is not None:
-                response = request.execute()
-                rings.extend(response.get("keyRings", []))
-                request = (
-                    client.projects()
-                    .locations()
-                    .keyRings()
-                    .list_next(
-                        previous_request=request,
-                        previous_response=response,
-                    )
-                )
-        except (PermissionDenied, DefaultCredentialsError, RefreshError):
-            logger.warning(
-                f"Failed to get Key Rings in location {location_id} due to permissions or auth error.",
-                exc_info=True,
-            )
-            raise
-        except HttpError:
-            logger.warning(
-                f"Failed to get Key Rings in location {location_id} due to a transient HTTP error.",
-                exc_info=True,
-            )
-            continue
-    return rings
-
-
-@timeit
-def get_crypto_keys(client: Resource, keyring_name: str) -> list[dict]:
-    try:
-        request = (
-            client.projects()
-            .locations()
-            .keyRings()
-            .cryptoKeys()
-            .list(parent=keyring_name)
-        )
-
-        keys = []
         while request is not None:
-            response = request.execute()
-            keys.extend(response.get("cryptoKeys", []))
+            response = gcp_api_execute_with_retry(request)
+            rings.extend(response.get("keyRings", []))
             request = (
                 client.projects()
                 .locations()
                 .keyRings()
-                .cryptoKeys()
                 .list_next(
                     previous_request=request,
                     previous_response=response,
                 )
             )
-        return keys
-    except (PermissionDenied, DefaultCredentialsError, RefreshError):
-        logger.warning(
-            "Failed to get Crypto Keys for keyring due to permissions or auth error.",
-            exc_info=True,
+    return rings
+
+
+@timeit
+def get_crypto_keys(client: Resource, keyring_name: str) -> list[dict]:
+    """
+    Retrieve Crypto Keys for a given Key Ring.
+
+    :param client: The KMS resource object created by googleapiclient.discovery.build().
+    :param keyring_name: The full resource name of the Key Ring.
+    :return: A list of dictionaries representing Crypto Keys.
+    """
+    request = (
+        client.projects().locations().keyRings().cryptoKeys().list(parent=keyring_name)
+    )
+
+    keys = []
+    while request is not None:
+        response = gcp_api_execute_with_retry(request)
+        keys.extend(response.get("cryptoKeys", []))
+        request = (
+            client.projects()
+            .locations()
+            .keyRings()
+            .cryptoKeys()
+            .list_next(
+                previous_request=request,
+                previous_response=response,
+            )
         )
-        raise
-    except HttpError:
-        logger.warning(
-            "Failed to get Crypto Keys for keyring due to a transient HTTP error.",
-            exc_info=True,
-        )
-        return []
+    return keys
 
 
 def transform_key_rings(key_rings: list[dict], project_id: str) -> list[dict]:
@@ -142,7 +120,7 @@ def transform_key_rings(key_rings: list[dict], project_id: str) -> list[dict]:
                 "name": ring_id.split("/")[-1],
                 "location": location,
                 "project_id": project_id,
-            }
+            },
         )
     return transformed
 
@@ -160,7 +138,7 @@ def transform_crypto_keys(crypto_keys: list[dict], keyring_id: str) -> list[dict
                 "state": key.get("primary", {}).get("state"),
                 "key_ring_id": keyring_id,
                 "project_id": keyring_id.split("/")[1],
-            }
+            },
         )
     return transformed
 
@@ -200,10 +178,10 @@ def load_crypto_keys(
 @timeit
 def cleanup_kms(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
     GraphJob.from_node_schema(GCPCryptoKeySchema(), common_job_parameters).run(
-        neo4j_session
+        neo4j_session,
     )
     GraphJob.from_node_schema(GCPKeyRingSchema(), common_job_parameters).run(
-        neo4j_session
+        neo4j_session,
     )
 
 
@@ -215,20 +193,24 @@ def sync(
     gcp_update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    logger.info(f"Syncing GCP KMS for project {project_id}.")
+    """
+    Sync GCP KMS Key Rings and Crypto Keys for a given project.
+
+    :param neo4j_session: The Neo4j session object.
+    :param kms_client: The KMS resource object created by googleapiclient.discovery.build().
+    :param project_id: The GCP Project ID to sync.
+    :param gcp_update_tag: The update tag for this sync run.
+    :param common_job_parameters: Common parameters for cleanup jobs.
+    """
+    logger.info("Syncing GCP KMS for project %s.", project_id)
 
     locations = get_kms_locations(kms_client, project_id)
-    if locations is None:
-        logger.warning(
-            f"KMS sync for project {project_id} failed to get locations. Skipping cleanup."
-        )
-        return
     if not locations:
-        logger.info(f"No KMS locations found for project {project_id}.")
+        logger.info("No KMS locations found for project %s.", project_id)
 
     key_rings_raw = get_key_rings(kms_client, project_id, locations)
     if not key_rings_raw:
-        logger.info(f"No KMS KeyRings found for project {project_id}.")
+        logger.info("No KMS KeyRings found for project %s.", project_id)
     else:
         key_rings = transform_key_rings(key_rings_raw, project_id)
         load_key_rings(neo4j_session, key_rings, project_id, gcp_update_tag)
@@ -240,7 +222,6 @@ def sync(
                 crypto_keys = transform_crypto_keys(crypto_keys_raw, keyring_id)
                 load_crypto_keys(neo4j_session, crypto_keys, project_id, gcp_update_tag)
 
-    if locations is not None:
-        cleanup_job_params = common_job_parameters.copy()
-        cleanup_job_params["PROJECT_ID"] = project_id
-        cleanup_kms(neo4j_session, cleanup_job_params)
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["PROJECT_ID"] = project_id
+    cleanup_kms(neo4j_session, cleanup_job_params)
