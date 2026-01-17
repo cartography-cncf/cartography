@@ -1293,3 +1293,62 @@ Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.co
     ```
     (GCPCloudSQLInstance)-[:HAS_BACKUP_CONFIG]->(GCPCloudSQLBackupConfiguration)
     ```
+
+### Secret Manager Resources
+
+#### GCPSecretManagerSecret
+
+Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets). A Secret is a logical container for secret data that can have multiple versions.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the secret (e.g., `projects/{project}/secrets/{secret_id}`) |
+| name | The short name of the secret |
+| project_id | The GCP project ID that owns this secret |
+| rotation_enabled | Boolean indicating if automatic rotation is configured |
+| rotation_period | The rotation period in seconds (if rotation is enabled) |
+| rotation_next_time | Epoch timestamp of the next scheduled rotation |
+| created_date | Epoch timestamp when the secret was created |
+| expire_time | Epoch timestamp when the secret will automatically expire and be deleted |
+| replication_type | The replication policy type: `automatic` or `user_managed` |
+| etag | Used to perform consistent read-modify-write updates |
+| labels | JSON string of user-defined labels |
+| topics | JSON string of Pub/Sub topics for rotation notifications |
+| version_aliases | JSON string mapping alias names to version numbers |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPSecretManagerSecrets are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPSecretManagerSecret)
+    ```
+
+#### GCPSecretManagerSecretVersion
+
+Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions). A SecretVersion stores a specific version of secret data within a Secret.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the version (e.g., `projects/{project}/secrets/{secret_id}/versions/{version}`) |
+| secret_id | Full resource name of the parent secret |
+| version | The version number (e.g., "1", "2") |
+| state | The current state of the version: `ENABLED`, `DISABLED`, or `DESTROYED` |
+| created_date | Epoch timestamp when the version was created |
+| destroy_time | Epoch timestamp when the version was destroyed (only present if state is `DESTROYED`) |
+| etag | Used to perform consistent read-modify-write updates |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPSecretManagerSecretVersions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPSecretManagerSecretVersion)
+    ```
+
+- GCPSecretManagerSecretVersions are versions of GCPSecretManagerSecrets.
+    ```
+    (GCPSecretManagerSecretVersion)-[:VERSION_OF]->(GCPSecretManagerSecret)
+    ```

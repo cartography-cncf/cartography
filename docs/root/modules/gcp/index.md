@@ -10,6 +10,7 @@ Cartography supports ingesting Google Cloud Platform resources, including:
 - **Bigtable**: Instances, Clusters, Tables, App Profiles, Backups
 - **Google Kubernetes Engine (GKE)**: Clusters
 - **Vertex AI**: Models, Endpoints, Deployed Models, Workbench Instances, Training Pipelines, Feature Groups, Datasets
+- **Secret Manager**: Secrets, Secret Versions
 
 ```{toctree}
 config
