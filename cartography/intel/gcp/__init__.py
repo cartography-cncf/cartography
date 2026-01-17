@@ -213,11 +213,16 @@ def _sync_project_resources(
             )
         if service_names.kms in enabled_services:
             logger.info("Syncing GCP project %s for KMS.", project_id)
-            kms_cred = build_client("cloudkms", "v1")
+            kms_cred = build_client("cloudkms", "v1", credentials=credentials)
             kms.sync(
                 neo4j_session,
                 kms_cred,
-        else:
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.iam not in enabled_services:
             # Fallback to Cloud Asset Inventory even if the target project does not have the IAM API enabled.
             # CAI uses the service account's host project for quota by default (no explicit quota project needed).
             # Lazily initialize the CAI REST client once and reuse it for all projects.

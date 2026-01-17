@@ -782,7 +782,7 @@ Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference
     ```
     (GCPKeyRing)-[CONTAINS]->(GCPCryptoKey)
     ```
-    
+
 ### GCPPolicyBinding
 
 Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/reference/rest/v1/Policy#Binding). Policy bindings connect principals (users, service accounts, groups) to roles on specific resources.
