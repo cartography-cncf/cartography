@@ -10,8 +10,8 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.gcp.kms_cryptokey import GCPCryptoKeySchema
-from cartography.models.gcp.kms_keyring import GCPKeyRingSchema
+from cartography.models.gcp.kms.cryptokey import GCPCryptoKeySchema
+from cartography.models.gcp.kms.keyring import GCPKeyRingSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -134,11 +134,7 @@ def get_crypto_keys(client: Resource, keyring_name: str) -> list[dict]:
 def transform_key_rings(key_rings: list[dict], project_id: str) -> list[dict]:
     transformed = []
     for ring in key_rings:
-        ring_id = ring.get("name")
-        if not ring_id:
-            logger.warning("Skipping key ring with missing 'name' field.")
-            continue
-
+        ring_id = ring["name"]  # Required field - fail fast if missing
         location = ring_id.split("/")[3]
         transformed.append(
             {
@@ -154,11 +150,7 @@ def transform_key_rings(key_rings: list[dict], project_id: str) -> list[dict]:
 def transform_crypto_keys(crypto_keys: list[dict], keyring_id: str) -> list[dict]:
     transformed = []
     for key in crypto_keys:
-        key_id = key.get("name")
-        if not key_id:
-            logger.warning("Skipping crypto key with missing 'name' field.")
-            continue
-
+        key_id = key["name"]  # Required field - fail fast if missing
         transformed.append(
             {
                 "id": key_id,
