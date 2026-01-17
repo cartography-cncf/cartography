@@ -14,6 +14,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp import artifact_registry
 from cartography.intel.gcp import bigtable_app_profile
 from cartography.intel.gcp import bigtable_backup
 from cartography.intel.gcp import bigtable_cluster
@@ -55,7 +56,8 @@ logger = logging.getLogger(__name__)
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
-    "Services", "compute storage gke dns iam bigtable cai aiplatform cloud_sql"
+    "Services",
+    "compute storage gke dns iam bigtable cai aiplatform cloud_sql artifact_registry",
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -67,6 +69,7 @@ service_names = Services(
     cai="cloudasset.googleapis.com",
     aiplatform="aiplatform.googleapis.com",
     cloud_sql="sqladmin.googleapis.com",
+    artifact_registry="artifactregistry.googleapis.com",
 )
 
 
@@ -451,6 +454,20 @@ def _sync_project_resources(
                     gcp_update_tag,
                     common_job_parameters,
                 )
+
+        if service_names.artifact_registry in enabled_services:
+            logger.info("Syncing GCP project %s for Artifact Registry.", project_id)
+            artifact_registry_client = build_client(
+                "artifactregistry", "v1", credentials=credentials
+            )
+            artifact_registry.sync(
+                neo4j_session,
+                artifact_registry_client,
+                credentials,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
 
         del common_job_parameters["PROJECT_ID"]
 
