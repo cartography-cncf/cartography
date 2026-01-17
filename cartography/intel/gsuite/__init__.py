@@ -120,7 +120,6 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 scopes=OAUTH_SCOPES,
             )
             creds.refresh(Request())
-            creds = creds.create_scoped(OAUTH_SCOPES)
         except DefaultCredentialsError as e:
             logger.error(
                 (
@@ -147,6 +146,11 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 e,
             )
             return
+
+    logger.warning(
+        "The GSuite module is deprecated and will no longer receive updates. It will be completely removed in the 1.0.0 release. "
+        "For migration, please refer to the Google Workspace module configuration."
+    )
 
     resources = _initialize_resources(creds)
     customer_ids = users.sync_gsuite_users(

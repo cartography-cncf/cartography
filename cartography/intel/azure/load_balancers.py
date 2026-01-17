@@ -6,6 +6,7 @@ from azure.mgmt.network import NetworkManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.load_balancer.load_balancer import AzureLoadBalancerSchema
 from cartography.models.azure.load_balancer.load_balancer_backend_pool import (
     AzureLoadBalancerBackendPoolSchema,
@@ -19,6 +20,7 @@ from cartography.models.azure.load_balancer.load_balancer_inbound_nat_rule impor
 from cartography.models.azure.load_balancer.load_balancer_rule import (
     AzureLoadBalancerRuleSchema,
 )
+from cartography.models.azure.tags.load_balancer_tag import AzureLoadBalancerTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -49,6 +51,7 @@ def transform_load_balancers(load_balancers: list[dict]) -> list[dict]:
                 "name": lb.get("name"),
                 "location": lb.get("location"),
                 "sku_name": lb.get("sku", {}).get("name"),
+                "tags": lb.get("tags"),
             }
         )
     return transformed
@@ -205,6 +208,38 @@ def load_inbound_nat_rules(
 
 
 @timeit
+def load_load_balancer_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    load_balancers: list[dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Load Balancers.
+    """
+    tags = transform_tags(load_balancers, subscription_id)
+    load(
+        neo4j_session,
+        AzureLoadBalancerTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def cleanup_load_balancer_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
+    """
+    Runs cleanup job for Azure Load Balancer tags.
+    """
+    GraphJob.from_node_schema(AzureLoadBalancerTagsSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -218,6 +253,7 @@ def sync(
     load_balancers = get_load_balancers(client)
     transformed_lbs = transform_load_balancers(load_balancers)
     load_load_balancers(neo4j_session, transformed_lbs, subscription_id, update_tag)
+    load_load_balancer_tags(neo4j_session, subscription_id, transformed_lbs, update_tag)
 
     for lb in load_balancers:
         lb_id = lb["id"]
@@ -261,3 +297,4 @@ def sync(
     GraphJob.from_node_schema(AzureLoadBalancerSchema(), common_job_parameters).run(
         neo4j_session
     )
+    cleanup_load_balancer_tags(neo4j_session, common_job_parameters)

@@ -1,16 +1,41 @@
 ## SnipeIT Schema
 
+```mermaid
+graph LR
+T(SnipeitTenant) -- RESOURCE --> U(SnipeitUser)
+T -- RESOURCE --> A(SnipeitAsset)
+U -- HAS_CHECKED_OUT --> A
+```
+
+
+
 ### SnipeitTenant
 
 Representation of a SnipeIT Tenant.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
 
 |Field | Description|
 |-------|-------------|
 |id | SnipeIT Tenant ID e.g. "company name"|
 
+#### Relationships
+
+- All SnipeIT users and assets are linked to a SnipeIT Tenant
+
+    ```cypher
+    (:SnipeitUser)<-[:RESOURCE]-(:SnipeitTenant)
+    ```
+
+    ```cypher
+    (:SnipeitAsset)<-[:RESOURCE]-(:SnipeitTenant)
+    ```
+
 ### SnipeitUser
 
 Representation of a SnipeIT User.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 |Field | Description|
 |-------|-------------|
@@ -19,9 +44,26 @@ Representation of a SnipeIT User.
 |username | Username of the user |
 |email | Email of the user |
 
+#### Relationships
+
+- All SnipeIT users are linked to a SnipeIT Tenant
+
+    ```cypher
+    (:SnipeitUser)<-[:RESOURCE]-(:SnipeitTenant)
+    ```
+
+- A SnipeIT user can check-out one or more assets
+
+    ```cypher
+    (:SnipeitAsset)<-[:HAS_CHECKED_OUT]-(:SnipeitUser)
+    ```
+
+
 ### SnipeitAsset
 
 Representation of a SnipeIT asset.
+
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, KandjiDevice).
 
 |Field | Description|
 |-------|-------------|
@@ -41,11 +83,11 @@ Representation of a SnipeIT asset.
 - All SnipeIT users and asset are linked to a SnipeIT Tenant
 
     ```cypher
-    (:SnipeitUser)<-[:HAS_USER]-(:SnipeitTenant)
+    (:SnipeitUser)<-[:RESOURCE]-(:SnipeitTenant)
     ```
 
     ```cypher
-    (:SnipeitAsset)<-[:HAS_ASSET]-(:SnipeitTenant)
+    (:SnipeitAsset)<-[:RESOURCE]-(:SnipeitTenant)
     ```
 
 - A SnipeIT user can check-out one or more assets

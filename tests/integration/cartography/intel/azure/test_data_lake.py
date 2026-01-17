@@ -66,14 +66,14 @@ def test_sync_datalake_filesystems(
     actual_nodes = check_nodes(neo4j_session, "AzureDataLakeFileSystem", ["id", "name"])
     assert actual_nodes == expected_nodes
 
-    # Assert Relationships
-    expected_rels = {
+    # Assert Relationships - Legacy CONTAINS relationship to StorageAccount
+    expected_contains_rels = {
         (
             TEST_STORAGE_ACCOUNT_ID,
             MOCK_FILESYSTEMS[0]["id"],
         ),
     }
-    actual_rels = check_rels(
+    actual_contains_rels = check_rels(
         neo4j_session,
         "AzureStorageAccount",
         "id",
@@ -81,4 +81,21 @@ def test_sync_datalake_filesystems(
         "id",
         "CONTAINS",
     )
-    assert actual_rels == expected_rels
+    assert actual_contains_rels == expected_contains_rels
+
+    # Assert Relationships - New RESOURCE relationship to Subscription
+    expected_resource_rels = {
+        (
+            TEST_SUBSCRIPTION_ID,
+            MOCK_FILESYSTEMS[0]["id"],
+        ),
+    }
+    actual_resource_rels = check_rels(
+        neo4j_session,
+        "AzureSubscription",
+        "id",
+        "AzureDataLakeFileSystem",
+        "id",
+        "RESOURCE",
+    )
+    assert actual_resource_rels == expected_resource_rels

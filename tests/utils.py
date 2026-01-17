@@ -22,7 +22,7 @@ def unwrapper(func):
     return unwrapper(func.__wrapped__)
 
 
-MODEL_CLASSES = (
+_MODEL_CLASSES = (
     CartographyNodeSchema,
     CartographyRelSchema,
     CartographyNodeProperties,
@@ -67,9 +67,9 @@ def load_models(module, module_name: str | None = None) -> Generator[
         for v in sub_module.__dict__.values():
             if not inspect.isclass(v):
                 continue
-            if v in MODEL_CLASSES:
+            if v in _MODEL_CLASSES:
                 continue
-            if issubclass(v, MODEL_CLASSES):
+            if issubclass(v, _MODEL_CLASSES):
                 yield (sub_module_name, v)
 
         if hasattr(sub_module, "__path__"):

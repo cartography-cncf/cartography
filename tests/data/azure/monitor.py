@@ -9,5 +9,6 @@ MOCK_METRIC_ALERTS = [
         "window_size": "PT5M",
         "evaluation_frequency": "PT1M",
         "properties": {"last_updated_time": "2025-10-13T21:00:00Z"},
+        "tags": {"env": "prod", "service": "monitor"},
     }
 ]
