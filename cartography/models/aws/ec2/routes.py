@@ -34,6 +34,7 @@ class RouteNodeProperties(CartographyNodeProperties):
     state: PropertyRef = PropertyRef("state")
     transit_gateway_id: PropertyRef = PropertyRef("transit_gateway_id")
     vpc_peering_connection_id: PropertyRef = PropertyRef("vpc_peering_connection_id")
+    vpc_endpoint_id: PropertyRef = PropertyRef("vpc_endpoint_id")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     target: PropertyRef = PropertyRef("_target")
@@ -74,6 +75,24 @@ class RouteToInternetGatewayRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RouteToVPCEndpointRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class RouteToVPCEndpointRel(CartographyRelSchema):
+    target_node_label: str = "AWSVpcEndpoint"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("vpc_endpoint_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO_VPC_ENDPOINT"
+    properties: RouteToVPCEndpointRelRelProperties = (
+        RouteToVPCEndpointRelRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class RouteSchema(CartographyNodeSchema):
     label: str = "EC2Route"
     properties: RouteNodeProperties = RouteNodeProperties()
@@ -81,5 +100,6 @@ class RouteSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             RouteToInternetGatewayRel(),
+            RouteToVPCEndpointRel(),
         ]
     )

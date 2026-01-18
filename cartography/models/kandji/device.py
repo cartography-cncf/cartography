@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -29,8 +30,22 @@ class KandjiTenantToKandjiDeviceRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:KandjiDevice)-[:ENROLLED_TO]->(:KandjiTenant)
+# (:KandjiDevice)<-[:RESOURCE]-(:KandjiTenant)
 class KandjiTenantToKandjiDeviceRel(CartographyRelSchema):
+    target_node_label: str = "KandjiTenant"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: KandjiTenantToKandjiDeviceRelProperties = (
+        KandjiTenantToKandjiDeviceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:KandjiDevice)-[:ENROLLED_TO]->(:KandjiTenant) - Backwards compatibility
+class KandjiDeviceToTenantDeprecatedRel(CartographyRelSchema):
     target_node_label: str = "KandjiTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -50,4 +65,8 @@ class KandjiDeviceSchema(CartographyNodeSchema):
     )  # An object representing all properties
     sub_resource_relationship: KandjiTenantToKandjiDeviceRel = (
         KandjiTenantToKandjiDeviceRel()
+    )
+    # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[KandjiDeviceToTenantDeprecatedRel()],
     )

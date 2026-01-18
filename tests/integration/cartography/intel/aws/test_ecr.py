@@ -699,3 +699,151 @@ def test_sync_manifest_list(mock_get_repos, neo4j_session):
         tests.data.aws.ecr.MANIFEST_LIST_ATTESTATION_DIGEST,
         tests.data.aws.ecr.MANIFEST_LIST_AMD64_DIGEST,
     ) in attests_rels
+
+
+@patch.object(
+    cartography.intel.aws.ecr,
+    "get_ecr_repositories",
+    return_value=[
+        {
+            "repositoryArn": "arn:aws:ecr:us-east-1:000000000000:repository/single-platform-repository",
+            "registryId": "000000000000",
+            "repositoryName": "single-platform-repository",
+            "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository",
+            "createdAt": datetime.datetime(2025, 1, 1, 0, 0, 1),
+        }
+    ],
+)
+def test_sync_single_platform_image_marked_as_manifest_list(
+    mock_get_repos, neo4j_session
+):
+    """
+    Test that single-platform images incorrectly marked as manifest lists are handled gracefully.
+
+    This tests the bug fix where AWS ECR's describe_images API reports a manifest list media type,
+    but batch_get_image with restrictive acceptedMediaTypes returns empty results because the
+    image is actually a single-platform image.
+
+    The fix ensures we return empty results instead of raising ValueError, allowing the image
+    to be treated as a regular single-platform image.
+    """
+
+    # Remove everything previously put in the test graph since the fixture scope is set to module and not function.
+    neo4j_session.run(
+        """
+        MATCH (n) DETACH DELETE n;
+        """,
+    )
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    mock_client = MagicMock()
+
+    # Mock list_images paginator
+    mock_list_paginator = MagicMock()
+    mock_list_paginator.paginate.return_value = [
+        {
+            "imageIds": [
+                {
+                    "imageDigest": tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST,
+                    "imageTag": "latest",
+                }
+            ]
+        }
+    ]
+
+    # Mock describe_images paginator
+    mock_describe_paginator = MagicMock()
+    mock_describe_paginator.paginate.return_value = [
+        {"imageDetails": [tests.data.aws.ecr.SINGLE_PLATFORM_IMAGE_DETAILS]}
+    ]
+
+    # Configure get_paginator to return the appropriate paginator
+    def get_paginator(name):
+        if name == "list_images":
+            return mock_list_paginator
+        elif name == "describe_images":
+            return mock_describe_paginator
+        raise ValueError(f"Unexpected paginator: {name}")
+
+    mock_client.get_paginator = get_paginator
+
+    # Mock batch_get_image to return empty results (simulating the bug scenario)
+    # This happens when describe_images reports manifest list media type but the image
+    # is actually single-platform, causing batch_get_image with restrictive acceptedMediaTypes
+    # to return empty results
+    mock_client.batch_get_image.return_value = (
+        tests.data.aws.ecr.BATCH_GET_MANIFEST_LIST_EMPTY_RESPONSE
+    )
+
+    boto3_session.client.return_value = mock_client
+
+    # Act - This should NOT raise ValueError with the fix
+    cartography.intel.aws.ecr.sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert - Check that the image was created as a regular single-platform image
+    ecr_images = neo4j_session.run(
+        """
+        MATCH (img:ECRImage)
+        RETURN img.digest AS digest, img.type AS type, img.architecture AS architecture,
+               img.os AS os, img.variant AS variant
+        ORDER BY img.digest
+        """
+    ).data()
+
+    # Should have exactly 1 image node (treated as regular image, not manifest list)
+    assert len(ecr_images) == 1
+
+    # Verify it's the single-platform image
+    single_platform_img = ecr_images[0]
+    assert single_platform_img["digest"] == tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST
+    assert (
+        single_platform_img["type"] == "image"
+    )  # Should be "image", not "manifest_list"
+    assert (
+        single_platform_img["architecture"] is None
+    )  # No platform info since not a real manifest list
+    assert single_platform_img["os"] is None
+    assert single_platform_img["variant"] is None
+
+    # Assert - Check that ECRRepositoryImage was created and points to the image
+    repo_images = neo4j_session.run(
+        """
+        MATCH (repo_img:ECRRepositoryImage)
+        RETURN repo_img.id AS id, repo_img.uri AS uri
+        """
+    ).data()
+
+    assert len(repo_images) == 1
+    assert repo_images[0]["uri"] == (
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository:latest"
+    )
+
+    # Assert - Check that ECRRepositoryImage has IMAGE relationship to ECRImage
+    all_rels = check_rels(
+        neo4j_session,
+        "ECRRepositoryImage",
+        "id",
+        "ECRImage",
+        "digest",
+        "IMAGE",
+        rel_direction_right=True,
+    )
+
+    # Should have relationship from repo image to the single image digest
+    repo_image_id = (
+        "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository:latest"
+    )
+    image_digests = {
+        img_digest for (repo_id, img_digest) in all_rels if repo_id == repo_image_id
+    }
+
+    assert len(image_digests) == 1
+    assert tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST in image_digests

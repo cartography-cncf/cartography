@@ -3,6 +3,7 @@ Integration tests for GCP CRM deferred cleanup functionality.
 Tests that hierarchical cleanup happens in the correct order to prevent orphaned nodes.
 """
 
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.gcp
@@ -21,6 +22,18 @@ TEST_UPDATE_TAG = 123456789
 TEST_UPDATE_TAG_V2 = 123456790  # For simulating a second sync
 
 
+def _make_fake_credentials():
+    """Create a mock GCP credentials object for testing."""
+    creds = MagicMock()
+    creds.quota_project_id = "test-quota-project"
+    return creds
+
+
+@patch.object(
+    cartography.intel.gcp,
+    "get_gcp_credentials",
+    return_value=_make_fake_credentials(),
+)
 @patch.object(
     cartography.intel.gcp,
     "_sync_project_resources",
@@ -46,6 +59,7 @@ def test_deferred_cleanup_order(
     mock_get_folders,
     mock_get_projects,
     mock_sync_resources,
+    mock_get_creds,
     neo4j_session,
 ):
     """
@@ -109,6 +123,11 @@ def test_deferred_cleanup_order(
 
 @patch.object(
     cartography.intel.gcp,
+    "get_gcp_credentials",
+    return_value=_make_fake_credentials(),
+)
+@patch.object(
+    cartography.intel.gcp,
     "_sync_project_resources",
     return_value=None,
 )
@@ -129,6 +148,7 @@ def test_org_deletion_cleanup(
     mock_get_folders,
     mock_get_projects,
     mock_sync_resources,
+    mock_get_creds,
     neo4j_session,
 ):
     """
@@ -189,6 +209,11 @@ def test_org_deletion_cleanup(
 
 @patch.object(
     cartography.intel.gcp,
+    "get_gcp_credentials",
+    return_value=_make_fake_credentials(),
+)
+@patch.object(
+    cartography.intel.gcp,
     "_sync_project_resources",
     return_value=None,
 )
@@ -209,6 +234,7 @@ def test_partial_deletion_cleanup(
     mock_get_folders,
     mock_get_projects,
     mock_sync_resources,
+    mock_get_creds,
     neo4j_session,
 ):
     """
@@ -253,10 +279,17 @@ def test_partial_deletion_cleanup(
 
 @patch.object(
     cartography.intel.gcp,
+    "get_gcp_credentials",
+    return_value=_make_fake_credentials(),
+)
+@patch.object(
+    cartography.intel.gcp,
     "_sync_project_resources",
     return_value=None,  # Skip project resource sync for these tests
 )
-def test_project_migration_between_orgs(mock_sync_resources, neo4j_session):
+def test_project_migration_between_orgs(
+    mock_sync_resources, mock_get_creds, neo4j_session
+):
     """
     Test that when a project migrates from one org to another,
     old relationships are properly cleaned up using the full ingestion flow.

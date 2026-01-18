@@ -30,6 +30,36 @@ def _extract_pod_containers(pod: V1Pod) -> dict[str, Any]:
             "pod_id": pod.metadata.uid,
             "imagePullPolicy": container.image_pull_policy,
         }
+
+        # Extract resource requests and limits
+        if container.resources:
+            if container.resources.requests:
+                containers[container.name]["memory_request"] = (
+                    container.resources.requests.get("memory")
+                )
+                containers[container.name]["cpu_request"] = (
+                    container.resources.requests.get("cpu")
+                )
+            else:
+                containers[container.name]["memory_request"] = None
+                containers[container.name]["cpu_request"] = None
+
+            if container.resources.limits:
+                containers[container.name]["memory_limit"] = (
+                    container.resources.limits.get("memory")
+                )
+                containers[container.name]["cpu_limit"] = (
+                    container.resources.limits.get("cpu")
+                )
+            else:
+                containers[container.name]["memory_limit"] = None
+                containers[container.name]["cpu_limit"] = None
+        else:
+            containers[container.name]["memory_request"] = None
+            containers[container.name]["cpu_request"] = None
+            containers[container.name]["memory_limit"] = None
+            containers[container.name]["cpu_limit"] = None
+
         if pod.status and pod.status.container_statuses:
             for status in pod.status.container_statuses:
                 if status.name in containers:
@@ -51,6 +81,58 @@ def _extract_pod_containers(pod: V1Pod) -> dict[str, Any]:
     return containers
 
 
+def _extract_pod_secrets(pod: V1Pod, cluster_name: str) -> tuple[list[str], list[str]]:
+    """
+    Extract all secret names referenced by a pod.
+    Returns a tuple of (volume_secret_ids, env_secret_ids).
+    Each list contains unique secret IDs in the format: {namespace}/{secret_name}
+    """
+    volume_secrets = set()
+    env_secrets = set()
+    namespace = pod.metadata.namespace
+
+    # 1. Secrets mounted as volumes
+    if pod.spec.volumes:
+        for volume in pod.spec.volumes:
+            if volume.secret and volume.secret.secret_name:
+                volume_secrets.add(
+                    f"{cluster_name}/{namespace}/{volume.secret.secret_name}"
+                )
+
+    # 2. Secrets from env / envFrom
+    containers_to_scan = []
+    if pod.spec.containers:
+        containers_to_scan.extend(pod.spec.containers)
+    if getattr(pod.spec, "init_containers", None):
+        containers_to_scan.extend(pod.spec.init_containers)
+    if getattr(pod.spec, "ephemeral_containers", None):
+        containers_to_scan.extend(pod.spec.ephemeral_containers)
+
+    for container in containers_to_scan:
+        # env[].valueFrom.secretKeyRef
+        if container.env:
+            for env in container.env:
+                if (
+                    env.value_from
+                    and env.value_from.secret_key_ref
+                    and env.value_from.secret_key_ref.name
+                ):
+                    env_secrets.add(
+                        f"{cluster_name}/{namespace}/{env.value_from.secret_key_ref.name}"
+                    )
+
+        # envFrom[].secretRef
+        if container.env_from:
+            for env_from in container.env_from:
+                if env_from.secret_ref and env_from.secret_ref.name:
+                    env_secrets.add(
+                        f"{cluster_name}/{namespace}/{env_from.secret_ref.name}"
+                    )
+
+    # Return unique secret IDs for each type
+    return list(volume_secrets), list(env_secrets)
+
+
 @timeit
 def get_pods(client: K8sClient) -> list[V1Pod]:
     items = k8s_paginate(client.core.list_pod_for_all_namespaces)
@@ -61,11 +143,12 @@ def _format_pod_labels(labels: dict[str, str]) -> str:
     return json.dumps(labels)
 
 
-def transform_pods(pods: list[V1Pod]) -> list[dict[str, Any]]:
+def transform_pods(pods: list[V1Pod], cluster_name: str) -> list[dict[str, Any]]:
     transformed_pods = []
 
     for pod in pods:
         containers = _extract_pod_containers(pod)
+        volume_secrets, env_secrets = _extract_pod_secrets(pod, cluster_name)
         transformed_pods.append(
             {
                 "uid": pod.metadata.uid,
@@ -77,6 +160,8 @@ def transform_pods(pods: list[V1Pod]) -> list[dict[str, Any]]:
                 "node": pod.spec.node_name,
                 "labels": _format_pod_labels(pod.metadata.labels),
                 "containers": list(containers.values()),
+                "secret_volume_ids": volume_secrets,
+                "secret_env_ids": env_secrets,
             },
         )
     return transformed_pods
@@ -151,7 +236,7 @@ def sync_pods(
 ) -> list[dict[str, Any]]:
     pods = get_pods(client)
 
-    transformed_pods = transform_pods(pods)
+    transformed_pods = transform_pods(pods, client.name)
     load_pods(
         session=session,
         pods=transformed_pods,

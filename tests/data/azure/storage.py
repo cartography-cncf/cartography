@@ -13,6 +13,8 @@ DESCRIBE_STORAGE_ACCOUNTS = [
         "status_of_secondary": "available",
         "enable_https_traffic_only": False,
         "type": "Microsoft.Storage/storageAccounts",
+        "tags": {"env": "prod", "dept": "finance"},
+        "resourceGroup": "TestRG",
     },
     {
         "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Storage/storageAccounts/testSG2",
@@ -28,6 +30,8 @@ DESCRIBE_STORAGE_ACCOUNTS = [
         "status_of_secondary": "available",
         "enable_https_traffic_only": False,
         "type": "Microsoft.Storage/storageAccounts",
+        "tags": {"env": "prod", "dept": "engineering"},
+        "resourceGroup": "TestRG",
     },
 ]
 

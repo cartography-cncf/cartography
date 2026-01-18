@@ -8,6 +8,25 @@ LIST_DETECTORS = {
     ]
 }
 
+GET_DETECTOR_DETAILS = [
+    {
+        "id": "12abc34d56e78f901234567890abcdef",
+        "findingpublishingfrequency": "FIFTEEN_MINUTES",
+        "service_role": "arn:aws:iam::123456789012:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDuty",
+        "status": "ENABLED",
+        "createdat": datetime(2022, 12, 1, 12, 0, 0),
+        "updatedat": datetime(2023, 1, 1, 12, 0, 0),
+    },
+    {
+        "id": "98zyx76w54v32u109876543210zyxwvu",
+        "findingpublishingfrequency": "SIX_HOURS",
+        "service_role": "arn:aws:iam::123456789012:role/aws-service-role/guardduty.amazonaws.com/AWSServiceRoleForAmazonGuardDutySecondary",
+        "status": "DISABLED",
+        "createdat": datetime(2022, 11, 1, 9, 0, 0),
+        "updatedat": datetime(2022, 12, 1, 9, 0, 0),
+    },
+]
+
 # Mock response for list_findings API call
 LIST_FINDINGS = {
     "FindingIds": [

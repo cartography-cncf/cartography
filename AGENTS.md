@@ -19,6 +19,32 @@ This guide teaches you how to write intel modules for Cartography using the mode
 - `cartography/graph/job.py` - Cleanup job utilities
 - `cartography/models/core/` - Base data model classes
 
+## 📝 Git and Pull Request Guidelines
+
+**Signing Commits**: All commits must be signed using the `-s` flag. This adds a `Signed-off-by` line to your commit message, certifying that you have the right to submit the code under the project's license.
+
+```bash
+# Sign a commit with a message
+git commit -s -m "feat(module): add new feature"
+```
+
+**Pull Request Descriptions**: When creating a pull request, use the template at `.github/pull_request_template.md`.
+
+Example PR creation:
+```bash
+gh pr create --title "feat(core): add BufferError retry handling" --body "$(cat <<'EOF'
+### Summary
+Add retry handling for BufferError to cartography's core Neo4j retry logic.
+
+### Related issues or links
+- https://github.com/cartography-cncf/cartography/issues/1234
+
+### Checklist
+- [x] Update/add unit or integration tests.
+EOF
+)"
+```
+
 ## 📋 Table of Contents
 
 1. @Quick Start: Copy an Existing Module
@@ -29,13 +55,14 @@ This guide teaches you how to write intel modules for Cartography using the mode
 6. @One-to-Many Relationships
 7. @MatchLinks: Connecting Existing Nodes
 8. @Ontology Integration: Mapping Users and Devices
-9. @Configuration and Credentials
-10. @Error Handling
-11. @Testing Your Module
-12. @Refactoring Legacy Code to Data Model
-13. @Common Patterns and Examples
-14. @Troubleshooting Guide
-15. @Quick Reference
+9. @Creating Security Rules with Ontology
+10. @Configuration and Credentials
+11. @Error Handling
+12. @Testing Your Module
+13. @Refactoring Legacy Code to Data Model
+14. @Common Patterns and Examples
+15. @Troubleshooting Guide
+16. @Quick Reference
 
 ## 🚀 Quick Start: Copy an Existing Module {#quick-start}
 
@@ -770,35 +797,35 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any])
 
 ## 🌐 Ontology Integration: Mapping Users and Devices {#ontology-integration}
 
-Cartography includes an **Ontology system** that creates normalized `User` and `Device` nodes that aggregate data from multiple sources. This provides a unified view of identity and device management across your infrastructure.
+Cartography includes an **Ontology system** that provides both semantic labels and canonical nodes to unify data from multiple sources. This enables cross-module querying and provides a normalized view of identity and device management across your infrastructure.
 
 ### Overview of Ontology System
 
-The Ontology system works by:
-1. **Creating canonical nodes**: `(:User:Ontology)` and `(:Device:Ontology)` nodes that represent unified entities
-2. **Mapping source data**: Your module's user/device nodes get connected to these canonical nodes
-3. **Enabling unified queries**: Users can query across all systems through common ontology nodes
+The Ontology system works in two ways:
+1. **Semantic Labels**: Adds semantic labels (like `UserAccount`) and prefixed properties (`_ont_*`) directly to source nodes for cross-module querying during ingestion
+2. **Canonical Nodes**: Creates canonical node (like `(:User:Ontology)`) that represent unified entities
 
-### When to Use Ontology Integration
+### Types of Ontology Integration
 
-Add ontology integration to your module when it manages:
-- **Users/Identities**: Service accounts, human users, admin accounts
-- **Devices/Assets**: Computers, phones, tablets, IoT devices, virtual machines
+**Semantic Labels (Recommended)**: Adds `UserAccount` labels and `_ont_*` properties to existing nodes:
+- ✅ Simpler implementation - no additional node creation
+- ✅ Direct querying of source nodes with normalized properties
+- ✅ Automatic property mapping with special handling for data transformations
+- ✅ Source tracking via `_ont_source` property
 
-**Examples of modules that should integrate:**
-- Identity providers (Okta, Azure AD, Duo)
-- Device management (Kandji, Jamf, CrowdStrike)
-- Infrastructure (AWS EC2, Azure VMs, GCP instances)
-- Security tools (endpoint protection, mobile device management)
+**Canonical Nodes (Legacy)**: Creates separate abstract `User`/`Device` nodes:
+- ⚠️ More complex - requires separate node creation and relationship management
+- ⚠️ Additional storage overhead
+- ✅ Useful when you need to aggregate data from multiple sources into single entities
 
 ### Step 1: Add Ontology Mapping Configuration
 
 Create mapping configurations in `cartography/models/ontology/mapping/data/`:
 
-#### For User Entities
+#### For Semantic Labels
 
 ```python
-# cartography/models/ontology/mapping/data/users.py
+# cartography/models/ontology/mapping/data/useraccounts.py
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
@@ -810,19 +837,36 @@ your_service_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="YourServiceUser",  # Your node label
             fields=[
-                # Map your node fields to ontology fields
-                OntologyFieldMapping(ontology_field="email", node_field="email", required=True),  # Required field
+                # Map your node fields to ontology fields with special handling
+                OntologyFieldMapping(ontology_field="email", node_field="email"),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
                 OntologyFieldMapping(ontology_field="fullname", node_field="display_name"),
                 OntologyFieldMapping(ontology_field="firstname", node_field="first_name"),
                 OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+                # Special handling examples:
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="account_enabled",
+                    special_handling="invert_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa",
+                    node_field="multifactor",
+                    special_handling="to_boolean",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="inactive",
+                    node_field="suspended",
+                    special_handling="or_boolean",
+                    extra={"fields": ["archived"]},
+                ),
             ],
         ),
     ],
 )
 ```
 
-#### For Device Entities
+#### For Canonical Nodes
 
 ```python
 # cartography/models/ontology/mapping/data/devices.py
@@ -864,13 +908,10 @@ your_service_mapping = OntologyMapping(
 )
 ```
 
-### Step 2: Add Ontology Relationship to Your Node Schema
+### Step 2: Add Ontology Configuration to Your Node Schema
 
-Update your node schema to include the relationship to ontology nodes.
-
-#### For User Nodes
-
-Add `UserAccount` label and relationship to the canonical `User` node:
+#### Semantic Labels
+Simply add the semantic label - the ontology system will automatically add `_ont_*` properties at the ingestion time.
 
 ```python
 from cartography.models.core.nodes import ExtraNodeLabels
@@ -878,43 +919,60 @@ from cartography.models.core.nodes import ExtraNodeLabels
 @dataclass(frozen=True)
 class YourServiceUserSchema(CartographyNodeSchema):
     label: str = "YourServiceUser"
-    # Add UserAccount label so ontology can find and link to this node
+    # Add UserAccount label for semantic ontology integration
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
     properties: YourServiceUserNodeProperties = YourServiceUserNodeProperties()
     sub_resource_relationship: YourServiceTenantToUserRel = YourServiceTenantToUserRel()
 ```
 
-#### For Device Nodes
+That's it! The ontology system will automatically:
+- Add `_ont_email`, `_ont_fullname`, etc. properties to your nodes
+- Apply any special handling (boolean conversion, inversion, etc.)
+- Add `_ont_source` property to track which module provided the data
 
-Add the relationship to the canonical `Device` ontology node:
+#### Canonical Nodes
+
+You need to define a Schema model for the canonical node and add a relationship to it (similar to regular intel nodes)
 
 ```python
-from cartography.models.core.relationships import OtherRelationships
-
-# Define relationship to ontology Device node
 @dataclass(frozen=True)
-class YourServiceDeviceToDeviceRelProperties(CartographyRelProperties):
+class UserNodeProperties(CartographyNodeProperties):
+    id: PropertyRef = PropertyRef("email")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    email: PropertyRef = PropertyRef("email", extra_index=True)
+    fullname: PropertyRef = PropertyRef("fullname")
+    firstname: PropertyRef = PropertyRef("firstname")
+    lastname: PropertyRef = PropertyRef("lastname")
+    inactive: PropertyRef = PropertyRef("inactive")
+
+
+@dataclass(frozen=True)
+class UserToUserAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
+
+# (:User)-[:HAS_ACCOUNT]->(:UserAccount)
+# This is a relationship to a sementic label used by modules' users nodes
 @dataclass(frozen=True)
-class YourServiceDeviceToDeviceRel(CartographyRelSchema):
-    target_node_label: str = "Device"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
-        "hostname": PropertyRef("device_name"),  # Match on hostname field
-    })
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "OBSERVED_AS"
-    properties: YourServiceDeviceToDeviceRelProperties = YourServiceDeviceToDeviceRelProperties()
+class UserToUserAccountRel(CartographyRelSchema):
+    target_node_label: str = "UserAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("email")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_ACCOUNT"
+    properties: UserToUserAccountRelProperties = UserToUserAccountRelProperties()
+
 
 @dataclass(frozen=True)
-class YourServiceDeviceSchema(CartographyNodeSchema):
-    label: str = "YourServiceDevice"
-    properties: YourServiceDeviceNodeProperties = YourServiceDeviceNodeProperties()
-    sub_resource_relationship: YourServiceTenantToDeviceRel = YourServiceTenantToDeviceRel()
-    # Add the relationship to ontology Device nodes
-    other_relationships: OtherRelationships = OtherRelationships([
-        YourServiceDeviceToDeviceRel(),
-    ])
+class UserSchema(CartographyNodeSchema):
+    label: str = "User"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Ontology"])
+    properties: UserNodeProperties = UserNodeProperties()
+    scoped_cleanup: bool = False
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[UserToUserAccountRel()],
+    )
 ```
 
 ### Step 3: Understanding Ontology Field Mappings
@@ -960,83 +1018,7 @@ OntologyNodeMapping(
 
 In this example, AWS IAM users can be linked to existing User ontology nodes through relationships, but they cannot create new User nodes since they lack email addresses.
 
-#### Common User Fields
-
-The ontology `User` node supports these fields:
-
-| Ontology Field | Purpose | Required? | Example Source Fields |
-|---------------|---------|-----------|---------------------|
-| `email` | Primary identifier | **Yes** | `email`, `mail`, `email_address` |
-| `username` | Login name | No | `username`, `login`, `user_name` |
-| `fullname` | Complete name | No | `name`, `display_name`, `full_name` |
-| `firstname` | First name | No | `first_name`, `given_name`, `fname` |
-| `lastname` | Last name | No | `last_name`, `family_name`, `surname` |
-
-#### Common Device Fields
-
-The ontology `Device` node supports these fields:
-
-| Ontology Field | Purpose | Required? | Example Source Fields |
-|---------------|---------|-----------|---------------------|
-| `hostname` | Primary identifier | **Yes** | `hostname`, `device_name`, `name` |
-| `os` | Operating system | No | `os`, `operating_system`, `os_family` |
-| `os_version` | OS version | No | `os_version`, `version`, `build` |
-| `model` | Device model | No | `model`, `device_model`, `hardware_model` |
-| `platform` | Platform type | No | `platform`, `platform_name`, `arch` |
-| `serial_number` | Serial number | No | `serial_number`, `serial`, `device_serial` |
-
-### Step 4: Update Module Registration
-
-Ensure your mappings are imported and available to the ontology system:
-
-```python
-# cartography/models/ontology/mapping/data/users.py
-# Add to the end of the file after all mappings:
-ALL_USER_MAPPINGS = [
-    # ... existing mappings ...
-    your_service_mapping,  # Add your mapping here
-]
-```
-
-```python
-# cartography/models/ontology/mapping/data/devices.py
-# Add to the end of the file after all mappings:
-ALL_DEVICE_MAPPINGS = [
-    # ... existing mappings ...
-    your_service_mapping,  # Add your mapping here
-]
-```
-
-### Step 5: Testing Ontology Integration
-
-Test that your ontology integration works correctly:
-
-```python
-# tests/integration/cartography/intel/your_service/test_users.py
-def test_ontology_integration(neo4j_session):
-    # Run your module sync
-    your_service.users.sync(neo4j_session, ...)
-
-    # Run ontology sync to create User nodes
-    import cartography.intel.ontology.users
-    cartography.intel.ontology.users.sync(
-        neo4j_session,
-        source_of_truth=["your_service"],
-        update_tag=TEST_UPDATE_TAG,
-        common_job_parameters={"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
-
-    # Verify User ontology nodes were created
-    result = neo4j_session.run("""
-        MATCH (u:User:Ontology)-[:HAS_ACCOUNT]->(ua:YourServiceUser)
-        RETURN u.email, ua.email
-    """)
-    users = result.data()
-    assert len(users) > 0
-    assert users[0]["u.email"] == users[0]["ua.email"]
-```
-
-### Step 6: Handle Complex Relationships
+### Step 4: Handle Complex Relationships
 
 For services that have user-device relationships, add relationship mappings:
 
@@ -1056,108 +1038,172 @@ rels=[
 ]
 ```
 
-### Best Practices for Ontology Integration
+## 🔐 Creating Security Rules
 
-#### 1. Choose the Right Primary Identifier and Mark as Required
-- **Users**: Use `email` as the primary identifier when available (most reliable across systems) and mark as `required=True`
-- **Devices**: Use `hostname` as the primary identifier when available and mark as `required=True`
+Cartography includes a powerful rules system that allows you to write security queries to identify potential attack surfaces, security gaps, and compliance issues across your infrastructure. The ontology system makes it easy to write rules that work across multiple cloud providers and services.
 
-```python
-# ✅ DO: Primary identifiers must be required
-OntologyFieldMapping(ontology_field="email", node_field="email", required=True),
-OntologyFieldMapping(ontology_field="hostname", node_field="device_name", required=True),
+### Rule Architecture
+
+Rules use a simple two-level hierarchy:
+
+```
+Rule (e.g., "unmanaged-accounts")
+  └─ Fact (e.g., "unmanaged-accounts-ontology")
 ```
 
-#### 2. Use Required Fields Strategically
-- **Mark as required**: Only fields that are absolutely essential for the ontology node to be useful
-- **Leave optional**: Fields that provide additional context but aren't essential
-- **Consider impact**: Required fields filter out entire records if missing
+- **Rule**: Represents a security issue or attack surface (e.g., "User accounts not linked to a user identity")
+- **Fact**: Individual Cypher query that gathers evidence about your environment
+- **Finding**: Pydantic model that defines the structure of results
+
+### Creating Rules
+
+Combine facts from multiple providers (or use ontology nodes) for comprehensive coverage:
 
 ```python
-# ✅ DO: Strategic use of required flag
-fields=[
-    OntologyFieldMapping(ontology_field="email", node_field="email", required=True),        # Must have
-    OntologyFieldMapping(ontology_field="username", node_field="username"),                 # Nice to have
-    OntologyFieldMapping(ontology_field="fullname", node_field="display_name"),            # Nice to have
-]
-```
+from cartography.rules.spec.model import Fact, Finding, Maturity, Module, Rule
 
-#### 3. Handle Missing Data Gracefully
-```python
-# In your transform function, handle optional ontology fields
-def transform_users(api_data):
-    return [
-        {
-            "email": user["email"],  # Required - let it fail if missing
-            "username": user.get("username"),  # Optional - use .get()
-            "display_name": user.get("full_name") or user.get("name"),  # Fallback logic
-            "first_name": user.get("firstName"),  # Optional
-            "last_name": user.get("lastName"),   # Optional
-        }
-        for user in api_data["users"]
-    ]
-```
+# AWS-specific fact
+_aws_public_databases = Fact(
+    id="aws-rds-public",
+    name="Publicly accessible AWS RDS instances",
+    description="AWS RDS databases exposed to the internet",
+    cypher_query="""
+    MATCH (db:RDSInstance)
+    WHERE db.publicly_accessible = true
+    RETURN db.id AS id, db.db_instance_identifier AS name, db.region AS region
+    """,
+    cypher_visual_query="""
+    MATCH (db:RDSInstance)
+    WHERE db.publicly_accessible = true
+    RETURN db
+    """,
+    module=Module.AWS,
+    maturity=Maturity.STABLE,
+)
 
-#### 3. Consider Multiple Device Types
-Some services have multiple device types. Map each type separately:
+# Azure-specific fact
+_azure_public_databases = Fact(
+    id="azure-sql-public",
+    name="Publicly accessible Azure SQL databases",
+    description="Azure SQL databases exposed to the internet",
+    cypher_query="""
+    MATCH (db:AzureSQLServer)
+    WHERE db.public_network_access = 'Enabled'
+    RETURN db.id AS id, db.name AS name, db.location AS region
+    """,
+    cypher_visual_query="""
+    MATCH (db:AzureSQLServer)
+    WHERE db.public_network_access = 'Enabled'
+    RETURN db
+    """,
+    module=Module.AZURE,
+    maturity=Maturity.EXPERIMENTAL,
+)
 
-```python
-your_service_mapping = OntologyMapping(
-    module_name="your_service",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="YourServiceComputer",
-            fields=[
-                OntologyFieldMapping(ontology_field="hostname", node_field="computer_name"),
-                OntologyFieldMapping(ontology_field="os", node_field="operating_system"),
-            ],
-        ),
-        OntologyNodeMapping(
-            node_label="YourServiceMobileDevice",
-            fields=[
-                OntologyFieldMapping(ontology_field="hostname", node_field="device_name"),
-                OntologyFieldMapping(ontology_field="model", node_field="model"),
-            ],
-        ),
-    ],
+# Output model
+class DatabaseExposedOutput(Finding):
+    id: str | None = None
+    name: str | None = None
+    region: str | None = None
+
+# Unified rule
+database_exposed = Rule(
+    id="database-exposed",
+    name="Publicly Accessible Databases",
+    description="Detects databases exposed to the internet across cloud providers",
+    output_model=DatabaseExposedOutput,
+    tags=("infrastructure", "attack_surface", "database"),
+    facts=(_aws_public_databases, _azure_public_databases),
+    version="0.1.0",
 )
 ```
 
-### Troubleshooting Ontology Integration
+### Output Models with Pydantic
 
-#### Common Issues
+Each Rule must define an output model extending `Finding`:
 
-**Issue**: Ontology nodes not created
-**Solution**: Verify that:
-- Your mapping is registered in `ALL_USER_MAPPINGS` or `ALL_DEVICE_MAPPINGS`
-- Your source nodes have the correct labels (`UserAccount` for users)
-- Field mappings match your actual node properties
-- **Check required fields**: Ensure source nodes have all required fields populated (not `None`)
-- **Check eligible_for_source**: Ensure the node mapping has `eligible_for_source=True` (default) if it should create new ontology nodes
+```python
+from cartography.rules.spec.model import Finding
 
-**Issue**: Fewer ontology nodes created than expected
-**Solution**: Check if:
-- **Required fields are missing**: Source nodes lacking required fields are filtered out completely
-- Required fields are marked appropriately (primary identifiers should be required)
-- **Node eligibility**: Verify `eligible_for_source=True` for mappings that should create new ontology nodes
-- Your source data has the expected completeness
+class MyRuleOutput(Finding):
+    """Output model for my custom rule."""
 
-**Issue**: Relationships not created between ontology and source nodes
-**Solution**: Check that:
-- The ontology field used for matching has data
-- Your source nodes are loaded before running ontology sync
-- The target node matcher uses the correct field names
+    # Define fields that will be populated from cypher_query results
+    id: str | None = None              # Resource identifier
+    email: str | None = None           # User email
+    region: str | None = None          # Cloud region
+    public_access: bool | None = None  # Access level
+```
 
-**Issue**: User-Device relationships not working
-**Solution**: Ensure that:
-- Both user and device ontology integrations are working
-- Your relationship query correctly traverses the path between source nodes
-- The relationship query includes proper `UPDATE_TAG` handling
+**Key Points:**
+- **Inherit from `Finding`**: Your model must extend the base class
+- **Match Query Aliases**: Field names must match `cypher_query` aliases
+- **Automatic Handling**: The `source` field is auto-populated with module name
 
-**Issue**: Unit tests failing on required field validation
-**Solution**: Ensure that:
-- Primary identifier fields (`email` for users, `hostname` for devices) are marked as `required=True`
-- The field names match exactly between your ontology mapping and node properties
+### Fact Maturity Levels
+
+Mark fact maturity to indicate production-readiness:
+
+#### `EXPERIMENTAL`
+- New facts, recently added
+- May have bugs or performance issues
+- Limited production testing
+- Use for testing new detection capabilities
+
+```python
+maturity=Maturity.EXPERIMENTAL
+```
+
+#### `STABLE`
+- Production-ready, well-tested
+- Optimized queries, consistent results
+- Use for production monitoring and compliance
+
+```python
+maturity=Maturity.STABLE
+```
+
+### Rule Versioning
+
+Use semantic versioning for rules:
+
+```python
+version="0.1.0"  # Initial release
+version="0.2.0"  # Added new facts (minor)
+version="0.2.1"  # Bug fix (patch)
+version="1.0.0"  # Production ready (major)
+```
+
+### Step-by-Step: Creating a New Rule
+
+1. **Create rule file** in `cartography/rules/data/rules/my_rule.py`:
+
+2. **Register rule** in `cartography/rules/data/rules/__init__.py`:
+
+```python
+from cartography.rules.data.rules.my_rule import my_rule
+
+RULES = {
+    # ... existing rules
+    my_rule.id: my_rule,
+}
+```
+
+3. **Test your rule**:
+
+```bash
+# List rule details
+cartography-rules list my-rule
+
+# Run the rule
+cartography-rules run my-rule
+
+# Run with JSON output
+cartography-rules run my-rule --output json
+
+# Exclude experimental facts
+cartography-rules run my-rule --no-experimental
+```
 
 ## ⚙️ Configuration and Credentials {#configuration}
 

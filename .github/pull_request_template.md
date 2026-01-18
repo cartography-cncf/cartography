@@ -21,5 +21,4 @@ If you are changing a node or relationship:
 
 If you are implementing a new intel module:
 - [ ] Use the NodeSchema [data model](https://cartography-cncf.github.io/cartography/dev/writing-intel-modules.html#defining-a-node).
-
 - [ ] Confirm that the linter actually passes (submitting a PR where the linter fails shows reviewers that you did not test your code and will delay your review).
