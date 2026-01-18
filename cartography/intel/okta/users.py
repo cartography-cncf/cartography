@@ -46,7 +46,7 @@ def _get_okta_users(user_client: UsersClient) -> List[Dict]:
     while True:
         user_list.extend(paged_users.result)
         check_rate_limit(paged_users.response)
-        #continue fetching until okta provides no next_url
+        # continue fetching until okta provides no next_url
         if paged_users.next_url:
             # Keep on fetching pages of users until the last page
             paged_users = user_client.get_paged_users(url=paged_users.next_url)
