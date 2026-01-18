@@ -286,6 +286,11 @@ Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/re
     (AzureSubscription)-[RESOURCE]->(VirtualMachine)
     ```
 
+- An Azure Virtual Machine can be tagged with Azure Tags.
+    ```cypher
+    (AzureVirtualMachine)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureDataDisk
 
 Representation of an [Azure Data Disk](https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines/get#datadisk).
@@ -1125,6 +1130,10 @@ Representation of an [AzureCosmosDBAccount](https://docs.microsoft.com/en-us/res
     ```cypher
     (AzureCosmosDBAccount)-[CONTAINS]->(AzureCosmosDBTableResource)
     ```
+- Azure Cosmos DB Accounts can be tagged with Azure Tags.
+    ```cypher
+    (AzureCosmosDBAccount)-[:TAGGED]->(AzureTag)
+    ```
 
 ### AzureCosmosDBLocation
 
@@ -1512,6 +1521,11 @@ Representation of an [Azure App Service](https://learn.microsoft.com/en-us/rest/
     (AzureSubscription)-[RESOURCE]->(AzureAppService)
     ```
 
+- An Azure App Service can be tagged with Azure Tags.
+    ```cypher
+    (AzureAppService)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureEventGridTopic
 
 Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/rest/api/eventgrid/controlplane-stable/topics/get).
@@ -1531,6 +1545,11 @@ Representation of an [Azure Event Grid Topic](https://learn.microsoft.com/en-us/
 - An Azure Event Grid Topic is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureEventGridTopic)
+    ```
+
+- Azure Event Grid Topics can be tagged with Azure Tags.
+    ```cypher
+    (AzureEventGridTopic)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureLogicApp
@@ -1704,6 +1723,11 @@ Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.
     (AzureSubscription)-[:RESOURCE]->(:AzureKubernetesCluster)
     ```
 
+- An Azure Kubernetes Cluster can be tagged with Azure Tags.
+    ```cypher
+    (AzureKubernetesCluster)-[:TAGGED]->(AzureTag)
+    ```
+
 ### AzureKubernetesAgentPool
 
 Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microsoft.com/en-us/rest/api/aks/agent-pools/get).
@@ -1745,6 +1769,10 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 - An Azure Container Instance is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzureContainerInstance)
+    ```
+- Azure Container Instances can be tagged with Azure Tags.
+    ```cypher
+    (AzureContainerInstance)-[:TAGGED]->(AzureTag)
     ```
 
 ### AzureLoadBalancer

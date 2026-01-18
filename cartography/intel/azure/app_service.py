@@ -10,7 +10,9 @@ from azure.mgmt.web import WebSiteManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.app_service import AzureAppServiceSchema
+from cartography.models.azure.tags.app_service_tag import AzureAppServiceTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -51,6 +53,7 @@ def transform_app_services(app_services_response: List[Dict]) -> List[Dict]:
                 "state": app.get("state"),
                 "default_host_name": app.get("default_host_name"),
                 "https_only": app.get("https_only"),
+                "tags": app.get("tags"),
             }
             transformed_apps.append(transformed_app)
     return transformed_apps
@@ -76,6 +79,26 @@ def load_app_services(
 
 
 @timeit
+def load_app_service_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    apps: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for App Services.
+    """
+    tags = transform_tags(apps, subscription_id)
+    load(
+        neo4j_session,
+        AzureAppServiceTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
 def cleanup_app_services(
     neo4j_session: neo4j.Session, common_job_parameters: Dict
 ) -> None:
@@ -83,6 +106,15 @@ def cleanup_app_services(
     Run the cleanup job for Azure App Services.
     """
     GraphJob.from_node_schema(AzureAppServiceSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def cleanup_app_service_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
+    GraphJob.from_node_schema(AzureAppServiceTagsSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -102,4 +134,6 @@ def sync(
     raw_apps = get_app_services(credentials, subscription_id)
     transformed_apps = transform_app_services(raw_apps)
     load_app_services(neo4j_session, transformed_apps, subscription_id, update_tag)
+    load_app_service_tags(neo4j_session, subscription_id, transformed_apps, update_tag)
     cleanup_app_services(neo4j_session, common_job_parameters)
+    cleanup_app_service_tags(neo4j_session, common_job_parameters)

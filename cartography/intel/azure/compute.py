@@ -9,6 +9,8 @@ from azure.mgmt.compute import ComputeManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
+from cartography.models.azure.tags.compute_tag import AzureVMTagsSchema
 from cartography.models.azure.vm.datadisk import AzureDataDiskSchema
 from cartography.models.azure.vm.disk import AzureDiskSchema
 from cartography.models.azure.vm.snapshot import AzureSnapshotSchema
@@ -69,6 +71,26 @@ def load_vm_data_disks(
         neo4j_session,
         AzureDataDiskSchema(),
         data_disks,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def load_vm_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    vms: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Virtual Machines.
+    """
+    tags = transform_tags(vms, subscription_id)
+    load(
+        neo4j_session,
+        AzureVMTagsSchema(),
+        tags,
         lastupdated=update_tag,
         AZURE_SUBSCRIPTION_ID=subscription_id,
     )
@@ -157,6 +179,16 @@ def cleanup_snapshot(neo4j_session: neo4j.Session, common_job_parameters: Dict) 
     )
 
 
+@timeit
+def cleanup_vm_tags(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    GraphJob.from_node_schema(AzureVMTagsSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
 def transform_vm_list(vm_list: List[Dict]) -> Tuple[List[Dict], List[Dict]]:
     """
     Transform the VM list to separate the VMs and their data disks.
@@ -189,7 +221,9 @@ def sync_virtual_machine(
         transformed_data_disk_list,
         update_tag,
     )
+    load_vm_tags(neo4j_session, subscription_id, vm_list, update_tag)
     cleanup_virtual_machine(neo4j_session, common_job_parameters)
+    cleanup_vm_tags(neo4j_session, common_job_parameters)
 
 
 def sync_disk(

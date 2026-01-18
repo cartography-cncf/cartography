@@ -91,3 +91,57 @@ def test_sync_aks(mock_get_clusters, mock_get_pools, neo4j_session):
         "HAS_AGENT_POOL",
     )
     assert actual_pool_rels == expected_pool_rels
+
+
+def test_load_aks_tags(neo4j_session):
+    """
+    Test that we can correctly sync Azure AKS tags.
+    """
+    # Arrange: Create the prerequisite AzureSubscription node
+    neo4j_session.run(
+        """
+        MERGE (s:AzureSubscription{id: $sub_id})
+        SET s.lastupdated = $update_tag
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    # Load the cluster so it exists to be tagged
+    aks.load_aks_clusters(
+        neo4j_session,
+        aks.transform_aks_clusters(MOCK_CLUSTERS),
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act: Load the tags
+    aks.load_aks_tags(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        MOCK_CLUSTERS,
+        TEST_UPDATE_TAG,
+    )
+
+    # Assert: Check for the 2 unique tags
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:aks",
+    }
+    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # Assert: Check the relationships
+    expected_rels = {
+        (MOCK_CLUSTERS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (MOCK_CLUSTERS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:aks"),
+    }
+    actual_rels = check_rels(
+        neo4j_session,
+        "AzureKubernetesCluster",
+        "id",
+        "AzureTag",
+        "id",
+        "TAGGED",
+    )
+    assert actual_rels == expected_rels

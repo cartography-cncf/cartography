@@ -168,3 +168,51 @@ def test_sync_compute_resources(
         )
         == expected_snapshot_rels
     )
+
+
+def test_load_vm_tags(neo4j_session):
+    """
+    Test that we can correctly sync Azure VM tags.
+    """
+    # 1. Arrange: Load the VMs first so they exist to be tagged
+    cartography.intel.azure.compute.load_vms(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        DESCRIBE_VMS,
+        TEST_UPDATE_TAG,
+    )
+
+    # 2. Act: Load the tags
+    cartography.intel.azure.compute.load_vm_tags(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        DESCRIBE_VMS,  # Pass raw data with tags
+        TEST_UPDATE_TAG,
+    )
+
+    # 3. Assert: Check for the 3 unique tags (env:prod, service:compute, team:alpha)
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:compute",
+        f"{TEST_SUBSCRIPTION_ID}|team:alpha",
+    }
+    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # 4. Assert: Check the relationships
+    expected_rels = {
+        (DESCRIBE_VMS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (DESCRIBE_VMS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:compute"),
+        (DESCRIBE_VMS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (DESCRIBE_VMS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|team:alpha"),
+    }
+
+    result = neo4j_session.run(
+        """
+        MATCH (vm:AzureVirtualMachine)-[:TAGGED]->(t:AzureTag)
+        RETURN vm.id, t.id
+        """
+    )
+    actual_rels = {(r["vm.id"], r["t.id"]) for r in result}
+    assert actual_rels == expected_rels
