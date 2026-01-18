@@ -30,6 +30,7 @@ from . import security_center
 from . import sql
 from . import storage
 from . import subscription
+from . import synapse
 from . import tenant
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
@@ -178,6 +179,13 @@ def _sync_one_subscription(
         common_job_parameters,
     )
     load_balancers.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    synapse.sync(
         neo4j_session,
         credentials,
         subscription_id,

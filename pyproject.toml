@@ -83,6 +83,8 @@ dependencies = [
     "google-cloud-asset>=1.0.0",
     "types-aiobotocore-ecr",
     "typer>=0.9.0",
+    "azure-mgmt-synapse>=2.0.0",
+    "azure-synapse-artifacts>=0.17.0",
     "slack-sdk>=3.37.0",
 ]
 # Comes from Git tag
@@ -108,6 +110,8 @@ dev = [
     "azure-mgmt-datafactory>=8.0.0",
     "azure-mgmt-containerservice>=30.0.0",
     "azure-mgmt-containerinstance>=10.0.0",
+    "azure-mgmt-synapse>=2.0.0",
+    "azure-synapse-artifacts>=0.17.0",
     "azure-mgmt-network>=25.0.0",
     "azure-mgmt-security>=5.0.0",
     "azure-mgmt-monitor>=3.0.0",

@@ -585,6 +585,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-synapse"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "msrest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/af/fa/5a7c375d305ec0ec06978db07ac34c4894d2b8a00087ff3dd9e1435e397f/azure-mgmt-synapse-2.0.0.zip", hash = "sha256:bec6bdfaeb55b4fdd159f2055e8875bf50a720bb0fce80a816e92a2359b898c8", size = 454745, upload-time = "2021-04-08T02:02:29.123Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ed/97/4ede2b4a0f53b9b692bf2853c320d8b94cb89253fd3eac6b6d0dc1f40047/azure_mgmt_synapse-2.0.0-py2.py3-none-any.whl", hash = "sha256:e901274009be843a7bf2eedeab32c0941fabb2addea9a1ad1560395073965f0f", size = 442173, upload-time = "2021-04-08T02:02:26.849Z" },
+]
+
+[[package]]
 name = "azure-mgmt-web"
 version = "10.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -596,6 +610,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/24/dc/7b96067ce47b16a36a3235d5ed3931dceaaf95253dc7dbd0b0c4b7bbc8d4/azure_mgmt_web-10.1.0.tar.gz", hash = "sha256:26d3594bbe1b30589b72922c35855bc5b74c151f0224147a60d1a75234859226", size = 573655, upload-time = "2025-11-17T09:14:54.608Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/5e/2057f4e790a870ea8f1ba46bccf7d15fbafe2d78a3b76a50e161e8944df6/azure_mgmt_web-10.1.0-py3-none-any.whl", hash = "sha256:4f6d71bc68c5278fbb34fb4c7225ae949c5336b1e2c6810c045e737d964e6602", size = 653657, upload-time = "2025-11-17T09:14:57.155Z" },
+]
+
+[[package]]
+name = "azure-synapse-artifacts"
+version = "0.21.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/17/b6/08aa179e85836089f541b8805e18e9eaca507dc2d8e608f5e9c2e893d4b3/azure_synapse_artifacts-0.21.0.tar.gz", hash = "sha256:d7e37516cf8569e03c604d921e3407d7140cf7523b67b67f757caf999e3c8ee7", size = 460511, upload-time = "2025-09-05T05:42:35.75Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/d4/152923189ee93fc4d810b9fd84a8f97b4b80528d8e3beef0d12fb9e8d16e/azure_synapse_artifacts-0.21.0-py3-none-any.whl", hash = "sha256:3311919df13a2b42f1fb9debf5d512080c35d64d02b9f84ff944848835289a8d", size = 543285, upload-time = "2025-09-05T05:42:37.659Z" },
 ]
 
 [[package]]
@@ -762,7 +791,9 @@ dependencies = [
     { name = "azure-mgmt-security" },
     { name = "azure-mgmt-sql" },
     { name = "azure-mgmt-storage" },
+    { name = "azure-mgmt-synapse" },
     { name = "azure-mgmt-web" },
+    { name = "azure-synapse-artifacts" },
     { name = "backoff" },
     { name = "boto3" },
     { name = "botocore" },
@@ -804,10 +835,12 @@ dev = [
     { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-eventgrid" },
     { name = "azure-mgmt-logic" },
+    { name = "azure-mgmt-synapse" },
     { name = "azure-mgmt-monitor" },
     { name = "azure-mgmt-network" },
     { name = "azure-mgmt-security" },
     { name = "azure-mgmt-web" },
+    { name = "azure-synapse-artifacts" },
     { name = "backoff" },
     { name = "black" },
     { name = "moto" },
@@ -851,7 +884,9 @@ requires-dist = [
     { name = "azure-mgmt-security", specifier = ">=5.0.0" },
     { name = "azure-mgmt-sql", specifier = "<=1.0.0" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
+    { name = "azure-mgmt-synapse", specifier = ">=2.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
+    { name = "azure-synapse-artifacts", specifier = ">=0.17.0" },
     { name = "backoff", specifier = ">=2.1.2" },
     { name = "boto3", specifier = ">=1.15.1" },
     { name = "botocore", specifier = ">=1.18.1" },
@@ -893,10 +928,12 @@ dev = [
     { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-synapse", specifier = ">=2.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
     { name = "azure-mgmt-network", specifier = ">=25.0.0" },
     { name = "azure-mgmt-security", specifier = ">=5.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
+    { name = "azure-synapse-artifacts", specifier = ">=0.17.0" },
     { name = "backoff", specifier = ">=2.1.2" },
     { name = "black", specifier = "==25.12.0" },
     { name = "moto" },
