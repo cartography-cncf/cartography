@@ -41,7 +41,7 @@ def test_transform_and_load_storage_buckets(neo4j_session):
     RETURN bucket.id, bucket.project_number, bucket.kind
     """
     expected_id = "bucket_name"
-    expected_project_num = 9999
+    expected_project_num = 123456789012
     expected_kind = "storage#bucket"
     nodes = neo4j_session.run(
         query,
@@ -123,7 +123,7 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
     ) == {
         (
             "bucket_name",
-            9999,
+            123456789012,
             "storage#bucket",
         ),
     }

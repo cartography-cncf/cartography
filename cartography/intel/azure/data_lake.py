@@ -82,6 +82,7 @@ def load_datalake_filesystems(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     storage_account_id: str,
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     load(
@@ -90,6 +91,7 @@ def load_datalake_filesystems(
         data,
         lastupdated=update_tag,
         STORAGE_ACCOUNT_ID=storage_account_id,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -137,11 +139,13 @@ def sync(
             neo4j_session,
             transformed_filesystems,
             account_id,
+            subscription_id,
             update_tag,
         )
 
         cleanup_params = common_job_parameters.copy()
         cleanup_params["STORAGE_ACCOUNT_ID"] = account_id
+        cleanup_params["AZURE_SUBSCRIPTION_ID"] = subscription_id
         GraphJob.from_node_schema(AzureDataLakeFileSystemSchema(), cleanup_params).run(
             neo4j_session,
         )

@@ -71,6 +71,7 @@ DESCRIBE_VM_DATA_DISKS = [
             "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd0",
         },
         "disk_size_gb": 30,
+        "vm_id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
     },
     {
         "lun": 0,
@@ -82,6 +83,7 @@ DESCRIBE_VM_DATA_DISKS = [
             "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/disks/dd1",
         },
         "disk_size_gb": 30,
+        "vm_id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Compute/virtualMachines/TestVM",
     },
 ]
 

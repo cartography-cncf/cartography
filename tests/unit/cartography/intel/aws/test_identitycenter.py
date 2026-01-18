@@ -6,7 +6,7 @@ from cartography.intel.aws.identitycenter import (
     _is_permission_set_sync_unsupported_error,
 )
 from cartography.intel.aws.identitycenter import get_permission_sets
-from cartography.intel.aws.identitycenter import get_role_assignments
+from cartography.intel.aws.identitycenter import get_user_permissionsets
 
 
 def test_get_permission_sets_access_denied():
@@ -64,7 +64,7 @@ def test_get_role_assignments_access_denied():
     )
 
     # Act: Call the function
-    result = get_role_assignments(
+    result = get_user_permissionsets(
         mock_session,
         users,
         "arn:aws:sso:::instance/test",

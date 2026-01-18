@@ -19,19 +19,21 @@ D -- TAGGED --> T
 
 Settings for a tailnet (aka Tenant).
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | id    | ID of the Tailnet (name of the organization)
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| devices_approval_on | Whether [device approval](/https://tailscale.com/kb/1099/device-approval) is enabled for the tailnet. |
-| devices_auto_updates_on | Whether [auto updates](/https://tailscale.com/kb/1067/update#auto-updates) are enabled for devices that belong to this tailnet. |
-| devices_key_duration_days | The [key expiry](/https://tailscale.com/kb/1028/key-expiry) duration for devices on this tailnet. |
-| users_approval_on | Whether [user approval](/https://tailscale.com/kb/1239/user-approval) is enabled for this tailnet. |
-| users_role_allowed_to_join_external_tailnets | Which user roles are allowed to [join external tailnets](/https://tailscale.com/kb/1271/invite-any-user). |
-| network_flow_logging_on | Whether [network flog logs](/https://tailscale.com/kb/1219/network-flow-logs) are enabled for the tailnet. |
-| regional_routing_on | Whether [regional routing](/https://tailscale.com/kb/1115/high-availability#regional-routing) is enabled for the tailnet. |
-| posture_identity_collection_on | Whether [identity collection](/https://tailscale.com/kb/1326/device-identity) is enabled for [device posture](/https://tailscale.com/kb/1288/device-posture) integrations for the tailnet. |
+| devices_approval_on | Whether [device approval](https://tailscale.com/kb/1099/device-approval) is enabled for the tailnet. |
+| devices_auto_updates_on | Whether [auto updates](https://tailscale.com/kb/1067/update#auto-updates) are enabled for devices that belong to this tailnet. |
+| devices_key_duration_days | The [key expiry](https://tailscale.com/kb/1028/key-expiry) duration for devices on this tailnet. |
+| users_approval_on | Whether [user approval](https://tailscale.com/kb/1239/user-approval) is enabled for this tailnet. |
+| users_role_allowed_to_join_external_tailnets | Which user roles are allowed to [join external tailnets](https://tailscale.com/kb/1271/invite-any-user). |
+| network_flow_logging_on | Whether [network flow logs](https://tailscale.com/kb/1219/network-flow-logs) are enabled for the tailnet. |
+| regional_routing_on | Whether [regional routing](https://tailscale.com/kb/1115/high-availability#regional-routing) is enabled for the tailnet. |
+| posture_identity_collection_on | Whether [identity collection](https://tailscale.com/kb/1326/device-identity) is enabled for [device posture](https://tailscale.com/kb/1288/device-posture) integrations for the tailnet. |
 
 #### Relationships
 - `User`, `Device`, `PostureIntegration`, `Group`, `Tag` belong to a `Tailnet`.
@@ -48,6 +50,8 @@ Settings for a tailnet (aka Tenant).
 ### TailscaleUser
 
 Representation of a user within a tailnet.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
 
 | Field | Description |
 |-------|-------------|
@@ -90,28 +94,30 @@ Representation of a user within a tailnet.
 
 A Tailscale device (sometimes referred to as *node* or *machine*), is any computer or mobile device that joins a tailnet.
 
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, KandjiDevice).
+
 | Field | Description |
 |-------|-------------|
 | id | The preferred identifier for a device |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| name | The MagicDNS name of the device.<br/>Learn more about MagicDNS at https://tailscale.com/https://tailscale.com/kb/1081/. |
-| hostname | The machine name in the admin console.<br/>Learn more about machine names at https://tailscale.com/https://tailscale.com/kb/1098/. |
+| name | The MagicDNS name of the device.<br/>Learn more about MagicDNS at https://tailscale.com/kb/1081/. |
+| hostname | The machine name in the admin console.<br/>Learn more about machine names at https://tailscale.com/kb/1098/. |
 | client_version | The version of the Tailscale client<br/>software; this is empty for external devices. |
 | update_available | 'true' if a Tailscale client version<br/>upgrade is available. This value is empty for external devices. |
 | os | The operating system that the device is running. |
 | created | The date on which the device was added<br/>to the tailnet; this is empty for external devices. |
 | last_seen | When device was last active on the tailnet. |
-| key_expiry_disabled | 'true' if the keys for the device will not expire.<br/>Learn more at https://tailscale.com/https://tailscale.com/kb/1028/. |
-| expires | The expiration date of the device's auth key.<br/>Learn more about key expiry at https://tailscale.com/https://tailscale.com/kb/1028/. |
-| authorized | 'true' if the device has been authorized to join the tailnet; otherwise, 'false'.<br/>Learn more about device authorization at https://tailscale.com/https://tailscale.com/kb/1099/. |
-| is_external | 'true', indicates that a device is not a member of the tailnet, but is shared in to the tailnet;<br/>if 'false', the device is a member of the tailnet.<br/>Learn more about node sharing at https://tailscale.com/https://tailscale.com/kb/1084/. |
-| node_key | Mostly for internal use, required for select operations, such as adding a node to a locked tailnet.<br/>Learn about tailnet locks at https://tailscale.com/https://tailscale.com/kb/1226/. |
-| blocks_incoming_connections | 'true' if the device is not allowed to accept any connections over Tailscale, including pings.<br/>Learn more in the "Allow incoming connections" section of https://tailscale.com/https://tailscale.com/kb/1072/. |
+| key_expiry_disabled | 'true' if the keys for the device will not expire.<br/>Learn more at https://tailscale.com/kb/1028/. |
+| expires | The expiration date of the device's auth key.<br/>Learn more about key expiry at https://tailscale.com/kb/1028/. |
+| authorized | 'true' if the device has been authorized to join the tailnet; otherwise, 'false'.<br/>Learn more about device authorization at https://tailscale.com/kb/1099/. |
+| is_external | 'true', indicates that a device is not a member of the tailnet, but is shared in to the tailnet;<br/>if 'false', the device is a member of the tailnet.<br/>Learn more about node sharing at https://tailscale.com/kb/1084/. |
+| node_key | Mostly for internal use, required for select operations, such as adding a node to a locked tailnet.<br/>Learn about tailnet locks at https://tailscale.com/kb/1226/. |
+| blocks_incoming_connections | 'true' if the device is not allowed to accept any connections over Tailscale, including pings.<br/>Learn more in the "Allow incoming connections" section of https://tailscale.com/kb/1072/. |
 | client_connectivity_endpoints | Client's magicsock UDP IP:port endpoints (IPv4 or IPv6). |
 | client_connectivity_mapping_varies_by_dest_ip | 'true' if the host's NAT mappings vary based on the destination IP. |
 | tailnet_lock_error | Indicates an issue with the tailnet lock node-key signature on this device.<br/>This field is only populated when tailnet lock is enabled. |
-| tailnet_lock_key | The node's tailnet lock key.<br/>Every node generates a tailnet lock key (so the value will be present) even if tailnet lock is not enabled.<br/>Learn more about tailnet lock at https://tailscale.com/https://tailscale.com/kb/1226/. |
+| tailnet_lock_key | The node's tailnet lock key.<br/>Every node generates a tailnet lock key (so the value will be present) even if tailnet lock is not enabled.<br/>Learn more about tailnet lock at https://tailscale.com/kb/1226/. |
 | posture_identity_serial_numbers | Posture identification collection |
 | posture_identity_disabled |  Device posture identification collection enabled |
 

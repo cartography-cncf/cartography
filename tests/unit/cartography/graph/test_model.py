@@ -28,11 +28,13 @@ def test_model_objects_naming_convention():
                 )
             # TODO assert element.__name__.endswith("Schema")
         elif issubclass(element, CartographyRelSchema):
-            if not element.__name__.endswith("Rel"):
+            if not element.__name__.endswith("Rel") and not element.__name__.endswith(
+                "MatchLink"
+            ):
                 warnings.warn(
                     f"Relationship {element.__name__} does not comply with naming convention. "
                     "Relationship names should end with 'Rel'."
-                    f" Please rename the class to {element.__name__}Rel.",
+                    f" Please rename the class to {element.__name__}Rel or {element.__name__}MatchLink.",
                     UserWarning,
                 )
             # TODO assert element.__name__.endswith("Rel")

@@ -29,6 +29,13 @@ def get_assessments(client: SecurityCenter, subscription_id: str) -> list[dict]:
             exc_info=True,
         )
         return []
+    except AttributeError:
+        logger.warning(
+            "Failed to deserialize Security Assessments for subscription %s due to a malformed response.",
+            subscription_id,
+            exc_info=True,
+        )
+        return []
 
 
 def transform_assessments(assessments: list[dict]) -> list[dict]:
