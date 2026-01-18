@@ -2,21 +2,27 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import neo4j
+from google.auth.credentials import Credentials as GoogleCredentials
 from google.cloud import bigquery
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.gcp.bigquery import GCPBigQueryDatasetSchema
+from cartography.models.gcp.bigquery import GCPBigQueryTableSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_client(project_id: str) -> bigquery.Client:
+def get_client(project_id: str, credentials: Optional[GoogleCredentials] = None) -> bigquery.Client:
     """
     Returns a BigQuery client for the given project.
     """
-    return bigquery.Client(project=project_id)
+    return bigquery.Client(project=project_id, credentials=credentials)
 
 
 @timeit
@@ -37,11 +43,14 @@ def get_datasets(client: bigquery.Client, project_id: str) -> List[Dict[str, Any
                 "friendly_name": dataset.friendly_name or dataset.dataset_id,
                 "full_dataset_id": dataset_list_item.full_dataset_id,
                 "description": dataset.description,
+                # Convert dates to strings to ensure JSON serialization compatibility if needed,
+                # though Neo4j driver often handles datetime objects.
                 "created": str(dataset.created) if dataset.created else None,
                 "modified": str(dataset.modified) if dataset.modified else None,
             })
     except Exception as e:
         logger.error(f"Failed to list datasets for project {project_id}: {e}")
+        # Re-raise the exception to prevent partial syncs from triggering cleanup
         raise
     return datasets
 
@@ -54,33 +63,14 @@ def load_datasets(
     update_tag: int,
 ) -> None:
     """
-    Ingest BigQuery Datasets into Neo4j and link them to the GCPProject.
+    Ingest BigQuery Datasets into Neo4j using the Cartography load() function.
     """
-    ingest_query = """
-    UNWIND $Datasets as dataset
-    MERGE (d:GCPBigQueryDataset {id: dataset.id})
-    ON CREATE SET d.firstseen = timestamp(), d.created_at = timestamp()
-    SET d.lastupdated = $UpdateTag,
-        d.dataset_id = dataset.dataset_id,
-        d.project_id = dataset.project_id,
-        d.location = dataset.location,
-        d.friendly_name = dataset.friendly_name,
-        d.full_dataset_id = dataset.full_dataset_id,
-        d.description = dataset.description,
-        d.created = dataset.created,
-        d.modified = dataset.modified
-
-    WITH d
-    MATCH (p:GCPProject {id: $ProjectId})
-    MERGE (p)-[r:RESOURCE]->(d)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-    neo4j_session.run(
-        ingest_query,
-        Datasets=data_list,
-        ProjectId=project_id,
-        UpdateTag=update_tag,
+    load(
+        neo4j_session,
+        GCPBigQueryDatasetSchema(),
+        data_list,
+        lastupdated=update_tag,
+        PROJECT_ID=project_id,
     )
 
 
@@ -96,7 +86,7 @@ def get_tables(client: bigquery.Client, dataset_id: str, project_id: str) -> Lis
             tables.append({
                 "id": f"{project_id}.{dataset_id}.{table.table_id}",
                 "table_id": table.table_id,
-                "dataset_id": dataset_id,
+                "dataset_id": f"{project_id}.{dataset_id}",  # This ID must match the parent dataset node ID
                 "project_id": project_id,
                 "type": table.table_type,
                 "creation_time": str(table.created) if table.created else None,
@@ -104,6 +94,7 @@ def get_tables(client: bigquery.Client, dataset_id: str, project_id: str) -> Lis
             })
     except Exception as e:
         logger.error(f"Failed to list tables for dataset {dataset_id}: {e}")
+        # We prefer to log error here but continue to other datasets
     return tables
 
 
@@ -111,69 +102,44 @@ def get_tables(client: bigquery.Client, dataset_id: str, project_id: str) -> Lis
 def load_tables(
     neo4j_session: neo4j.Session,
     data_list: List[Dict[str, Any]],
-    dataset_id: str,
-    project_id: str,
+    dataset_node_id: str,
     update_tag: int,
 ) -> None:
     """
-    Ingest BigQuery Tables into Neo4j and link them to their parent Dataset.
+    Ingest BigQuery Tables into Neo4j using the Cartography load() function.
     """
-    ingest_query = """
-    UNWIND $Tables as table
-    MERGE (t:GCPBigQueryTable {id: table.id})
-    ON CREATE SET t.firstseen = timestamp(), t.created_at = timestamp()
-    SET t.lastupdated = $UpdateTag,
-        t.table_id = table.table_id,
-        t.dataset_id = table.dataset_id,
-        t.project_id = table.project_id,
-        t.type = table.type,
-        t.creation_time = table.creation_time,
-        t.expires = table.expires
-
-    WITH t
-    MATCH (d:GCPBigQueryDataset {id: $DatasetNodeId})
-    MERGE (d)-[r:CONTAINS]->(t)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-    dataset_node_id = f"{project_id}.{dataset_id}"
-    
-    neo4j_session.run(
-        ingest_query,
-        Tables=data_list,
-        DatasetNodeId=dataset_node_id,
-        UpdateTag=update_tag,
+    load(
+        neo4j_session,
+        GCPBigQueryTableSchema(),
+        data_list,
+        lastupdated=update_tag,
+        DATASET_ID=dataset_node_id,
     )
 
 
 @timeit
-def cleanup(
+def cleanup_datasets(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
     """
-    Delete stale BigQuery resources.
+    Delete stale BigQuery Dataset resources.
     """
-    # Cleanup Tables first (children before parents)
-    neo4j_session.run(
-        """
-        MATCH (t:GCPBigQueryTable)
-        WHERE t.lastupdated <> $UPDATE_TAG
-        WITH t LIMIT 1000
-        DETACH DELETE t
-        """,
-        UPDATE_TAG=common_job_parameters['UPDATE_TAG'],
+    GraphJob.from_node_schema(GCPBigQueryDatasetSchema(), common_job_parameters).run(
+        neo4j_session,
     )
-    
-    # Cleanup Datasets
-    neo4j_session.run(
-        """
-        MATCH (d:GCPBigQueryDataset)
-        WHERE d.lastupdated <> $UPDATE_TAG
-        WITH d LIMIT 1000
-        DETACH DELETE d
-        """,
-        UPDATE_TAG=common_job_parameters['UPDATE_TAG'],
+
+
+@timeit
+def cleanup_tables(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    """
+    Delete stale BigQuery Table resources.
+    """
+    GraphJob.from_node_schema(GCPBigQueryTableSchema(), common_job_parameters).run(
+        neo4j_session,
     )
 
 
@@ -182,6 +148,7 @@ def sync(
     neo4j_session: neo4j.Session,
     project_id: str,
     gcp_update_tag: int,
+    credentials: Optional[GoogleCredentials],
     common_job_parameters: Dict[str, Any],
 ) -> None:
     """
@@ -189,24 +156,27 @@ def sync(
     Syncs BigQuery datasets and tables for a given GCP project.
     """
     logger.info(f"Syncing BigQuery for project {project_id}...")
-    client = get_client(project_id)
+    client = get_client(project_id, credentials)
 
     # 1. Sync Datasets
     datasets = get_datasets(client, project_id)
     if datasets:
         logger.info(f"Loading {len(datasets)} datasets for project {project_id}.")
         load_datasets(neo4j_session, datasets, project_id, gcp_update_tag)
-        
+
         # 2. Sync Tables for each Dataset
         for dataset in datasets:
             ds_id = dataset['dataset_id']
+            # The 'id' field in the dataset dict corresponds to the graph node ID
+            dataset_node_id = dataset['id']
+
             tables = get_tables(client, ds_id, project_id)
             if tables:
                 logger.info(f"Loading {len(tables)} tables for dataset {ds_id}.")
-                load_tables(neo4j_session, tables, ds_id, project_id, gcp_update_tag)
+                load_tables(neo4j_session, tables, dataset_node_id, gcp_update_tag)
     else:
         logger.info(f"No datasets found for project {project_id}.")
 
     # 3. Cleanup stale data
-    cleanup(neo4j_session, common_job_parameters)
-
+    cleanup_tables(neo4j_session, common_job_parameters)
+    cleanup_datasets(neo4j_session, common_job_parameters)
