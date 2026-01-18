@@ -154,7 +154,7 @@ def transform_workspaces(workspaces: list[dict]) -> list[dict]:
     for ws in workspaces:
         transformed.append(
             {
-                "id": ws.get("id"),
+                "id": ws["id"],
                 "name": ws.get("name"),
                 "location": ws.get("location"),
                 "connectivity_endpoints": str(ws.get("connectivity_endpoints")),
@@ -168,7 +168,7 @@ def transform_dedicated_sql_pools(sql_pools: list[dict]) -> list[dict]:
     for pool in sql_pools:
         transformed.append(
             {
-                "id": pool.get("id"),
+                "id": pool["id"],
                 "name": pool.get("name"),
                 "location": pool.get("location"),
                 "provisioning_state": pool.get("properties", {}).get(
@@ -186,7 +186,7 @@ def transform_spark_pools(spark_pools: list[dict]) -> list[dict]:
         properties = pool.get("properties", {})
         transformed.append(
             {
-                "id": pool.get("id"),
+                "id": pool["id"],
                 "name": pool.get("name"),
                 "location": pool.get("location"),
                 "provisioning_state": pool.get("provisioning_state"),
@@ -201,7 +201,7 @@ def transform_spark_pools(spark_pools: list[dict]) -> list[dict]:
 def transform_pipelines(pipelines: list[dict]) -> list[dict]:
     transformed = []
     for p in pipelines:
-        transformed.append({"id": p.get("id"), "name": p.get("name")})
+        transformed.append({"id": p["id"], "name": p.get("name")})
     return transformed
 
 
@@ -210,7 +210,7 @@ def transform_linked_services(linked_services: list[dict]) -> list[dict]:
     for ls in linked_services:
         transformed.append(
             {
-                "id": ls.get("id"),
+                "id": ls["id"],
                 "name": ls.get("name"),
             }
         )
@@ -222,7 +222,7 @@ def transform_managed_private_endpoints(endpoints: list[dict]) -> list[dict]:
     for pe in endpoints:
         transformed.append(
             {
-                "id": pe.get("id"),
+                "id": pe["id"],
                 "name": pe.get("name"),
                 "target_resource_id": pe.get("properties", {}).get(
                     "privateLinkResourceId"
