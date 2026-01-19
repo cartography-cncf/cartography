@@ -10,8 +10,8 @@ from google.cloud import bigquery
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.gcp.bigquery import GCPBigQueryDatasetSchema
-from cartography.models.gcp.bigquery import GCPBigQueryTableSchema
+from cartography.models.gcp.bigquery_dataset import GCPBigQueryDatasetSchema
+from cartography.models.gcp.bigquery_table import GCPBigQueryTableSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -26,33 +26,45 @@ def get_client(project_id: str, credentials: Optional[GoogleCredentials] = None)
 
 
 @timeit
-def get_datasets(client: bigquery.Client, project_id: str) -> List[Dict[str, Any]]:
+def get_datasets(client: bigquery.Client, project_id: str) -> List[Any]:
     """
-    Fetches a list of datasets from the BigQuery project.
+    Fetches a list of dataset objects from the BigQuery project.
     """
     datasets = []
     try:
         for dataset_list_item in client.list_datasets():
-            # Fetch full dataset details
+            # Fetch full dataset details to get all properties
             dataset = client.get_dataset(dataset_list_item.reference)
-            datasets.append({
-                "id": f"{project_id}.{dataset.dataset_id}",
-                "dataset_id": dataset.dataset_id,
-                "project_id": project_id,
-                "location": dataset.location,
-                "friendly_name": dataset.friendly_name or dataset.dataset_id,
-                "full_dataset_id": dataset_list_item.full_dataset_id,
-                "description": dataset.description,
-                # Convert dates to strings to ensure JSON serialization compatibility if needed,
-                # though Neo4j driver often handles datetime objects.
-                "created": str(dataset.created) if dataset.created else None,
-                "modified": str(dataset.modified) if dataset.modified else None,
-            })
+            datasets.append(dataset)
     except Exception as e:
         logger.error(f"Failed to list datasets for project {project_id}: {e}")
         # Re-raise the exception to prevent partial syncs from triggering cleanup
         raise
     return datasets
+
+
+@timeit
+def transform_datasets(bq_datasets: List[Any], project_id: str) -> List[Dict[str, Any]]:
+    """
+    Transforms BigQuery Dataset objects into dictionaries for Neo4j loading.
+    """
+    results = []
+    for dataset in bq_datasets:
+        # GCP Dataset IDs are unique per project. We construct a global ID by prepending the project ID.
+        uid = f"{project_id}.{dataset.dataset_id}"
+        
+        results.append({
+            "id": uid,
+            "dataset_id": dataset.dataset_id,
+            "project_id": project_id,
+            "location": dataset.location,
+            "friendly_name": dataset.friendly_name,
+            "full_dataset_id": dataset.full_dataset_id,
+            "description": dataset.description,
+            "created": dataset.created,
+            "modified": dataset.modified,
+        })
+    return results
 
 
 @timeit
@@ -75,27 +87,41 @@ def load_datasets(
 
 
 @timeit
-def get_tables(client: bigquery.Client, dataset_id: str, project_id: str) -> List[Dict[str, Any]]:
+def get_tables(client: bigquery.Client, dataset_id: str) -> List[Any]:
     """
-    Fetches tables for a specific dataset.
+    Fetches table objects for a specific dataset.
     """
     tables = []
     try:
         dataset_ref = client.dataset(dataset_id)
         for table in client.list_tables(dataset_ref):
-            tables.append({
-                "id": f"{project_id}.{dataset_id}.{table.table_id}",
-                "table_id": table.table_id,
-                "dataset_id": f"{project_id}.{dataset_id}",  # This ID must match the parent dataset node ID
-                "project_id": project_id,
-                "type": table.table_type,
-                "creation_time": str(table.created) if table.created else None,
-                "expires": str(table.expires) if table.expires else None,
-            })
+            tables.append(table)
     except Exception as e:
         logger.error(f"Failed to list tables for dataset {dataset_id}: {e}")
-        # We prefer to log error here but continue to other datasets
+        # We continue here to allow other datasets to sync even if one fails
     return tables
+
+
+@timeit
+def transform_tables(bq_tables: List[Any], project_id: str, dataset_id: str) -> List[Dict[str, Any]]:
+    """
+    Transforms BigQuery Table objects into dictionaries for Neo4j loading.
+    """
+    results = []
+    for table in bq_tables:
+        # Construct global ID: project_id.dataset_id.table_id
+        uid = f"{project_id}.{dataset_id}.{table.table_id}"
+        
+        results.append({
+            "id": uid,
+            "table_id": table.table_id,
+            "dataset_id": f"{project_id}.{dataset_id}",
+            "project_id": project_id,
+            "type": table.table_type,
+            "creation_time": table.created,
+            "expires": table.expires,
+        })
+    return results
 
 
 @timeit
@@ -138,8 +164,18 @@ def cleanup_tables(
     """
     Delete stale BigQuery Table resources.
     """
-    GraphJob.from_node_schema(GCPBigQueryTableSchema(), common_job_parameters).run(
-        neo4j_session,
+    # Tables are cleaned up per project, not per dataset
+    cleanup_query = """
+        MATCH (t:GCPBigQueryTable)<-[:CONTAINS]-(d:GCPBigQueryDataset)<-[:RESOURCE]-(p:GCPProject{id: $PROJECT_ID})
+        WHERE t.lastupdated <> $UPDATE_TAG
+        WITH t LIMIT $LIMIT_SIZE
+        DETACH DELETE t
+    """
+    neo4j_session.run(
+        cleanup_query,
+        PROJECT_ID=common_job_parameters["PROJECT_ID"],
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+        LIMIT_SIZE=100,
     )
 
 
@@ -159,21 +195,24 @@ def sync(
     client = get_client(project_id, credentials)
 
     # 1. Sync Datasets
-    datasets = get_datasets(client, project_id)
-    if datasets:
-        logger.info(f"Loading {len(datasets)} datasets for project {project_id}.")
-        load_datasets(neo4j_session, datasets, project_id, gcp_update_tag)
+    bq_datasets = get_datasets(client, project_id)
+    transformed_datasets = transform_datasets(bq_datasets, project_id)
+    
+    if transformed_datasets:
+        logger.info(f"Loading {len(transformed_datasets)} datasets for project {project_id}.")
+        load_datasets(neo4j_session, transformed_datasets, project_id, gcp_update_tag)
 
         # 2. Sync Tables for each Dataset
-        for dataset in datasets:
+        for dataset in transformed_datasets:
             ds_id = dataset['dataset_id']
-            # The 'id' field in the dataset dict corresponds to the graph node ID
             dataset_node_id = dataset['id']
-
-            tables = get_tables(client, ds_id, project_id)
-            if tables:
-                logger.info(f"Loading {len(tables)} tables for dataset {ds_id}.")
-                load_tables(neo4j_session, tables, dataset_node_id, gcp_update_tag)
+            
+            bq_tables = get_tables(client, ds_id)
+            transformed_tables = transform_tables(bq_tables, project_id, ds_id)
+            
+            if transformed_tables:
+                logger.info(f"Loading {len(transformed_tables)} tables for dataset {ds_id}.")
+                load_tables(neo4j_session, transformed_tables, dataset_node_id, gcp_update_tag)
     else:
         logger.info(f"No datasets found for project {project_id}.")
 

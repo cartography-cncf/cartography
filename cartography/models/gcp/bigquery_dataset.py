@@ -44,36 +44,3 @@ class GCPBigQueryDatasetSchema(CartographyNodeSchema):
     label: str = 'GCPBigQueryDataset'
     properties: GCPBigQueryDatasetProperties = GCPBigQueryDatasetProperties()
     sub_resource_relationship: GCPBigQueryDatasetToProjectRel = GCPBigQueryDatasetToProjectRel()
-
-
-@dataclass(frozen=True)
-class GCPBigQueryTableProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef('id', extra_index=True)
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
-    table_id: PropertyRef = PropertyRef('table_id')
-    type: PropertyRef = PropertyRef('type')
-    creation_time: PropertyRef = PropertyRef('creation_time')
-    expires: PropertyRef = PropertyRef('expires')
-
-
-@dataclass(frozen=True)
-class GCPBigQueryTableToDatasetRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class GCPBigQueryTableToDatasetRel(CartographyRelSchema):
-    target_node_label: str = 'GCPBigQueryDataset'
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('DATASET_ID', set_in_kwargs=True)},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = 'CONTAINS'
-    properties: GCPBigQueryTableToDatasetRelProperties = GCPBigQueryTableToDatasetRelProperties()
-
-
-@dataclass(frozen=True)
-class GCPBigQueryTableSchema(CartographyNodeSchema):
-    label: str = 'GCPBigQueryTable'
-    properties: GCPBigQueryTableProperties = GCPBigQueryTableProperties()
-    sub_resource_relationship: GCPBigQueryTableToDatasetRel = GCPBigQueryTableToDatasetRel()
