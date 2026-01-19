@@ -4,6 +4,7 @@ from typing import Any
 import boto3
 import neo4j
 import yaml
+from botocore.exceptions import ClientError
 from kubernetes.client.models import V1ConfigMap
 
 from cartography.client.core.tx import load
@@ -250,11 +251,16 @@ def get_access_entries(
                     clusterName=cluster_name, principalArn=principal_arn
                 )
                 access_entries.append(detail_response["accessEntry"])
-            except Exception as e:
-                logger.warning(
-                    f"Failed to describe access entry for principal {principal_arn}: {e}"
-                )
-                continue
+            except ClientError as e:
+                # If the access entry is not found, we can safely skip it.
+                if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                    logger.warning(
+                        f"Access entry lookup failed for principal {principal_arn}: {e}"
+                    )
+                    continue
+                # For other errors (e.g. AccessDenied, Throttling), we re-raise to avoid
+                # returning partial data which could cause destructive cleanup.
+                raise
 
     logger.info(
         f"Retrieved {len(access_entries)} access entries for cluster {cluster_name}"
