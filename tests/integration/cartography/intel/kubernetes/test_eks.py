@@ -220,7 +220,10 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         ("test-cluster/alice-access-entry", "alice-access-entry"),
         ("test-cluster/access-role-user", "access-role-user"),
         ("test-cluster/bob-access-entry", "bob-access-entry"),
-        ("test-cluster/arn:aws:iam::123456789012:role/EKSViewerRole", "arn:aws:iam::123456789012:role/EKSViewerRole"),
+        (
+            "test-cluster/arn:aws:iam::123456789012:role/EKSViewerRole",
+            "arn:aws:iam::123456789012:role/EKSViewerRole",
+        ),
     }
     actual_access_entry_users = check_nodes(
         neo4j_session,
@@ -258,12 +261,20 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         "id",
         "MAPS_TO",
     )
-    assert expected_access_entry_user_relationships.issubset(actual_access_entry_user_relationships)
+    assert expected_access_entry_user_relationships.issubset(
+        actual_access_entry_user_relationships
+    )
 
     # Assert: Verify Access Entry AWS Role to Kubernetes User relationships
     expected_access_entry_role_user_relationships = {
-        ("arn:aws:iam::123456789012:role/EKSAccessRole", "test-cluster/access-role-user"),
-        ("arn:aws:iam::123456789012:role/EKSViewerRole", "test-cluster/arn:aws:iam::123456789012:role/EKSViewerRole"),
+        (
+            "arn:aws:iam::123456789012:role/EKSAccessRole",
+            "test-cluster/access-role-user",
+        ),
+        (
+            "arn:aws:iam::123456789012:role/EKSViewerRole",
+            "test-cluster/arn:aws:iam::123456789012:role/EKSViewerRole",
+        ),
     }
     actual_access_entry_role_user_relationships = check_rels(
         neo4j_session,
@@ -273,7 +284,9 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         "id",
         "MAPS_TO",
     )
-    assert expected_access_entry_role_user_relationships.issubset(actual_access_entry_role_user_relationships)
+    assert expected_access_entry_role_user_relationships.issubset(
+        actual_access_entry_role_user_relationships
+    )
 
     # Assert: Verify Access Entry AWS User to Kubernetes Group relationships
     expected_access_entry_user_group_relationships = {
@@ -288,14 +301,22 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         "id",
         "MAPS_TO",
     )
-    assert expected_access_entry_user_group_relationships.issubset(actual_access_entry_user_group_relationships)
+    assert expected_access_entry_user_group_relationships.issubset(
+        actual_access_entry_user_group_relationships
+    )
 
     # Assert: Verify Access Entry AWS Role to Kubernetes Group relationships
     expected_access_entry_role_group_relationships = {
-        ("arn:aws:iam::123456789012:role/EKSAccessRole", "test-cluster/access-entry-admins"),
+        (
+            "arn:aws:iam::123456789012:role/EKSAccessRole",
+            "test-cluster/access-entry-admins",
+        ),
         ("arn:aws:iam::123456789012:role/EKSAccessRole", "test-cluster/platform-team"),
         ("arn:aws:iam::123456789012:role/EKSViewerRole", "test-cluster/viewers"),
-        ("arn:aws:iam::123456789012:role/EKSViewerRole", "test-cluster/readonly-access"),
+        (
+            "arn:aws:iam::123456789012:role/EKSViewerRole",
+            "test-cluster/readonly-access",
+        ),
     }
     actual_access_entry_role_group_relationships = check_rels(
         neo4j_session,
@@ -305,7 +326,9 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         "id",
         "MAPS_TO",
     )
-    assert expected_access_entry_role_group_relationships.issubset(actual_access_entry_role_group_relationships)
+    assert expected_access_entry_role_group_relationships.issubset(
+        actual_access_entry_role_group_relationships
+    )
 
     # Note: OIDC Provider nodes only contain infrastructure metadata.
     # Identity relationships (OktaUser/Group -> KubernetesUser/Group) are handled

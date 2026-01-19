@@ -1,7 +1,6 @@
 import logging
 from typing import Any
 
-
 import boto3
 import neo4j
 import yaml
@@ -240,7 +239,6 @@ def get_access_entries(
     if cluster_name.startswith("arn:aws:eks:"):
         cluster_name = cluster_name.split("/")[-1]
 
-   
     paginator = client.get_paginator("list_access_entries")
     page_iterator = paginator.paginate(clusterName=cluster_name)
 
@@ -258,7 +256,9 @@ def get_access_entries(
                 )
                 continue
 
-    logger.info(f"Retrieved {len(access_entries)} access entries for cluster {cluster_name}")
+    logger.info(
+        f"Retrieved {len(access_entries)} access entries for cluster {cluster_name}"
+    )
     return access_entries
 
 
@@ -411,7 +411,6 @@ def load_aws_auth_mappings(
 
     logger.info(f"Loading {len(groups)} Kubernetes Groups with AWS mappings")
 
-    
     if groups:
         load(
             neo4j_session,
@@ -487,7 +486,9 @@ def sync(
 
     if access_entries:
         # Transform access entries into users and groups
-        transformed_access_entries = transform_access_entries(access_entries, cluster_name)
+        transformed_access_entries = transform_access_entries(
+            access_entries, cluster_name
+        )
 
         # Load users and groups from access entries
         load_aws_auth_mappings(
