@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
 from google.api_core import exceptions
 
 from cartography.intel.gcp import storage
@@ -112,7 +113,7 @@ def test_get_gcp_buckets_invalid_argument():
 
 def test_get_gcp_buckets_generic_error():
     """
-    Test that the function handles unexpected exceptions gracefully.
+    Test that the function raises exceptions for unexpected errors to prevent data loss.
     """
     project_id = "test-project"
     credentials = MagicMock()
@@ -121,11 +122,11 @@ def test_get_gcp_buckets_generic_error():
         mock_client = mock_client_cls.return_value
         mock_client.list_buckets.side_effect = Exception("Unexpected Boom")
 
-        # Act
-        result = storage.get_gcp_buckets(project_id, credentials)
+        # Act & Assert
+        with pytest.raises(Exception) as excinfo:
+            storage.get_gcp_buckets(project_id, credentials)
 
-    # Assert
-    assert result == {}
+        assert "Unexpected Boom" in str(excinfo.value)
 
 
 def test_get_gcp_buckets_minimal_bucket():

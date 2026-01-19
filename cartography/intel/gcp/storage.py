@@ -124,7 +124,7 @@ def get_gcp_buckets(
             e,
             exc_info=True,
         )
-        return {}
+        raise  # Re-raise to prevent data loss via cleanup
 
 
 @timeit
