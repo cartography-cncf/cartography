@@ -18,7 +18,10 @@ from . import data_factory_linked_service
 from . import data_factory_pipeline
 from . import data_lake
 from . import event_grid
+from . import event_hub
+from . import event_hub_namespace
 from . import functions
+from . import key_vaults
 from . import load_balancers
 from . import logic_apps
 from . import monitor
@@ -30,6 +33,7 @@ from . import security_center
 from . import sql
 from . import storage
 from . import subscription
+from . import synapse
 from . import tenant
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
@@ -121,9 +125,31 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
+    key_vaults.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     aks.sync(
         neo4j_session,
         credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    namespaces = event_hub_namespace.sync_event_hub_namespaces(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    event_hub.sync_event_hubs(
+        neo4j_session,
+        credentials,
+        namespaces,
         subscription_id,
         update_tag,
         common_job_parameters,
@@ -178,6 +204,13 @@ def _sync_one_subscription(
         common_job_parameters,
     )
     load_balancers.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    synapse.sync(
         neo4j_session,
         credentials,
         subscription_id,

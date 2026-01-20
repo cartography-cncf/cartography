@@ -64,3 +64,38 @@ def test_sync_resource_groups(mock_get, neo4j_session):
         "RESOURCE",
     )
     assert actual_rels == expected_rels
+
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:resource-group",
+    }
+    tag_nodes = neo4j_session.run(
+        "MATCH (t:AzureTag) WHERE t.id STARTS WITH $sub_id RETURN t.id",
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # Check Tag Relationships
+    expected_tag_rels = {
+        (MOCK_RESOURCE_GROUPS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (
+            MOCK_RESOURCE_GROUPS[0]["id"],
+            f"{TEST_SUBSCRIPTION_ID}|service:resource-group",
+        ),
+        (MOCK_RESOURCE_GROUPS[1]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (
+            MOCK_RESOURCE_GROUPS[1]["id"],
+            f"{TEST_SUBSCRIPTION_ID}|service:resource-group",
+        ),
+    }
+    result = neo4j_session.run(
+        """
+        MATCH (rg:AzureResourceGroup)-[:TAGGED]->(t:AzureTag)
+        WHERE rg.id STARTS WITH '/subscriptions/' + $sub_id
+        RETURN rg.id, t.id
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+    )
+    actual_tag_rels = {(r["rg.id"], r["t.id"]) for r in result}
+    assert actual_tag_rels == expected_tag_rels

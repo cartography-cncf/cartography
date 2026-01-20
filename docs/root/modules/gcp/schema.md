@@ -160,6 +160,24 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
     (GCPBucket)<-[LABELLED]-(GCPBucketLabels)
     ```
 
+- GCPPrincipals with appropriate permissions can read from GCP buckets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
+
+    ```
+    (GCPPrincipal)-[CAN_READ]->(GCPBucket)
+    ```
+
+- GCPPrincipals with appropriate permissions can write to GCP buckets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
+
+    ```
+    (GCPPrincipal)-[CAN_WRITE]->(GCPBucket)
+    ```
+
+- GCPPrincipals with appropriate permissions can delete from GCP buckets. Created from [gcp_permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/gcp_permission_relationships.yaml).
+
+    ```
+    (GCPPrincipal)-[CAN_DELETE]->(GCPBucket)
+    ```
+
 
 ### GCPDNSZone
 
@@ -219,6 +237,7 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
 | zone_name        | The zone that the instance is installed on |
 | hostname         | If present, the hostname of the instance |
 | exposed_internet | Set to True  with `exposed_internet_type = 'direct'` if there is an 'allow' IPRule attached to one of the instance's ingress firewalls with the following conditions:  The 'allow' IpRule allows traffic from one or more TCP ports, and the 'allow' IpRule is not superceded by a 'deny' IPRule (in GCP, a firewall rule of priority 1 gets applied ahead of a firewall rule of priority 100, and 'deny' rules of the same priority are applied ahead of 'allow' rules) |
+| exposed_internet_type | A string indicating the type of internet exposure. Currently only `'direct'` is supported (exposed via firewall rules). Set by the `gcp_compute_asset_inet_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/gcp_compute_asset_inet_exposure.json). |
 | status           | The [GCP Instance Lifecycle](https://cloud.google.com/compute/docs/instances/instance-life-cycle) state of the instance |
 #### Relationships
 
@@ -719,6 +738,51 @@ Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/
     (GCPRole)-[RESOURCE]->(GCPProject)
     ```
 
+### GCPKeyRing
+
+Representation of a GCP [Key Ring](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings).
+
+| Field | Description |
+|---|---|
+| id | The full resource name of the Key Ring. |
+| name | The short name of the Key Ring. |
+| location | The GCP location of the Key Ring. |
+| lastupdated | The timestamp of the last update. |
+| project\_id | The full project ID (projects/...) this Key Ring belongs to. |
+
+#### Relationships
+
+  - GCPKeyRings are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPKeyRing)
+    ```
+
+### GCPCryptoKey
+
+Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys).
+
+| Field | Description |
+|---|---|
+| id | The full resource name of the Crypto Key. |
+| name | The short name of the Crypto Key. |
+| rotation\_period | The rotation period of the key (e.g., `7776000s`). |
+| purpose | The key purpose (e.g., `ENCRYPT_DECRYPT`). |
+| state | The state of the primary key version (e.g., `ENABLED`). |
+| lastupdated | The timestamp of the last update. |
+| project\_id | The full project ID (projects/...) this key belongs to. |
+| key\_ring\_id | The full ID of the parent Key Ring. |
+
+#### Relationships
+
+  - GCPCryptoKeys are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCryptoKey)
+    ```
+  - GCPKeyRings contain GCPCryptoKeys.
+    ```
+    (GCPKeyRing)-[CONTAINS]->(GCPCryptoKey)
+    ```
+
 ### GCPPolicyBinding
 
 Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/reference/rest/v1/Policy#Binding). Policy bindings connect principals (users, service accounts, groups) to roles on specific resources.
@@ -855,7 +919,6 @@ Representation of a GCP [Bigtable App Profile](https://cloud.google.com/bigtable
     ```
     (GCPBigtableAppProfile)-[:ROUTES_TO]->(GCPBigtableCluster)
     ```
-
 
 ### GCPBigtableBackup
 
@@ -1273,4 +1336,98 @@ Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.co
   - GCPCloudSQLInstances have GCPCloudSQLBackupConfigurations.
     ```
     (GCPCloudSQLInstance)-[:HAS_BACKUP_CONFIG]->(GCPCloudSQLBackupConfiguration)
+    ```
+
+### GCPCloudFunction
+
+Representation of a Google [Cloud Function](https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions) (v1 API).
+
+| Field                 | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| id                    | The full, unique resource name of the function.                             |
+| name                  | The full, unique resource name of the function (same as id).                |
+| description           | User-provided description of the function.                                  |
+| runtime               | The language runtime environment for the function (e.g., python310).        |
+| entry_point           | The name of the function within the source code to be executed.             |
+| status                | The current state of the function (e.g., ACTIVE, OFFLINE, DEPLOY_IN_PROGRESS). |
+| update_time           | The timestamp when the function was last modified.                          |
+| service_account_email | The email of the service account the function runs as.                      |
+| https_trigger_url     | The public URL if the function is triggered by an HTTP request.             |
+| event_trigger_type    | The type of event that triggers the function (e.g., a Pub/Sub message).     |
+| event_trigger_resource| The specific resource the event trigger monitors.                           |
+| project_id            | The ID of the GCP project to which the function belongs.                    |
+| region                | The GCP region where the function is deployed.                              |
+| lastupdated           | Timestamp of when the data was last updated in the graph.                   |
+
+#### Relationships
+
+- GCPCloudFunctions are resources of GCPProjects.
+
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudFunction)
+    ```
+
+- GCPCloudFunctions run as GCPServiceAccounts.
+
+    ```
+    (GCPCloudFunction)-[:RUNS_AS]->(GCPServiceAccount)
+    ```
+
+### Secret Manager Resources
+
+#### GCPSecretManagerSecret
+
+Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets). A Secret is a logical container for secret data that can have multiple versions.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the secret (e.g., `projects/{project}/secrets/{secret_id}`) |
+| name | The short name of the secret |
+| project_id | The GCP project ID that owns this secret |
+| rotation_enabled | Boolean indicating if automatic rotation is configured |
+| rotation_period | The rotation period in seconds (if rotation is enabled) |
+| rotation_next_time | Epoch timestamp of the next scheduled rotation |
+| created_date | Epoch timestamp when the secret was created |
+| expire_time | Epoch timestamp when the secret will automatically expire and be deleted |
+| replication_type | The replication policy type: `automatic` or `user_managed` |
+| etag | Used to perform consistent read-modify-write updates |
+| labels | JSON string of user-defined labels |
+| topics | JSON string of Pub/Sub topics for rotation notifications |
+| version_aliases | JSON string mapping alias names to version numbers |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPSecretManagerSecrets are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPSecretManagerSecret)
+    ```
+
+#### GCPSecretManagerSecretVersion
+
+Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions). A SecretVersion stores a specific version of secret data within a Secret.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the version (e.g., `projects/{project}/secrets/{secret_id}/versions/{version}`) |
+| secret_id | Full resource name of the parent secret |
+| version | The version number (e.g., "1", "2") |
+| state | The current state of the version: `ENABLED`, `DISABLED`, or `DESTROYED` |
+| created_date | Epoch timestamp when the version was created |
+| destroy_time | Epoch timestamp when the version was destroyed (only present if state is `DESTROYED`) |
+| etag | Used to perform consistent read-modify-write updates |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPSecretManagerSecretVersions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPSecretManagerSecretVersion)
+    ```
+
+- GCPSecretManagerSecretVersions are versions of GCPSecretManagerSecrets.
+    ```
+    (GCPSecretManagerSecretVersion)-[:VERSION_OF]->(GCPSecretManagerSecret)
     ```

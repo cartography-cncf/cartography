@@ -10,6 +10,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.gke import GCPGKEClusterSchema
 from cartography.util import timeit
 
@@ -34,7 +35,7 @@ def get_gke_clusters(container: Resource, project_id: str) -> Dict:
         req = (
             container.projects().zones().clusters().list(projectId=project_id, zone="-")
         )
-        res = req.execute()
+        res = gcp_api_execute_with_retry(req)
         return res
     except HttpError as e:
         err = json.loads(e.content.decode("utf-8"))["error"]
