@@ -17,6 +17,7 @@ from msrestazure.azure_exceptions import CloudError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.sql.databasethreatdetectionpolicy import (
     AzureDatabaseThreatDetectionPolicySchema,
 )
@@ -39,6 +40,7 @@ from cartography.models.azure.sql.sqlserver import AzureSQLServerSchema
 from cartography.models.azure.sql.transparentdataencryption import (
     AzureTransparentDataEncryptionSchema,
 )
+from cartography.models.azure.tags.sql_tag import AzureSQLServerTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -620,6 +622,26 @@ def _load_databases(
 
 
 @timeit
+def load_sql_server_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    servers: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for SQL Servers.
+    """
+    tags = transform_tags(servers, subscription_id)
+    load(
+        neo4j_session,
+        AzureSQLServerTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
 def sync_database_details(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -958,6 +980,18 @@ def cleanup_azure_sql_servers(
 
 
 @timeit
+def cleanup_sql_server_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
+    """
+    Runs cleanup job for Azure SQL Server tags.
+    """
+    GraphJob.from_node_schema(AzureSQLServerTagsSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
@@ -968,6 +1002,7 @@ def sync(
     logger.info("Syncing Azure SQL for subscription '%s'.", subscription_id)
     server_list = get_server_list(credentials, subscription_id)
     load_server_data(neo4j_session, subscription_id, server_list, sync_tag)
+    load_sql_server_tags(neo4j_session, subscription_id, server_list, sync_tag)
     sync_server_details(
         neo4j_session,
         credentials,
@@ -976,3 +1011,4 @@ def sync(
         sync_tag,
     )
     cleanup_azure_sql_servers(neo4j_session, common_job_parameters)
+    cleanup_sql_server_tags(neo4j_session, common_job_parameters)
