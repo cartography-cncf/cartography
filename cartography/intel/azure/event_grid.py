@@ -6,7 +6,11 @@ from azure.mgmt.eventgrid import EventGridManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.event_grid_topic import AzureEventGridTopicSchema
+from cartography.models.azure.tags.event_grid_topic_tag import (
+    AzureEventGridTopicTagsSchema,
+)
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -37,6 +41,7 @@ def transform_event_grid_topics(topics_response: list[dict]) -> list[dict]:
             "public_network_access": topic.get("properties", {}).get(
                 "public_network_access"
             ),
+            "tags": topic.get("tags"),
         }
         transformed_topics.append(transformed_topic)
     return transformed_topics
@@ -60,6 +65,38 @@ def load_event_grid_topics(
         AZURE_SUBSCRIPTION_ID=subscription_id,
     )
     # TODO: Add logic to fetch, transform, and load Event Grid Subscriptions for each Topic.
+
+
+@timeit
+def load_event_grid_topic_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    topics: list[dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Event Grid Topics.
+    """
+    tags = transform_tags(topics, subscription_id)
+    load(
+        neo4j_session,
+        AzureEventGridTopicTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
+def cleanup_event_grid_topic_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: dict
+) -> None:
+    """
+    Runs cleanup job for Azure Event Grid Topic tags.
+    """
+    GraphJob.from_node_schema(
+        AzureEventGridTopicTagsSchema(), common_job_parameters
+    ).run(neo4j_session)
 
 
 @timeit
@@ -91,4 +128,6 @@ def sync(
     load_event_grid_topics(
         neo4j_session, transformed_topics, subscription_id, update_tag
     )
+    load_event_grid_topic_tags(neo4j_session, subscription_id, raw_topics, update_tag)
     cleanup_event_grid_topics(neo4j_session, common_job_parameters)
+    cleanup_event_grid_topic_tags(neo4j_session, common_job_parameters)

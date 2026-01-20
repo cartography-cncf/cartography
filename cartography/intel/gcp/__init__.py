@@ -26,6 +26,7 @@ from cartography.intel.gcp import cloud_sql_instance
 from cartography.intel.gcp import cloud_sql_user
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
+from cartography.intel.gcp import gcf
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
 from cartography.intel.gcp import permission_relationships
@@ -55,7 +56,7 @@ logger = logging.getLogger(__name__)
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
-    "Services", "compute storage gke dns iam bigtable cai aiplatform cloud_sql bigquery"
+    "Services", "compute storage gke dns iam bigtable cai aiplatform cloud_sql bigquery gcf"
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -68,6 +69,7 @@ service_names = Services(
     aiplatform="aiplatform.googleapis.com",
     cloud_sql="sqladmin.googleapis.com",
     bigquery="bigquery.googleapis.com",
+    gcf="cloudfunctions.googleapis.com",
 )
 
 
@@ -209,6 +211,17 @@ def _sync_project_resources(
             dns.sync(
                 neo4j_session,
                 dns_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.gcf in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud Functions.", project_id)
+            gcf_cred = build_client("cloudfunctions", "v1", credentials=credentials)
+            gcf.sync(
+                neo4j_session,
+                gcf_cred,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
