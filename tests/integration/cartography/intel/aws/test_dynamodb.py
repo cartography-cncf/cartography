@@ -1,8 +1,6 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import neo4j.time
-
 import cartography.intel.aws.dynamodb
 import tests.data.aws.dynamodb
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -19,9 +17,11 @@ TEST_UPDATE_TAG = 123456789
     "get_dynamodb_tables",
     return_value=tests.data.aws.dynamodb.LIST_DYNAMODB_TABLES["Tables"],
 )
-def test_load_dynamodb(mock_get_instances, neo4j_session):
+def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
     """
-    Ensure that instances actually get loaded and have their key fields
+    Consolidated test to verify that DynamoDB tables and all related child entities
+    (GSIs, Billing, Streams, SSE, Archival, Restore, Backups) are correctly loaded
+    and connected in a single sync operation.
     """
     # Arrange
     boto3_session = MagicMock()
@@ -37,226 +37,189 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert ddb table nodes exist
+    # Assert: DynamoDBTable nodes
     assert check_nodes(
         neo4j_session,
         "DynamoDBTable",
-        [
-            "id",
-            "rows",
-            "size",
-            "provisioned_throughput_read_capacity_units",
-            "provisioned_throughput_write_capacity_units",
-            "archival_backup_arn",
-            "archival_date_time",
-            "archival_reason",
-            "billing_mode",
-            "creation_date_time",
-            "last_update_to_pay_per_request_date_time",
-            "latest_stream_arn",
-            "latest_stream_label",
-            "restore_date_time",
-            "restore_in_progress",
-            "source_backup_arn",
-            "source_table_arn",
-            "sse_status",
-            "sse_type",
-            "sse_kms_key_arn",
-            "stream_enabled",
-            "stream_view_type",
-            "table_status",
-        ],
+        ["id", "rows", "size", "table_status"],
     ) == {
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/example-table",
             1000000,
             100000000,
-            10,
-            10,
-            None,
-            None,
-            None,
-            "PROVISIONED",
-            neo4j.time.DateTime(2019, 1, 1, 0, 0, 1),
-            neo4j.time.DateTime(2020, 6, 15, 10, 30, 0),
-            "arn:aws:dynamodb:us-east-1:table/example-table/stream/0000-00-00000:00:00.000",
-            "0000-00-00000:00:00.000",
-            None,
-            None,
-            None,
-            None,
-            "ENABLED",
-            "KMS",
-            "arn:aws:kms:us-east-1:000000000000:key/12345678-1234-1234-1234-123456789012",
-            True,
-            "SAMPLE_STREAM_VIEW_TYPE",
             "ACTIVE",
         ),
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/sample-table",
             1000000,
             100000000,
-            10,
-            10,
-            None,
-            None,
-            None,
-            "PAY_PER_REQUEST",
-            neo4j.time.DateTime(2019, 1, 1, 0, 0, 1),
-            None,
-            "arn:aws:dynamodb:us-east-1:table/sample-table/stream/0000-00-00000:00:00.000",
-            "0000-00-00000:00:00.000",
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
             "ACTIVE",
         ),
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/model-table",
             1000000,
             100000000,
-            10,
-            10,
-            None,
-            None,
-            None,
-            None,
-            neo4j.time.DateTime(2019, 1, 1, 0, 0, 1),
-            None,
-            "arn:aws:dynamodb:us-east-1:table/model-table/stream/0000-00-00000:00:00.000",
-            "0000-00-00000:00:00.000",
-            neo4j.time.DateTime(2021, 3, 10, 14, 25, 0),
-            False,
-            "arn:aws:dynamodb:us-east-1:000000000000:table/model-table/backup/01234567890123-abcdefgh",
-            "arn:aws:dynamodb:us-east-1:000000000000:table/original-model-table",
-            None,
-            None,
-            None,
-            True,
-            "NEW_AND_OLD_IMAGES",
             "ACTIVE",
         ),
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/basic-table",
             1000000,
             100000000,
-            10,
-            10,
-            None,
-            None,
-            None,
-            None,
-            neo4j.time.DateTime(2019, 1, 1, 0, 0, 1),
-            None,
-            "arn:aws:dynamodb:us-east-1:table/basic-table/stream/0000-00-00000:00:00.000",
-            "0000-00-00000:00:00.000",
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
             "ACTIVE",
         ),
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table",
             500000,
             50000000,
-            5,
-            5,
-            "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table/backup/archived-backup-123",
-            neo4j.time.DateTime(2022, 8, 20, 9, 15, 0),
-            "Manual archival by administrator",
-            "PROVISIONED",
-            neo4j.time.DateTime(2018, 1, 1, 0, 0, 1),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
             "ARCHIVED",
         ),
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/encrypted-table",
             750000,
             75000000,
-            25,
-            25,
-            None,
-            None,
-            None,
-            "PROVISIONED",
-            neo4j.time.DateTime(2020, 10, 1, 0, 0, 1),
-            neo4j.time.DateTime(2021, 2, 10, 16, 45, 30),
-            "arn:aws:dynamodb:us-east-1:table/encrypted-table/stream/2021-02-10T16:45:30.000",
-            "2021-02-10T16:45:30.000",
-            None,
-            None,
-            None,
-            None,
-            "ENABLED",
-            "KMS",
-            "arn:aws:kms:us-east-1:000000000000:key/87654321-4321-4321-4321-210987654321",
-            True,
-            "KEYS_ONLY",
             "ACTIVE",
         ),
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table",
             600000,
             60000000,
-            15,
-            15,
-            None,
-            None,
-            None,
-            "PAY_PER_REQUEST",
-            neo4j.time.DateTime(2021, 5, 1, 0, 0, 1),
-            None,
-            None,
-            None,
-            neo4j.time.DateTime(2021, 5, 15, 10, 30, 0),
-            True,
-            "arn:aws:dynamodb:us-east-1:000000000000:table/source-table/backup/backup-456",
-            "arn:aws:dynamodb:us-east-1:000000000000:table/source-table",
-            "ENABLED",
-            "AES256",
-            None,
-            None,
-            None,
             "ACTIVE",
         ),
     }
 
-    # Assert ddb gsi nodes exist
+    # Assert: GSIs
     assert check_nodes(neo4j_session, "DynamoDBGlobalSecondaryIndex", ["id"]) == {
+        ("arn:aws:dynamodb:us-east-1:table/example-table/index/sample_1-index",),
         ("arn:aws:dynamodb:us-east-1:table/example-table/index/sample_2-index",),
+        ("arn:aws:dynamodb:us-east-1:table/sample-table/index/sample_1-index",),
+        ("arn:aws:dynamodb:us-east-1:table/sample-table/index/sample_2-index",),
+        ("arn:aws:dynamodb:us-east-1:table/sample-table/index/sample_3-index",),
+        ("arn:aws:dynamodb:us-east-1:table/model-table/index/sample_1-index",),
         ("arn:aws:dynamodb:us-east-1:table/model-table/index/sample_2-index",),
         ("arn:aws:dynamodb:us-east-1:table/model-table/index/sample_3-index",),
-        ("arn:aws:dynamodb:us-east-1:table/model-table/index/sample_1-index",),
-        ("arn:aws:dynamodb:us-east-1:table/example-table/index/sample_1-index",),
-        ("arn:aws:dynamodb:us-east-1:table/sample-table/index/sample_2-index",),
-        ("arn:aws:dynamodb:us-east-1:table/sample-table/index/sample_1-index",),
-        ("arn:aws:dynamodb:us-east-1:table/sample-table/index/sample_3-index",),
     }
 
-    # Assert AWSAccount -> DynamoDBTable
+    # Assert: Billing entities
+    billing_nodes = check_nodes(
+        neo4j_session, "DynamoDBBillingModeSummary", ["id", "billing_mode"]
+    )
+    assert billing_nodes == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/example-table/billing",
+            "PROVISIONED",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/sample-table/billing",
+            "PAY_PER_REQUEST",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table/billing",
+            "PROVISIONED",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/encrypted-table/billing",
+            "PROVISIONED",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table/billing",
+            "PAY_PER_REQUEST",
+        ),
+    }
+
+    # Assert: Stream entities
+    stream_nodes = check_nodes(
+        neo4j_session, "DynamoDBStream", ["id", "stream_enabled", "stream_view_type"]
+    )
+    assert stream_nodes == {
+        (
+            "arn:aws:dynamodb:us-east-1:table/example-table/stream/0000-00-00000:00:00.000",
+            True,
+            "SAMPLE_STREAM_VIEW_TYPE",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:table/sample-table/stream/0000-00-00000:00:00.000",
+            None,
+            None,
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:table/model-table/stream/0000-00-00000:00:00.000",
+            True,
+            "NEW_AND_OLD_IMAGES",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:table/basic-table/stream/0000-00-00000:00:00.000",
+            None,
+            None,
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:table/encrypted-table/stream/2021-02-10T16:45:30.000",
+            True,
+            "KEYS_ONLY",
+        ),
+    }
+
+    # Assert: SSE entities
+    sse_nodes = check_nodes(
+        neo4j_session,
+        "DynamoDBSSEDescription",
+        ["id", "sse_status", "sse_type", "kms_master_key_arn"],
+    )
+    assert sse_nodes == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/example-table/sse",
+            "ENABLED",
+            "KMS",
+            "arn:aws:kms:us-east-1:000000000000:key/12345678-1234-1234-1234-123456789012",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/encrypted-table/sse",
+            "ENABLED",
+            "KMS",
+            "arn:aws:kms:us-east-1:000000000000:key/87654321-4321-4321-4321-210987654321",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table/sse",
+            "ENABLED",
+            "AES256",
+            None,
+        ),
+    }
+
+    # Assert: Archival entities
+    archival_nodes = check_nodes(
+        neo4j_session, "DynamoDBArchivalSummary", ["id", "archival_reason"]
+    )
+    assert archival_nodes == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table/archival",
+            "Manual archival by administrator",
+        ),
+    }
+
+    # Assert: Restore entities
+    restore_nodes = check_nodes(
+        neo4j_session, "DynamoDBRestoreSummary", ["id", "restore_in_progress"]
+    )
+    assert restore_nodes == {
+        ("arn:aws:dynamodb:us-east-1:000000000000:table/model-table/restore", False),
+        ("arn:aws:dynamodb:us-east-1:000000000000:table/restored-table/restore", True),
+    }
+
+    # Assert: Backup stubs
+    backup_nodes = check_nodes(neo4j_session, "DynamoDBBackup", ["id"])
+    assert backup_nodes == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table/backup/archived-backup-123",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/model-table/backup/01234567890123-abcdefgh",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/source-table/backup/backup-456",
+        ),
+    }
+
+    # Assert: AWSAccount -> DynamoDBTable
     assert check_rels(
         neo4j_session,
         "DynamoDBTable",
@@ -372,7 +335,173 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         ),
     }
 
-    # Arrange: load in an unrelated EC2 instance. This should not be affected by the DynamoDB module's cleanup job.
+    # Assert: Billing relationships
+    billing_rels = check_rels(
+        neo4j_session,
+        "DynamoDBTable",
+        "id",
+        "DynamoDBBillingModeSummary",
+        "id",
+        "HAS_BILLING",
+        rel_direction_right=True,
+    )
+    assert billing_rels == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/example-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/example-table/billing",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/sample-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/sample-table/billing",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table/billing",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/encrypted-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/encrypted-table/billing",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table/billing",
+        ),
+    }
+
+    # Assert: Stream relationships
+    stream_rels = check_rels(
+        neo4j_session,
+        "DynamoDBTable",
+        "id",
+        "DynamoDBStream",
+        "id",
+        "LATEST_STREAM",
+        rel_direction_right=True,
+    )
+    assert stream_rels == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/example-table",
+            "arn:aws:dynamodb:us-east-1:table/example-table/stream/0000-00-00000:00:00.000",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/sample-table",
+            "arn:aws:dynamodb:us-east-1:table/sample-table/stream/0000-00-00000:00:00.000",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/model-table",
+            "arn:aws:dynamodb:us-east-1:table/model-table/stream/0000-00-00000:00:00.000",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/basic-table",
+            "arn:aws:dynamodb:us-east-1:table/basic-table/stream/0000-00-00000:00:00.000",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/encrypted-table",
+            "arn:aws:dynamodb:us-east-1:table/encrypted-table/stream/2021-02-10T16:45:30.000",
+        ),
+    }
+
+    # Assert: SSE relationships
+    sse_rels = check_rels(
+        neo4j_session,
+        "DynamoDBTable",
+        "id",
+        "DynamoDBSSEDescription",
+        "id",
+        "HAS_SSE",
+        rel_direction_right=True,
+    )
+    assert sse_rels == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/example-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/example-table/sse",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/encrypted-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/encrypted-table/sse",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table/sse",
+        ),
+    }
+
+    # Assert: Archival relationships
+    archival_rels = check_rels(
+        neo4j_session,
+        "DynamoDBTable",
+        "id",
+        "DynamoDBArchivalSummary",
+        "id",
+        "HAS_ARCHIVAL",
+        rel_direction_right=True,
+    )
+    assert archival_rels == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table/archival",
+        ),
+    }
+
+    # Assert: Restore relationships
+    restore_rels = check_rels(
+        neo4j_session,
+        "DynamoDBTable",
+        "id",
+        "DynamoDBRestoreSummary",
+        "id",
+        "HAS_RESTORE",
+        rel_direction_right=True,
+    )
+    assert restore_rels == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/model-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/model-table/restore",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table/restore",
+        ),
+    }
+
+    # Archival -> Backup
+    archival_backup_rels = check_rels(
+        neo4j_session,
+        "DynamoDBArchivalSummary",
+        "id",
+        "DynamoDBBackup",
+        "id",
+        "ARCHIVED_TO_BACKUP",
+        rel_direction_right=True,
+    )
+    assert archival_backup_rels == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table/archival",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/archived-table/backup/archived-backup-123",
+        ),
+    }
+
+    # Restore -> Backup
+    restore_backup_rels = check_rels(
+        neo4j_session,
+        "DynamoDBRestoreSummary",
+        "id",
+        "DynamoDBBackup",
+        "id",
+        "RESTORED_FROM_BACKUP",
+        rel_direction_right=True,
+    )
+    assert restore_backup_rels == {
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/model-table/restore",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/model-table/backup/01234567890123-abcdefgh",
+        ),
+        (
+            "arn:aws:dynamodb:us-east-1:000000000000:table/restored-table/restore",
+            "arn:aws:dynamodb:us-east-1:000000000000:table/source-table/backup/backup-456",
+        ),
+    }
+
     neo4j_session.run(
         """
         MERGE (i:EC2Instance{id:1234, lastupdated: $lastupdated})<-[r:RESOURCE]-(:AWSAccount{id: $aws_account_id})
@@ -395,25 +524,31 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         (TEST_ACCOUNT_ID, 1234),
     }
 
-    # Act: run the cleanup job
+    # Act: Run cleanup with a NEW update tag (simulating a subsequent sync where these resources are gone)
     common_job_parameters = {
-        "UPDATE_TAG": TEST_UPDATE_TAG
-        + 1,  # Simulate a new sync run finished so the old update tag is obsolete now
+        "UPDATE_TAG": TEST_UPDATE_TAG + 1,
         "AWS_ID": TEST_ACCOUNT_ID,
         # Add in extra params that may have been added by other modules.
         # Expectation: These should not affect cleanup job execution.
         "permission_relationships_file": "/path/to/perm/rels/file",
         "OKTA_ORG_ID": "my-org-id",
     }
-    cartography.intel.aws.dynamodb.cleanup_dynamodb_tables(
+    cartography.intel.aws.dynamodb.cleanup_dynamodb(
         neo4j_session,
         common_job_parameters,
     )
 
-    # Assert: Expect no ddb nodes in the graph now
+    # Assert: All DynamoDB nodes should be cleaned up (because they have the OLD update tag)
     assert check_nodes(neo4j_session, "DynamoDBTable", ["id"]) == set()
     assert check_nodes(neo4j_session, "DynamoDBGlobalSecondaryIndex", ["id"]) == set()
-    # Assert: Expect that the unrelated EC2 instance was not touched by the cleanup job
+    assert check_nodes(neo4j_session, "DynamoDBBillingModeSummary", ["id"]) == set()
+    assert check_nodes(neo4j_session, "DynamoDBStream", ["id"]) == set()
+    assert check_nodes(neo4j_session, "DynamoDBSSEDescription", ["id"]) == set()
+    assert check_nodes(neo4j_session, "DynamoDBArchivalSummary", ["id"]) == set()
+    assert check_nodes(neo4j_session, "DynamoDBRestoreSummary", ["id"]) == set()
+    assert check_nodes(neo4j_session, "DynamoDBBackup", ["id"]) == set()
+
+    # Assert: The unrelated EC2 instance should STILL EXIST
     assert check_rels(
         neo4j_session,
         "AWSAccount",
@@ -422,111 +557,4 @@ def test_load_dynamodb(mock_get_instances, neo4j_session):
         "id",
         "RESOURCE",
         rel_direction_right=True,
-    ) == {
-        (TEST_ACCOUNT_ID, 1234),
-    }
-
-
-@patch.object(
-    cartography.intel.aws.dynamodb,
-    "get_dynamodb_tables",
-    return_value=tests.data.aws.dynamodb.LIST_DYNAMODB_TABLES["Tables"],
-)
-def test_load_dynamodb_table_properties(mock_get_instances, neo4j_session):
-    """
-    Test that new DynamoDB table properties are loaded correctly
-    """
-    # Arrange
-    boto3_session = MagicMock()
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-
-    # Act
-    cartography.intel.aws.dynamodb.sync_dynamodb_tables(
-        neo4j_session,
-        boto3_session,
-        [TEST_REGION],
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    # Assert: Check that table with streams has stream properties set
-    result = neo4j_session.run(
-        """
-        MATCH (t:DynamoDBTable{id: $table_arn})
-        RETURN t.stream_enabled as stream_enabled,
-               t.stream_view_type as stream_view_type,
-               t.latest_stream_arn as latest_stream_arn,
-               t.latest_stream_label as latest_stream_label,
-               t.table_status as table_status,
-               t.creation_date_time as creation_date_time
-        """,
-        table_arn="arn:aws:dynamodb:us-east-1:000000000000:table/example-table",
-    ).single()
-
-    assert result["stream_enabled"] is True
-    assert result["stream_view_type"] == "SAMPLE_STREAM_VIEW_TYPE"
-    assert (
-        result["latest_stream_arn"]
-        == "arn:aws:dynamodb:us-east-1:table/example-table/stream/0000-00-00000:00:00.000"
-    )
-    assert result["latest_stream_label"] == "0000-00-00000:00:00.000"
-    assert result["table_status"] == "ACTIVE"
-    assert result["creation_date_time"] is not None
-
-    # Assert: Check that table without streams still loads correctly
-    result = neo4j_session.run(
-        """
-        MATCH (t:DynamoDBTable{id: $table_arn})
-        RETURN t.stream_enabled as stream_enabled,
-               t.stream_view_type as stream_view_type,
-               t.table_status as table_status
-        """,
-        table_arn="arn:aws:dynamodb:us-east-1:000000000000:table/sample-table",
-    ).single()
-
-    assert result["stream_enabled"] is None
-    assert result["stream_view_type"] is None
-    assert result["table_status"] == "ACTIVE"
-
-
-@patch.object(
-    cartography.intel.aws.dynamodb,
-    "get_dynamodb_tables",
-    return_value=tests.data.aws.dynamodb.LIST_DYNAMODB_TABLES["Tables"],
-)
-def test_load_dynamodb_encryption_properties(mock_get_instances, neo4j_session):
-    """
-    Test that encryption properties can be loaded (using None values for test data that doesn't have them)
-    """
-    # Arrange
-    boto3_session = MagicMock()
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-
-    # Act
-    cartography.intel.aws.dynamodb.sync_dynamodb_tables(
-        neo4j_session,
-        boto3_session,
-        [TEST_REGION],
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    # Assert: Check that encryption properties are present and correct
-    result = neo4j_session.run(
-        """
-        MATCH (t:DynamoDBTable{id: $table_arn})
-        RETURN t.sse_status as sse_status,
-               t.sse_type as sse_type,
-               t.sse_kms_key_arn as sse_kms_key_arn
-        """,
-        table_arn="arn:aws:dynamodb:us-east-1:000000000000:table/example-table",
-    ).single()
-
-    assert result["sse_status"] == "ENABLED"
-    assert result["sse_type"] == "KMS"
-    assert (
-        result["sse_kms_key_arn"]
-        == "arn:aws:kms:us-east-1:000000000000:key/12345678-1234-1234-1234-123456789012"
-    )
+    ) == {(TEST_ACCOUNT_ID, 1234)}
