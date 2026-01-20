@@ -18,9 +18,13 @@ logger = logging.getLogger(__name__)
 @timeit
 def get_gcp_cloud_functions(
     project_id: str, functions_client: Resource
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
     Fetches raw GCP Cloud Functions data for a given project.
+
+    Returns:
+        list[dict[str, Any]]: List of cloud functions (empty list if project has no functions)
+        None: If API access is denied or API is not enabled (to signal that sync should be skipped)
     """
     logger.info(f"Collecting Cloud Functions for project: {project_id}")
     collected_functions: list[dict[str, Any]] = []
@@ -51,12 +55,12 @@ def get_gcp_cloud_functions(
         ):
             logger.warning(
                 "Could not retrieve Cloud Functions on project %s due to permissions "
-                "issues or API not enabled. Code: %s, Message: %s",
+                "issues or API not enabled. Code: %s, Message: %s. Skipping sync to preserve existing data.",
                 project_id,
                 err.get("code"),
                 err.get("message"),
             )
-            return []
+            return None
         else:
             raise
 
@@ -156,12 +160,17 @@ def sync(
     logger.info(f"Syncing GCP Cloud Functions for project {project_id}.")
 
     functions_data = get_gcp_cloud_functions(project_id, functions_client)
-    if functions_data:
-        transformed_functions = transform_gcp_cloud_functions(functions_data)
-        load_gcp_cloud_functions(
-            neo4j_session, transformed_functions, project_id, update_tag
-        )
 
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["projectId"] = project_id
-    cleanup_gcp_cloud_functions(neo4j_session, cleanup_job_params)
+    # Only load and cleanup if we successfully retrieved data (even if empty list of functions)
+    # If get() returned None due to permission/API errors, we skip both load and cleanup
+    # to avoid deleting previously ingested data
+    if functions_data is not None:
+        if functions_data:
+            transformed_functions = transform_gcp_cloud_functions(functions_data)
+            load_gcp_cloud_functions(
+                neo4j_session, transformed_functions, project_id, update_tag
+            )
+
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["projectId"] = project_id
+        cleanup_gcp_cloud_functions(neo4j_session, cleanup_job_params)

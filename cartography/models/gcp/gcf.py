@@ -15,12 +15,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class GCPCloudFunctionProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("name", extra_index=True)
     name: PropertyRef = PropertyRef("name")
-    display_name: PropertyRef = PropertyRef("displayName")
     description: PropertyRef = PropertyRef("description")
     runtime: PropertyRef = PropertyRef("runtime")
     entry_point: PropertyRef = PropertyRef("entryPoint")
-    status: PropertyRef = PropertyRef("state")
-    create_time: PropertyRef = PropertyRef("createTime")
+    status: PropertyRef = PropertyRef("status")
     update_time: PropertyRef = PropertyRef("updateTime")
     service_account_email: PropertyRef = PropertyRef("serviceAccountEmail")
     https_trigger_url: PropertyRef = PropertyRef("https_trigger_url")
