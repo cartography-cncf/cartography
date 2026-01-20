@@ -18,6 +18,8 @@ from . import data_factory_linked_service
 from . import data_factory_pipeline
 from . import data_lake
 from . import event_grid
+from . import event_hub
+from . import event_hub_namespace
 from . import functions
 from . import key_vaults
 from . import load_balancers
@@ -133,6 +135,21 @@ def _sync_one_subscription(
     aks.sync(
         neo4j_session,
         credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    namespaces = event_hub_namespace.sync_event_hub_namespaces(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    event_hub.sync_event_hubs(
+        neo4j_session,
+        credentials,
+        namespaces,
         subscription_id,
         update_tag,
         common_job_parameters,

@@ -528,6 +528,21 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-eventhub"
+version = "11.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/04/41/5080742de3a0c7a2c579fcf6995c531d48a83f9c588b52334b41bd84d666/azure_mgmt_eventhub-11.2.0.tar.gz", hash = "sha256:31c47f18f73d2d83345cde5909568e28858c2548a35b10e23194b4767a9ce7e3", size = 626966, upload-time = "2025-01-21T07:06:47.256Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f8/a0/1142295958af5531f394662adda09ec49f0583f04475b977b4b22373336a/azure_mgmt_eventhub-11.2.0-py3-none-any.whl", hash = "sha256:a7e2618eca58d8e52c7ff7d4a04a4fae12685351746e6d01b933b43e7ea3b906", size = 1054754, upload-time = "2025-01-21T07:06:49.056Z" },
+]
+
+[[package]]
 name = "azure-mgmt-keyvault"
 version = "13.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -844,6 +859,7 @@ dependencies = [
     { name = "azure-mgmt-cosmosdb" },
     { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-eventgrid" },
+    { name = "azure-mgmt-eventhub" },
     { name = "azure-mgmt-keyvault" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
@@ -898,6 +914,7 @@ dev = [
     { name = "azure-mgmt-containerservice" },
     { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-eventgrid" },
+    { name = "azure-mgmt-eventhub" },
     { name = "azure-mgmt-keyvault" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
@@ -945,6 +962,7 @@ requires-dist = [
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
     { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-eventhub", specifier = ">=10.1.0" },
     { name = "azure-mgmt-keyvault", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
@@ -999,6 +1017,7 @@ dev = [
     { name = "azure-mgmt-containerservice", specifier = ">=30.0.0" },
     { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-eventhub", specifier = ">=10.1.0" },
     { name = "azure-mgmt-keyvault", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
