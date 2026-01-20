@@ -12,7 +12,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageManifestNodeProperties(CartographyNodeProperties):
+class GCPArtifactRegistryPlatformImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     digest: PropertyRef = PropertyRef("digest")
     architecture: PropertyRef = PropertyRef("architecture")
@@ -27,54 +27,54 @@ class GCPArtifactRegistryImageManifestNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageManifestToProjectRelProperties(CartographyRelProperties):
+class GCPArtifactRegistryPlatformImageToProjectRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:GCPProject)-[:RESOURCE]->(:GCPArtifactRegistryImageManifest)
-class GCPArtifactRegistryImageManifestToProjectRel(CartographyRelSchema):
+# (:GCPProject)-[:RESOURCE]->(:GCPArtifactRegistryPlatformImage)
+class GCPArtifactRegistryPlatformImageToProjectRel(CartographyRelSchema):
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPArtifactRegistryImageManifestToProjectRelProperties = (
-        GCPArtifactRegistryImageManifestToProjectRelProperties()
+    properties: GCPArtifactRegistryPlatformImageToProjectRelProperties = (
+        GCPArtifactRegistryPlatformImageToProjectRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageManifestToArtifactRelProperties(CartographyRelProperties):
+class GCPArtifactRegistryPlatformImageToArtifactRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:GCPArtifactRegistryDockerImage)-[:HAS_MANIFEST]->(:GCPArtifactRegistryImageManifest)
-class GCPArtifactRegistryImageManifestToDockerImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryDockerImage"
+# (:GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(:GCPArtifactRegistryPlatformImage)
+class GCPArtifactRegistryPlatformImageToDockerImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("parent_artifact_id")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_MANIFEST"
-    properties: GCPArtifactRegistryImageManifestToArtifactRelProperties = (
-        GCPArtifactRegistryImageManifestToArtifactRelProperties()
+    properties: GCPArtifactRegistryPlatformImageToArtifactRelProperties = (
+        GCPArtifactRegistryPlatformImageToArtifactRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryImageManifestSchema(CartographyNodeSchema):
-    label: str = "GCPArtifactRegistryImageManifest"
-    properties: GCPArtifactRegistryImageManifestNodeProperties = (
-        GCPArtifactRegistryImageManifestNodeProperties()
+class GCPArtifactRegistryPlatformImageSchema(CartographyNodeSchema):
+    label: str = "GCPArtifactRegistryPlatformImage"
+    properties: GCPArtifactRegistryPlatformImageNodeProperties = (
+        GCPArtifactRegistryPlatformImageNodeProperties()
     )
-    sub_resource_relationship: GCPArtifactRegistryImageManifestToProjectRel = (
-        GCPArtifactRegistryImageManifestToProjectRel()
+    sub_resource_relationship: GCPArtifactRegistryPlatformImageToProjectRel = (
+        GCPArtifactRegistryPlatformImageToProjectRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            GCPArtifactRegistryImageManifestToDockerImageRel(),
+            GCPArtifactRegistryPlatformImageToDockerImageRel(),
         ]
     )

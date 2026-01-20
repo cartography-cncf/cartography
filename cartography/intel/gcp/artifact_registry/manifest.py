@@ -8,8 +8,8 @@ from google.auth.transport.requests import Request
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.gcp.artifact_registry.manifest import (
-    GCPArtifactRegistryImageManifestSchema,
+from cartography.models.gcp.artifact_registry.platform_image import (
+    GCPArtifactRegistryPlatformImageSchema,
 )
 from cartography.util import timeit
 
@@ -153,11 +153,11 @@ def load_manifests(
     update_tag: int,
 ) -> None:
     """
-    Loads GCPArtifactRegistryImageManifest nodes and their relationships.
+    Loads GCPArtifactRegistryPlatformImage nodes and their relationships.
     """
     load(
         neo4j_session,
-        GCPArtifactRegistryImageManifestSchema(),
+        GCPArtifactRegistryPlatformImageSchema(),
         data,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
@@ -172,7 +172,7 @@ def cleanup_manifests(
     Cleans up stale Artifact Registry image manifests.
     """
     GraphJob.from_node_schema(
-        GCPArtifactRegistryImageManifestSchema(), common_job_parameters
+        GCPArtifactRegistryPlatformImageSchema(), common_job_parameters
     ).run(neo4j_session)
 
 

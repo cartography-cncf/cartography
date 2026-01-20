@@ -53,9 +53,6 @@ def sync(
         common_job_parameters,
     )
 
-    if not repositories_raw:
-        return
-
     # Sync artifacts for all repositories
     artifacts_raw = sync_artifact_registry_artifacts(
         neo4j_session,
@@ -65,9 +62,6 @@ def sync(
         update_tag,
         common_job_parameters,
     )
-
-    if not artifacts_raw:
-        return
 
     # Sync manifests for multi-arch Docker images
     sync_artifact_registry_manifests(

@@ -11,8 +11,8 @@ from cartography.graph.job import GraphJob
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
 )
-from cartography.models.gcp.artifact_registry.docker_image import (
-    GCPArtifactRegistryDockerImageSchema,
+from cartography.models.gcp.artifact_registry.container_image import (
+    GCPArtifactRegistryContainerImageSchema,
 )
 from cartography.models.gcp.artifact_registry.helm_chart import (
     GCPArtifactRegistryHelmChartSchema,
@@ -311,7 +311,7 @@ def transform_docker_images(
     project_id: str,
 ) -> list[dict]:
     """
-    Transforms Docker images to the GCPArtifactRegistryDockerImage node format.
+    Transforms Docker images to the GCPArtifactRegistryContainerImage node format.
     """
     transformed: list[dict] = []
     for image in images_data:
@@ -611,11 +611,11 @@ def load_docker_images(
     update_tag: int,
 ) -> None:
     """
-    Loads GCPArtifactRegistryDockerImage nodes and their relationships.
+    Loads GCPArtifactRegistryContainerImage nodes and their relationships.
     """
     load(
         neo4j_session,
-        GCPArtifactRegistryDockerImageSchema(),
+        GCPArtifactRegistryContainerImageSchema(),
         data,
         lastupdated=update_tag,
         PROJECT_ID=project_id,
@@ -630,7 +630,7 @@ def cleanup_docker_images(
     Cleans up stale Docker image nodes.
     """
     GraphJob.from_node_schema(
-        GCPArtifactRegistryDockerImageSchema(), common_job_parameters
+        GCPArtifactRegistryContainerImageSchema(), common_job_parameters
     ).run(neo4j_session)
 
 

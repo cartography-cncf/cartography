@@ -12,7 +12,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryDockerImageNodeProperties(CartographyNodeProperties):
+class GCPArtifactRegistryContainerImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     uri: PropertyRef = PropertyRef("uri")
@@ -29,54 +29,56 @@ class GCPArtifactRegistryDockerImageNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryDockerImageToProjectRelProperties(CartographyRelProperties):
+class GCPArtifactRegistryContainerImageToProjectRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:GCPProject)-[:RESOURCE]->(:GCPArtifactRegistryDockerImage)
-class GCPArtifactRegistryDockerImageToProjectRel(CartographyRelSchema):
+# (:GCPProject)-[:RESOURCE]->(:GCPArtifactRegistryContainerImage)
+class GCPArtifactRegistryContainerImageToProjectRel(CartographyRelSchema):
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PROJECT_ID", set_in_kwargs=True)}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: GCPArtifactRegistryDockerImageToProjectRelProperties = (
-        GCPArtifactRegistryDockerImageToProjectRelProperties()
+    properties: GCPArtifactRegistryContainerImageToProjectRelProperties = (
+        GCPArtifactRegistryContainerImageToProjectRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryDockerImageToRepositoryRelProperties(CartographyRelProperties):
+class GCPArtifactRegistryContainerImageToRepositoryRelProperties(
+    CartographyRelProperties
+):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:GCPArtifactRegistryRepository)-[:CONTAINS]->(:GCPArtifactRegistryDockerImage)
-class GCPArtifactRegistryDockerImageToRepositoryRel(CartographyRelSchema):
+# (:GCPArtifactRegistryRepository)-[:CONTAINS]->(:GCPArtifactRegistryContainerImage)
+class GCPArtifactRegistryContainerImageToRepositoryRel(CartographyRelSchema):
     target_node_label: str = "GCPArtifactRegistryRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("repository_id")}
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "CONTAINS"
-    properties: GCPArtifactRegistryDockerImageToRepositoryRelProperties = (
-        GCPArtifactRegistryDockerImageToRepositoryRelProperties()
+    properties: GCPArtifactRegistryContainerImageToRepositoryRelProperties = (
+        GCPArtifactRegistryContainerImageToRepositoryRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class GCPArtifactRegistryDockerImageSchema(CartographyNodeSchema):
-    label: str = "GCPArtifactRegistryDockerImage"
-    properties: GCPArtifactRegistryDockerImageNodeProperties = (
-        GCPArtifactRegistryDockerImageNodeProperties()
+class GCPArtifactRegistryContainerImageSchema(CartographyNodeSchema):
+    label: str = "GCPArtifactRegistryContainerImage"
+    properties: GCPArtifactRegistryContainerImageNodeProperties = (
+        GCPArtifactRegistryContainerImageNodeProperties()
     )
-    sub_resource_relationship: GCPArtifactRegistryDockerImageToProjectRel = (
-        GCPArtifactRegistryDockerImageToProjectRel()
+    sub_resource_relationship: GCPArtifactRegistryContainerImageToProjectRel = (
+        GCPArtifactRegistryContainerImageToProjectRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            GCPArtifactRegistryDockerImageToRepositoryRel(),
+            GCPArtifactRegistryContainerImageToRepositoryRel(),
         ]
     )
