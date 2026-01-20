@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
-    "Services", "compute storage gke dns iam bigtable cai aiplatform cloud_sql gcf"
+    "Services", "compute storage gke dns iam bigtable cai aiplatform cloud_sql bigquery gcf"
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -68,6 +68,7 @@ service_names = Services(
     cai="cloudasset.googleapis.com",
     aiplatform="aiplatform.googleapis.com",
     cloud_sql="sqladmin.googleapis.com",
+    bigquery="bigquery.googleapis.com",
     gcf="cloudfunctions.googleapis.com",
 )
 
@@ -178,6 +179,20 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
+
+        # Check if BigQuery API is enabled before syncing
+        if service_names.bigquery in enabled_services:
+            logger.info("Syncing GCP project %s for BigQuery.", project_id)
+            from cartography.intel.gcp import bigquery
+            bigquery.sync(
+                neo4j_session,
+                project_id,
+                gcp_update_tag,
+                credentials,
+                common_job_parameters,
+            )
+        else:
+            logger.debug("BigQuery API not enabled for project %s; skipping sync.", project_id)
 
         if service_names.gke in enabled_services:
             logger.info("Syncing GCP project %s for GKE.", project_id)
