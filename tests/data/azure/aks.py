@@ -8,6 +8,7 @@ MOCK_CLUSTERS = [
             "kubernetes_version": "1.28.5",
             "fqdn": "my-test-aks-cluster-dns-abcdef.hcp.eastus.azmk8s.io",
         },
+        "tags": {"env": "prod", "service": "aks"},
     },
 ]
 

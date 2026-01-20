@@ -1293,3 +1293,38 @@ Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.co
     ```
     (GCPCloudSQLInstance)-[:HAS_BACKUP_CONFIG]->(GCPCloudSQLBackupConfiguration)
     ```
+
+### GCPCloudFunction
+
+Representation of a Google [Cloud Function](https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions) (v1 API).
+
+| Field                 | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| id                    | The full, unique resource name of the function.                             |
+| name                  | The full, unique resource name of the function (same as id).                |
+| description           | User-provided description of the function.                                  |
+| runtime               | The language runtime environment for the function (e.g., python310).        |
+| entry_point           | The name of the function within the source code to be executed.             |
+| status                | The current state of the function (e.g., ACTIVE, OFFLINE, DEPLOY_IN_PROGRESS). |
+| update_time           | The timestamp when the function was last modified.                          |
+| service_account_email | The email of the service account the function runs as.                      |
+| https_trigger_url     | The public URL if the function is triggered by an HTTP request.             |
+| event_trigger_type    | The type of event that triggers the function (e.g., a Pub/Sub message).     |
+| event_trigger_resource| The specific resource the event trigger monitors.                           |
+| project_id            | The ID of the GCP project to which the function belongs.                    |
+| region                | The GCP region where the function is deployed.                              |
+| lastupdated           | Timestamp of when the data was last updated in the graph.                   |
+
+#### Relationships
+
+- GCPCloudFunctions are resources of GCPProjects.
+
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudFunction)
+    ```
+
+- GCPCloudFunctions run as GCPServiceAccounts.
+
+    ```
+    (GCPCloudFunction)-[:RUNS_AS]->(GCPServiceAccount)
+    ```
