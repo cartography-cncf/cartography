@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import neo4j
+from azure.core.exceptions import HttpResponseError
 from azure.keyvault.certificates import CertificateClient
 from azure.keyvault.keys import KeyClient
 from azure.keyvault.secrets import SecretClient
@@ -325,30 +326,47 @@ def sync(
         vault_id = vault["id"]
         vault_uri = vault.get("vault_uri")
         if vault_uri:
-            sync_secrets(
-                neo4j_session,
-                credentials,
-                subscription_id,
-                vault_id,
-                vault_uri,
-                update_tag,
-                common_job_parameters,
-            )
-            sync_keys(
-                neo4j_session,
-                credentials,
-                subscription_id,
-                vault_id,
-                vault_uri,
-                update_tag,
-                common_job_parameters,
-            )
-            sync_certificates(
-                neo4j_session,
-                credentials,
-                subscription_id,
-                vault_id,
-                vault_uri,
-                update_tag,
-                common_job_parameters,
-            )
+            try:
+                sync_secrets(
+                    neo4j_session,
+                    credentials,
+                    subscription_id,
+                    vault_id,
+                    vault_uri,
+                    update_tag,
+                    common_job_parameters,
+                )
+            except HttpResponseError as e:
+                logger.warning(
+                    f"Failed to sync secrets for vault {vault_id}: {e}. Continuing with other vaults."
+                )
+
+            try:
+                sync_keys(
+                    neo4j_session,
+                    credentials,
+                    subscription_id,
+                    vault_id,
+                    vault_uri,
+                    update_tag,
+                    common_job_parameters,
+                )
+            except HttpResponseError as e:
+                logger.warning(
+                    f"Failed to sync keys for vault {vault_id}: {e}. Continuing with other vaults."
+                )
+
+            try:
+                sync_certificates(
+                    neo4j_session,
+                    credentials,
+                    subscription_id,
+                    vault_id,
+                    vault_uri,
+                    update_tag,
+                    common_job_parameters,
+                )
+            except HttpResponseError as e:
+                logger.warning(
+                    f"Failed to sync certificates for vault {vault_id}: {e}. Continuing with other vaults."
+                )
