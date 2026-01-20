@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class DynamoDBSSEDescriptionNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("Id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    sse_status: PropertyRef = PropertyRef("SSEStatus")
+    sse_status: PropertyRef = PropertyRef("SSEStatus",extra_index=True)
     sse_type: PropertyRef = PropertyRef("SSEType")
     kms_master_key_arn: PropertyRef = PropertyRef("KMSMasterKeyArn")
 
