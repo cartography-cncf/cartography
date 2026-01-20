@@ -2,7 +2,7 @@ import logging
 from typing import Any
 
 import neo4j
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import ResourceNotFoundError
 from azure.keyvault.certificates import CertificateClient
 from azure.keyvault.keys import KeyClient
 from azure.keyvault.secrets import SecretClient
@@ -326,6 +326,9 @@ def sync(
         vault_id = vault["id"]
         vault_uri = vault.get("vault_uri")
         if vault_uri:
+            # Sync secrets, keys, and certificates for this vault
+            # Per AGENTS.md: Let errors propagate to surface systemic failures
+            # Only catch ResourceNotFoundError for vaults that were deleted between list and access
             try:
                 sync_secrets(
                     neo4j_session,
@@ -336,10 +339,11 @@ def sync(
                     update_tag,
                     common_job_parameters,
                 )
-            except HttpResponseError as e:
+            except ResourceNotFoundError:
                 logger.warning(
-                    f"Failed to sync secrets for vault {vault_id}: {e}. Continuing with other vaults."
+                    f"Vault {vault_id} not found when syncing secrets, likely deleted. Skipping."
                 )
+                continue
 
             try:
                 sync_keys(
@@ -351,10 +355,11 @@ def sync(
                     update_tag,
                     common_job_parameters,
                 )
-            except HttpResponseError as e:
+            except ResourceNotFoundError:
                 logger.warning(
-                    f"Failed to sync keys for vault {vault_id}: {e}. Continuing with other vaults."
+                    f"Vault {vault_id} not found when syncing keys, likely deleted. Skipping."
                 )
+                continue
 
             try:
                 sync_certificates(
@@ -366,7 +371,7 @@ def sync(
                     update_tag,
                     common_job_parameters,
                 )
-            except HttpResponseError as e:
+            except ResourceNotFoundError:
                 logger.warning(
-                    f"Failed to sync certificates for vault {vault_id}: {e}. Continuing with other vaults."
+                    f"Vault {vault_id} not found when syncing certificates, likely deleted. Skipping."
                 )
