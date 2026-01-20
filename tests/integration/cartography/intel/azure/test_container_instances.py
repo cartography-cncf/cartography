@@ -68,3 +68,61 @@ def test_sync_container_instances(mock_get, neo4j_session):
         "RESOURCE",
     )
     assert actual_rels == expected_rels
+
+
+def test_load_container_instance_tags(neo4j_session):
+    """
+    Test that we can correctly sync Azure Container Instance tags.
+    """
+    # 1. Arrange: Create the prerequisite AzureSubscription node
+    neo4j_session.run(
+        """
+        MERGE (s:AzureSubscription{id: $sub_id})
+        SET s.lastupdated = $update_tag
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    transformed_data = container_instances.transform_container_instances(
+        MOCK_CONTAINER_GROUPS
+    )
+
+    container_instances.load_container_instances(
+        neo4j_session, transformed_data, TEST_SUBSCRIPTION_ID, TEST_UPDATE_TAG
+    )
+
+    # 2. Act: Load the tags
+    container_instances.load_container_instance_tags(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        transformed_data,
+        TEST_UPDATE_TAG,
+    )
+
+    # 3. Assert: Check for the 2 unique tags
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:container-instance",
+    }
+    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # 4. Assert: Check the relationship
+    expected_rels = {
+        (MOCK_CONTAINER_GROUPS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (
+            MOCK_CONTAINER_GROUPS[0]["id"],
+            f"{TEST_SUBSCRIPTION_ID}|service:container-instance",
+        ),
+    }
+    actual_rels = check_rels(
+        neo4j_session,
+        "AzureContainerInstance",
+        "id",
+        "AzureTag",
+        "id",
+        "TAGGED",
+    )
+    assert actual_rels == expected_rels

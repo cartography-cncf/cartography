@@ -7,5 +7,6 @@ MOCK_TOPICS = [
             "provisioning_state": "Succeeded",
             "public_network_access": "Enabled",
         },
+        "tags": {"env": "prod", "service": "event-grid"},
     },
 ]
