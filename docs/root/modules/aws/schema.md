@@ -1100,6 +1100,8 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 | is_organization_trail | Indicates if the CloudTrailTrail is an organization trail. |
 | kms_key_id | The AWS KMS key ID that encrypts the CloudTrailTrail's delivered logs. |
 | log_file_validation_enabled | Indicates if log file validation is enabled for the CloudTrailTrail. |
+| event_selectors | JSON array of event selectors configured for the CloudTrailTrail. |
+| advanced_event_selectors | JSON array of advanced event selectors configured for the CloudTrailTrail. |
 | name | The name of the CloudTrailTrail. |
 | s3_bucket_name | The Amazon S3 bucket name where the CloudTrailTrail delivers files. |
 | s3_key_prefix | The S3 key prefix used after the bucket name for the CloudTrailTrail's log files. |

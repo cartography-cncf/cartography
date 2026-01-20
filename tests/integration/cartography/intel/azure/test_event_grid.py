@@ -68,3 +68,57 @@ def test_sync_event_grid_topics(mock_get, neo4j_session):
         "RESOURCE",
     )
     assert actual_rels == expected_rels
+
+
+def test_load_event_grid_topic_tags(neo4j_session):
+    """
+    Test that tags are correctly loaded for Event Grid Topics.
+    """
+    # 1. Arrange
+    neo4j_session.run(
+        """
+        MERGE (s:AzureSubscription{id: $sub_id})
+        SET s.lastupdated = $update_tag
+        """,
+        sub_id=TEST_SUBSCRIPTION_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+    # Load topic so it exists to be tagged
+    event_grid.load_event_grid_topics(
+        neo4j_session,
+        event_grid.transform_event_grid_topics(MOCK_TOPICS),
+        TEST_SUBSCRIPTION_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # 2. Act
+    event_grid.load_event_grid_topic_tags(
+        neo4j_session,
+        TEST_SUBSCRIPTION_ID,
+        MOCK_TOPICS,
+        TEST_UPDATE_TAG,
+    )
+
+    # 3. Assert: Check for tags
+    expected_tags = {
+        f"{TEST_SUBSCRIPTION_ID}|env:prod",
+        f"{TEST_SUBSCRIPTION_ID}|service:event-grid",
+    }
+    tag_nodes = neo4j_session.run("MATCH (t:AzureTag) RETURN t.id")
+    actual_tags = {n["t.id"] for n in tag_nodes}
+    assert actual_tags == expected_tags
+
+    # 4. Assert: Check the relationship
+    expected_rels = {
+        (MOCK_TOPICS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|env:prod"),
+        (MOCK_TOPICS[0]["id"], f"{TEST_SUBSCRIPTION_ID}|service:event-grid"),
+    }
+    actual_rels = check_rels(
+        neo4j_session,
+        "AzureEventGridTopic",
+        "id",
+        "AzureTag",
+        "id",
+        "TAGGED",
+    )
+    assert actual_rels == expected_rels
