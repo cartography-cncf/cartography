@@ -11,5 +11,6 @@ MOCK_CONTAINER_GROUPS = [
             },
             "os_type": "Linux",
         },
+        "tags": {"env": "prod", "service": "container-instance"},
     },
 ]
