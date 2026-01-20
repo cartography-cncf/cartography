@@ -1726,14 +1726,6 @@ Representation of an [Azure Kubernetes Service Agent Pool](https://learn.microso
     (AzureKubernetesCluster)-[:HAS_AGENT_POOL]->(:AzureKubernetesAgentPool)
     ```
 
-#### Relationships
-
-- An Azure Storage Account contains one or more File Systems.
-
-    ```cypher
-    (AzureStorageAccount)-[:CONTAINS]->(:AzureDataLakeFileSystem)
-    ```
-
 ### AzureContainerInstance
 
 Representation of an [Azure Container Instance](https://learn.microsoft.com/en-us/rest/api/container-instances/container-groups/get).

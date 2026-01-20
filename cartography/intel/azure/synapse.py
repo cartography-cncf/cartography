@@ -50,9 +50,9 @@ def get_synapse_workspaces(client: SynapseManagementClient) -> list[dict]:
         raise
     except HttpResponseError:
         logger.warning(
-            "Failed to get Synapse workspaces due to a transient error.", exc_info=True
+            "Failed to get Synapse workspaces due to an HTTP error.", exc_info=True
         )
-        return []
+        raise
 
 
 @timeit
@@ -189,7 +189,7 @@ def transform_spark_pools(spark_pools: list[dict]) -> list[dict]:
                 "id": pool["id"],
                 "name": pool.get("name"),
                 "location": pool.get("location"),
-                "provisioning_state": pool.get("provisioning_state"),
+                "provisioning_state": properties.get("provisioning_state"),
                 "node_size": properties.get("node_size"),
                 "node_count": properties.get("node_count"),
                 "spark_version": properties.get("spark_version"),
