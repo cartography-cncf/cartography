@@ -1692,6 +1692,113 @@ Representation of a [Linked Service within an Azure Data Factory](https://www.go
 
 *(External `[:CONNECTS_TO]` relationships will be added in a future PR.)*
 
+### AzureKeyVault
+
+Representation of an [Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/controlplane-stable/vaults/get).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The full resource ID of the Key Vault. |
+|name| The name of the Key Vault. |
+|location| The Azure region where the Key Vault is deployed. |
+|tenant_id| The ID of the Azure Tenant that owns the vault. |
+|sku_name| The pricing tier of the Key Vault (e.g., standard or premium). |
+
+#### Relationships
+
+- An Azure Key Vault is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVault)
+    ```
+
+- An Azure Key Vault contains Secrets, Keys, and Certificates.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultSecret)
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultKey)
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultCertificate)
+    ```
+
+### AzureKeyVaultSecret
+
+Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/secrets/get-secrets/get-secrets).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The unique URI of the secret. |
+|name| The name of the secret. |
+|enabled| A boolean indicating if the secret is active. |
+|created_on| The timestamp of when the secret was created. |
+|updated_on| The timestamp of when the secret was last updated. |
+
+#### Relationships
+
+- An Azure Key Vault Secret is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultSecret)
+    ```
+
+- An Azure Key Vault contains one or more Secrets.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultSecret)
+    ```
+
+### AzureKeyVaultKey
+
+Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/keys/get-keys/get-keys).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The unique URI of the key. |
+|name| The name of the key. |
+|enabled| A boolean indicating if the key is active. |
+|created_on| The timestamp of when the key was created. |
+|updated_on| The timestamp of when the key was last updated. |
+
+#### Relationships
+
+- An Azure Key Vault Key is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultKey)
+    ```
+
+- An Azure Key Vault contains one or more Keys.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultKey)
+    ```
+
+### AzureKeyVaultCertificate
+
+Representation of a [Certificate within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/certificates/get-certificates).
+
+| Field | Description |
+|---|---|
+|firstseen| Timestamp of when a sync job discovered this node|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| The unique URI of the certificate. |
+|name| The name of the certificate. |
+|enabled| A boolean indicating if the certificate is active. |
+|created_on| The timestamp of when the certificate was created. |
+|updated_on| The timestamp of when the certificate was last updated. |
+|x5t| The thumbprint of the certificate. |
+
+#### Relationships
+
+- An Azure Key Vault Certificate is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureKeyVaultCertificate)
+    ```
+
+- An Azure Key Vault contains one or more Certificates.
+    ```cypher
+    (AzureKeyVault)-[:CONTAINS]->(:AzureKeyVaultCertificate)
+    ```
+
 ### AzureKubernetesCluster
 
 Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
@@ -2009,6 +2116,140 @@ Representation of an [Azure Public IP Address](https://learn.microsoft.com/en-us
   - An Azure Public IP Address is a resource within an Azure Subscription.
     ```cypher
     (AzureSubscription)-[:RESOURCE]->(:AzurePublicIPAddress)
+    ```
+
+### AzureSynapseWorkspace
+
+Representation of an Azure Synapse [Workspace](https://learn.microsoft.com/en-us/rest/api/synapse/workspaces/get).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Synapse Workspace. |
+| name | The name of the Synapse Workspace. |
+| location | The Azure region where the Workspace is deployed. |
+| connectivity\_endpoints | A string representation of the connectivity endpoints for the workspace. |
+
+#### Relationships
+
+  - An Azure Synapse Workspace is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureSynapseWorkspace)
+    ```
+
+### AzureSynapseDedicatedSqlPool
+
+Representation of an Azure Synapse [Dedicated SQL Pool](https://learn.microsoft.com/en-us/rest/api/synapse/sql-pools/get).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Dedicated SQL Pool. |
+| name | The name of the Dedicated SQL Pool. |
+| location | The Azure region where the pool is deployed. |
+| state | The provisioning state of the pool (e.g., `Succeeded`). |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Dedicated SQL Pools.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseDedicatedSqlPool)
+    ```
+  - A Dedicated SQL Pool is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseDedicatedSqlPool)
+    ```
+
+### AzureSynapseSparkPool
+
+Representation of an Azure Synapse [Spark Pool](https://learn.microsoft.com/en-us/rest/api/synapse/big-data-pools/get).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Spark Pool. |
+| name | The name of the Spark Pool. |
+| location | The Azure region where the pool is deployed. |
+| state | The provisioning state of the pool (e.g., `Succeeded`). |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Spark Pools.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseSparkPool)
+    ```
+  - A Spark Pool is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseSparkPool)
+    ```
+
+### AzureSynapsePipeline
+
+Representation of an Azure Synapse [Pipeline](https://learn.microsoft.com/en-us/azure/data-factory/concepts-pipelines-activities?tabs=data-factory).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Pipeline. |
+| name | The name of the Pipeline. |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Pipelines.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapsePipeline)
+    ```
+  - A Pipeline is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapsePipeline)
+    ```
+
+### AzureSynapseLinkedService
+
+Representation of an Azure Synapse [Linked Service](https://learn.microsoft.com/en-us/azure/data-factory/concepts-linked-services).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Linked Service. |
+| name | The name of the Linked Service. |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Linked Services.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseLinkedService)
+    ```
+  - A Linked Service is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseLinkedService)
+    ```
+
+### AzureSynapseManagedPrivateEndpoint
+
+Representation of an Azure Synapse [Managed Private Endpoint](https://learn.microsoft.com/en-us/azure/synapse-analytics/security/synapse-workspace-managed-private-endpoints).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | The full resource ID of the Managed Private Endpoint. |
+| name | The name of the Managed Private Endpoint. |
+
+#### Relationships
+
+  - A Synapse Workspace contains one or more Managed Private Endpoints.
+    ```cypher
+    (AzureSynapseWorkspace)-[:CONTAINS]->(AzureSynapseManagedPrivateEndpoint)
+    ```
+  - A Managed Private Endpoint is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(AzureSynapseManagedPrivateEndpoint)
     ```
 
 ### AzureSecurityAssessment

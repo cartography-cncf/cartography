@@ -373,6 +373,49 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-keyvault-certificates"
+version = "4.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2c/bc/07497d7118178729f59043153083bcdfdfc9629a365cbc5bc5690b4ff21b/azure_keyvault_certificates-4.10.0.tar.gz", hash = "sha256:004ff47a73152f9f40f678e5a07719b753a3ca86f0460bfeaaf6a23304872e05", size = 179157, upload-time = "2025-06-16T22:52:24.547Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/03/71cfb1ee68a625ca1c211a3b18e1051a4dd9fe8774329e48bb3c67afcf86/azure_keyvault_certificates-4.10.0-py3-none-any.whl", hash = "sha256:fa76cbc329274cb5f4ab61b0ed7d209d44377df4b4d6be2fd01e741c2fbb83a9", size = 155683, upload-time = "2025-06-16T22:52:26.02Z" },
+]
+
+[[package]]
+name = "azure-keyvault-keys"
+version = "4.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "cryptography" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/69/ed/450c9389d76be1a95a056528ec2b832a3721858dd47b1f4eb12dab7060a1/azure_keyvault_keys-4.11.0.tar.gz", hash = "sha256:f257b1917a2c3a88983e3f5675a6419449eb262318888d5b51e1cb3bed79779a", size = 241309, upload-time = "2025-06-16T22:52:04.296Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c3/ac/fa42e6b316712604a63bf7b3cb60d619d92890e038b87e1b4bba7437bc36/azure_keyvault_keys-4.11.0-py3-none-any.whl", hash = "sha256:fa5febd5805f0fed4c0a1d13c9096081c72a6fa36ccae1299a137f34280eda53", size = 191303, upload-time = "2025-06-16T22:52:06.1Z" },
+]
+
+[[package]]
+name = "azure-keyvault-secrets"
+version = "4.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/97/e5/3074e581b6e8923c4a1f2e42192ea6f390bb52de3600c68baaaed529ef05/azure_keyvault_secrets-4.10.0.tar.gz", hash = "sha256:666fa42892f9cee749563e551a90f060435ab878977c95265173a8246d546a36", size = 129695, upload-time = "2025-06-16T22:52:20.986Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/94/7c902e966b28e7cb5080a8e0dd6bffc22ba44bc907f09c4c633d2b7c4f6a/azure_keyvault_secrets-4.10.0-py3-none-any.whl", hash = "sha256:9dbde256077a4ee1a847646671580692e3f9bea36bcfc189c3cf2b9a94eb38b9", size = 125237, upload-time = "2025-06-16T22:52:22.489Z" },
+]
+
+[[package]]
 name = "azure-mgmt-authorization"
 version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -485,6 +528,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-keyvault"
+version = "13.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/44/d453a7a125cb44f6443808f11c820a4c3f88d0af2c5b8d9adaf490ed064e/azure_mgmt_keyvault-13.0.0.tar.gz", hash = "sha256:56c12904e6d9ac49f886483e50e3f635d8bf43a489eb32fa7b4832f323d396c7", size = 102260, upload-time = "2025-12-11T10:14:41.609Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/00/e4/f11ae6caa523834be04a1d52dee11c79f8838e6752f95af3bcfd4f979713/azure_mgmt_keyvault-13.0.0-py3-none-any.whl", hash = "sha256:02c5ca1b428fa7a2c393c6891b7436ad529a7ad22d378eba0b9a26291da67a0d", size = 102054, upload-time = "2025-12-11T10:14:43.064Z" },
+]
+
+[[package]]
 name = "azure-mgmt-logic"
 version = "10.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -585,6 +642,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-mgmt-synapse"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "msrest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/af/fa/5a7c375d305ec0ec06978db07ac34c4894d2b8a00087ff3dd9e1435e397f/azure-mgmt-synapse-2.0.0.zip", hash = "sha256:bec6bdfaeb55b4fdd159f2055e8875bf50a720bb0fce80a816e92a2359b898c8", size = 454745, upload-time = "2021-04-08T02:02:29.123Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ed/97/4ede2b4a0f53b9b692bf2853c320d8b94cb89253fd3eac6b6d0dc1f40047/azure_mgmt_synapse-2.0.0-py2.py3-none-any.whl", hash = "sha256:e901274009be843a7bf2eedeab32c0941fabb2addea9a1ad1560395073965f0f", size = 442173, upload-time = "2021-04-08T02:02:26.849Z" },
+]
+
+[[package]]
 name = "azure-mgmt-web"
 version = "10.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -596,6 +667,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/24/dc/7b96067ce47b16a36a3235d5ed3931dceaaf95253dc7dbd0b0c4b7bbc8d4/azure_mgmt_web-10.1.0.tar.gz", hash = "sha256:26d3594bbe1b30589b72922c35855bc5b74c151f0224147a60d1a75234859226", size = 573655, upload-time = "2025-11-17T09:14:54.608Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/5e/2057f4e790a870ea8f1ba46bccf7d15fbafe2d78a3b76a50e161e8944df6/azure_mgmt_web-10.1.0-py3-none-any.whl", hash = "sha256:4f6d71bc68c5278fbb34fb4c7225ae949c5336b1e2c6810c045e737d964e6602", size = 653657, upload-time = "2025-11-17T09:14:57.155Z" },
+]
+
+[[package]]
+name = "azure-synapse-artifacts"
+version = "0.21.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/17/b6/08aa179e85836089f541b8805e18e9eaca507dc2d8e608f5e9c2e893d4b3/azure_synapse_artifacts-0.21.0.tar.gz", hash = "sha256:d7e37516cf8569e03c604d921e3407d7140cf7523b67b67f757caf999e3c8ee7", size = 460511, upload-time = "2025-09-05T05:42:35.75Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/d4/152923189ee93fc4d810b9fd84a8f97b4b80528d8e3beef0d12fb9e8d16e/azure_synapse_artifacts-0.21.0-py3-none-any.whl", hash = "sha256:3311919df13a2b42f1fb9debf5d512080c35d64d02b9f84ff944848835289a8d", size = 543285, upload-time = "2025-09-05T05:42:37.659Z" },
 ]
 
 [[package]]
@@ -748,6 +834,9 @@ dependencies = [
     { name = "aioboto3" },
     { name = "azure-cli-core" },
     { name = "azure-identity" },
+    { name = "azure-keyvault-certificates" },
+    { name = "azure-keyvault-keys" },
+    { name = "azure-keyvault-secrets" },
     { name = "azure-mgmt-authorization" },
     { name = "azure-mgmt-compute" },
     { name = "azure-mgmt-containerinstance" },
@@ -755,6 +844,7 @@ dependencies = [
     { name = "azure-mgmt-cosmosdb" },
     { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-eventgrid" },
+    { name = "azure-mgmt-keyvault" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
     { name = "azure-mgmt-network" },
@@ -762,7 +852,9 @@ dependencies = [
     { name = "azure-mgmt-security" },
     { name = "azure-mgmt-sql" },
     { name = "azure-mgmt-storage" },
+    { name = "azure-mgmt-synapse" },
     { name = "azure-mgmt-web" },
+    { name = "azure-synapse-artifacts" },
     { name = "backoff" },
     { name = "boto3" },
     { name = "botocore" },
@@ -799,15 +891,21 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "azure-keyvault-certificates" },
+    { name = "azure-keyvault-keys" },
+    { name = "azure-keyvault-secrets" },
     { name = "azure-mgmt-containerinstance" },
     { name = "azure-mgmt-containerservice" },
     { name = "azure-mgmt-datafactory" },
     { name = "azure-mgmt-eventgrid" },
+    { name = "azure-mgmt-keyvault" },
     { name = "azure-mgmt-logic" },
     { name = "azure-mgmt-monitor" },
     { name = "azure-mgmt-network" },
     { name = "azure-mgmt-security" },
+    { name = "azure-mgmt-synapse" },
     { name = "azure-mgmt-web" },
+    { name = "azure-synapse-artifacts" },
     { name = "backoff" },
     { name = "black" },
     { name = "moto" },
@@ -837,6 +935,9 @@ requires-dist = [
     { name = "aioboto3", specifier = ">=13.0.0" },
     { name = "azure-cli-core", specifier = ">=2.26.0" },
     { name = "azure-identity", specifier = ">=1.5.0" },
+    { name = "azure-keyvault-certificates", specifier = ">=4.0.0" },
+    { name = "azure-keyvault-keys", specifier = ">=4.0.0" },
+    { name = "azure-keyvault-secrets", specifier = ">=4.0.0" },
     { name = "azure-mgmt-authorization", specifier = ">=0.60.0" },
     { name = "azure-mgmt-compute", specifier = ">=5.0.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
@@ -844,6 +945,7 @@ requires-dist = [
     { name = "azure-mgmt-cosmosdb", specifier = ">=6.0.0" },
     { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-keyvault", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
     { name = "azure-mgmt-network", specifier = ">=25.0.0" },
@@ -851,7 +953,9 @@ requires-dist = [
     { name = "azure-mgmt-security", specifier = ">=5.0.0" },
     { name = "azure-mgmt-sql", specifier = "<=1.0.0" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
+    { name = "azure-mgmt-synapse", specifier = ">=2.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
+    { name = "azure-synapse-artifacts", specifier = ">=0.17.0" },
     { name = "backoff", specifier = ">=2.1.2" },
     { name = "boto3", specifier = ">=1.15.1" },
     { name = "botocore", specifier = ">=1.18.1" },
@@ -888,15 +992,21 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "azure-keyvault-certificates", specifier = ">=4.0.0" },
+    { name = "azure-keyvault-keys", specifier = ">=4.0.0" },
+    { name = "azure-keyvault-secrets", specifier = ">=4.0.0" },
     { name = "azure-mgmt-containerinstance", specifier = ">=10.0.0" },
     { name = "azure-mgmt-containerservice", specifier = ">=30.0.0" },
     { name = "azure-mgmt-datafactory", specifier = ">=8.0.0" },
     { name = "azure-mgmt-eventgrid", specifier = ">=10.0.0" },
+    { name = "azure-mgmt-keyvault", specifier = ">=10.0.0" },
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
     { name = "azure-mgmt-network", specifier = ">=25.0.0" },
     { name = "azure-mgmt-security", specifier = ">=5.0.0" },
+    { name = "azure-mgmt-synapse", specifier = ">=2.0.0" },
     { name = "azure-mgmt-web", specifier = ">=7.0.0" },
+    { name = "azure-synapse-artifacts", specifier = ">=0.17.0" },
     { name = "backoff", specifier = ">=2.1.2" },
     { name = "black", specifier = "==25.12.0" },
     { name = "moto" },
@@ -1389,11 +1499,11 @@ wheels = [
 
 [[package]]
 name = "filelock"
-version = "3.20.1"
+version = "3.20.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a7/23/ce7a1126827cedeb958fc043d61745754464eb56c5937c35bbf2b8e26f34/filelock-3.20.1.tar.gz", hash = "sha256:b8360948b351b80f420878d8516519a2204b07aefcdcfd24912a5d33127f188c", size = 19476, upload-time = "2025-12-15T23:54:28.027Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1d/65/ce7f1b70157833bf3cb851b556a37d4547ceafc158aa9b34b36782f23696/filelock-3.20.3.tar.gz", hash = "sha256:18c57ee915c7ec61cff0ecf7f0f869936c7c30191bb0cf406f1341778d0834e1", size = 19485, upload-time = "2026-01-09T17:55:05.421Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/7f/a1a97644e39e7316d850784c642093c99df1290a460df4ede27659056834/filelock-3.20.1-py3-none-any.whl", hash = "sha256:15d9e9a67306188a44baa72f569d2bfd803076269365fdea0934385da4dc361a", size = 16666, upload-time = "2025-12-15T23:54:26.874Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/36/7fb70f04bf00bc646cd5bb45aa9eddb15e19437a28b8fb2b4a5249fac770/filelock-3.20.3-py3-none-any.whl", hash = "sha256:4b0dda527ee31078689fc205ec4f1c1bf7d56cf88b6dc9426c4f230e46c2dce1", size = 16701, upload-time = "2026-01-09T17:55:04.334Z" },
 ]
 
 [[package]]
