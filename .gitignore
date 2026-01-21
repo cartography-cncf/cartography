@@ -26,4 +26,3 @@ poetry.lock
 github_config.json
 .env.local
 .claude/
-cartography-keys.json
