@@ -181,6 +181,9 @@ def _sync_project_resources(
             )
 
         # Check if BigQuery API is enabled before syncing
+        logger.info(f"DEBUG: Enabled services for {project_id}: {enabled_services}")
+        logger.info(f"DEBUG: Looking for BigQuery service: {service_names.bigquery}")
+        logger.info(f"DEBUG: BigQuery in enabled_services: {service_names.bigquery in enabled_services}")
         if service_names.bigquery in enabled_services:
             logger.info("Syncing GCP project %s for BigQuery.", project_id)
             from cartography.intel.gcp import bigquery
@@ -192,7 +195,7 @@ def _sync_project_resources(
                 common_job_parameters,
             )
         else:
-            logger.debug("BigQuery API not enabled for project %s; skipping sync.", project_id)
+            logger.warning("BigQuery API not enabled for project %s; skipping sync.", project_id)
 
         if service_names.gke in enabled_services:
             logger.info("Syncing GCP project %s for GKE.", project_id)

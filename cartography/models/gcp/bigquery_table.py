@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -29,7 +30,7 @@ class GCPBigQueryTableToDatasetRelProperties(CartographyRelProperties):
 class GCPBigQueryTableToDatasetRel(CartographyRelSchema):
     target_node_label: str = 'GCPBigQueryDataset'
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {'id': PropertyRef('DATASET_ID', set_in_kwargs=True)},
+        {'id': PropertyRef('dataset_full_id')},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = 'CONTAINS'
@@ -40,4 +41,4 @@ class GCPBigQueryTableToDatasetRel(CartographyRelSchema):
 class GCPBigQueryTableSchema(CartographyNodeSchema):
     label: str = 'GCPBigQueryTable'
     properties: GCPBigQueryTableProperties = GCPBigQueryTableProperties()
-    sub_resource_relationship: GCPBigQueryTableToDatasetRel = GCPBigQueryTableToDatasetRel()
+    other_relationships: OtherRelationships = OtherRelationships([GCPBigQueryTableToDatasetRel()])

@@ -11,7 +11,10 @@ logging.getLogger("neo4j").setLevel(logging.WARNING)
 
 @pytest.fixture(scope="module")
 def neo4j_session():
-    driver = neo4j.GraphDatabase.driver(settings.get("NEO4J_URL"))
+    driver = neo4j.GraphDatabase.driver(
+        settings.get("NEO4J_URL"),
+        auth=(settings.get("NEO4J_USER"), settings.get("NEO4J_PASSWORD"))
+    )
     with driver.session() as session:
         yield session
         session.run("MATCH (n) DETACH DELETE n;")
