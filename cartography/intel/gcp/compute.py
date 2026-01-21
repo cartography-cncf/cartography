@@ -141,17 +141,29 @@ def get_gcp_instance_responses(
 
 
 @timeit
-def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Dict:
+def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Optional[Dict]:
     """
     Return list of all subnets in the given projectid and region.  If the API
     call times out mid-pagination, return any subnets gathered so far rather than
-    bubbling the error up to the caller.
+    bubbling the error up to the caller. Returns None if the region is invalid.
     :param projectid: The project ID
     :param region: The region to pull subnets from
     :param compute: The compute resource object created by googleapiclient.discovery.build()
-    :return: Response object containing data on all GCP subnets for a given project
+    :return: Response object containing data on all GCP subnets for a given project, or None if region is invalid
     """
-    req = compute.subnetworks().list(project=projectid, region=region)
+    try:
+        req = compute.subnetworks().list(project=projectid, region=region)
+    except HttpError as e:
+        reason = _get_error_reason(e)
+        if reason == "invalid":
+            logger.warning(
+                "GCP: Invalid region %s for project %s; skipping subnet sync for this region.",
+                region,
+                projectid,
+            )
+            return None
+        raise
+
     items: List[Dict] = []
     response_id = f"projects/{projectid}/regions/{region}/subnetworks"
     while req is not None:
@@ -164,6 +176,16 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> Dict:
                 region,
             )
             break
+        except HttpError as e:
+            reason = _get_error_reason(e)
+            if reason == "invalid":
+                logger.warning(
+                    "GCP: Invalid region %s for project %s; skipping subnet sync for this region.",
+                    region,
+                    projectid,
+                )
+                return None
+            raise
         items.extend(res.get("items", []))
         response_id = res.get("id", response_id)
         req = compute.subnetworks().list_next(
@@ -189,16 +211,28 @@ def get_gcp_regional_forwarding_rules(
     project_id: str,
     region: str,
     compute: Resource,
-) -> Resource:
+) -> Optional[Resource]:
     """
-    Return list of all regional forwarding rules in the given project_id and region
+    Return list of all regional forwarding rules in the given project_id and region.
+    Returns None if the region is invalid.
     :param project_id: The project ID
     :param region: The region to pull forwarding rules from
     :param compute: The compute resource object created by googleapiclient.discovery.build()
-    :return: Response object containing data on all GCP forwarding rules for a given project
+    :return: Response object containing data on all GCP forwarding rules for a given project, or None if region is invalid
     """
     req = compute.forwardingRules().list(project=project_id, region=region)
-    return gcp_api_execute_with_retry(req)
+    try:
+        return gcp_api_execute_with_retry(req)
+    except HttpError as e:
+        reason = _get_error_reason(e)
+        if reason == "invalid":
+            logger.warning(
+                "GCP: Invalid region %s for project %s; skipping forwarding rules sync for this region.",
+                region,
+                project_id,
+            )
+            return None
+        raise
 
 
 @timeit
@@ -1289,10 +1323,13 @@ def sync_gcp_subnets(
 ) -> None:
     for r in regions:
         subnet_res = get_gcp_subnets(project_id, r, compute)
+        if subnet_res is None:
+            # Invalid region, skip this one
+            continue
         subnets = transform_gcp_subnets(subnet_res)
         load_gcp_subnets(neo4j_session, subnets, gcp_update_tag, project_id)
-        # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
-        cleanup_gcp_subnets(neo4j_session, common_job_parameters)
+    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
+    cleanup_gcp_subnets(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -1322,10 +1359,11 @@ def sync_gcp_forwarding_rules(
 
     for r in regions:
         fwd_response = get_gcp_regional_forwarding_rules(project_id, r, compute)
+        if fwd_response is None:
+            # Invalid region, skip this one
+            continue
         forwarding_rules = transform_gcp_forwarding_rules(fwd_response)
         load_gcp_forwarding_rules(neo4j_session, forwarding_rules, gcp_update_tag)
-        # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
-        cleanup_gcp_forwarding_rules(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -1351,18 +1389,22 @@ def sync_gcp_firewall_rules(
     cleanup_gcp_firewall_rules(neo4j_session, common_job_parameters)
 
 
-def _zones_to_regions(zones: List[str]) -> List[Set]:
+def _zones_to_regions(zones: List[Dict]) -> List[str]:
     """
     Return list of regions from the input list of zones
     :param zones: List of zones. This is the output from `get_zones_in_project()`.
     :return: List of regions available to the project
     """
-    regions = set()
+    regions: Set[str] = set()
     for zone in zones:
-        # Chop off the last 2 chars to turn the zone to a region
-        region = zone["name"][:-2]  # type: ignore
-        regions.add(region)
-    return list(regions)  # type: ignore
+        # Extract region from the zone's region URL
+        # The region field is a URL like
+        # "https://www.googleapis.com/compute/v1/projects/{project}/regions/{region}"
+        region_url = zone.get("region", "")
+        if region_url:
+            region = region_url.split("/")[-1]
+            regions.add(region)
+    return list(regions)
 
 
 def sync(
