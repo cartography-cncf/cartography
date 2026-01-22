@@ -626,3 +626,9 @@ def start_gcp_ingestion(
         neo4j_session,
         common_job_parameters,
     )
+
+    run_analysis_job(
+        "gcp_compute_instance_vpc_analysis.json",
+        neo4j_session,
+        common_job_parameters,
+    )
