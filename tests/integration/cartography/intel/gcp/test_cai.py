@@ -18,7 +18,7 @@ def test_sync_cai(mock_get_roles, mock_get_service_accounts, neo4j_session):
     Verifies that service accounts and roles are properly loaded into Neo4j.
     """
     # Arrange
-    _create_test_project(neo4j_session)
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Mock CAI API responses - extract data from CAI asset responses
     mock_get_service_accounts.return_value = [
@@ -104,7 +104,7 @@ def test_sync_cai_with_predefined_roles(
     with custom roles from CAI.
     """
     # Arrange
-    _create_test_project(neo4j_session)
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
     # Clear roles from previous test
     neo4j_session.run("MATCH (r:GCPRole) DETACH DELETE r")
 
