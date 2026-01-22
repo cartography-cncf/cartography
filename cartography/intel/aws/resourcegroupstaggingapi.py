@@ -7,7 +7,6 @@ from typing import List
 import boto3
 import neo4j
 
-from cartography.client.core.tx import run_write_query
 from cartography.intel.aws.iam import get_role_tags
 from cartography.util import aws_handle_regions
 from cartography.util import batch
@@ -373,13 +372,36 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
 }
 
 
+def _run_cleanup_until_empty(
+    neo4j_session: neo4j.Session,
+    query: str,
+    batch_size: int = 1000,
+    **kwargs: Any,
+) -> int:
+    """Run a cleanup query in batches until no more items are deleted.
+
+    Returns the total number of items deleted.
+    """
+    total_deleted = 0
+    while True:
+        result = neo4j_session.run(query, LIMIT_SIZE=batch_size, **kwargs)
+        summary = result.consume()
+        deleted = (
+            summary.counters.nodes_deleted + summary.counters.relationships_deleted
+        )
+        total_deleted += deleted
+        if deleted == 0:
+            break
+    return total_deleted
+
+
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     """Clean up stale AWSTag nodes and TAGGED relationships."""
     # Clean up tags and relationships for each resource type
     for label, path in _RESOURCE_CLEANUP_PATHS.items():
         # Delete stale tag nodes
-        run_write_query(
+        _run_cleanup_until_empty(
             neo4j_session,
             f"""
             MATCH (n:AWSTag)<-[:TAGGED]-{path}
@@ -389,10 +411,9 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
             """,
             AWS_ID=common_job_parameters["AWS_ID"],
             UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-            LIMIT_SIZE=100,
         )
         # Delete stale TAGGED relationships
-        run_write_query(
+        _run_cleanup_until_empty(
             neo4j_session,
             f"""
             MATCH (:AWSTag)<-[r:TAGGED]-{path}
@@ -402,11 +423,10 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
             """,
             AWS_ID=common_job_parameters["AWS_ID"],
             UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-            LIMIT_SIZE=100,
         )
 
     # Clean up orphaned tags (tags with no relationships)
-    run_write_query(
+    _run_cleanup_until_empty(
         neo4j_session,
         """
         MATCH (n:AWSTag)
@@ -415,7 +435,6 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
         DETACH DELETE n
         """,
         UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-        LIMIT_SIZE=100,
     )
 
 

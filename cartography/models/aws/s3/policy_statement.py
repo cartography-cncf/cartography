@@ -53,7 +53,7 @@ class S3PolicyStatementToS3BucketRelProperties(CartographyRelProperties):
 class S3PolicyStatementToS3BucketRel(CartographyRelSchema):
     target_node_label: str = "S3Bucket"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("bucket")},
+        {"id": PropertyRef("bucket")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "POLICY_STATEMENT"

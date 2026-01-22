@@ -261,58 +261,62 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
     assert actual_nodes == expected_nodes
 
 
-def test_load_load_balancer_v2_subnets(neo4j_session, *args):
-    # an elbv2 must exist or nothing will match.
-    load_balancer_id = "asadfmyloadbalancerid"
-    neo4j_session.run(
-        """
-        MERGE (elbv2:LoadBalancerV2{id: $ID})
-        ON CREATE SET elbv2.firstseen = timestamp()
-        SET elbv2.lastupdated = $aws_udpate_tag
-        """,
-        ID=load_balancer_id,
-        aws_udpate_tag=TEST_UPDATE_TAG,
-    )
+def test_load_load_balancer_v2_subnet_relationships(neo4j_session, *args):
+    """Test that SUBNET relationships are created via the main loader when EC2Subnet nodes exist."""
+    load_balancer_data = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA
+    load_balancer_id = "myawesomeloadbalancer.amazonaws.com"
 
-    # EC2Subnet nodes must exist before creating relationships
-    # (subnets are synced before load balancers in production)
+    # Create required nodes: AWSAccount, EC2SecurityGroups, EC2Subnets, EC2Instance
     neo4j_session.run(
         """
-        UNWIND $subnet_ids AS subnet_id
-        MERGE (subnet:EC2Subnet{subnetid: subnet_id})
-        ON CREATE SET subnet.firstseen = timestamp(), subnet.id = subnet_id
-        SET subnet.region = $region, subnet.lastupdated = $update_tag
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
+
+        MERGE (ec2:EC2Instance{instanceid: $ec2_instance_id})
+        ON CREATE SET ec2.firstseen = timestamp()
+        SET ec2.lastupdated = $aws_update_tag
+
+        MERGE (sg1:EC2SecurityGroup{groupid: $sg1})
+        ON CREATE SET sg1.firstseen = timestamp()
+        SET sg1.lastupdated = $aws_update_tag
+
+        MERGE (sg2:EC2SecurityGroup{groupid: $sg2})
+        ON CREATE SET sg2.firstseen = timestamp()
+        SET sg2.lastupdated = $aws_update_tag
+
+        MERGE (subnet:EC2Subnet{subnetid: $subnet_id})
+        ON CREATE SET subnet.firstseen = timestamp(), subnet.id = $subnet_id
+        SET subnet.region = $region, subnet.lastupdated = $aws_update_tag
         """,
-        subnet_ids=["mysubnetIdA", "mysubnetIdB"],
+        aws_account_id=TEST_ACCOUNT_ID,
+        aws_update_tag=TEST_UPDATE_TAG,
+        ec2_instance_id="i-0f76fade",
+        sg1="sg-123456",
+        sg2="sg-234567",
+        subnet_id="mysubnetIdA",
         region=TEST_REGION,
-        update_tag=TEST_UPDATE_TAG,
     )
 
-    az_data = [
-        {"SubnetId": "mysubnetIdA"},
-        {"SubnetId": "mysubnetIdB"},
-    ]
-    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2_subnets(
+    # Load the data via main loader
+    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
         neo4j_session,
-        load_balancer_id,
-        az_data,
+        load_balancer_data,
         TEST_REGION,
+        TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
-    # Verify SUBNET relationships were created
-    expected_rels = {
-        (load_balancer_id, "mysubnetIdA"),
-        (load_balancer_id, "mysubnetIdB"),
-    }
-
+    # Verify SUBNET relationship was created
     rels = neo4j_session.run(
         """
-        MATCH (elbv2:LoadBalancerV2)-[:SUBNET]->(subnet:EC2Subnet)
+        MATCH (elbv2:LoadBalancerV2{id: $lb_id})-[:SUBNET]->(subnet:EC2Subnet)
         RETURN elbv2.id, subnet.subnetid
         """,
+        lb_id=load_balancer_id,
     )
     actual_rels = {(r["elbv2.id"], r["subnet.subnetid"]) for r in rels}
+    expected_rels = {(load_balancer_id, "mysubnetIdA")}
     assert actual_rels == expected_rels
 
 

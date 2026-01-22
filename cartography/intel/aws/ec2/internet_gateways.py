@@ -1,6 +1,5 @@
 import logging
-from typing import Dict
-from typing import List
+from typing import Any
 
 import boto3
 import neo4j
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 def get_internet_gateways(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     client = boto3_session.client(
         "ec2",
         region_name=region,
@@ -31,10 +30,10 @@ def get_internet_gateways(
 
 
 def transform_internet_gateways(
-    internet_gateways: List[Dict],
+    internet_gateways: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     """
     Transform internet gateways data, flattening the Attachments list.
     Each attachment becomes a separate entry to handle IGWs attached to multiple VPCs.
@@ -74,7 +73,7 @@ def transform_internet_gateways(
 @timeit
 def load_internet_gateways(
     neo4j_session: neo4j.Session,
-    internet_gateways: List[Dict],
+    internet_gateways: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     update_tag: int,
@@ -91,7 +90,9 @@ def load_internet_gateways(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
     logger.debug("Running Internet Gateway cleanup job.")
     GraphJob.from_node_schema(
         AWSInternetGatewaySchema(),
@@ -103,10 +104,10 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
 def sync_internet_gateways(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
         logger.info(

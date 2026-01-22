@@ -295,37 +295,6 @@ def load_load_balancer_v2_listeners(
 
 
 @timeit
-def load_load_balancer_v2_subnets(
-    neo4j_session: neo4j.Session,
-    load_balancer_id: str,
-    az_data: List[Dict],
-    region: str,
-    update_tag: int,
-    aws_account_id: str = "",
-) -> None:
-    """Load SUBNET relationships between LoadBalancerV2 and EC2Subnet.
-
-    Note: EC2Subnet nodes must already exist (subnets are synced before load balancers).
-    """
-    subnet_ids = [az["SubnetId"] for az in az_data if az.get("SubnetId")]
-    if subnet_ids:
-        lb_data = [
-            {
-                "DNSName": load_balancer_id,
-                "SubnetIds": subnet_ids,
-            },
-        ]
-        load(
-            neo4j_session,
-            LoadBalancerV2Schema(),
-            lb_data,
-            lastupdated=update_tag,
-            Region=region,
-            AWS_ID=aws_account_id,
-        )
-
-
-@timeit
 def load_load_balancer_v2_target_groups(
     neo4j_session: neo4j.Session,
     load_balancer_id: str,
