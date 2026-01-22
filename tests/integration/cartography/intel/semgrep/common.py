@@ -27,7 +27,9 @@ def check_nodes_as_list(
     order_clause = f" ORDER BY n.{order_by}" if order_by else ""
     query_template = Template("MATCH (n:$NodeLabel) RETURN $Attrs$OrderClause")
     result = neo4j_session.run(
-        query_template.safe_substitute(NodeLabel=node_label, Attrs=attrs_str, OrderClause=order_clause),
+        query_template.safe_substitute(
+            NodeLabel=node_label, Attrs=attrs_str, OrderClause=order_clause
+        ),
     )
     return sum([row.values() for row in result], [])
 
