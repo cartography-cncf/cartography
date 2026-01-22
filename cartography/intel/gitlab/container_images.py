@@ -216,9 +216,21 @@ def transform_container_images(
         # Extract architecture, os, variant from config blob (for regular images)
         config = manifest.get("_config", {})
 
+        # Build URI from registry URL and repository name (e.g., registry.gitlab.com/group/project)
+        registry_url = manifest.get("_registry_url", "")
+        repository_name = manifest.get("_repository_name", "")
+        # Strip https:// prefix from registry URL to get the host
+        registry_host = urlparse(registry_url).netloc if registry_url else ""
+        uri = (
+            f"{registry_host}/{repository_name}"
+            if registry_host and repository_name
+            else None
+        )
+
         transformed.append(
             {
                 "digest": manifest.get("_digest"),
+                "uri": uri,
                 "media_type": media_type,
                 "schema_version": manifest.get("schemaVersion"),
                 "type": "manifest_list" if is_manifest_list else "image",

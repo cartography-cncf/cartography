@@ -253,3 +253,38 @@ def assert_all_trivy_relationships(neo4j_session: Session) -> None:
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
     }
+
+
+def assert_trivy_gitlab_image_relationships(
+    neo4j_session: Session,
+    expected_package_rels: set,
+    expected_finding_rels: set,
+) -> None:
+    """Assert Trivy relationships to GitLabContainerImage are correctly created."""
+    # Package to GitLabContainerImage relationships (DEPLOYED)
+    assert (
+        check_rels(
+            neo4j_session,
+            "Package",
+            "id",
+            "GitLabContainerImage",
+            "id",
+            "DEPLOYED",
+            rel_direction_right=True,
+        )
+        == expected_package_rels
+    )
+
+    # TrivyImageFinding to GitLabContainerImage relationships (AFFECTS)
+    assert (
+        check_rels(
+            neo4j_session,
+            "TrivyImageFinding",
+            "id",
+            "GitLabContainerImage",
+            "id",
+            "AFFECTS",
+            rel_direction_right=True,
+        )
+        == expected_finding_rels
+    )
