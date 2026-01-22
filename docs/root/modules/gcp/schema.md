@@ -259,6 +259,9 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
     (GCPInstance)-[:MEMBER_OF_GCP_VPC]->(GCPVpc)
     ```
 
+    This relationship is created by an [analysis job](../../dev/writing-analysis-jobs.html)
+    defined at `cartography/data/jobs/analysis/gcp_compute_instance_vpc_analysis.json`.
+
     Also note that this relationship is a shortcut for:
 
     ```

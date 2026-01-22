@@ -225,7 +225,7 @@ def get_gcp_regional_forwarding_rules(
     project_id: str,
     region: str,
     compute: Resource,
-) -> Optional[Resource]:
+) -> Resource | None:
     """
     Return list of all regional forwarding rules in the given project_id and region.
     Returns None if the region is invalid.
