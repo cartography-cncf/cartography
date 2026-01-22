@@ -124,8 +124,8 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
         RETURN *
     """,
     cypher_count_query="""
-    MATCH (d:Dependency {ecosystem: 'npm'})--(m:DependencyGraphManifest)--(r:GitHubRepository)
-    RETURN COUNT(DISTINCT r) AS count
+    MATCH (r:GitHubRepository)
+    RETURN COUNT(r) AS count
     """,
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
@@ -2174,8 +2174,8 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
         RETURN *
     """,
     cypher_count_query="""
-    MATCH (d:Dependency {ecosystem: 'npm'})--(m:DependencyGraphManifest)--(r:GitHubRepository)
-    RETURN COUNT(DISTINCT r) AS count
+    MATCH (r:GitHubRepository)
+    RETURN COUNT(r) AS count
     """,
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
