@@ -452,15 +452,15 @@ def test_sync_gcp_instances_with_tags(mock_get_vpcs, mock_get_instances, neo4j_s
 @patch.object(
     cartography.intel.gcp.compute,
     "get_gcp_global_forwarding_rules",
-    return_value=tests.data.gcp.compute.LIST_FORWARDING_RULES_RESPONSE,
+    return_value=tests.data.gcp.compute.LIST_GLOBAL_FORWARDING_RULES_RESPONSE,
 )
 @patch.object(
     cartography.intel.gcp.compute,
     "get_gcp_regional_forwarding_rules",
-    return_value={"id": "projects/project-abc/regions/europe-west2/forwardingRules", "items": []},
+    return_value=tests.data.gcp.compute.LIST_FORWARDING_RULES_RESPONSE,
 )
 def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_session):
-    """Test sync_gcp_forwarding_rules() loads forwarding rules."""
+    """Test sync_gcp_forwarding_rules() loads both global and regional forwarding rules."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
@@ -475,34 +475,36 @@ def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_ses
         common_job_parameters,
     )
 
-    # Assert - Forwarding rule nodes created
+    # Assert - Both global and regional forwarding rule nodes created
     assert check_nodes(
         neo4j_session,
         "GCPForwardingRule",
-        ["id", "name", "ip_address", "ip_protocol", "load_balancing_scheme", "region"],
+        ["id", "ip_address", "project_id", "region"],
     ) == {
+        # Global rule (no region)
+        (
+            "projects/project-abc/global/forwardingRules/global-rule-1",
+            "35.235.1.2",
+            "project-abc",
+            None,
+        ),
+        # Regional rules
         (
             "projects/project-abc/regions/europe-west2/forwardingRules/internal-service-1111",
-            "internal-service-1111",
             "10.0.0.10",
-            "TCP",
-            "INTERNAL",
+            "project-abc",
             "europe-west2",
         ),
         (
             "projects/project-abc/regions/europe-west2/forwardingRules/public-ingress-controller-1234567",
-            "public-ingress-controller-1234567",
             "1.2.3.11",
-            "TCP",
-            "EXTERNAL",
+            "project-abc",
             "europe-west2",
         ),
         (
             "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
-            "shard-server-22222",
             "10.0.0.20",
-            "TCP",
-            "INTERNAL",
+            "project-abc",
             "europe-west2",
         ),
     }
@@ -511,12 +513,12 @@ def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_ses
 @patch.object(
     cartography.intel.gcp.compute,
     "get_gcp_global_forwarding_rules",
-    return_value=tests.data.gcp.compute.LIST_FORWARDING_RULES_RESPONSE,
+    return_value=tests.data.gcp.compute.LIST_GLOBAL_FORWARDING_RULES_RESPONSE,
 )
 @patch.object(
     cartography.intel.gcp.compute,
     "get_gcp_regional_forwarding_rules",
-    return_value={"id": "projects/project-abc/regions/europe-west2/forwardingRules", "items": []},
+    return_value=tests.data.gcp.compute.LIST_FORWARDING_RULES_RESPONSE,
 )
 @patch.object(
     cartography.intel.gcp.compute,
@@ -528,10 +530,10 @@ def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_ses
     "get_gcp_vpcs",
     return_value=tests.data.gcp.compute.VPC_RESPONSE,
 )
-def test_sync_gcp_forwarding_rules_with_subnet_relationship(
+def test_sync_gcp_forwarding_rules_with_relationships(
     mock_get_vpcs, mock_get_subnets, mock_get_regional, mock_get_global, neo4j_session
 ):
-    """Test that forwarding rules with subnetwork are connected to subnets."""
+    """Test forwarding rules relationships: Subnet->ForwardingRule for regional, VPC->ForwardingRule for global."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
@@ -564,7 +566,7 @@ def test_sync_gcp_forwarding_rules_with_subnet_relationship(
         common_job_parameters,
     )
 
-    # Assert - Subnet to ForwardingRule relationship (for INTERNAL rules with subnetwork)
+    # Assert - Subnet to ForwardingRule relationship (for INTERNAL regional rules with subnetwork)
     assert check_rels(
         neo4j_session,
         "GCPSubnet",
@@ -581,6 +583,22 @@ def test_sync_gcp_forwarding_rules_with_subnet_relationship(
         (
             "projects/project-abc/regions/europe-west2/subnetworks/default",
             "projects/project-abc/regions/europe-west2/forwardingRules/shard-server-22222",
+        ),
+    }
+
+    # Assert - VPC to ForwardingRule relationship (for global rules without subnetwork)
+    assert check_rels(
+        neo4j_session,
+        "GCPVpc",
+        "id",
+        "GCPForwardingRule",
+        "id",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/project-abc/global/networks/default",
+            "projects/project-abc/global/forwardingRules/global-rule-1",
         ),
     }
 
