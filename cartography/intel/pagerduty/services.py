@@ -63,6 +63,8 @@ def transform_services(
 ) -> List[Dict[str, Any]]:
     """
     Transform service data to match the schema.
+    Flattens nested objects (incident_urgency_rule, support_hours, alert_grouping_parameters)
+    to top-level keys expected by PagerDutyServiceSchema.
     """
     transformed_services = []
     for service in services:
@@ -70,6 +72,39 @@ def transform_services(
             created_at = dateutil.parser.parse(service["created_at"])
             service["created_at"] = int(created_at.timestamp())
         service["teams_id"] = [team["id"] for team in service.get("teams", [])]
+
+        # Flatten alert_grouping_parameters
+        alert_grouping = service.get("alert_grouping_parameters", {})
+        service["alert_grouping_parameters_type"] = alert_grouping.get("type")
+
+        # Flatten incident_urgency_rule
+        urgency_rule = service.get("incident_urgency_rule", {})
+        service["incident_urgency_rule_type"] = urgency_rule.get("type")
+
+        during_support = urgency_rule.get("during_support_hours", {})
+        service["incident_urgency_rule_during_support_hours_type"] = during_support.get(
+            "type"
+        )
+        service["incident_urgency_rule_during_support_hours_urgency"] = (
+            during_support.get("urgency")
+        )
+
+        outside_support = urgency_rule.get("outside_support_hours", {})
+        service["incident_urgency_rule_outside_support_hours_type"] = (
+            outside_support.get("type")
+        )
+        service["incident_urgency_rule_outside_support_hours_urgency"] = (
+            outside_support.get("urgency")
+        )
+
+        # Flatten support_hours
+        support_hours = service.get("support_hours", {})
+        service["support_hours_type"] = support_hours.get("type")
+        service["support_hours_time_zone"] = support_hours.get("time_zone")
+        service["support_hours_start_time"] = support_hours.get("start_time")
+        service["support_hours_end_time"] = support_hours.get("end_time")
+        service["support_hours_days_of_week"] = support_hours.get("days_of_week")
+
         transformed_services.append(service)
     return transformed_services
 

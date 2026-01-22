@@ -50,7 +50,7 @@ def transform_schedules(
     layers = []
     for schedule in schedules:
         schedule["users_id"] = [user["id"] for user in schedule.get("users", [])]
-        for layer in schedule["schedule_layers"]:
+        for layer in schedule.get("schedule_layers", []):
             layer["_schedule_id"] = schedule["id"]
             layer["_layer_id"] = f"{schedule['id']}-{layer['name']}"
             for d_attr in ["start", "end", "rotation_virtual_start"]:

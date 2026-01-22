@@ -76,7 +76,9 @@ def test_load_team_data(mock_teams, mock_members, neo4j_session):
         ORDER BY u.id
         """
     )
-    roles = {(record["user_id"], record["team_id"], record["role"]) for record in result}
+    roles = {
+        (record["user_id"], record["team_id"], record["role"]) for record in result
+    }
     expected_roles = {
         ("PAM4FGS", "PQ9K7I8", "responder"),
         ("PXPGF42", "PQ9K7I8", "manager"),

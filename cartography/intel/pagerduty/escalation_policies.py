@@ -56,7 +56,7 @@ def transform(
                 rule["_escalation_policy_order"] = i
                 users_id: list[str] = []
                 schedules_id: list[str] = []
-                for target in rule["targets"]:
+                for target in rule.get("targets", []):
                     if target["type"] == "user_reference":
                         users_id.append(target["id"])
                     elif target["type"] == "schedule_reference":
