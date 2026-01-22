@@ -1,32 +1,41 @@
+from unittest.mock import patch
+
 import cartography.intel.jamf.computers
-import tests.data.jamf.computers
+from cartography.intel.jamf.computers import sync_computer_groups
+from tests.data.jamf.computers import GROUPS
+from tests.integration.util import check_nodes
 
 TEST_UPDATE_TAG = 123456789
+TEST_JAMF_URI = "https://test.jamfcloud.com"
+TEST_JAMF_USER = "test_user"
+TEST_JAMF_PASSWORD = "test_password"
 
 
-def test_load_jamf_computer_group_data(neo4j_session):
-    _ensure_local_neo4j_has_test_computergroup_data(neo4j_session)
-
-    # Test that the Redshift cluster node was created
-    expected_nodes = {
-        123,
-        234,
-        345,
-    }
-    nodes = neo4j_session.run(
-        """
-        MATCH (n:JamfComputerGroup) RETURN n.id;
-        """,
-    )
-    actual_nodes = {n["n.id"] for n in nodes}
-    assert actual_nodes == expected_nodes
-
-
-def _ensure_local_neo4j_has_test_computergroup_data(neo4j_session):
-    """Pre-load the Neo4j instance with test computer group data"""
-    groups = tests.data.jamf.computers.GROUPS
-    cartography.intel.jamf.computers.load_computer_groups(
-        groups,
+@patch.object(
+    cartography.intel.jamf.computers,
+    "get_computer_groups",
+    return_value=GROUPS,
+)
+def test_sync_jamf_computer_groups(mock_get_computer_groups, neo4j_session):
+    """
+    Ensure that Jamf computer groups are synced correctly.
+    """
+    # Act
+    sync_computer_groups(
         neo4j_session,
         TEST_UPDATE_TAG,
+        TEST_JAMF_URI,
+        TEST_JAMF_USER,
+        TEST_JAMF_PASSWORD,
     )
+
+    # Assert - JamfComputerGroup nodes exist with expected properties
+    assert check_nodes(
+        neo4j_session,
+        "JamfComputerGroup",
+        ["id", "name", "is_smart"],
+    ) == {
+        (123, "10.13.6", True),
+        (234, "10.14 and Above", True),
+        (345, "10.14.6", True),
+    }

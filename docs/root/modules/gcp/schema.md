@@ -187,11 +187,11 @@ Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v
 | ---------- | ------------------------------------------------------- |
 | created_at | The date and time the zone was created                  |
 | description              | An optional description of the zone|
-| dns_name | The DNS name of this managed zone, for instance "example.com.".
+| dns_name | The DNS name of this managed zone, for instance "example.com.". |
 | firstseen  | Timestamp of when a sync job first discovered this node |
 | **id**                   |Unique identifier|
 | name       | The name of the zone                                    |
-| nameservers |Virtual name servers the zone is delegated to
+| nameservers |Virtual name servers the zone is delegated to |
 | visibility | The zone's visibility: `public` zones are exposed to the Internet, while `private` zones are visible only to Virtual Private Cloud resources.|
 
 
@@ -258,6 +258,9 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
     ```
     (GCPInstance)-[:MEMBER_OF_GCP_VPC]->(GCPVpc)
     ```
+
+    This relationship is created by an [analysis job](../../dev/writing-analysis-jobs.html)
+    defined at `cartography/data/jobs/analysis/gcp_compute_instance_vpc_analysis.json`.
 
     Also note that this relationship is a shortcut for:
 
