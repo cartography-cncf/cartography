@@ -48,9 +48,7 @@ def test_load_team_data(mock_teams, mock_members, neo4j_session):
 
     # Assert nodes exists
     expected_nodes = {("PQ9K7I8", "Engineering")}
-    assert (
-        check_nodes(neo4j_session, "PagerDutyTeam", ["id", "name"]) == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "PagerDutyTeam", ["id", "name"]) == expected_nodes
 
     # Check relationships between users and teams
     expected_rels = {

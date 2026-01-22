@@ -6,7 +6,10 @@ from typing import List
 import neo4j
 from pdpyras import APISession
 
+from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
+from cartography.graph.job import GraphJob
+from cartography.models.pagerduty.team import PagerDutyTeamSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -17,11 +20,13 @@ def sync_teams(
     neo4j_session: neo4j.Session,
     update_tag: int,
     pd_session: APISession,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     teams = get_teams(pd_session)
     load_team_data(neo4j_session, teams, update_tag)
     relations = get_team_members(pd_session, teams)
     load_team_relations(neo4j_session, relations, update_tag)
+    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -53,28 +58,10 @@ def load_team_data(
     update_tag: int,
 ) -> None:
     """
-    Transform and load teamuser information
-    """
-    ingestion_cypher_query = """
-    UNWIND $Teams AS team
-        MERGE (t:PagerDutyTeam{id: team.id})
-        ON CREATE SET t.html_url = team.html_url,
-            t.firstseen = timestamp()
-        SET t.type = team.type,
-            t.summary = team.summary,
-            t.name = team.name,
-            t.description = team.description,
-            t.default_role = team.default_role,
-            t.lastupdated = $update_tag
+    Transform and load team information
     """
     logger.info(f"Loading {len(data)} pagerduty teams.")
-
-    run_write_query(
-        neo4j_session,
-        ingestion_cypher_query,
-        Teams=data,
-        update_tag=update_tag,
-    )
+    load(neo4j_session, PagerDutyTeamSchema(), data, lastupdated=update_tag)
 
 
 def load_team_relations(
@@ -83,18 +70,32 @@ def load_team_relations(
     update_tag: int,
 ) -> None:
     """
-    Attach users to their teams
+    Attach users to their teams.
+
+    Note: This uses a separate Cypher query instead of the datamodel because
+    the MEMBER_OF relationship has a 'role' property that varies per user-team pair.
+    See https://github.com/cartography-cncf/cartography/issues/1589
     """
     ingestion_cypher_query = """
     UNWIND $Relations AS relation
         MATCH (t:PagerDutyTeam{id: relation.team}), (u:PagerDutyUser{id: relation.user})
         MERGE (u)-[r:MEMBER_OF]->(t)
         ON CREATE SET r.firstseen = timestamp()
-        SET r.role = relation.role
+        SET r.role = relation.role,
+            r.lastupdated = $update_tag
     """
     run_write_query(
         neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,
+    )
+
+
+@timeit
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    GraphJob.from_node_schema(PagerDutyTeamSchema(), common_job_parameters).run(
+        neo4j_session,
     )
