@@ -81,6 +81,10 @@ _aws_access_key_not_rotated = Fact(
       AND date(key.createdate_dt) < date() - duration('P90D')
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (key:AccountAccessKey)
+    RETURN COUNT(key) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -148,6 +152,10 @@ _aws_unused_credentials = Fact(
            AND date(key.createdate_dt) < date() - duration('P45D'))
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (key:AccountAccessKey)
+    RETURN COUNT(key) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -203,6 +211,10 @@ _aws_user_direct_policies = Fact(
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(user:AWSUser)-[:POLICY]->(policy:AWSPolicy)
     RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (user:AWSUser)
+    RETURN COUNT(user) AS count
     """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -272,6 +284,10 @@ _aws_multiple_access_keys = Fact(
     UNWIND paths AS path
     RETURN path
     """,
+    cypher_count_query="""
+    MATCH (user:AWSUser)
+    RETURN COUNT(user) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -333,6 +349,10 @@ _aws_expired_certificates = Fact(
     WHERE cert.not_after IS NOT NULL
       AND date(cert.not_after) < date()
     RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (cert:ACMCertificate)
+    RETURN COUNT(cert) AS count
     """,
     module=Module.AWS,
     maturity=Maturity.STABLE,

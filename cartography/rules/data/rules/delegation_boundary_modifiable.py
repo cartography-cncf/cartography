@@ -74,6 +74,10 @@ _aws_trust_relationship_manipulation = Fact(
         WHERE deny_stmt IS NULL
         RETURN *
     """,
+    cypher_count_query="""
+    MATCH (principal:AWSPrincipal)
+    RETURN COUNT(principal) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

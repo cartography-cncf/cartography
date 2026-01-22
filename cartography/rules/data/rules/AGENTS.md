@@ -89,6 +89,46 @@ CIS_REFERENCES = [
 ]
 ```
 
+## Fact Query Structure
+
+Each Fact requires **three** Cypher queries:
+
+### 1. `cypher_query` - Data Query
+Returns specific fields for the output model:
+```python
+cypher_query="""
+MATCH (b:S3Bucket)
+WHERE b.anonymous_access = true
+RETURN b.id AS id, b.name AS name, b.region AS region
+"""
+```
+
+### 2. `cypher_visual_query` - Visualization Query
+Returns nodes/relationships for Neo4j Browser:
+```python
+cypher_visual_query="""
+MATCH (b:S3Bucket)
+WHERE b.anonymous_access = true
+RETURN *
+"""
+```
+
+### 3. `cypher_count_query` - Total Asset Count Query
+Returns the **total count of all assets** of the type being evaluated (not just those matching the criteria). This enables compliance ratio calculations:
+
+```python
+cypher_count_query="""
+MATCH (b:S3Bucket)
+RETURN COUNT(b) AS count
+"""
+```
+
+**Important**: The count query should count ALL assets of the relevant type, regardless of whether they match the Fact criteria. For example:
+- If `cypher_query` finds public S3 buckets, `cypher_count_query` counts ALL S3 buckets
+- If `cypher_query` finds users without MFA, `cypher_count_query` counts ALL users
+
+This allows calculating ratios like "10 public buckets out of 100 total" or "5 users without MFA out of 50 total".
+
 ## Official CIS Benchmark Links
 
 - [CIS AWS Foundations Benchmark](https://www.cisecurity.org/benchmark/amazon_web_services)

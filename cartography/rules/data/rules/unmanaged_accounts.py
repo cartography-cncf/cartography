@@ -21,6 +21,10 @@ _unmanaged_accounts_ontology = Fact(
     AND (a.active = true OR a.active IS NULL)
     return a
     """,
+    cypher_count_query="""
+    MATCH (a:UserAccount)
+    RETURN COUNT(a) AS count
+    """,
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )

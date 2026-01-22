@@ -69,6 +69,10 @@ _aws_account_manipulation_permissions = Fact(
         )
         RETURN *
     """,
+    cypher_count_query="""
+    MATCH (principal:AWSPrincipal)
+    RETURN COUNT(principal) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

@@ -73,6 +73,10 @@ _aws_policy_manipulation_capabilities = Fact(
     )
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (principal:AWSPrincipal)
+    RETURN COUNT(principal) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

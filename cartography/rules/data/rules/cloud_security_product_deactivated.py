@@ -26,6 +26,10 @@ aws_guard_duty_detector_disabled = Fact(
     }
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (d:GuardDutyDetector)
+    RETURN COUNT(d) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
