@@ -7,6 +7,7 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.client.core.tx import execute_write_with_retry
 from cartography.intel.aws.iam import get_role_tags
 from cartography.util import aws_handle_regions
 from cartography.util import batch
@@ -382,12 +383,21 @@ def _run_cleanup_until_empty(
 
     Returns the total number of items deleted.
     """
+
+    def _cleanup_batch_tx(tx: neo4j.Transaction, query: str, **params: Any) -> int:
+        """Transaction function that runs a cleanup query and returns deletion count."""
+        result = tx.run(query, **params)
+        summary = result.consume()
+        return summary.counters.nodes_deleted + summary.counters.relationships_deleted
+
     total_deleted = 0
     while True:
-        result = neo4j_session.run(query, LIMIT_SIZE=batch_size, **kwargs)
-        summary = result.consume()
-        deleted = (
-            summary.counters.nodes_deleted + summary.counters.relationships_deleted
+        deleted = execute_write_with_retry(
+            neo4j_session,
+            _cleanup_batch_tx,
+            query,
+            LIMIT_SIZE=batch_size,
+            **kwargs,
         )
         total_deleted += deleted
         if deleted == 0:
