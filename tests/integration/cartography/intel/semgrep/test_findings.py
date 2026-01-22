@@ -80,6 +80,7 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "ref_urls",
             "scan_time",
         ],
+        order_by="id",
     ) == [
         tests.data.semgrep.sca.VULN_ID,
         TEST_UPDATE_TAG,
