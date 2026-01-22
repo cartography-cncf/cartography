@@ -74,14 +74,15 @@ def transform_services(
         service["teams_id"] = [team["id"] for team in service.get("teams", [])]
 
         # Flatten alert_grouping_parameters
-        alert_grouping = service.get("alert_grouping_parameters", {})
+        # Use `or {}` to handle both missing keys and explicit None values
+        alert_grouping = service.get("alert_grouping_parameters") or {}
         service["alert_grouping_parameters_type"] = alert_grouping.get("type")
 
         # Flatten incident_urgency_rule
-        urgency_rule = service.get("incident_urgency_rule", {})
+        urgency_rule = service.get("incident_urgency_rule") or {}
         service["incident_urgency_rule_type"] = urgency_rule.get("type")
 
-        during_support = urgency_rule.get("during_support_hours", {})
+        during_support = urgency_rule.get("during_support_hours") or {}
         service["incident_urgency_rule_during_support_hours_type"] = during_support.get(
             "type"
         )
@@ -89,7 +90,7 @@ def transform_services(
             during_support.get("urgency")
         )
 
-        outside_support = urgency_rule.get("outside_support_hours", {})
+        outside_support = urgency_rule.get("outside_support_hours") or {}
         service["incident_urgency_rule_outside_support_hours_type"] = (
             outside_support.get("type")
         )
@@ -98,7 +99,7 @@ def transform_services(
         )
 
         # Flatten support_hours
-        support_hours = service.get("support_hours", {})
+        support_hours = service.get("support_hours") or {}
         service["support_hours_type"] = support_hours.get("type")
         service["support_hours_time_zone"] = support_hours.get("time_zone")
         service["support_hours_start_time"] = support_hours.get("start_time")
