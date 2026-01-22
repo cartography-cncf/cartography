@@ -15,7 +15,7 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gitlab.container_images import _get_registry_token
+from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.models.gitlab.container_image_attestations import (
     GitLabContainerImageAttestationSchema,
 )
@@ -67,24 +67,20 @@ def get_container_image_attestations(
         registry_url = str(registry_url)
         repository_name = str(repository_name)
 
-        jwt_token = _get_registry_token(
-            gitlab_url, registry_url, repository_name, token
-        )
-
         for suffix in ATTESTATION_SUFFIXES:
             attestation_tag = _digest_to_attestation_tag(image_digest, suffix)
-            url = f"{registry_url}/v2/{repository_name}/manifests/{attestation_tag}"
 
             try:
-                response = requests.get(
-                    url,
-                    headers={"Authorization": f"Bearer {jwt_token}"},
-                    timeout=30,
+                response = fetch_registry_manifest(
+                    gitlab_url,
+                    registry_url,
+                    repository_name,
+                    attestation_tag,
+                    token,
                 )
 
-                if (
-                    response.status_code == 404
-                ):  # attestation doesnt exist for this image
+                if response.status_code == 404:
+                    # Attestation doesn't exist for this image
                     continue
 
                 response.raise_for_status()
@@ -105,10 +101,10 @@ def get_container_image_attestations(
                 all_attestations.append(attestation)
 
             except requests.exceptions.HTTPError:
-                logger.debug(
+                logger.error(
                     f"Failed to fetch attestation {attestation_tag} for {image_digest}"
                 )
-                continue
+                raise
 
     # Buildx-style discovery: scan manifest lists for attestation entries
     for manifest_list in manifest_lists:
@@ -121,10 +117,6 @@ def get_container_image_attestations(
         # Type narrowing after the guard check
         registry_url = str(registry_url)
         repository_name = str(repository_name)
-
-        jwt_token = _get_registry_token(
-            gitlab_url, registry_url, repository_name, token
-        )
 
         for entry in manifest_list.get("manifests", []):
             annotations = entry.get("annotations", {})
@@ -143,15 +135,14 @@ def get_container_image_attestations(
             seen_digests.add(attestation_digest)
 
             # Fetch the attestation manifest
-            url = f"{registry_url}/v2/{repository_name}/manifests/{attestation_digest}"
             try:
-                response = requests.get(
-                    url,
-                    headers={
-                        "Authorization": f"Bearer {jwt_token}",
-                        "Accept": "application/vnd.oci.image.manifest.v1+json",
-                    },
-                    timeout=30,
+                response = fetch_registry_manifest(
+                    gitlab_url,
+                    registry_url,
+                    repository_name,
+                    attestation_digest,
+                    token,
+                    accept_header="application/vnd.oci.image.manifest.v1+json",
                 )
                 response.raise_for_status()
 
@@ -165,8 +156,8 @@ def get_container_image_attestations(
                 all_attestations.append(attestation)
 
             except requests.exceptions.HTTPError:
-                logger.debug(f"Failed to fetch buildx attestation {attestation_digest}")
-                continue
+                logger.error(f"Failed to fetch buildx attestation {attestation_digest}")
+                raise
 
     logger.info(
         f"Discovered {len(all_attestations)} attestations ({len(manifest_lists)} manifest lists scanned)"

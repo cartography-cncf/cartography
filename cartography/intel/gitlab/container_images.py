@@ -10,18 +10,16 @@ from typing import Any
 from urllib.parse import urlparse
 
 import neo4j
-import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gitlab.util import fetch_registry_blob
+from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.gitlab.util import get_paginated
 from cartography.models.gitlab.container_images import GitLabContainerImageSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-# Cache for registry JWT tokens (registry_url -> token)
-_registry_token_cache: dict[str, str] = {}
 
 # Media types to accept when fetching manifests
 # Includes both Docker and OCI formats, single images and manifest lists
@@ -52,42 +50,6 @@ def _parse_repository_location(location: str) -> tuple[str, str]:
     return registry_url, repository_name
 
 
-def _get_registry_token(
-    gitlab_url: str,
-    registry_url: str,
-    repository_name: str,
-    token: str,
-) -> str:
-    """
-    Get a JWT token for accessing the GitLab container registry.
-
-    GitLab's registry uses Docker token authentication. We request a token
-    from the auth endpoint using the personal access token as credentials.
-    """
-    cache_key = f"{registry_url}:{repository_name}"
-    if cache_key in _registry_token_cache:
-        return _registry_token_cache[cache_key]
-
-    # GitLab's JWT auth endpoint
-    auth_url = f"{gitlab_url}/jwt/auth"
-    params = {
-        "service": "container_registry",
-        "scope": f"repository:{repository_name}:pull",
-    }
-
-    response = requests.get(
-        auth_url,
-        params=params,
-        auth=("token", token),  # Use personal access token as password
-        timeout=30,
-    )
-    response.raise_for_status()
-
-    jwt_token = response.json().get("token")
-    _registry_token_cache[cache_key] = jwt_token
-    return jwt_token
-
-
 def _get_manifest(
     gitlab_url: str,
     registry_url: str,
@@ -97,17 +59,17 @@ def _get_manifest(
 ) -> dict[str, Any]:
     """
     Fetch a manifest from the Docker Registry V2 API.
+
+    Handles 401 errors by refreshing the JWT token and retrying once.
     """
-    # Get JWT token for registry access
-    jwt_token = _get_registry_token(gitlab_url, registry_url, repository_name, token)
-
-    url = f"{registry_url}/v2/{repository_name}/manifests/{reference}"
-    headers = {
-        "Authorization": f"Bearer {jwt_token}",
-        "Accept": MANIFEST_ACCEPT_HEADER,
-    }
-
-    response = requests.get(url, headers=headers, timeout=30)
+    response = fetch_registry_manifest(
+        gitlab_url,
+        registry_url,
+        repository_name,
+        reference,
+        token,
+        accept_header=MANIFEST_ACCEPT_HEADER,
+    )
     response.raise_for_status()
 
     manifest = response.json()
@@ -156,11 +118,6 @@ def get_container_images(
             f"/api/v4/projects/{project_id}/registry/repositories/{repository_id}/tags",
         )
 
-        # Get JWT token for this repository (will be cached)
-        jwt_token = _get_registry_token(
-            gitlab_url, registry_url, repository_name, token
-        )
-
         for tag in tags:
             tag_name = tag.get("name")
             if not tag_name:
@@ -207,30 +164,26 @@ def get_container_images(
                     # Fetch config blob for child image
                     child_config = child_manifest.get("config")
                     if child_config and child_config.get("digest"):
-                        config_url = f"{registry_url}/v2/{repository_name}/blobs/{child_config['digest']}"
-                        config_response = requests.get(
-                            config_url,
-                            headers={"Authorization": f"Bearer {jwt_token}"},
-                            timeout=30,
+                        child_manifest["_config"] = fetch_registry_blob(
+                            gitlab_url,
+                            registry_url,
+                            repository_name,
+                            child_config["digest"],
+                            token,
                         )
-                        config_response.raise_for_status()
-                        child_manifest["_config"] = config_response.json()
 
                     all_manifests.append(child_manifest)
             else:
                 # Fetch config blob for regular images to get architecture/os/variant properties
                 config = manifest.get("config")
                 if config and config.get("digest"):
-                    config_url = (
-                        f"{registry_url}/v2/{repository_name}/blobs/{config['digest']}"
+                    manifest["_config"] = fetch_registry_blob(
+                        gitlab_url,
+                        registry_url,
+                        repository_name,
+                        config["digest"],
+                        token,
                     )
-                    config_response = requests.get(
-                        config_url,
-                        headers={"Authorization": f"Bearer {jwt_token}"},
-                        timeout=30,
-                    )
-                    config_response.raise_for_status()
-                    manifest["_config"] = config_response.json()
 
                 all_manifests.append(manifest)
 
