@@ -6,7 +6,7 @@ from typing import Tuple
 
 import dateutil.parser
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 def sync_schedules(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    pd_session: APISession,
+    pd_session: RestApiV2Client,
     common_job_parameters: dict[str, Any],
 ) -> None:
     data = get_schedules(pd_session)
@@ -32,7 +32,7 @@ def sync_schedules(
 
 
 @timeit
-def get_schedules(pd_session: APISession) -> List[Dict[str, Any]]:
+def get_schedules(pd_session: RestApiV2Client) -> List[Dict[str, Any]]:
     all_schedules: List[Dict[str, Any]] = []
     params = {"include[]": ["schedule_layers"]}
     for schedule in pd_session.iter_all("schedules", params=params):

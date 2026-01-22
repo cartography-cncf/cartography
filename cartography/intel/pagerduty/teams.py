@@ -4,7 +4,7 @@ from typing import Dict
 from typing import List
 
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def sync_teams(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    pd_session: APISession,
+    pd_session: RestApiV2Client,
     common_job_parameters: dict[str, Any],
 ) -> None:
     teams = get_teams(pd_session)
@@ -30,7 +30,7 @@ def sync_teams(
 
 
 @timeit
-def get_teams(pd_session: APISession) -> List[Dict[str, Any]]:
+def get_teams(pd_session: RestApiV2Client) -> List[Dict[str, Any]]:
     all_teams: List[Dict[str, Any]] = []
     for teams in pd_session.iter_all("teams"):
         all_teams.append(teams)
@@ -39,7 +39,7 @@ def get_teams(pd_session: APISession) -> List[Dict[str, Any]]:
 
 @timeit
 def get_team_members(
-    pd_session: APISession,
+    pd_session: RestApiV2Client,
     teams: List[Dict[str, Any]],
 ) -> List[Dict[str, str]]:
     relations: List[Dict[str, str]] = []
