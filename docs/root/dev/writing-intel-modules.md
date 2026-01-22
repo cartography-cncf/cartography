@@ -56,6 +56,8 @@ On the other hand, we should use `data.get('SomeField')` if `SomeField` is somet
 
 For the sake of consistency, if a field does not exist, set it to `None` and not `""`.
 
+Neo4j handles fields in `datetime` format, so when a date is returned as a string, it's best to parse it to enable the use of operators during querying.
+
 ### Load
 
 [As seen in our AWS EMR example](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/intel/aws/emr.py#L113-L132), the `load` function ingests a list of dicts to Neo4j by calling [cartography.client.core.tx.load()](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/client/core/tx.py#L191-L212):
@@ -76,9 +78,15 @@ def load_emr_clusters(
         Region=region,
         AWS_ID=current_aws_account_id,
     )
-
 ```
 
+```{tip}
+When defining nodes and properties, please follow the naming convention below:
+- **Node classes** should end with `Schema`
+- **Relationship classes** should end with `Rel`
+- **Node property classes** should end with `Properties`
+- **Relationship property classes** should end with `RelProperties`
+```
 
 #### Defining a node
 
@@ -168,6 +176,74 @@ This class is best described by explaining how it is processed: `build_ingestion
 class EMRClusterToAWSAccountRelRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
 ```
+
+```{important}
+**Relationship Naming Guidelines**
+
+When naming relationships in Cartography:
+- Prefer clear verbs (e.g., OWNS, CONTAINS)
+- Avoid ambiguous or passive phrasing (e.g., IS, CAN)
+- Use direct and active forms
+    - Prefer OWNS over OWNED_BY
+    - Prefer CONTAINS over BELONGS_TO
+
+Consistent, action-oriented naming improves graph readability and makes Cypher queries more intuitive.
+```
+
+### Sub-Resources relationship
+
+A *sub-resource* is a specific type of composition relationship in which a node "belongs to" a higher-level entity such as an Account, Subscription, etc.
+
+Examples:
+
+* In **AWS**, the parent is typically an `AWSAccount`.
+* In **Azure**, it's a `Tenant` or `Subscription`.
+* In **GCP**, it's a `GCPProject`.
+
+To define a sub-resource relationship, use the `sub_resource_relationship` property on the node class. It must follow these constraints:
+
+* The target node matcher must have `set_in_kwargs=True` (required for auto-cleanup functionality).
+* All `sub_resource_relationship`s must:
+
+  * Use the label `RESOURCE`
+  * Have the direction set to `INWARD`
+* Each module:
+
+  * **Must have at least one root node** (a node without a `sub_resource_relationship`)
+  * **Must have at most one root node**
+
+#### Common Relationship Types
+
+While you're free to define custom relationships, using standardized types improves maintainability and facilitates querying and analysis.
+
+**Composition**
+
+* `(:Parent)-[:CONTAINS]->(:Child)`
+* `(:Parent)-[:HAS]->(:Child)`
+
+**Tagging**
+
+* `(:Entity)-[:TAGGED]->(:Tag)`
+
+**Group Membership**
+
+* `(:Element)-[:MEMBER_OF]->(:Group)`
+* `(:Element)-[:ADMIN_OF]->(:Group)`
+    ```{note}
+    If an element is an admin, both relationships (`MEMBER_OF` and `ADMIN_OF`) should be present for consistency.
+    ```
+
+**Ownership**
+
+* `(:Entity)-[:OWNS]->(:OtherEntity)`
+
+**Permissions (ACL)**
+
+* `(:Actor)-[:CAN_ACCESS]->(:Entity)`
+* `(:Actor)-[:CAN_READ]->(:Entity)`
+* `(:Actor)-[:CAN_WRITE]->(:Entity)`
+* `(:Actor)-[:CAN_ADD]->(:Entity)`
+* `(:Actor)-[:CAN_DELETE]->(:Entity)`
 
 #### The result
 
@@ -370,6 +446,53 @@ synced.
 For some other modules that don't have a clear tenant-like relationship, you can set `scoped_cleanup` to False on the
 node_schema. This might make sense for a vuln scanner module where there is no logical tenant object.
 
+#### Hierarchical data and cascade_delete
+
+Some data sources have multi-tier hierarchical structures where nodes own other nodes via RESOURCE relationships. Examples include:
+
+- **GCP**: Organization → Folders → Projects → Compute instances, Storage buckets, etc.
+- **GitLab**: Organization → Groups → Projects → Branches, Dependencies, etc.
+
+In Cartography, RESOURCE relationships point from parent to child:
+
+```
+(Parent)-[:RESOURCE]->(Child)
+```
+
+When a parent node becomes stale and is deleted, you may want its children to be deleted as well. The `cascade_delete` parameter enables this behavior:
+
+```python
+def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+    cleanup_job = GraphJob.from_node_schema(
+        MyParentSchema(),
+        common_job_parameters,
+        cascade_delete=True,  # Also delete children when parent is stale
+    )
+    cleanup_job.run(neo4j_session)
+```
+
+When `cascade_delete=True`, the cleanup query becomes:
+
+```cypher
+WHERE n.lastupdated <> $UPDATE_TAG
+WITH n LIMIT $LIMIT_SIZE
+OPTIONAL MATCH (n)-[:RESOURCE]->(child)
+WHERE child IS NULL OR child.lastupdated <> $UPDATE_TAG
+DETACH DELETE child, n;
+```
+
+**When to use cascade_delete:**
+
+- Use `cascade_delete=True` when child nodes are meaningless without their parent (e.g., GitLab branches without their project)
+- Use `cascade_delete=False` (default) when children should persist independently or when another module manages their lifecycle
+
+**Important notes:**
+
+- Only affects direct children (one level deep via `RESOURCE` relationships). Grandchildren require cleaning up intermediate levels first.
+- Children that were re-parented in the current sync (matching `UPDATE_TAG`) are protected from deletion.
+- Only valid with scoped cleanup (`scoped_cleanup=True`). Unscoped cleanups will raise an error if `cascade_delete=True`.
+- Default is `False` for backward compatibility.
+
 #### Legacy notes
 
 Older intel modules still do this process with hand-written cleanup jobs that work like this:
@@ -433,15 +556,47 @@ resources that exist in the graph don't change across syncs.
     same data. Explained another way, each module should "offer its own perspective" on the data. We believe doing this
     gives us a more complete graph. Below are some key guidelines clarifying and justifying this design choice.
 
-- It is possible (and encouraged) for more than one intel module to modify the same node type.
+- It is possible (and encouraged) for more than one intel module to modify the same node type. However, there are two distinct patterns for this:
 
-    For example, when we [connect RDS instances to their associated EC2 security
-    groups](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L188)
-    there are actually two different intel modules that retrieve EC2 security group data: the [RDS module](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/rds.py#L13)
-    returns [partial group data](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBSecurityGroupMembership.html),
-    and the EC2 module returns more complete data as it calls APIs specific for [retrieving and loading security groups](https://github.com/cartography-cncf/cartography/blob/6e060389fbeb14f4ccc3e58005230129f1c6962f/cartography/intel/aws/ec2.py#L166).
-    Because both the RDS and EC2 modules `MERGE` on a unique ID, we don't need to worry about
-    creating duplicate nodes in the graph.
+    **Simple Relationship Pattern**: When data type A only refers to data type B by an ID without providing additional properties about B, we can just define a relationship schema. This way when A is loaded, the relationship schema performs a `MATCH` to find and connect to existing nodes of type B.
 
-    Another less obvious benefit of using `MERGE` across more than one intel module to connect nodes in this way is that
-    in many cases, we've seen an intel module discover nodes that another module was not aware of!
+    For example, when an RDS instance refers to EC2 security groups by ID, we create a relationship from the RDS instance to the security group nodes, since the RDS API doesn't provide additional properties about the security groups beyond their IDs.
+
+    ```python
+    # RDS Instance refers to Security Groups by ID only
+    @dataclass(frozen=True)
+    class RDSInstanceToSecurityGroupRel(CartographyRelSchema):
+        target_node_label: str = "EC2SecurityGroup"
+        target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
+            "id": PropertyRef("SecurityGroupId"),  # Just the ID, no additional properties
+        })
+        direction: LinkDirection = LinkDirection.OUTWARD
+        rel_label: str = "MEMBER_OF_EC2_SECURITY_GROUP"
+        properties: RDSInstanceToSecurityGroupRelProperties = RDSInstanceToSecurityGroupRelProperties()
+    ```
+
+    **Composite Node Pattern**: When a data type `A` refers to another data type `B` and offers additional fields about `B` that `B` doesn't have itself, we should define a composite node schema. This composite node would be named "`BASchema`" to denote that it's a "`B`" object as known by an "`A`" object. When loaded, the composite node schema targets the same node label as the primary `B` schema, allowing the loading system to perform a `MERGE` operation that combines properties from both sources.
+
+    For example, in the AWS EC2 module, we have both `EBSVolumeSchema` (from the EBS API) and `EBSVolumeInstanceSchema` (from the EC2 Instance API). The EC2 Instance API provides additional properties about EBS volumes that the EBS API doesn't have, such as `deleteontermination`. Both schemas target the same `EBSVolume` node label, allowing the node to accumulate properties from both sources.
+
+    ```python
+    # EC2 Instance provides additional properties about EBS Volumes
+    @dataclass(frozen=True)
+    class EBSVolumeInstanceProperties(CartographyNodeProperties):
+        id: PropertyRef = PropertyRef("VolumeId")
+        arn: PropertyRef = PropertyRef("Arn", extra_index=True)
+        lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+        # Additional property that EBS API doesn't have
+        deleteontermination: PropertyRef = PropertyRef("DeleteOnTermination")
+
+    @dataclass(frozen=True)
+    class EBSVolumeInstanceSchema(CartographyNodeSchema):
+        label: str = "EBSVolume"  # Same label as EBSVolumeSchema
+        properties: EBSVolumeInstanceProperties = EBSVolumeInstanceProperties()
+        sub_resource_relationship: EBSVolumeToAWSAccountRel = EBSVolumeToAWSAccountRel()
+        # ... other relationships
+    ```
+
+    The key distinction is whether the referring module provides additional properties about the target entity. If it does, use a composite node schema. If it only provides IDs, use a simple relationship schema.
+
+    In case you're curious, here's some [historical context](https://github.com/cartography-cncf/cartography/issues/1210) on how we got here.

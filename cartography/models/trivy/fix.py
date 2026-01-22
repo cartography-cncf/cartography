@@ -26,7 +26,7 @@ class TrivyFixToPackageRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class TrivyFixToPackage(CartographyRelSchema):
+class TrivyFixToPackageRel(CartographyRelSchema):
     target_node_label: str = "Package"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("PackageId")},
@@ -42,7 +42,7 @@ class TrivyFixToFindingRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class TrivyFixToFinding(CartographyRelSchema):
+class TrivyFixToFindingRel(CartographyRelSchema):
     target_node_label: str = "TrivyImageFinding"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FindingId")},
@@ -60,7 +60,7 @@ class TrivyFixSchema(CartographyNodeSchema):
     properties: TrivyFixNodeProperties = TrivyFixNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            TrivyFixToPackage(),
-            TrivyFixToFinding(),
+            TrivyFixToPackageRel(),
+            TrivyFixToFindingRel(),
         ],
     )

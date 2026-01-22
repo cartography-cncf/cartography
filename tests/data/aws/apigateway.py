@@ -1,5 +1,5 @@
-import datetime
 import json
+from datetime import datetime
 
 DOUBLY_ESCAPED_POLICY = (
     """{\\\"Version\\\":\\\"2012-10-17\\\","""
@@ -14,7 +14,7 @@ GET_REST_APIS = [
         "id": "test-001",
         "name": "Infra-testing-cartography",
         "description": "Testing for Cartography",
-        "createdDate": datetime.datetime(2021, 1, 1),
+        "createdDate": datetime(2021, 1, 1),
         "version": "1.0",
         "warnings": [
             "Possible Failure",
@@ -35,7 +35,7 @@ GET_REST_APIS = [
         "id": "test-002",
         "name": "Unit-testing-cartography",
         "description": "Unit Testing for Cartography",
-        "createdDate": datetime.datetime(2021, 2, 1),
+        "createdDate": datetime(2021, 2, 1),
         "version": "1.0",
         "warnings": [
             "Possible Failure",
@@ -82,8 +82,8 @@ GET_STAGES = [
         "documentationVersion": "1.17.14",
         "tracingEnabled": True,
         "webAclArn": "arn:aws:wafv2:us-west-2:1234567890:regional/webacl/test-cli/a1b2c3d4-5678-90ab-cdef-EXAMPLE111",
-        "createdDate": datetime.datetime(2021, 1, 1),
-        "lastUpdatedDate": datetime.datetime(2021, 2, 1),
+        "createdDate": datetime(2021, 1, 1),
+        "lastUpdatedDate": datetime(2021, 2, 1),
     },
     {
         "arn": "arn:aws:apigateway:::test-002/Cartography-testing-unit",
@@ -112,8 +112,8 @@ GET_STAGES = [
         "documentationVersion": "1.17.14",
         "tracingEnabled": True,
         "webAclArn": "arn:aws:wafv2:us-west-2:1234567890:regional/webacl/test-cli/a1b2c3d4-5678-90ab-cdef-EXAMPLE111",
-        "createdDate": datetime.datetime(2021, 1, 1),
-        "lastUpdatedDate": datetime.datetime(2021, 2, 1),
+        "createdDate": datetime(2021, 1, 1),
+        "lastUpdatedDate": datetime(2021, 2, 1),
     },
 ]
 
@@ -121,8 +121,8 @@ GET_CERTIFICATES = [
     {
         "clientCertificateId": "cert-001",
         "description": "Protection",
-        "createdDate": datetime.datetime(2021, 2, 1),
-        "expirationDate": datetime.datetime(2021, 4, 1),
+        "createdDate": datetime(2021, 2, 1),
+        "expirationDate": datetime(2021, 4, 1),
         "stageName": "Cartography-testing-infra",
         "apiId": "test-001",
         "stageArn": "arn:aws:apigateway:::test-001/Cartography-testing-infra",
@@ -130,8 +130,8 @@ GET_CERTIFICATES = [
     {
         "clientCertificateId": "cert-002",
         "description": "Protection",
-        "createdDate": datetime.datetime(2021, 2, 1),
-        "expirationDate": datetime.datetime(2021, 4, 1),
+        "createdDate": datetime(2021, 2, 1),
+        "expirationDate": datetime(2021, 4, 1),
         "stageName": "Cartography-testing-unit",
         "apiId": "test-002",
         "stageArn": "arn:aws:apigateway:::test-002/Cartography-testing-unit",
@@ -148,6 +148,29 @@ GET_RESOURCES = [
     },
 ]
 
+GET_METHODS = [
+    {
+        "authorizationType": "NONE",
+        "apiKeyRequired": False,
+        "requestParameters": {"method.request.querystring.page": False},
+        "methodResponses": {"200": {"statusCode": "200"}},
+        "resourceId": "3kzxbg5sa2",
+        "apiId": "test-001",
+        "httpMethod": "GET",
+    },
+]
+
+GET_INTEGRATIONS = [
+    {
+        "type": "MOCK",
+        "uri": "arn:aws:apigateway:us-east-1:mock",
+        "resourceId": "3kzxbg5sa2",
+        "apiId": "test-001",
+        "httpMethod": "GET",
+    },
+]
+
+
 # This represents the tuple of (api_id, stage, certificate, resource, policy) that get_rest_api_details returns
 GET_REST_API_DETAILS = [
     # We use json.dumps() to simulate the fact that the policy is a string,
@@ -158,6 +181,8 @@ GET_REST_API_DETAILS = [
         [GET_STAGES[0]],
         GET_CERTIFICATES[0],
         [GET_RESOURCES[0]],
+        [GET_METHODS[0]],
+        [GET_INTEGRATIONS[0]],
         json.dumps(
             {
                 "Version": "2012-10-17",
@@ -177,6 +202,8 @@ GET_REST_API_DETAILS = [
         [GET_STAGES[1]],
         GET_CERTIFICATES[1],
         [],
+        [],
+        [],
         json.dumps(
             {
                 "Version": "2012-10-17",
@@ -193,4 +220,34 @@ GET_REST_API_DETAILS = [
             },
         ),
     ),
+]
+
+
+GET_REST_API_DEPLOYMENTS = [
+    {
+        "id": "dep1",
+        "api_id": "test-001",
+        "description": "Initial deployment for v1 of the API",
+        "createdDate": datetime(2023, 5, 10),
+        "apiSummary": {
+            "/users": {
+                "GET": {"authorizationType": "NONE", "apiKeyRequired": False},
+                "POST": {"authorizationType": "AWS_IAM", "apiKeyRequired": True},
+            }
+        },
+    },
+    {
+        "id": "dep2",
+        "api_id": "test-002",
+        "description": "Deployment for v2 with additional endpoints",
+        "createdDate": datetime(2024, 2, 15),
+        "apiSummary": {
+            "/products": {
+                "GET": {"authorizationType": "NONE", "apiKeyRequired": False}
+            },
+            "/orders": {
+                "POST": {"authorizationType": "CUSTOM", "apiKeyRequired": True}
+            },
+        },
+    },
 ]

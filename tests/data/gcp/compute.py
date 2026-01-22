@@ -41,6 +41,48 @@ VPC_RESPONSE = {
     "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks",
 }
 
+VPC_RESPONSE_2 = {
+    "id": "projects/project-def/global/networks",
+    "items": [
+        {
+            "autoCreateSubnetworks": True,
+            "creationTimestamp": "2018-05-10T17:33:18.968-07:00",
+            "description": "Default network for the project",
+            "id": "234567",
+            "kind": "compute#network",
+            "name": "default2",
+            "routingConfig": {
+                "routingMode": "REGIONAL",
+            },
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-def/global/networks/default2",
+            "subnetworks": [
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/europe-west2/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/asia-east2/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/asia-east1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-east1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/northamerica-northeast1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/europe-west1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/europe-west3/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/asia-south1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/europe-west4/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/asia-southeast1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-west2/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-central1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/asia-northeast2/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-east4/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/us-west1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/southamerica-east1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/asia-northeast1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/europe-west6/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/europe-north1/subnetworks/default2",
+                "https://www.googleapis.com/compute/v1/projects/project-def/regions/australia-southeast1/subnetworks/default2",
+            ],
+        },
+    ],
+    "kind": "compute#networkList",
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-def/global/networks",
+}
+
 VPC_SUBNET_RESPONSE = {
     "id": "projects/project-abc/regions/europe-west2/subnetworks",
     "items": [
@@ -813,5 +855,26 @@ LIST_FORWARDING_RULES_RESPONSE = {
         },
     ],
     "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/regions/europe-west4/forwardingRules",
+    "kind": "compute#forwardingRuleList",
+}
+
+LIST_GLOBAL_FORWARDING_RULES_RESPONSE = {
+    "id": "projects/project-abc/global/forwardingRules",
+    "items": [
+        {
+            "id": "99999999",
+            "creationTimestamp": "2019-11-22T06:05:37.254-08:00",
+            "name": "global-rule-1",
+            "description": "global forwarding rule",
+            "IPAddress": "35.235.1.2",
+            "IPProtocol": "TCP",
+            "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/global/forwardingRules/global-rule-1",
+            "loadBalancingScheme": "EXTERNAL",
+            "network": "https://www.googleapis.com/compute/v1/projects/project-abc/global/networks/default",
+            "target": "https://www.googleapis.com/compute/v1/projects/project-abc/global/targetHttpsProxies/proxy-1",
+            "kind": "compute#forwardingRule",
+        },
+    ],
+    "selfLink": "https://www.googleapis.com/compute/v1/projects/project-abc/global/forwardingRules",
     "kind": "compute#forwardingRuleList",
 }

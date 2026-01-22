@@ -2,6 +2,10 @@ default_language_version:
     # force all unspecified python hooks to run python3
     python: python3
 repos:
+-   repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.9.18
+    hooks:
+    -   id: uv-lock
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:

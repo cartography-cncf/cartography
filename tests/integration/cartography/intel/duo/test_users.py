@@ -5,6 +5,8 @@ from cartography.intel.duo.endpoints import sync_duo_endpoints
 from cartography.intel.duo.groups import sync_duo_groups
 from cartography.intel.duo.phones import sync as sync_duo_phones
 from cartography.intel.duo.tokens import sync as sync_duo_tokens
+from cartography.intel.duo.users import _load_users
+from cartography.intel.duo.users import _transform_users
 from cartography.intel.duo.users import sync_duo_users
 from cartography.intel.duo.web_authn_credentials import (
     sync as sync_duo_web_authn_credentials,
@@ -24,6 +26,11 @@ COMMON_JOB_PARAMETERS = {
     "DUO_API_HOSTNAME": TEST_API_HOSTNAME,
     "UPDATE_TAG": TEST_UPDATE_TAG,
 }
+
+
+def _ensure_local_neo4j_has_test_users(neo4j_session):
+    data = _transform_users(GET_USERS_RESPONSE)
+    _load_users(neo4j_session, data, COMMON_JOB_PARAMETERS)
 
 
 def test_sync_duo_users(neo4j_session):

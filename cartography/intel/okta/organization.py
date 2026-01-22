@@ -3,6 +3,7 @@ import logging
 
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -23,11 +24,12 @@ def create_okta_organization(
     """
     ingest = """
     MERGE (org:OktaOrganization{id: $ORG_NAME})
-    ON CREATE SET org.name = org.id, org.firstseen = timestamp()
-    SET org.lastupdated = $okta_update_tag
+    ON CREATE SET org.name = org.id, org.firstseen = timestamp(), org._ont_name = org.id
+    SET org.lastupdated = $okta_update_tag, org :Tenant
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest,
         ORG_NAME=organization,
         okta_update_tag=okta_update_tag,

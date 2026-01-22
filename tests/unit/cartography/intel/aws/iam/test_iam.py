@@ -1,6 +1,9 @@
+import datetime
+
 from cartography.intel.aws import iam
 from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
+from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES_RESPONSE
 
 SINGLE_STATEMENT = {
     "Resource": "*",
@@ -116,7 +119,52 @@ def test_transform_policy_data_correctly_creates_lists_of_statements():
     }
 
     # Act: call transform on the object
-    transform_policy_data(pol_statement_map, PolicyType.inline.value)
+    result = transform_policy_data(pol_statement_map, PolicyType.inline.value)
 
-    # Assert that we correctly converted the statement to a list
-    assert isinstance(pol_statement_map["some-arn"]["pol-name"], list)
+    # Assert the structure of the result
+    assert len(result.inline_policies) == 1
+    assert len(result.managed_policies) == 0
+    assert len(result.statements_by_policy_id) == 1
+
+    # Check the inline policy data
+    expected_policy_id = "some-arn/inline_policy/pol-name"
+    expected_inline_policies = [
+        {
+            "id": expected_policy_id,
+            "name": "pol-name",
+            "type": "inline",
+            "arn": None,  # Inline policies don't have ARNs
+            "principal_arns": ["some-arn"],
+        }
+    ]
+    assert result.inline_policies == expected_inline_policies
+
+    # Check the statements
+    assert expected_policy_id in result.statements_by_policy_id
+    statements = result.statements_by_policy_id[expected_policy_id]
+    assert isinstance(statements, list)
+    assert len(statements) == 1
+
+    # Check the statements
+    expected_statements = [
+        {
+            "id": f"{expected_policy_id}/statement/1",
+            "policy_id": expected_policy_id,
+            "Effect": "Allow",
+            "Sid": None,  # No Sid in original statement
+            "Action": ["secretsmanager:GetSecretValue"],
+            "Resource": ["arn:aws:secretsmanager:XXXXX:XXXXXXXX"],
+        }
+    ]
+    assert statements == expected_statements
+
+
+def test_transform_server_certificates():
+    raw_data = LIST_SERVER_CERTIFICATES_RESPONSE["ServerCertificateMetadataList"]
+    result = iam.transform_server_certificates(raw_data)
+    assert len(result) == 1
+    assert result[0]["ServerCertificateName"] == "test-cert"
+    assert isinstance(result[0]["Expiration"], datetime.datetime)
+    assert isinstance(result[0]["UploadDate"], datetime.datetime)
+    assert result[0]["Expiration"] == datetime.datetime(2024, 1, 1, 0, 0, 0)
+    assert result[0]["UploadDate"] == datetime.datetime(2023, 1, 1, 0, 0, 0)

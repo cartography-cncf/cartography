@@ -5,6 +5,7 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -63,13 +64,14 @@ def load_internet_gateways(
         SET r.lastupdated = $aws_update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         query,
         internet_gateways=internet_gateways,
         region=region,
         aws_account_id=current_aws_account_id,
         aws_update_tag=update_tag,
-    ).consume()
+    )
 
 
 @timeit

@@ -16,6 +16,8 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class EC2SubnetNetworkInterfaceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("SubnetId")
+    # TODO: remove subnetid once we have migrated to subnet_id
+    subnetid: PropertyRef = PropertyRef("SubnetId", extra_index=True)
     subnet_id: PropertyRef = PropertyRef("SubnetId", extra_index=True)
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

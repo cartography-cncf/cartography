@@ -7,8 +7,10 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -136,6 +138,40 @@ class InspectorFindingToECRImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class InspectorFindingToPackageRelRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+    # The following properties live in vulnerablePackages from AWS API
+    # Adding them here to avoid multiple repetion of packages
+    filepath: PropertyRef = PropertyRef("filePath")
+    fixedinversion: PropertyRef = PropertyRef("fixedInVersion")
+    remediation: PropertyRef = PropertyRef("remediation")
+    sourcelayerhash: PropertyRef = PropertyRef("sourceLayerHash")
+    sourcelambdalayerarn: PropertyRef = PropertyRef("sourceLambdaLayerArn")
+
+
+@dataclass(frozen=True)
+# (:AWSInspectorFinding)-[:HAS]->(:AWSInspectorPackage)
+class InspectorFindingToPackageMatchLink(CartographyRelSchema):
+    target_node_label: str = "AWSInspectorPackage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("packageid")},
+    )
+    source_node_label: str = "AWSInspectorFinding"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"id": PropertyRef("findingarn")},
+    )
+    properties: InspectorFindingToPackageRelRelProperties = (
+        InspectorFindingToPackageRelRelProperties()
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS"
+
+
+@dataclass(frozen=True)
 class AWSInspectorFindingSchema(CartographyNodeSchema):
     label: str = "AWSInspectorFinding"
     properties: AWSInspectorNodeProperties = AWSInspectorNodeProperties()
@@ -146,6 +182,7 @@ class AWSInspectorFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             InspectorFindingToEC2InstanceRel(),
+            # TODO: Fix ECRRepository and ECRImage relationships
             InspectorFindingToECRRepositoryRel(),
             InspectorFindingToECRImageRel(),
             InspectorFindingToAWSAccountRelDelegateRel(),

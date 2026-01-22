@@ -3,10 +3,12 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -30,8 +32,20 @@ class DOProjectToAccountRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:DOAccount)<-[:RESOURCE]-(:DOProject)
+# (:DOAccount)-[:RESOURCE]->(:DOProject)
 class DOProjectToAccountRel(CartographyRelSchema):
+    target_node_label: str = "DOAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: DOProjectToAccountRelProperties = DOProjectToAccountRelProperties()
+
+
+@dataclass(frozen=True)
+# (:DOAccount)<-[:RESOURCE]-(:DOProject) - Backwards compatibility
+class DOProjectToAccountDeprecatedRel(CartographyRelSchema):
     target_node_label: str = "DOAccount"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ACCOUNT_ID", set_in_kwargs=True)},
@@ -46,3 +60,8 @@ class DOProjectSchema(CartographyNodeSchema):
     label: str = "DOProject"
     properties: DOProjectNodeProperties = DOProjectNodeProperties()
     sub_resource_relationship: DOProjectToAccountRel = DOProjectToAccountRel()
+    # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+    other_relationships: OtherRelationships = OtherRelationships(
+        rels=[DOProjectToAccountDeprecatedRel()],
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tenant"])

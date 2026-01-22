@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any
 from typing import Dict
@@ -26,11 +27,36 @@ def get_cloudtrail_trails(
     )
 
     trails = client.describe_trails()["trailList"]
+    trails_filtered = []
+    for trail in trails:
+        if trail.get("HomeRegion") == region:
+            selectors = client.get_event_selectors(TrailName=trail["TrailARN"])
+            trail["EventSelectors"] = selectors.get("EventSelectors", [])
+            trail["AdvancedEventSelectors"] = selectors.get(
+                "AdvancedEventSelectors",
+                [],
+            )
+            trails_filtered.append(trail)
 
-    # CloudTrail multi-region trails are shown in list_trails,
-    # but the get_trail call only works in the home region
-    trails_filtered = [trail for trail in trails if trail.get("HomeRegion") == region]
     return trails_filtered
+
+
+def transform_cloudtrail_trails(
+    trails: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
+    """
+    Transform CloudTrail trail data for ingestion
+    """
+    for trail in trails:
+        arn = trail.get("CloudWatchLogsLogGroupArn")
+        if arn:
+            trail["CloudWatchLogsLogGroupArn"] = arn.split(":*")[0]
+        trail["EventSelectors"] = json.dumps(trail.get("EventSelectors", []))
+        trail["AdvancedEventSelectors"] = json.dumps(
+            trail.get("AdvancedEventSelectors", []),
+        )
+
+    return trails
 
 
 @timeit
@@ -79,7 +105,8 @@ def sync(
         logger.info(
             f"Syncing CloudTrail for region '{region}' in account '{current_aws_account_id}'.",
         )
-        trails = get_cloudtrail_trails(boto3_session, region)
+        trails_filtered = get_cloudtrail_trails(boto3_session, region)
+        trails = transform_cloudtrail_trails(trails_filtered, region)
 
         load_cloudtrail_trails(
             neo4j_session,

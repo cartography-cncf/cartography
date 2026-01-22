@@ -13,6 +13,7 @@ def check_nodes_as_list(
     neo4j_session: neo4j.Session,
     node_label: str,
     attrs: List[str],
+    order_by: str | None = None,
 ):
     """
     Like tests.integration.util.check_nodes()` but returns a list instead of a set.
@@ -22,10 +23,13 @@ def check_nodes_as_list(
             "`attrs` passed to check_nodes() must have at least one element.",
         )
 
-    attrs = ", ".join(f"n.{attr}" for attr in attrs)
-    query_template = Template("MATCH (n:$NodeLabel) RETURN $Attrs")
+    attrs_str = ", ".join(f"n.{attr}" for attr in attrs)
+    order_clause = f" ORDER BY n.{order_by}" if order_by else ""
+    query_template = Template("MATCH (n:$NodeLabel) RETURN $Attrs$OrderClause")
     result = neo4j_session.run(
-        query_template.safe_substitute(NodeLabel=node_label, Attrs=attrs),
+        query_template.safe_substitute(
+            NodeLabel=node_label, Attrs=attrs_str, OrderClause=order_clause
+        ),
     )
     return sum([row.values() for row in result], [])
 

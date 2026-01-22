@@ -1,4 +1,4 @@
-import cartography.intel.aws.ec2
+import cartography.intel.aws.ec2.vpc_peerings
 import tests.data.aws.ec2.vpc_peerings
 
 TEST_ACCOUNT_ID = "000000000000"
@@ -8,9 +8,46 @@ TEST_UPDATE_TAG = 123456789
 
 def test_load_vpc_peerings(neo4j_session):
     data = tests.data.aws.ec2.vpc_peerings.DESCRIBE_VPC_PEERINGS
+    vpc_peerings, accepter_cidrs, requester_cidrs, vpc_nodes = (
+        cartography.intel.aws.ec2.vpc_peerings.transform_vpc_peering_data(
+            data,
+        )
+    )
+    aws_accounts = (
+        cartography.intel.aws.ec2.vpc_peerings.transform_aws_accounts_from_vpc_peering(
+            data,
+        )
+    )
+
+    cartography.intel.aws.ec2.vpc_peerings.load_aws_accounts_from_vpc_peering(
+        neo4j_session,
+        aws_accounts,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_vpc_nodes(
+        neo4j_session,
+        vpc_nodes,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_accepter_cidrs(
+        neo4j_session,
+        accepter_cidrs,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_requester_cidrs(
+        neo4j_session,
+        requester_cidrs,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
     cartography.intel.aws.ec2.vpc_peerings.load_vpc_peerings(
         neo4j_session,
-        data,
+        vpc_peerings,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -32,9 +69,46 @@ def test_load_vpc_peerings(neo4j_session):
 
 def test_vpc_peering_relationships_vpc(neo4j_session):
     data = tests.data.aws.ec2.vpc_peerings.DESCRIBE_VPC_PEERINGS
+    vpc_peerings, accepter_cidrs, requester_cidrs, vpc_nodes = (
+        cartography.intel.aws.ec2.vpc_peerings.transform_vpc_peering_data(
+            data,
+        )
+    )
+    aws_accounts = (
+        cartography.intel.aws.ec2.vpc_peerings.transform_aws_accounts_from_vpc_peering(
+            data,
+        )
+    )
+
+    cartography.intel.aws.ec2.vpc_peerings.load_aws_accounts_from_vpc_peering(
+        neo4j_session,
+        aws_accounts,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_vpc_nodes(
+        neo4j_session,
+        vpc_nodes,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_accepter_cidrs(
+        neo4j_session,
+        accepter_cidrs,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_requester_cidrs(
+        neo4j_session,
+        requester_cidrs,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
     cartography.intel.aws.ec2.vpc_peerings.load_vpc_peerings(
         neo4j_session,
-        data,
+        vpc_peerings,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
@@ -63,23 +137,46 @@ def test_vpc_peering_relationships_vpc(neo4j_session):
 
 def test_vpc_peering_relationships_cidr(neo4j_session):
     data = tests.data.aws.ec2.vpc_peerings.DESCRIBE_VPC_PEERINGS
-    cartography.intel.aws.ec2.vpc_peerings.load_vpc_peerings(
+    vpc_peerings, accepter_cidrs, requester_cidrs, vpc_nodes = (
+        cartography.intel.aws.ec2.vpc_peerings.transform_vpc_peering_data(
+            data,
+        )
+    )
+    aws_accounts = (
+        cartography.intel.aws.ec2.vpc_peerings.transform_aws_accounts_from_vpc_peering(
+            data,
+        )
+    )
+
+    cartography.intel.aws.ec2.vpc_peerings.load_aws_accounts_from_vpc_peering(
         neo4j_session,
-        data,
+        aws_accounts,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_vpc_nodes(
+        neo4j_session,
+        vpc_nodes,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
     cartography.intel.aws.ec2.vpc_peerings.load_accepter_cidrs(
         neo4j_session,
-        data,
+        accepter_cidrs,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
     cartography.intel.aws.ec2.vpc_peerings.load_requester_cidrs(
         neo4j_session,
-        data,
+        requester_cidrs,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ec2.vpc_peerings.load_vpc_peerings(
+        neo4j_session,
+        vpc_peerings,
         TEST_REGION,
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,

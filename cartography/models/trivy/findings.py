@@ -16,12 +16,12 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TrivyImageFindingNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("VulnerabilityID")
-    cve_id: PropertyRef = PropertyRef("cve_id")
+    cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
     description: PropertyRef = PropertyRef("Description")
     last_modified_date: PropertyRef = PropertyRef("LastModifiedDate")
     primary_url: PropertyRef = PropertyRef("PrimaryURL")
     published_date: PropertyRef = PropertyRef("PublishedDate")
-    severity: PropertyRef = PropertyRef("Severity")
+    severity: PropertyRef = PropertyRef("Severity", extra_index=True)
     severity_source: PropertyRef = PropertyRef("SeveritySource")
     title: PropertyRef = PropertyRef("Title")
     cvss_nvd_v2_score: PropertyRef = PropertyRef("nvd_v2_score")
@@ -43,7 +43,7 @@ class TrivyFindingToImageRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class TrivyFindingToImage(CartographyRelSchema):
+class TrivyFindingToImageRel(CartographyRelSchema):
     target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ImageDigest")},
@@ -61,6 +61,6 @@ class TrivyImageFindingSchema(CartographyNodeSchema):
     properties: TrivyImageFindingNodeProperties = TrivyImageFindingNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            TrivyFindingToImage(),
+            TrivyFindingToImageRel(),
         ],
     )

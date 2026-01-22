@@ -1,3 +1,5 @@
+from cartography.graph.querybuilder import _get_cartography_version
+from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.models.aws.iam.instanceprofile import InstanceProfileSchema
 from tests.unit.cartography.graph.helpers import (
@@ -6,14 +8,19 @@ from tests.unit.cartography.graph.helpers import (
 
 
 def test_build_ingestion_query_onetomany():
+    module_version = _get_cartography_version()
+    module_name = _get_module_from_schema(InstanceProfileSchema())
+
     # Act
     query = build_ingestion_query(InstanceProfileSchema())
 
-    expected = """
+    expected = f"""
     UNWIND $DictList AS item
-        MERGE (i:AWSInstanceProfile{id: item.Arn})
+        MERGE (i:AWSInstanceProfile{{id: item.Arn}})
         ON CREATE SET i.firstseen = timestamp()
         SET
+            i._module_name = "{module_name}",
+            i._module_version = "{module_version}",
             i.lastupdated = $lastupdated,
             i.arn = item.Arn,
             i.createdate = item.CreateDate,
@@ -21,13 +28,15 @@ def test_build_ingestion_query_onetomany():
             i.instance_profile_name = item.InstanceProfileName,
             i.path = item.Path
         WITH i, item
-        CALL {
+        CALL {{
             WITH i, item
-            OPTIONAL MATCH (j:AWSAccount{id: $AWS_ID})
+            OPTIONAL MATCH (j:AWSAccount{{id: $AWS_ID}})
             WITH i, item, j WHERE j IS NOT NULL
             MERGE (i)<-[r:RESOURCE]-(j)
             ON CREATE SET r.firstseen = timestamp()
             SET
+                r._module_name = "{module_name}",
+                r._module_version = "{module_version}",
                 r.lastupdated = $lastupdated
 
             UNION
@@ -40,8 +49,10 @@ def test_build_ingestion_query_onetomany():
             MERGE (i)-[r0:ASSOCIATED_WITH]->(n0)
             ON CREATE SET r0.firstseen = timestamp()
             SET
+                r0._module_name = "{module_name}",
+                r0._module_version = "{module_version}",
                 r0.lastupdated = $lastupdated
-        }
+        }}
     """
 
     # Assert: compare query outputs while ignoring leading whitespace.

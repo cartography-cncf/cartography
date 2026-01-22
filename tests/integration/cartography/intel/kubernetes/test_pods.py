@@ -224,3 +224,124 @@ def test_pod_cleanup(neo4j_session, _create_test_cluster):
     # Assert: Expect that the pods were deleted
     assert check_nodes(neo4j_session, "KubernetesPod", ["name"]) == set()
     assert check_nodes(neo4j_session, "KubernetesContainer", ["name"]) == set()
+
+
+def test_load_container_resources(neo4j_session, _create_test_cluster):
+    # Arrange
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # Act
+    load_containers(
+        neo4j_session,
+        KUBERNETES_CONTAINER_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # Assert: Verify that resource fields are stored correctly for my-pod-container
+    expected_nodes = {("my-pod-container", "128Mi", "100m", "256Mi", "500m")}
+    assert (
+        check_nodes(
+            neo4j_session,
+            "KubernetesContainer",
+            ["name", "memory_request", "cpu_request", "memory_limit", "cpu_limit"],
+        )
+        >= expected_nodes
+    )
+
+    # Assert: Verify resource fields for my-service-pod-container
+    expected_nodes = {("my-service-pod-container", "64Mi", "50m", "128Mi", "200m")}
+    assert (
+        check_nodes(
+            neo4j_session,
+            "KubernetesContainer",
+            ["name", "memory_request", "cpu_request", "memory_limit", "cpu_limit"],
+        )
+        >= expected_nodes
+    )
+
+
+def test_load_pod_to_secret_relationships(neo4j_session, _create_test_cluster):
+    # Arrange: Load secrets first
+    from cartography.intel.kubernetes.secrets import load_secrets
+    from tests.data.kubernetes.secrets import KUBERNETES_SECRETS_DATA
+
+    load_secrets(
+        neo4j_session,
+        KUBERNETES_SECRETS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # Act: Load pods with secret references
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    # Assert: Verify USES_SECRET_VOLUME relationships
+    # my-pod should have volume relationships to db-credentials and tls-cert
+    expected_volume_rels = {
+        ("my-pod", "my-secret-1"),
+        ("my-pod", "my-secret-2"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesPod",
+            "name",
+            "KubernetesSecret",
+            "name",
+            "USES_SECRET_VOLUME",
+        )
+        == expected_volume_rels
+    )
+
+    # Assert: Verify USES_SECRET_ENV relationships
+    # my-service-pod should have env relationships to api-key and oauth-token
+    expected_env_rels = {
+        ("my-service-pod", "api-key"),
+        ("my-service-pod", "oauth-token"),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesPod",
+            "name",
+            "KubernetesSecret",
+            "name",
+            "USES_SECRET_ENV",
+        )
+        == expected_env_rels
+    )
+
+    # Assert: Verify that my-pod does NOT have USES_SECRET_ENV relationships
+    result = neo4j_session.run(
+        """
+        MATCH (pod:KubernetesPod {name: $pod_name})-[:USES_SECRET_ENV]->(secret:KubernetesSecret)
+        RETURN count(secret) as count
+        """,
+        pod_name="my-pod",
+    )
+    assert result.single()["count"] == 0
+
+    # Assert: Verify that my-service-pod does NOT have USES_SECRET_VOLUME relationships
+    result = neo4j_session.run(
+        """
+        MATCH (pod:KubernetesPod {name: $pod_name})-[:USES_SECRET_VOLUME]->(secret:KubernetesSecret)
+        RETURN count(secret) as count
+        """,
+        pod_name="my-service-pod",
+    )
+    assert result.single()["count"] == 0

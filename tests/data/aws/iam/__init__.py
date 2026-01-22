@@ -41,6 +41,36 @@ LIST_GROUPS = {
     ],
 }
 
+LIST_GROUPS_SAMPLE = {
+    "Groups": [
+        {
+            "Path": "/",
+            "CreateDate": datetime.datetime(2019, 1, 1, 0, 0, 1),
+            "GroupId": "AGPA000000000000000000",
+            "Arn": "arn:aws:iam::1234:group/example-group-0",
+            "GroupName": "example-group-0",
+        },
+        {
+            "Path": "/",
+            "CreateDate": datetime.datetime(2019, 1, 1, 0, 0, 1),
+            "GroupId": "AGPA000000000000000001",
+            "Arn": "arn:aws:iam::1234:group/example-group-1",
+            "GroupName": "example-group-1",
+        },
+    ],
+}
+
+# Group membership data - maps group ARN to list of user ARNs
+GET_GROUP_MEMBERSHIPS_DATA = {
+    "arn:aws:iam::1234:group/example-group-0": [
+        "arn:aws:iam::1234:user/user1",
+        "arn:aws:iam::1234:user/user2",
+    ],
+    "arn:aws:iam::1234:group/example-group-1": [
+        "arn:aws:iam::1234:user/user3",
+    ],
+}
+
 INLINE_POLICY_STATEMENTS = [
     {
         "id": "allow_all_policy",

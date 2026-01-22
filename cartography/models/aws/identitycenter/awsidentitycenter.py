@@ -17,6 +17,7 @@ class IdentityCenterInstanceProperties(CartographyNodeProperties):
     created_date: PropertyRef = PropertyRef("CreatedDate")
     id: PropertyRef = PropertyRef("InstanceArn")
     status: PropertyRef = PropertyRef("Status")
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

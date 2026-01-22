@@ -84,6 +84,42 @@ class ECSTaskDefinitionToECSTaskRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSTaskDefinitionToTaskRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSTaskDefinitionToTaskRoleRel(CartographyRelSchema):
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("taskRoleArn")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_TASK_ROLE"
+    properties: ECSTaskDefinitionToTaskRoleRelProperties = (
+        ECSTaskDefinitionToTaskRoleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class ECSTaskDefinitionToExecutionRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSTaskDefinitionToExecutionRoleRel(CartographyRelSchema):
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"arn": PropertyRef("executionRoleArn")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_EXECUTION_ROLE"
+    properties: ECSTaskDefinitionToExecutionRoleRelProperties = (
+        ECSTaskDefinitionToExecutionRoleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ECSTaskDefinitionSchema(CartographyNodeSchema):
     label: str = "ECSTaskDefinition"
     properties: ECSTaskDefinitionNodeProperties = ECSTaskDefinitionNodeProperties()
@@ -93,5 +129,7 @@ class ECSTaskDefinitionSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ECSTaskDefinitionToECSTaskRel(),
+            ECSTaskDefinitionToTaskRoleRel(),
+            ECSTaskDefinitionToExecutionRoleRel(),
         ]
     )

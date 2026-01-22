@@ -1,4 +1,7 @@
 import datetime
+from typing import Any
+from typing import List
+from typing import Tuple
 
 DESCRIBE_KEYS = [
     {
@@ -68,7 +71,7 @@ DESCRIBE_ALIASES = [
 
 DESCRIBE_GRANTS = [
     {
-        "KeyId": "9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+        "KeyId": "arn:aws:kms:eu-west-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
         "GrantId": "key-consolepolicy-3",
         "Name": "Console Policy",
         "CreationDate": datetime.datetime(2019, 1, 1, 0, 0, 1),
@@ -78,4 +81,21 @@ DESCRIBE_GRANTS = [
             "Encrypt",
         ],
     },
+]
+
+# Mock KMS key details data with None policy (simulating AccessDenied error)
+# This simulates the data structure returned by get_kms_key_details() when get_policy() returns None
+ACCESS_DENIED_KMS_KEY_DETAILS: List[Tuple[str, None, List[Any], List[Any]]] = [
+    (
+        "9a1ad414-6e3b-47ce-8366-6b8f26ba467d",  # key_id
+        None,  # policy - None due to AccessDenied on get_key_policy
+        [],  # aliases - empty for simplicity
+        [],  # grants - empty for simplicity
+    ),
+    (
+        "1b2cd345-7e8f-49ab-cdef-0123456789ab",  # key_id
+        None,  # policy - None due to AccessDenied on get_key_policy
+        [],  # aliases - empty for simplicity
+        [],  # grants - empty for simplicity
+    ),
 ]

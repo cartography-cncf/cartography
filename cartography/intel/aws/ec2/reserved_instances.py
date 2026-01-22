@@ -6,6 +6,7 @@ import boto3
 import neo4j
 from botocore.exceptions import ClientError
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -64,7 +65,8 @@ def load_reserved_instances(
         r_instance["Start"] = str(r_instance["Start"])
         r_instance["End"] = str(r_instance["End"])
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_reserved_instances,
         reserved_instances_list=data,
         AWS_ACCOUNT_ID=current_aws_account_id,

@@ -5,7 +5,7 @@
 # functionality that you can extend on your own.
 services:
   neo4j:
-    image: neo4j:4.4-community
+    image: neo4j:5.15.0-community
     restart: unless-stopped
     ports:
       - 7474:7474
@@ -18,16 +18,16 @@ services:
       - ./.compose/neo4j/plugins:/plugins
     environment:
       # Raise memory limits:
-      - NEO4J_dbms_memory_pagecache_size=1G
-      - NEO4J_dbms.memory.heap.initial_size=1G
-      - NEO4J_dbms_memory_heap_max__size=1G
+      - NEO4J_server_memory_pagecache_size=1G
+      - NEO4J_server_memory_heap_initial__size=1G
+      - NEO4J_server_memory_heap_max__size=1G
       # Auth:
       - NEO4J_AUTH=none
       # Add APOC and GDS:
       - apoc.export.file.enabled=true
       - apoc.import.file.enabled=true
       - apoc.import.file.use_neo4j_config=true
-      - NEO4JLABS_PLUGINS=["graph-data-science", "apoc"]
+      - NEO4J_PLUGINS=["graph-data-science", "apoc"]
       - NEO4J_dbms_security_procedures_allowlist=gds.*, apoc.*
       - NEO4J_dbms_security_procedures_unrestricted=gds.*, apoc.*
       # Networking:

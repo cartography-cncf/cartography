@@ -78,10 +78,10 @@ Representation of a fix for a vulnerability.
 
 #### Relationships
 
-- A TrivyFix should update a Package.
+- A Package should update to a TrivyFix.
 
     ```
-    (TrivyFix)-[SHOULD_UPDATE_TO]->(Package)
+    (Package)-[SHOULD_UPDATE_TO]->(TrivyFix)
     ```
 
 - A TrivyFix applies to a TrivyImageFinding.

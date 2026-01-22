@@ -92,9 +92,9 @@ def test_sync_ec2_instances(mock_get_instances, neo4j_session):
         ("eni-87", "SOME_SUBNET_1"),
     }
 
-    # #1316: Assert the fields of the subnet are as expected and that subnet_id does not exist
+    # #1316: Assert the fields of the subnet are as expected
     assert check_nodes(neo4j_session, "EC2Subnet", ["id", "subnetid", "subnet_id"]) == {
-        ("SOME_SUBNET_1", "SOME_SUBNET_1", None),
+        ("SOME_SUBNET_1", "SOME_SUBNET_1", "SOME_SUBNET_1"),
     }
 
     # Assert network interface to security group

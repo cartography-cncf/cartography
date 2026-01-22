@@ -80,6 +80,7 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "ref_urls",
             "scan_time",
         ],
+        order_by="id",
     ) == [
         tests.data.semgrep.sca.VULN_ID,
         TEST_UPDATE_TAG,
@@ -101,6 +102,25 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
         [
             "https://nvd.nist.gov/vuln/detail/CVE-2022-31129",
         ],
+        "2024-07-11T20:46:25.269650Z",
+        tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+        TEST_UPDATE_TAG,
+        "simpsoncorp/sample_repo",
+        "main",
+        "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
+        "moment:Denial-of-Service (DoS)",
+        "description",
+        "npm",
+        "HIGH",
+        "UNKNOWN-2022-31129",
+        "UNREACHABLE",
+        "UNREACHABLE",
+        "DIRECT",
+        "moment|2.29.2",
+        "moment|2.29.4",
+        "package-lock.json",
+        "https: //github.com/simpsoncorp/sample_repo/blob/commit_id/package-lock.json#L14373",
+        [],
         "2024-07-11T20:46:25.269650Z",
     ]
 
@@ -140,6 +160,10 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "123456",
             tests.data.semgrep.sca.VULN_ID,
         ),
+        (
+            "123456",
+            tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+        ),
     }
 
     assert check_rels(
@@ -169,6 +193,10 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "simpsoncorp/sample_repo",
             tests.data.semgrep.sca.VULN_ID,
         ),
+        (
+            "simpsoncorp/sample_repo",
+            tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+        ),
     }
 
     assert check_rels(
@@ -195,6 +223,10 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
     ) == {
         (
             tests.data.semgrep.sca.VULN_ID,
+            "moment|2.29.2",
+        ),
+        (
+            tests.data.semgrep.sca.VULN_ID_UNKNOWN,
             "moment|2.29.2",
         ),
     }
@@ -230,5 +262,12 @@ def test_sync_findings(mock_get_sca_vulns, mock_get_deployment, neo4j_session):
             "REACHABLE",
             "HIGH",
             "HIGH",
+        ),
+        (
+            tests.data.semgrep.sca.VULN_ID_UNKNOWN,
+            "UNREACHABLE",
+            "UNREACHABLE",
+            "HIGH",
+            "INFO",
         ),
     }

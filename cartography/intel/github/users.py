@@ -37,6 +37,7 @@ GITHUB_ORG_USERS_PAGINATED_GRAPHQL = """
                         isSiteAdmin
                         email
                         company
+                        organizationVerifiedDomainEmails(login: $login)
                     }
                     role
                 }
@@ -64,6 +65,7 @@ GITHUB_ENTERPRISE_OWNER_USERS_PAGINATED_GRAPHQL = """
                         isSiteAdmin
                         email
                         company
+                        organizationVerifiedDomainEmails(login: $login)
                     }
                     organizationRole
                 }
@@ -154,6 +156,9 @@ def transform_users(
     for user in user_data:
         # all members get the 'MEMBER_OF' relationship
         processed_user = deepcopy(user["node"])
+        # GitHub returns empty strings for email addresses, so we convert them to None
+        if "email" in processed_user and not processed_user["email"]:
+            processed_user["email"] = None
         processed_user["hasTwoFactorEnabled"] = user["hasTwoFactorEnabled"]
         processed_user["MEMBER_OF"] = org_data["url"]
         # admins get a second relationship expressing them as such

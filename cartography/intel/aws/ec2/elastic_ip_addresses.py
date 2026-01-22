@@ -6,6 +6,7 @@ import boto3
 import neo4j
 from botocore.exceptions import ClientError
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -83,7 +84,8 @@ def load_elastic_ip_addresses(
         SET r.lastupdated = $update_tag
     """
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_addresses,
         elastic_ip_addresses=elastic_ip_addresses,
         Region=region,

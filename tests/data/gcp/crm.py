@@ -26,9 +26,9 @@ GCP_PROJECTS = [
         "createTime": "2019-05-22T19:28:30.592Z",
         "lifecycleState": "ACTIVE",
         "name": "Group 1",
-        "parent": {"id": "1414", "type": "folder"},
-        "projectId": "this-project-has-a-parent-232323",
-        "projectNumber": "232323",
+        "parent": "folders/1414",
+        "projectId": "project-abc",
+        "projectNumber": "123456789012",
     },
 ]
 
@@ -37,7 +37,37 @@ GCP_PROJECTS_WITHOUT_PARENT = [
         "createTime": "2019-11-11T21:06:32.043Z",
         "lifecycleState": "ACTIVE",
         "name": "my-parentless-project",
-        "projectId": "my-parentless-project-987654",
+        "parent": "organizations/1337",
+        "projectId": "project-abc",
+        "projectNumber": "123456789012",
+    },
+]
+
+# Additional datasets for nested folder and organization-parent project scenarios
+GCP_NESTED_FOLDERS = [
+    {
+        "name": "folders/2000",
+        "parent": "organizations/1337",
+        "displayName": "parent-folder",
+        "lifecycleState": "ACTIVE",
+        "createTime": "2020-01-01T00:00:00Z",
+    },
+    {
+        "name": "folders/2001",
+        "parent": "folders/2000",
+        "displayName": "child-folder",
+        "lifecycleState": "ACTIVE",
+        "createTime": "2020-01-01T00:00:00Z",
+    },
+]
+
+GCP_PROJECTS_WITH_ORG_PARENT = [
+    {
+        "createTime": "2020-02-02T02:02:02Z",
+        "lifecycleState": "ACTIVE",
+        "name": "project-under-org",
+        "parent": "organizations/1337",
+        "projectId": "project-abc",
         "projectNumber": "123456789012",
     },
 ]

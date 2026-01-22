@@ -24,11 +24,12 @@ def start_cloudflare_ingestion(neo4j_session: neo4j.Session, config: Config) -> 
     """
 
     if not config.cloudflare_token:
-        logger.info(
-            "Cloudflare import is not configured - skipping this module. "
-            "See docs to configure.",
+        message = (
+            "Cloudflare import is not configured - missing cloudflare_token. "
+            "Set the token to enable the Cloudflare sync stage."
         )
-        return
+        logger.error(message)
+        raise RuntimeError(message)
 
     # Create client
     client = Cloudflare(api_token=config.cloudflare_token)

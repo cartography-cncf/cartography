@@ -1,0 +1,82 @@
+GET_ES_DOMAINS = [
+    {
+        "DomainId": "000000000000/test-es-domain-1",
+        "DomainName": "test-es-domain-1",
+        "ARN": "arn:aws:es:us-east-1:000000000000:domain/test-es-domain-1",
+        "Created": True,
+        "Deleted": False,
+        "Endpoint": "search-test-es-domain-1.us-east-1.es.amazonaws.com",
+        "ElasticsearchVersion": "7.10",
+        "ElasticsearchClusterConfig": {
+            "InstanceType": "t3.small.elasticsearch",
+            "InstanceCount": 1,
+            "DedicatedMasterEnabled": False,
+            "ZoneAwarenessEnabled": False,
+            "DedicatedMasterType": None,
+            "DedicatedMasterCount": None,
+        },
+        "EBSOptions": {
+            "EBSEnabled": True,
+            "VolumeType": "gp2",
+            "VolumeSize": 10,
+            "Iops": None,
+        },
+        "EncryptionAtRestOptions": {
+            "Enabled": True,
+            "KmsKeyId": "arn:aws:kms:us-east-1:000000000000:key/12345678-1234-1234-1234-123456789012",
+        },
+        "LogPublishingOptions": {
+            "CloudWatchLogsLogGroupArn": None,
+            "Enabled": False,
+        },
+        "VPCOptions": {
+            "VPCId": "vpc-12345678",
+            "SubnetIds": ["subnet-11111111", "subnet-22222222"],
+            "SecurityGroupIds": ["sg-12345678"],
+        },
+        "AccessPolicies": '{"Version":"2012-10-17","Statement":[]}',
+        "ServiceSoftwareOptions": {
+            "CurrentVersion": "R20211203",
+            "NewVersion": "",
+            "UpdateAvailable": False,
+        },
+    },
+    {
+        "DomainId": "000000000000/test-es-domain-2",
+        "DomainName": "test-es-domain-2",
+        "ARN": "arn:aws:es:us-east-1:000000000000:domain/test-es-domain-2",
+        "Created": True,
+        "Deleted": False,
+        "Endpoint": "search-test-es-domain-2.us-east-1.es.amazonaws.com",
+        "ElasticsearchVersion": "6.8",
+        "ElasticsearchClusterConfig": {
+            "InstanceType": "m5.large.elasticsearch",
+            "InstanceCount": 2,
+            "DedicatedMasterEnabled": True,
+            "ZoneAwarenessEnabled": True,
+            "DedicatedMasterType": "m5.large.elasticsearch",
+            "DedicatedMasterCount": 3,
+        },
+        "EBSOptions": {
+            "EBSEnabled": True,
+            "VolumeType": "gp3",
+            "VolumeSize": 100,
+            "Iops": 3000,
+        },
+        "EncryptionAtRestOptions": {
+            "Enabled": False,
+            "KmsKeyId": None,
+        },
+        "LogPublishingOptions": {
+            "CloudWatchLogsLogGroupArn": "arn:aws:logs:us-east-1:000000000000:log-group:/aws/es/test",
+            "Enabled": True,
+        },
+        "VPCOptions": None,
+        "AccessPolicies": '{"Version":"2012-10-17","Statement":[]}',
+        "ServiceSoftwareOptions": {
+            "CurrentVersion": "R20211203",
+            "NewVersion": "",
+            "UpdateAvailable": False,
+        },
+    },
+]

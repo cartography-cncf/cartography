@@ -55,6 +55,8 @@ def test_load_secrets(neo4j_session, _create_test_cluster):
     expected_nodes = {
         ("my-secret-1",),
         ("my-secret-2",),
+        ("api-key",),
+        ("oauth-token",),
     }
     assert check_nodes(neo4j_session, "KubernetesSecret", ["name"]) == expected_nodes
 
@@ -73,6 +75,8 @@ def test_load_secrets_relationships(neo4j_session, _create_test_cluster):
     expected_rels = {
         (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "my-secret-1"),
         (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "my-secret-2"),
+        (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "api-key"),
+        (KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"], "oauth-token"),
     }
     assert (
         check_rels(
@@ -90,6 +94,8 @@ def test_load_secrets_relationships(neo4j_session, _create_test_cluster):
     expected_rels = {
         (KUBERNETES_CLUSTER_NAMES[0], "my-secret-1"),
         (KUBERNETES_CLUSTER_NAMES[0], "my-secret-2"),
+        (KUBERNETES_CLUSTER_NAMES[0], "api-key"),
+        (KUBERNETES_CLUSTER_NAMES[0], "oauth-token"),
     }
     assert (
         check_rels(

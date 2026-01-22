@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -45,7 +46,7 @@ class CloudflareMemberToAccountRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class CloudflareMemberToCloudflareRoleProperties(CartographyRelProperties):
+class CloudflareMemberToCloudflareRoleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -63,14 +64,17 @@ class CloudflareMemberToCloudflareRoleRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_ROLE"
-    properties: CloudflareMemberToCloudflareRoleProperties = (
-        CloudflareMemberToCloudflareRoleProperties()
+    properties: CloudflareMemberToCloudflareRoleRelProperties = (
+        CloudflareMemberToCloudflareRoleRelProperties()
     )
 
 
 @dataclass(frozen=True)
 class CloudflareMemberSchema(CartographyNodeSchema):
     label: str = "CloudflareMember"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: CloudflareMemberNodeProperties = CloudflareMemberNodeProperties()
     sub_resource_relationship: CloudflareMemberToAccountRel = (
         CloudflareMemberToAccountRel()

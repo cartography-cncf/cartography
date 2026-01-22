@@ -1,7 +1,16 @@
 ## DigitalOcean Schema
 
+```mermaid
+graph LR
+A(DOAccount) -- RESOURCE --> P(DOProject)
+P(DOProject) -- RESOURCE --> D(DODroplet)
+```
+
+
 ### DOAccount
 Representation of a DigitalOcean [Account](https://developers.digitalocean.com/documentation/v2/#account) object.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
 
 | Field | Description |
 | ----- | ----------- |
@@ -18,11 +27,13 @@ Representation of a DigitalOcean [Account](https://developers.digitalocean.com/d
 - DOAccount contains DOProjects.
 
     ```
-    (DOAccount)-[RESOURCE]->(DOProjects)
+    (DOAccount)-[RESOURCE]->(DOProject)
     ```
 
 ### DOProject
 Representation of a DigitalOcean [Project](https://developers.digitalocean.com/documentation/v2/#projects) object.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
 
 | Field | Description |
 | ----- | ----------- |
@@ -48,6 +59,8 @@ Representation of a DigitalOcean [Project](https://developers.digitalocean.com/d
 
 ### DODroplet
 Representation of a DigitalOcean [Droplet](https://developers.digitalocean.com/documentation/v2/#droplets) object.
+
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, ScalewayInstance).
 
 | Field | Description |
 | ----- | ----------- |

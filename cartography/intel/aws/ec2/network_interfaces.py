@@ -91,13 +91,17 @@ def transform_network_interface_data(
                 "InterfaceType": network_interface["InterfaceType"],
                 "MacAddress": network_interface["MacAddress"],
                 "PrivateDnsName": network_interface.get("PrivateDnsName"),
-                "PrivateIpAddress": network_interface["PrivateIpAddress"],
+                "PrivateIpAddress": network_interface.get("PrivateIpAddress"),
                 "PublicIp": network_interface.get("Association", {}).get("PublicIp"),
                 "RequesterId": network_interface.get("RequesterId"),
                 "RequesterManaged": network_interface["RequesterManaged"],
                 "SourceDestCheck": network_interface["SourceDestCheck"],
                 "Status": network_interface["Status"],
                 "SubnetId": network_interface["SubnetId"],
+                "AttachTime": network_interface.get("Attachment", {}).get("AttachTime"),
+                "DeviceIndex": network_interface.get("Attachment", {}).get(
+                    "DeviceIndex"
+                ),
                 "ElbV1Id": elb_v1_id,
                 "ElbV2Id": elb_v2_id,
             },
