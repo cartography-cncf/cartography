@@ -32,7 +32,10 @@ def test_sync_gcp_vpcs(mock_get_vpcs, neo4j_session):
     """Test sync_gcp_vpcs() loads VPCs and creates relationships."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Act
@@ -86,7 +89,10 @@ def test_sync_gcp_subnets(mock_get_vpcs, mock_get_subnets, neo4j_session):
     """Test sync_gcp_subnets() loads subnets and creates relationships."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Pre-load VPCs so subnets can connect to them
@@ -112,7 +118,13 @@ def test_sync_gcp_subnets(mock_get_vpcs, mock_get_subnets, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "GCPSubnet",
-        ["id", "region", "gateway_address", "ip_cidr_range", "private_ip_google_access"],
+        [
+            "id",
+            "region",
+            "gateway_address",
+            "ip_cidr_range",
+            "private_ip_google_access",
+        ],
     ) == {
         (
             "projects/project-abc/regions/europe-west2/subnetworks/default",
@@ -149,7 +161,10 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
     """Test sync_gcp_instances() loads instances and creates relationships."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
 
     # Act
     cartography.intel.gcp.compute.sync_gcp_instances(
@@ -317,7 +332,10 @@ def test_sync_gcp_instances_with_vpc_relationship(
     """Test that instances are connected to VPCs via MEMBER_OF_GCP_VPC relationship."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Load VPCs and subnets first
@@ -382,7 +400,10 @@ def test_sync_gcp_instances_with_tags(mock_get_vpcs, mock_get_instances, neo4j_s
     """Test that instances with tags create GCPNetworkTag nodes and relationships."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Pre-load VPCs so tags can connect to them
@@ -463,7 +484,10 @@ def test_sync_gcp_forwarding_rules(mock_get_regional, mock_get_global, neo4j_ses
     """Test sync_gcp_forwarding_rules() loads both global and regional forwarding rules."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
 
     # Act
     cartography.intel.gcp.compute.sync_gcp_forwarding_rules(
@@ -536,7 +560,10 @@ def test_sync_gcp_forwarding_rules_with_relationships(
     """Test forwarding rules relationships: Subnet->ForwardingRule for regional, VPC->ForwardingRule for global."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Pre-load VPCs and subnets
@@ -617,7 +644,10 @@ def test_sync_gcp_firewall_rules(mock_get_vpcs, mock_get_firewalls, neo4j_sessio
     """Test sync_gcp_firewall_rules() loads firewalls and creates relationships."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Pre-load VPCs so firewalls can connect to them
@@ -724,11 +754,16 @@ def test_sync_gcp_firewall_rules(mock_get_vpcs, mock_get_firewalls, neo4j_sessio
     "get_gcp_vpcs",
     return_value=tests.data.gcp.compute.VPC_RESPONSE,
 )
-def test_sync_gcp_firewall_rules_with_ip_rules(mock_get_vpcs, mock_get_firewalls, neo4j_session):
+def test_sync_gcp_firewall_rules_with_ip_rules(
+    mock_get_vpcs, mock_get_firewalls, neo4j_session
+):
     """Test that firewalls create IpRule and IpRange nodes with proper relationships."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Pre-load VPCs
@@ -809,11 +844,16 @@ def test_sync_gcp_firewall_rules_with_ip_rules(mock_get_vpcs, mock_get_firewalls
     "get_gcp_vpcs",
     return_value=tests.data.gcp.compute.VPC_RESPONSE,
 )
-def test_sync_gcp_firewall_rules_with_target_tags(mock_get_vpcs, mock_get_firewalls, neo4j_session):
+def test_sync_gcp_firewall_rules_with_target_tags(
+    mock_get_vpcs, mock_get_firewalls, neo4j_session
+):
     """Test that firewalls with target tags create TARGET_TAG relationships."""
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "PROJECT_ID": TEST_PROJECT_ID}
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "PROJECT_ID": TEST_PROJECT_ID,
+    }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Pre-load VPCs
