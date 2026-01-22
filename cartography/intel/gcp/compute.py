@@ -729,17 +729,20 @@ def _transform_access_configs(nics: list[dict]) -> list[dict]:
 def _transform_instance_tags(instances: list[dict]) -> list[dict]:
     """
     Transform network tags from instances for loading.
+    Deduplicates on (tag_id, instance_partial_uri) to ensure TAGGED relationships
+    are created for all instances sharing the same tag.
     :param instances: List of transformed GCP instances
     :return: List of network tag objects ready for ingestion
     """
     tags: list[dict] = []
-    seen_tags: set[str] = set()
+    seen_tag_instance_pairs: set[tuple[str, str]] = set()
     for instance in instances:
         for tag in instance.get("tags", {}).get("items", []):
             for nic in instance.get("networkInterfaces", []):
                 tag_id = _create_gcp_network_tag_id(nic["vpc_partial_uri"], tag)
-                if tag_id not in seen_tags:
-                    seen_tags.add(tag_id)
+                pair = (tag_id, instance["partial_uri"])
+                if pair not in seen_tag_instance_pairs:
+                    seen_tag_instance_pairs.add(pair)
                     tags.append(
                         {
                             "tag_id": tag_id,
@@ -1169,6 +1172,9 @@ def cleanup_gcp_firewall_rules(
         neo4j_session
     )
     GraphJob.from_node_schema(GCPIpRuleAllowedSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(GCPIpRuleDeniedSchema(), common_job_parameters).run(
         neo4j_session
     )
     GraphJob.from_node_schema(IpRangeSchema(), common_job_parameters).run(neo4j_session)

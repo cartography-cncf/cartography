@@ -14,6 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class GCPForwardingRuleNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("partial_uri")
+    partial_uri: PropertyRef = PropertyRef("partial_uri")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     ip_address: PropertyRef = PropertyRef("ip_address")
     ip_protocol: PropertyRef = PropertyRef("ip_protocol")
