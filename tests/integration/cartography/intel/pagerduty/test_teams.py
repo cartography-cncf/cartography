@@ -67,3 +67,18 @@ def test_load_team_data(mock_teams, mock_members, neo4j_session):
         )
         == expected_rels
     )
+
+    # Check that the role property is set on the relationship
+    result = neo4j_session.run(
+        """
+        MATCH (u:PagerDutyUser)-[r:MEMBER_OF]->(t:PagerDutyTeam)
+        RETURN u.id as user_id, t.id as team_id, r.role as role
+        ORDER BY u.id
+        """
+    )
+    roles = {(record["user_id"], record["team_id"], record["role"]) for record in result}
+    expected_roles = {
+        ("PAM4FGS", "PQ9K7I8", "responder"),
+        ("PXPGF42", "PQ9K7I8", "manager"),
+    }
+    assert roles == expected_roles

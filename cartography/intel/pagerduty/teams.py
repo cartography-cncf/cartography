@@ -7,12 +7,18 @@ import neo4j
 from pagerduty import RestApiV2Client
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.models.pagerduty.team import PagerDutyTeamSchema
+from cartography.models.pagerduty.team_membership import (
+    PagerDutyTeamMembershipMatchLink,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Sub-resource constants for MatchLinks cleanup
+SUB_RESOURCE_LABEL = "PagerDutyTeam"
 
 
 @timeit
@@ -25,7 +31,7 @@ def sync_teams(
     teams = get_teams(pd_session)
     load_team_data(neo4j_session, teams, update_tag)
     relations = get_team_members(pd_session, teams)
-    load_team_relations(neo4j_session, relations, update_tag)
+    load_team_memberships(neo4j_session, relations, update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
 
@@ -64,31 +70,25 @@ def load_team_data(
     load(neo4j_session, PagerDutyTeamSchema(), data, lastupdated=update_tag)
 
 
-def load_team_relations(
+def load_team_memberships(
     neo4j_session: neo4j.Session,
     data: List[Dict],
     update_tag: int,
 ) -> None:
     """
-    Attach users to their teams.
+    Load team membership relationships using MatchLinks.
 
-    Note: This uses a separate Cypher query instead of the datamodel because
-    the MEMBER_OF relationship has a 'role' property that varies per user-team pair.
-    See https://github.com/cartography-cncf/cartography/issues/1589
+    This uses MatchLinks because the MEMBER_OF relationship has a 'role' property
+    that varies per user-team pair (e.g., "manager", "responder").
     """
-    ingestion_cypher_query = """
-    UNWIND $Relations AS relation
-        MATCH (t:PagerDutyTeam{id: relation.team}), (u:PagerDutyUser{id: relation.user})
-        MERGE (u)-[r:MEMBER_OF]->(t)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.role = relation.role,
-            r.lastupdated = $update_tag
-    """
-    run_write_query(
+    logger.info(f"Loading {len(data)} pagerduty team memberships.")
+    load_matchlinks(
         neo4j_session,
-        ingestion_cypher_query,
-        Relations=data,
-        update_tag=update_tag,
+        PagerDutyTeamMembershipMatchLink(),
+        data,
+        lastupdated=update_tag,
+        _sub_resource_label=SUB_RESOURCE_LABEL,
+        _sub_resource_id="module",
     )
 
 
@@ -96,6 +96,14 @@ def load_team_relations(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
+    # Cleanup stale team nodes
     GraphJob.from_node_schema(PagerDutyTeamSchema(), common_job_parameters).run(
         neo4j_session,
     )
+    # Cleanup stale team membership relationships
+    GraphJob.from_matchlink(
+        PagerDutyTeamMembershipMatchLink(),
+        SUB_RESOURCE_LABEL,
+        "module",
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
