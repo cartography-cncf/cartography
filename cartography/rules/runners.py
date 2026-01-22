@@ -95,7 +95,7 @@ def _run_fact(
     counter.total_findings += findings_count
 
     # Update aggregate counters if we have asset metrics
-    if total_assets is not None:
+    if total_assets is not None and passing is not None:
         counter.total_assets += total_assets
         counter.total_failing += failing
         counter.total_passing += passing

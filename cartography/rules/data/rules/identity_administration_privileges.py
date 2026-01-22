@@ -71,6 +71,9 @@ _aws_account_manipulation_permissions = Fact(
     """,
     cypher_count_query="""
     MATCH (principal:AWSPrincipal)
+    WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
+    AND NOT principal.name CONTAINS 'QuickSetup'
+    AND principal.name <> 'OrganizationAccountAccessRole'
     RETURN COUNT(principal) AS count
     """,
     module=Module.AWS,

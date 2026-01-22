@@ -113,7 +113,9 @@ def _format_and_output_results(
             print(f"\033[32mPassing: {total_passing}\033[0m")
             print(f"\033[31mFailing: {total_failing}\033[0m")
             # Calculate compliance percentage
-            compliance_pct = (total_passing / total_assets * 100) if total_assets > 0 else 0
+            compliance_pct = (
+                (total_passing / total_assets * 100) if total_assets > 0 else 0
+            )
             print(f"Compliance: {compliance_pct:.1f}%")
         else:
             print(f"Total findings: {total_findings}")
