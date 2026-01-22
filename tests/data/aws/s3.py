@@ -190,3 +190,62 @@ GET_BUCKET_OWNERSHIP_CONTROLS = {
 GET_BUCKET_LOGGING_ENABLED = {"LoggingEnabled": {"TargetBucket": "log-bucket"}}
 
 GET_BUCKET_LOGGING_DISABLED: dict = {}
+
+
+# Mock data for get_s3_bucket_details generator output
+# Returns: (bucket_name, acl, policy, encryption, versioning, public_access_block, bucket_ownership_controls, bucket_logging)
+GET_S3_BUCKET_DETAILS = [
+    (
+        "bucket-1",
+        OPEN_BUCKET_ACLS["bucket-1"],
+        LIST_STATEMENTS,
+        {
+            "ServerSideEncryptionConfiguration": {
+                "Rules": [
+                    {
+                        "ApplyServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "aws:kms",
+                            "KMSMasterKeyID": "arn:aws:kms:eu-east-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+                        },
+                        "BucketKeyEnabled": False,
+                    },
+                ],
+            },
+        },
+        {"Status": "Enabled", "MFADelete": "Disabled"},
+        {
+            "PublicAccessBlockConfiguration": {
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
+        },
+        {
+            "OwnershipControls": {
+                "Rules": [{"ObjectOwnership": "BucketOwnerPreferred"}],
+            },
+        },
+        GET_BUCKET_LOGGING_ENABLED,
+    ),
+    (
+        "bucket-2",
+        OPEN_BUCKET_ACLS["bucket-2"],
+        None,
+        None,
+        None,
+        None,
+        None,
+        GET_BUCKET_LOGGING_DISABLED,
+    ),
+    (
+        "bucket-3",
+        OPEN_BUCKET_ACLS["bucket-3"],
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ),
+]
