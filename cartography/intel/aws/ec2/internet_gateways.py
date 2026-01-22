@@ -5,9 +5,10 @@ from typing import List
 import boto3
 import neo4j
 
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.aws.ec2.internet_gateways import AWSInternetGatewaySchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 from .util import get_botocore_config
@@ -29,6 +30,47 @@ def get_internet_gateways(
     return client.describe_internet_gateways()["InternetGateways"]
 
 
+def transform_internet_gateways(
+    internet_gateways: List[Dict],
+    region: str,
+    current_aws_account_id: str,
+) -> List[Dict]:
+    """
+    Transform internet gateways data, flattening the Attachments list.
+    Each attachment becomes a separate entry to handle IGWs attached to multiple VPCs.
+    """
+    result = []
+    for igw in internet_gateways:
+        igw_id = igw["InternetGatewayId"]
+        owner_id = igw.get("OwnerId", current_aws_account_id)
+        # TODO: Right now this won't work in non-AWS commercial (GovCloud, China) as partition is hardcoded
+        arn = f"arn:aws:ec2:{region}:{owner_id}:internet-gateway/{igw_id}"
+
+        attachments = igw.get("Attachments", [])
+        if attachments:
+            # Create one entry per attachment to handle multiple VPCs
+            for attachment in attachments:
+                result.append(
+                    {
+                        "InternetGatewayId": igw_id,
+                        "OwnerId": owner_id,
+                        "Arn": arn,
+                        "VpcId": attachment.get("VpcId"),
+                    }
+                )
+        else:
+            # IGW without attachments
+            result.append(
+                {
+                    "InternetGatewayId": igw_id,
+                    "OwnerId": owner_id,
+                    "Arn": arn,
+                    "VpcId": None,
+                }
+            )
+    return result
+
+
 @timeit
 def load_internet_gateways(
     neo4j_session: neo4j.Session,
@@ -38,50 +80,23 @@ def load_internet_gateways(
     update_tag: int,
 ) -> None:
     logger.info("Loading %d Internet Gateways in %s.", len(internet_gateways), region)
-    # TODO: Right now this won't work in non-AWS commercial (GovCloud, China) as partition is hardcoded
-    query = """
-    UNWIND $internet_gateways as igw
-        MERGE (ig:AWSInternetGateway{id: igw.InternetGatewayId})
-        ON CREATE SET
-            ig.firstseen = timestamp(),
-            ig.region = $region
-        SET
-            ig.ownerid = igw.OwnerId,
-            ig.lastupdated = $aws_update_tag,
-            ig.arn = "arn:aws:ec2:"+$region+":"+igw.OwnerId+":internet-gateway/"+igw.InternetGatewayId
-        WITH igw, ig
-
-        MATCH (awsAccount:AWSAccount {id: $aws_account_id})
-        MERGE (awsAccount)-[r:RESOURCE]->(ig)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-        WITH igw, ig
-
-        UNWIND igw.Attachments as attachment
-        MATCH (vpc:AWSVpc{id: attachment.VpcId})
-        MERGE (ig)-[r:ATTACHED_TO]->(vpc)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-    """
-
-    run_write_query(
+    load(
         neo4j_session,
-        query,
-        internet_gateways=internet_gateways,
-        region=region,
-        aws_account_id=current_aws_account_id,
-        aws_update_tag=update_tag,
+        AWSInternetGatewaySchema(),
+        internet_gateways,
+        lastupdated=update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
     )
 
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     logger.debug("Running Internet Gateway cleanup job.")
-    run_cleanup_job(
-        "aws_import_internet_gateways_cleanup.json",
-        neo4j_session,
+    GraphJob.from_node_schema(
+        AWSInternetGatewaySchema(),
         common_job_parameters,
-    )
+    ).run(neo4j_session)
 
 
 @timeit
@@ -100,9 +115,14 @@ def sync_internet_gateways(
             current_aws_account_id,
         )
         internet_gateways = get_internet_gateways(boto3_session, region)
+        transformed_data = transform_internet_gateways(
+            internet_gateways,
+            region,
+            current_aws_account_id,
+        )
         load_internet_gateways(
             neo4j_session,
-            internet_gateways,
+            transformed_data,
             region,
             current_aws_account_id,
             update_tag,

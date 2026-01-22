@@ -7,10 +7,10 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.intel.aws.iam import get_role_tags
 from cartography.util import aws_handle_regions
 from cartography.util import batch
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -315,12 +315,107 @@ def _group_tag_data_by_resource_type(
     return grouped
 
 
+# Mapping of resource labels to their path to AWSAccount for cleanup
+# Most resources have a direct RESOURCE relationship, but some require traversal
+_RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
+    "EC2Instance": "(:EC2Instance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "NetworkInterface": (
+        "(:NetworkInterface)-[:PART_OF_SUBNET]->"
+        "(:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+    "EC2SecurityGroup": "(:EC2SecurityGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "EC2Subnet": "(:EC2Subnet)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSVpc": "(:AWSVpc)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ESDomain": "(:ESDomain)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "RedshiftCluster": "(:RedshiftCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "RDSCluster": "(:RDSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "RDSInstance": "(:RDSInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "RDSSnapshot": "(:RDSSnapshot)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "DBSubnetGroup": (
+        "(:DBSubnetGroup)<-[:MEMBER_OF_DB_SUBNET_GROUP]-"
+        "(:RDSInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+    "S3Bucket": "(:S3Bucket)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSRole": "(:AWSRole)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSUser": "(:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSGroup": "(:AWSGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "KMSKey": "(:KMSKey)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSLambda": "(:AWSLambda)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "DynamoDBTable": "(:DynamoDBTable)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AutoScalingGroup": "(:AutoScalingGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "EC2KeyPair": "(:EC2KeyPair)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ECRRepository": "(:ECRRepository)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSTransitGateway": "(:AWSTransitGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSTransitGatewayAttachment": (
+        "(:AWSTransitGatewayAttachment)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+    "EBSVolume": "(:EBSVolume)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ElasticIPAddress": "(:ElasticIPAddress)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ECSCluster": "(:ECSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ECSContainer": "(:ECSContainer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ECSContainerInstance": (
+        "(:ECSContainerInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+    "ECSTask": "(:ECSTask)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ECSTaskDefinition": "(:ECSTaskDefinition)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "EKSCluster": "(:EKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "ElasticacheCluster": "(:ElasticacheCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "LoadBalancer": "(:LoadBalancer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "LoadBalancerV2": "(:LoadBalancerV2)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "EMRCluster": "(:EMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "SecretsManagerSecret": (
+        "(:SecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+    "SQSQueue": "(:SQSQueue)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSInternetGateway": (
+        "(:AWSInternetGateway)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
+    ),
+}
+
+
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job(
-        "aws_import_tags_cleanup.json",
+    """Clean up stale AWSTag nodes and TAGGED relationships."""
+    # Clean up tags and relationships for each resource type
+    for label, path in _RESOURCE_CLEANUP_PATHS.items():
+        # Delete stale tag nodes
+        run_write_query(
+            neo4j_session,
+            f"""
+            MATCH (n:AWSTag)<-[:TAGGED]-{path}
+            WHERE n.lastupdated <> $UPDATE_TAG
+            WITH n LIMIT $LIMIT_SIZE
+            DETACH DELETE n
+            """,
+            AWS_ID=common_job_parameters["AWS_ID"],
+            UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+            LIMIT_SIZE=100,
+        )
+        # Delete stale TAGGED relationships
+        run_write_query(
+            neo4j_session,
+            f"""
+            MATCH (:AWSTag)<-[r:TAGGED]-{path}
+            WHERE r.lastupdated <> $UPDATE_TAG
+            WITH r LIMIT $LIMIT_SIZE
+            DELETE r
+            """,
+            AWS_ID=common_job_parameters["AWS_ID"],
+            UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+            LIMIT_SIZE=100,
+        )
+
+    # Clean up orphaned tags (tags with no relationships)
+    run_write_query(
         neo4j_session,
-        common_job_parameters,
+        """
+        MATCH (n:AWSTag)
+        WHERE NOT (n)--() AND n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n
+        """,
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+        LIMIT_SIZE=100,
     )
 
 

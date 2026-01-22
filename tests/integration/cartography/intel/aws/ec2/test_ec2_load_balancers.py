@@ -274,6 +274,20 @@ def test_load_load_balancer_v2_subnets(neo4j_session, *args):
         aws_udpate_tag=TEST_UPDATE_TAG,
     )
 
+    # EC2Subnet nodes must exist before creating relationships
+    # (subnets are synced before load balancers in production)
+    neo4j_session.run(
+        """
+        UNWIND $subnet_ids AS subnet_id
+        MERGE (subnet:EC2Subnet{subnetid: subnet_id})
+        ON CREATE SET subnet.firstseen = timestamp(), subnet.id = subnet_id
+        SET subnet.region = $region, subnet.lastupdated = $update_tag
+        """,
+        subnet_ids=["mysubnetIdA", "mysubnetIdB"],
+        region=TEST_REGION,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
     az_data = [
         {"SubnetId": "mysubnetIdA"},
         {"SubnetId": "mysubnetIdB"},
@@ -286,33 +300,20 @@ def test_load_load_balancer_v2_subnets(neo4j_session, *args):
         TEST_UPDATE_TAG,
     )
 
-    expected_nodes = {
-        (
-            "mysubnetIdA",
-            TEST_REGION,
-            TEST_UPDATE_TAG,
-        ),
-        (
-            "mysubnetIdB",
-            TEST_REGION,
-            TEST_UPDATE_TAG,
-        ),
+    # Verify SUBNET relationships were created
+    expected_rels = {
+        (load_balancer_id, "mysubnetIdA"),
+        (load_balancer_id, "mysubnetIdB"),
     }
 
-    nodes = neo4j_session.run(
+    rels = neo4j_session.run(
         """
-        MATCH (subnet:EC2Subnet) return subnet.subnetid, subnet.region, subnet.lastupdated
+        MATCH (elbv2:LoadBalancerV2)-[:SUBNET]->(subnet:EC2Subnet)
+        RETURN elbv2.id, subnet.subnetid
         """,
     )
-    actual_nodes = {
-        (
-            n["subnet.subnetid"],
-            n["subnet.region"],
-            n["subnet.lastupdated"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
+    actual_rels = {(r["elbv2.id"], r["subnet.subnetid"]) for r in rels}
+    assert actual_rels == expected_rels
 
 
 def _ensure_load_instances(neo4j_session):

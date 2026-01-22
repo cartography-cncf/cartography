@@ -16,7 +16,12 @@ from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from policyuniverse.policy import Policy
 
+from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
+from cartography.graph.job import GraphJob
+from cartography.models.aws.s3.acl import S3AclSchema
+from cartography.models.aws.s3.bucket import S3BucketSchema
+from cartography.models.aws.s3.policy_statement import S3PolicyStatementSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import merge_module_sync_metadata
@@ -323,23 +328,12 @@ def _load_s3_acls(
     """
     Ingest S3 ACL into neo4j.
     """
-    ingest_acls = """
-    UNWIND $acls AS acl
-    MERGE (a:S3Acl{id: acl.id})
-    ON CREATE SET a.firstseen = timestamp(), a.owner = acl.owner, a.ownerid = acl.ownerid, a.type = acl.type,
-    a.displayname = acl.displayname, a.granteeid = acl.granteeid, a.uri = acl.uri, a.permission = acl.permission
-    SET a.lastupdated = $UpdateTag
-    WITH a,acl MATCH (s3:S3Bucket{id: acl.bucket})
-    MERGE (a)-[r:APPLIES_TO]->(s3)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
+    load(
         neo4j_session,
-        ingest_acls,
-        acls=acls,
-        UpdateTag=update_tag,
+        S3AclSchema(),
+        acls,
+        lastupdated=update_tag,
+        AWS_ID=aws_account_id,
     )
 
     # implement the acl permission
@@ -353,235 +347,54 @@ def _load_s3_acls(
 
 
 @timeit
-def _load_s3_policies(
-    neo4j_session: neo4j.Session,
-    policies: List[Dict],
-    update_tag: int,
-) -> None:
-    """
-    Ingest S3 policy results into neo4j.
-    """
-    # NOTE we use the coalesce function so appending works when the value is null initially
-    ingest_policies = """
-    UNWIND $policies AS policy
-    MATCH (s:S3Bucket) where s.name = policy.bucket
-    SET s.anonymous_access = (coalesce(s.anonymous_access, false) OR policy.internet_accessible),
-    s.anonymous_actions = coalesce(s.anonymous_actions, []) + policy.accessible_actions,
-    s.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
-        neo4j_session,
-        ingest_policies,
-        policies=policies,
-        UpdateTag=update_tag,
-    )
-
-
-@timeit
 def _load_s3_policy_statements(
     neo4j_session: neo4j.Session,
     statements: List[Dict],
     update_tag: int,
+    aws_account_id: str = "",
 ) -> None:
-    ingest_policy_statement = """
-        UNWIND $Statements as statement_data
-        MERGE (statement:S3PolicyStatement{id: statement_data.statement_id})
-        ON CREATE SET statement.firstseen = timestamp()
-        SET
-        statement.policy_id = statement_data.policy_id,
-        statement.policy_version = statement_data.policy_version,
-        statement.bucket = statement_data.bucket,
-        statement.sid = statement_data.Sid,
-        statement.effect = statement_data.Effect,
-        statement.action = statement_data.Action,
-        statement.resource = statement_data.Resource,
-        statement.principal = statement_data.Principal,
-        statement.condition = statement_data.Condition,
-        statement.lastupdated = $UpdateTag
-        WITH statement
-        MATCH (bucket:S3Bucket) where bucket.name = statement.bucket
-        MERGE (bucket)-[r:POLICY_STATEMENT]->(statement)
-        SET r.lastupdated = $UpdateTag
-        """
-    run_write_query(
+    load(
         neo4j_session,
-        ingest_policy_statement,
-        Statements=statements,
-        UpdateTag=update_tag,
-    )
-
-
-@timeit
-def _load_s3_encryption(
-    neo4j_session: neo4j.Session,
-    encryption_configs: List[Dict],
-    update_tag: int,
-) -> None:
-    """
-    Ingest S3 default encryption results into neo4j.
-    """
-    # NOTE we use the coalesce function so appending works when the value is null initially
-    ingest_encryption = """
-    UNWIND $encryption_configs AS encryption
-    MATCH (s:S3Bucket) where s.name = encryption.bucket
-    SET s.default_encryption = (coalesce(s.default_encryption, false) OR encryption.default_encryption),
-    s.encryption_algorithm = encryption.encryption_algorithm,
-    s.encryption_key_id = encryption.encryption_key_id, s.bucket_key_enabled = encryption.bucket_key_enabled,
-    s.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
-        neo4j_session,
-        ingest_encryption,
-        encryption_configs=encryption_configs,
-        UpdateTag=update_tag,
-    )
-
-
-@timeit
-def _load_s3_versioning(
-    neo4j_session: neo4j.Session,
-    versioning_configs: List[Dict],
-    update_tag: int,
-) -> None:
-    """
-    Ingest S3 versioning results into neo4j.
-    """
-    ingest_versioning = """
-    UNWIND $versioning_configs AS versioning
-    MATCH (s:S3Bucket) where s.name = versioning.bucket
-    SET s.versioning_status = versioning.status,
-        s.mfa_delete = versioning.mfa_delete,
-        s.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
-        neo4j_session,
-        ingest_versioning,
-        versioning_configs=versioning_configs,
-        UpdateTag=update_tag,
-    )
-
-
-@timeit
-def _load_s3_public_access_block(
-    neo4j_session: neo4j.Session,
-    public_access_block_configs: List[Dict],
-    update_tag: int,
-) -> None:
-    """
-    Ingest S3 public access block results into neo4j.
-    """
-    ingest_public_access_block = """
-    UNWIND $public_access_block_configs AS public_access_block
-    MATCH (s:S3Bucket) where s.name = public_access_block.bucket
-    SET s.block_public_acls = public_access_block.block_public_acls,
-        s.ignore_public_acls = public_access_block.ignore_public_acls,
-        s.block_public_policy = public_access_block.block_public_policy,
-        s.restrict_public_buckets = public_access_block.restrict_public_buckets,
-        s.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
-        neo4j_session,
-        ingest_public_access_block,
-        public_access_block_configs=public_access_block_configs,
-        UpdateTag=update_tag,
-    )
-
-
-@timeit
-def _load_bucket_ownership_controls(
-    neo4j_session: neo4j.Session,
-    bucket_ownership_controls_configs: List[Dict],
-    update_tag: int,
-) -> None:
-    """
-    Ingest S3 BucketOwnershipControls results into neo4j.
-    """
-    ingest_bucket_ownership_controls = """
-    UNWIND $bucket_ownership_controls_configs AS bucket_ownership_controls
-    MATCH (s:S3Bucket) where s.name = bucket_ownership_controls.bucket
-    SET s.object_ownership = bucket_ownership_controls.object_ownership,
-        s.lastupdated = $UpdateTag
-    """
-
-    run_write_query(
-        neo4j_session,
-        ingest_bucket_ownership_controls,
-        bucket_ownership_controls_configs=bucket_ownership_controls_configs,
-        UpdateTag=update_tag,
-    )
-
-
-@timeit
-def _load_bucket_logging(
-    neo4j_session: neo4j.Session,
-    bucket_logging_configs: List[Dict],
-    update_tag: int,
-) -> None:
-    """
-    Ingest S3 bucket logging status configuration into neo4j.
-    """
-    # Load basic logging status
-    ingest_bucket_logging = """
-    UNWIND $bucket_logging_configs AS bucket_logging
-    MATCH (bucket:S3Bucket{name: bucket_logging.bucket})
-    SET bucket.logging_enabled = bucket_logging.logging_enabled,
-        bucket.logging_target_bucket = bucket_logging.target_bucket,
-        bucket.lastupdated = $update_tag
-    """
-    run_write_query(
-        neo4j_session,
-        ingest_bucket_logging,
-        bucket_logging_configs=bucket_logging_configs,
-        update_tag=update_tag,
-    )
-
-
-def _set_default_values(neo4j_session: neo4j.Session, aws_account_id: str) -> None:
-    set_defaults = """
-    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) where s.anonymous_actions IS NULL
-    SET s.anonymous_access = false, s.anonymous_actions = []
-    """
-    run_write_query(
-        neo4j_session,
-        set_defaults,
-        AWS_ID=aws_account_id,
-    )
-
-    set_encryption_defaults = """
-    MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(s:S3Bucket) where s.default_encryption IS NULL
-    SET s.default_encryption = false
-    """
-    run_write_query(
-        neo4j_session,
-        set_encryption_defaults,
+        S3PolicyStatementSchema(),
+        statements,
+        lastupdated=update_tag,
         AWS_ID=aws_account_id,
     )
 
 
-@timeit
-def load_s3_details(
-    neo4j_session: neo4j.Session,
+def _merge_bucket_details(
+    bucket_data: Dict,
     s3_details_iter: Generator[Any, Any, Any],
     aws_account_id: str,
-    update_tag: int,
-) -> None:
+) -> Tuple[List[Dict], List[Dict], List[Dict]]:
     """
-    Create dictionaries for all bucket ACLs and all bucket policies so we can import them in a single query for each
+    Merge basic bucket data with details (policy, encryption, versioning, etc.)
+    into a single data structure for loading.
+
+    Returns:
+        - bucket_data_merged: List of bucket dicts with all properties merged
+        - acls: List of parsed ACL dicts
+        - statements: List of parsed policy statement dicts
     """
+    # Create a dict for quick lookup by bucket name
+    buckets_by_name: Dict[str, Dict] = {}
+    for bucket in bucket_data["Buckets"]:
+        buckets_by_name[bucket["Name"]] = {
+            "Name": bucket["Name"],
+            "Region": bucket["Region"],
+            "Arn": "arn:aws:s3:::" + bucket["Name"],
+            "CreationDate": str(bucket["CreationDate"]),
+            # Set defaults
+            "anonymous_access": False,
+            "anonymous_actions": [],
+            "default_encryption": False,
+        }
+
     acls: List[Dict] = []
-    policies: List[Dict] = []
-    statements = []
-    encryption_configs: List[Dict] = []
-    versioning_configs: List[Dict] = []
-    public_access_block_configs: List[Dict] = []
-    bucket_ownership_controls_configs: List[Dict] = []
-    bucket_logging_configs: List[Dict] = []
+    statements: List[Dict] = []
+
     for (
-        bucket,
+        bucket_name,
         acl,
         policy,
         encryption,
@@ -590,35 +403,101 @@ def load_s3_details(
         bucket_ownership_controls,
         bucket_logging,
     ) in s3_details_iter:
-        parsed_acls = parse_acl(acl, bucket, aws_account_id)
+        bucket_dict = buckets_by_name.get(bucket_name)
+        if not bucket_dict:
+            continue
+
+        # Parse and collect ACLs
+        parsed_acls = parse_acl(acl, bucket_name, aws_account_id)
         if parsed_acls is not None:
             acls.extend(parsed_acls)
-        parsed_policy = parse_policy(bucket, policy)
+
+        # Parse policy for anonymous access
+        parsed_policy = parse_policy(bucket_name, policy)
         if parsed_policy is not None:
-            policies.append(parsed_policy)
-        parsed_statements = parse_policy_statements(bucket, policy)
+            bucket_dict["anonymous_access"] = parsed_policy["internet_accessible"]
+            bucket_dict["anonymous_actions"] = parsed_policy["accessible_actions"]
+
+        # Parse and collect policy statements
+        parsed_statements = parse_policy_statements(bucket_name, policy)
         if parsed_statements is not None:
             statements.extend(parsed_statements)
-        parsed_encryption = parse_encryption(bucket, encryption)
+
+        # Parse encryption
+        parsed_encryption = parse_encryption(bucket_name, encryption)
         if parsed_encryption is not None:
-            encryption_configs.append(parsed_encryption)
-        parsed_versioning = parse_versioning(bucket, versioning)
+            bucket_dict["default_encryption"] = parsed_encryption["default_encryption"]
+            bucket_dict["encryption_algorithm"] = parsed_encryption[
+                "encryption_algorithm"
+            ]
+            bucket_dict["encryption_key_id"] = parsed_encryption.get(
+                "encryption_key_id"
+            )
+            bucket_dict["bucket_key_enabled"] = parsed_encryption.get(
+                "bucket_key_enabled"
+            )
+
+        # Parse versioning
+        parsed_versioning = parse_versioning(bucket_name, versioning)
         if parsed_versioning is not None:
-            versioning_configs.append(parsed_versioning)
+            bucket_dict["versioning_status"] = parsed_versioning["status"]
+            bucket_dict["mfa_delete"] = parsed_versioning["mfa_delete"]
+
+        # Parse public access block
         parsed_public_access_block = parse_public_access_block(
-            bucket,
+            bucket_name,
             public_access_block,
         )
         if parsed_public_access_block is not None:
-            public_access_block_configs.append(parsed_public_access_block)
+            bucket_dict["block_public_acls"] = parsed_public_access_block[
+                "block_public_acls"
+            ]
+            bucket_dict["ignore_public_acls"] = parsed_public_access_block[
+                "ignore_public_acls"
+            ]
+            bucket_dict["block_public_policy"] = parsed_public_access_block[
+                "block_public_policy"
+            ]
+            bucket_dict["restrict_public_buckets"] = parsed_public_access_block[
+                "restrict_public_buckets"
+            ]
+
+        # Parse bucket ownership controls
         parsed_bucket_ownership_controls = parse_bucket_ownership_controls(
-            bucket, bucket_ownership_controls
+            bucket_name, bucket_ownership_controls
         )
         if parsed_bucket_ownership_controls is not None:
-            bucket_ownership_controls_configs.append(parsed_bucket_ownership_controls)
-        parsed_bucket_logging = parse_bucket_logging(bucket, bucket_logging)
+            bucket_dict["object_ownership"] = parsed_bucket_ownership_controls[
+                "object_ownership"
+            ]
+
+        # Parse bucket logging
+        parsed_bucket_logging = parse_bucket_logging(bucket_name, bucket_logging)
         if parsed_bucket_logging is not None:
-            bucket_logging_configs.append(parsed_bucket_logging)
+            bucket_dict["logging_enabled"] = parsed_bucket_logging["logging_enabled"]
+            bucket_dict["logging_target_bucket"] = parsed_bucket_logging[
+                "target_bucket"
+            ]
+
+    return list(buckets_by_name.values()), acls, statements
+
+
+@timeit
+def load_s3_details(
+    neo4j_session: neo4j.Session,
+    s3_details_iter: Generator[Any, Any, Any],
+    bucket_data: Dict,
+    aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """
+    Merge bucket details with basic bucket data and load everything at once.
+    Also loads ACLs and policy statements.
+    """
+    # Merge all bucket data
+    bucket_data_merged, acls, statements = _merge_bucket_details(
+        bucket_data, s3_details_iter, aws_account_id
+    )
 
     # cleanup existing policy properties set on S3 Buckets
     run_cleanup_job(
@@ -627,18 +506,20 @@ def load_s3_details(
         {"UPDATE_TAG": update_tag, "AWS_ID": aws_account_id},
     )
 
+    # Load buckets with all properties via schema
+    load(
+        neo4j_session,
+        S3BucketSchema(),
+        bucket_data_merged,
+        lastupdated=update_tag,
+        AWS_ID=aws_account_id,
+    )
+
+    # Load ACLs
     _load_s3_acls(neo4j_session, acls, aws_account_id, update_tag)
 
-    _load_s3_policies(neo4j_session, policies, update_tag)
-    _load_s3_policy_statements(neo4j_session, statements, update_tag)
-    _load_s3_encryption(neo4j_session, encryption_configs, update_tag)
-    _load_s3_versioning(neo4j_session, versioning_configs, update_tag)
-    _load_s3_public_access_block(neo4j_session, public_access_block_configs, update_tag)
-    _load_bucket_ownership_controls(
-        neo4j_session, bucket_ownership_controls_configs, update_tag
-    )
-    _load_bucket_logging(neo4j_session, bucket_logging_configs, update_tag)
-    _set_default_values(neo4j_session, aws_account_id)
+    # Load policy statements
+    _load_s3_policy_statements(neo4j_session, statements, update_tag, aws_account_id)
 
 
 @timeit
@@ -1012,6 +893,21 @@ def _load_s3_notifications(
     )
 
 
+def _transform_bucket_data(data: Dict) -> List[Dict]:
+    """Transform bucket data for loading with the schema (basic properties only)."""
+    bucket_data = []
+    for bucket in data["Buckets"]:
+        bucket_data.append(
+            {
+                "Name": bucket["Name"],
+                "Region": bucket["Region"],
+                "Arn": "arn:aws:s3:::" + bucket["Name"],
+                "CreationDate": str(bucket["CreationDate"]),
+            }
+        )
+    return bucket_data
+
+
 @timeit
 def load_s3_buckets(
     neo4j_session: neo4j.Session,
@@ -1019,33 +915,114 @@ def load_s3_buckets(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    ingest_bucket = """
-    MERGE (bucket:S3Bucket{id:$BucketName})
-    ON CREATE SET bucket.firstseen = timestamp(), bucket.creationdate = $CreationDate
-    SET bucket.name = $BucketName, bucket.region = $BucketRegion, bucket.arn = $Arn,
-    bucket.lastupdated = $aws_update_tag
-    WITH bucket
-    MATCH (owner:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (owner)-[r:RESOURCE]->(bucket)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
+    """Load S3 buckets with basic properties via schema."""
+    bucket_data = _transform_bucket_data(data)
+    load(
+        neo4j_session,
+        S3BucketSchema(),
+        bucket_data,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def _load_s3_encryption(
+    neo4j_session: neo4j.Session,
+    encryption_configs,
+    update_tag: int,
+) -> None:
     """
+    Update S3 buckets with encryption properties.
+    This is a wrapper for backward compatibility with tests.
+    """
+    # Handle both single dict and list of dicts
+    if isinstance(encryption_configs, dict):
+        encryption_configs = [encryption_configs]
 
-    # The owner data returned by the API maps to the aws account nickname and not the IAM user
-    # there doesn't seem to be a way to retreive the mapping but we can get the current context account
-    # so we map to that directly
-
-    for bucket in data["Buckets"]:
-        arn = "arn:aws:s3:::" + bucket["Name"]
-        run_write_query(
+    for config in encryption_configs:
+        bucket_data = [
+            {
+                "Name": config["bucket"],
+                "Region": None,
+                "Arn": "arn:aws:s3:::" + config["bucket"],
+                "CreationDate": None,
+                "default_encryption": config.get("default_encryption", False),
+                "encryption_algorithm": config.get("encryption_algorithm"),
+                "encryption_key_id": config.get("encryption_key_id"),
+                "bucket_key_enabled": config.get("bucket_key_enabled"),
+            }
+        ]
+        # Use MERGE to update existing bucket
+        load(
             neo4j_session,
-            ingest_bucket,
-            BucketName=bucket["Name"],
-            BucketRegion=bucket["Region"],
-            Arn=arn,
-            CreationDate=str(bucket["CreationDate"]),
-            AWS_ACCOUNT_ID=current_aws_account_id,
-            aws_update_tag=aws_update_tag,
+            S3BucketSchema(),
+            bucket_data,
+            lastupdated=update_tag,
+            AWS_ID="",  # Not used for MERGE on existing node
+        )
+
+
+@timeit
+def _load_bucket_ownership_controls(
+    neo4j_session: neo4j.Session,
+    bucket_ownership_controls_configs,
+    update_tag: int,
+) -> None:
+    """
+    Update S3 buckets with ownership control properties.
+    This is a wrapper for backward compatibility with tests.
+    """
+    # Handle both single dict and list of dicts
+    if isinstance(bucket_ownership_controls_configs, dict):
+        bucket_ownership_controls_configs = [bucket_ownership_controls_configs]
+
+    for config in bucket_ownership_controls_configs:
+        bucket_data = [
+            {
+                "Name": config["bucket"],
+                "Region": None,
+                "Arn": "arn:aws:s3:::" + config["bucket"],
+                "CreationDate": None,
+                "object_ownership": config.get("object_ownership"),
+            }
+        ]
+        load(
+            neo4j_session,
+            S3BucketSchema(),
+            bucket_data,
+            lastupdated=update_tag,
+            AWS_ID="",
+        )
+
+
+@timeit
+def _load_bucket_logging(
+    neo4j_session: neo4j.Session,
+    bucket_logging_configs: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Update S3 buckets with logging properties.
+    This is a wrapper for backward compatibility with tests.
+    """
+    for config in bucket_logging_configs:
+        bucket_data = [
+            {
+                "Name": config["bucket"],
+                "Region": None,
+                "Arn": "arn:aws:s3:::" + config["bucket"],
+                "CreationDate": None,
+                "logging_enabled": config.get("logging_enabled"),
+                "logging_target_bucket": config.get("target_bucket"),
+            }
+        ]
+        load(
+            neo4j_session,
+            S3BucketSchema(),
+            bucket_data,
+            lastupdated=update_tag,
+            AWS_ID="",
         )
 
 
@@ -1054,10 +1031,8 @@ def cleanup_s3_buckets(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "aws_import_s3_buckets_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    GraphJob.from_node_schema(S3BucketSchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
@@ -1066,10 +1041,10 @@ def cleanup_s3_bucket_acl_and_policy(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "aws_import_s3_acl_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    """Clean up stale S3Acl and S3PolicyStatement nodes."""
+    GraphJob.from_node_schema(S3AclSchema(), common_job_parameters).run(neo4j_session)
+    GraphJob.from_node_schema(S3PolicyStatementSchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
@@ -1122,23 +1097,24 @@ def sync(
     """
     Sync S3 buckets and their configurations to Neo4j.
     This includes:
-    1. Basic bucket information
+    1. Basic bucket information with all properties (encryption, versioning, etc.)
     2. ACLs and policies
     3. Notification configurations
     """
     logger.info("Syncing S3 for account '%s'", current_aws_account_id)
 
     bucket_data = get_s3_bucket_list(boto3_session)
-    load_s3_buckets(neo4j_session, bucket_data, current_aws_account_id, update_tag)
-    cleanup_s3_buckets(neo4j_session, common_job_parameters)
+    bucket_details_iter = get_s3_bucket_details(boto3_session, bucket_data)
 
-    acl_and_policy_data_iter = get_s3_bucket_details(boto3_session, bucket_data)
+    # Load buckets with all details merged, plus ACLs and policy statements
     load_s3_details(
         neo4j_session,
-        acl_and_policy_data_iter,
+        bucket_details_iter,
+        bucket_data,
         current_aws_account_id,
         update_tag,
     )
+    cleanup_s3_buckets(neo4j_session, common_job_parameters)
     cleanup_s3_bucket_acl_and_policy(neo4j_session, common_job_parameters)
 
     _sync_s3_notifications(neo4j_session, boto3_session, bucket_data, update_tag)

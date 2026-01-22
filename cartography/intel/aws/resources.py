@@ -78,12 +78,14 @@ RESOURCE_FUNCTIONS: Dict[str, Callable[..., None]] = {
     "ec2:instance": sync_ec2_instances,
     "ec2:images": sync_ec2_images,
     "ec2:keypair": sync_ec2_key_pairs,
+    # `ec2:subnet` must be synced before `ec2:load_balancer` and `ec2:load_balancer_v2`
+    # so that EC2Subnet nodes exist when load balancers create SUBNET relationships.
+    "ec2:subnet": sync_subnets,
     "ec2:load_balancer": sync_load_balancers,
     "ec2:load_balancer_v2": sync_load_balancer_v2s,
     "ec2:network_acls": sync_network_acls,
     "ec2:network_interface": sync_network_interfaces,
     "ec2:security_group": sync_ec2_security_groupinfo,
-    "ec2:subnet": sync_subnets,
     "ec2:tgw": sync_transit_gateways,
     "ec2:vpc": sync_vpc,
     # `ec2:vpc_endpoint` must be synced before `ec2:route_table` so that
