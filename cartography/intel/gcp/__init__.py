@@ -253,11 +253,23 @@ def _sync_project_resources(
             if predefined_roles is None:
                 logger.info("Fetching predefined IAM roles for CAI fallback")
                 iam_client = build_client("iam", "v1", credentials=credentials)
-                predefined_roles = iam.get_gcp_predefined_roles(iam_client)
-                logger.info(
-                    "Fetched %d predefined IAM roles",
-                    len(predefined_roles),
-                )
+                try:
+                    predefined_roles = iam.get_gcp_predefined_roles(iam_client)
+                    logger.info(
+                        "Fetched %d predefined IAM roles",
+                        len(predefined_roles),
+                    )
+                except HttpError as http_error:
+                    if http_error.resp.status == 403:
+                        logger.warning(
+                            "Unable to fetch predefined IAM roles for CAI fallback "
+                            "in project %s: %s. Continuing without predefined roles.",
+                            project_id,
+                            http_error.reason,
+                        )
+                        predefined_roles = []
+                    else:
+                        raise
 
             logger.info(
                 "IAM API not enabled. Attempting IAM sync for project %s via Cloud Asset Inventory.",
