@@ -52,12 +52,30 @@ class ESDomainNodeProperties(CartographyNodeProperties):
     encryption_at_rest_options_kms_key_id: PropertyRef = PropertyRef(
         "EncryptionAtRestOptionsKmsKeyId"
     )
-    # Log publishing options (flattened)
-    log_publishing_options_cloudwatch_log_group_arn: PropertyRef = PropertyRef(
-        "LogPublishingOptionsCloudWatchLogsLogGroupArn"
+    # Log publishing options (per log type)
+    log_publishing_index_slow_logs_enabled: PropertyRef = PropertyRef(
+        "LogPublishingIndexSlowLogsEnabled"
     )
-    log_publishing_options_enabled: PropertyRef = PropertyRef(
-        "LogPublishingOptionsEnabled"
+    log_publishing_index_slow_logs_arn: PropertyRef = PropertyRef(
+        "LogPublishingIndexSlowLogsArn"
+    )
+    log_publishing_search_slow_logs_enabled: PropertyRef = PropertyRef(
+        "LogPublishingSearchSlowLogsEnabled"
+    )
+    log_publishing_search_slow_logs_arn: PropertyRef = PropertyRef(
+        "LogPublishingSearchSlowLogsArn"
+    )
+    log_publishing_es_application_logs_enabled: PropertyRef = PropertyRef(
+        "LogPublishingEsApplicationLogsEnabled"
+    )
+    log_publishing_es_application_logs_arn: PropertyRef = PropertyRef(
+        "LogPublishingEsApplicationLogsArn"
+    )
+    log_publishing_audit_logs_enabled: PropertyRef = PropertyRef(
+        "LogPublishingAuditLogsEnabled"
+    )
+    log_publishing_audit_logs_arn: PropertyRef = PropertyRef(
+        "LogPublishingAuditLogsArn"
     )
 
 

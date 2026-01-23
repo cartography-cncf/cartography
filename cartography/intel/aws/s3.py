@@ -139,6 +139,7 @@ def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> Optional[Dic
         logger.warning(
             f"Failed to retrieve S3 bucket policy for {bucket['Name']} - Could not connect to the endpoint URL",
         )
+        bucket["_fetch_failure"] = True
     return policy
 
 
@@ -159,6 +160,7 @@ def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> Optional[Dict]:
         logger.warning(
             f"Failed to retrieve S3 bucket ACL for {bucket['Name']} - Could not connect to the endpoint URL",
         )
+        bucket["_fetch_failure"] = True
     return acl
 
 
@@ -179,6 +181,7 @@ def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> Optional
         logger.warning(
             f"Failed to retrieve S3 bucket encryption for {bucket['Name']} - Could not connect to the endpoint URL",
         )
+        bucket["_fetch_failure"] = True
     return encryption
 
 
@@ -199,6 +202,7 @@ def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> Optional
         logger.warning(
             f"Failed to retrieve S3 bucket versioning for {bucket['Name']} - Could not connect to the endpoint URL",
         )
+        bucket["_fetch_failure"] = True
     return versioning
 
 
@@ -223,6 +227,7 @@ def get_public_access_block(
             f"Failed to retrieve S3 bucket public access block for {bucket['Name']}"
             " - Could not connect to the endpoint URL",
         )
+        bucket["_fetch_failure"] = True
     return public_access_block
 
 
@@ -248,6 +253,7 @@ def get_bucket_ownership_controls(
             f"Failed to retrieve S3 bucket ownership controls for {bucket['Name']}"
             " - Could not connect to the endpoint URL",
         )
+        bucket["_fetch_failure"] = True
     return bucket_ownership_controls
 
 
@@ -271,50 +277,70 @@ def get_bucket_logging(
         logger.warning(
             f"Failed to retrieve S3 bucket logging status for {bucket['Name']} - Could not connect to the endpoint URL",
         )
+        bucket["_fetch_failure"] = True
     return bucket_logging
 
 
 @timeit
 def _is_common_exception(e: Exception, bucket: Dict) -> bool:
+    """
+    Check if an exception is a known/expected S3 exception that should be handled.
+    Also sets a '_fetch_failure' flag on the bucket dict if the error indicates
+    a fetch failure (vs simply no configuration existing).
+
+    Returns True if exception should be handled (not re-raised).
+    """
     error_msg = "Failed to retrieve S3 bucket detail"
-    if "AccessDenied" in e.args[0]:
-        logger.warning(f"{error_msg} for {bucket['Name']} - Access Denied")
-        return True
-    elif "NoSuchBucketPolicy" in e.args[0]:
+    error_str = str(e.args[0]) if e.args else ""
+
+    # "No configuration" errors - valid states, proceed with None
+    if "NoSuchBucketPolicy" in error_str:
         logger.warning(f"{error_msg} for {bucket['Name']} - NoSuchBucketPolicy")
         return True
-    elif "NoSuchBucket" in e.args[0]:
-        logger.warning(f"{error_msg} for {bucket['Name']} - No Such Bucket")
-        return True
-    elif "AllAccessDisabled" in e.args[0]:
-        logger.warning(f"{error_msg} for {bucket['Name']} - Bucket is disabled")
-        return True
-    elif "EndpointConnectionError" in e.args[0]:
-        logger.warning(f"{error_msg} for {bucket['Name']} - EndpointConnectionError")
-        return True
-    elif "ServerSideEncryptionConfigurationNotFoundError" in e.args[0]:
+    elif "ServerSideEncryptionConfigurationNotFoundError" in error_str:
         logger.warning(
             f"{error_msg} for {bucket['Name']} - ServerSideEncryptionConfigurationNotFoundError",
         )
         return True
-    elif "InvalidToken" in e.args[0]:
-        logger.warning(f"{error_msg} for {bucket['Name']} - InvalidToken")
-        return True
-    elif "NoSuchPublicAccessBlockConfiguration" in e.args[0]:
+    elif "NoSuchPublicAccessBlockConfiguration" in error_str:
         logger.warning(
             f"{error_msg} for {bucket['Name']} - NoSuchPublicAccessBlockConfiguration",
         )
         return True
-    elif "IllegalLocationConstraintException" in e.args[0]:
-        logger.warning(
-            f"{error_msg} for {bucket['Name']} - IllegalLocationConstraintException",
-        )
-        return True
-    elif "OwnershipControlsNotFoundError" in e.args[0]:
+    elif "OwnershipControlsNotFoundError" in error_str:
         logger.warning(
             f"{error_msg} for {bucket['Name']} - OwnershipControlsNotFoundError"
         )
         return True
+
+    # Fetch failures - mark bucket to be skipped to preserve existing data
+    elif "AccessDenied" in error_str:
+        logger.warning(f"{error_msg} for {bucket['Name']} - Access Denied")
+        bucket["_fetch_failure"] = True
+        return True
+    elif "NoSuchBucket" in error_str:
+        logger.warning(f"{error_msg} for {bucket['Name']} - No Such Bucket")
+        bucket["_fetch_failure"] = True
+        return True
+    elif "AllAccessDisabled" in error_str:
+        logger.warning(f"{error_msg} for {bucket['Name']} - Bucket is disabled")
+        bucket["_fetch_failure"] = True
+        return True
+    elif "EndpointConnectionError" in error_str:
+        logger.warning(f"{error_msg} for {bucket['Name']} - EndpointConnectionError")
+        bucket["_fetch_failure"] = True
+        return True
+    elif "InvalidToken" in error_str:
+        logger.warning(f"{error_msg} for {bucket['Name']} - InvalidToken")
+        bucket["_fetch_failure"] = True
+        return True
+    elif "IllegalLocationConstraintException" in error_str:
+        logger.warning(
+            f"{error_msg} for {bucket['Name']} - IllegalLocationConstraintException",
+        )
+        bucket["_fetch_failure"] = True
+        return True
+
     return False
 
 
@@ -371,14 +397,26 @@ def _merge_bucket_details(
     Merge basic bucket data with details (policy, encryption, versioning, etc.)
     into a single data structure for loading.
 
+    Buckets that had fetch failures (marked with _fetch_failure flag) are skipped
+    to preserve their existing data in Neo4j.
+
     Returns:
         - bucket_data_merged: List of bucket dicts with all properties merged
         - acls: List of parsed ACL dicts
         - statements: List of parsed policy statement dicts
     """
     # Create a dict for quick lookup by bucket name
+    # Skip buckets with fetch failures to preserve existing data
     buckets_by_name: Dict[str, Dict] = {}
+    skipped_buckets: set = set()
     for bucket in bucket_data["Buckets"]:
+        if bucket.get("_fetch_failure"):
+            logger.info(
+                f"Skipping bucket {bucket['Name']} due to fetch failure - "
+                "existing data in Neo4j will be preserved"
+            )
+            skipped_buckets.add(bucket["Name"])
+            continue
         buckets_by_name[bucket["Name"]] = {
             "Name": bucket["Name"],
             "Region": bucket["Region"],

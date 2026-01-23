@@ -109,11 +109,31 @@ def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
             # Encryption options
             "EncryptionAtRestOptionsEnabled": encryption_options.get("Enabled"),
             "EncryptionAtRestOptionsKmsKeyId": encryption_options.get("KmsKeyId"),
-            # Log publishing options
-            "LogPublishingOptionsCloudWatchLogsLogGroupArn": log_options.get(
+            # Log publishing options (per log type)
+            "LogPublishingIndexSlowLogsEnabled": log_options.get(
+                "INDEX_SLOW_LOGS", {}
+            ).get("Enabled"),
+            "LogPublishingIndexSlowLogsArn": log_options.get("INDEX_SLOW_LOGS", {}).get(
                 "CloudWatchLogsLogGroupArn"
             ),
-            "LogPublishingOptionsEnabled": log_options.get("Enabled"),
+            "LogPublishingSearchSlowLogsEnabled": log_options.get(
+                "SEARCH_SLOW_LOGS", {}
+            ).get("Enabled"),
+            "LogPublishingSearchSlowLogsArn": log_options.get(
+                "SEARCH_SLOW_LOGS", {}
+            ).get("CloudWatchLogsLogGroupArn"),
+            "LogPublishingEsApplicationLogsEnabled": log_options.get(
+                "ES_APPLICATION_LOGS", {}
+            ).get("Enabled"),
+            "LogPublishingEsApplicationLogsArn": log_options.get(
+                "ES_APPLICATION_LOGS", {}
+            ).get("CloudWatchLogsLogGroupArn"),
+            "LogPublishingAuditLogsEnabled": log_options.get("AUDIT_LOGS", {}).get(
+                "Enabled"
+            ),
+            "LogPublishingAuditLogsArn": log_options.get("AUDIT_LOGS", {}).get(
+                "CloudWatchLogsLogGroupArn"
+            ),
             # VPC options - keep as lists for one-to-many relationships
             "SubnetIds": vpc_options.get("SubnetIds", []),
             "SecurityGroupIds": vpc_options.get("SecurityGroupIds", []),
@@ -222,10 +242,26 @@ def _process_access_policy(
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, update_tag: int, aws_account_id: int) -> None:
+    # Clean up ESDomain nodes and schema-defined relationships
     GraphJob.from_node_schema(
         ESDomainSchema(),
         {"UPDATE_TAG": update_tag, "AWS_ID": aws_account_id},
     ).run(neo4j_session)
+
+    # TODO: Keep raw Cypher here for DNS cleanup since _link_es_domains_to_dns() creates
+    # DNSRecord:AWSDNSRecord nodes and DNS_POINTS_TO edges outside the schema.
+    # This will be handled at the ontology level soon.
+    cleanup_dns_query = """
+        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:ESDomain)<-[:DNS_POINTS_TO]-(n:DNSRecord)
+        WHERE n.lastupdated <> $UPDATE_TAG
+        DETACH DELETE n
+    """
+    run_write_query(
+        neo4j_session,
+        cleanup_dns_query,
+        AWS_ID=aws_account_id,
+        UPDATE_TAG=update_tag,
+    )
 
 
 @timeit

@@ -331,10 +331,7 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
     "RDSCluster": "(:RDSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "RDSInstance": "(:RDSInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "RDSSnapshot": "(:RDSSnapshot)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "DBSubnetGroup": (
-        "(:DBSubnetGroup)<-[:MEMBER_OF_DB_SUBNET_GROUP]-"
-        "(:RDSInstance)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"
-    ),
+    "DBSubnetGroup": "(:DBSubnetGroup)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "S3Bucket": "(:S3Bucket)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSRole": "(:AWSRole)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "AWSUser": "(:AWSUser)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
