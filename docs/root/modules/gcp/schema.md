@@ -1450,6 +1450,8 @@ graph LR
     LanguagePackage[GCPArtifactRegistryLanguagePackage]
     GenericArtifact[GCPArtifactRegistryGenericArtifact]
     Manifest[GCPArtifactRegistryImageManifest]
+    TrivyFinding[TrivyImageFinding]
+    Package[Package]
 
     Project -->|RESOURCE| Repository
     Project -->|RESOURCE| DockerImage
@@ -1462,6 +1464,8 @@ graph LR
     Repository -->|CONTAINS| LanguagePackage
     Repository -->|CONTAINS| GenericArtifact
     DockerImage -->|HAS_MANIFEST| Manifest
+    TrivyFinding -->|AFFECTS| DockerImage
+    Package -->|DEPLOYED| DockerImage
 ```
 
 #### GCPArtifactRegistryRepository
@@ -1538,6 +1542,16 @@ Representation of a [Docker Image](https://cloud.google.com/artifact-registry/do
 - GCPArtifactRegistryDockerImages have GCPArtifactRegistryImageManifests (for multi-architecture images).
     ```
     (GCPArtifactRegistryDockerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryImageManifest)
+    ```
+
+- TrivyImageFindings affect GCPArtifactRegistryContainerImages.
+    ```
+    (TrivyImageFinding)-[:AFFECTS]->(GCPArtifactRegistryContainerImage)
+    ```
+
+- Packages are deployed in GCPArtifactRegistryContainerImages.
+    ```
+    (Package)-[:DEPLOYED]->(GCPArtifactRegistryContainerImage)
     ```
 
 #### GCPArtifactRegistryHelmChart
@@ -1660,3 +1674,30 @@ Representation of a platform-specific manifest within a multi-architecture Docke
     ```
     (GCPArtifactRegistryDockerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryImageManifest)
     ```
+
+#### Trivy Integration Queries
+
+Find all vulnerabilities affecting GCP Artifact Registry container images:
+
+```cypher
+MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(img:GCPArtifactRegistryContainerImage)
+RETURN vuln.name, vuln.severity, img.uri, img.digest
+ORDER BY vuln.severity DESC
+```
+
+Find packages deployed in GCP container images with their vulnerabilities:
+
+```cypher
+MATCH (pkg:Package)-[:DEPLOYED]->(img:GCPArtifactRegistryContainerImage)
+OPTIONAL MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(pkg)
+RETURN img.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
+```
+
+Find critical vulnerabilities in GCP images with available fixes:
+
+```cypher
+MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GCPArtifactRegistryContainerImage)
+MATCH (vuln)-[:AFFECTS]->(pkg:Package)
+OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
+RETURN vuln.name, img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
+```

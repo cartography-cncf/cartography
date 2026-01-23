@@ -40,6 +40,17 @@ class TrivyPackageToImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TrivyPackageToGCPImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("ImageDigest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED"
+    properties: TrivyPackageToImageRelProperties = TrivyPackageToImageRelProperties()
+
+
+@dataclass(frozen=True)
 class TrivyPackageToFindingRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -66,6 +77,7 @@ class TrivyPackageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             TrivyPackageToImageRel(),
+            TrivyPackageToGCPImageRel(),
             TrivyPackageToFindingRel(),
         ],
     )
