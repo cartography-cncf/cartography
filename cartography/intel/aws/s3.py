@@ -91,7 +91,20 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
 def get_s3_bucket_details(
     boto3_session: boto3.session.Session,
     bucket_data: Dict,
-) -> Generator[Tuple[str, MaybeFailed, MaybeFailed, MaybeFailed, MaybeFailed, MaybeFailed, MaybeFailed, MaybeFailed], None, None]:
+) -> Generator[
+    Tuple[
+        str,
+        MaybeFailed,
+        MaybeFailed,
+        MaybeFailed,
+        MaybeFailed,
+        MaybeFailed,
+        MaybeFailed,
+        MaybeFailed,
+    ],
+    None,
+    None,
+]:
     """
     Iterates over all S3 buckets. Yields bucket name (string), S3 bucket policies (JSON), ACLs (JSON),
     default encryption policy (JSON), Versioning (JSON), Public Access Block (JSON), Ownership Controls (JSON),
@@ -287,9 +300,7 @@ def get_bucket_ownership_controls(
 
 @timeit
 @aws_handle_regions
-def get_bucket_logging(
-    bucket: Dict, client: botocore.client.BaseClient
-) -> MaybeFailed:
+def get_bucket_logging(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
     """
     Gets the S3 bucket logging status configuration. Returns FETCH_FAILED if fetch failed.
     """
@@ -545,18 +556,18 @@ def _merge_bucket_details(
                 "restrict_public_buckets": None,
             }
             if parsed_public_access_block is not None:
-                public_access_block_data["block_public_acls"] = parsed_public_access_block[
-                    "block_public_acls"
-                ]
-                public_access_block_data["ignore_public_acls"] = parsed_public_access_block[
-                    "ignore_public_acls"
-                ]
-                public_access_block_data["block_public_policy"] = parsed_public_access_block[
-                    "block_public_policy"
-                ]
-                public_access_block_data["restrict_public_buckets"] = parsed_public_access_block[
-                    "restrict_public_buckets"
-                ]
+                public_access_block_data["block_public_acls"] = (
+                    parsed_public_access_block["block_public_acls"]
+                )
+                public_access_block_data["ignore_public_acls"] = (
+                    parsed_public_access_block["ignore_public_acls"]
+                )
+                public_access_block_data["block_public_policy"] = (
+                    parsed_public_access_block["block_public_policy"]
+                )
+                public_access_block_data["restrict_public_buckets"] = (
+                    parsed_public_access_block["restrict_public_buckets"]
+                )
             public_access_block_buckets.append(public_access_block_data)
 
         # Parse bucket ownership controls (skip if fetch failed)
@@ -583,7 +594,9 @@ def _merge_bucket_details(
                 "logging_target_bucket": None,
             }
             if parsed_bucket_logging is not None:
-                logging_data["logging_enabled"] = parsed_bucket_logging["logging_enabled"]
+                logging_data["logging_enabled"] = parsed_bucket_logging[
+                    "logging_enabled"
+                ]
                 logging_data["logging_target_bucket"] = parsed_bucket_logging[
                     "target_bucket"
                 ]
