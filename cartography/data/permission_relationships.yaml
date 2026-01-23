@@ -27,3 +27,21 @@
   - redshift:GetClusterCredentials
   - redshift:JoinGroup
   relationship_name: CAN_ADMINISTER
+
+# CloudFormation - Deploy resources with embedded code
+- target_label: CloudFormationStack
+  permissions:
+  - iam:PassRole
+  - cloudformation:CreateStack
+  relationship_name: CAN_EXEC
+
+- target_label: CloudFormationStack
+  permissions:
+  - cloudformation:UpdateStack
+  relationship_name: CAN_EXEC
+
+- target_label: CloudFormationStack
+  permissions:
+  - cloudformation:CreateChangeSet
+  - cloudformation:ExecuteChangeSet
+  relationship_name: CAN_EXEC

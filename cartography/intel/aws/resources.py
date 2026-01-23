@@ -7,6 +7,7 @@ from . import acm
 from . import apigateway
 from . import apigatewayv2
 from . import bedrock
+from . import cloudformation
 from . import cloudfront
 from . import cloudtrail
 from . import cloudtrail_management_events
@@ -121,6 +122,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "apigatewayv2": apigatewayv2.sync,
         "bedrock": bedrock.sync,
         "cloudfront": cloudfront.sync,
+        "cloudformation": cloudformation.sync,
         "secretsmanager": secretsmanager.sync,
         "securityhub": securityhub.sync,
         "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
