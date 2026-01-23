@@ -58,7 +58,7 @@ A user often has one or many user accounts.
 
 ```{important}
 If field `active` is null, it should not be considered as `true` or `false`, only as unknown.
-```{note}
+```
 
 | Field | Description |
 |-------|-------------|

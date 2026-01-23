@@ -187,11 +187,11 @@ Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v
 | ---------- | ------------------------------------------------------- |
 | created_at | The date and time the zone was created                  |
 | description              | An optional description of the zone|
-| dns_name | The DNS name of this managed zone, for instance "example.com.".
+| dns_name | The DNS name of this managed zone, for instance "example.com.". |
 | firstseen  | Timestamp of when a sync job first discovered this node |
 | **id**                   |Unique identifier|
 | name       | The name of the zone                                    |
-| nameservers |Virtual name servers the zone is delegated to
+| nameservers |Virtual name servers the zone is delegated to |
 | visibility | The zone's visibility: `public` zones are exposed to the Internet, while `private` zones are visible only to Virtual Private Cloud resources.|
 
 
@@ -204,7 +204,7 @@ Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v
     ```
 
 
-### Label: GCPBucketLabel
+### GCPBucketLabel:Label
 Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/docs/key-terms#bucket-labels).  This node contains a key-value pair.
 
  | Field       | Description                                                         |
@@ -258,6 +258,9 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
     ```
     (GCPInstance)-[:MEMBER_OF_GCP_VPC]->(GCPVpc)
     ```
+
+    This relationship is created by an [analysis job](../../dev/writing-analysis-jobs.html)
+    defined at `cartography/data/jobs/analysis/gcp_compute_instance_vpc_analysis.json`.
 
     Also note that this relationship is a shortcut for:
 
@@ -738,6 +741,51 @@ Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/
     (GCPRole)-[RESOURCE]->(GCPProject)
     ```
 
+### GCPKeyRing
+
+Representation of a GCP [Key Ring](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings).
+
+| Field | Description |
+|---|---|
+| id | The full resource name of the Key Ring. |
+| name | The short name of the Key Ring. |
+| location | The GCP location of the Key Ring. |
+| lastupdated | The timestamp of the last update. |
+| project\_id | The full project ID (projects/...) this Key Ring belongs to. |
+
+#### Relationships
+
+  - GCPKeyRings are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPKeyRing)
+    ```
+
+### GCPCryptoKey
+
+Representation of a GCP [Crypto Key](https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys).
+
+| Field | Description |
+|---|---|
+| id | The full resource name of the Crypto Key. |
+| name | The short name of the Crypto Key. |
+| rotation\_period | The rotation period of the key (e.g., `7776000s`). |
+| purpose | The key purpose (e.g., `ENCRYPT_DECRYPT`). |
+| state | The state of the primary key version (e.g., `ENABLED`). |
+| lastupdated | The timestamp of the last update. |
+| project\_id | The full project ID (projects/...) this key belongs to. |
+| key\_ring\_id | The full ID of the parent Key Ring. |
+
+#### Relationships
+
+  - GCPCryptoKeys are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCryptoKey)
+    ```
+  - GCPKeyRings contain GCPCryptoKeys.
+    ```
+    (GCPKeyRing)-[CONTAINS]->(GCPCryptoKey)
+    ```
+
 ### GCPPolicyBinding
 
 Representation of a GCP [IAM Policy Binding](https://cloud.google.com/iam/docs/reference/rest/v1/Policy#Binding). Policy bindings connect principals (users, service accounts, groups) to roles on specific resources.
@@ -875,7 +923,6 @@ Representation of a GCP [Bigtable App Profile](https://cloud.google.com/bigtable
     (GCPBigtableAppProfile)-[:ROUTES_TO]->(GCPBigtableCluster)
     ```
 
-
 ### GCPBigtableBackup
 
 Representation of a GCP [Bigtable Backup](https://cloud.google.com/bigtable/docs/reference/admin/rest/v2/projects.instances.clusters.backups).
@@ -908,42 +955,7 @@ Representation of a GCP [Bigtable Backup](https://cloud.google.com/bigtable/docs
     (GCPBigtableTable)-[:BACKED_UP_AS]->(GCPBigtableBackup)
     ```
 
-### Vertex AI Resources
-
-#### Overview
-
-Google Cloud Vertex AI is a unified machine learning platform for building, deploying, and scaling ML models. Cartography ingests the following Vertex AI resources:
-
-```mermaid
-graph LR
-    Project[GCPProject]
-    Model[GCPVertexAIModel]
-    Endpoint[GCPVertexAIEndpoint]
-    DeployedModel[GCPVertexAIDeployedModel]
-    Instance[GCPVertexAIWorkbenchInstance]
-    Pipeline[GCPVertexAITrainingPipeline]
-    FeatureGroup[GCPVertexAIFeatureGroup]
-    Dataset[GCPVertexAIDataset]
-    Bucket[GCPBucket]
-    ServiceAccount[GCPServiceAccount]
-
-    Project -->|RESOURCE| Model
-    Project -->|RESOURCE| Endpoint
-    Project -->|RESOURCE| Instance
-    Project -->|RESOURCE| Pipeline
-    Project -->|RESOURCE| FeatureGroup
-    Project -->|RESOURCE| Dataset
-
-    Endpoint -->|SERVES| DeployedModel
-    DeployedModel -->|INSTANCE_OF| Model
-    Pipeline -->|PRODUCES| Model
-    Pipeline -->|READS_FROM| Dataset
-    Pipeline -->|READS_FROM| Bucket
-    Model -->|STORED_IN| Bucket
-    Instance -->|USES_SERVICE_ACCOUNT| ServiceAccount
-```
-
-#### GCPVertexAIModel
+### GCPVertexAIModel
 
 Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models).
 
@@ -987,7 +999,7 @@ Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/doc
     (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
     ```
 
-#### GCPVertexAIEndpoint
+### GCPVertexAIEndpoint
 
 Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints).
 
@@ -1016,7 +1028,7 @@ Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/
     (GCPVertexAIEndpoint)-[:SERVES]->(GCPVertexAIDeployedModel)
     ```
 
-#### GCPVertexAIDeployedModel
+### GCPVertexAIDeployedModel
 
 Representation of a deployed model on a Vertex AI Endpoint. This is derived from the [deployedModels field](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints#DeployedModel) on an Endpoint.
 
@@ -1045,7 +1057,7 @@ Representation of a deployed model on a Vertex AI Endpoint. This is derived from
     (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
     ```
 
-#### GCPVertexAIWorkbenchInstance
+### GCPVertexAIWorkbenchInstance
 
 Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/vertex-ai/docs/workbench/reference/rest/v2/projects.locations.instances) (v2 API).
 
@@ -1075,7 +1087,7 @@ Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/
     (GCPVertexAIWorkbenchInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
 
-#### GCPVertexAITrainingPipeline
+### GCPVertexAITrainingPipeline
 
 Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.trainingPipelines).
 
@@ -1120,7 +1132,7 @@ Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/v
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPBucket)
     ```
 
-#### GCPVertexAIFeatureGroup
+### GCPVertexAIFeatureGroup
 
 Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.featureGroups). Feature Groups are the new architecture for Vertex AI Feature Store.
 
@@ -1144,7 +1156,7 @@ Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/verte
     (GCPProject)-[:RESOURCE]->(GCPVertexAIFeatureGroup)
     ```
 
-#### GCPVertexAIDataset
+### GCPVertexAIDataset
 
 Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.datasets).
 
@@ -1175,9 +1187,7 @@ Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/d
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPVertexAIDataset)
     ```
 
-### Cloud SQL Resources
-
-#### GCPCloudSQLInstance
+### GCPCloudSQLInstance
 
 Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
 
@@ -1218,7 +1228,7 @@ Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/m
     (GCPCloudSQLInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
 
-#### GCPCloudSQLDatabase
+### GCPCloudSQLDatabase
 
 Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/databases).
 
@@ -1242,7 +1252,7 @@ Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/m
     (GCPCloudSQLInstance)-[:CONTAINS]->(GCPCloudSQLDatabase)
     ```
 
-#### GCPCloudSQLUser
+### GCPCloudSQLUser
 
 Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/users).
 
@@ -1265,7 +1275,7 @@ Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql
     (GCPCloudSQLInstance)-[:HAS_USER]->(GCPCloudSQLUser)
     ```
 
-#### GCPCloudSQLBackupConfiguration
+### GCPCloudSQLBackupConfiguration
 
 Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#backupconfiguration). This node captures the backup settings for a Cloud SQL instance.
 
@@ -1292,6 +1302,98 @@ Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.co
   - GCPCloudSQLInstances have GCPCloudSQLBackupConfigurations.
     ```
     (GCPCloudSQLInstance)-[:HAS_BACKUP_CONFIG]->(GCPCloudSQLBackupConfiguration)
+    ```
+
+### GCPCloudFunction
+
+Representation of a Google [Cloud Function](https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions) (v1 API).
+
+| Field                 | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| id                    | The full, unique resource name of the function.                             |
+| name                  | The full, unique resource name of the function (same as id).                |
+| description           | User-provided description of the function.                                  |
+| runtime               | The language runtime environment for the function (e.g., python310).        |
+| entry_point           | The name of the function within the source code to be executed.             |
+| status                | The current state of the function (e.g., ACTIVE, OFFLINE, DEPLOY_IN_PROGRESS). |
+| update_time           | The timestamp when the function was last modified.                          |
+| service_account_email | The email of the service account the function runs as.                      |
+| https_trigger_url     | The public URL if the function is triggered by an HTTP request.             |
+| event_trigger_type    | The type of event that triggers the function (e.g., a Pub/Sub message).     |
+| event_trigger_resource| The specific resource the event trigger monitors.                           |
+| project_id            | The ID of the GCP project to which the function belongs.                    |
+| region                | The GCP region where the function is deployed.                              |
+| lastupdated           | Timestamp of when the data was last updated in the graph.                   |
+
+#### Relationships
+
+- GCPCloudFunctions are resources of GCPProjects.
+
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudFunction)
+    ```
+
+- GCPCloudFunctions run as GCPServiceAccounts.
+
+    ```
+    (GCPCloudFunction)-[:RUNS_AS]->(GCPServiceAccount)
+    ```
+
+### GCPSecretManagerSecret
+
+Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets). A Secret is a logical container for secret data that can have multiple versions.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the secret (e.g., `projects/{project}/secrets/{secret_id}`) |
+| name | The short name of the secret |
+| project_id | The GCP project ID that owns this secret |
+| rotation_enabled | Boolean indicating if automatic rotation is configured |
+| rotation_period | The rotation period in seconds (if rotation is enabled) |
+| rotation_next_time | Epoch timestamp of the next scheduled rotation |
+| created_date | Epoch timestamp when the secret was created |
+| expire_time | Epoch timestamp when the secret will automatically expire and be deleted |
+| replication_type | The replication policy type: `automatic` or `user_managed` |
+| etag | Used to perform consistent read-modify-write updates |
+| labels | JSON string of user-defined labels |
+| topics | JSON string of Pub/Sub topics for rotation notifications |
+| version_aliases | JSON string mapping alias names to version numbers |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPSecretManagerSecrets are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPSecretManagerSecret)
+    ```
+
+### GCPSecretManagerSecretVersion
+
+Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions). A SecretVersion stores a specific version of secret data within a Secret.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the version (e.g., `projects/{project}/secrets/{secret_id}/versions/{version}`) |
+| secret_id | Full resource name of the parent secret |
+| version | The version number (e.g., "1", "2") |
+| state | The current state of the version: `ENABLED`, `DISABLED`, or `DESTROYED` |
+| created_date | Epoch timestamp when the version was created |
+| destroy_time | Epoch timestamp when the version was destroyed (only present if state is `DESTROYED`) |
+| etag | Used to perform consistent read-modify-write updates |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPSecretManagerSecretVersions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPSecretManagerSecretVersion)
+    ```
+
+- GCPSecretManagerSecretVersions are versions of GCPSecretManagerSecrets.
+    ```
+    (GCPSecretManagerSecretVersion)-[:VERSION_OF]->(GCPSecretManagerSecret)
     ```
 
 ```mermaid

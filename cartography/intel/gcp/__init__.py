@@ -26,10 +26,13 @@ from cartography.intel.gcp import cloud_sql_instance
 from cartography.intel.gcp import cloud_sql_user
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
+from cartography.intel.gcp import gcf
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
+from cartography.intel.gcp import kms
 from cartography.intel.gcp import permission_relationships
 from cartography.intel.gcp import policy_bindings
+from cartography.intel.gcp import secretsmanager
 from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
@@ -60,7 +63,7 @@ logger = logging.getLogger(__name__)
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
     "Services",
-    "compute storage gke dns iam bigtable cai aiplatform cloud_sql cloud_run",
+    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager cloud_run",
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -68,10 +71,13 @@ service_names = Services(
     gke="container.googleapis.com",
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
+    kms="cloudkms.googleapis.com",
     bigtable="bigtableadmin.googleapis.com",
     cai="cloudasset.googleapis.com",
     aiplatform="aiplatform.googleapis.com",
     cloud_sql="sqladmin.googleapis.com",
+    gcf="cloudfunctions.googleapis.com",
+    secretsmanager="secretmanager.googleapis.com",
     cloud_run="run.googleapis.com",
 )
 
@@ -205,6 +211,17 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
+        if service_names.gcf in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud Functions.", project_id)
+            gcf_cred = build_client("cloudfunctions", "v1", credentials=credentials)
+            gcf.sync(
+                neo4j_session,
+                gcf_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
         if service_names.iam in enabled_services:
             logger.info("Syncing GCP project %s for IAM.", project_id)
             iam_cred = build_client("iam", "v1", credentials=credentials)
@@ -215,7 +232,18 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
-        else:
+        if service_names.kms in enabled_services:
+            logger.info("Syncing GCP project %s for KMS.", project_id)
+            kms_cred = build_client("cloudkms", "v1", credentials=credentials)
+            kms.sync(
+                neo4j_session,
+                kms_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.iam not in enabled_services:
             # Fallback to Cloud Asset Inventory even if the target project does not have the IAM API enabled.
             # CAI uses the service account's host project for quota by default (no explicit quota project needed).
             # Lazily initialize the CAI REST client once and reuse it for all projects.
@@ -458,6 +486,19 @@ def _sync_project_resources(
                     common_job_parameters,
                 )
 
+        if service_names.secretsmanager in enabled_services:
+            logger.info("Syncing GCP project %s for Secret Manager.", project_id)
+            secretsmanager_client = build_client(
+                "secretmanager", "v1", credentials=credentials
+            )
+            secretsmanager.sync(
+                neo4j_session,
+                secretsmanager_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
         if service_names.cloud_run in enabled_services:
             logger.info("Syncing GCP project %s for Cloud Run.", project_id)
             cloud_run_cred = build_client("run", "v2", credentials=credentials)
@@ -619,6 +660,12 @@ def start_gcp_ingestion(
 
     run_analysis_job(
         "gcp_gke_basic_auth.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+    run_analysis_job(
+        "gcp_compute_instance_vpc_analysis.json",
         neo4j_session,
         common_job_parameters,
     )
