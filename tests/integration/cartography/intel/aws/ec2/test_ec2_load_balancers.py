@@ -114,6 +114,7 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
         load_balancer_id,
         listener_data,
         TEST_UPDATE_TAG,
+        TEST_ACCOUNT_ID,
     )
 
     # verify the db has (elbv2)-[r:ELBV2_LISTENER]->(l)

@@ -172,6 +172,7 @@ def get_s3_bucket_details(
 
 
 @timeit
+@aws_handle_regions
 def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
     """
     Gets the S3 bucket policy. Returns FETCH_FAILED if fetch failed.
@@ -192,6 +193,7 @@ def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
 
 
 @timeit
+@aws_handle_regions
 def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
     """
     Gets the S3 bucket ACL. Returns FETCH_FAILED if fetch failed.
@@ -212,6 +214,7 @@ def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
 
 
 @timeit
+@aws_handle_regions
 def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
     """
     Gets the S3 bucket default encryption configuration. Returns FETCH_FAILED if fetch failed.
@@ -232,6 +235,7 @@ def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
 
 
 @timeit
+@aws_handle_regions
 def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
     """
     Gets the S3 bucket versioning configuration. Returns FETCH_FAILED if fetch failed.
@@ -252,6 +256,7 @@ def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
 
 
 @timeit
+@aws_handle_regions
 def get_public_access_block(
     bucket: Dict,
     client: botocore.client.BaseClient,
@@ -276,6 +281,7 @@ def get_public_access_block(
 
 
 @timeit
+@aws_handle_regions
 def get_bucket_ownership_controls(
     bucket: Dict, client: botocore.client.BaseClient
 ) -> MaybeFailed:

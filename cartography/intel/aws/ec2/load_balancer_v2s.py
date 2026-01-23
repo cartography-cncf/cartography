@@ -270,7 +270,7 @@ def load_load_balancer_v2_listeners(
     load_balancer_id: str,
     listener_data: List[Dict],
     update_tag: int,
-    aws_account_id: str = "",
+    aws_account_id: str,
 ) -> None:
     """Load ELBV2Listener nodes and their relationships to LoadBalancerV2."""
     # Transform listener data to include the load balancer id
