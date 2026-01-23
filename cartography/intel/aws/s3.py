@@ -8,6 +8,7 @@ from typing import Generator
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 import boto3
 import botocore
@@ -20,7 +21,13 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
 from cartography.models.aws.s3.acl import S3AclSchema
+from cartography.models.aws.s3.bucket import S3BucketEncryptionSchema
+from cartography.models.aws.s3.bucket import S3BucketLoggingSchema
+from cartography.models.aws.s3.bucket import S3BucketOwnershipSchema
+from cartography.models.aws.s3.bucket import S3BucketPolicySchema
+from cartography.models.aws.s3.bucket import S3BucketPublicAccessBlockSchema
 from cartography.models.aws.s3.bucket import S3BucketSchema
+from cartography.models.aws.s3.bucket import S3BucketVersioningSchema
 from cartography.models.aws.s3.policy_statement import S3PolicyStatementSchema
 from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
@@ -35,6 +42,28 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
 
+# Sentinel value to indicate a fetch operation failed (vs None for "no configuration")
+# When a fetch returns FETCH_FAILED, we skip loading that property group to preserve existing data.
+class _FetchFailed:
+    """Sentinel indicating fetch failure - preserves existing data in Neo4j."""
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __repr__(self):
+        return "FETCH_FAILED"
+
+
+FETCH_FAILED = _FetchFailed()
+
+# Type alias for values that may be FETCH_FAILED
+MaybeFailed = Union[Optional[Dict], _FetchFailed]
+
+
 @timeit
 def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
     client = boto3_session.client("s3")
@@ -46,7 +75,8 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
                 "LocationConstraint"
             ]
         except ClientError as e:
-            if _is_common_exception(e, bucket):
+            should_handle, _ = _is_common_exception(e, bucket["Name"])
+            if should_handle:
                 bucket["Region"] = None
                 logger.warning(
                     "skipping bucket='{}' due to exception.".format(bucket["Name"]),
@@ -61,23 +91,29 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
 def get_s3_bucket_details(
     boto3_session: boto3.session.Session,
     bucket_data: Dict,
-) -> Generator[Tuple[str, Dict, Dict, Dict, Dict, Dict, Dict], None, None]:
+) -> Generator[Tuple[str, MaybeFailed, MaybeFailed, MaybeFailed, MaybeFailed, MaybeFailed, MaybeFailed, MaybeFailed], None, None]:
     """
     Iterates over all S3 buckets. Yields bucket name (string), S3 bucket policies (JSON), ACLs (JSON),
-    default encryption policy (JSON), Versioning (JSON), and Public Access Block (JSON)
+    default encryption policy (JSON), Versioning (JSON), Public Access Block (JSON), Ownership Controls (JSON),
+    and Logging (JSON).
+
+    Each value can be:
+    - A dict with the configuration data
+    - None indicating no configuration exists (valid state)
+    - FETCH_FAILED indicating the fetch failed and existing data should be preserved
     """
     # a local store for s3 clients so that we may re-use clients for an AWS region
     s3_regional_clients: Dict[Any, Any] = {}
 
     BucketDetail = Tuple[
         str,
-        Dict[str, Any],
-        Dict[str, Any],
-        Dict[str, Any],
-        Dict[str, Any],
-        Dict[str, Any],
-        Dict[str, Any],
-        Dict[str, Any],
+        MaybeFailed,
+        MaybeFailed,
+        MaybeFailed,
+        MaybeFailed,
+        MaybeFailed,
+        MaybeFailed,
+        MaybeFailed,
     ]
 
     async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetail:
@@ -123,103 +159,99 @@ def get_s3_bucket_details(
 
 
 @timeit
-def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> Optional[Dict]:
+def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
     """
-    Gets the S3 bucket policy.
+    Gets the S3 bucket policy. Returns FETCH_FAILED if fetch failed.
     """
-    policy = None
     try:
-        policy = client.get_bucket_policy(Bucket=bucket["Name"])
+        return client.get_bucket_policy(Bucket=bucket["Name"])
     except ClientError as e:
-        if _is_common_exception(e, bucket):
-            pass
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
         else:
             raise
     except EndpointConnectionError:
         logger.warning(
             f"Failed to retrieve S3 bucket policy for {bucket['Name']} - Could not connect to the endpoint URL",
         )
-        bucket["_fetch_failure"] = True
-    return policy
+        return FETCH_FAILED
 
 
 @timeit
-def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> Optional[Dict]:
+def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
     """
-    Gets the S3 bucket ACL.
+    Gets the S3 bucket ACL. Returns FETCH_FAILED if fetch failed.
     """
-    acl = None
     try:
-        acl = client.get_bucket_acl(Bucket=bucket["Name"])
+        return client.get_bucket_acl(Bucket=bucket["Name"])
     except ClientError as e:
-        if _is_common_exception(e, bucket):
-            pass
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
         else:
             raise
     except EndpointConnectionError:
         logger.warning(
             f"Failed to retrieve S3 bucket ACL for {bucket['Name']} - Could not connect to the endpoint URL",
         )
-        bucket["_fetch_failure"] = True
-    return acl
+        return FETCH_FAILED
 
 
 @timeit
-def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> Optional[Dict]:
+def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
     """
-    Gets the S3 bucket default encryption configuration.
+    Gets the S3 bucket default encryption configuration. Returns FETCH_FAILED if fetch failed.
     """
-    encryption = None
     try:
-        encryption = client.get_bucket_encryption(Bucket=bucket["Name"])
+        return client.get_bucket_encryption(Bucket=bucket["Name"])
     except ClientError as e:
-        if _is_common_exception(e, bucket):
-            pass
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
         else:
             raise
     except EndpointConnectionError:
         logger.warning(
             f"Failed to retrieve S3 bucket encryption for {bucket['Name']} - Could not connect to the endpoint URL",
         )
-        bucket["_fetch_failure"] = True
-    return encryption
+        return FETCH_FAILED
 
 
 @timeit
-def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> Optional[Dict]:
+def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
     """
-    Gets the S3 bucket versioning configuration.
+    Gets the S3 bucket versioning configuration. Returns FETCH_FAILED if fetch failed.
     """
-    versioning = None
     try:
-        versioning = client.get_bucket_versioning(Bucket=bucket["Name"])
+        return client.get_bucket_versioning(Bucket=bucket["Name"])
     except ClientError as e:
-        if _is_common_exception(e, bucket):
-            pass
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
         else:
             raise
     except EndpointConnectionError:
         logger.warning(
             f"Failed to retrieve S3 bucket versioning for {bucket['Name']} - Could not connect to the endpoint URL",
         )
-        bucket["_fetch_failure"] = True
-    return versioning
+        return FETCH_FAILED
 
 
 @timeit
 def get_public_access_block(
     bucket: Dict,
     client: botocore.client.BaseClient,
-) -> Optional[Dict]:
+) -> MaybeFailed:
     """
-    Gets the S3 bucket public access block configuration.
+    Gets the S3 bucket public access block configuration. Returns FETCH_FAILED if fetch failed.
     """
-    public_access_block = None
     try:
-        public_access_block = client.get_public_access_block(Bucket=bucket["Name"])
+        return client.get_public_access_block(Bucket=bucket["Name"])
     except ClientError as e:
-        if _is_common_exception(e, bucket):
-            pass
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
         else:
             raise
     except EndpointConnectionError:
@@ -227,25 +259,22 @@ def get_public_access_block(
             f"Failed to retrieve S3 bucket public access block for {bucket['Name']}"
             " - Could not connect to the endpoint URL",
         )
-        bucket["_fetch_failure"] = True
-    return public_access_block
+        return FETCH_FAILED
 
 
 @timeit
 def get_bucket_ownership_controls(
     bucket: Dict, client: botocore.client.BaseClient
-) -> Optional[Dict]:
+) -> MaybeFailed:
     """
-    Gets the S3 object ownership controls configuration.
+    Gets the S3 object ownership controls configuration. Returns FETCH_FAILED if fetch failed.
     """
-    bucket_ownership_controls = None
     try:
-        bucket_ownership_controls = client.get_bucket_ownership_controls(
-            Bucket=bucket["Name"]
-        )
+        return client.get_bucket_ownership_controls(Bucket=bucket["Name"])
     except ClientError as e:
-        if _is_common_exception(e, bucket):
-            pass
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
         else:
             raise
     except EndpointConnectionError:
@@ -253,95 +282,90 @@ def get_bucket_ownership_controls(
             f"Failed to retrieve S3 bucket ownership controls for {bucket['Name']}"
             " - Could not connect to the endpoint URL",
         )
-        bucket["_fetch_failure"] = True
-    return bucket_ownership_controls
+        return FETCH_FAILED
 
 
 @timeit
 @aws_handle_regions
 def get_bucket_logging(
     bucket: Dict, client: botocore.client.BaseClient
-) -> Optional[Dict]:
+) -> MaybeFailed:
     """
-    Gets the S3 bucket logging status configuration.
+    Gets the S3 bucket logging status configuration. Returns FETCH_FAILED if fetch failed.
     """
-    bucket_logging = None
     try:
-        bucket_logging = client.get_bucket_logging(Bucket=bucket["Name"])
+        return client.get_bucket_logging(Bucket=bucket["Name"])
     except ClientError as e:
-        if _is_common_exception(e, bucket):
-            pass
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
         else:
             raise
     except EndpointConnectionError:
         logger.warning(
             f"Failed to retrieve S3 bucket logging status for {bucket['Name']} - Could not connect to the endpoint URL",
         )
-        bucket["_fetch_failure"] = True
-    return bucket_logging
+        return FETCH_FAILED
 
 
 @timeit
-def _is_common_exception(e: Exception, bucket: Dict) -> bool:
+def _is_common_exception(e: Exception, bucket_name: str) -> Tuple[bool, bool]:
     """
     Check if an exception is a known/expected S3 exception that should be handled.
-    Also sets a '_fetch_failure' flag on the bucket dict if the error indicates
-    a fetch failure (vs simply no configuration existing).
 
-    Returns True if exception should be handled (not re-raised).
+    Returns:
+        Tuple of (should_handle, is_fetch_failure):
+        - should_handle: True if exception should be handled (not re-raised)
+        - is_fetch_failure: True if this is a fetch failure (vs "no configuration" which is valid)
     """
     error_msg = "Failed to retrieve S3 bucket detail"
     error_str = str(e.args[0]) if e.args else ""
 
-    # "No configuration" errors - valid states, proceed with None
+    # "No configuration" errors - valid states where no config exists
+    # These return (True, False) - handle but not a failure
     if "NoSuchBucketPolicy" in error_str:
-        logger.warning(f"{error_msg} for {bucket['Name']} - NoSuchBucketPolicy")
-        return True
+        logger.warning(f"{error_msg} for {bucket_name} - NoSuchBucketPolicy")
+        return (True, False)
     elif "ServerSideEncryptionConfigurationNotFoundError" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket['Name']} - ServerSideEncryptionConfigurationNotFoundError",
+            f"{error_msg} for {bucket_name} - ServerSideEncryptionConfigurationNotFoundError",
         )
-        return True
+        return (True, False)
     elif "NoSuchPublicAccessBlockConfiguration" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket['Name']} - NoSuchPublicAccessBlockConfiguration",
+            f"{error_msg} for {bucket_name} - NoSuchPublicAccessBlockConfiguration",
         )
-        return True
+        return (True, False)
     elif "OwnershipControlsNotFoundError" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket['Name']} - OwnershipControlsNotFoundError"
+            f"{error_msg} for {bucket_name} - OwnershipControlsNotFoundError"
         )
-        return True
+        return (True, False)
 
-    # Fetch failures - mark bucket to be skipped to preserve existing data
+    # Fetch failures - should preserve existing data
+    # These return (True, True) - handle and is a failure
     elif "AccessDenied" in error_str:
-        logger.warning(f"{error_msg} for {bucket['Name']} - Access Denied")
-        bucket["_fetch_failure"] = True
-        return True
+        logger.warning(f"{error_msg} for {bucket_name} - Access Denied")
+        return (True, True)
     elif "NoSuchBucket" in error_str:
-        logger.warning(f"{error_msg} for {bucket['Name']} - No Such Bucket")
-        bucket["_fetch_failure"] = True
-        return True
+        logger.warning(f"{error_msg} for {bucket_name} - No Such Bucket")
+        return (True, True)
     elif "AllAccessDisabled" in error_str:
-        logger.warning(f"{error_msg} for {bucket['Name']} - Bucket is disabled")
-        bucket["_fetch_failure"] = True
-        return True
+        logger.warning(f"{error_msg} for {bucket_name} - Bucket is disabled")
+        return (True, True)
     elif "EndpointConnectionError" in error_str:
-        logger.warning(f"{error_msg} for {bucket['Name']} - EndpointConnectionError")
-        bucket["_fetch_failure"] = True
-        return True
+        logger.warning(f"{error_msg} for {bucket_name} - EndpointConnectionError")
+        return (True, True)
     elif "InvalidToken" in error_str:
-        logger.warning(f"{error_msg} for {bucket['Name']} - InvalidToken")
-        bucket["_fetch_failure"] = True
-        return True
+        logger.warning(f"{error_msg} for {bucket_name} - InvalidToken")
+        return (True, True)
     elif "IllegalLocationConstraintException" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket['Name']} - IllegalLocationConstraintException",
+            f"{error_msg} for {bucket_name} - IllegalLocationConstraintException",
         )
-        bucket["_fetch_failure"] = True
-        return True
+        return (True, True)
 
-    return False
+    return (False, False)
 
 
 @timeit
@@ -392,42 +416,42 @@ def _merge_bucket_details(
     bucket_data: Dict,
     s3_details_iter: Generator[Any, Any, Any],
     aws_account_id: str,
-) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+) -> Dict[str, Any]:
     """
     Merge basic bucket data with details (policy, encryption, versioning, etc.)
-    into a single data structure for loading.
+    into separate data structures for each composite schema.
 
-    Buckets that had fetch failures (marked with _fetch_failure flag) are skipped
-    to preserve their existing data in Neo4j.
+    Uses the Composite Node Pattern: returns separate lists for each property group,
+    allowing us to skip loading a group when its fetch failed (preserving existing data).
 
-    Returns:
-        - bucket_data_merged: List of bucket dicts with all properties merged
+    Returns a dict with:
+        - base_buckets: List of bucket dicts with base properties (always populated)
+        - policy_buckets: List of bucket dicts with policy properties
+        - encryption_buckets: List of bucket dicts with encryption properties
+        - versioning_buckets: List of bucket dicts with versioning properties
+        - public_access_block_buckets: List of bucket dicts with public access block properties
+        - ownership_buckets: List of bucket dicts with ownership properties
+        - logging_buckets: List of bucket dicts with logging properties
         - acls: List of parsed ACL dicts
         - statements: List of parsed policy statement dicts
     """
     # Create a dict for quick lookup by bucket name
-    # Skip buckets with fetch failures to preserve existing data
     buckets_by_name: Dict[str, Dict] = {}
-    skipped_buckets: set = set()
     for bucket in bucket_data["Buckets"]:
-        if bucket.get("_fetch_failure"):
-            logger.info(
-                f"Skipping bucket {bucket['Name']} due to fetch failure - "
-                "existing data in Neo4j will be preserved"
-            )
-            skipped_buckets.add(bucket["Name"])
-            continue
         buckets_by_name[bucket["Name"]] = {
             "Name": bucket["Name"],
             "Region": bucket["Region"],
             "Arn": "arn:aws:s3:::" + bucket["Name"],
             "CreationDate": str(bucket["CreationDate"]),
-            # Set defaults
-            "anonymous_access": False,
-            "anonymous_actions": [],
-            "default_encryption": False,
         }
 
+    # Lists for composite schema data
+    policy_buckets: List[Dict] = []
+    encryption_buckets: List[Dict] = []
+    versioning_buckets: List[Dict] = []
+    public_access_block_buckets: List[Dict] = []
+    ownership_buckets: List[Dict] = []
+    logging_buckets: List[Dict] = []
     acls: List[Dict] = []
     statements: List[Dict] = []
 
@@ -445,79 +469,137 @@ def _merge_bucket_details(
         if not bucket_dict:
             continue
 
-        # Parse and collect ACLs
-        parsed_acls = parse_acl(acl, bucket_name, aws_account_id)
-        if parsed_acls is not None:
-            acls.extend(parsed_acls)
+        # Parse and collect ACLs (skip if fetch failed)
+        if acl is not FETCH_FAILED:
+            parsed_acls = parse_acl(acl, bucket_name, aws_account_id)
+            if parsed_acls is not None:
+                acls.extend(parsed_acls)
 
-        # Parse policy for anonymous access
-        parsed_policy = parse_policy(bucket_name, policy)
-        if parsed_policy is not None:
-            bucket_dict["anonymous_access"] = parsed_policy["internet_accessible"]
-            bucket_dict["anonymous_actions"] = parsed_policy["accessible_actions"]
+        # Parse policy for anonymous access and policy statements (skip if fetch failed)
+        if policy is not FETCH_FAILED:
+            parsed_policy = parse_policy(bucket_name, policy)
+            policy_data = {
+                "Name": bucket_name,
+                "anonymous_access": False,
+                "anonymous_actions": [],
+            }
+            if parsed_policy is not None:
+                policy_data["anonymous_access"] = parsed_policy["internet_accessible"]
+                policy_data["anonymous_actions"] = parsed_policy["accessible_actions"]
+            policy_buckets.append(policy_data)
 
-        # Parse and collect policy statements
-        parsed_statements = parse_policy_statements(bucket_name, policy)
-        if parsed_statements is not None:
-            statements.extend(parsed_statements)
+            # Parse and collect policy statements
+            parsed_statements = parse_policy_statements(bucket_name, policy)
+            if parsed_statements is not None:
+                statements.extend(parsed_statements)
 
-        # Parse encryption
-        parsed_encryption = parse_encryption(bucket_name, encryption)
-        if parsed_encryption is not None:
-            bucket_dict["default_encryption"] = parsed_encryption["default_encryption"]
-            bucket_dict["encryption_algorithm"] = parsed_encryption[
-                "encryption_algorithm"
-            ]
-            bucket_dict["encryption_key_id"] = parsed_encryption.get(
-                "encryption_key_id"
+        # Parse encryption (skip if fetch failed)
+        if encryption is not FETCH_FAILED:
+            parsed_encryption = parse_encryption(bucket_name, encryption)
+            encryption_data = {
+                "Name": bucket_name,
+                "default_encryption": False,
+                "encryption_algorithm": None,
+                "encryption_key_id": None,
+                "bucket_key_enabled": None,
+            }
+            if parsed_encryption is not None:
+                encryption_data["default_encryption"] = parsed_encryption[
+                    "default_encryption"
+                ]
+                encryption_data["encryption_algorithm"] = parsed_encryption[
+                    "encryption_algorithm"
+                ]
+                encryption_data["encryption_key_id"] = parsed_encryption.get(
+                    "encryption_key_id"
+                )
+                encryption_data["bucket_key_enabled"] = parsed_encryption.get(
+                    "bucket_key_enabled"
+                )
+            encryption_buckets.append(encryption_data)
+
+        # Parse versioning (skip if fetch failed)
+        if versioning is not FETCH_FAILED:
+            parsed_versioning = parse_versioning(bucket_name, versioning)
+            versioning_data = {
+                "Name": bucket_name,
+                "versioning_status": None,
+                "mfa_delete": None,
+            }
+            if parsed_versioning is not None:
+                versioning_data["versioning_status"] = parsed_versioning["status"]
+                versioning_data["mfa_delete"] = parsed_versioning["mfa_delete"]
+            versioning_buckets.append(versioning_data)
+
+        # Parse public access block (skip if fetch failed)
+        if public_access_block is not FETCH_FAILED:
+            parsed_public_access_block = parse_public_access_block(
+                bucket_name,
+                public_access_block,
             )
-            bucket_dict["bucket_key_enabled"] = parsed_encryption.get(
-                "bucket_key_enabled"
+            public_access_block_data = {
+                "Name": bucket_name,
+                "block_public_acls": None,
+                "ignore_public_acls": None,
+                "block_public_policy": None,
+                "restrict_public_buckets": None,
+            }
+            if parsed_public_access_block is not None:
+                public_access_block_data["block_public_acls"] = parsed_public_access_block[
+                    "block_public_acls"
+                ]
+                public_access_block_data["ignore_public_acls"] = parsed_public_access_block[
+                    "ignore_public_acls"
+                ]
+                public_access_block_data["block_public_policy"] = parsed_public_access_block[
+                    "block_public_policy"
+                ]
+                public_access_block_data["restrict_public_buckets"] = parsed_public_access_block[
+                    "restrict_public_buckets"
+                ]
+            public_access_block_buckets.append(public_access_block_data)
+
+        # Parse bucket ownership controls (skip if fetch failed)
+        if bucket_ownership_controls is not FETCH_FAILED:
+            parsed_bucket_ownership_controls = parse_bucket_ownership_controls(
+                bucket_name, bucket_ownership_controls
             )
+            ownership_data = {
+                "Name": bucket_name,
+                "object_ownership": None,
+            }
+            if parsed_bucket_ownership_controls is not None:
+                ownership_data["object_ownership"] = parsed_bucket_ownership_controls[
+                    "object_ownership"
+                ]
+            ownership_buckets.append(ownership_data)
 
-        # Parse versioning
-        parsed_versioning = parse_versioning(bucket_name, versioning)
-        if parsed_versioning is not None:
-            bucket_dict["versioning_status"] = parsed_versioning["status"]
-            bucket_dict["mfa_delete"] = parsed_versioning["mfa_delete"]
+        # Parse bucket logging (skip if fetch failed)
+        if bucket_logging is not FETCH_FAILED:
+            parsed_bucket_logging = parse_bucket_logging(bucket_name, bucket_logging)
+            logging_data = {
+                "Name": bucket_name,
+                "logging_enabled": None,
+                "logging_target_bucket": None,
+            }
+            if parsed_bucket_logging is not None:
+                logging_data["logging_enabled"] = parsed_bucket_logging["logging_enabled"]
+                logging_data["logging_target_bucket"] = parsed_bucket_logging[
+                    "target_bucket"
+                ]
+            logging_buckets.append(logging_data)
 
-        # Parse public access block
-        parsed_public_access_block = parse_public_access_block(
-            bucket_name,
-            public_access_block,
-        )
-        if parsed_public_access_block is not None:
-            bucket_dict["block_public_acls"] = parsed_public_access_block[
-                "block_public_acls"
-            ]
-            bucket_dict["ignore_public_acls"] = parsed_public_access_block[
-                "ignore_public_acls"
-            ]
-            bucket_dict["block_public_policy"] = parsed_public_access_block[
-                "block_public_policy"
-            ]
-            bucket_dict["restrict_public_buckets"] = parsed_public_access_block[
-                "restrict_public_buckets"
-            ]
-
-        # Parse bucket ownership controls
-        parsed_bucket_ownership_controls = parse_bucket_ownership_controls(
-            bucket_name, bucket_ownership_controls
-        )
-        if parsed_bucket_ownership_controls is not None:
-            bucket_dict["object_ownership"] = parsed_bucket_ownership_controls[
-                "object_ownership"
-            ]
-
-        # Parse bucket logging
-        parsed_bucket_logging = parse_bucket_logging(bucket_name, bucket_logging)
-        if parsed_bucket_logging is not None:
-            bucket_dict["logging_enabled"] = parsed_bucket_logging["logging_enabled"]
-            bucket_dict["logging_target_bucket"] = parsed_bucket_logging[
-                "target_bucket"
-            ]
-
-    return list(buckets_by_name.values()), acls, statements
+    return {
+        "base_buckets": list(buckets_by_name.values()),
+        "policy_buckets": policy_buckets,
+        "encryption_buckets": encryption_buckets,
+        "versioning_buckets": versioning_buckets,
+        "public_access_block_buckets": public_access_block_buckets,
+        "ownership_buckets": ownership_buckets,
+        "logging_buckets": logging_buckets,
+        "acls": acls,
+        "statements": statements,
+    }
 
 
 @timeit
@@ -529,13 +611,14 @@ def load_s3_details(
     update_tag: int,
 ) -> None:
     """
-    Merge bucket details with basic bucket data and load everything at once.
-    Also loads ACLs and policy statements.
+    Merge bucket details with basic bucket data and load using composite schemas.
+
+    Uses the Composite Node Pattern: each property group is loaded separately,
+    so if a fetch fails for one group, we skip loading that group and preserve
+    existing data in Neo4j.
     """
-    # Merge all bucket data
-    bucket_data_merged, acls, statements = _merge_bucket_details(
-        bucket_data, s3_details_iter, aws_account_id
-    )
+    # Merge all bucket data into separate lists per property group
+    merged_data = _merge_bucket_details(bucket_data, s3_details_iter, aws_account_id)
 
     # cleanup existing policy properties set on S3 Buckets
     run_cleanup_job(
@@ -544,20 +627,83 @@ def load_s3_details(
         {"UPDATE_TAG": update_tag, "AWS_ID": aws_account_id},
     )
 
-    # Load buckets with all properties via schema
+    # Load base bucket properties (always done for all buckets)
     load(
         neo4j_session,
         S3BucketSchema(),
-        bucket_data_merged,
+        merged_data["base_buckets"],
         lastupdated=update_tag,
         AWS_ID=aws_account_id,
     )
 
+    # Load composite schema properties (only for buckets where fetch succeeded)
+    # Policy properties
+    if merged_data["policy_buckets"]:
+        load(
+            neo4j_session,
+            S3BucketPolicySchema(),
+            merged_data["policy_buckets"],
+            lastupdated=update_tag,
+            AWS_ID=aws_account_id,
+        )
+
+    # Encryption properties
+    if merged_data["encryption_buckets"]:
+        load(
+            neo4j_session,
+            S3BucketEncryptionSchema(),
+            merged_data["encryption_buckets"],
+            lastupdated=update_tag,
+            AWS_ID=aws_account_id,
+        )
+
+    # Versioning properties
+    if merged_data["versioning_buckets"]:
+        load(
+            neo4j_session,
+            S3BucketVersioningSchema(),
+            merged_data["versioning_buckets"],
+            lastupdated=update_tag,
+            AWS_ID=aws_account_id,
+        )
+
+    # Public access block properties
+    if merged_data["public_access_block_buckets"]:
+        load(
+            neo4j_session,
+            S3BucketPublicAccessBlockSchema(),
+            merged_data["public_access_block_buckets"],
+            lastupdated=update_tag,
+            AWS_ID=aws_account_id,
+        )
+
+    # Ownership properties
+    if merged_data["ownership_buckets"]:
+        load(
+            neo4j_session,
+            S3BucketOwnershipSchema(),
+            merged_data["ownership_buckets"],
+            lastupdated=update_tag,
+            AWS_ID=aws_account_id,
+        )
+
+    # Logging properties
+    if merged_data["logging_buckets"]:
+        load(
+            neo4j_session,
+            S3BucketLoggingSchema(),
+            merged_data["logging_buckets"],
+            lastupdated=update_tag,
+            AWS_ID=aws_account_id,
+        )
+
     # Load ACLs
-    _load_s3_acls(neo4j_session, acls, aws_account_id, update_tag)
+    _load_s3_acls(neo4j_session, merged_data["acls"], aws_account_id, update_tag)
 
     # Load policy statements
-    _load_s3_policy_statements(neo4j_session, statements, update_tag, aws_account_id)
+    _load_s3_policy_statements(
+        neo4j_session, merged_data["statements"], update_tag, aws_account_id
+    )
 
 
 @timeit
@@ -978,27 +1124,24 @@ def _load_s3_encryption(
     if isinstance(encryption_configs, dict):
         encryption_configs = [encryption_configs]
 
+    bucket_data = []
     for config in encryption_configs:
-        bucket_data = [
+        bucket_data.append(
             {
                 "Name": config["bucket"],
-                "Region": None,
-                "Arn": "arn:aws:s3:::" + config["bucket"],
-                "CreationDate": None,
                 "default_encryption": config.get("default_encryption", False),
                 "encryption_algorithm": config.get("encryption_algorithm"),
                 "encryption_key_id": config.get("encryption_key_id"),
                 "bucket_key_enabled": config.get("bucket_key_enabled"),
             }
-        ]
-        # Use MERGE to update existing bucket
-        load(
-            neo4j_session,
-            S3BucketSchema(),
-            bucket_data,
-            lastupdated=update_tag,
-            AWS_ID="",  # Not used for MERGE on existing node
         )
+    load(
+        neo4j_session,
+        S3BucketEncryptionSchema(),
+        bucket_data,
+        lastupdated=update_tag,
+        AWS_ID="",
+    )
 
 
 @timeit
@@ -1015,23 +1158,21 @@ def _load_bucket_ownership_controls(
     if isinstance(bucket_ownership_controls_configs, dict):
         bucket_ownership_controls_configs = [bucket_ownership_controls_configs]
 
+    bucket_data = []
     for config in bucket_ownership_controls_configs:
-        bucket_data = [
+        bucket_data.append(
             {
                 "Name": config["bucket"],
-                "Region": None,
-                "Arn": "arn:aws:s3:::" + config["bucket"],
-                "CreationDate": None,
                 "object_ownership": config.get("object_ownership"),
             }
-        ]
-        load(
-            neo4j_session,
-            S3BucketSchema(),
-            bucket_data,
-            lastupdated=update_tag,
-            AWS_ID="",
         )
+    load(
+        neo4j_session,
+        S3BucketOwnershipSchema(),
+        bucket_data,
+        lastupdated=update_tag,
+        AWS_ID="",
+    )
 
 
 @timeit
@@ -1044,24 +1185,22 @@ def _load_bucket_logging(
     Update S3 buckets with logging properties.
     This is a wrapper for backward compatibility with tests.
     """
+    bucket_data = []
     for config in bucket_logging_configs:
-        bucket_data = [
+        bucket_data.append(
             {
                 "Name": config["bucket"],
-                "Region": None,
-                "Arn": "arn:aws:s3:::" + config["bucket"],
-                "CreationDate": None,
                 "logging_enabled": config.get("logging_enabled"),
                 "logging_target_bucket": config.get("target_bucket"),
             }
-        ]
-        load(
-            neo4j_session,
-            S3BucketSchema(),
-            bucket_data,
-            lastupdated=update_tag,
-            AWS_ID="",
         )
+    load(
+        neo4j_session,
+        S3BucketLoggingSchema(),
+        bucket_data,
+        lastupdated=update_tag,
+        AWS_ID="",
+    )
 
 
 @timeit
