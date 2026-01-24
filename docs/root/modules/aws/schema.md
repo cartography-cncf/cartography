@@ -74,9 +74,7 @@ Representation of an AWS Account.
     (:AWSAccount)-[:RESOURCE]->(:AWSRole)
     ```
 
-### AWSCidrBlock
-#### AWSIpv4CidrBlock
-#### AWSIpv6CidrBlock
+### AWSCidrBlock:AWSIpv4CidrBlock:AWSIpv6CidrBlock
 Representation of an [AWS CidrBlock used in VPC configuration](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_VpcCidrBlockAssociation.html).
 The `AWSCidrBlock` defines the base label
 type for `AWSIpv4CidrBlock` and `AWSIpv6CidrBlock`
@@ -84,12 +82,13 @@ type for `AWSIpv4CidrBlock` and `AWSIpv6CidrBlock`
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
+|**id**| Unique identifier defined with the VPC association and the cidr\_block|
+|vpcid| The ID of the VPC this CIDR block is associated with|
+|association\_id| the association id if the block is associated to a VPC|
 |cidr\_block| The CIDR block|
 |block\_state| The state of the block|
-|association\_id| the association id if the block is associated to a VPC
 |block\_state\_message| A message about the status of the CIDR block, if applicable|
 |lastupdated| Timestamp of the last time the node was updated|
-|**id**| Unique identifier defined with the VPC association and the cidr\_block
 
 #### Relationships
 - `AWSVpc` association
@@ -124,6 +123,7 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 |-------|-------------|
 |firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated|  Timestamp of the last time the node was updated |
+|**id** | Same as arn |
 |path | The path to the group (IAM identifier, see linked docs above for details)|
 | groupid| Unique string identifying the group |
 |name | The friendly name that identifies the group|
@@ -253,11 +253,14 @@ Representation of an AWS [Inspector Finding](https://docs.aws.amazon.com/inspect
 
 | Field | Description | Required|
 |-------|-------------|------|
-|arn|The AWS ARN|yes|
+|firstseen|Timestamp of when a sync job first discovered this node|no|
+|lastupdated|Timestamp of the last time the node was updated|no|
+|**arn**|The AWS ARN|yes|
 |id|Reuses the AWS ARN since it's unique|yes|
 |region|AWS region the finding is from|yes|
 |awsaccount|AWS account the finding is from|yes|
-|name|The finding name|
+|name|The finding name||
+|status|The status of the finding||
 |instanceid|The instance ID of the EC2 instance with the issue|
 |ecrimageid|The image ID of the ECR image with the issue|
 |ecrrepositoryid|The repository ID of the ECR repository with the issue|
@@ -320,9 +323,10 @@ Representation of an AWS [Inspector Finding Package](https://docs.aws.amazon.com
 
 | Field | Description | Required|
 |-------|-------------|------|
-|**arn**|The AWS ARN|yes|
+|firstseen|Timestamp of when a sync job first discovered this node|no|
+|lastupdated|Timestamp of the last time the node was updated|no|
 |id|Uses the format of `name|epoch:version-release.arch` to uniquely identify packages|yes|
-|name|The finding name|
+|**name**|The package name||
 |arch|Architecture for the package|
 |version|Version of the package|
 |release|Release of the package
@@ -401,6 +405,7 @@ Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/la
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The arn of the lambda function|
+| **arn** | The Amazon Resource Name (ARN) of the lambda function |
 | name |  The name of the lambda function |
 | modifieddate |  Timestamp of the last time the function was last updated |
 | runtime |  The runtime environment for the Lambda function |
@@ -469,7 +474,8 @@ Representation of an [AWSLambdaFunctionAlias](https://docs.aws.amazon.com/lambda
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The arn of the lambda function alias|
-| arn | The arn of the lambda function alias|
+| **arn** | The arn of the lambda function alias|
+| functionarn | The ARN of the Lambda function this alias points to |
 | aliasname |  The name of the lambda function alias |
 | functionversion | The function version that the alias invokes.|
 | revisionid |  A unique identifier that changes when you update the alias. |
@@ -496,6 +502,7 @@ Representation of an [AWSLambdaEventSourceMapping](https://docs.aws.amazon.com/l
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The id of the event source mapping|
+| functionarn | The ARN of the Lambda function |
 | batchsize | The maximum number of items to retrieve in a single batch. |
 | startingposition | The position in a stream from which to start reading. |
 | startingpositiontimestamp |  The time from which to start reading. |
@@ -531,7 +538,8 @@ Representation of an [AWSLambdaLayer](https://docs.aws.amazon.com/lambda/latest/
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The arn of the lambda function layer|
-| arn | The arn of the lambda function layer|
+| **arn** | The arn of the lambda function layer|
+| functionarn | The ARN of the Lambda function this layer belongs to |
 | codesize | The size of the layer archive in bytes.|
 | signingprofileversionarn | The Amazon Resource Name (ARN) for a signing profile version.|
 | signingjobarn | The Amazon Resource Name (ARN) of a signing job. |
@@ -583,9 +591,11 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 
 | Field | Description |
 |-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | name | The friendly name (not ARN) identifying the policy |
 | type | "inline" |
-| arn | The arn for this object |
+| **arn** | The arn for this object |
 | **id** | The unique identifer for a policy. Calculated as _AWSPrincipal_/inline_policy/_PolicyName_|
 
 
@@ -616,9 +626,11 @@ Representation of an [AWS Policy](https://docs.aws.amazon.com/IAM/latest/APIRefe
 
 | Field | Description |
 |-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | name | The friendly name (not ARN) identifying the policy |
 | type | "managed" |
-| arn | The arn for this object |
+| **arn** | The arn for this object |
 | **id** | The arn of the policy |
 
 
@@ -644,11 +656,14 @@ Representation of an [AWS Policy Statement](https://docs.aws.amazon.com/IAM/late
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated | Timestamp of the last time the node was updated|
-| resources | (array) The resources the statement is applied to. Can contain wildcards |
-| actions | (array) The permissions allowed or denied by the statement. Can contain wildcards |
-| notactions | (array) The permission explicitly not matched by the statement |
-| effect | "Allow" or "Deny" - the effect of this statement |
 | **id** | The unique identifier for a statement. <br>If the statement has an Sid the id will be calculated as _AWSPolicy.id_/statements/_Sid_. <br>If the statement has no Sid the id will be calculated as  _AWSPolicy.id_/statements/_index of statement in statement list_ |
+| effect | "Allow" or "Deny" - the effect of this statement |
+| action | (array) The permissions allowed or denied by the statement. Can contain wildcards |
+| notaction | (array) The permissions explicitly not matched by the statement |
+| resource | (array) The resources the statement is applied to. Can contain wildcards |
+| notresource | (array) The resources explicitly not matched by the statement |
+| condition | Conditions under which the statement applies |
+| sid | Statement ID - an optional identifier for the policy statement |
 
 
 #### Relationships
@@ -740,6 +755,7 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The arn of the user |
 | path | The path to the user |
 | name | The friendly name of the user |
 | createdate | ISO 8601 date-time when the user was created |
@@ -790,6 +806,7 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 | id | The arn of the role |
 | roleid | The stable and unique string identifying the role.  |
 | name | The friendly name that identifies the role.|
+| path | The path to the role. |
 | createdate| The date and time, in ISO 8601 date-time format, when the role was created. |
 | **arn** | AWS-unique identifier for this object |
 
@@ -884,6 +901,8 @@ Representation of the root principal for an AWS account.
 
 | Field | Description |
 |-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | **arn** | The arn of the root principal|
 | **id** | Same as arn |
 
@@ -908,8 +927,11 @@ Representation of a global AWS service principal e.g. "ec2.amazonaws.com"
 
 | Field | Description |
 |-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | **arn** | The arn of the service principal|
 | **id** | Same as arn |
+| type | The type of the service principal |
 
 #### Relationships
 
@@ -925,8 +947,11 @@ Representation of a federated principal e.g. "arn:aws:iam::123456789012:saml-pro
 
 | Field | Description |
 |-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | **arn** | The arn of the federated principal|
 | **id** | Same as arn |
+| type | The type of the federated principal |
 
 #### Relationships
 
@@ -1002,14 +1027,15 @@ More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describ
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
-|vpcid| The VPC unique identifier|
+|lastupdated| Timestamp of the last time the node was updated|
+|**id**| Unique identifier defined VPC node (vpcid)|
+|**vpcid**| The VPC unique identifier|
 |primary\_cidr\_block|The primary IPv4 CIDR block for the VPC.|
 |instance\_tenancy| The allowed tenancy of instances launched into the VPC.|
 |state| The current state of the VPC.|
 |is\_default| Indicates whether the VPC is the default VPC.|
 |dhcp\_options\_id| The ID of a set of DHCP options.|
-|region| (optional) the region of this VPC.  This field is only available on VPCs in your account.  It is not available on VPCs that are external to your account and linked via a VPC peering relationship.
-|**id**| Unique identifier defined VPC node (vpcid)
+|region| (optional) the region of this VPC.  This field is only available on VPCs in your account.  It is not available on VPCs that are external to your account and linked via a VPC peering relationship.|
 
 #### Relationships
 - `AWSAccount` resource
@@ -1065,13 +1091,14 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The access key ID (same as accesskeyid) |
+| **accesskeyid** | The ID for this access key |
 | createdate | Date when access key was created |
-| status | Active: valid for API calls.  Inactive: not valid for API calls|
+| status | Active: valid for API calls.  Inactive: not valid for API calls |
 | lastuseddate | Date when the key was last used |
 | lastusedservice | The service that was last used with the access key |
 | lastusedregion | The region where the access key was last used |
-| **accesskeyid** | The ID for this access key|
 
 #### Relationships
 - Account Access Keys may authenticate AWS Users and AWS Principal objects.
@@ -1090,6 +1117,11 @@ Representation of an AWS [CloudTrail Trail](https://docs.aws.amazon.com/awscloud
 
 | Field | Description |
 |-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the trail (same as arn) |
+| arn | The ARN of the trail |
+| region | The AWS region |
 | cloudwatch_logs_log_group_arn | The ARN identifier representing the log group where the CloudTrailTrail delivers logs. |
 | cloudwatch_logs_role_arn | The role ARN that the CloudTrailTrail's CloudWatch Logs endpoint assumes. |
 | has_custom_event_selectors | Indicates if the CloudTrailTrail has custom event selectors. |
@@ -1174,18 +1206,20 @@ Representation of an AWS [CloudWatch Log Group](https://docs.aws.amazon.com/Amaz
 
 | Field | Description |
 |-------|-------------|
-| id | The ARN of the SNS log group |
-| arn | The Amazon Resource Name (ARN) of the log group |
-| creationTime | The creation time of the log group, expressed as the number of milliseconds after Jan 1, 1970 00:00:00 UTC. |
-| dataProtectionStatus | Displays whether this log group has a protection policy, or whether it had one in the past. |
-| inheritedProperties | Displays all the properties that this log group has inherited from account-level settings. |
-| kmsKeyId | The Amazon Resource Name (ARN) of the AWS KMS key to use when encrypting log data. |
-| logGroupArn | The Amazon Resource Name (ARN) of the log group. |
-| logGroupClass | This specifies the log group class for this log group. |
-| logGroupName | The name of the log group. |
-| metricFilterCount | The number of metric filters. |
-| retentionInDays | The number of days to retain the log events in the specified log group. |
-| storedBytes | The number of bytes stored. |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the log group |
+| **arn** | The Amazon Resource Name (ARN) of the log group |
+| creation_time | The creation time of the log group, expressed as the number of milliseconds after Jan 1, 1970 00:00:00 UTC |
+| data_protection_status | Displays whether this log group has a protection policy, or whether it had one in the past |
+| inherited_properties | Displays all the properties that this log group has inherited from account-level settings |
+| kms_key_id | The Amazon Resource Name (ARN) of the AWS KMS key to use when encrypting log data |
+| log_group_arn | The Amazon Resource Name (ARN) of the log group |
+| log_group_class | This specifies the log group class for this log group |
+| log_group_name | The name of the log group |
+| metric_filter_count | The number of metric filters |
+| retention_in_days | The number of days to retain the log events in the specified log group |
+| stored_bytes | The number of bytes stored |
 #### Relationships
 - CLoudWatch LogGroups are a resource under the AWS Account.
     ```
@@ -1200,9 +1234,10 @@ Representation of an AWS [CloudWatch Metric Alarm](https://docs.aws.amazon.com/A
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | id | The ARN of the CloudWatch Metric Alarm |
-| arn | The ARN of the CloudWatch Metric Alarm |
+| **arn** | The ARN of the CloudWatch Metric Alarm |
 | region | The region of the CloudWatch Metric Alarm |
 | alarm_name | The name of the alarm |
+| alarm_description | The description of the alarm |
 | state_value | The state value for the alarm |
 | state_reason | An explanation for the alarm state, in text format |
 | actions_enabled | Indicates whether actions should be executed during any changes to the alarm state |
@@ -1221,7 +1256,7 @@ Representation of an AWS [CloudWatch Log Metric Filter](https://docs.aws.amazon.
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | id | Ensures that the id field is a unique combination of logGroupName and filterName |
-| arn | Ensures that the arn field is a unique combination of logGroupName and filterName |
+| **arn** | Ensures that the arn field is a unique combination of logGroupName and filterName |
 | region | The region of the CloudWatch Log Metric Filter |
 | filter_name | The name of the filter pattern used to extract metric data from log events |
 | filter_pattern | The pattern used to extract metric data from CloudWatch log events |
@@ -1247,7 +1282,7 @@ Representation of an AWS [Glue Connection](https://docs.aws.amazon.com/glue/late
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | id | The name of the Glue connection definition |
-| arn | The name of the Glue connection definition |
+| **arn** | The name of the Glue connection definition |
 | region | The region of the Glue Connection |
 | description | The description of the connection |
 | connection_type | The type of the connection. Currently, SFTP is not supported |
@@ -1269,7 +1304,7 @@ Representation of an AWS [Glue Job](https://docs.aws.amazon.com/glue/latest/weba
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | id | The name you assign to this job definition |
-| arn | The name you assign to this job definition |
+| **arn** | The name you assign to this job definition |
 | region | The region of the Glue job |
 | description | The description of the job |
 | profile_name | The name of an AWS Glue usage profile associated with the job |
@@ -1294,7 +1329,7 @@ Representation of an AWS [CodeBuild Project](https://docs.aws.amazon.com/codebui
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | id | The ARN of the CodeBuild Project |
-| arn | The Amazon Resource Name (ARN) of the CodeBuild Project |
+| **arn** | The Amazon Resource Name (ARN) of the CodeBuild Project |
 | region | The region of the codebuild project |
 | created | The creation time of the CodeBuild Project |
 | environment_variables | A list of environment variables used in the build environment. Each variable is represented as a string in the format `<NAME>=<VALUE>`. Variables of type `PLAINTEXT` retain their values (e.g., `ENV=prod`), while variables of type `PARAMETER_STORE`, `SECRETS_MANAGER`, etc., have values redacted as `<REDACTED>` (e.g., `SECRET_TOKEN=<REDACTED>`) |
@@ -1314,7 +1349,7 @@ Representation of an AWS [Cognito Identity Pool](https://docs.aws.amazon.com/cog
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | id | The id of Cognito Identity Pool |
-| arn | The Amazon Resource Name (ARN) of the Cognito Identity Pool |
+| **arn** | The Amazon Resource Name (ARN) of the Cognito Identity Pool |
 | region | The region of the Cognito Identity Pool |
 | roles | list of aws roles associated with Cognito Identity Pool |
 #### Relationships
@@ -1335,7 +1370,7 @@ Representation of an AWS [Cognito User Pool](https://docs.aws.amazon.com/cognito
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | id | The id of Cognito User Pool |
-| arn | The Amazon Resource Name (ARN) of the Cognito User Pool |
+| **arn** | The Amazon Resource Name (ARN) of the Cognito User Pool |
 | region | The region of the Cognito User Pool |
 | name | Name of Cognito User Pool |
 | status | Status of User Pool |
@@ -1358,7 +1393,7 @@ Representation of an RDS [DB Subnet Group](https://docs.aws.amazon.com/AmazonRDS
 |description| Description of the DB Subnet Group|
 |status| The status of the group |
 |vpc\_id| The ID of the VPC (Virtual Private Cloud) that this DB Subnet Group is associated with.|
-|value| The IP address that the DNSRecord points to|
+|region| The AWS region where the DB Subnet Group is located.|
 
 #### Relationships
 
@@ -1423,7 +1458,7 @@ Representation of an AWS DNS [ResourceRecordSet](https://docs.aws.amazon.com/Rou
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job first discovered this node |
-|name| The name of the DNSRecord|
+|**name**| The name of the DNSRecord|
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The zoneid for the record, the value of the record, and the type concatenated together|
 |type| The record type of the DNS record (A, AAAA, ALIAS, CNAME, NS, etc.)|
@@ -1483,6 +1518,7 @@ Representation of an AWS DNS [HostedZone](https://docs.aws.amazon.com/Route53/la
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job first discovered this node  |
+|**id**| The zoneid defined by Amazon Route53 (same as zoneid)|
 |**name**| the name of the DNS zone|
 | zoneid| The zoneid defined by Amazon Route53|
 | lastupdated|  Timestamp of the last time the node was updated |
@@ -1504,6 +1540,31 @@ Representation of an AWS DNS [HostedZone](https://docs.aws.amazon.com/Route53/la
 - AWSDNSZone can have subzones hosted by another AWSDNSZone
     ```
     (AWSDNSZone)<-[SUBZONE]-(AWSDNSZone)
+    ```
+
+
+### NameServer
+
+Representation of a DNS name server associated with an AWS Route53 hosted zone.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier for the name server (typically the fully qualified domain name) |
+| **name** | The fully qualified domain name of the name server |
+| zoneid | The ID of the Route53 hosted zone this name server belongs to |
+
+#### Relationships
+
+- NameServers belong to AWS Accounts.
+    ```
+    (AWSAccount)-[RESOURCE]->(NameServer)
+    ```
+
+- NameServers are associated with AWSDNSZones.
+    ```
+    (AWSDNSZone)-[NAMESERVER]->(NameServer)
     ```
 
 
@@ -1534,6 +1595,34 @@ Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynam
     ```
 
 
+### DynamoDBGlobalSecondaryIndex
+
+Representation of a [DynamoDB Global Secondary Index](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GlobalSecondaryIndexDescription.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the global secondary index |
+| arn | The Amazon Resource Name (ARN) of the global secondary index |
+| name | The name of the global secondary index |
+| region | The AWS region |
+| provisioned_throughput_read_capacity_units | The maximum number of read capacity units for the global secondary index |
+| provisioned_throughput_write_capacity_units | The maximum number of write capacity units for the global secondary index |
+
+#### Relationships
+
+- DynamoDBGlobalSecondaryIndex belongs to AWS Accounts.
+    ```
+    (AWSAccount)-[RESOURCE]->(DynamoDBGlobalSecondaryIndex)
+    ```
+
+- DynamoDBGlobalSecondaryIndex belongs to DynamoDBTables.
+    ```
+    (DynamoDBTable)-[GLOBAL_SECONDARY_INDEX]->(DynamoDBGlobalSecondaryIndex)
+    ```
+
+
 ### EC2Instance
 
 Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html).
@@ -1545,8 +1634,8 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | Same as `instanceid` below. |
-| instanceid | The instance id provided by AWS.  This is [globally unique](https://forums.aws.amazon.com/thread.jspa?threadID=137203) |
-| publicdnsname | The public DNS name assigned to the instance |
+| **instanceid** | The instance id provided by AWS.  This is [globally unique](https://forums.aws.amazon.com/thread.jspa?threadID=137203) |
+| **publicdnsname** | The public DNS name assigned to the instance |
 | publicipaddress | The public IPv4 address assigned to the instance if applicable |
 | privateipaddress | The private IPv4 address assigned to the instance |
 | imageid | The ID of the [Amazon Machine Image](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html) used to launch the instance |
@@ -1684,6 +1773,7 @@ Representation of an AWS EC2 [InstancePrivateIpAddress](https://docs.aws.amazon.
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
+| **id** | Unique identifier for the private IP |
 | network_interface_id   | id of the network interface with which the IP is associated with  |
 | primary   |  Indicates whether this IPv4 address is the primary private IP address of the network interface.  |
 | private_ip_address   |  The private IPv4 address of the network interface. |
@@ -1705,8 +1795,9 @@ Representation of an AWS EC2 [Reservation](https://docs.aws.amazon.com/AWSEC2/la
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| requesterid | The ID of the requester that launched the instances on your behalf |
+| **id** | The ID of the reservation (same as reservationid) |
 | **reservationid** | The ID of the reservation. |
+| requesterid | The ID of the requester that launched the instances on your behalf |
 | region| The AWS region |
 | ownerid | The ID of the AWS account that owns the reservation. |
 
@@ -1730,10 +1821,10 @@ Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| groupid | The ID of the security group. Note that these are globally unique in AWS.|
-| name | The name of the security group|
-| description | A description of the security group|
 | **id** | Same as `groupid` |
+| **groupid** | The ID of the security group. Note that these are globally unique in AWS. |
+| name | The name of the security group |
+| description | A description of the security group |
 | region | The AWS region this security group is installed in|
 
 
@@ -1789,6 +1880,7 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 | **subnet_id** | The ID of the subnet|
 | **id** | same as subnetid |
 | region| The AWS region the subnet is installed on|
+| vpc_id | The ID of the VPC this subnet belongs to |
 | name | The IPv4 CIDR block assigned to the subnet|
 | cidr_block | The IPv4 CIDR block assigned to the subnet|
 | available_ip_address_count | The number of unused private IPv4 addresses in the subnet. The IPv4 addresses for any stopped instances are considered unavailable |
@@ -1902,9 +1994,12 @@ Representation of an AWS Elastic Container Registry [Repository](https://docs.aw
 
 | Field | Description |
 |--------|-----------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | **id** | Same as ARN |
-| arn | The ARN of the repository |
-| name | The name of the repository |
+| **arn** | The ARN of the repository |
+| **name** | The name of the repository |
+| uri | The URI of the repository |
 | region | The region of the repository |
 | created_at | Date and time when the repository was created |
 
@@ -2039,8 +2134,11 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 
 | Field | Description |
 |--------|-----------|
-| digest | The hash of this ECR image |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | **id** | Same as digest |
+| **digest** | The hash of this ECR image |
+| region | The AWS region |
 | layer_diff_ids | Ordered list of image layer digests for this image. Only set for `type="image"` nodes. `null` for manifest lists and attestations. |
 | type | Type of image: `"image"` (platform-specific or single-arch image), `"manifest_list"` (multi-arch index), or `"attestation"` (attestation manifest) |
 | architecture | CPU architecture (e.g., `"amd64"`, `"arm64"`). Set to `"unknown"` for attestations, `null` for manifest lists. |
@@ -2280,7 +2378,7 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 | region | The AWS region |
 | **arn** | AWS-unique identifier for this object |
 | id | same as `arn` |
-| name | Name of the EKS Cluster |
+| **name** | Name of the EKS Cluster |
 | endpoint | The endpoint for the Kubernetes API server. |
 | endpoint_public_access | Indicates whether the Amazon EKS public API server endpoint is enabled |
 | exposed_internet | Set to True if the EKS Cluster public API server endpoint is enabled |
@@ -2453,7 +2551,7 @@ Representation of an AWS [EventBridge Rule](https://docs.aws.amazon.com/eventbri
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | System-assigned eventbridge rule ID |
-| arn | The Amazon Resource Name (ARN) of the rule |
+| **arn** | The Amazon Resource Name (ARN) of the rule |
 | region | The region of the rule |
 | name | The name of the rule |
 | role_arn | The Amazon Resource Name (ARN) of the role that is used for target invocation |
@@ -2480,7 +2578,7 @@ Representation of an AWS [EventBridge Target](https://docs.aws.amazon.com/eventb
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | System-assigned eventbridge target ID |
-| arn | The Amazon Resource Name (ARN) of the target |
+| **arn** | The Amazon Resource Name (ARN) of the target |
 | region | The region of the target |
 | rule_arn | The arn of the rule which is associated with target |
 | role_arn | The Amazon Resource Name (ARN) of the role that is used for target invocation |
@@ -2520,8 +2618,9 @@ Represents a generic IP rule.  The creation of this node is currently derived fr
 
 | Field | Description |
 |-------|-------------|
+| **id** | Same as ruleid |
 | **ruleid** | `{group_id}/{rule_type}/{from_port}{to_port}{protocol}` |
-| groupid | The groupid of the EC2 Security Group that this was derived from |
+| **groupid** | The groupid of the EC2 Security Group that this was derived from |
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | protocol | The protocol this rule applies to |
@@ -2556,6 +2655,30 @@ An IpPermissionInbound node is a specific type of IpRule.  It represents a gener
 - IpPermissionInbound rules are defined from EC2SecurityGroups.
     ```
     (IpRule, IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    ```
+
+
+### IpRange
+
+Represents an IP address range (CIDR block) associated with an EC2 Security Group rule. IpRange nodes define the source or destination IP addresses that a security group rule applies to.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier for the IP range (typically the CIDR block) |
+| range | The IP address range in CIDR notation (e.g., 0.0.0.0/0, 10.0.0.0/16) |
+
+#### Relationships
+
+- IpRanges belong to AWS Accounts.
+    ```
+    (AWSAccount)-[RESOURCE]->(IpRange)
+    ```
+
+- IpRanges are members of IpRules.
+    ```
+    (IpRange)-[MEMBER_OF_IP_RULE]->(IpRule)
     ```
 
 
@@ -2711,19 +2834,20 @@ Representation of a generic Network Interface.  Currently however, we only creat
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| mac\_address| The MAC address of the network interface|
-| description |  Description of the network interface|
-| private\_ip\_address| The primary IPv4 address of the network interface within the subnet |
 | **id** | The ID of the network interface.  (known as `networkInterfaceId` in EC2) |
+| **mac\_address**| The MAC address of the network interface|
+| **private\_ip\_address**| The primary IPv4 address of the network interface within the subnet |
+| description |  Description of the network interface|
 | private\_dns\_name| The private DNS name |
+| region | The AWS region |
 | status | Status of the network interface.  Valid Values: ``available \| associated \| attaching \| in-use \| detaching `` |
-| subnetid | The ID of the subnet |
-| subnet_id | The ID of the subnet |
+| **subnetid** | The ID of the subnet |
+| **subnet_id** | The ID of the subnet |
 | interface_type  |  Describes the type of network interface. Valid values: `` interface \| efa `` |
-| requester_id  | Id of the requester, e.g. `amazon-elb` for ELBs |
+| **requester_id**  | Id of the requester, e.g. `amazon-elb` for ELBs |
 | requester_managed  |  Indicates whether the interface is managed by the requester |
 | source_dest_check   | Indicates whether to validate network traffic to or from this network interface.  |
-| public_ip   | Public IPv4 address attached to the interface  |
+| **public_ip**   | Public IPv4 address attached to the interface  |
 | attach_time | The timestamp when the network interface was attached to an EC2 instance. For primary interfaces (device_index=0), this reveals the first launch time of the instance [according to AWS](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Instance.html). |
 | device_index | The index of the device on the instance for the network interface attachment. A value of `0` indicates the primary (eth0) network interface, which is created when the instance is launched. |
 
@@ -3290,8 +3414,8 @@ Representation of an AWS [KMS Key](https://docs.aws.amazon.com/kms/latest/APIRef
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated by Cartography |
 | **id** | The KeyId of the key|
-| arn |  The ARN of the key |
-| key_id |  The KeyId of the key |
+| **arn** |  The ARN of the key |
+| **key_id** |  The KeyId of the key |
 | description |  The description of the key |
 | enabled |  Whether the key is enabled |
 | key_state |  The current state of the key (e.g., Enabled, Disabled, PendingDeletion) |
@@ -3337,8 +3461,8 @@ Representation of an AWS [KMS Key Alias](https://docs.aws.amazon.com/kms/latest/
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated by Cartography |
 | **id** | The ARN of the alias|
-| arn |  The ARN of the alias |
-| alias_name |  The name of the alias |
+| **arn** |  The ARN of the alias |
+| **alias_name** |  The name of the alias |
 | target_key_id |  The KMS key id associated via this alias |
 | creation_date |  The date the alias was created |
 | last_updated_date |  The date the alias was last updated by AWS |
@@ -3362,9 +3486,10 @@ Representation of an AWS [KMS Key Grant](https://docs.aws.amazon.com/kms/latest/
 
 | Field | Description |
 |-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of when the node was last updated by Cartography |
 | **id** | The unique identifier of the key grant |
-| grant_id | The grant identifier (indexed for performance) |
+| **grant_id** | The grant identifier (indexed for performance) |
 | name | The name of the key grant |
 | grantee_principal | The principal associated with the key grant |
 | creation_date | Epoch timestamp when the grant was created |
@@ -3426,7 +3551,8 @@ Representation of an AWS [API Gateway Stage](https://docs.aws.amazon.com/apigate
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The name of the API Gateway Stage|
+| **id** | The ARN of the API Gateway Stage |
+| stagename | The name of the API Gateway Stage |
 | createddate |  The timestamp when the stage was created |
 | deploymentid |  The identifier of the Deployment that the stage points to. |
 | clientcertificateid | The identifier of a client certificate for an API stage. |
@@ -3475,7 +3601,7 @@ Representation of an AWS [API Gateway Deployment](https://docs.aws.amazon.com/ap
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The identifier for the deployment resource as string of api id and deployment id |
-| arn | The identifier for the deployment resource. |
+| **arn** | The identifier for the deployment resource. |
 | description | The description for the deployment resource. |
 | region |  The region for the deployment resource. |
 
@@ -3499,6 +3625,8 @@ Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/lates
 | firstseen| Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The ARN of the certificate |
+| **arn** | The Amazon Resource Name (ARN) of the certificate |
+| region | The AWS region where the certificate is located |
 | domainname | The primary domain name of the certificate |
 | status | The status of the certificate |
 | type | The source of the certificate |
@@ -3609,6 +3737,7 @@ Representation of an AWS [API Gateway v2 API](https://docs.aws.amazon.com/apigat
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The id of the API|
 | name | The name of the API |
+| description | The description of the API |
 | protocoltype | The protocol type (HTTP or WEBSOCKET) |
 | routeselectionexpression | Expression for selecting routes |
 | apikeyselectionexpression | Expression for selecting API keys |
@@ -3632,8 +3761,9 @@ Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.c
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **arn** | The ARN of the Auto Scaling Group|
-| name |  The name of the Auto Scaling group. |
+| **id** | The ARN of the Auto Scaling Group (same as arn) |
+| **arn** | The ARN of the Auto Scaling Group |
+| name |  The name of the Auto Scaling group |
 | createdtime | The date and time the group was created. |
 | launchconfigurationname | The name of the associated launch configuration. |
 | launchtemplatename | The name of the launch template. |
@@ -3692,7 +3822,7 @@ Representation of an AWS [EC2 Images (AMIs)](https://docs.aws.amazon.com/AWSEC2/
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The ID of the AMI.|
-| name | The name of the AMI that was provided during image creation. |
+| **name** | The name of the AMI that was provided during image creation. |
 | creationdate | The date and time the image was created. |
 | architecture | The architecture of the image. |
 | location | The location of the AMI.|
@@ -3768,7 +3898,7 @@ Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/se
 | last\_accessed\_date | The last date that this secret was accessed. This value is truncated to midnight of the date and therefore shows only the date, not the time. |
 | last\_changed\_date | The last date and time that this secret was modified in any way. |
 | last\_rotated\_date | The most recent date and time that the Secrets Manager rotation process was successfully completed. This value is null if the secret hasn't ever rotated. |
-| name | The friendly name of the secret. You can use forward slashes in the name to represent a path hierarchy. For example, /prod/databases/dbserver1 could represent the secret for a server named dbserver1 in the folder databases in the folder prod. |
+| **name** | The friendly name of the secret. You can use forward slashes in the name to represent a path hierarchy. For example, /prod/databases/dbserver1 could represent the secret for a server named dbserver1 in the folder databases in the folder prod. |
 | owning\_service | Returns the name of the service that created the secret. |
 | primary\_region | The Region where Secrets Manager originated the secret. |
 | rotation\_enabled | Indicates whether automatic, scheduled rotation is enabled for this secret. |
@@ -3790,7 +3920,9 @@ Representation of an AWS [EBS Volume](https://docs.aws.amazon.com/AWSEC2/latest/
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The ID of the EBS Volume.|
+| **id** | The ID of the EBS Volume (same as volumeid) |
+| **arn** | The Amazon Resource Name (ARN) of the volume |
+| **volumeid** | The ID of the EBS Volume |
 | availabilityzone | The Availability Zone for the volume. |
 | createtime | The time stamp when volume creation was initiated. |
 | encrypted | Indicates whether the volume is encrypted. |
@@ -3838,6 +3970,7 @@ Representation of an AWS [EBS Snapshot](https://docs.aws.amazon.com/AWSEC2/lates
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The ID of the EBS Snapshot.|
+| **snapshotid** | The snapshot ID.|
 | description | The description of the snapshot. |
 | progress | The progress of the snapshot, as a percentage. |
 | encrypted |Indicates whether the snapshot is encrypted. |
@@ -3878,7 +4011,7 @@ Representation of an AWS [SQS Queue](https://docs.aws.amazon.com/AWSSimpleQueueS
 | maximum\_message\_size | The limit of how many bytes a message can contain before Amazon SQS rejects it. |
 | message\_retention\_period | he length of time, in seconds, for which Amazon SQS retains a message. |
 | policy | The IAM policy of the queue. |
-| arn | The arn of the sqs queue. |
+| **arn** | The arn of the sqs queue. |
 | receive\_message\_wait\_time\_seconds | The length of time, in seconds, for which the ReceiveMessage action waits for a message to arrive. |
 | redrive\_policy\_dead\_letter\_target\_arn | The Amazon Resource Name (ARN) of the dead-letter queue to which Amazon SQS moves messages after the value of maxReceiveCount is exceeded. |
 | redrive\_policy\_max\_receive\_count | The number of times a message is delivered to the source queue before being moved to the dead-letter queue. When the ReceiveCount for a message exceeds the maxReceiveCount for a queue, Amazon SQS moves the message to the dead-letter-queue. |
@@ -4041,7 +4174,8 @@ Representation of an AWS [Launch Template](https://docs.aws.amazon.com/AWSEC2/la
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| **id** | The ID of the launch template. |
+| **id** | The ID of the launch template (same as launch_template_id) |
+| launch\_template\_id | The ID of the launch template |
 | name | The name of the launch template. |
 | create\_time | The time launch template was created. |
 | created\_by | The principal that created the launch template. |
@@ -4159,7 +4293,7 @@ Representation of an AWS ECS [Cluster](https://docs.aws.amazon.com/AmazonECS/lat
 | **id** | The ARN of the cluster |
 | region | The region of the cluster. |
 | name | A user-generated string that you use to identify your cluster. |
-| arn | The ARN of the cluster |
+| **arn** | The ARN of the cluster |
 | ecc\_kms\_key\_id | An AWS Key Management Service key ID to encrypt the data between the local client and the container. |
 | ecc\_logging | The log setting to use for redirecting logs for your execute command results. |
 | ecc\_log\_configuration\_cloud\_watch\_log\_group\_name | The name of the CloudWatch log group to send logs to. |
@@ -4190,7 +4324,7 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 | **id** | The ARN of the container instance |
 | region | The region of the container instance. |
 | ec2\_instance\_id | The ID of the container instance. For Amazon EC2 instances, this value is the Amazon EC2 instance ID. For external instances, this value is the AWS Systems Manager managed instance ID. |
-| arn | The ARN of the container instance |
+| **arn** | The ARN of the container instance |
 | capacity\_provider\_name | The capacity provider that's associated with the container instance. |
 | version | The version counter for the container instance. |
 | version\_info\_agent\_version | The version number of the Amazon ECS container agent. |
@@ -4225,7 +4359,7 @@ Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/lat
 | **id** | The ARN of the service |
 | region | The region of the service. |
 | name | The name of your service. |
-| arn | The ARN of the service |
+| **arn** | The ARN of the service |
 | cluster_arn | The Amazon Resource Name (ARN) of the cluster that hosts the service. |
 | status | The status of the service. |
 | desired\_count | The desired number of instantiations of the task definition to keep running on the service. |
@@ -4362,7 +4496,7 @@ Representation of an AWS ECS [Task](https://docs.aws.amazon.com/AmazonECS/latest
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The ARN of the task |
 | region | The region of the task. |
-| arn | The arn of the task. |
+| **arn** | The arn of the task. |
 | availability\_zone | The Availability Zone for the task. |
 | capacity\_provider\_name | The capacity provider that's associated with the task. |
 | cluster\_arn | The ARN of the cluster that hosts the task. |
@@ -4433,7 +4567,7 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The ARN of the container |
 | region | The region of the container. |
-| arn | The arn of the container. |
+| **arn** | The arn of the container. |
 | task\_arn | The ARN of the task. |
 | name | The name of the container. |
 | image | The image used for the container. |
@@ -4468,7 +4602,7 @@ Representation of an AWS [EFS File System](https://docs.aws.amazon.com/efs/lates
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The ID of the file system, assigned by Amazon EFS |
-| arn | Amazon Resource Name (ARN) for the EFS file system |
+| **arn** | Amazon Resource Name (ARN) for the EFS file system |
 | region | The region of the file system |
 | owner_id | The AWS account that created the file system |
 | creation_token | The opaque string specified in the request |
@@ -4496,8 +4630,10 @@ Representation of an AWS [EFS File System](https://docs.aws.amazon.com/efs/lates
 Representation of an AWS [EFS Mount Target](https://docs.aws.amazon.com/efs/latest/ug/API_MountTargetDescription.html)
 | Field | Description |
 |-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | **id** | System-assigned mount target ID |
-| arn | System-assigned mount target ID |
+| **arn** | System-assigned mount target ID |
 | region | The region of the mount target |
 | fileSystem_id | The ID of the file system for which the mount target is intended |
 | lifecycle_state | Lifecycle state of the mount target |
@@ -4526,7 +4662,7 @@ Representation of an AWS [EFS Access Point](https://docs.aws.amazon.com/efs/late
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | System-assigned access point ARN |
-| arn | The unique Amazon Resource Name (ARN) associated with the access point |
+| **arn** | The unique Amazon Resource Name (ARN) associated with the access point |
 | region | The region of the access point |
 |access_point_id | The ID of the access point, assigned by Amazon EFS |
 | file_system_id | The ID of the EFS file system that the access point applies to |
@@ -4667,9 +4803,9 @@ Representation of an AWS SSM [PatchComplianceData](https://docs.aws.amazon.com/s
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The ARN of the instance patch |
 | region | The region of the instance patch. |
-| instance\_id | The managed node ID. |
-| title | The title of the patch. |
-| kb\_id | The operating system-specific ID of the patch. |
+| **instance\_id** | The managed node ID. |
+| **title** | The title of the patch. |
+| **kb\_id** | The operating system-specific ID of the patch. |
 | classification | The classification of the patch, such as SecurityUpdates, Updates, and CriticalUpdates. |
 | severity | The severity of the patch such as Critical, Important, and Moderate. |
 | state | The state of the patch on the managed node, such as INSTALLED or FAILED. |
@@ -4698,11 +4834,12 @@ Representation of an AWS Systems Manager Parameter as returned by the [`describe
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The ARN of the parameter |
 | region | The region of the parameter. |
-| arn | The Amazon Resource Name (ARN) of the parameter. |
+| **arn** | The Amazon Resource Name (ARN) of the parameter. |
 | name | The parameter name. |
 | description | Description of the parameter actions. |
 | type | The type of parameter. Valid parameter types include String, StringList, and SecureString. |
 | keyid | The alias or ARN of the Key Management Service (KMS) key used to encrypt the parameter. Applies to SecureString parameters only. |
+| kms_key_id_short | The shortened KMS Key ID used to encrypt the parameter. |
 | version | The parameter version. |
 | lastmodifieddate | Date the parameter was last changed or updated (stored as epoch time). |
 | tier | The parameter tier. |
@@ -4732,6 +4869,8 @@ Representation of an AWS Identity Center.
 | **id** | Unique identifier for the Identity Center instance |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
+| arn | The Amazon Resource Name (ARN) of the Identity Center instance |
+| status | The status of the Identity Center instance |
 | identity_store_id | The identity store ID of the Identity Center instance |
 | instance_status | The status of the Identity Center instance |
 | created_date | The date the Identity Center instance was created |
@@ -4769,8 +4908,9 @@ Representation of an AWS SSO User.
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | user_name | The username of the SSO user |
-| external_id | The external ID of the SSO user |
+| **external_id** | The external ID of the SSO user |
 | identity_store_id | The identity store ID of the SSO user |
+| region | The AWS region |
 
 #### Relationships
 - AWSSSOUser is part of an AWSAccount.
@@ -4833,8 +4973,9 @@ Representation of an AWS SSO Group.
 | lastupdated | Timestamp of the last time the node was updated |
 | display_name | The display name of the SSO group |
 | description | The description of the SSO group |
-| external_id | The external ID of the SSO group |
+| **external_id** | The external ID of the SSO group |
 | identity_store_id | The identity store ID of the SSO group |
+| region | The AWS region |
 
 #### Relationships
 - AWSSSOGroup is part of an AWSAccount.
@@ -4911,7 +5052,7 @@ Representation of an AWS [EC2 Route Table](https://docs.aws.amazon.com/AWSEC2/la
 |firstseen| Timestamp of when a sync job discovered this node|
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The ID of the route table|
-|route_table_id| The ID of the route table (same as id)|
+|**route_table_id**| The ID of the route table (same as id)|
 |main|If True, this route table is the main route table for VPC, meaning that any subnets in this VPC not explicitly associated with another route table will use this route table.|
 |vpc_id| The ID of the VPC the route table is associated with|
 |owner_id| The AWS account ID of the route table owner|
@@ -4948,7 +5089,7 @@ Representation of an AWS [EC2 Route Table Association](https://docs.aws.amazon.c
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The ID of the route table association|
 |target||
-|route_table_association_id| The ID of the route table association (same as id)|
+|**route_table_association_id**| The ID of the route table association (same as id)|
 |route_table_id| The ID of the route table|
 |subnet_id| The ID of the subnet (if associated with a subnet)|
 |gateway_id| The ID of the gateway (if associated with a gateway)|
@@ -5027,11 +5168,13 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The ARN of the secret version. |
-| arn | The ARN of the secret version. |
+| **arn** | The ARN of the secret version. |
 | secret_id | The ARN of the secret that this version belongs to. |
 | version_id | The unique identifier of this version of the secret. |
 | version_stages | A list of staging labels that are currently attached to this version of the secret. |
 | created_date | The date and time that this version of the secret was created. |
+| kms_key_id | The ID of the AWS KMS key used to encrypt the secret version. |
+| tags | A list of tags attached to this secret version. |
 | region | The AWS region where the secret version exists. |
 
 #### Relationships
@@ -5049,9 +5192,7 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
     ```
 
-### AWS Bedrock
-
-#### AWSBedrockFoundationModel
+### AWSBedrockFoundationModel
 
 Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). Foundation models are pre-trained large language models and multimodal models provided by AI companies like Anthropic, Amazon, Meta, and others.
 
@@ -5104,7 +5245,7 @@ Representation of an AWS [Bedrock Foundation Model](https://docs.aws.amazon.com/
     (AWSBedrockProvisionedModelThroughput)-[PROVIDES_CAPACITY_FOR]->(AWSBedrockFoundationModel)
     ```
 
-#### AWSBedrockCustomModel
+### AWSBedrockCustomModel
 
 Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-models.html). Custom models are created through fine-tuning or continued pre-training of foundation models using customer-provided training data.
 
@@ -5157,7 +5298,7 @@ Representation of an AWS [Bedrock Custom Model](https://docs.aws.amazon.com/bedr
     (AWSBedrockProvisionedModelThroughput)-[PROVIDES_CAPACITY_FOR]->(AWSBedrockCustomModel)
     ```
 
-#### AWSBedrockAgent
+### AWSBedrockAgent
 
 Representation of an AWS [Bedrock Agent](https://docs.aws.amazon.com/bedrock/latest/userguide/agents.html). Agents are autonomous AI assistants that can break down tasks, use tools (Lambda functions), and search knowledge bases to accomplish complex goals.
 
@@ -5213,7 +5354,7 @@ Representation of an AWS [Bedrock Agent](https://docs.aws.amazon.com/bedrock/lat
     (AWSBedrockGuardrail)-[APPLIED_TO]->(AWSBedrockAgent)
     ```
 
-#### AWSBedrockKnowledgeBase
+### AWSBedrockKnowledgeBase
 
 Representation of an AWS [Bedrock Knowledge Base](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html). Knowledge bases enable RAG (Retrieval Augmented Generation) by converting documents from S3 into vector embeddings for semantic search.
 
@@ -5254,7 +5395,7 @@ Representation of an AWS [Bedrock Knowledge Base](https://docs.aws.amazon.com/be
     (AWSBedrockAgent)-[USES_KNOWLEDGE_BASE]->(AWSBedrockKnowledgeBase)
     ```
 
-#### AWSBedrockGuardrail
+### AWSBedrockGuardrail
 
 Representation of an AWS [Bedrock Guardrail](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html). Guardrails provide content filtering, safety controls, and policy enforcement for models and agents by blocking harmful content and enforcing responsible AI usage.
 
@@ -5297,7 +5438,7 @@ Representation of an AWS [Bedrock Guardrail](https://docs.aws.amazon.com/bedrock
     (AWSBedrockGuardrail)-[APPLIED_TO]->(AWSBedrockCustomModel)
     ```
 
-#### AWSBedrockProvisionedModelThroughput
+### AWSBedrockProvisionedModelThroughput
 
 Representation of AWS [Bedrock Provisioned Throughput](https://docs.aws.amazon.com/bedrock/latest/userguide/prov-throughput.html). Provisioned throughput provides reserved capacity for foundation models and custom models, ensuring consistent performance and availability for production workloads.
 
@@ -5337,48 +5478,7 @@ Representation of AWS [Bedrock Provisioned Throughput](https://docs.aws.amazon.c
     (AWSBedrockProvisionedModelThroughput)-[PROVIDES_CAPACITY_FOR]->(AWSBedrockCustomModel)
     ```
 
-### AWS SageMaker
-
-```mermaid
-graph LR
-    Account[AWSAccount] -- RESOURCE --> Domain[AWSSageMakerDomain]
-    Account -- RESOURCE --> UserProfile[AWSSageMakerUserProfile]
-    Account -- RESOURCE --> NotebookInstance[AWSSageMakerNotebookInstance]
-    Account -- RESOURCE --> TrainingJob[AWSSageMakerTrainingJob]
-    Account -- RESOURCE --> Model[AWSSageMakerModel]
-    Account -- RESOURCE --> EndpointConfig[AWSSageMakerEndpointConfig]
-    Account -- RESOURCE --> Endpoint[AWSSageMakerEndpoint]
-    Account -- RESOURCE --> TransformJob[AWSSageMakerTransformJob]
-    Account -- RESOURCE --> ModelPackageGroup[AWSSageMakerModelPackageGroup]
-    Account -- RESOURCE --> ModelPackage[AWSSageMakerModelPackage]
-
-    Domain -- CONTAINS --> UserProfile
-
-    NotebookInstance -- HAS_EXECUTION_ROLE --> Role[AWSRole]
-    NotebookInstance -- CAN_INVOKE --> TrainingJob
-
-    TrainingJob -- HAS_EXECUTION_ROLE --> Role
-    TrainingJob -- READS_FROM --> S3[S3Bucket]
-    TrainingJob -- PRODUCES_MODEL_ARTIFACT --> S3
-
-    Model -- HAS_EXECUTION_ROLE --> Role
-    Model -- REFERENCES_ARTIFACTS_IN --> S3
-    Model -- DERIVES_FROM --> ModelPackage
-
-    EndpointConfig -- USES --> Model
-
-    Endpoint -- USES --> EndpointConfig
-
-    TransformJob -- USES --> Model
-    TransformJob -- WRITES_TO --> S3
-
-    ModelPackageGroup -- CONTAINS --> ModelPackage
-    ModelPackage -- REFERENCES_ARTIFACTS_IN --> S3
-
-    UserProfile -- HAS_EXECUTION_ROLE --> Role
-```
-
-#### AWSSageMakerDomain
+### AWSSageMakerDomain
 
 Represents an [AWS SageMaker Domain](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeDomain.html). A Domain is a centralized environment for SageMaker Studio users and their resources.
 
@@ -5406,7 +5506,7 @@ Represents an [AWS SageMaker Domain](https://docs.aws.amazon.com/sagemaker/lates
     (AWSSageMakerDomain)-[:CONTAINS]->(AWSSageMakerUserProfile)
     ```
 
-#### AWSSageMakerUserProfile
+### AWSSageMakerUserProfile
 
 Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeUserProfile.html). A User Profile represents a user within a SageMaker Studio Domain.
 
@@ -5439,7 +5539,7 @@ Represents an [AWS SageMaker User Profile](https://docs.aws.amazon.com/sagemaker
     (AWSSageMakerUserProfile)-[:HAS_EXECUTION_ROLE]->(AWSRole)
     ```
 
-#### AWSSageMakerNotebookInstance
+### AWSSageMakerNotebookInstance
 
 Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeNotebookInstance.html). A Notebook Instance is a fully managed ML compute instance running Jupyter notebooks.
 
@@ -5473,7 +5573,7 @@ Represents an [AWS SageMaker Notebook Instance](https://docs.aws.amazon.com/sage
     (AWSSageMakerNotebookInstance)-[:CAN_INVOKE]->(AWSSageMakerTrainingJob)
     ```
 
-#### AWSSageMakerTrainingJob
+### AWSSageMakerTrainingJob
 
 Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTrainingJob.html). A Training Job trains ML models using specified algorithms and datasets.
 
@@ -5513,7 +5613,7 @@ Represents an [AWS SageMaker Training Job](https://docs.aws.amazon.com/sagemaker
     (AWSSageMakerTrainingJob)-[:PRODUCES_MODEL_ARTIFACT]->(S3Bucket)
     ```
 
-#### AWSSageMakerModel
+### AWSSageMakerModel
 
 Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModel.html). A Model contains the information needed to deploy ML models for inference.
 
@@ -5550,7 +5650,7 @@ Represents an [AWS SageMaker Model](https://docs.aws.amazon.com/sagemaker/latest
     (AWSSageMakerModel)-[:DERIVES_FROM]->(AWSSageMakerModelPackage)
     ```
 
-#### AWSSageMakerEndpointConfig
+### AWSSageMakerEndpointConfig
 
 Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpointConfig.html). An Endpoint Config specifies the ML compute instances and model variants for deploying models. Allows for a model to provide a prediction to a request in real time.
 
@@ -5576,7 +5676,7 @@ Represents an [AWS SageMaker Endpoint Configuration](https://docs.aws.amazon.com
     (AWSSageMakerEndpointConfig)-[:USES]->(AWSSageMakerModel)
     ```
 
-#### AWSSageMakerEndpoint
+### AWSSageMakerEndpoint
 
 Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeEndpoint.html). An Endpoint provides a persistent HTTPS endpoint for real-time inference.
 
@@ -5604,7 +5704,7 @@ Represents an [AWS SageMaker Endpoint](https://docs.aws.amazon.com/sagemaker/lat
     (AWSSageMakerEndpoint)-[:USES]->(AWSSageMakerEndpointConfig)
     ```
 
-#### AWSSageMakerTransformJob
+### AWSSageMakerTransformJob
 
 Represents an [AWS SageMaker Transform Job](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeTransformJob.html). A Transform Job performs batch inference on datasets. Takes
 a large dataset and uses batch inference to write multiple predictions to an S3 Bucket.
@@ -5637,7 +5737,7 @@ a large dataset and uses batch inference to write multiple predictions to an S3 
     (AWSSageMakerTransformJob)-[:WRITES_TO]->(S3Bucket)
     ```
 
-#### AWSSageMakerModelPackageGroup
+### AWSSageMakerModelPackageGroup
 
 Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackageGroup.html). A Model Package Group is a collection of versioned model packages in the SageMaker Model Registry.
 
@@ -5663,7 +5763,7 @@ Represents an [AWS SageMaker Model Package Group](https://docs.aws.amazon.com/sa
     (AWSSageMakerModelPackageGroup)-[:CONTAINS]->(AWSSageMakerModelPackage)
     ```
 
-#### AWSSageMakerModelPackage
+### AWSSageMakerModelPackage
 
 Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_DescribeModelPackage.html). A Model Package is a versioned model in the SageMaker Model Registry that acts as a blueprint for a deployed model.
 
