@@ -1,6 +1,7 @@
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
+from cartography.models.ontology.mapping.specs import OntologyRelMapping
 
 # LoadBalancer fields:
 # name - The name of the load balancer
@@ -40,6 +41,20 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="dns_name", node_field="dnsname"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
             ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link LoadBalancer to Container via ECSTask network interface path",
+            query=(
+                "MATCH (lb:LoadBalancer)-[:EXPOSE]->(ip:EC2PrivateIp)"
+                "<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)"
+                "<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(c:Container) "
+                "MERGE (lb)-[r:EXPOSE]->(c) "
+                "ON CREATE SET r.firstseen = timestamp() "
+                "SET r.lastupdated = $UPDATE_TAG"
+            ),
+            iterative=False,
         ),
     ],
 )

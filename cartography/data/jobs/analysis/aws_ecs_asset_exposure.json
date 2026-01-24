@@ -1,5 +1,5 @@
 {
-  "name": "AWS ECS internet exposure",
+  "name": "AWS ECS internet exposure (deprecated: use ontology LoadBalancer-[:EXPOSE]->Container)",
   "statements": [
     {
       "__comment": "Clean up any previous exposed_internet attribute on ECSContainer",

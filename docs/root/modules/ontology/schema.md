@@ -10,11 +10,10 @@ U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
-CI{{ComputeInstance}}
-CT{{Container}}
+LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
+LB -- EXPOSE --> CT{{Container}}
 DB{{Database}}
 TN{{Tenant}}
-LB{{LoadBalancer}}
 ```
 
 :::{note}
@@ -303,3 +302,15 @@ It generalizes concepts like AWS Application/Network Load Balancers (ALB/NLB), A
 | _ont_scheme | The load balancing scheme (e.g., "internet-facing", "internal", "EXTERNAL", "INTERNAL"). |
 | _ont_dns_name | The DNS name or endpoint for the load balancer. |
 | _ont_region | The region or location where the load balancer is deployed. |
+
+
+#### Relationships
+
+- `LoadBalancer` can expose one or many `ComputeInstance` (semantic label):
+    ```
+    (:LoadBalancer)-[:EXPOSE]->(:ComputeInstance)
+    ```
+- `LoadBalancer` can expose one or many `Container` (semantic label):
+    ```
+    (:LoadBalancer)-[:EXPOSE]->(:Container)
+    ```
