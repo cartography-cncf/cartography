@@ -2755,7 +2755,7 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
 ### AWSLoadBalancerV2
 
 ```{important}
-AWSLoadBalancerV2 has been renamed to AWSLoadBalancerV2 for consistency with the ontology mapping and the AWSLoadBalancer node.
+LoadBalancerV2 has been renamed to AWSLoadBalancerV2 for consistency with the ontology mapping and the AWSLoadBalancer node.
 ```
 
 Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html) or [Network Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html).) API reference [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_LoadBalancer.html).
