@@ -10,7 +10,9 @@ from azure.mgmt.web import WebSiteManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
 from cartography.models.azure.function_app import AzureFunctionAppSchema
+from cartography.models.azure.tags.function_app_tag import AzureFunctionAppTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -70,6 +72,7 @@ def transform_function_apps(function_apps_response: List[Dict]) -> List[Dict]:
                 "state": app.get("state"),
                 "default_host_name": app.get("default_host_name"),
                 "https_only": app.get("https_only"),
+                "tags": app.get("tags"),
             }
             transformed_apps.append(transformed_app)
     return transformed_apps
@@ -95,6 +98,26 @@ def load_function_apps(
 
 
 @timeit
+def load_function_app_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    apps: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for Function Apps.
+    """
+    tags = transform_tags(apps, subscription_id)
+    load(
+        neo4j_session,
+        AzureFunctionAppTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
+
+
+@timeit
 def cleanup_function_apps(
     neo4j_session: neo4j.Session, common_job_parameters: Dict
 ) -> None:
@@ -102,6 +125,18 @@ def cleanup_function_apps(
     Run the cleanup job for Azure Function Apps.
     """
     GraphJob.from_node_schema(AzureFunctionAppSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+
+
+@timeit
+def cleanup_function_app_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
+    """
+    Runs cleanup job for Azure Function App tags.
+    """
+    GraphJob.from_node_schema(AzureFunctionAppTagsSchema(), common_job_parameters).run(
         neo4j_session
     )
 
@@ -121,4 +156,6 @@ def sync(
     raw_apps = get_function_apps(credentials, subscription_id)
     transformed_apps = transform_function_apps(raw_apps)
     load_function_apps(neo4j_session, transformed_apps, subscription_id, update_tag)
+    load_function_app_tags(neo4j_session, subscription_id, transformed_apps, update_tag)
     cleanup_function_apps(neo4j_session, common_job_parameters)
+    cleanup_function_app_tags(neo4j_session, common_job_parameters)

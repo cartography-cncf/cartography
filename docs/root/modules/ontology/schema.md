@@ -58,7 +58,7 @@ A user often has one or many user accounts.
 
 ```{important}
 If field `active` is null, it should not be considered as `true` or `false`, only as unknown.
-```{note}
+```
 
 | Field | Description |
 |-------|-------------|
@@ -257,3 +257,26 @@ It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure 
 | _ont_db_port | The port number the database listens on. |
 | _ont_db_encrypted | Whether the database storage is encrypted. |
 | _ont_db_location | The physical location/region of the database. |
+
+
+### Tenant
+
+```{note}
+Tenant is a semantic label.
+```
+
+A tenant represents the top-level organizational boundary or billing entity within a cloud provider or SaaS platform.
+Tenants serve as the root container for all resources, users, and configurations within a given service.
+We add a Tenant semantic label to all nodes that have outward 'RESOURCE' relationships.
+
+Common tenant concepts across platforms include:
+- **Cloud Providers**: AWS Accounts, Azure Tenants, GCP Organizations/Projects
+- **Identity Providers**: Entra Tenants, Okta Organizations, Keycloak Organizations
+- **SaaS Platforms**: GitHub Organizations, Anthropic Workspaces, OpenAI Projects, Cloudflare Accounts
+- **MDM/Security**: Kandji Tenants, SentinelOne Accounts, LastPass Tenants
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name or friendly name of the tenant/organization (REQUIRED for most modules). |
+| _ont_status | Current status/state of the tenant (e.g., active, suspended, archived). |
+| _ont_domain | Primary domain name associated with the tenant (for workspace/domain-based services). |

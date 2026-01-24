@@ -40,6 +40,30 @@ This module allows authentication from a service account or via OAuth tokens.
 1. Populate an environment variable of your choice with the contents of the base64 output from the previous step.
 1. Call the `cartography` CLI with `--googleworkspace-tokens-env-var YOUR_ENV_VAR_HERE` and `--googleworkspace-auth-method oauth`.
 
+##### Optional: Custom Scopes
+
+By default, cartography requests all supported scopes. If you need to use a subset of scopes (for example, if you don't have Cloud Identity Premium and cannot use the `cloud-identity.devices.readonly` scope), you can specify a custom `scopes` field in the OAuth JSON payload:
+
+```python
+import json
+import base64
+auth_json = json.dumps({
+    "client_id": "xxxxx.apps.googleusercontent.com",
+    "client_secret": "ChangeMe",
+    "refresh_token": "ChangeMe",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "scopes": [
+        "https://www.googleapis.com/auth/admin.directory.customer.readonly",
+        "https://www.googleapis.com/auth/admin.directory.user.readonly",
+        "https://www.googleapis.com/auth/admin.directory.user.security",
+        "https://www.googleapis.com/auth/cloud-identity.groups.readonly"
+    ]
+})
+base64.b64encode(auth_json.encode())
+```
+
+Note: The `scopes` field is a cartography-specific extension and is not part of the standard Google OAuth token format. When the `cloud-identity.devices.readonly` scope is omitted, device sync will be automatically skipped.
+
 
 
 

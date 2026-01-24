@@ -18,7 +18,7 @@ def test_sync_cai(mock_get_roles, mock_get_service_accounts, neo4j_session):
     Verifies that service accounts and roles are properly loaded into Neo4j.
     """
     # Arrange
-    _create_test_project(neo4j_session)
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Mock CAI API responses - extract data from CAI asset responses
     mock_get_service_accounts.return_value = [
@@ -55,8 +55,8 @@ def test_sync_cai(mock_get_roles, mock_get_service_accounts, neo4j_session):
 
     # Assert - verify role nodes were created
     expected_role_nodes = {
-        ("projects/project-123/roles/customRole1",),
-        ("projects/project-123/roles/customRole2",),
+        ("projects/project-abc/roles/customRole1",),
+        ("projects/project-abc/roles/customRole2",),
     }
     assert check_nodes(neo4j_session, "GCPRole", ["id"]) == expected_role_nodes
 
@@ -78,8 +78,8 @@ def test_sync_cai(mock_get_roles, mock_get_service_accounts, neo4j_session):
     )
 
     expected_role_rels = {
-        (TEST_PROJECT_ID, "projects/project-123/roles/customRole1"),
-        (TEST_PROJECT_ID, "projects/project-123/roles/customRole2"),
+        (TEST_PROJECT_ID, "projects/project-abc/roles/customRole1"),
+        (TEST_PROJECT_ID, "projects/project-abc/roles/customRole2"),
     }
     assert (
         check_rels(
@@ -104,7 +104,7 @@ def test_sync_cai_with_predefined_roles(
     with custom roles from CAI.
     """
     # Arrange
-    _create_test_project(neo4j_session)
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
     # Clear roles from previous test
     neo4j_session.run("MATCH (r:GCPRole) DETACH DELETE r")
 
@@ -136,8 +136,8 @@ def test_sync_cai_with_predefined_roles(
     # Assert - verify both custom and predefined role nodes were created
     expected_role_nodes = {
         # Custom roles from CAI
-        ("projects/project-123/roles/customRole1", "CUSTOM"),
-        ("projects/project-123/roles/customRole2", "CUSTOM"),
+        ("projects/project-abc/roles/customRole1", "CUSTOM"),
+        ("projects/project-abc/roles/customRole2", "CUSTOM"),
         # Predefined role from quota project IAM API
         ("roles/editor", "BASIC"),
     }

@@ -20,7 +20,7 @@ from tests.data.gcp.policy_bindings import MOCK_POLICY_BINDINGS_RESPONSE
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
-TEST_PROJECT_ID = "project-123"
+TEST_PROJECT_ID = "project-abc"
 TEST_UPDATE_TAG = 123456789
 COMMON_JOB_PARAMS = {
     "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -188,7 +188,7 @@ def test_sync_gcp_permission_relationships(
         "GCPInstance",
         ["id"],
     ) == {
-        ("projects/project-123/zones/us-east1-b/instances/instance-1",),
+        ("projects/project-abc/zones/us-east1-b/instances/instance-1",),
     }
 
     # Check permission relationships: GCPPrincipal CAN_READ GCPBucket
@@ -208,7 +208,7 @@ def test_sync_gcp_permission_relationships(
 
     # Check permission relationships: GCPPrincipal CAN_GET_ACCELERATOR_TYPES GCPInstance
     # alice@example.com has roles/editor on project which includes compute.acceleratorTypes.get
-    # sa@project-123.iam.gserviceaccount.com has roles/editor on project which includes compute.acceleratorTypes.get
+    # sa@project-abc.iam.gserviceaccount.com has roles/editor on project which includes compute.acceleratorTypes.get
     assert check_rels(
         neo4j_session,
         "GCPPrincipal",
@@ -220,10 +220,10 @@ def test_sync_gcp_permission_relationships(
     ) == {
         (
             "alice@example.com",
-            "projects/project-123/zones/us-east1-b/instances/instance-1",
+            "projects/project-abc/zones/us-east1-b/instances/instance-1",
         ),
         (
-            "sa@project-123.iam.gserviceaccount.com",
-            "projects/project-123/zones/us-east1-b/instances/instance-1",
+            "sa@project-abc.iam.gserviceaccount.com",
+            "projects/project-abc/zones/us-east1-b/instances/instance-1",
         ),
     }

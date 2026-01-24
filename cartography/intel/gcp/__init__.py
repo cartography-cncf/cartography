@@ -20,16 +20,27 @@ from cartography.intel.gcp import bigtable_cluster
 from cartography.intel.gcp import bigtable_instance
 from cartography.intel.gcp import bigtable_table
 from cartography.intel.gcp import cai
+from cartography.intel.gcp import cloud_sql_backup_config
+from cartography.intel.gcp import cloud_sql_database
+from cartography.intel.gcp import cloud_sql_instance
+from cartography.intel.gcp import cloud_sql_user
 from cartography.intel.gcp import compute
 from cartography.intel.gcp import dns
+from cartography.intel.gcp import gcf
 from cartography.intel.gcp import gke
 from cartography.intel.gcp import iam
+from cartography.intel.gcp import kms
 from cartography.intel.gcp import permission_relationships
 from cartography.intel.gcp import policy_bindings
+from cartography.intel.gcp import secretsmanager
 from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
+from cartography.intel.gcp.cloudrun import execution as cloudrun_execution
+from cartography.intel.gcp.cloudrun import job as cloudrun_job
+from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
+from cartography.intel.gcp.cloudrun import service as cloudrun_service
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
@@ -50,16 +61,24 @@ logger = logging.getLogger(__name__)
 
 # Mapping of service short names to their full names as in docs. See https://developers.google.com/apis-explorer,
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
-Services = namedtuple("Services", "compute storage gke dns iam bigtable cai aiplatform")
+Services = namedtuple(
+    "Services",
+    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager cloud_run",
+)
 service_names = Services(
     compute="compute.googleapis.com",
     storage="storage.googleapis.com",
     gke="container.googleapis.com",
     dns="dns.googleapis.com",
     iam="iam.googleapis.com",
+    kms="cloudkms.googleapis.com",
     bigtable="bigtableadmin.googleapis.com",
     cai="cloudasset.googleapis.com",
     aiplatform="aiplatform.googleapis.com",
+    cloud_sql="sqladmin.googleapis.com",
+    gcf="cloudfunctions.googleapis.com",
+    secretsmanager="secretmanager.googleapis.com",
+    cloud_run="run.googleapis.com",
 )
 
 
@@ -192,6 +211,17 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
+        if service_names.gcf in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud Functions.", project_id)
+            gcf_cred = build_client("cloudfunctions", "v1", credentials=credentials)
+            gcf.sync(
+                neo4j_session,
+                gcf_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
         if service_names.iam in enabled_services:
             logger.info("Syncing GCP project %s for IAM.", project_id)
             iam_cred = build_client("iam", "v1", credentials=credentials)
@@ -202,7 +232,18 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
-        else:
+        if service_names.kms in enabled_services:
+            logger.info("Syncing GCP project %s for KMS.", project_id)
+            kms_cred = build_client("cloudkms", "v1", credentials=credentials)
+            kms.sync(
+                neo4j_session,
+                kms_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.iam not in enabled_services:
             # Fallback to Cloud Asset Inventory even if the target project does not have the IAM API enabled.
             # CAI uses the service account's host project for quota by default (no explicit quota project needed).
             # Lazily initialize the CAI REST client once and reuse it for all projects.
@@ -406,6 +447,90 @@ def _sync_project_resources(
             common_job_parameters,
         )
 
+        if service_names.cloud_sql in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
+            cloud_sql_cred = build_client("sqladmin", "v1beta4")
+
+            instances_raw = cloud_sql_instance.sync_sql_instances(
+                neo4j_session,
+                cloud_sql_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+            if instances_raw:
+                cloud_sql_database.sync_sql_databases(
+                    neo4j_session,
+                    cloud_sql_cred,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                cloud_sql_user.sync_sql_users(
+                    neo4j_session,
+                    cloud_sql_cred,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                cloud_sql_backup_config.sync_sql_backup_configs(
+                    neo4j_session,
+                    instances_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+        if service_names.secretsmanager in enabled_services:
+            logger.info("Syncing GCP project %s for Secret Manager.", project_id)
+            secretsmanager_client = build_client(
+                "secretmanager", "v1", credentials=credentials
+            )
+            secretsmanager.sync(
+                neo4j_session,
+                secretsmanager_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.cloud_run in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud Run.", project_id)
+            cloud_run_cred = build_client("run", "v2", credentials=credentials)
+            cloudrun_service.sync_services(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            cloudrun_revision.sync_revisions(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            cloudrun_job.sync_jobs(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            cloudrun_execution.sync_executions(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
         del common_job_parameters["PROJECT_ID"]
 
 
@@ -535,6 +660,12 @@ def start_gcp_ingestion(
 
     run_analysis_job(
         "gcp_gke_basic_auth.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+    run_analysis_job(
+        "gcp_compute_instance_vpc_analysis.json",
         neo4j_session,
         common_job_parameters,
     )

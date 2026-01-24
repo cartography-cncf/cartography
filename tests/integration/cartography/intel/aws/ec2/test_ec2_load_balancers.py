@@ -32,7 +32,7 @@ def test_load_load_balancer_v2s(neo4j_session, *args):
 
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
 
         MERGE (group:EC2SecurityGroup{groupid: $GROUP_ID_1})
         ON CREATE SET group.firstseen = timestamp()
@@ -114,6 +114,7 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
         load_balancer_id,
         listener_data,
         TEST_UPDATE_TAG,
+        TEST_ACCOUNT_ID,
     )
 
     # verify the db has (elbv2)-[r:ELBV2_LISTENER]->(l)
@@ -145,6 +146,10 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
 def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
     load_balancer_id = "asadfmyloadbalancerid"
     ec2_instance_id = "i-0f76fade"
+    private_ip_address = "10.0.0.1"
+    lambda_arn = "arn:aws:lambda:us-east-1:000000000000:function:example"
+    target_alb_arn = "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/target-alb/1234567890abcdef"
+    target_alb_id = "target-alb.us-east-1.elb.amazonaws.com"
 
     target_groups = tests.data.aws.ec2.load_balancers.TARGET_GROUPS
 
@@ -159,12 +164,28 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         ON CREATE SET ec2.firstseen = timestamp()
         SET ec2.lastupdated = $aws_update_tag
 
+        MERGE (private_ip:EC2PrivateIp{private_ip_address: $private_ip_address})
+        ON CREATE SET private_ip.firstseen = timestamp()
+        SET private_ip.lastupdated = $aws_update_tag
+
+        MERGE (lambda_fn:AWSLambda{id: $lambda_arn})
+        ON CREATE SET lambda_fn.firstseen = timestamp()
+        SET lambda_fn.lastupdated = $aws_update_tag
+
+        MERGE (target_alb:LoadBalancerV2{id: $target_alb_id, arn: $target_alb_arn})
+        ON CREATE SET target_alb.firstseen = timestamp()
+        SET target_alb.lastupdated = $aws_update_tag
+
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
         """,
         load_balancer_id=load_balancer_id,
         ec2_instance_id=ec2_instance_id,
+        private_ip_address=private_ip_address,
+        lambda_arn=lambda_arn,
+        target_alb_id=target_alb_id,
+        target_alb_arn=target_alb_arn,
         aws_account_id=TEST_ACCOUNT_ID,
         aws_update_tag=TEST_UPDATE_TAG,
     )
@@ -177,8 +198,8 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         TEST_UPDATE_TAG,
     )
 
-    # verify the db has (load_balancer_id)-[r:EXPOSE]->(instance)
-    nodes = neo4j_session.run(
+    # verify the db has EXPOSE rels to instance, ip, and lambda targets
+    instance_nodes = neo4j_session.run(
         """
         MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(instance:EC2Instance{instanceid: $INSTANCE_ID})
         RETURN elbv2.id, instance.instanceid
@@ -187,74 +208,117 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         INSTANCE_ID=ec2_instance_id,
     )
 
+    ip_nodes = neo4j_session.run(
+        """
+        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(ip:EC2PrivateIp{private_ip_address: $private_ip_address})
+        RETURN elbv2.id, ip.private_ip_address
+        """,
+        ID=load_balancer_id,
+        private_ip_address=private_ip_address,
+    )
+
+    lambda_nodes = neo4j_session.run(
+        """
+        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(lambda_fn:AWSLambda{id: $lambda_arn})
+        RETURN elbv2.id, lambda_fn.id
+        """,
+        ID=load_balancer_id,
+        lambda_arn=lambda_arn,
+    )
+
+    alb_nodes = neo4j_session.run(
+        """
+        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(target_alb:LoadBalancerV2{arn: $target_alb_arn})
+        RETURN elbv2.id, target_alb.id
+        """,
+        ID=load_balancer_id,
+        target_alb_arn=target_alb_arn,
+    )
+
     expected_nodes = {
         (
             load_balancer_id,
             ec2_instance_id,
         ),
-    }
-    actual_nodes = {
         (
-            n["elbv2.id"],
-            n["instance.instanceid"],
-        )
-        for n in nodes
+            load_balancer_id,
+            private_ip_address,
+        ),
+        (
+            load_balancer_id,
+            lambda_arn,
+        ),
+        (
+            load_balancer_id,
+            target_alb_id,
+        ),
     }
+    actual_nodes = (
+        {(n["elbv2.id"], n["instance.instanceid"]) for n in instance_nodes}
+        | {(n["elbv2.id"], n["ip.private_ip_address"]) for n in ip_nodes}
+        | {(n["elbv2.id"], n["lambda_fn.id"]) for n in lambda_nodes}
+        | {(n["elbv2.id"], n["target_alb.id"]) for n in alb_nodes}
+    )
     assert actual_nodes == expected_nodes
 
 
-def test_load_load_balancer_v2_subnets(neo4j_session, *args):
-    # an elbv2 must exist or nothing will match.
-    load_balancer_id = "asadfmyloadbalancerid"
+def test_load_load_balancer_v2_subnet_relationships(neo4j_session, *args):
+    """Test that SUBNET relationships are created via the main loader when EC2Subnet nodes exist."""
+    load_balancer_data = tests.data.aws.ec2.load_balancers.LOAD_BALANCER_DATA
+    load_balancer_id = "myawesomeloadbalancer.amazonaws.com"
+
+    # Create required nodes: AWSAccount, EC2SecurityGroups, EC2Subnets, EC2Instance
     neo4j_session.run(
         """
-        MERGE (elbv2:LoadBalancerV2{id: $ID})
-        ON CREATE SET elbv2.firstseen = timestamp()
-        SET elbv2.lastupdated = $aws_udpate_tag
+        MERGE (aws:AWSAccount{id: $aws_account_id})
+        ON CREATE SET aws.firstseen = timestamp()
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
+
+        MERGE (ec2:EC2Instance{instanceid: $ec2_instance_id})
+        ON CREATE SET ec2.firstseen = timestamp()
+        SET ec2.lastupdated = $aws_update_tag
+
+        MERGE (sg1:EC2SecurityGroup{groupid: $sg1})
+        ON CREATE SET sg1.firstseen = timestamp()
+        SET sg1.lastupdated = $aws_update_tag
+
+        MERGE (sg2:EC2SecurityGroup{groupid: $sg2})
+        ON CREATE SET sg2.firstseen = timestamp()
+        SET sg2.lastupdated = $aws_update_tag
+
+        MERGE (subnet:EC2Subnet{subnetid: $subnet_id})
+        ON CREATE SET subnet.firstseen = timestamp(), subnet.id = $subnet_id
+        SET subnet.region = $region, subnet.lastupdated = $aws_update_tag
         """,
-        ID=load_balancer_id,
-        aws_udpate_tag=TEST_UPDATE_TAG,
+        aws_account_id=TEST_ACCOUNT_ID,
+        aws_update_tag=TEST_UPDATE_TAG,
+        ec2_instance_id="i-0f76fade",
+        sg1="sg-123456",
+        sg2="sg-234567",
+        subnet_id="mysubnetIdA",
+        region=TEST_REGION,
     )
 
-    az_data = [
-        {"SubnetId": "mysubnetIdA"},
-        {"SubnetId": "mysubnetIdB"},
-    ]
-    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2_subnets(
+    # Load the data via main loader
+    cartography.intel.aws.ec2.load_balancer_v2s.load_load_balancer_v2s(
         neo4j_session,
-        load_balancer_id,
-        az_data,
+        load_balancer_data,
         TEST_REGION,
+        TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
 
-    expected_nodes = {
-        (
-            "mysubnetIdA",
-            TEST_REGION,
-            TEST_UPDATE_TAG,
-        ),
-        (
-            "mysubnetIdB",
-            TEST_REGION,
-            TEST_UPDATE_TAG,
-        ),
-    }
-
-    nodes = neo4j_session.run(
+    # Verify SUBNET relationship was created
+    rels = neo4j_session.run(
         """
-        MATCH (subnet:EC2Subnet) return subnet.subnetid, subnet.region, subnet.lastupdated
+        MATCH (elbv2:LoadBalancerV2{id: $lb_id})-[:SUBNET]->(subnet:EC2Subnet)
+        RETURN elbv2.id, subnet.subnetid
         """,
+        lb_id=load_balancer_id,
     )
-    actual_nodes = {
-        (
-            n["subnet.subnetid"],
-            n["subnet.region"],
-            n["subnet.lastupdated"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
+    actual_rels = {(r["elbv2.id"], r["subnet.subnetid"]) for r in rels}
+    expected_rels = {(load_balancer_id, "mysubnetIdA")}
+    assert actual_rels == expected_rels
 
 
 def _ensure_load_instances(neo4j_session):
@@ -462,7 +526,7 @@ def test_load_balancer_v2s_skips_missing_dnsname(neo4j_session, *args):
 
         MERGE (aws:AWSAccount{id: $aws_account_id})
         ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag
+        SET aws.lastupdated = $aws_update_tag, aws :Tenant
 
         MERGE (group:EC2SecurityGroup{groupid: $GROUP_ID_1})
         ON CREATE SET group.firstseen = timestamp()

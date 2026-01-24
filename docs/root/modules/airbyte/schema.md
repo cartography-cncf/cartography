@@ -26,6 +26,8 @@ U -- MEMBER_OF --> W
 
 Provides details of a single organization for a user.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | id | The organization UUID |
@@ -95,6 +97,8 @@ Provides details of a single workspace.
 
 Provides details of a single user in an organization.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).
+
 | Field | Description |
 |-------|-------------|
 | id | Internal Airbyte user ID |
@@ -141,7 +145,7 @@ Provides details of a single source.
 | lastupdated |  Timestamp of the last time the node was updated |
 
 
-### Relationships
+#### Relationships
 
 - `Source` belong to an `Organization`
     ```
@@ -175,7 +179,7 @@ Provides details of a single destination.
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 
-### Relationships
+#### Relationships
 
 - `Destination` belong to an `Organization`
     ```
@@ -202,7 +206,7 @@ Provides details of a single tag.
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 
-### Relationships
+#### Relationships
 - `Tag` belong to an `Organization`
     ```
     (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteTag)
