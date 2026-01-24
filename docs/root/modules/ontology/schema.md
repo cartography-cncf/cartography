@@ -293,15 +293,16 @@ Common tenant concepts across platforms include:
 Function is a semantic label.
 ```
 
-A function represents a serverless compute unit that runs code in response to events without managing servers.
-It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azure Function Apps.
+A function represents a serverless compute unit that runs code or containers in response to events without managing servers.
+It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Cloud Run services/jobs, and Azure Function Apps.
 
 | Field | Description |
 |-------|-------------|
 | _ont_name | The name of the function (REQUIRED). |
-| _ont_runtime | The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). |
+| _ont_runtime | The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). Only applicable for code-based functions. |
 | _ont_memory | Memory allocated to the function (in MB). |
 | _ont_timeout | Timeout for function execution (in seconds). |
+| _ont_deployment_type | The deployment type: `code` for source code functions (Lambda, Cloud Functions, Azure Functions), `container` for container-based functions (Cloud Run). |
 
 
 ### LoadBalancer

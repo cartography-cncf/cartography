@@ -7,6 +7,7 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # runtime - The runtime environment (e.g., python3.9, nodejs18.x)
 # memory - Memory allocated to the function (in MB)
 # timeout - Timeout for function execution (in seconds)
+# deployment_type - The deployment type: "code" for source code functions, "container" for container-based
 
 aws_mapping = OntologyMapping(
     module_name="aws",
@@ -20,6 +21,12 @@ aws_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="runtime", node_field="runtime"),
                 OntologyFieldMapping(ontology_field="memory", node_field="memory"),
                 OntologyFieldMapping(ontology_field="timeout", node_field="timeout"),
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
+                ),
             ],
         ),
     ],
@@ -35,8 +42,48 @@ gcp_mapping = OntologyMapping(
                     ontology_field="name", node_field="name", required=True
                 ),
                 OntologyFieldMapping(ontology_field="runtime", node_field="runtime"),
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
+                ),
                 # memory: not available in GCPCloudFunction
                 # timeout: not available in GCPCloudFunction
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="GCPCloudRunService",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "container"},
+                ),
+                # runtime: not applicable for container-based functions
+                # memory: not available in GCPCloudRunService
+                # timeout: not available in GCPCloudRunService
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="GCPCloudRunJob",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "container"},
+                ),
+                # runtime: not applicable for container-based functions
+                # memory: not available in GCPCloudRunJob
+                # timeout: not available in GCPCloudRunJob
             ],
         ),
     ],
@@ -50,6 +97,12 @@ azure_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="deployment_type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "code"},
                 ),
                 # runtime: not available in AzureFunctionApp
                 # memory: not available in AzureFunctionApp
