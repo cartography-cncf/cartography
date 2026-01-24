@@ -1403,3 +1403,135 @@ Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com
     ```
     (GCPSecretManagerSecretVersion)-[:VERSION_OF]->(GCPSecretManagerSecret)
     ```
+
+```mermaid
+graph LR
+    Project[GCPProject]
+    Service[GCPCloudRunService]
+    Revision[GCPCloudRunRevision]
+    Job[GCPCloudRunJob]
+    Execution[GCPCloudRunExecution]
+    ServiceAccount[GCPServiceAccount]
+
+    Project -->|RESOURCE| Service
+    Project -->|RESOURCE| Revision
+    Project -->|RESOURCE| Job
+    Project -->|RESOURCE| Execution
+
+    Service -->|HAS_REVISION| Revision
+    Job -->|HAS_EXECUTION| Execution
+
+    Revision -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Job -->|USES_SERVICE_ACCOUNT| ServiceAccount
+```
+
+### GCPCloudRunService
+
+Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the service (e.g., `projects/{project}/locations/{location}/services/{service}`) |
+| name | Short name of the service |
+| location | The GCP location where the service is deployed |
+| container_image | The container image for the service |
+| service_account_email | The email of the service account used by this service |
+
+#### Relationships
+
+  - GCPCloudRunServices are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunService)
+    ```
+  - GCPCloudRunServices have GCPCloudRunRevisions.
+    ```
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
+    ```
+
+### GCPCloudRunRevision
+
+Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the revision (e.g., `projects/{project}/locations/{location}/services/{service}/revisions/{revision}`) |
+| name | Short name of the revision |
+| service | Full resource name of the parent service |
+| container_image | The container image for this revision |
+| service_account_email | The email of the service account used by this revision |
+| log_uri | URI to Cloud Logging for this revision |
+
+#### Relationships
+
+  - GCPCloudRunRevisions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunRevision)
+    ```
+  - GCPCloudRunServices have GCPCloudRunRevisions.
+    ```
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
+    ```
+  - GCPCloudRunRevisions use GCPServiceAccounts.
+    ```
+    (GCPCloudRunRevision)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudRunJob
+
+Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the job (e.g., `projects/{project}/locations/{location}/jobs/{job}`) |
+| name | Short name of the job |
+| location | The GCP location where the job is deployed |
+| container_image | The container image for the job |
+| service_account_email | The email of the service account used by this job |
+
+#### Relationships
+
+  - GCPCloudRunJobs are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunJob)
+    ```
+  - GCPCloudRunJobs have GCPCloudRunExecutions.
+    ```
+    (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
+    ```
+  - GCPCloudRunJobs use GCPServiceAccounts.
+    ```
+    (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudRunExecution
+
+Representation of a GCP [Cloud Run Execution](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs.executions).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the execution (e.g., `projects/{project}/locations/{location}/jobs/{job}/executions/{execution}`) |
+| name | Short name of the execution |
+| job | Full resource name of the parent job |
+| status | Completion status of the execution (e.g., `SUCCEEDED`, `FAILED`) |
+| cancelled_count | Number of tasks that were cancelled |
+| failed_count | Number of tasks that failed |
+| succeeded_count | Number of tasks that succeeded |
+
+#### Relationships
+
+  - GCPCloudRunExecutions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunExecution)
+    ```
+  - GCPCloudRunJobs have GCPCloudRunExecutions.
+    ```
+    (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
+    ```
