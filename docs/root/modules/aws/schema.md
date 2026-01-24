@@ -2433,6 +2433,29 @@ Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/AP
     ```
 
 
+### DataPipeline
+
+Representation of an AWS [Data Pipeline](https://docs.aws.amazon.com/datapipeline/latest/APIReference/API_PipelineDescription.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| region | The AWS region |
+| **pipeline_id** | AWS-unique identifier for this pipeline (indexed) |
+| **id** | Same as `pipeline_id` |
+| name | Name of the Data Pipeline |
+| description | Description of the Data Pipeline |
+| status | Current state of the pipeline (e.g., ACTIVE, INACTIVE, PENDING, FINISHED, DELETED) |
+
+#### Relationships
+
+- Data Pipelines belong to AWS Accounts.
+    ```
+    (AWSAccount)-[RESOURCE]->(DataPipeline)
+    ```
+
+
 ### ESDomain
 
 Representation of an AWS [ElasticSearch Domain](https://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-configuration-api.html#es-configuration-api-datatypes) (see ElasticsearchDomainConfig).
