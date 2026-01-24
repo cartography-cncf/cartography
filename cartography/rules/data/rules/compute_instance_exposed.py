@@ -27,6 +27,7 @@ _aws_ec2_instance_internet_exposed = Fact(
     MATCH (ec2:EC2Instance)
     RETURN COUNT(ec2) AS count
     """,
+    asset_id_field="instance_id",
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

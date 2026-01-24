@@ -51,7 +51,11 @@ def _run_fact(
         # Execute count query to get total assets
         total_assets = None
         passing = None
-        failing = findings_count
+        # Count distinct assets if asset_id_field is set, otherwise count rows
+        if fact.asset_id_field and findings:
+            failing = len({getattr(f, fact.asset_id_field) for f in findings})
+        else:
+            failing = findings_count
         if fact.cypher_count_query:
             count_result = session.execute_read(
                 read_list_of_dicts_tx, fact.cypher_count_query

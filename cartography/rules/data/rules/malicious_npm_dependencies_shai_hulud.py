@@ -127,6 +127,7 @@ _malicious_npm_dependencies_shai_hulud_sept_2025_github = Fact(
     MATCH (r:GitHubRepository)
     RETURN COUNT(r) AS count
     """,
+    asset_id_field="repo",
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -2177,6 +2178,7 @@ _malicious_npm_dependencies_shai_hulud_nov_2025_github = Fact(
     MATCH (r:GitHubRepository)
     RETURN COUNT(r) AS count
     """,
+    asset_id_field="repo",
     module=Module.GITHUB,
     maturity=Maturity.EXPERIMENTAL,
 )

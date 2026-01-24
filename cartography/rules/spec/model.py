@@ -186,6 +186,13 @@ class Fact:
     This count includes all assets regardless of whether they match the Fact criteria.
     Should return a single value with `RETURN COUNT(...) AS count`.
     """
+    asset_id_field: str | None = None
+    """
+    The field name in the output model that uniquely identifies an asset.
+    When set, failing count is computed as the count of distinct values of this field
+    rather than the total number of finding rows. This is needed when a single asset
+    can produce multiple finding rows (e.g., one security group with multiple violating rules).
+    """
 
 
 class Finding(BaseModel):

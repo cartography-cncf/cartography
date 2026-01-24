@@ -216,6 +216,7 @@ _aws_user_direct_policies = Fact(
     MATCH (user:AWSUser)
     RETURN COUNT(user) AS count
     """,
+    asset_id_field="user_arn",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )

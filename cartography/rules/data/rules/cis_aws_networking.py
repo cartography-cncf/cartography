@@ -88,6 +88,7 @@ _aws_unrestricted_ssh = Fact(
     MATCH (sg:EC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_id_field="security_group_id",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -176,6 +177,7 @@ _aws_unrestricted_rdp = Fact(
     MATCH (sg:EC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_id_field="security_group_id",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -268,6 +270,7 @@ _aws_default_sg_allows_traffic = Fact(
     MATCH (sg:EC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_id_field="security_group_id",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -345,6 +348,7 @@ _aws_unrestricted_all_ports = Fact(
     MATCH (sg:EC2SecurityGroup)
     RETURN COUNT(sg) AS count
     """,
+    asset_id_field="security_group_id",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )

@@ -78,6 +78,7 @@ _aws_trust_relationship_manipulation = Fact(
     MATCH (principal:AWSPrincipal)
     RETURN COUNT(principal) AS count
     """,
+    asset_id_field="principal_identifier",
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
