@@ -71,27 +71,54 @@ def _sync_one_account(
         common_job_parameters,
     )
 
-    for func_name in aws_requested_syncs:
-        if func_name in RESOURCE_FUNCTIONS:
-            # Skip permission relationships and tags for now because they rely on data already being in the graph
-            if func_name == "ecr:image_layers":
-                # has a different signature than the other functions (aioboto3_session replaces boto3_session)
-                RESOURCE_FUNCTIONS[func_name](
-                    neo4j_session,
-                    aioboto3_session,
-                    regions,
-                    current_aws_account_id,
-                    update_tag,
-                    common_job_parameters,
+    # Validate that all requested syncs exist
+    requested_syncs_set = set(aws_requested_syncs)
+    invalid_syncs = requested_syncs_set - set(RESOURCE_FUNCTIONS.keys())
+    if invalid_syncs:
+        raise ValueError(
+            f"AWS sync function(s) {invalid_syncs} were specified but do not exist. Did you misspell them?",
+        )
+
+    # Warn if modules are requested without their dependencies
+    # Dependencies: {module: [required_dependencies]}
+    module_dependencies = {
+        "ssm": ["ec2:instance"],
+        "ec2:images": ["ec2:instance"],
+        "ec2:load_balancer": ["ec2:subnet", "ec2:instance"],
+        "ec2:load_balancer_v2": ["ec2:subnet", "ec2:instance"],
+        "ec2:route_table": ["ec2:vpc_endpoint"],
+    }
+    for module, dependencies in module_dependencies.items():
+        if module in requested_syncs_set:
+            missing_deps = [
+                dep for dep in dependencies if dep not in requested_syncs_set
+            ]
+            if missing_deps:
+                logger.warning(
+                    f"Module '{module}' is requested without its dependencies {missing_deps}. "
+                    f"Some relationships may not be created if the dependency data doesn't exist in Neo4j.",
                 )
-            elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
-                continue
-            else:
-                RESOURCE_FUNCTIONS[func_name](**sync_args)
-        else:
-            raise ValueError(
-                f'AWS sync function "{func_name}" was specified but does not exist. Did you misspell it?',
+
+    # Iterate over RESOURCE_FUNCTIONS to preserve defined sync order (dependencies)
+    # Skip modules not in the user's requested list
+    for func_name in RESOURCE_FUNCTIONS:
+        if func_name not in requested_syncs_set:
+            continue
+        # Skip permission relationships and tags for now because they rely on data already being in the graph
+        if func_name == "ecr:image_layers":
+            # has a different signature than the other functions (aioboto3_session replaces boto3_session)
+            RESOURCE_FUNCTIONS[func_name](
+                neo4j_session,
+                aioboto3_session,
+                regions,
+                current_aws_account_id,
+                update_tag,
+                common_job_parameters,
             )
+        elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
+            continue
+        else:
+            RESOURCE_FUNCTIONS[func_name](**sync_args)
 
     # MAP IAM permissions
     if "permission_relationships" in aws_requested_syncs:
