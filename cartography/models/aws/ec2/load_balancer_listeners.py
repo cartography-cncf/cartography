@@ -30,7 +30,7 @@ class ELBListenerToLoadBalancerRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBListenerToLoadBalancerRel(CartographyRelSchema):
-    target_node_label: str = "LoadBalancer"
+    target_node_label: str = "AWSLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LoadBalancerId")},
     )

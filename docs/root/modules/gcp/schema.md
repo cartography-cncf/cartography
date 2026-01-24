@@ -564,6 +564,8 @@ Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/referen
 
 Representation of GCP [Forwarding Rules](https://cloud.google.com/compute/docs/reference/rest/v1/forwardingRules/list) and [Global Forwarding Rules](https://cloud.google.com/compute/docs/reference/rest/v1/globalForwardingRules/list).
 
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., LoadBalancerV2, LoadBalancer, AzureLoadBalancer).
+
 | Field                 | Description                                                                                                                                          |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | firstseen             | Timestamp of when a sync job first discovered this node                                                                                              |

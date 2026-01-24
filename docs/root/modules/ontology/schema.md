@@ -10,6 +10,11 @@ U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
+CI{{ComputeInstance}}
+CT{{Container}}
+DB{{Database}}
+TN{{Tenant}}
+LB{{LoadBalancer}}
 ```
 
 :::{note}
@@ -280,3 +285,21 @@ Common tenant concepts across platforms include:
 | _ont_name | Display name or friendly name of the tenant/organization (REQUIRED for most modules). |
 | _ont_status | Current status/state of the tenant (e.g., active, suspended, archived). |
 | _ont_domain | Primary domain name associated with the tenant (for workspace/domain-based services). |
+
+
+### LoadBalancer
+
+```{note}
+LoadBalancer is a semantic label.
+```
+
+A load balancer distributes incoming network traffic across multiple targets to ensure high availability and reliability.
+It generalizes concepts like AWS Application/Network Load Balancers (ALB/NLB), AWS Classic ELBs, GCP Forwarding Rules, and Azure Load Balancers.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the load balancer (REQUIRED). |
+| _ont_lb_type | The type of load balancer (e.g., "application", "network", "classic", "Standard", "Basic"). |
+| _ont_scheme | The load balancing scheme (e.g., "internet-facing", "internal", "EXTERNAL", "INTERNAL"). |
+| _ont_dns_name | The DNS name or endpoint for the load balancer. |
+| _ont_region | The region or location where the load balancer is deployed. |

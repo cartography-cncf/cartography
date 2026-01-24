@@ -1898,6 +1898,8 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 
 Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/load-balancers/get).
 
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., LoadBalancerV2, LoadBalancer, GCPForwardingRule).
+
 | Field      | Description                                                 |
 | ---------- | ----------------------------------------------------------- |
 | firstseen  | Timestamp of when a sync job discovered this node           |
