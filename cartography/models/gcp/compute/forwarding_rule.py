@@ -106,6 +106,7 @@ class GCPForwardingRuleSchema(CartographyNodeSchema):
         GCPForwardingRuleToProjectRel()
     )
 
+
 # TODO: I don't think we need this schema
 @dataclass(frozen=True)
 class GCPForwardingRuleWithSubnetSchema(CartographyNodeSchema):
