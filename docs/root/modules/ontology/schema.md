@@ -14,6 +14,7 @@ LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB -- EXPOSE --> CT{{Container}}
 DB{{Database}}
 TN{{Tenant}}
+FN{{Function}}
 ```
 
 :::{note}
@@ -284,6 +285,23 @@ Common tenant concepts across platforms include:
 | _ont_name | Display name or friendly name of the tenant/organization (REQUIRED for most modules). |
 | _ont_status | Current status/state of the tenant (e.g., active, suspended, archived). |
 | _ont_domain | Primary domain name associated with the tenant (for workspace/domain-based services). |
+
+
+### Function
+
+```{note}
+Function is a semantic label.
+```
+
+A function represents a serverless compute unit that runs code in response to events without managing servers.
+It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, and Azure Function Apps.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the function (REQUIRED). |
+| _ont_runtime | The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). |
+| _ont_memory | Memory allocated to the function (in MB). |
+| _ont_timeout | Timeout for function execution (in seconds). |
 
 
 ### LoadBalancer

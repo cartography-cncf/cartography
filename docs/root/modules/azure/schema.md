@@ -1481,6 +1481,8 @@ Representation of an [AzureCosmosDBMongoDBCollection](https://docs.microsoft.com
 
 Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest/api/appservice/web-apps/get).
 
+> **Ontology Mapping**: This node has the extra label `Function` and normalized `_ont_*` properties for cross-platform serverless function queries. See [Function](../../ontology/schema.md#function).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|

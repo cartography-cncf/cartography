@@ -1314,6 +1314,8 @@ Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.co
 
 Representation of a Google [Cloud Function](https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions) (v1 API).
 
+> **Ontology Mapping**: This node has the extra label `Function` and normalized `_ont_*` properties for cross-platform serverless function queries. See [Function](../../ontology/schema.md#function).
+
 | Field                 | Description                                                                 |
 | --------------------- | --------------------------------------------------------------------------- |
 | id                    | The full, unique resource name of the function.                             |
