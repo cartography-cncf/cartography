@@ -61,14 +61,8 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
         location = name_match.group(1) if name_match else None
         short_name = name_match.group(2) if name_match else None
 
-        # Get latest ready revision - this is a short name, convert to full resource name
-        latest_ready_revision_short = service.get("latestReadyRevision")
-        latest_ready_revision = None
-        if latest_ready_revision_short and location:
-            latest_ready_revision = (
-                f"projects/{project_id}/locations/{location}/"
-                f"services/{short_name}/revisions/{latest_ready_revision_short}"
-            )
+        # Get latest ready revision - the v2 API returns the full resource name
+        latest_ready_revision = service.get("latestReadyRevision")
 
         transformed.append(
             {

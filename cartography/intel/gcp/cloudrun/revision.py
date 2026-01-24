@@ -85,37 +85,33 @@ def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dic
         # Full resource name: projects/{project}/locations/{location}/services/{service}/revisions/{revision}
         full_name = revision.get("name", "")
 
-        # Extract location, service name, and short name from the full resource name
+        # Extract location and short name from the full resource name
         name_match = re.match(
             r"projects/[^/]+/locations/([^/]+)/services/([^/]+)/revisions/([^/]+)",
             full_name,
         )
         location = name_match.group(1) if name_match else None
-        service_short_name = name_match.group(2) if name_match else None
         short_name = name_match.group(3) if name_match else None
 
-        # Construct the full service resource name
+        # Get service short name from the v2 API response (it's just the short name, not full path)
+        service_short_name = revision.get("service")
+
+        # Construct the full service resource name for the relationship
         service_full_name = None
         if location and service_short_name:
             service_full_name = f"projects/{project_id}/locations/{location}/services/{service_short_name}"
 
-        # Get container image from template.containers[0].image
+        # Get container image from containers[0].image (v2 API has containers at top level)
+        containers = revision.get("containers", [])
         container_image = None
-        template = revision.get("template", {})
-        containers = template.get("containers", [])
-        if containers and len(containers) > 0:
+        if containers:
             container_image = containers[0].get("image")
 
-        # Get service account email from template.serviceAccount
-        service_account_email = template.get("serviceAccount")
+        # Get service account email (v2 API has serviceAccount at top level)
+        service_account_email = revision.get("serviceAccount")
 
         # Construct log URI - Cloud Console logs viewer URL
-        log_uri = None
-        if location:
-            log_uri = (
-                f"https://console.cloud.google.com/run/detail/{location}/"
-                f"{service_short_name}/revisions/{short_name}/logs?project={project_id}"
-            )
+        log_uri = revision.get("logUri")
 
         transformed.append(
             {

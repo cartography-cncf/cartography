@@ -11,12 +11,59 @@ logger = logging.getLogger(__name__)
 
 def discover_cloud_run_locations(client: Resource, project_id: str) -> set[str]:
     """
-    Discovers GCP locations with Cloud Run resources by listing services.
+    Discovers GCP locations with Cloud Run resources.
 
-    The Cloud Run v2 API doesn't support listing locations directly via locations.list(),
-    so we work around this by listing services with the location wildcard "-" and
-    extracting unique locations from the service resource names.
+    Uses the v1 API's locations.list() method to get all available Cloud Run regions.
+    This ensures we don't miss regions that only have jobs (no services).
+    Falls back to discovering via services list if the v1 API call fails.
     """
+    try:
+        # Try using v1 API's locations.list() - this is more reliable
+        from cartography.intel.gcp.clients import build_client
+        from cartography.intel.gcp.clients import get_gcp_credentials
+
+        credentials = get_gcp_credentials()
+        v1_client = build_client("run", "v1", credentials=credentials)
+
+        parent = f"projects/{project_id}"
+        request = v1_client.projects().locations().list(name=parent)
+
+        locations_set = set()
+        while request is not None:
+            response = request.execute()
+            for location in response.get("locations", []):
+                location_name = location.get(
+                    "name"
+                )  # e.g., projects/foo/locations/us-central1
+                if location_name:
+                    locations_set.add(location_name)
+            request = (
+                v1_client.projects()
+                .locations()
+                .list_next(
+                    previous_request=request,
+                    previous_response=response,
+                )
+            )
+
+        if locations_set:
+            logger.debug(
+                f"Discovered {len(locations_set)} Cloud Run locations via v1 API"
+            )
+            return locations_set
+        else:
+            logger.warning(
+                "v1 API returned no locations, falling back to service-based discovery"
+            )
+
+    except Exception as e:
+        logger.warning(
+            f"Could not discover locations via v1 API: {e}. "
+            f"Falling back to discovery via services list.",
+        )
+
+    # Fallback: discover from services (current implementation)
+    logger.debug("Using service-based discovery for Cloud Run locations")
     services_parent = f"projects/{project_id}/locations/-"
     services_request = (
         client.projects().locations().services().list(parent=services_parent)

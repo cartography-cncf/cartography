@@ -16,7 +16,6 @@ class GCPCloudRunExecutionProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     job: PropertyRef = PropertyRef("job")
-    status: PropertyRef = PropertyRef("status")
     cancelled_count: PropertyRef = PropertyRef("cancelled_count")
     failed_count: PropertyRef = PropertyRef("failed_count")
     succeeded_count: PropertyRef = PropertyRef("succeeded_count")

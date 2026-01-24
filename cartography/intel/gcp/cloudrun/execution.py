@@ -114,9 +114,6 @@ def transform_executions(executions_data: list[dict], project_id: str) -> list[d
                 f"projects/{project_id}/locations/{location}/jobs/{job_short_name}"
             )
 
-        # Get status - completion condition
-        status = execution.get("completionStatus")
-
         # Get task counts
         cancelled_count = execution.get("cancelledCount", 0)
         failed_count = execution.get("failedCount", 0)
@@ -127,7 +124,6 @@ def transform_executions(executions_data: list[dict], project_id: str) -> list[d
                 "id": full_name,
                 "name": short_name,
                 "job": job_full_name,
-                "status": status,
                 "cancelled_count": cancelled_count,
                 "failed_count": failed_count,
                 "succeeded_count": succeeded_count,
