@@ -226,6 +226,8 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
 
 Representation of a GCP [Instance](https://cloud.google.com/compute/docs/reference/rest/v1/instances).  Additional references can be found in the [official documentation]( https://cloud.google.com/compute/docs/concepts).
 
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, AzureVirtualMachine, DODroplet).
+
 | Field            | Description |
 | ---------------- | ----------- |
 | firstseen        | Timestamp of when a sync job first discovered this node |
@@ -1190,6 +1192,8 @@ Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/d
 ### GCPCloudSQLInstance
 
 Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |---|---|
