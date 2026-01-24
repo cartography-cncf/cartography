@@ -5,6 +5,7 @@ Utility functions for GCP Cloud Run intel module.
 import logging
 
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ def discover_cloud_run_locations(client: Resource, project_id: str) -> set[str]:
     Falls back to discovering via services list if the v1 API call fails.
     """
     try:
-        # Try using v1 API's locations.list() - this is more reliable
+        # Use v1 API's locations.list() to get all Cloud Run regions
         from cartography.intel.gcp.clients import build_client
         from cartography.intel.gcp.clients import get_gcp_credentials
 
@@ -56,13 +57,16 @@ def discover_cloud_run_locations(client: Resource, project_id: str) -> set[str]:
                 "v1 API returned no locations, falling back to service-based discovery"
             )
 
-    except Exception as e:
+    except HttpError as e:
+        # Only fall back for HTTP/API errors (e.g., API not enabled, 404, etc.)
+        # Auth errors (DefaultCredentialsError, RefreshError) will propagate
+        # since the fallback would also fail with the same auth issue
         logger.warning(
             f"Could not discover locations via v1 API: {e}. "
             f"Falling back to discovery via services list.",
         )
 
-    # Fallback: discover from services (current implementation)
+    # Fallback: discover locations by extracting them from service resource names
     logger.debug("Using service-based discovery for Cloud Run locations")
     services_parent = f"projects/{project_id}/locations/-"
     services_request = (

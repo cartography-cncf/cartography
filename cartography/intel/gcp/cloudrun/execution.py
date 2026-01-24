@@ -32,7 +32,7 @@ def get_executions(
     try:
         # Determine which locations to query
         if location == "-":
-            # Discover locations by listing services (Cloud Run v2 API workaround)
+            # Discover all Cloud Run locations for this project
             locations = discover_cloud_run_locations(client, project_id)
         else:
             # Query specific location

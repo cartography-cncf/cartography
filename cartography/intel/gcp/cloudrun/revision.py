@@ -110,7 +110,7 @@ def transform_revisions(revisions_data: list[dict], project_id: str) -> list[dic
         # Get service account email (v2 API has serviceAccount at top level)
         service_account_email = revision.get("serviceAccount")
 
-        # Construct log URI - Cloud Console logs viewer URL
+        # Get log URI directly from API response
         log_uri = revision.get("logUri")
 
         transformed.append(
