@@ -40,15 +40,15 @@ def transform_cloudformation_stacks(
     Ensures all properties are Neo4j-serializable.
     """
     for stack in stacks:
-        if stack.get("Tags"):
+        if "Tags" in stack and stack["Tags"] is not None:
             stack["Tags"] = json.dumps(stack["Tags"])
 
-        if stack.get("RollbackConfiguration"):
+        if "RollbackConfiguration" in stack and stack["RollbackConfiguration"] is not None:
             stack["RollbackConfiguration"] = json.dumps(
                 stack["RollbackConfiguration"],
             )
 
-        if stack.get("DriftInformation"):
+        if "DriftInformation" in stack and stack["DriftInformation"] is not None:
             stack["DriftInformation"] = json.dumps(stack["DriftInformation"])
 
     return stacks
