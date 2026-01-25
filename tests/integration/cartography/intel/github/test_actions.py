@@ -147,7 +147,7 @@ def test_transform_and_load_workflows(neo4j_session):
         neo4j_session,
         transformed,
         TEST_UPDATE_TAG,
-        "https://github.com/simpsoncorp/sample_repo",
+        f"https://github.com/{TEST_ORGANIZATION}",
     )
 
     assert check_nodes(
@@ -158,7 +158,7 @@ def test_transform_and_load_workflows(neo4j_session):
         (12345680, "Stale Check", ".github/workflows/stale.yml", "disabled_manually"),
     }
 
-    # Check relationship to repository
+    # Check relationship to repository (via other_relationships)
     assert check_rels(
         neo4j_session,
         "GitHubWorkflow",
@@ -171,6 +171,21 @@ def test_transform_and_load_workflows(neo4j_session):
         (12345678, "https://github.com/simpsoncorp/sample_repo"),
         (12345679, "https://github.com/simpsoncorp/sample_repo"),
         (12345680, "https://github.com/simpsoncorp/sample_repo"),
+    }
+
+    # Check relationship to organization (via sub_resource_relationship)
+    assert check_rels(
+        neo4j_session,
+        "GitHubWorkflow",
+        "id",
+        "GitHubOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (12345678, "https://github.com/simpsoncorp"),
+        (12345679, "https://github.com/simpsoncorp"),
+        (12345680, "https://github.com/simpsoncorp"),
     }
 
 
@@ -187,7 +202,7 @@ def test_transform_and_load_environments(neo4j_session):
         neo4j_session,
         transformed,
         TEST_UPDATE_TAG,
-        "https://github.com/simpsoncorp/sample_repo",
+        f"https://github.com/{TEST_ORGANIZATION}",
     )
 
     assert check_nodes(neo4j_session, "GitHubEnvironment", ["id", "name"]) == {
@@ -195,7 +210,7 @@ def test_transform_and_load_environments(neo4j_session):
         (987654322, "staging"),
     }
 
-    # Check relationship to repository
+    # Check relationship to repository (via other_relationships)
     assert check_rels(
         neo4j_session,
         "GitHubEnvironment",
@@ -207,6 +222,20 @@ def test_transform_and_load_environments(neo4j_session):
     ) == {
         (987654321, "https://github.com/simpsoncorp/sample_repo"),
         (987654322, "https://github.com/simpsoncorp/sample_repo"),
+    }
+
+    # Check relationship to organization (via sub_resource_relationship)
+    assert check_rels(
+        neo4j_session,
+        "GitHubEnvironment",
+        "id",
+        "GitHubOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        (987654321, "https://github.com/simpsoncorp"),
+        (987654322, "https://github.com/simpsoncorp"),
     }
 
 
@@ -324,7 +353,7 @@ def test_transform_and_load_env_secrets(neo4j_session):
         neo4j_session,
         transformed_envs,
         TEST_UPDATE_TAG,
-        "https://github.com/simpsoncorp/sample_repo",
+        f"https://github.com/{TEST_ORGANIZATION}",
     )
 
     # Load production environment secrets
@@ -339,7 +368,7 @@ def test_transform_and_load_env_secrets(neo4j_session):
         neo4j_session,
         transformed_secrets,
         TEST_UPDATE_TAG,
-        987654321,
+        f"https://github.com/{TEST_ORGANIZATION}",
     )
 
     # Query for env-level secrets specifically
@@ -359,7 +388,7 @@ def test_transform_and_load_env_secrets(neo4j_session):
     }
     assert actual_nodes == expected_nodes
 
-    # Check relationship to environment
+    # Check relationship to environment (via other_relationships)
     assert check_rels(
         neo4j_session,
         "GitHubActionsSecret",
@@ -372,6 +401,22 @@ def test_transform_and_load_env_secrets(neo4j_session):
         (
             "https://github.com/simpsoncorp/sample_repo/environments/production/secrets/PROD_API_KEY",
             987654321,
+        ),
+    }
+
+    # Check relationship to organization (via sub_resource_relationship)
+    # Query explicitly for env-level secrets to avoid catching org-level secrets from other tests
+    org_rels = neo4j_session.run(
+        """
+        MATCH (s:GitHubActionsSecret {level: "environment"})<-[:RESOURCE]-(o:GitHubOrganization)
+        RETURN s.id, o.id
+        """,
+    )
+    actual_org_rels = {(r["s.id"], r["o.id"]) for r in org_rels}
+    assert actual_org_rels == {
+        (
+            "https://github.com/simpsoncorp/sample_repo/environments/production/secrets/PROD_API_KEY",
+            "https://github.com/simpsoncorp",
         ),
     }
 
@@ -390,7 +435,7 @@ def test_transform_and_load_env_variables(neo4j_session):
         neo4j_session,
         transformed_envs,
         TEST_UPDATE_TAG,
-        "https://github.com/simpsoncorp/sample_repo",
+        f"https://github.com/{TEST_ORGANIZATION}",
     )
 
     # Load staging environment variables
@@ -405,7 +450,7 @@ def test_transform_and_load_env_variables(neo4j_session):
         neo4j_session,
         transformed_vars,
         TEST_UPDATE_TAG,
-        987654322,
+        f"https://github.com/{TEST_ORGANIZATION}",
     )
 
     # Query for env-level variables specifically
@@ -431,6 +476,46 @@ def test_transform_and_load_env_variables(neo4j_session):
         ),
     }
     assert actual_nodes == expected_nodes
+
+    # Check relationship to environment (via other_relationships)
+    assert check_rels(
+        neo4j_session,
+        "GitHubActionsVariable",
+        "id",
+        "GitHubEnvironment",
+        "id",
+        "HAS_VARIABLE",
+        rel_direction_right=False,
+    ) == {
+        (
+            "https://github.com/simpsoncorp/sample_repo/environments/staging/variables/API_URL",
+            987654322,
+        ),
+        (
+            "https://github.com/simpsoncorp/sample_repo/environments/staging/variables/DEBUG_MODE",
+            987654322,
+        ),
+    }
+
+    # Check relationship to organization (via sub_resource_relationship)
+    # Query explicitly for env-level variables to avoid catching org-level variables from other tests
+    org_rels = neo4j_session.run(
+        """
+        MATCH (v:GitHubActionsVariable {level: "environment"})<-[:RESOURCE]-(o:GitHubOrganization)
+        RETURN v.id, o.id
+        """,
+    )
+    actual_org_rels = {(r["v.id"], r["o.id"]) for r in org_rels}
+    assert actual_org_rels == {
+        (
+            "https://github.com/simpsoncorp/sample_repo/environments/staging/variables/API_URL",
+            "https://github.com/simpsoncorp",
+        ),
+        (
+            "https://github.com/simpsoncorp/sample_repo/environments/staging/variables/DEBUG_MODE",
+            "https://github.com/simpsoncorp",
+        ),
+    }
 
 
 @patch.object(

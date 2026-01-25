@@ -399,7 +399,7 @@ def load_workflows(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     update_tag: int,
-    repo_url: str,
+    org_url: str,
 ) -> None:
     logger.info(f"Loading {len(data)} GitHub workflows to the graph")
     load(
@@ -407,7 +407,7 @@ def load_workflows(
         GitHubWorkflowSchema(),
         data,
         lastupdated=update_tag,
-        repo_url=repo_url,
+        org_url=org_url,
     )
 
 
@@ -416,7 +416,7 @@ def load_environments(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     update_tag: int,
-    repo_url: str,
+    org_url: str,
 ) -> None:
     logger.info(f"Loading {len(data)} GitHub environments to the graph")
     load(
@@ -424,7 +424,7 @@ def load_environments(
         GitHubEnvironmentSchema(),
         data,
         lastupdated=update_tag,
-        repo_url=repo_url,
+        org_url=org_url,
     )
 
 
@@ -467,7 +467,7 @@ def load_env_secrets(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     update_tag: int,
-    env_id: int,
+    org_url: str,
 ) -> None:
     logger.info(f"Loading {len(data)} GitHub environment Actions secrets to the graph")
     load(
@@ -475,7 +475,7 @@ def load_env_secrets(
         GitHubEnvActionsSecretSchema(),
         data,
         lastupdated=update_tag,
-        env_id=env_id,
+        org_url=org_url,
     )
 
 
@@ -484,7 +484,7 @@ def load_env_variables(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     update_tag: int,
-    env_id: int,
+    org_url: str,
 ) -> None:
     logger.info(
         f"Loading {len(data)} GitHub environment Actions variables to the graph"
@@ -494,7 +494,7 @@ def load_env_variables(
         GitHubEnvActionsVariableSchema(),
         data,
         lastupdated=update_tag,
-        env_id=env_id,
+        org_url=org_url,
     )
 
 
@@ -509,9 +509,21 @@ def cleanup_org_level(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Clean up stale organization-level GitHub Actions nodes.
+    Clean up stale GitHub Actions nodes scoped to the organization.
     Requires org_url in common_job_parameters.
+
+    All GitHub Actions resources (workflows, environments, secrets, variables)
+    use org as their sub_resource, so they are all cleaned up here. This ensures
+    resources are properly cleaned up even when their parent repo/environment is deleted.
     """
+    # Workflows and environments
+    GraphJob.from_node_schema(GitHubWorkflowSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(GitHubEnvironmentSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    # Org-level secrets and variables
     GraphJob.from_node_schema(
         GitHubOrgActionsSecretSchema(), common_job_parameters
     ).run(
@@ -519,6 +531,17 @@ def cleanup_org_level(
     )
     GraphJob.from_node_schema(
         GitHubOrgActionsVariableSchema(), common_job_parameters
+    ).run(
+        neo4j_session,
+    )
+    # Environment-level secrets and variables
+    GraphJob.from_node_schema(
+        GitHubEnvActionsSecretSchema(), common_job_parameters
+    ).run(
+        neo4j_session,
+    )
+    GraphJob.from_node_schema(
+        GitHubEnvActionsVariableSchema(), common_job_parameters
     ).run(
         neo4j_session,
     )
@@ -531,37 +554,13 @@ def cleanup_repo_level(
     repo_url: str,
 ) -> None:
     """
-    Clean up stale repository-level GitHub Actions nodes for a single repo.
+    Clean up stale repository-level GitHub Actions secrets and variables.
     """
     cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-    GraphJob.from_node_schema(GitHubWorkflowSchema(), cleanup_params).run(
-        neo4j_session,
-    )
-    GraphJob.from_node_schema(GitHubEnvironmentSchema(), cleanup_params).run(
-        neo4j_session,
-    )
     GraphJob.from_node_schema(GitHubRepoActionsSecretSchema(), cleanup_params).run(
         neo4j_session,
     )
     GraphJob.from_node_schema(GitHubRepoActionsVariableSchema(), cleanup_params).run(
-        neo4j_session,
-    )
-
-
-@timeit
-def cleanup_env_level(
-    neo4j_session: neo4j.Session,
-    common_job_parameters: dict[str, Any],
-    env_id: int,
-) -> None:
-    """
-    Clean up stale environment-level GitHub Actions nodes for a single environment.
-    """
-    cleanup_params = {**common_job_parameters, "env_id": env_id}
-    GraphJob.from_node_schema(GitHubEnvActionsSecretSchema(), cleanup_params).run(
-        neo4j_session,
-    )
-    GraphJob.from_node_schema(GitHubEnvActionsVariableSchema(), cleanup_params).run(
         neo4j_session,
     )
 
@@ -644,7 +643,7 @@ def sync(
             transformed_workflows = transform_workflows(
                 workflows, organization, repo_name
             )
-            load_workflows(neo4j_session, transformed_workflows, update_tag, repo_url)
+            load_workflows(neo4j_session, transformed_workflows, update_tag, org_url)
 
         # Sync environments (must come before env secrets/variables)
         environments = get_repo_environments(
@@ -655,7 +654,7 @@ def sync(
                 environments, organization, repo_name
             )
             load_environments(
-                neo4j_session, transformed_environments, update_tag, repo_url
+                neo4j_session, transformed_environments, update_tag, org_url
             )
 
         # Sync repo-level secrets
@@ -683,11 +682,9 @@ def sync(
             )
 
         # 3. Sync environment-level secrets and variables
-        env_ids = []
         for env in environments or []:
             env_name = env["name"]
             env_id = env["id"]
-            env_ids.append(env_id)
 
             env_secrets = get_env_secrets(
                 github_api_key, github_url, organization, repo_name, env_name
@@ -701,7 +698,7 @@ def sync(
                     env_id,
                 )
                 load_env_secrets(
-                    neo4j_session, transformed_env_secrets, update_tag, env_id
+                    neo4j_session, transformed_env_secrets, update_tag, org_url
                 )
 
             env_variables = get_env_variables(
@@ -716,12 +713,8 @@ def sync(
                     env_id,
                 )
                 load_env_variables(
-                    neo4j_session, transformed_env_variables, update_tag, env_id
+                    neo4j_session, transformed_env_variables, update_tag, org_url
                 )
-
-        # Cleanup env-level resources for this repo's environments
-        for env_id in env_ids:
-            cleanup_env_level(neo4j_session, common_job_parameters, env_id)
 
         # Cleanup repo-level resources for this repo
         cleanup_repo_level(neo4j_session, common_job_parameters, repo_url)
