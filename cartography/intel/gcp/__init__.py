@@ -518,6 +518,12 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
+        # Clean up project-level IAM resources (service accounts and project roles)
+        # This happens after all resources for this project have been synced.
+        logger.debug(f"Running cleanup for IAM resources in project {project_id}")
+        iam.cleanup_service_accounts(neo4j_session, common_job_parameters)
+        iam.cleanup_project_roles(neo4j_session, common_job_parameters)
+
         del common_job_parameters["PROJECT_ID"]
 
 
@@ -627,18 +633,19 @@ def start_gcp_ingestion(
             credentials=credentials,
         )
 
-        # Clean up roles for this org (after all project roles have been synced)
-        logger.debug(f"Running cleanup for IAM roles in {org_resource_name}")
-        iam.cleanup_roles(neo4j_session, common_job_parameters)
+        # Clean up org-level roles for this org (after all project resources have been synced)
+        logger.debug(f"Running cleanup for org-level IAM roles in {org_resource_name}")
+        iam.cleanup_org_roles(neo4j_session, common_job_parameters)
 
         # Clean up projects and folders for this org (children before parents)
+        # Use cascade_delete=True for projects to clean up any remaining project children
         logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
-        GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(GCPFolderSchema(), common_job_parameters).run(
-            neo4j_session
-        )
+        GraphJob.from_node_schema(
+            GCPProjectSchema(), common_job_parameters, cascade_delete=True
+        ).run(neo4j_session)
+        GraphJob.from_node_schema(
+            GCPFolderSchema(), common_job_parameters, cascade_delete=True
+        ).run(neo4j_session)
 
         # Save org cleanup job for later
         org_cleanup_jobs.append((GCPOrganizationSchema, dict(common_job_parameters)))
@@ -647,9 +654,12 @@ def start_gcp_ingestion(
         del common_job_parameters["ORG_RESOURCE_NAME"]
 
     # Run all org cleanup jobs at the very end, after all children have been cleaned up
+    # Use cascade_delete=True to clean up any remaining org children
     logger.info("Running cleanup for GCP organizations")
     for schema_class, params in org_cleanup_jobs:
-        GraphJob.from_node_schema(schema_class(), params).run(neo4j_session)
+        GraphJob.from_node_schema(schema_class(), params, cascade_delete=True).run(
+            neo4j_session
+        )
 
     run_analysis_job(
         "gcp_compute_asset_inet_exposure.json",

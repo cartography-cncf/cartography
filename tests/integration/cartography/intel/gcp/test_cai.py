@@ -3,9 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.gcp.cai
 import tests.data.gcp.iam
-from tests.integration.cartography.intel.gcp.test_iam import _create_test_organization
 from tests.integration.cartography.intel.gcp.test_iam import _create_test_project
-from tests.integration.cartography.intel.gcp.test_iam import TEST_ORG_ID
 from tests.integration.cartography.intel.gcp.test_iam import TEST_PROJECT_ID
 from tests.integration.cartography.intel.gcp.test_iam import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
@@ -13,7 +11,6 @@ from tests.integration.util import check_rels
 
 COMMON_JOB_PARAMS = {
     "PROJECT_ID": TEST_PROJECT_ID,
-    "ORG_RESOURCE_NAME": TEST_ORG_ID,
     "UPDATE_TAG": TEST_UPDATE_TAG,
 }
 
@@ -23,12 +20,11 @@ COMMON_JOB_PARAMS = {
 def test_sync_cai(mock_get_roles, mock_get_service_accounts, neo4j_session):
     """
     Test the full CAI sync function end-to-end with mocked API calls.
-    Verifies that service accounts and roles are properly loaded into Neo4j.
+    Verifies that service accounts and project-level roles are properly loaded into Neo4j.
     """
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-    _create_test_organization(neo4j_session, TEST_ORG_ID, TEST_UPDATE_TAG)
 
     # Mock CAI API responses - extract data from CAI asset responses
     mock_get_service_accounts.return_value = [
@@ -87,25 +83,8 @@ def test_sync_cai(mock_get_roles, mock_get_service_accounts, neo4j_session):
         == expected_sa_rels
     )
 
-    # Assert - verify role relationships to organization (sub_resource)
-    expected_role_org_rels = {
-        (TEST_ORG_ID, "projects/project-abc/roles/customRole1"),
-        (TEST_ORG_ID, "projects/project-abc/roles/customRole2"),
-    }
-    assert (
-        check_rels(
-            neo4j_session,
-            "GCPOrganization",
-            "id",
-            "GCPRole",
-            "name",
-            "RESOURCE",
-            rel_direction_right=True,
-        )
-        == expected_role_org_rels
-    )
-
-    # Assert - verify role relationships to project (other_relationships)
+    # Assert - verify role relationships to project (sub_resource)
+    # Project-level roles are sub-resources of their project, not the organization
     expected_role_project_rels = {
         (TEST_PROJECT_ID, "projects/project-abc/roles/customRole1"),
         (TEST_PROJECT_ID, "projects/project-abc/roles/customRole2"),
@@ -126,27 +105,31 @@ def test_sync_cai(mock_get_roles, mock_get_service_accounts, neo4j_session):
 
 @patch("cartography.intel.gcp.cai.get_gcp_service_accounts_cai")
 @patch("cartography.intel.gcp.cai.get_gcp_roles_cai")
-def test_sync_cai_predefined_roles_ignored(
+def test_sync_cai_filters_non_project_roles(
     mock_get_roles, mock_get_service_accounts, neo4j_session
 ):
     """
-    Test that predefined roles passed to CAI sync are now ignored.
-    Predefined roles should be synced at the organization level via sync_org_iam().
+    Test that CAI sync filters out non-project roles.
+    Predefined roles and org-level roles should be synced at the organization level via sync_org_iam().
     """
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-    _create_test_organization(neo4j_session, TEST_ORG_ID, TEST_UPDATE_TAG)
 
-    # Mock CAI API responses - only custom roles from CAI
+    # Mock CAI API responses - include a mix of role types
     mock_get_service_accounts.return_value = []
+    # CAI API might return predefined roles in some edge cases; they should be filtered
     mock_get_roles.return_value = [
         asset["resource"]["data"]
         for asset in tests.data.gcp.iam.CAI_ROLES_RESPONSE["assets"]
+    ] + [
+        # Add a predefined role that should be filtered out
+        {
+            "name": "roles/viewer",
+            "title": "Viewer",
+            "description": "View access",
+        }
     ]
-
-    # Pass predefined roles (these should be IGNORED since they're synced at org level)
-    predefined_roles = tests.data.gcp.iam.LIST_PREDEFINED_ROLES_RESPONSE["roles"]
 
     # Act
     cartography.intel.gcp.cai.sync(
@@ -155,7 +138,6 @@ def test_sync_cai_predefined_roles_ignored(
         TEST_PROJECT_ID,
         TEST_UPDATE_TAG,
         COMMON_JOB_PARAMS,
-        predefined_roles=predefined_roles,  # Should be ignored
     )
 
     # Assert - verify ONLY custom project roles were created, NOT predefined roles
@@ -182,7 +164,6 @@ def test_sync_cai_role_scope_property(
     # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-    _create_test_organization(neo4j_session, TEST_ORG_ID, TEST_UPDATE_TAG)
 
     # Mock CAI API responses
     mock_get_service_accounts.return_value = []

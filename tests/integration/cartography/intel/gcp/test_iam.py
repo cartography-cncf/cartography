@@ -121,10 +121,12 @@ def test_sync_gcp_iam_service_accounts(
 def test_sync_gcp_iam_project_role_relationships(
     _mock_get_project_roles, _mock_get_sa, neo4j_session
 ):
-    """Test sync() creates correct relationships for project-level custom roles."""
+    """Test sync() creates correct relationships for project-level custom roles.
+
+    Project-level custom roles are sub-resources of their project, not the organization.
+    """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-    _create_test_organization(neo4j_session, TEST_ORG_ID, TEST_UPDATE_TAG)
 
     cartography.intel.gcp.iam.sync(
         neo4j_session,
@@ -134,21 +136,7 @@ def test_sync_gcp_iam_project_role_relationships(
         COMMON_JOB_PARAMS,
     )
 
-    # Verify organization -> role RESOURCE relationship (sub_resource)
-    assert check_rels(
-        neo4j_session,
-        "GCPOrganization",
-        "id",
-        "GCPRole",
-        "name",
-        "RESOURCE",
-        rel_direction_right=True,
-    ) == {
-        (TEST_ORG_ID, "projects/project-abc/roles/customRole1"),
-        (TEST_ORG_ID, "projects/project-abc/roles/customRole2"),
-    }
-
-    # Verify project -> role RESOURCE relationship (other_relationships)
+    # Verify project -> role RESOURCE relationship (sub_resource)
     assert check_rels(
         neo4j_session,
         "GCPProject",
@@ -161,6 +149,20 @@ def test_sync_gcp_iam_project_role_relationships(
         (TEST_PROJECT_ID, "projects/project-abc/roles/customRole1"),
         (TEST_PROJECT_ID, "projects/project-abc/roles/customRole2"),
     }
+
+    # Verify no organization -> role relationship for project-level roles
+    assert (
+        check_rels(
+            neo4j_session,
+            "GCPOrganization",
+            "id",
+            "GCPRole",
+            "name",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
 
 
 @patch.object(

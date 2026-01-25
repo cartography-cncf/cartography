@@ -720,10 +720,14 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 
 Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles).
 
-Roles exist at different levels in the GCP hierarchy:
-- **Predefined/Basic roles** (`roles/*`) - Global roles defined by Google, synced once per organization
+Roles exist at different levels in the GCP hierarchy and are synced separately:
+- **Predefined/Basic roles** (`roles/*`) - Global roles defined by Google, synced at the organization level
 - **Custom organization roles** (`organizations/*/roles/*`) - Custom roles defined at the organization level
 - **Custom project roles** (`projects/*/roles/*`) - Custom roles defined at the project level
+
+**Important**: Organization-level roles (predefined + custom org) and project-level roles (custom project) have different sub-resource relationships:
+- Organization-level roles are sub-resources of `GCPOrganization`
+- Project-level roles are sub-resources of `GCPProject`
 
 | Field               | Description                                                                                           |
 | ------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -737,18 +741,18 @@ Roles exist at different levels in the GCP hierarchy:
 | role\_type          | The type of the role: `BASIC`, `PREDEFINED`, or `CUSTOM`.                                             |
 | scope               | The scope of the role: `GLOBAL` (predefined/basic), `ORGANIZATION` (custom org), or `PROJECT` (custom project). |
 | lastupdated         | The timestamp of the last update.                                                                     |
-| project\_id         | The ID of the GCP project for project-level custom roles (null for org-level and predefined roles).   |
-| organization\_id    | The ID of the GCP organization to which the role belongs.                                             |
+| project\_id         | The ID of the GCP project for project-level custom roles only.                                        |
+| organization\_id    | The ID of the GCP organization for organization-level roles (predefined and custom org) only.         |
 
 #### Relationships
 
-- GCPRoles are sub-resources of GCPOrganizations. All roles (predefined, custom org, and custom project) are connected to their organization.
+- Organization-level GCPRoles (predefined/basic and custom org roles) are sub-resources of GCPOrganizations.
 
     ```
     (GCPOrganization)-[RESOURCE]->(GCPRole)
     ```
 
-- Custom project-level GCPRoles are also connected to their GCPProject.
+- Project-level GCPRoles (custom project roles) are sub-resources of GCPProjects.
 
     ```
     (GCPProject)-[RESOURCE]->(GCPRole)
