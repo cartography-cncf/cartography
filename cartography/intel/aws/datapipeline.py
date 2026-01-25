@@ -48,7 +48,7 @@ def get_datapipeline_pipelines(
         logger.warning(
             f"Could not run DataPipeline list_pipelines due to boto3 error {code}: {msg}. Skipping.",
         )
-    return pipelines
+        return []
 
 
 @timeit
@@ -66,7 +66,7 @@ def get_datapipeline_describe_pipeline(
     try:
         response = client.describe_pipeline(pipelineId=pipeline_id)
         pipeline_description = response.get("pipelineDescription", {})
-        
+
         # Extract the relevant fields
         pipeline_fields = pipeline_description.get("fields", [])
         pipeline_info = {
@@ -76,7 +76,7 @@ def get_datapipeline_describe_pipeline(
             "state": "",
             "userId": "",
         }
-        
+
         for field in pipeline_fields:
             key = field.get("key")
             value = field.get("stringValue", "")
@@ -88,9 +88,10 @@ def get_datapipeline_describe_pipeline(
                 pipeline_info["state"] = value
             elif key == "userId":
                 pipeline_info["userId"] = value
-        
+
         pipeline_details = pipeline_info
-        
+        return pipeline_details
+
     except botocore.exceptions.ClientError as e:
         code = e.response["Error"]["Code"]
         msg = e.response["Error"]["Message"]

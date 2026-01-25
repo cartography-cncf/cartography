@@ -2,7 +2,7 @@
 Unit tests for AWS Data Pipeline intel module - Simplified version
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 import sys
 import os
 
@@ -13,7 +13,7 @@ from datapipeline import DESCRIBE_PIPELINES, LIST_PIPELINES
 
 class TestDataPipelineLogic:
     """Test the Data Pipeline logic without importing the full intel module"""
-    
+
     def test_describe_pipeline_data_extraction(self):
         """Test that we can extract data from describe_pipeline response"""
         pipeline_data = DESCRIBE_PIPELINES[0]
@@ -47,7 +47,7 @@ class TestDataPipelineLogic:
         assert pipeline_info["description"] == "Test pipeline for data processing"
         assert pipeline_info["state"] == "ACTIVE"
         assert pipeline_info["userId"] == "AIDAEXAMPLEUSER123456789"
-    
+
     def test_list_pipelines_structure(self):
         """Test that LIST_PIPELINES has correct structure"""
         assert len(LIST_PIPELINES) == 2
@@ -55,7 +55,7 @@ class TestDataPipelineLogic:
         assert LIST_PIPELINES[0]["name"] == "MyDataPipeline"
         assert LIST_PIPELINES[1]["id"] == "df-0987654321JKLMNOPQR"
         assert LIST_PIPELINES[1]["name"] == "ETLPipeline"
-    
+
     def test_describe_pipelines_completeness(self):
         """Test that all DESCRIBE_PIPELINES have required fields"""
         for i, pipeline_data in enumerate(DESCRIBE_PIPELINES):
@@ -108,7 +108,7 @@ class TestDataPipelineLogic:
 
 class TestDataPipelineMocking:
     """Test mocking scenarios for Data Pipeline operations"""
-    
+
     def test_mock_aws_client_describe_pipeline(self):
         """Test mocking AWS client describe_pipeline call"""
         mock_session = Mock()
