@@ -359,14 +359,14 @@ class YourServiceTenantToUserRel(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher({
         "id": PropertyRef("TENANT_ID", set_in_kwargs=True),     # Match on tenant.id = TENANT_ID kwarg
     })
-    direction: LinkDirection = LinkDirection.OUTWARD            # Direction of relationship
+    direction: LinkDirection = LinkDirection.INWARD             # Tenant points to User
     rel_label: str = "RESOURCE"                                 # Relationship label
     properties: YourServiceTenantToUserRelProperties = YourServiceTenantToUserRelProperties()
 ```
 
 **Relationship Directions:**
-- `LinkDirection.OUTWARD`: `(:YourServiceUser)-[:RESOURCE]->(:YourServiceTenant)`
-- `LinkDirection.INWARD`: `(:YourServiceUser)<-[:RESOURCE]-(:YourServiceTenant)`
+- `LinkDirection.INWARD`: `(:YourServiceTenant)-[:RESOURCE]->(:YourServiceUser)` - Used for sub_resource relationships
+- `LinkDirection.OUTWARD`: `(:YourServiceUser)-[:RESOURCE]->(:YourServiceTenant)` - Rarely used for RESOURCE
 
 > For advanced relationship patterns (MatchLinks, one-to-many, cross-module relationships), see [Adding a New Relationship](add-relationship.md).
 
