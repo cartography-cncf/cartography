@@ -39,6 +39,9 @@ jobs:
       # Grant the ability to write to GitHub Packages (push Docker images to
       # GitHub Container Registry).
       packages: write
+      # Required for SBOM and provenance attestations
+      id-token: write
+      attestations: write
     steps:
       # See: https://docs.docker.com/build/ci/github-actions/multi-platform/#build-and-load-multi-platform-images
       - name: Set up Docker
@@ -115,3 +118,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           # e.g. '==0.98.0'
           build-args: VERSION_SPECIFIER===${{ env.VERSION }}
+          # Generate SBOM (Software Bill of Materials) attestation
+          sbom: true
+          # Generate provenance attestation for supply chain security
+          provenance: mode=max
