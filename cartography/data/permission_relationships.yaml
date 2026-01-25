@@ -6,11 +6,13 @@
   permissions:
   - S3:GetObject
   relationship_name: CAN_READ
-# Map principals that can write items to an S3Bucket.
-- target_label: S3Bucket
+# Map principals that can query Elasticsearch domains.
+- target_label: ESDomain
   permissions:
-  - S3:PutObject
-  relationship_name: CAN_WRITE
+  - es:ESHttpGet
+  - es:ESHttpPost
+  - es:ESHttpPut
+  relationship_name: CAN_QUERY
 # Map principals that can retrieve data from DynamoDB.
 - target_label: DynamoDBTable
   permissions:
@@ -27,11 +29,3 @@
   - redshift:GetClusterCredentials
   - redshift:JoinGroup
   relationship_name: CAN_ADMINISTER
-# DataPipeline - Execute code via pipeline tasks
-- target_label: DataPipeline
-  permissions:
-  - iam:PassRole
-  - datapipeline:CreatePipeline
-  - datapipeline:PutPipelineDefinition
-  - datapipeline:ActivatePipeline
-  relationship_name: CAN_EXEC

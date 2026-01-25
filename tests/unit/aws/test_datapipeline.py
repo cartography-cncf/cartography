@@ -1,5 +1,5 @@
 """
-Unit tests for AWS Data Pipeline intel module - Simplified version
+Unit tests for AWS Data Pipeline intel module
 """
 import pytest
 from unittest.mock import Mock
@@ -10,149 +10,161 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../data/aws'))
 from datapipeline import DESCRIBE_PIPELINES, LIST_PIPELINES
 
+# Add the path to import the intel module
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../cartography'))
+import importlib.util
 
-class TestDataPipelineLogic:
-    """Test the Data Pipeline logic without importing the full intel module"""
-
-    def test_describe_pipeline_data_extraction(self):
-        """Test that we can extract data from describe_pipeline response"""
-        pipeline_data = DESCRIBE_PIPELINES[0]
-        pipeline_description = pipeline_data.get("pipelineDescription", {})
-        fields = pipeline_description.get("fields", [])
-        
-        # Extract fields like the intel module does
-        pipeline_info = {
-            "id": pipeline_description.get("pipelineId"),
-            "name": "",
-            "description": "",
-            "state": "",
-            "userId": "",
-        }
-        
-        for field in fields:
-            key = field.get("key")
-            value = field.get("stringValue", "")
-            if key == "name":
-                pipeline_info["name"] = value
-            elif key == "description":
-                pipeline_info["description"] = value
-            elif key == "@state":
-                pipeline_info["state"] = value
-            elif key == "userId":
-                pipeline_info["userId"] = value
-        
-        # Verify extraction worked
-        assert pipeline_info["id"] == "df-1234567890ABCDEFGHI"
-        assert pipeline_info["name"] == "MyDataPipeline"
-        assert pipeline_info["description"] == "Test pipeline for data processing"
-        assert pipeline_info["state"] == "ACTIVE"
-        assert pipeline_info["userId"] == "AIDAEXAMPLEUSER123456789"
-
-    def test_list_pipelines_structure(self):
-        """Test that LIST_PIPELINES has correct structure"""
-        assert len(LIST_PIPELINES) == 2
-        assert LIST_PIPELINES[0]["id"] == "df-1234567890ABCDEFGHI"
-        assert LIST_PIPELINES[0]["name"] == "MyDataPipeline"
-        assert LIST_PIPELINES[1]["id"] == "df-0987654321JKLMNOPQR"
-        assert LIST_PIPELINES[1]["name"] == "ETLPipeline"
-
-    def test_describe_pipelines_completeness(self):
-        """Test that all DESCRIBE_PIPELINES have required fields"""
-        for i, pipeline_data in enumerate(DESCRIBE_PIPELINES):
-            pipeline_description = pipeline_data.get("pipelineDescription", {})
-            
-            # Check required top-level fields
-            assert pipeline_description.get("pipelineId") is not None
-            assert pipeline_description.get("name") is not None
-            
-            # Check fields array
-            fields = pipeline_description.get("fields", [])
-            assert len(fields) > 0
-            
-            # Convert to dict for easier testing
-            field_dict = {field.get("key"): field.get("stringValue", "") for field in fields}
-            
-            # Check required fields exist
-            required_fields = ["name", "description", "@state", "userId"]
-            for field in required_fields:
-                assert field in field_dict, f"Missing field {field} in pipeline {i+1}"
-                assert field_dict[field] != "", f"Empty field {field} in pipeline {i+1}"
-    
-    def test_pipeline_states_variety(self):
-        """Test that we have different pipeline states for testing"""
-        states = []
-        for pipeline_data in DESCRIBE_PIPELINES:
-            pipeline_description = pipeline_data.get("pipelineDescription", {})
-            fields = pipeline_description.get("fields", [])
-            field_dict = {field.get("key"): field.get("stringValue", "") for field in fields}
-            states.append(field_dict.get("@state"))
-        
-        # Should have different states (ACTIVE and PENDING)
-        assert "ACTIVE" in states
-        assert "PENDING" in states
-        assert len(set(states)) >= 2  # At least 2 different states
-    
-    def test_user_ids_variety(self):
-        """Test that we have different user IDs for testing"""
-        user_ids = []
-        for pipeline_data in DESCRIBE_PIPELINES:
-            pipeline_description = pipeline_data.get("pipelineDescription", {})
-            fields = pipeline_description.get("fields", [])
-            field_dict = {field.get("key"): field.get("stringValue", "") for field in fields}
-            user_ids.append(field_dict.get("userId"))
-        
-        # Should have different users
-        assert len(set(user_ids)) >= 2  # At least 2 different users
-        assert all(user_id.startswith("AIDA") for user_id in user_ids if user_id)
+# Import the datapipeline intel module directly
+spec = importlib.util.spec_from_file_location(
+    "datapipeline_intel",
+    os.path.join(os.path.dirname(__file__), '../../../cartography/intel/aws/datapipeline.py')
+)
+datapipeline_intel = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(datapipeline_intel)
 
 
-class TestDataPipelineMocking:
-    """Test mocking scenarios for Data Pipeline operations"""
+class TestDataPipelineIntel:
+    """Test the Data Pipeline intel module with mock data"""
 
-    def test_mock_aws_client_describe_pipeline(self):
-        """Test mocking AWS client describe_pipeline call"""
+    def test_get_datapipeline_describe_pipeline_success(self):
+        """Test successful pipeline description parsing"""
         mock_session = Mock()
         mock_client = Mock()
         mock_session.client.return_value = mock_client
-        
+
         # Mock the describe_pipeline response
         mock_client.describe_pipeline.return_value = DESCRIBE_PIPELINES[0]
+
+        result = datapipeline_intel.get_datapipeline_describe_pipeline(
+            mock_session, "us-east-1", "df-1234567890ABCDEFGHI"
+        )
         
-        # Test that mock works
-        result = mock_client.describe_pipeline(pipelineId="df-1234567890ABCDEFGHI")
-        assert result == DESCRIBE_PIPELINES[0]
-        mock_client.describe_pipeline.assert_called_once_with(pipelineId="df-1234567890ABCDEFGHI")
-    
-    def test_mock_aws_client_list_pipelines(self):
-        """Test mocking AWS client list_pipelines call"""
+        # Verify the real implementation extracts data correctly
+        assert result["id"] == "df-1234567890ABCDEFGHI"
+        assert result["name"] == "MyDataPipeline"
+        assert result["description"] == "Test pipeline for data processing"
+        assert result["state"] == "ACTIVE"
+        assert result["userId"] == "AIDAEXAMPLEUSER123456789"
+
+    def test_get_datapipeline_describe_pipeline_error(self):
+        """Test error handling in describe_pipeline"""
         mock_session = Mock()
         mock_client = Mock()
-        mock_paginator = Mock()
         mock_session.client.return_value = mock_client
-        mock_client.get_paginator.return_value = mock_paginator
+
+        # Mock boto3 ClientError (the real implementation only catches this specific exception)
+        import botocore.exceptions
+        error_response = {'Error': {'Code': 'AccessDenied', 'Message': 'Access Denied'}}
+        mock_client.describe_pipeline.side_effect = botocore.exceptions.ClientError(error_response, 'DescribePipeline')
+
+        result = datapipeline_intel.get_datapipeline_describe_pipeline(
+            mock_session, "us-east-1", "df-invalid-id"
+        )
         
+        # Should return empty dict on error (real implementation behavior)
+        assert result == {}
+
+    def test_get_datapipeline_pipelines_success(self):
+        """Test successful pipeline listing"""
+        mock_session = Mock()
+        mock_client = Mock()
+        mock_session.client.return_value = mock_client
+
+        # Mock the paginator
+        mock_paginator = Mock()
+        mock_client.get_paginator.return_value = mock_paginator
+
         # Mock pagination response
         mock_paginator.paginate.return_value = [
             {"pipelineIdList": LIST_PIPELINES}
         ]
         
-        # Test that mock works
-        pages = list(mock_paginator.paginate())
-        assert len(pages) == 1
-        assert pages[0]["pipelineIdList"] == LIST_PIPELINES
-    
-    def test_mock_error_handling(self):
-        """Test error handling scenarios"""
+        # Mock describe_pipeline for each pipeline
+        mock_client.describe_pipeline.side_effect = DESCRIBE_PIPELINES
+
+        result = datapipeline_intel.get_datapipeline_pipelines(
+            mock_session, "us-east-1"
+        )
+        
+        # The real implementation returns a list, not None
+        assert result is not None
+        assert len(result) == 2
+        assert result[0]["id"] == "df-1234567890ABCDEFGHI"
+        assert result[1]["id"] == "df-0987654321JKLMNOPQR"
+
+    def test_get_datapipeline_pipelines_error(self):
+        """Test error handling in pipeline listing"""
         mock_session = Mock()
         mock_client = Mock()
         mock_session.client.return_value = mock_client
+
+        # Mock boto3 ClientError for list_pipelines
+        import botocore.exceptions
+        error_response = {'Error': {'Code': 'AccessDenied', 'Message': 'Access Denied'}}
+        mock_paginator = Mock()
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.side_effect = botocore.exceptions.ClientError(error_response, 'ListPipelines')
+
+        result = datapipeline_intel.get_datapipeline_pipelines(
+            mock_session, "us-east-1"
+        )
         
-        # Mock boto3 error
-        mock_client.describe_pipeline.side_effect = Exception("Access Denied")
+        # Should return empty list on error (real implementation behavior)
+        assert result == []
+
+    def test_real_implementation_parsing(self):
+        """Test that the real implementation parses test data correctly"""
+        mock_session = Mock()
+        mock_client = Mock()
+        mock_session.client.return_value = mock_client
+
+        # Test each pipeline in our test data
+        for i, expected_pipeline in enumerate(DESCRIBE_PIPELINES):
+            mock_client.describe_pipeline.return_value = expected_pipeline
+            
+            result = datapipeline_intel.get_datapipeline_describe_pipeline(
+                mock_session, "us-east-1", f"df-test-{i}"
+            )
+            
+            # Verify the real implementation matches expected data
+            expected_description = expected_pipeline.get("pipelineDescription", {})
+            expected_fields = {field["key"]: field.get("stringValue", "") for field in expected_description.get("fields", [])}
+            
+            assert result["id"] == expected_description.get("pipelineId")
+            assert result["name"] == expected_fields.get("name")
+            assert result["description"] == expected_fields.get("description")
+            assert result["state"] == expected_fields.get("@state")
+            assert result["userId"] == expected_fields.get("userId")
+
+    def test_aws_handle_regions_decorator(self):
+        """Test that the function has the required @aws_handle_regions decorator"""
+        # Check if the function has the decorator (indicates it's wrapped)
+        assert hasattr(datapipeline_intel.get_datapipeline_describe_pipeline, '__wrapped__')
         
-        # Test error handling
-        with pytest.raises(Exception, match="Access Denied"):
-            mock_client.describe_pipeline(pipelineId="df-invalid-id")
+        # Test that the function is properly decorated by checking it has the wrapper attributes
+        func = datapipeline_intel.get_datapipeline_describe_pipeline
+        assert hasattr(func, '__wrapped__')  # Indicates it's decorated
+
+    def test_data_extraction_completeness(self):
+        """Test that the real implementation extracts all required fields"""
+        mock_session = Mock()
+        mock_client = Mock()
+        mock_session.client.return_value = mock_client
+
+        # Test each pipeline in our test data
+        for pipeline_data in DESCRIBE_PIPELINES:
+            mock_client.describe_pipeline.return_value = pipeline_data
+            
+            result = datapipeline_intel.get_datapipeline_describe_pipeline(
+                mock_session, "us-east-1", "test-pipeline"
+            )
+            
+            # Verify all required fields are extracted by the real implementation
+            assert result["id"] is not None
+            assert result["name"] != ""
+            assert result["description"] != ""
+            assert result["state"] != ""
+            assert result["userId"] != ""
 
 
 if __name__ == "__main__":

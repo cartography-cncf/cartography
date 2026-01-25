@@ -10,6 +10,9 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.permission_relationships import (
+    principal_allowed_on_resource,
+)
 from cartography.models.aws.datapipeline import DataPipelineSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -50,8 +53,11 @@ def get_datapipeline_pipelines(
         )
         return []
 
+    return pipelines
+
 
 @timeit
+@aws_handle_regions
 def get_datapipeline_describe_pipeline(
     boto3_session: boto3.session.Session,
     region: str,

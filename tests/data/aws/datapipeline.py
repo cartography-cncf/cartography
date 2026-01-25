@@ -86,3 +86,40 @@ LIST_PIPELINES = [
         "name": "ETLPipeline"
     }
 ]
+
+# Test users with different permission sets for Data Pipeline privilege escalation testing
+TEST_USERS = [
+    {
+        "user_id": "AIDAEXAMPLEUSER123456789",
+        "user_name": "admin-user",
+        "has_all_permissions": True,
+        "permissions": [
+            "iam:PassRole",
+            "datapipeline:CreatePipeline",
+            "datapipeline:PutPipelineDefinition",
+            "datapipeline:ActivatePipeline"
+        ]
+    },
+    {
+        "user_id": "AIDAEXAMPLEUSER987654321",
+        "user_name": "limited-user",
+        "has_all_permissions": True,
+        "permissions": [
+            "iam:PassRole",
+            "datapipeline:CreatePipeline",
+            "datapipeline:PutPipelineDefinition",
+            "datapipeline:ActivatePipeline"
+        ]
+    },
+    {
+        "user_id": "AIDAEXAMPLEUSER111222333",
+        "user_name": "restricted-user",
+        "has_all_permissions": False,
+        "permissions": [
+            "iam:PassRole",
+            "datapipeline:CreatePipeline",
+            "datapipeline:PutPipelineDefinition"
+            # Missing: datapipeline:ActivatePipeline
+        ]
+    }
+]

@@ -1,166 +1,204 @@
 """
-Simplified integration tests for AWS Data Pipeline intel module
+Integration tests for AWS Data Pipeline intel module
 """
 import pytest
 from unittest.mock import Mock
 import sys
 import os
+from neo4j import GraphDatabase
 
 # Add the path to import the test data
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../data/aws'))
 from datapipeline import DESCRIBE_PIPELINES, LIST_PIPELINES
 
+# Add the path to import the intel module
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../cartography'))
+import importlib.util
 
-class TestDataPipelineIntegrationSimple:
-    """Simplified integration tests for Data Pipeline without Neo4j dependencies"""
+# Import the datapipeline intel module directly
+spec = importlib.util.spec_from_file_location(
+    "datapipeline_intel",
+    os.path.join(os.path.dirname(__file__), '../../../cartography/intel/aws/datapipeline.py')
+)
+datapipeline_intel = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(datapipeline_intel)
 
-    def test_data_processing_workflow(self):
-        """Test the complete data processing workflow"""
-        # Simulate the workflow: list_pipelines -> describe_pipeline -> extract_data
-        
-        # Step 1: List pipelines (mock response)
-        pipeline_list = LIST_PIPELINES
-        assert len(pipeline_list) == 2
-        
-        # Step 2: Get detailed descriptions for each pipeline
-        detailed_pipelines = []
-        for pipeline_info in pipeline_list:
-            # Find matching detailed description
-            pipeline_id = pipeline_info["id"]
-            for detailed in DESCRIBE_PIPELINES:
-                if detailed["pipelineDescription"]["pipelineId"] == pipeline_id:
-                    detailed_pipelines.append(detailed)
-                    break
-        
-        assert len(detailed_pipelines) == 2
-        
-        # Step 3: Extract data like the intel module does
-        extracted_pipelines = []
-        for pipeline_data in detailed_pipelines:
-            pipeline_description = pipeline_data.get("pipelineDescription", {})
-            fields = pipeline_description.get("fields", [])
-            
-            pipeline_info = {
-                "id": pipeline_description.get("pipelineId"),
-                "name": "",
-                "description": "",
-                "state": "",
-                "userId": "",
-            }
-            
-            for field in fields:
-                key = field.get("key")
-                value = field.get("stringValue", "")
-                if key == "name":
-                    pipeline_info["name"] = value
-                elif key == "description":
-                    pipeline_info["description"] = value
-                elif key == "@state":
-                    pipeline_info["state"] = value
-                elif key == "userId":
-                    pipeline_info["userId"] = value
-            
-            extracted_pipelines.append(pipeline_info)
-        
-        # Step 4: Validate extracted data
-        assert len(extracted_pipelines) == 2
-        
-        # Check first pipeline
-        pipeline1 = extracted_pipelines[0]
-        assert pipeline1["id"] == "df-1234567890ABCDEFGHI"
-        assert pipeline1["name"] == "MyDataPipeline"
-        assert pipeline1["state"] == "ACTIVE"
-        
-        # Check second pipeline
-        pipeline2 = extracted_pipelines[1]
-        assert pipeline2["id"] == "df-0987654321JKLMNOPQR"
-        assert pipeline2["name"] == "ETLPipeline"
-        assert pipeline2["state"] == "PENDING"
 
-    def test_error_handling_workflow(self):
-        """Test error handling in the workflow"""
-        # Test with missing pipeline in detailed descriptions
-        incomplete_pipeline_list = [{"id": "df-missing-pipeline", "name": "MissingPipeline"}]
-        
-        # Should handle gracefully when detailed description is missing
-        detailed_pipelines = []
-        for pipeline_info in incomplete_pipeline_list:
-            pipeline_id = pipeline_info["id"]
-            found = False
-            for detailed in DESCRIBE_PIPELINES:
-                if detailed["pipelineDescription"]["pipelineId"] == pipeline_id:
-                    detailed_pipelines.append(detailed)
-                    found = True
-                    break
-            if not found:
-                # Handle missing pipeline gracefully
-                print(f"Warning: Pipeline {pipeline_id} not found in detailed descriptions")
-        
-        # Should have 0 pipelines since none were found
-        assert len(detailed_pipelines) == 0
+class TestDataPipelineIntegration:
+    """Integration tests for Data Pipeline with Neo4j"""
 
-    def test_data_validation(self):
-        """Test data validation and edge cases"""
-        # Test with empty fields
-        for pipeline_data in DESCRIBE_PIPELINES:
-            pipeline_description = pipeline_data.get("pipelineDescription", {})
-            fields = pipeline_description.get("fields", [])
-            
-            # Extract fields
-            pipeline_info = {
-                "id": pipeline_description.get("pipelineId"),
-                "name": "",
-                "description": "",
-                "state": "",
-                "userId": "",
-            }
-            
-            for field in fields:
-                key = field.get("key")
-                value = field.get("stringValue", "")
-                if key == "name":
-                    pipeline_info["name"] = value
-                elif key == "description":
-                    pipeline_info["description"] = value
-                elif key == "@state":
-                    pipeline_info["state"] = value
-                elif key == "userId":
-                    pipeline_info["userId"] = value
-            
-            # Validate required fields
-            assert pipeline_info["id"] is not None
-            assert pipeline_info["id"] != ""
-            assert pipeline_info["name"] != ""
-            assert pipeline_info["state"] != ""
-            assert pipeline_info["userId"] != ""
+    @pytest.fixture
+    def neo4j_driver(self):
+        """Neo4j driver for testing"""
+        # Use test database or skip if not available
+        try:
+            driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"))
+            # Test connection
+            with driver.session() as session:
+                session.run("RETURN 1")
+            yield driver
+            driver.close()
+        except Exception:
+            pytest.skip("Neo4j not available for integration testing")
 
-    def test_permission_analysis_simulation(self):
-        """Test simulation of permission analysis"""
-        # Simulate principals with different permission sets
-        principals = [
-            {
-                "arn": "arn:aws:iam::123456789012:user/admin-user",
-                "permissions": ["iam:PassRole", "datapipeline:CreatePipeline", "datapipeline:PutPipelineDefinition", "datapipeline:ActivatePipeline"]
-            },
-            {
-                "arn": "arn:aws:iam::123456789012:user/limited-user", 
-                "permissions": ["iam:PassRole", "datapipeline:CreatePipeline"]  # Missing some permissions
-            }
+    @pytest.fixture
+    def mock_aws_session(self):
+        """Mock AWS session with test data"""
+        mock_session = Mock()
+        mock_client = Mock()
+        mock_session.client.return_value = mock_client
+        
+        # Mock the paginator
+        mock_paginator = Mock()
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {"pipelineIdList": LIST_PIPELINES}
         ]
+        
+        # Mock describe_pipeline for each pipeline
+        mock_client.describe_pipeline.side_effect = DESCRIBE_PIPELINES
+        
+        return mock_session
 
-        # Required permissions for CAN_EXEC relationship
-        required_permissions = ["iam:PassRole", "datapipeline:CreatePipeline", "datapipeline:PutPipelineDefinition", "datapipeline:ActivatePipeline"]
+    def test_load_datapipeline_pipelines_integration(self, neo4j_driver, mock_aws_session):
+        """Test loading Data Pipeline data into Neo4j"""
+        # Get test data using real implementation
+        pipelines = datapipeline_intel.get_datapipeline_pipelines(mock_aws_session, "us-east-1")
         
-        # Analyze which principals have all required permissions
-        high_risk_principals = []
-        for principal in principals:
-            if all(perm in principal["permissions"] for perm in required_permissions):
-                high_risk_principals.append(principal["arn"])
+        # Load into Neo4j
+        with neo4j_driver.session() as session:
+            # Clear test data
+            session.run("MATCH (n:DataPipeline) WHERE n.id STARTS WITH 'df-' DETACH DELETE n")
+            
+            # Load test data using real implementation
+            datapipeline_intel.load_datapipeline_pipelines(
+                session, pipelines, "us-east-1", "123456789012", 1234567890
+            )
+            
+            # Verify data was loaded
+            result = session.run("MATCH (pipeline:DataPipeline) RETURN count(pipeline) as count")
+            count = result.single()["count"]
+            assert count == 2
+            
+            # Verify specific pipeline data
+            result = session.run("""
+                MATCH (pipeline:DataPipeline) 
+                WHERE pipeline.id = $id
+                RETURN pipeline.name, pipeline.state, pipeline.region
+            """, id="df-1234567890ABCDEFGHI")
+            
+            record = result.single()
+            assert record is not None
+            assert record["pipeline.name"] == "MyDataPipeline"
+            assert record["pipeline.state"] == "ACTIVE"
+            assert record["pipeline.region"] == "us-east-1"
+
+    def test_pipeline_account_relationship(self, neo4j_driver, mock_aws_session):
+        """Test that pipelines are properly linked to AWS accounts"""
+        pipelines = datapipeline_intel.get_datapipeline_pipelines(mock_aws_session, "us-east-1")
         
-        # Should only find the admin user
-        assert len(high_risk_principals) == 1
-        assert "admin-user" in high_risk_principals[0]
-        assert "limited-user" not in high_risk_principals[0]
+        with neo4j_driver.session() as session:
+            # Clear and load data
+            session.run("MATCH (n:DataPipeline) WHERE n.id STARTS WITH 'df-' DETACH DELETE n")
+            session.run("MERGE (acc:AWSAccount {id: '123456789012'})")
+            
+            datapipeline_intel.load_datapipeline_pipelines(
+                session, pipelines, "us-east-1", "123456789012", 1234567890
+            )
+            
+            # Verify relationship exists (correct direction: AWSAccount->DataPipeline)
+            result = session.run("""
+                MATCH (account:AWSAccount)-[:RESOURCE]->(pipeline:DataPipeline)
+                WHERE account.id = $account_id
+                RETURN count(pipeline) as count
+            """, account_id="123456789012")
+            
+            count = result.single()["count"]
+            assert count == 2
+
+    def test_sync_function_integration(self, neo4j_driver, mock_aws_session):
+        """Test the complete sync function"""
+        with neo4j_driver.session() as session:
+            # Clear test data
+            session.run("MATCH (n:DataPipeline) WHERE n.id STARTS WITH 'df-' DETACH DELETE n")
+            session.run("MERGE (acc:AWSAccount {id: '123456789012'})")
+            
+            # Run complete sync using real implementation
+            common_job_parameters = {"UPDATE_TAG": 1234567890, "AWS_ID": "123456789012"}
+            datapipeline_intel.sync(
+                session, mock_aws_session, ["us-east-1"], "123456789012", 1234567890, common_job_parameters
+            )
+            
+            # Verify results
+            result = session.run("MATCH (pipeline:DataPipeline) RETURN count(pipeline) as count")
+            count = result.single()["count"]
+            assert count == 2
+            
+            # Verify account relationships (correct direction: AWSAccount->DataPipeline)
+            result = session.run("""
+                MATCH (account:AWSAccount {id: '123456789012'})-[:RESOURCE]->(pipeline:DataPipeline)
+                RETURN count(pipeline) as count
+            """)
+            
+            count = result.single()["count"]
+            assert count == 2
+
+    def test_real_implementation_data_extraction(self, mock_aws_session):
+        """Test that the real implementation extracts data correctly"""
+        # Test each pipeline in our test data
+        for i, expected_pipeline in enumerate(DESCRIBE_PIPELINES):
+            # Mock the describe_pipeline response
+            mock_aws_session.client.return_value.describe_pipeline.return_value = expected_pipeline
+            
+            result = datapipeline_intel.get_datapipeline_describe_pipeline(
+                mock_aws_session, "us-east-1", f"df-test-{i}"
+            )
+            
+            # Verify the real implementation matches expected data
+            expected_description = expected_pipeline.get("pipelineDescription", {})
+            expected_fields = {field["key"]: field.get("stringValue", "") for field in expected_description.get("fields", [])}
+            
+            assert result["id"] == expected_description.get("pipelineId")
+            assert result["name"] == expected_fields.get("name")
+            assert result["description"] == expected_fields.get("description")
+            assert result["state"] == expected_fields.get("@state")
+            assert result["userId"] == expected_fields.get("userId")
+
+    def test_error_handling_integration(self, neo4j_driver):
+        """Test error handling in real implementation"""
+        mock_session = Mock()
+        mock_client = Mock()
+        mock_session.client.return_value = mock_client
+
+        # Mock boto3 ClientError
+        import botocore.exceptions
+        error_response = {'Error': {'Code': 'AccessDenied', 'Message': 'Access Denied'}}
+        mock_client.describe_pipeline.side_effect = botocore.exceptions.ClientError(error_response, 'DescribePipeline')
+
+        result = datapipeline_intel.get_datapipeline_describe_pipeline(
+            mock_session, "us-east-1", "df-invalid-id"
+        )
+        
+        # Should return empty dict on error (real implementation behavior)
+        assert result == {}
+
+    def test_real_implementation_pipelines_list(self, mock_aws_session):
+        """Test that the real implementation lists pipelines correctly"""
+        # Test successful pipeline listing
+        pipelines = datapipeline_intel.get_datapipeline_pipelines(mock_aws_session, "us-east-1")
+        
+        # Verify the real implementation returns correct data
+        assert len(pipelines) == 2
+        assert pipelines[0]["id"] == "df-1234567890ABCDEFGHI"
+        assert pipelines[1]["id"] == "df-0987654321JKLMNOPQR"
+        
+        # Verify data structure
+        for pipeline in pipelines:
+            assert "id" in pipeline
+            assert "name" in pipeline
+            assert "description" in pipeline
+            assert "state" in pipeline
+            assert "userId" in pipeline
 
 
 if __name__ == "__main__":

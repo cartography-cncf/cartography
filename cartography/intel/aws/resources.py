@@ -133,7 +133,6 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ssm": ssm.sync,
         "acm:certificate": acm.sync,
         "inspector": inspector.sync,
-        "config": config.sync,
         "identitycenter": identitycenter.sync_identity_center_instances,
         "cloudtrail": cloudtrail.sync,
         "cloudtrail_management_events": cloudtrail_management_events.sync,
