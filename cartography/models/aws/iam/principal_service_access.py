@@ -16,6 +16,7 @@ class AWSPrincipalServiceAccessNodeProperties(CartographyNodeProperties):
     Composite node schema for AWSPrincipal with service last accessed details.
     This schema adds service access properties to existing AWSPrincipal nodes.
     """
+
     # Required unique identifier - matches existing principals by ARN
     id: PropertyRef = PropertyRef("arn")
     arn: PropertyRef = PropertyRef("arn", extra_index=True)
@@ -25,7 +26,9 @@ class AWSPrincipalServiceAccessNodeProperties(CartographyNodeProperties):
 
     # Service last accessed fields
     last_accessed_service_name: PropertyRef = PropertyRef("last_accessed_service_name")
-    last_accessed_service_namespace: PropertyRef = PropertyRef("last_accessed_service_namespace")
+    last_accessed_service_namespace: PropertyRef = PropertyRef(
+        "last_accessed_service_namespace"
+    )
     last_authenticated: PropertyRef = PropertyRef("last_authenticated")
     last_authenticated_entity: PropertyRef = PropertyRef("last_authenticated_entity")
     last_authenticated_region: PropertyRef = PropertyRef("last_authenticated_region")
@@ -57,8 +60,11 @@ class AWSPrincipalServiceAccessSchema(CartographyNodeSchema):
     Composite schema that adds service access properties to AWSPrincipal nodes.
     Uses the same label as existing AWSUser/AWSRole/AWSGroup to merge properties.
     """
+
     label: str = "AWSPrincipal"
-    properties: AWSPrincipalServiceAccessNodeProperties = AWSPrincipalServiceAccessNodeProperties()
+    properties: AWSPrincipalServiceAccessNodeProperties = (
+        AWSPrincipalServiceAccessNodeProperties()
+    )
     sub_resource_relationship: AWSPrincipalServiceAccessToAWSAccountRel = (
         AWSPrincipalServiceAccessToAWSAccountRel()
     )

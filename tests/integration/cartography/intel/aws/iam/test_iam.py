@@ -4,13 +4,10 @@ from unittest.mock import MagicMock
 import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
 import tests.data.aws.iam
-from cartography.cli import CLI
 from cartography.client.core.tx import load
-from cartography.config import Config
 from cartography.intel.aws.iam import _transform_policy_statements
 from cartography.intel.aws.iam import sync_root_principal
 from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
-from cartography.sync import build_default_sync
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -96,9 +93,20 @@ def test_load_groups(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-def test_load_service_last_accessed_details(neo4j_session):
+
+@mock.patch.object(
+    cartography.intel.aws.iam,
+    "get_service_last_accessed_details",
+    return_value=tests.data.aws.iam.SERVICE_LAST_ACCESSED_DETAILS,
+)
+def test_sync_service_last_accessed_details(mock_get, neo4j_session):
+    """
+    Test that sync_service_last_accessed_details correctly fetches and loads
+    service last accessed data for principals.
+    """
     _create_base_account(neo4j_session)
 
+    # Create a test principal that the sync function will find
     test_principal_arn = "arn:aws:iam::000000000000:user/example-user-0"
     neo4j_session.run(
         "MERGE (u:AWSUser:AWSPrincipal{id: $arn}) "
@@ -107,17 +115,23 @@ def test_load_service_last_accessed_details(neo4j_session):
         "MATCH (aa:AWSAccount{id: $account_id}) "
         "MERGE (aa)-[r:RESOURCE]->(u)",
         arn=test_principal_arn,
-        account_id=TEST_ACCOUNT_ID
+        account_id=TEST_ACCOUNT_ID,
     )
 
-    cartography.intel.aws.iam.load_service_last_accessed_details(
+    # Call the sync function (which queries for principals and calls the API)
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AWS_ID": TEST_ACCOUNT_ID,
+    }
+    cartography.intel.aws.iam.sync_service_last_accessed_details(
         neo4j_session,
-        tests.data.aws.iam.SERVICE_LAST_ACCESSED_DETAILS,
-        test_principal_arn,
+        MagicMock(),  # boto3_session - mocked via patch
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
+        common_job_parameters,
     )
-    
+
+    # Verify the service last accessed data was loaded onto the principal
     nodes = check_nodes(
         neo4j_session,
         "AWSPrincipal",
@@ -132,8 +146,7 @@ def test_load_service_last_accessed_details(neo4j_session):
     )
 
     test_principal_data = {
-        node for node in nodes
-        if node[0] == test_principal_arn and node[1] is not None
+        node for node in nodes if node[0] == test_principal_arn and node[1] is not None
     }
 
     expected_data = {
