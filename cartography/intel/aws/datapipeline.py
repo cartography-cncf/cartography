@@ -10,8 +10,9 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.ec2.util import get_botocore_config
-from cartography.intel.aws.permission_relationships import (
-    principal_allowed_on_resource,
+from cartography.intel.aws.datapipeline_privilege_escalation import (
+    create_datapipeline_can_exec_relationships,
+    cleanup_datapipeline_can_exec_relationships,
 )
 from cartography.models.aws.datapipeline import DataPipelineSchema
 from cartography.util import aws_handle_regions
@@ -136,6 +137,9 @@ def cleanup(
     logger.debug("Running DataPipeline cleanup job.")
     cleanup_job = GraphJob.from_node_schema(DataPipelineSchema(), common_job_parameters)
     cleanup_job.run(neo4j_session)
+    
+    # Clean up custom Data Pipeline CAN_EXEC relationships
+    cleanup_datapipeline_can_exec_relationships(neo4j_session, common_job_parameters.get("UPDATE_TAG", 0))
 
 
 @timeit
@@ -163,3 +167,7 @@ def sync(
         )
 
     cleanup(neo4j_session, common_job_parameters)
+    
+    # Run custom Data Pipeline privilege escalation analysis with AND logic
+    logger.info("Running Data Pipeline privilege escalation analysis with AND logic")
+    create_datapipeline_can_exec_relationships(neo4j_session)
