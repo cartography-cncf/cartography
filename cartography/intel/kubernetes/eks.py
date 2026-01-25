@@ -313,7 +313,7 @@ def transform_access_entries(
     Access Entries map IAM principals (users or roles) to Kubernetes users and groups.
     Each access entry has:
     - principalArn: The IAM principal (user or role) ARN
-    - username: The Kubernetes username (defaults to principalArn if not specified)
+    - username is populated by AWS. When no explicit username is configured, AWS sets it to the principal ARN.
     - kubernetesGroups: List of Kubernetes groups the user belongs to
 
     Returns a dictionary with 'users' and 'groups' keys containing transformed data.
