@@ -549,6 +549,12 @@ Note that secret **values are never exposed** by the GitHub API - only metadata 
     (GitHubEnvironment)-[:HAS_SECRET]->(GitHubActionsSecret {level: "environment"})
     ```
 
+- GitHubOrganizations are sub-resources for environment-level GitHubActionsSecrets (for cleanup scoping).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsSecret {level: "environment"})
+    ```
+
 
 ### GitHubActionsVariable
 
@@ -585,4 +591,10 @@ Unlike secrets, variable **values are stored in plaintext**.
 
     ```
     (GitHubEnvironment)-[:HAS_VARIABLE]->(GitHubActionsVariable {level: "environment"})
+    ```
+
+- GitHubOrganizations are sub-resources for environment-level GitHubActionsVariables (for cleanup scoping).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "environment"})
     ```
