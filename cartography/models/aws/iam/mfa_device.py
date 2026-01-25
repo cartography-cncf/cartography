@@ -23,6 +23,7 @@ class AWSMfaDeviceNodeProperties(CartographyNodeProperties):
 
     # Business fields from AWS IAM mfa devices
     username: PropertyRef = PropertyRef("username")
+    user_arn: PropertyRef = PropertyRef("user_arn")
     enabledate: PropertyRef = PropertyRef("enabledate")
     enabledate_dt: PropertyRef = PropertyRef("enabledate_dt")
 
@@ -42,7 +43,9 @@ class AWSMfaDeviceToAWSAccountRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: AWSMfaDeviceToAWSAccountRelProperties = AWSMfaDeviceToAWSAccountRelProperties()
+    properties: AWSMfaDeviceToAWSAccountRelProperties = (
+        AWSMfaDeviceToAWSAccountRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -55,19 +58,23 @@ class AWSMfaDeviceToAWSUserRel(CartographyRelSchema):
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "name": PropertyRef("username"),  # Match AWSUser.name with MFADevice.username
+            "arn": PropertyRef("user_arn"),  # Match AWSUser.arn with MFADevice.user_arn
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MFA_DEVICE"
-    properties: AWSMfaDeviceToAWSUserRelProperties = AWSMfaDeviceToAWSUserRelProperties()
+    properties: AWSMfaDeviceToAWSUserRelProperties = (
+        AWSMfaDeviceToAWSUserRelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class AWSMfaDeviceSchema(CartographyNodeSchema):
     label: str = "AWSMfaDevice"
     properties: AWSMfaDeviceNodeProperties = AWSMfaDeviceNodeProperties()
-    sub_resource_relationship: AWSMfaDeviceToAWSAccountRel = AWSMfaDeviceToAWSAccountRel()
+    sub_resource_relationship: AWSMfaDeviceToAWSAccountRel = (
+        AWSMfaDeviceToAWSAccountRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AWSMfaDeviceToAWSUserRel(),

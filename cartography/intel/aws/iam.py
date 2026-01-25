@@ -978,10 +978,13 @@ def get_mfa_devices(
     mfa_devices: List[Dict] = []
     for user in user_list:
         name = user["UserName"]
+        user_arn = user["Arn"]
         try:
             paginator = client.get_paginator("list_mfa_devices")
             for page in paginator.paginate(UserName=name):
-                mfa_devices.extend(page["MFADevices"])
+                for device in page["MFADevices"]:
+                    device["UserArn"] = user_arn
+                    mfa_devices.append(device)
         except client.exceptions.NoSuchEntityException:
             logger.warning(
                 f"Could not get MFA devices for user {name} due to NoSuchEntityException; skipping.",
@@ -996,6 +999,7 @@ def transform_mfa_devices(mfa_devices: List[Dict]) -> List[Dict]:
             {
                 "serialnumber": device["SerialNumber"],
                 "username": device["UserName"],
+                "user_arn": device["UserArn"],
                 "enabledate": str(device["EnableDate"]),
                 "enabledate_dt": device["EnableDate"],
             }

@@ -1127,7 +1127,8 @@ Representation of an AWS [MFA Device](https://docs.aws.amazon.com/IAM/latest/API
 | lastupdated |  Timestamp of the last time the node was updated |
 | **id** | The serial number of the MFA device (same as serialnumber) |
 | **serialnumber** | The serial number that uniquely identifies the MFA device |
-| name | The username of the IAM user associated with the MFA device |
+| username | The username of the IAM user associated with the MFA device |
+| user_arn | The ARN of the IAM user associated with the MFA device |
 | enabledate | ISO 8601 date-time string when the MFA device was enabled |
 
 #### Relationships

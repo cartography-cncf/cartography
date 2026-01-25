@@ -32,7 +32,12 @@ def test_sync_mfa_devices(mock_get_mfa_devices, neo4j_session):
     # Act
     cartography.intel.aws.iam.sync_user_mfa_devices(
         boto3_session,
-        {"Users": [{"UserName": "user-0"}, {"UserName": "user-1"}]},
+        {
+            "Users": [
+                {"UserName": "user-0", "Arn": "arn:aws:iam::000000000000:user/user-0"},
+                {"UserName": "user-1", "Arn": "arn:aws:iam::000000000000:user/user-1"},
+            ]
+        },
         neo4j_session,
         TEST_UPDATE_TAG,
         TEST_ACCOUNT_ID,
@@ -42,14 +47,29 @@ def test_sync_mfa_devices(mock_get_mfa_devices, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "AWSMfaDevice",
-        ["serialnumber", "username", "enabledate_dt"],
+        ["serialnumber", "username", "user_arn", "enabledate_dt"],
     ) == {
-        ("arn:aws:iam::000000000000:mfa/user-0", "user-0", neo4j.time.DateTime(2024, 1, 15, 10, 30, 0, 0)),
-        ("arn:aws:iam::000000000000:mfa/user-0-backup", "user-0", neo4j.time.DateTime(2024, 2, 20, 14, 45, 0, 0)),
-        ("arn:aws:iam::000000000000:mfa/user-1", "user-1", neo4j.time.DateTime(2023, 12, 1, 9, 0, 0, 0)),
+        (
+            "arn:aws:iam::000000000000:mfa/user-0",
+            "user-0",
+            "arn:aws:iam::000000000000:user/user-0",
+            neo4j.time.DateTime(2024, 1, 15, 10, 30, 0, 0),
+        ),
+        (
+            "arn:aws:iam::000000000000:mfa/user-0-backup",
+            "user-0",
+            "arn:aws:iam::000000000000:user/user-0",
+            neo4j.time.DateTime(2024, 2, 20, 14, 45, 0, 0),
+        ),
+        (
+            "arn:aws:iam::000000000000:mfa/user-1",
+            "user-1",
+            "arn:aws:iam::000000000000:user/user-1",
+            neo4j.time.DateTime(2023, 12, 1, 9, 0, 0, 0),
+        ),
     }
 
-    # Assert: Check that `MfaDevice` extra label exists 
+    # Assert: Check that `MfaDevice` extra label exists
     result = neo4j_session.run(
         """
         MATCH (m:MfaDevice)
@@ -63,15 +83,24 @@ def test_sync_mfa_devices(mock_get_mfa_devices, neo4j_session):
     assert check_rels(
         neo4j_session,
         "AWSUser",
-        "name",
+        "arn",
         "AWSMfaDevice",
         "serialnumber",
         "MFA_DEVICE",
         rel_direction_right=True,
     ) == {
-        ("user-0", "arn:aws:iam::000000000000:mfa/user-0"),
-        ("user-0", "arn:aws:iam::000000000000:mfa/user-0-backup"),
-        ("user-1", "arn:aws:iam::000000000000:mfa/user-1"),
+        (
+            "arn:aws:iam::000000000000:user/user-0",
+            "arn:aws:iam::000000000000:mfa/user-0",
+        ),
+        (
+            "arn:aws:iam::000000000000:user/user-0",
+            "arn:aws:iam::000000000000:mfa/user-0-backup",
+        ),
+        (
+            "arn:aws:iam::000000000000:user/user-1",
+            "arn:aws:iam::000000000000:mfa/user-1",
+        ),
     }
 
     # Assert: Check relationships between AWS account and MFA devices
