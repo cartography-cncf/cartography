@@ -13,7 +13,9 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
-def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
+def build_cleanup_queries(
+    node_schema: CartographyNodeSchema, cascade_delete: bool = False
+) -> List[str]:
     """
     Generate Neo4j queries to clean up stale nodes and relationships.
 
@@ -24,6 +26,9 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
     Args:
         node_schema (CartographyNodeSchema): The node schema object defining the
             structure and cleanup behavior for the target nodes.
+        cascade_delete (bool): If True, also delete all child nodes that have a
+            relationship to stale nodes matching node_schema.sub_resource_relationship.rel_label.
+            Defaults to False to preserve existing behavior. Only valid when scoped_cleanup=True.
 
     Returns:
         List[str]: A list of Neo4j queries to clean up stale nodes and relationships.
@@ -47,6 +52,15 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
 
         Nodes without relationships (like SyncMetadata) are left for manual management.
     """
+    # Validate: cascade_delete only makes sense with scoped cleanup
+    if cascade_delete and not node_schema.scoped_cleanup:
+        raise ValueError(
+            f"Invalid configuration for {node_schema.label}: cascade_delete=True requires scoped_cleanup=True. "
+            "Cascade delete is designed for scoped cleanups where parent nodes own children via the "
+            "sub_resource_relationship rel_label. "
+            "Unscoped cleanups delete all stale nodes globally and typically don't have a parent-child ownership model.",
+        )
+
     # If the node has no relationships, do not delete the node. Leave this behind for the user to manage.
     # Oftentimes these are SyncMetadata nodes.
     if (
@@ -61,6 +75,7 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
         queries = _build_cleanup_node_and_rel_queries(
             node_schema,
             node_schema.sub_resource_relationship,
+            cascade_delete,
         )
 
     # Case 2: The node has a sub resource but scoped cleanup is false => this does not make sense
@@ -95,7 +110,9 @@ def build_cleanup_queries(node_schema: CartographyNodeSchema) -> List[str]:
         for rel in node_schema.other_relationships.rels:
             if node_schema.scoped_cleanup:
                 # [0] is the delete node query, [1] is the delete relationship query. We only want the latter.
-                _, rel_query = _build_cleanup_node_and_rel_queries(node_schema, rel)
+                _, rel_query = _build_cleanup_node_and_rel_queries(
+                    node_schema, rel, cascade_delete
+                )
                 queries.append(rel_query)
             else:
                 queries.append(_build_cleanup_rel_queries_unscoped(node_schema, rel))
@@ -227,6 +244,7 @@ def _build_match_statement_for_cleanup(node_schema: CartographyNodeSchema) -> st
 def _build_cleanup_node_and_rel_queries(
     node_schema: CartographyNodeSchema,
     selected_relationship: CartographyRelSchema,
+    cascade_delete: bool = False,
 ) -> List[str]:
     """
     Generate cleanup queries for both nodes and relationships.
@@ -240,6 +258,9 @@ def _build_cleanup_node_and_rel_queries(
         selected_relationship (CartographyRelSchema): The specific relationship to build
             cleanup queries for. Must be either the node's sub resource relationship
             or one of its other relationships.
+        cascade_delete (bool): If True, also delete all child nodes that have a
+            relationship to stale nodes matching node_schema.sub_resource_relationship.rel_label.
+            Defaults to False.
 
     Returns:
         List[str]: A list of exactly 2 cleanup queries:
@@ -285,13 +306,38 @@ def _build_cleanup_node_and_rel_queries(
         )
 
     # The cleanup node query must always be before the cleanup rel query
-    delete_action_clauses = [
-        """
+    if cascade_delete:
+        # When cascade_delete is enabled, also delete stale children that have relationships from stale nodes
+        # matching the sub_resource_relationship rel_label. We check child.lastupdated to avoid deleting children
+        # that were re-parented to a new tenant in the current sync.
+        cascade_rel_label = node_schema.sub_resource_relationship.rel_label
+        if node_schema.sub_resource_relationship.direction == LinkDirection.INWARD:
+            cascade_rel_clause = f"<-[:{cascade_rel_label}]-"
+        else:
+            cascade_rel_clause = f"-[:{cascade_rel_label}]->"
+        # Use a unit subquery to delete many children without collecting them and without
+        # risking the parent row being filtered out by OPTIONAL MATCH + WHERE.
+        delete_action_clauses = [
+            f"""
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE
+        CALL {{
+            WITH n
+            OPTIONAL MATCH (n){cascade_rel_clause}(child)
+            WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
+            DETACH DELETE child
+        }}
+        DETACH DELETE n;
+        """,
+        ]
+    else:
+        delete_action_clauses = [
+            """
         WHERE n.lastupdated <> $UPDATE_TAG
         WITH n LIMIT $LIMIT_SIZE
         DETACH DELETE n;
         """,
-    ]
+        ]
     # Now clean up the relationships
     if selected_relationship == node_schema.sub_resource_relationship:
         _validate_target_node_matcher_for_cleanup_job(
@@ -371,6 +417,10 @@ def _build_cleanup_node_query_unscoped(
     Warning:
         This function creates queries that will delete ALL stale nodes of the given type,
         not just those associated with a specific sub resource. Use with caution.
+
+    Note:
+        cascade_delete is not supported for unscoped cleanup because unscoped cleanups
+        delete all stale nodes globally and don't have a parent-child ownership model.
     """
     if node_schema.scoped_cleanup:
         raise ValueError(

@@ -24,3 +24,26 @@ def test_transform_ec2_instances_handles_missing_private_ip():
             "GroupId": "sg-1",
         }
     ]
+
+
+def test_transform_ec2_instances_extracts_eks_cluster_tag():
+    reservations = [
+        {
+            "ReservationId": "r-1",
+            "OwnerId": FAKE_ACCOUNT_ID,
+            "Instances": [
+                {
+                    "InstanceId": "i-eks",
+                    "NetworkInterfaces": [],
+                    "BlockDeviceMappings": [],
+                    "Tags": [
+                        {"Key": "eks:cluster-name", "Value": "prod-cluster"},
+                    ],
+                },
+            ],
+        },
+    ]
+
+    data = transform_ec2_instances(reservations, FAKE_REGION, FAKE_ACCOUNT_ID)
+
+    assert data.instance_list[0]["EksClusterName"] == "prod-cluster"

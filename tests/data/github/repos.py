@@ -3,6 +3,7 @@ from typing import Any
 from typing import List
 
 from cartography.intel.github.repos import UserAffiliationAndRepoPermission
+from tests.data.github.branch_protection_rules import PROTECTED_BRANCH_STRONG
 
 # Dependency graph test data for unit tests
 DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
@@ -86,7 +87,7 @@ GET_REPOS: List[dict[str, Any]] = [
         "directCollaborators": {"totalCount": 0},
         "outsideCollaborators": {"totalCount": 0},
         "requirements": {
-            "text": "cartography\nhttplib2<0.7.0\njinja2\nlxml\n-e git+https://example.com#egg=foobar\nhttps://example.com/foobar.tar.gz\npip @ https://github.com/pypa/pip/archive/1.3.1.zip#sha1=da9234ee9982d4bbb3c72346a6de940a148ea686\n",
+            "text": "cartography\ncartography==0.1.0\nhttplib2<0.7.0\njinja2\nlxml\nokta==0.9.0\n-e git+https://example.com#egg=foobar\nhttps://example.com/foobar.tar.gz\npip @ https://github.com/pypa/pip/archive/1.3.1.zip#sha1=da9234ee9982d4bbb3c72346a6de940a148ea686\n",
         },  # noqa
         "setupCfg": {
             "text": textwrap.dedent(
@@ -95,6 +96,7 @@ GET_REPOS: List[dict[str, Any]] = [
                 install_requires =
                     neo4j
                     scipy!=1.20.0  # comment
+                    okta
             """,
             ),
         },
@@ -179,6 +181,9 @@ GET_REPOS: List[dict[str, Any]] = [
             ),
         },
         "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
+        "branchProtectionRules": {
+            "nodes": [PROTECTED_BRANCH_STRONG],
+        },
     },
 ]
 

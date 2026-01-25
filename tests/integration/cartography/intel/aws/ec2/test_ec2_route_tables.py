@@ -2,13 +2,16 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2.route_tables
+import cartography.intel.aws.ec2.vpc_endpoint
 from cartography.intel.aws.ec2.internet_gateways import sync_internet_gateways
 from cartography.intel.aws.ec2.route_tables import sync_route_tables
 from cartography.intel.aws.ec2.subnets import load_subnets
 from cartography.intel.aws.ec2.vpc import sync_vpc
+from cartography.intel.aws.ec2.vpc_endpoint import sync_vpc_endpoints
 from tests.data.aws.ec2.internet_gateways import TEST_INTERNET_GATEWAYS
 from tests.data.aws.ec2.route_tables import DESCRIBE_ROUTE_TABLES
 from tests.data.aws.ec2.subnets import DESCRIBE_SUBNETS
+from tests.data.aws.ec2.vpc_endpoints import DESCRIBE_VPC_ENDPOINTS
 from tests.data.aws.ec2.vpcs import TEST_VPCS
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -44,8 +47,17 @@ def _create_fake_subnets(neo4j_session):
     "get_route_tables",
     return_value=DESCRIBE_ROUTE_TABLES["RouteTables"],
 )
+@patch.object(
+    cartography.intel.aws.ec2.vpc_endpoint,
+    "get_vpc_endpoints",
+    return_value=DESCRIBE_VPC_ENDPOINTS,
+)
 def test_sync_route_tables(
-    mock_get_vpcs, mock_get_gateways, mock_get_route_tables, neo4j_session
+    mock_get_vpc_endpoints,
+    mock_get_route_tables,
+    mock_get_gateways,
+    mock_get_vpcs,
+    neo4j_session,
 ):
     """
     Ensure that route tables, routes, and associations get loaded and have their key fields
@@ -65,6 +77,15 @@ def test_sync_route_tables(
     )
     # Add in fake internet gateway data
     sync_internet_gateways(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+    # Add in fake VPC endpoint data (required for ROUTES_TO_VPC_ENDPOINT relationship)
+    sync_vpc_endpoints(
         neo4j_session,
         boto3_session,
         [TEST_REGION],
@@ -99,10 +120,11 @@ def test_sync_route_tables(
         ("rtbassoc-ddddddddddddddddd", "rtbassoc-ddddddddddddddddd"),
     }
 
-    # Assert routes exist
+    # Assert routes exist (including VPC endpoint route)
     assert check_nodes(neo4j_session, "EC2Route", ["id"]) == {
         ("rtb-aaaaaaaaaaaaaaaaa|172.31.0.0/16",),
         ("rtb-aaaaaaaaaaaaaaaaa|0.0.0.0/0",),
+        ("rtb-aaaaaaaaaaaaaaaaa|vpce-gateway123",),
         ("rtb-bbbbbbbbbbbbbbbbb|10.1.0.0/16",),
         ("rtb-bbbbbbbbbbbbbbbbb|0.0.0.0/0",),
     }
@@ -119,6 +141,7 @@ def test_sync_route_tables(
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa", "rtb-aaaaaaaaaaaaaaaaa|172.31.0.0/16"),
         ("rtb-aaaaaaaaaaaaaaaaa", "rtb-aaaaaaaaaaaaaaaaa|0.0.0.0/0"),
+        ("rtb-aaaaaaaaaaaaaaaaa", "rtb-aaaaaaaaaaaaaaaaa|vpce-gateway123"),
         ("rtb-bbbbbbbbbbbbbbbbb", "rtb-bbbbbbbbbbbbbbbbb|10.1.0.0/16"),
         ("rtb-bbbbbbbbbbbbbbbbb", "rtb-bbbbbbbbbbbbbbbbb|0.0.0.0/0"),
     }
@@ -165,6 +188,7 @@ def test_sync_route_tables(
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa|172.31.0.0/16", TEST_ACCOUNT_ID),
         ("rtb-aaaaaaaaaaaaaaaaa|0.0.0.0/0", TEST_ACCOUNT_ID),
+        ("rtb-aaaaaaaaaaaaaaaaa|vpce-gateway123", TEST_ACCOUNT_ID),
         ("rtb-bbbbbbbbbbbbbbbbb|10.1.0.0/16", TEST_ACCOUNT_ID),
         ("rtb-bbbbbbbbbbbbbbbbb|0.0.0.0/0", TEST_ACCOUNT_ID),
     }
@@ -237,4 +261,17 @@ def test_sync_route_tables(
     ) == {
         ("rtb-aaaaaaaaaaaaaaaaa|0.0.0.0/0", "igw-0387"),
         ("rtb-bbbbbbbbbbbbbbbbb|0.0.0.0/0", "igw-0387"),
+    }
+
+    # Assert route to VPC endpoint relationships
+    assert check_rels(
+        neo4j_session,
+        "EC2Route",
+        "id",
+        "AWSVpcEndpoint",
+        "id",
+        "ROUTES_TO_VPC_ENDPOINT",
+        rel_direction_right=True,
+    ) == {
+        ("rtb-aaaaaaaaaaaaaaaaa|vpce-gateway123", "vpce-gateway123"),
     }

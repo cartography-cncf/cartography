@@ -29,6 +29,7 @@ T = TypeVar("T")
 
 _MAX_NETWORK_RETRIES = 5
 _MAX_ENTITY_NOT_FOUND_RETRIES = 5
+_MAX_BUFFER_ERROR_RETRIES = 5
 _NETWORK_EXCEPTIONS: tuple[type[BaseException], ...] = (
     ConnectionResetError,
     neo4j.exceptions.ServiceUnavailable,
@@ -70,6 +71,23 @@ def _is_retryable_client_error(exc: Exception) -> bool:
     return code == "Neo.ClientError.Statement.EntityNotFound"
 
 
+def _is_retryable_buffer_error(exc: Exception) -> bool:
+    """
+    Determine if a BufferError should be retried.
+
+    BufferError with "cannot be re-sized" occurs during multi-threaded Neo4j
+    operations when the underlying buffer is accessed concurrently. This is a
+    known transient error that can happen when multiple threads interact with
+    the Neo4j driver's internal buffer management.
+
+    :param exc: The exception to check
+    :return: True if this is a retryable BufferError, False otherwise
+    """
+    if not isinstance(exc, BufferError):
+        return False
+    return "cannot be re-sized" in str(exc)
+
+
 def _entity_not_found_backoff_handler(details: Dict) -> None:
     """
     Custom backoff handler that provides enhanced logging for EntityNotFound retries.
@@ -105,15 +123,52 @@ def _entity_not_found_backoff_handler(details: Dict) -> None:
         backoff_handler(details)
 
 
+def _buffer_error_backoff_handler(details: Dict) -> None:
+    """
+    Custom backoff handler that provides enhanced logging for BufferError retries.
+
+    This handler logs additional context when retrying BufferError to help
+    diagnose concurrent multi-threaded operation issues.
+
+    :param details: Backoff details dict containing 'exception', 'wait', 'tries', 'target'
+    """
+    exc = details.get("exception")
+    if isinstance(exc, Exception) and _is_retryable_buffer_error(exc):
+        wait = details.get("wait")
+        wait_str = f"{wait:0.1f}" if wait is not None else "unknown"
+        tries = details.get("tries", 0)
+
+        if tries == 1:
+            log_msg = (
+                f"Encountered BufferError (attempt 1/{_MAX_BUFFER_ERROR_RETRIES}). "
+                f"This can occur during concurrent multi-threaded Neo4j operations. "
+                f"Retrying after {wait_str} seconds backoff. "
+                f"Function: {details.get('target')}. Error: {details.get('exception')}"
+            )
+        else:
+            log_msg = (
+                f"BufferError retry {tries}/{_MAX_BUFFER_ERROR_RETRIES}. "
+                f"Backing off {wait_str} seconds before next attempt. "
+                f"Function: {details.get('target')}. Error: {details.get('exception')}"
+            )
+
+        logger.warning(log_msg)
+    else:
+        # Fall back to standard backoff handler for other errors
+        backoff_handler(details)
+
+
 def _run_with_retry(operation: Callable[[], T], target: str) -> T:
     """
-    Execute the supplied callable with retry logic for transient network errors and
-    EntityNotFound ClientErrors.
+    Execute the supplied callable with retry logic for transient network errors,
+    EntityNotFound ClientErrors, and BufferErrors.
     """
     network_attempts = 0
     entity_attempts = 0
+    buffer_attempts = 0
     network_wait = backoff.expo()
     entity_wait = backoff.expo()
+    buffer_wait = backoff.expo()
 
     while True:
         try:
@@ -128,6 +183,11 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
                 logger.info(
                     f"Successfully recovered from EntityNotFound error after {entity_attempts} "
                     f"{'retry' if entity_attempts == 1 else 'retries'}. Function: {target}"
+                )
+            if buffer_attempts > 0:
+                logger.info(
+                    f"Successfully recovered from BufferError after {buffer_attempts} "
+                    f"{'retry' if buffer_attempts == 1 else 'retries'}. Function: {target}"
                 )
             return result
         except _NETWORK_EXCEPTIONS as exc:
@@ -174,6 +234,29 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
             )
             time.sleep(wait)
             continue
+        except BufferError as exc:
+            if not _is_retryable_buffer_error(exc):
+                raise
+            if buffer_attempts >= _MAX_BUFFER_ERROR_RETRIES - 1:
+                raise
+            buffer_attempts += 1
+            wait = next(buffer_wait)
+            if wait is None:
+                logger.error(
+                    f"Unexpected: backoff generator returned None for wait time. "
+                    f"target={target}, attempts={buffer_attempts}, exc={exc}"
+                )
+                wait = 1.0  # Fallback to 1 second wait
+            _buffer_error_backoff_handler(
+                {
+                    "exception": exc,
+                    "target": target,
+                    "tries": buffer_attempts,
+                    "wait": wait,
+                }
+            )
+            time.sleep(wait)
+            continue
 
 
 @backoff.on_exception(  # type: ignore
@@ -191,8 +274,24 @@ def _run_index_query_with_retry(neo4j_session: neo4j.Session, query: str) -> Non
     """
     Execute an index creation query with retry logic.
     Index creation requires autocommit transactions and can experience transient errors.
+
+    Handles the EquivalentSchemaRuleAlreadyExists error that can occur when multiple
+    parallel sync operations attempt to create the same index simultaneously. Even though
+    we use CREATE INDEX IF NOT EXISTS, Neo4j has a race condition where concurrent
+    index creation can fail if another session creates the index between the existence
+    check and the actual creation.
     """
-    neo4j_session.run(query)
+    try:
+        neo4j_session.run(query)
+    except neo4j.exceptions.ClientError as e:
+        # EquivalentSchemaRuleAlreadyExists means another parallel sync already created
+        # this index, which is the desired end state. Safe to ignore.
+        if e.code == "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists":
+            logger.debug(
+                f"Index already exists (likely created by parallel sync): {query}"
+            )
+            return
+        raise
 
 
 def execute_write_with_retry(
@@ -243,6 +342,7 @@ def run_write_query(
     - Service unavailability (ServiceUnavailable, SessionExpired)
     - Transient database errors (TransientError)
     - EntityNotFound errors during concurrent operations (specific ClientError)
+    - BufferError with "cannot be re-sized" during concurrent multi-threaded operations
 
     Used by intel modules that run manual transactions (e.g., GCP firewalls, AWS resources).
 
@@ -531,6 +631,7 @@ def load_graph_data(
     - Service unavailability (ServiceUnavailable, SessionExpired)
     - Transient database errors (TransientError)
     - EntityNotFound errors during concurrent operations (ClientError with specific code)
+    - BufferError with "cannot be re-sized" during concurrent multi-threaded operations
 
     EntityNotFound errors are retried because they commonly occur during concurrent
     write operations when multiple threads access the same node space. This is expected

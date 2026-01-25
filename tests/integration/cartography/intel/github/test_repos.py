@@ -42,16 +42,11 @@ def test_transform_and_load_repositories(neo4j_session):
         TEST_UPDATE_TAG,
         repos_data["repos"],
     )
-    nodes = neo4j_session.run(
-        "MATCH(repo:GitHubRepository) RETURN repo.id",
-    )
-    actual_nodes = {n["repo.id"] for n in nodes}
-    expected_nodes = {
-        "https://github.com/simpsoncorp/sample_repo",
-        "https://github.com/simpsoncorp/SampleRepo2",
-        "https://github.com/cartography-cncf/cartography",
+    assert check_nodes(neo4j_session, "GitHubRepository", ["id"]) == {
+        ("https://github.com/simpsoncorp/sample_repo",),
+        ("https://github.com/simpsoncorp/SampleRepo2",),
+        ("https://github.com/cartography-cncf/cartography",),
     }
-    assert actual_nodes == expected_nodes
 
 
 def test_transform_and_load_repository_owners(neo4j_session):
@@ -68,14 +63,9 @@ def test_transform_and_load_repository_owners(neo4j_session):
         TEST_UPDATE_TAG,
         repos_data["repo_owners"],
     )
-    nodes = neo4j_session.run(
-        "MATCH(owner:GitHubOrganization) RETURN owner.id",
-    )
-    actual_nodes = {n["owner.id"] for n in nodes}
-    expected_nodes = {
-        "https://github.com/simpsoncorp",
+    assert check_nodes(neo4j_session, "GitHubOrganization", ["id"]) == {
+        ("https://github.com/simpsoncorp",),
     }
-    assert actual_nodes == expected_nodes
 
 
 def test_transform_and_load_repository_languages(neo4j_session):
@@ -92,15 +82,10 @@ def test_transform_and_load_repository_languages(neo4j_session):
         TEST_UPDATE_TAG,
         repos_data["repo_languages"],
     )
-    nodes = neo4j_session.run(
-        "MATCH(pl:ProgrammingLanguage) RETURN pl.id",
-    )
-    actual_nodes = {n["pl.id"] for n in nodes}
-    expected_nodes = {
-        "Python",
-        "Makefile",
+    assert check_nodes(neo4j_session, "ProgrammingLanguage", ["id"]) == {
+        ("Python",),
+        ("Makefile",),
     }
-    assert actual_nodes == expected_nodes
 
 
 def test_repository_to_owners(neo4j_session):
@@ -108,32 +93,30 @@ def test_repository_to_owners(neo4j_session):
     Ensure that repositories are connected to owners.
     """
     _ensure_local_neo4j_has_test_data(neo4j_session)
-    query = """
-    MATCH(owner:GitHubOrganization)<-[:OWNER]-(repo:GitHubRepository{id:$RepositoryId})
-    RETURN owner.username, repo.id, repo.name
-    """
-    expected_repository_id = "https://github.com/simpsoncorp/SampleRepo2"
-    nodes = neo4j_session.run(
-        query,
-        RepositoryId=expected_repository_id,
-    )
-    actual_nodes = {
-        (
-            n["owner.username"],
-            n["repo.id"],
-            n["repo.name"],
-        )
-        for n in nodes
-    }
 
-    expected_nodes = {
+    # Assert - Verify OWNER relationships exist (all 3 repos have simpsoncorp as owner)
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubOrganization",
+        "id",
+        "OWNER",
+        rel_direction_right=True,
+    ) == {
         (
-            "SimpsonCorp",
+            "https://github.com/simpsoncorp/sample_repo",
+            "https://github.com/simpsoncorp",
+        ),
+        (
             "https://github.com/simpsoncorp/SampleRepo2",
-            "SampleRepo2",
+            "https://github.com/simpsoncorp",
+        ),
+        (
+            "https://github.com/cartography-cncf/cartography",
+            "https://github.com/simpsoncorp",
         ),
     }
-    assert actual_nodes == expected_nodes
 
 
 def test_repository_to_branches(neo4j_session):
@@ -141,32 +124,21 @@ def test_repository_to_branches(neo4j_session):
     Ensure that repositories are connected to branches.
     """
     _ensure_local_neo4j_has_test_data(neo4j_session)
-    query = """
-    MATCH(branch:GitHubBranch)<-[:BRANCH]-(repo:GitHubRepository{id:$RepositoryId})
-    RETURN branch.name, repo.id, repo.name
-    """
-    expected_repository_id = "https://github.com/simpsoncorp/sample_repo"
-    nodes = neo4j_session.run(
-        query,
-        RepositoryId=expected_repository_id,
-    )
-    actual_nodes = {
-        (
-            n["branch.name"],
-            n["repo.id"],
-            n["repo.name"],
-        )
-        for n in nodes
-    }
 
-    expected_nodes = {
-        (
-            "master",
-            "https://github.com/simpsoncorp/sample_repo",
-            "sample_repo",
-        ),
+    # Assert - Verify BRANCH relationships exist (all 3 repos have master branch)
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubBranch",
+        "name",
+        "BRANCH",
+        rel_direction_right=True,
+    ) == {
+        ("https://github.com/simpsoncorp/sample_repo", "master"),
+        ("https://github.com/simpsoncorp/SampleRepo2", "master"),
+        ("https://github.com/cartography-cncf/cartography", "master"),
     }
-    assert actual_nodes == expected_nodes
 
 
 def test_repository_to_languages(neo4j_session):
@@ -174,148 +146,163 @@ def test_repository_to_languages(neo4j_session):
     Ensure that repositories are connected to languages.
     """
     _ensure_local_neo4j_has_test_data(neo4j_session)
-    query = """
-    MATCH(lang:ProgrammingLanguage)<-[:LANGUAGE]-(repo:GitHubRepository{id:$RepositoryId})
-    RETURN lang.name, repo.id, repo.name
-    """
-    expected_repository_id = "https://github.com/simpsoncorp/SampleRepo2"
-    nodes = neo4j_session.run(
-        query,
-        RepositoryId=expected_repository_id,
-    )
-    actual_nodes = {
-        (
-            n["lang.name"],
-            n["repo.id"],
-            n["repo.name"],
-        )
-        for n in nodes
-    }
 
-    expected_nodes = {
-        (
-            "Python",
-            "https://github.com/simpsoncorp/SampleRepo2",
-            "SampleRepo2",
-        ),
+    # Assert - Verify LANGUAGE relationships exist
+    # sample_repo has Python, SampleRepo2 has Python, cartography has Python and Makefile
+    assert check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "ProgrammingLanguage",
+        "name",
+        "LANGUAGE",
+        rel_direction_right=True,
+    ) == {
+        ("https://github.com/simpsoncorp/sample_repo", "Python"),
+        ("https://github.com/simpsoncorp/SampleRepo2", "Python"),
+        ("https://github.com/cartography-cncf/cartography", "Python"),
+        ("https://github.com/cartography-cncf/cartography", "Makefile"),
     }
-    assert actual_nodes == expected_nodes
 
 
 def test_repository_to_collaborators(neo4j_session):
     _ensure_local_neo4j_has_test_data(neo4j_session)
 
-    # Ensure outside collaborators are connected to the expected repos
-    nodes = neo4j_session.run(
-        """
-    MATCH (repo:GitHubRepository)<-[rel]-(user:GitHubUser)
-    WHERE type(rel) STARTS WITH 'OUTSIDE_COLLAB_'
-    RETURN repo.name, type(rel), user.username
-    """,
-    )
-    actual_nodes = {
-        (
-            n["repo.name"],
-            n["type(rel)"],
-            n["user.username"],
-        )
-        for n in nodes
+    # Assert - Verify outside collaborator relationships
+    # OUTSIDE_COLLAB_WRITE
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "username",
+        "GitHubRepository",
+        "name",
+        "OUTSIDE_COLLAB_WRITE",
+        rel_direction_right=True,
+    ) == {
+        ("marco-lancini", "cartography"),
     }
-    expected_nodes = {
-        (
-            "cartography",
-            "OUTSIDE_COLLAB_WRITE",
-            "marco-lancini",
-        ),
-        (
-            "cartography",
-            "OUTSIDE_COLLAB_READ",
-            "sachafaust",
-        ),
-        (
-            "cartography",
-            "OUTSIDE_COLLAB_ADMIN",
-            "SecPrez",
-        ),
-        (
-            "cartography",
-            "OUTSIDE_COLLAB_TRIAGE",
-            "ramonpetgrave64",
-        ),
-        (
-            "cartography",
-            "OUTSIDE_COLLAB_MAINTAIN",
-            "roshinis78",
-        ),
-    }
-    assert actual_nodes == expected_nodes
 
-    # Ensure direct collaborators are connected to the expected repos
-    # Note how all the folks in the outside collaborators list are also in the direct collaborators list.  They
-    # have both types of relationship.
-    nodes = neo4j_session.run(
-        """
-        MATCH (repo:GitHubRepository)<-[rel]-(user:GitHubUser)
-        WHERE type(rel) STARTS WITH 'DIRECT_COLLAB_'
-        RETURN repo.name, type(rel), user.username
-        """,
-    )
-    actual_nodes = {
-        (
-            n["repo.name"],
-            n["type(rel)"],
-            n["user.username"],
-        )
-        for n in nodes
+    # OUTSIDE_COLLAB_READ
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "username",
+        "GitHubRepository",
+        "name",
+        "OUTSIDE_COLLAB_READ",
+        rel_direction_right=True,
+    ) == {
+        ("sachafaust", "cartography"),
     }
-    expected_nodes = {
-        (
-            "SampleRepo2",
-            "DIRECT_COLLAB_ADMIN",
-            "direct_foo",
-        ),
-        (
-            "cartography",
-            "DIRECT_COLLAB_WRITE",
-            "marco-lancini",
-        ),
-        (
-            "cartography",
-            "DIRECT_COLLAB_READ",
-            "sachafaust",
-        ),
-        (
-            "cartography",
-            "DIRECT_COLLAB_ADMIN",
-            "SecPrez",
-        ),
-        (
-            "cartography",
-            "DIRECT_COLLAB_TRIAGE",
-            "ramonpetgrave64",
-        ),
-        (
-            "cartography",
-            "DIRECT_COLLAB_MAINTAIN",
-            "roshinis78",
-        ),
-        (
-            "cartography",
-            "DIRECT_COLLAB_WRITE",
-            "direct_bar",
-        ),
-        (
-            "cartography",
-            "DIRECT_COLLAB_READ",
-            "direct_baz",
-        ),
-        (
-            "cartography",
-            "DIRECT_COLLAB_MAINTAIN",
-            "direct_bat",
-        ),
+
+    # OUTSIDE_COLLAB_ADMIN
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "username",
+        "GitHubRepository",
+        "name",
+        "OUTSIDE_COLLAB_ADMIN",
+        rel_direction_right=True,
+    ) == {
+        ("SecPrez", "cartography"),
     }
-    assert actual_nodes == expected_nodes
+
+    # OUTSIDE_COLLAB_TRIAGE
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "username",
+        "GitHubRepository",
+        "name",
+        "OUTSIDE_COLLAB_TRIAGE",
+        rel_direction_right=True,
+    ) == {
+        ("ramonpetgrave64", "cartography"),
+    }
+
+    # OUTSIDE_COLLAB_MAINTAIN
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "username",
+        "GitHubRepository",
+        "name",
+        "OUTSIDE_COLLAB_MAINTAIN",
+        rel_direction_right=True,
+    ) == {
+        ("roshinis78", "cartography"),
+    }
+
+    # Assert - Verify direct collaborator relationships
+    # DIRECT_COLLAB_ADMIN
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "username",
+        "GitHubRepository",
+        "name",
+        "DIRECT_COLLAB_ADMIN",
+        rel_direction_right=True,
+    ) == {
+        ("direct_foo", "SampleRepo2"),
+        ("SecPrez", "cartography"),
+    }
+
+    # DIRECT_COLLAB_WRITE
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "username",
+        "GitHubRepository",
+        "name",
+        "DIRECT_COLLAB_WRITE",
+        rel_direction_right=True,
+    ) == {
+        ("marco-lancini", "cartography"),
+        ("direct_bar", "cartography"),
+    }
+
+    # DIRECT_COLLAB_READ
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "username",
+        "GitHubRepository",
+        "name",
+        "DIRECT_COLLAB_READ",
+        rel_direction_right=True,
+    ) == {
+        ("sachafaust", "cartography"),
+        ("direct_baz", "cartography"),
+    }
+
+    # DIRECT_COLLAB_TRIAGE
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "username",
+        "GitHubRepository",
+        "name",
+        "DIRECT_COLLAB_TRIAGE",
+        rel_direction_right=True,
+    ) == {
+        ("ramonpetgrave64", "cartography"),
+    }
+
+    # DIRECT_COLLAB_MAINTAIN
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "username",
+        "GitHubRepository",
+        "name",
+        "DIRECT_COLLAB_MAINTAIN",
+        rel_direction_right=True,
+    ) == {
+        ("roshinis78", "cartography"),
+        ("direct_bat", "cartography"),
+    }
 
 
 def test_pinned_python_library_to_repo(neo4j_session):
@@ -362,7 +349,8 @@ def test_upinned_python_library_to_repo(neo4j_session):
 def test_setup_cfg_library_to_repo(neo4j_session):
     """
     Ensure that repositories are connected to Python libraries stated as dependencies in setup.cfg.
-    and verify that exactly 2 repos are connected to the PythonLibrary.
+    Verify that exactly 1 repo is connected to the PythonLibrary (repos with dependency graph data
+    skip requirements.txt/setup.cfg parsing).
     """
     _ensure_local_neo4j_has_test_data(neo4j_session)
 
@@ -373,7 +361,7 @@ def test_setup_cfg_library_to_repo(neo4j_session):
     """
     nodes = neo4j_session.run(query)
     actual_nodes = {n["repo_count"] for n in nodes}
-    expected_nodes = {2}
+    expected_nodes = {1}
     assert actual_nodes == expected_nodes
 
 
@@ -698,4 +686,53 @@ def test_sync_github_dependencies_end_to_end(neo4j_session):
     assert actual_manifest_dependency_relationships is not None
     assert expected_manifest_dependency_relationships.issubset(
         actual_manifest_dependency_relationships
+    )
+
+
+def test_sync_github_branch_protection_rules(neo4j_session):
+    """
+    Test that GitHub branch protection rules are correctly synced to Neo4j.
+    """
+    # Arrange - Set up test data (calls transform and load pipeline)
+    _ensure_local_neo4j_has_test_data(neo4j_session)
+
+    # Expected data from GET_REPOS[2] which has PROTECTED_BRANCH_STRONG
+    repo_url = "https://github.com/cartography-cncf/cartography"
+    branch_protection_rule_id = "BPR_kwDOAbc123=="
+
+    # Assert - Test that branch protection rule nodes were created
+    expected_branch_protection_rule_nodes = {
+        (branch_protection_rule_id, "main", False, True, 2),
+    }
+    actual_branch_protection_rule_nodes = check_nodes(
+        neo4j_session,
+        "GitHubBranchProtectionRule",
+        [
+            "id",
+            "pattern",
+            "allows_deletions",
+            "requires_approving_reviews",
+            "required_approving_review_count",
+        ],
+    )
+    assert actual_branch_protection_rule_nodes is not None
+    assert expected_branch_protection_rule_nodes.issubset(
+        actual_branch_protection_rule_nodes
+    )
+
+    # Assert - Test that repositories are connected to branch protection rules
+    expected_repo_branch_protection_rule_relationships = {
+        (repo_url, branch_protection_rule_id),
+    }
+    actual_repo_branch_protection_rule_relationships = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubBranchProtectionRule",
+        "id",
+        "HAS_RULE",
+    )
+    assert actual_repo_branch_protection_rule_relationships is not None
+    assert expected_repo_branch_protection_rule_relationships.issubset(
+        actual_repo_branch_protection_rule_relationships
     )

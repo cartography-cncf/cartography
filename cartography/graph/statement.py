@@ -40,30 +40,30 @@ class GraphStatementJSONEncoder(json.JSONEncoder):
 # TODO move this cartography.util after we move util.run_*_job to cartography.graph.job.
 def get_job_shortname(file_path: Union[Path, str]) -> str:
     """
-    Extract the short name from a file path by removing the path and extension.
+    Extract the short name from a file path by removing the extension.
 
-    This utility function takes a file path and returns just the filename
-    without the directory path and file extension.
+    This utility function takes a file path and returns the path without the
+    file extension. Note that the directory path is preserved.
 
     Args:
         file_path (Union[Path, str]): The file path to process, can be a Path object or string.
 
     Returns:
-        str: The filename without path and extension.
+        str: The file path without extension.
 
     Examples:
         >>> get_job_shortname("/path/to/my_job.json")
-        'my_job'
+        '/path/to/my_job'
         >>> get_job_shortname("config.yaml")
         'config'
         >>> get_job_shortname(Path("/jobs/data_sync.py"))
-        'data_sync'
+        '/jobs/data_sync'
 
     Note:
         This function is planned to be moved to cartography.util after refactoring
         of the run_*_job functions to cartography.graph.job.
     """
-    # Return filename without path and extension
+    # Return file path without extension
     return os.path.splitext(file_path)[0]
 
 

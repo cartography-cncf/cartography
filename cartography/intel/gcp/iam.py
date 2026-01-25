@@ -8,6 +8,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.iam import GCPRoleSchema
 from cartography.models.gcp.iam import GCPServiceAccountSchema
 from cartography.util import timeit
@@ -39,7 +40,7 @@ def get_gcp_service_accounts(
         )
     )
     while request is not None:
-        response = request.execute()
+        response = gcp_api_execute_with_retry(request)
         if "accounts" in response:
             service_accounts.extend(response["accounts"])
         request = (
@@ -58,9 +59,9 @@ def get_gcp_predefined_roles(iam_client: Resource) -> List[Dict]:
     """
     Retrieve all predefined (Google-managed) IAM roles.
 
-    Predefined roles are global and not project-specific, so they can be fetched
-    from any project with the IAM API enabled. This is useful for the CAI fallback
-    where the target project may not have IAM API enabled, but the quota project does.
+    Predefined roles are global and not project-specific, so they can be fetched once
+    and reused across all target projects. This is useful for the CAI fallback where
+    the target project may not have the IAM API enabled.
 
     :param iam_client: The IAM resource object created by googleapiclient.discovery.build().
     :return: A list of dictionaries representing GCP predefined roles.
@@ -68,7 +69,7 @@ def get_gcp_predefined_roles(iam_client: Resource) -> List[Dict]:
     roles: List[Dict] = []
     predefined_req = iam_client.roles().list(view="FULL")
     while predefined_req is not None:
-        resp = predefined_req.execute()
+        resp = gcp_api_execute_with_retry(predefined_req)
         roles.extend(resp.get("roles", []))
         predefined_req = iam_client.roles().list_next(predefined_req, resp)
     return roles
@@ -88,7 +89,7 @@ def get_gcp_roles(iam_client: Resource, project_id: str) -> List[Dict]:
     # Get custom roles
     custom_req = iam_client.projects().roles().list(parent=f"projects/{project_id}")
     while custom_req is not None:
-        resp = custom_req.execute()
+        resp = gcp_api_execute_with_retry(custom_req)
         roles.extend(resp.get("roles", []))
         custom_req = iam_client.projects().roles().list_next(custom_req, resp)
 

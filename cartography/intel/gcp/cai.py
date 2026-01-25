@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 from typing import Dict
 from typing import List
@@ -13,6 +14,11 @@ from cartography.models.gcp.iam import GCPServiceAccountSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Maximum number of retries for Google API requests (handles transient errors and rate limiting)
+GOOGLE_API_NUM_RETRIES = 5
+# Delay between CAI API calls to avoid hitting rate limits (100 requests/min per project)
+CAI_CALL_DELAY_SECONDS = 1
 
 
 @timeit
@@ -33,7 +39,7 @@ def get_gcp_service_accounts_cai(
         contentType="RESOURCE",  # Request full resource data, not just metadata
     )
     while request is not None:
-        response = request.execute()
+        response = request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
         if "assets" in response:
             # Extract the actual service account data from CAI response
             for asset in response["assets"]:
@@ -43,6 +49,9 @@ def get_gcp_service_accounts_cai(
             previous_request=request,
             previous_response=response,
         )
+        # Add delay between paginated requests to avoid rate limiting
+        if request is not None:
+            time.sleep(CAI_CALL_DELAY_SECONDS)
     return service_accounts
 
 
@@ -68,12 +77,15 @@ def get_gcp_roles_cai(cai_client: Resource, project_id: str) -> List[Dict]:
         contentType="RESOURCE",  # Request full resource data, not just metadata
     )
     while custom_request is not None:
-        resp = custom_request.execute()
+        resp = custom_request.execute(num_retries=GOOGLE_API_NUM_RETRIES)
         if "assets" in resp:
             for asset in resp["assets"]:
                 if "resource" in asset and "data" in asset["resource"]:
                     roles.append(asset["resource"]["data"])
         custom_request = cai_client.assets().list_next(custom_request, resp)
+        # Add delay between paginated requests to avoid rate limiting
+        if custom_request is not None:
+            time.sleep(CAI_CALL_DELAY_SECONDS)
 
     return roles
 
@@ -244,9 +256,9 @@ def sync(
     :param project_id: The GCP Project ID to sync.
     :param gcp_update_tag: The timestamp of the current sync run.
     :param common_job_parameters: Common job parameters for the sync.
-    :param predefined_roles: Optional list of predefined roles fetched from the quota project.
+    :param predefined_roles: Optional list of predefined roles fetched from the IAM API.
         Since predefined roles are global (not project-specific), they can be fetched once
-        from any project with IAM API enabled and reused across all target projects.
+        and reused across all target projects.
     """
     logger.info(f"Syncing GCP IAM for project {project_id} via Cloud Asset Inventory")
 
@@ -261,16 +273,17 @@ def sync(
         neo4j_session, service_accounts, project_id, gcp_update_tag
     )
 
+    # Add delay between API calls to avoid rate limiting
+    time.sleep(CAI_CALL_DELAY_SECONDS)
+
     # Get custom roles from CAI
     roles_raw = get_gcp_roles_cai(cai_client, project_id)
     logger.info(f"Found {len(roles_raw)} custom roles in project {project_id} via CAI")
 
-    # Merge with predefined roles if provided
+    # Merge with predefined roles if provided (fetched once from IAM API and reused)
     if predefined_roles:
         roles_raw.extend(predefined_roles)
-        logger.info(
-            f"Added {len(predefined_roles)} predefined roles from quota project"
-        )
+        logger.info(f"Added {len(predefined_roles)} predefined roles from IAM API")
 
     roles = transform_gcp_roles_cai(roles_raw, project_id)
     load_gcp_roles_cai(neo4j_session, roles, project_id, gcp_update_tag)

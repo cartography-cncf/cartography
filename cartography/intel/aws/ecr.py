@@ -58,9 +58,16 @@ def _get_platform_specific_digests(
     )
 
     if not response.get("images"):
-        raise ValueError(
-            f"No manifest list found for digest {manifest_list_digest} in repository {repository_name}"
+        # Image is not actually a manifest list despite the media type hint.
+        # This can happen with single-platform images where describe_images reports
+        # a manifest list media type but batch_get_image with restrictive acceptedMediaTypes
+        # returns empty results. Return empty results so caller treats it as a regular image.
+        logger.debug(
+            "Digest %s in repository %s is not a manifest list despite media type hint",
+            manifest_list_digest,
+            repository_name,
         )
+        return [], set()
 
     # batch_get_image returns a single manifest list (hence [0])
     # The manifests[] array inside contains all platform-specific images and attestations

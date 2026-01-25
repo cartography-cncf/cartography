@@ -18,7 +18,10 @@ from . import data_factory_linked_service
 from . import data_factory_pipeline
 from . import data_lake
 from . import event_grid
+from . import event_hub
+from . import event_hub_namespace
 from . import functions
+from . import key_vaults
 from . import load_balancers
 from . import logic_apps
 from . import monitor
@@ -30,6 +33,7 @@ from . import security_center
 from . import sql
 from . import storage
 from . import subscription
+from . import synapse
 from . import tenant
 from .util.credentials import Authenticator
 from .util.credentials import Credentials
@@ -121,9 +125,31 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
+    key_vaults.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     aks.sync(
         neo4j_session,
         credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    namespaces = event_hub_namespace.sync_event_hub_namespaces(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    event_hub.sync_event_hubs(
+        neo4j_session,
+        credentials,
+        namespaces,
         subscription_id,
         update_tag,
         common_job_parameters,
@@ -178,6 +204,13 @@ def _sync_one_subscription(
         common_job_parameters,
     )
     load_balancers.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
+    synapse.sync(
         neo4j_session,
         credentials,
         subscription_id,
@@ -257,28 +290,29 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "azure_permission_relationships_file": config.azure_permission_relationships_file,
     }
 
-    try:
-        if config.azure_sp_auth:
-            credentials = Authenticator().authenticate_sp(
-                config.azure_tenant_id,
-                config.azure_client_id,
-                config.azure_client_secret,
+    if config.azure_sp_auth:
+        if not (
+            config.azure_tenant_id
+            and config.azure_client_id
+            and config.azure_client_secret
+        ):
+            raise ValueError(
+                "Azure Service Principal authentication requested, but tenant ID, client ID, "
+                "and client secret were not all provided.",
             )
-        else:
-            credentials = Authenticator().authenticate_cli()
 
-    except Exception as e:
-        logger.error(
-            (
-                "Unable to authenticate with Azure Service Principal, an error occurred: %s."
-                "Make sure your credentials (CLI or Service Principal) are configured correctly."
-            ),
-            e,
+        credentials = Authenticator().authenticate_sp(
+            config.azure_tenant_id,
+            config.azure_client_id,
+            config.azure_client_secret,
         )
-        return
+    else:
+        credentials = Authenticator().authenticate_cli()
 
     if not credentials:
-        return
+        raise RuntimeError(
+            "Azure authentication failed. Ensure Azure CLI login or Service Principal credentials are configured.",
+        )
 
     common_job_parameters["TENANT_ID"] = credentials.tenant_id
 
@@ -300,10 +334,9 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             )
 
         if not subscriptions:
-            logger.warning(
-                "No valid Azure credentials are found. No Azure subscriptions can be synced. Exiting Azure sync stage.",
+            raise RuntimeError(
+                "No Azure subscriptions found. Ensure the credentials have access to at least one subscription.",
             )
-            return
 
         _sync_multiple_subscriptions(
             neo4j_session,

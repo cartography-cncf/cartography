@@ -19,6 +19,9 @@ from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import PaginatedGraphqlData
+from cartography.models.github.branch_protection_rules import (
+    GitHubBranchProtectionRuleSchema,
+)
 from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.models.github.manifests import DependencyGraphManifestSchema
 from cartography.util import backoff_handler
@@ -110,6 +113,25 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                                     packageManager
                                 }
                             }
+                        }
+                    }
+                    branchProtectionRules(first: 50) {
+                        nodes {
+                            id
+                            pattern
+                            allowsDeletions
+                            allowsForcePushes
+                            dismissesStaleReviews
+                            isAdminEnforced
+                            requiresApprovingReviews
+                            requiredApprovingReviewCount
+                            requiresCodeOwnerReviews
+                            requiresCommitSignatures
+                            requiresLinearHistory
+                            requiresStatusChecks
+                            requiresStrictStatusChecks
+                            restrictsPushes
+                            restrictsReviewDismissals
                         }
                     }
                 }
@@ -329,8 +351,8 @@ def transform(
     :param outside_collaborators: dict of repo URL to list of outside collaborators.
         See tests.data.github.repos.OUTSIDE_COLLABORATORS for data shape.
     :return: Dict containing the repos, repo->language mapping, owners->repo mapping, outside collaborators->repo
-    mapping, Python requirements files (if any) in a repo, manifests from GitHub's dependency graph, and all
-    dependencies from GitHub's dependency graph.
+    mapping, Python requirements files (if any) in a repo, manifests from GitHub's dependency graph, all
+    dependencies from GitHub's dependency graph, and branch protection rules.
     """
     logger.info(f"Processing {len(repos_json)} GitHub repositories")
     transformed_repo_list: List[Dict] = []
@@ -354,6 +376,7 @@ def transform(
     transformed_requirements_files: List[Dict] = []
     transformed_dependencies: List[Dict] = []
     transformed_manifests: List[Dict] = []
+    transformed_branch_protection_rules: List[Dict] = []
     for repo_object in repos_json:
         # GitHub can return null repo entries. See issues #1334 and #1404.
         if repo_object is None:
@@ -386,25 +409,37 @@ def transform(
                 transformed_direct_collaborators,
             )
 
-        _transform_requirements_txt(
-            repo_object["requirements"],
-            repo_url,
-            transformed_requirements_files,
+        dependency_manifests = repo_object.get("dependencyGraphManifests")
+        has_dependency_graph = bool(
+            dependency_manifests and dependency_manifests.get("nodes"),
         )
-        _transform_setup_cfg_requirements(
-            repo_object["setupCfg"],
-            repo_url,
-            transformed_requirements_files,
-        )
+
+        if not has_dependency_graph:
+            _transform_requirements_txt(
+                repo_object["requirements"],
+                repo_url,
+                transformed_requirements_files,
+            )
+            _transform_setup_cfg_requirements(
+                repo_object["setupCfg"],
+                repo_url,
+                transformed_requirements_files,
+            )
+
         _transform_dependency_manifests(
-            repo_object.get("dependencyGraphManifests"),
+            dependency_manifests,
             repo_url,
             transformed_manifests,
         )
         _transform_dependency_graph(
-            repo_object.get("dependencyGraphManifests"),
+            dependency_manifests,
             repo_url,
             transformed_dependencies,
+        )
+        _transform_branch_protection_rules(
+            repo_object.get("branchProtectionRules", {}).get("nodes", []),
+            repo_url,
+            transformed_branch_protection_rules,
         )
     results = {
         "repos": transformed_repo_list,
@@ -415,6 +450,7 @@ def transform(
         "python_requirements": transformed_requirements_files,
         "dependencies": transformed_dependencies,
         "manifests": transformed_manifests,
+        "branch_protection_rules": transformed_branch_protection_rules,
     }
 
     return results
@@ -758,13 +794,41 @@ def _transform_python_requirements(
     :param out_requirements_files: Output array to append transformed results to.
     :return: Nothing.
     """
-    parsed_list = []
+    normalized_requirements: List[str] = []
+    current_line = ""
+
     for line in requirements_list:
         stripped_line = line.partition("#")[0].strip()
-        if stripped_line == "":
+        if not stripped_line:
+            if current_line:
+                normalized_requirements.append(current_line)
+                current_line = ""
             continue
+
+        continues = stripped_line.endswith("\\")
+        if continues:
+            stripped_line = stripped_line[:-1].rstrip()
+
+        is_option_line = stripped_line.startswith("-")
+        if not is_option_line and stripped_line:
+            current_line = (
+                f"{current_line} {stripped_line}".strip()
+                if current_line
+                else stripped_line
+            )
+
+        if not continues:
+            if current_line:
+                normalized_requirements.append(current_line)
+                current_line = ""
+
+    if current_line:
+        normalized_requirements.append(current_line)
+
+    parsed_list = []
+    for line in normalized_requirements:
         try:
-            req = Requirement(stripped_line)
+            req = Requirement(line)
             parsed_list.append(req)
         except InvalidRequirement:
             # INFO and not WARN/ERROR as we intentionally don't support all ways to specify Python requirements
@@ -800,6 +864,42 @@ def _transform_python_requirements(
                 "version": pinned_version,
                 "repo_url": repo_url,
             },
+        )
+
+
+def _transform_branch_protection_rules(
+    branch_protection_rules_data: List[Dict[str, Any]],
+    repo_url: str,
+    out_branch_protection_rules: List[Dict],
+) -> None:
+    """
+    Transforms GitHub branch protection rule data from API format to Cartography format.
+    :param branch_protection_rules_data: List of branch protection rule objects from GitHub's branchProtectionRules API.
+        See tests.data.github.branch_protection_rules for data shape.
+    :param repo_url: The URL of the GitHub repository.
+    :param out_branch_protection_rules: Output array to append transformed results to.
+    :return: Nothing.
+    """
+    for rule in branch_protection_rules_data:
+        out_branch_protection_rules.append(
+            {
+                "id": rule["id"],
+                "pattern": rule["pattern"],
+                "allows_deletions": rule["allowsDeletions"],
+                "allows_force_pushes": rule["allowsForcePushes"],
+                "dismisses_stale_reviews": rule["dismissesStaleReviews"],
+                "is_admin_enforced": rule["isAdminEnforced"],
+                "requires_approving_reviews": rule["requiresApprovingReviews"],
+                "required_approving_review_count": rule["requiredApprovingReviewCount"],
+                "requires_code_owner_reviews": rule["requiresCodeOwnerReviews"],
+                "requires_commit_signatures": rule["requiresCommitSignatures"],
+                "requires_linear_history": rule["requiresLinearHistory"],
+                "requires_status_checks": rule["requiresStatusChecks"],
+                "requires_strict_status_checks": rule["requiresStrictStatusChecks"],
+                "restricts_pushes": rule["restrictsPushes"],
+                "restricts_review_dismissals": rule["restrictsReviewDismissals"],
+                "repo_url": repo_url,
+            }
         )
 
 
@@ -1165,6 +1265,59 @@ def cleanup_github_manifests(
 
 
 @timeit
+def load_branch_protection_rules(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+    branch_protection_rules: List[Dict],
+) -> None:
+    """
+    Ingest GitHub branch protection rules into Neo4j
+    :param neo4j_session: Neo4J session object for server communication
+    :param update_tag: Timestamp used to determine data freshness
+    :param branch_protection_rules: List of branch protection rule objects from GitHub's branchProtectionRules API
+    :return: Nothing
+    """
+    # Group branch protection rules by repo_url for schema-based loading
+    rules_by_repo = defaultdict(list)
+
+    for rule in branch_protection_rules:
+        repo_url = rule["repo_url"]
+        # Remove repo_url from the rule object since we'll pass it as kwargs
+        rule_without_kwargs = {k: v for k, v in rule.items() if k != "repo_url"}
+        rules_by_repo[repo_url].append(rule_without_kwargs)
+
+    # Load branch protection rules for each repository separately
+    for repo_url, repo_rules in rules_by_repo.items():
+        load_data(
+            neo4j_session,
+            GitHubBranchProtectionRuleSchema(),
+            repo_rules,
+            lastupdated=update_tag,
+            repo_url=repo_url,
+        )
+
+
+@timeit
+def cleanup_branch_protection_rules(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+    repo_urls: List[str],
+) -> None:
+    """
+    Delete GitHub branch protection rules from the graph if they were not updated in the last sync.
+    :param neo4j_session: Neo4j session
+    :param common_job_parameters: Common job parameters containing UPDATE_TAG
+    :param repo_urls: List of repository URLs to clean up branch protection rules for
+    """
+    # Run cleanup for each repository separately
+    for repo_url in repo_urls:
+        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
+        GraphJob.from_node_schema(
+            GitHubBranchProtectionRuleSchema(), cleanup_params
+        ).run(neo4j_session)
+
+
+@timeit
 def load(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
@@ -1211,6 +1364,11 @@ def load(
         neo4j_session,
         common_job_parameters["UPDATE_TAG"],
         repo_data["dependencies"],
+    )
+    load_branch_protection_rules(
+        neo4j_session,
+        common_job_parameters["UPDATE_TAG"],
+        repo_data["branch_protection_rules"],
     )
 
 
@@ -1272,6 +1430,14 @@ def sync(
     )
     cleanup_github_manifests(
         neo4j_session, common_job_parameters, repo_urls_with_manifests
+    )
+
+    # Collect repository URLs that have branch protection rules for cleanup
+    repo_urls_with_branch_protection_rules = list(
+        {rule["repo_url"] for rule in repo_data["branch_protection_rules"]}
+    )
+    cleanup_branch_protection_rules(
+        neo4j_session, common_job_parameters, repo_urls_with_branch_protection_rules
     )
 
     run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)

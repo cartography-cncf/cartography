@@ -70,8 +70,9 @@ def test_call_sentinelone_api_with_params(mock_request):
     )
 
 
+@patch("time.sleep")
 @patch("cartography.intel.sentinelone.api.requests.request")
-def test_call_sentinelone_api_http_error(mock_request):
+def test_call_sentinelone_api_http_error(mock_request, mock_sleep):
     """Test API call with HTTP error"""
     mock_response = Mock()
     mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
