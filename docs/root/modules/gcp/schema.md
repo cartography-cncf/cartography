@@ -720,25 +720,44 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 
 Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles).
 
-| Field               | Description                                                                 |
-| ------------------- | --------------------------------------------------------------------------- |
-| id                  | The unique identifier for the role.                                         |
-| name                | The name of the role.                                                       |
-| title               | The title of the role.                                                      |
-| description         | A description of the role.                                                  |
-| deleted             | A boolean indicating if the role is deleted.                                |
-| etag                | The ETag of the role.                                                       |
-| includedPermissions | A list of permissions included in the role.                                 |
-| roleType            | The type of the role (e.g., BASIC, PREDEFINED, CUSTOM).                     |
-| lastupdated         | The timestamp of the last update.                                           |
-| projectId           | The ID of the GCP project to which the role belongs.                        |
+Roles exist at different levels in the GCP hierarchy:
+- **Predefined/Basic roles** (`roles/*`) - Global roles defined by Google, synced once per organization
+- **Custom organization roles** (`organizations/*/roles/*`) - Custom roles defined at the organization level
+- **Custom project roles** (`projects/*/roles/*`) - Custom roles defined at the project level
+
+| Field               | Description                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| id                  | The unique identifier for the role (same as name).                                                    |
+| name                | The name of the role (e.g., `roles/editor`, `organizations/123/roles/custom`, `projects/abc/roles/custom`). |
+| title               | The human-readable title of the role.                                                                 |
+| description         | A description of the role.                                                                            |
+| deleted             | A boolean indicating if the role is deleted.                                                          |
+| etag                | The ETag of the role for optimistic concurrency control.                                              |
+| permissions         | A list of permissions included in the role.                                                           |
+| role\_type          | The type of the role: `BASIC`, `PREDEFINED`, or `CUSTOM`.                                             |
+| scope               | The scope of the role: `GLOBAL` (predefined/basic), `ORGANIZATION` (custom org), or `PROJECT` (custom project). |
+| lastupdated         | The timestamp of the last update.                                                                     |
+| project\_id         | The ID of the GCP project for project-level custom roles (null for org-level and predefined roles).   |
+| organization\_id    | The ID of the GCP organization to which the role belongs.                                             |
 
 #### Relationships
 
-- GCPRoles are resources of GCPProjects.
+- GCPRoles are sub-resources of GCPOrganizations. All roles (predefined, custom org, and custom project) are connected to their organization.
 
     ```
-    (GCPRole)-[RESOURCE]->(GCPProject)
+    (GCPOrganization)-[RESOURCE]->(GCPRole)
+    ```
+
+- Custom project-level GCPRoles are also connected to their GCPProject.
+
+    ```
+    (GCPProject)-[RESOURCE]->(GCPRole)
+    ```
+
+- GCPPolicyBindings grant GCPRoles.
+
+    ```
+    (GCPPolicyBinding)-[GRANTS_ROLE]->(GCPRole)
     ```
 
 ### GCPKeyRing
@@ -1394,4 +1413,136 @@ Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com
 - GCPSecretManagerSecretVersions are versions of GCPSecretManagerSecrets.
     ```
     (GCPSecretManagerSecretVersion)-[:VERSION_OF]->(GCPSecretManagerSecret)
+    ```
+
+```mermaid
+graph LR
+    Project[GCPProject]
+    Service[GCPCloudRunService]
+    Revision[GCPCloudRunRevision]
+    Job[GCPCloudRunJob]
+    Execution[GCPCloudRunExecution]
+    ServiceAccount[GCPServiceAccount]
+
+    Project -->|RESOURCE| Service
+    Project -->|RESOURCE| Revision
+    Project -->|RESOURCE| Job
+    Project -->|RESOURCE| Execution
+
+    Service -->|HAS_REVISION| Revision
+    Job -->|HAS_EXECUTION| Execution
+
+    Revision -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Job -->|USES_SERVICE_ACCOUNT| ServiceAccount
+```
+
+### GCPCloudRunService
+
+Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the service (e.g., `projects/{project}/locations/{location}/services/{service}`) |
+| name | Short name of the service |
+| location | The GCP location where the service is deployed |
+| container_image | The container image for the service |
+| service_account_email | The email of the service account used by this service |
+
+#### Relationships
+
+  - GCPCloudRunServices are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunService)
+    ```
+  - GCPCloudRunServices have GCPCloudRunRevisions.
+    ```
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
+    ```
+
+### GCPCloudRunRevision
+
+Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the revision (e.g., `projects/{project}/locations/{location}/services/{service}/revisions/{revision}`) |
+| name | Short name of the revision |
+| service | Full resource name of the parent service |
+| container_image | The container image for this revision |
+| service_account_email | The email of the service account used by this revision |
+| log_uri | URI to Cloud Logging for this revision |
+
+#### Relationships
+
+  - GCPCloudRunRevisions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunRevision)
+    ```
+  - GCPCloudRunServices have GCPCloudRunRevisions.
+    ```
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
+    ```
+  - GCPCloudRunRevisions use GCPServiceAccounts.
+    ```
+    (GCPCloudRunRevision)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudRunJob
+
+Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the job (e.g., `projects/{project}/locations/{location}/jobs/{job}`) |
+| name | Short name of the job |
+| location | The GCP location where the job is deployed |
+| container_image | The container image for the job |
+| service_account_email | The email of the service account used by this job |
+
+#### Relationships
+
+  - GCPCloudRunJobs are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunJob)
+    ```
+  - GCPCloudRunJobs have GCPCloudRunExecutions.
+    ```
+    (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
+    ```
+  - GCPCloudRunJobs use GCPServiceAccounts.
+    ```
+    (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudRunExecution
+
+Representation of a GCP [Cloud Run Execution](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs.executions).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the execution (e.g., `projects/{project}/locations/{location}/jobs/{job}/executions/{execution}`) |
+| name | Short name of the execution |
+| job | Full resource name of the parent job |
+| status | Completion status of the execution (e.g., `SUCCEEDED`, `FAILED`) |
+| cancelled_count | Number of tasks that were cancelled |
+| failed_count | Number of tasks that failed |
+| succeeded_count | Number of tasks that succeeded |
+
+#### Relationships
+
+  - GCPCloudRunExecutions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunExecution)
+    ```
+  - GCPCloudRunJobs have GCPCloudRunExecutions.
+    ```
+    (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
     ```

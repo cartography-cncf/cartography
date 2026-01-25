@@ -37,6 +37,10 @@ from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
+from cartography.intel.gcp.cloudrun import execution as cloudrun_execution
+from cartography.intel.gcp.cloudrun import job as cloudrun_job
+from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
+from cartography.intel.gcp.cloudrun import service as cloudrun_service
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
@@ -59,7 +63,7 @@ logger = logging.getLogger(__name__)
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
     "Services",
-    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager",
+    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager cloud_run",
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -74,6 +78,7 @@ service_names = Services(
     cloud_sql="sqladmin.googleapis.com",
     gcf="cloudfunctions.googleapis.com",
     secretsmanager="secretmanager.googleapis.com",
+    cloud_run="run.googleapis.com",
 )
 
 
@@ -148,10 +153,6 @@ def _sync_project_resources(
     policy_bindings_permission_ok: Optional[bool] = (
         None  # Track if we have permission for policy bindings
     )
-
-    # Predefined roles are global (not project-specific), so we fetch them once
-    # and reuse them for all target projects that use the CAI fallback.
-    predefined_roles: Optional[List[Dict]] = None
 
     # Per-project sync across services
     for project in projects:
@@ -241,22 +242,14 @@ def _sync_project_resources(
         if service_names.iam not in enabled_services:
             # Fallback to Cloud Asset Inventory even if the target project does not have the IAM API enabled.
             # CAI uses the service account's host project for quota by default (no explicit quota project needed).
+            # Note: Predefined/org roles are synced at org level via sync_org_iam(); CAI only syncs
+            # project-level service accounts and custom roles.
             # Lazily initialize the CAI REST client once and reuse it for all projects.
             if cai_rest_client is None:
                 cai_rest_client = build_client(
                     "cloudasset",
                     "v1",
                     credentials=credentials,
-                )
-
-            # Fetch predefined roles once for CAI fallback (they're global, not project-specific)
-            if predefined_roles is None:
-                logger.info("Fetching predefined IAM roles for CAI fallback")
-                iam_client = build_client("iam", "v1", credentials=credentials)
-                predefined_roles = iam.get_gcp_predefined_roles(iam_client)
-                logger.info(
-                    "Fetched %d predefined IAM roles",
-                    len(predefined_roles),
                 )
 
             logger.info(
@@ -270,7 +263,6 @@ def _sync_project_resources(
                     project_id,
                     gcp_update_tag,
                     common_job_parameters,
-                    predefined_roles=predefined_roles,
                 )
             except HttpError as e:
                 if e.resp.status == 403:
@@ -494,6 +486,38 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
+        if service_names.cloud_run in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud Run.", project_id)
+            cloud_run_cred = build_client("run", "v2", credentials=credentials)
+            cloudrun_service.sync_services(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            cloudrun_revision.sync_revisions(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            cloudrun_job.sync_jobs(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            cloudrun_execution.sync_executions(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
         del common_job_parameters["PROJECT_ID"]
 
 
@@ -580,6 +604,20 @@ def start_gcp_ingestion(
             credentials=credentials,
         )
 
+        # Sync organization-level IAM (predefined roles + custom org roles) ONCE per org.
+        # This is done before project resources so that roles exist when policy bindings are created.
+        logger.info(
+            f"Syncing organization-level IAM for {org_resource_name}",
+        )
+        iam_client = build_client("iam", "v1", credentials=credentials)
+        iam.sync_org_iam(
+            neo4j_session,
+            iam_client,
+            org_resource_name,
+            config.update_tag,
+            common_job_parameters,
+        )
+
         # Ingest per-project resources (these run their own cleanup immediately since they're leaf nodes)
         _sync_project_resources(
             neo4j_session,
@@ -588,6 +626,10 @@ def start_gcp_ingestion(
             common_job_parameters,
             credentials=credentials,
         )
+
+        # Clean up roles for this org (after all project roles have been synced)
+        logger.debug(f"Running cleanup for IAM roles in {org_resource_name}")
+        iam.cleanup_roles(neo4j_session, common_job_parameters)
 
         # Clean up projects and folders for this org (children before parents)
         logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")

@@ -9,6 +9,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import determine_role_type_and_scope
 from cartography.models.gcp.iam import GCPRoleSchema
 from cartography.models.gcp.iam import GCPServiceAccountSchema
 from cartography.util import timeit
@@ -124,6 +125,9 @@ def transform_gcp_roles_cai(
     """
     Transform raw GCP roles from CAI into loader-friendly dicts.
 
+    CAI only returns project-level custom roles. Predefined roles and custom org roles
+    are synced at the organization level via sync_org_iam().
+
     :param raw_roles: List of role dicts from CAI API.
     :param project_id: The GCP Project ID these roles belong to.
     :return: List of transformed role dicts ready for loading.
@@ -131,19 +135,14 @@ def transform_gcp_roles_cai(
     result: List[Dict[str, Any]] = []
     for role in raw_roles:
         role_name = role["name"]
-        if role_name.startswith("roles/"):
-            # CAI currently does not return global predefined roles; keep branch for parity/future support
-            role_type = (
-                "BASIC"
-                if role_name in ["roles/owner", "roles/editor", "roles/viewer"]
-                else "PREDEFINED"
-            )
-        else:
-            role_type = "CUSTOM"
+        role_type, scope = determine_role_type_and_scope(role_name)
+
+        # Only include project-level roles; org-level and predefined are synced elsewhere
+        if scope != "PROJECT":
+            continue
 
         result.append(
             {
-                "id": role_name,
                 "name": role_name,
                 "title": role.get("title"),
                 "description": role.get("description"),
@@ -151,6 +150,7 @@ def transform_gcp_roles_cai(
                 "etag": role.get("etag"),
                 "includedPermissions": role.get("includedPermissions", []),
                 "roleType": role_type,
+                "scope": scope,
                 "projectId": project_id,
             },
         )
@@ -189,25 +189,31 @@ def load_gcp_service_accounts_cai(
 def load_gcp_roles_cai(
     neo4j_session: neo4j.Session,
     roles: List[Dict[str, Any]],
-    project_id: str,
+    organization_id: str,
     gcp_update_tag: int,
 ) -> None:
     """
     Load GCP role data into Neo4j using CAI-sourced data.
 
+    All roles are connected to the organization as their sub-resource.
+    Project-level roles will also be connected to their project via the
+    projectId field in the role data.
+
     :param neo4j_session: The Neo4j session.
     :param roles: List of transformed role dicts.
-    :param project_id: The GCP Project ID.
+    :param organization_id: The organization ID (e.g., "organizations/123456789012").
     :param gcp_update_tag: The timestamp of the current sync run.
     """
-    logger.debug(f"Loading {len(roles)} roles for project {project_id} via CAI")
+    logger.debug(
+        f"Loading {len(roles)} roles for organization {organization_id} via CAI"
+    )
 
     load(
         neo4j_session,
         GCPRoleSchema(),
         roles,
         lastupdated=gcp_update_tag,
-        projectId=project_id,
+        organizationId=organization_id,
     )
 
 
@@ -218,25 +224,25 @@ def cleanup(
     common_job_parameters: Dict[str, Any],
 ) -> None:
     """
-    Run cleanup jobs for GCP IAM data in Neo4j.
+    Run cleanup jobs for GCP IAM service accounts in Neo4j.
+
+    NOTE: This function only cleans up service accounts (project-scoped).
+    Role cleanup is handled separately at the org level by iam.cleanup_roles().
 
     :param neo4j_session: The Neo4j session.
     :param project_id: The GCP Project ID to clean up resources for.
     :param common_job_parameters: Common job parameters for cleanup.
     """
-    logger.debug(f"Running GCP IAM cleanup job (CAI) for project {project_id}")
+    logger.debug(
+        f"Running GCP IAM service account cleanup job (CAI) for project {project_id}"
+    )
     job_params = {
         **common_job_parameters,
         "projectId": project_id,
     }
 
-    cleanup_jobs = [
-        GraphJob.from_node_schema(GCPServiceAccountSchema(), job_params),
-        GraphJob.from_node_schema(GCPRoleSchema(), job_params),
-    ]
-
-    for cleanup_job in cleanup_jobs:
-        cleanup_job.run(neo4j_session)
+    cleanup_job = GraphJob.from_node_schema(GCPServiceAccountSchema(), job_params)
+    cleanup_job.run(neo4j_session)
 
 
 @timeit
@@ -251,16 +257,30 @@ def sync(
     """
     Sync GCP IAM resources for a given project using Cloud Asset Inventory API.
 
+    This syncs:
+    - Service accounts (project-specific)
+    - Custom project-level roles (projects/{project}/roles/*)
+
+    Note: Predefined roles and custom org roles are synced at the organization level
+    via iam.sync_org_iam(). The predefined_roles parameter is deprecated and ignored.
+
     :param neo4j_session: The Neo4j session.
     :param cai_client: The Cloud Asset Inventory resource object created by googleapiclient.discovery.build().
     :param project_id: The GCP Project ID to sync.
     :param gcp_update_tag: The timestamp of the current sync run.
     :param common_job_parameters: Common job parameters for the sync.
-    :param predefined_roles: Optional list of predefined roles fetched from the IAM API.
-        Since predefined roles are global (not project-specific), they can be fetched once
-        and reused across all target projects.
+    :param predefined_roles: DEPRECATED - Predefined roles are now synced at org level.
+        This parameter is ignored for backward compatibility.
     """
     logger.info(f"Syncing GCP IAM for project {project_id} via Cloud Asset Inventory")
+
+    # Get the organization ID from common_job_parameters
+    org_id = common_job_parameters.get("ORG_RESOURCE_NAME")
+    if not org_id:
+        logger.warning(
+            f"No ORG_RESOURCE_NAME in common_job_parameters for project {project_id}. "
+            "Project-level roles require an organization parent and will be skipped."
+        )
 
     service_accounts_raw = get_gcp_service_accounts_cai(cai_client, project_id)
     logger.info(
@@ -276,17 +296,21 @@ def sync(
     # Add delay between API calls to avoid rate limiting
     time.sleep(CAI_CALL_DELAY_SECONDS)
 
-    # Get custom roles from CAI
+    # Get custom project roles from CAI (predefined/org roles synced at org level)
     roles_raw = get_gcp_roles_cai(cai_client, project_id)
     logger.info(f"Found {len(roles_raw)} custom roles in project {project_id} via CAI")
 
-    # Merge with predefined roles if provided (fetched once from IAM API and reused)
-    if predefined_roles:
-        roles_raw.extend(predefined_roles)
-        logger.info(f"Added {len(predefined_roles)} predefined roles from IAM API")
-
+    # Transform only includes project-level roles (filters out any non-project roles)
     roles = transform_gcp_roles_cai(roles_raw, project_id)
-    load_gcp_roles_cai(neo4j_session, roles, project_id, gcp_update_tag)
 
-    # Run cleanup
+    if roles and org_id:
+        load_gcp_roles_cai(neo4j_session, roles, org_id, gcp_update_tag)
+    elif roles and not org_id:
+        logger.error(
+            "Skipping %d project-level roles for %s because ORG_RESOURCE_NAME is missing.",
+            len(roles),
+            project_id,
+        )
+
+    # Run service account cleanup (roles are cleaned up at org level)
     cleanup(neo4j_session, project_id, common_job_parameters)

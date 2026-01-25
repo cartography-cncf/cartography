@@ -71,7 +71,6 @@ https://developers.google.com/admin-sdk/directory/v1/reference/users#resource
 #### Node Labels
 
 - `GSuiteUser`
-- `GCPPrincipal`
 
 #### Relationships
 - GSuiteUser is an identity for a Human
@@ -101,7 +100,6 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
 #### Node Labels
 
 - `GSuiteGroup`
-- `GCPPrincipal`
 
 #### Relationships
 
