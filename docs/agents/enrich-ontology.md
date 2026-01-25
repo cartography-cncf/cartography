@@ -1,8 +1,22 @@
 # Enriching the Ontology
 
-> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Create Module](create-module.md) | [Add Node Type](add-node-type.md) | [Creating Security Rules](create-rule.md)
+> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Create Module](create-module.md) | [Add Node Type](add-node-type.md)
 
 This guide covers how to integrate your module with Cartography's Ontology system to enable cross-module querying.
+
+## Table of Contents
+
+1. [Overview of Ontology System](#overview-of-ontology-system)
+2. [Types of Ontology Integration](#types-of-ontology-integration)
+3. [Ontology Execution Flow](#ontology-execution-flow)
+4. [Available Semantic Labels and Fields](#available-semantic-labels-and-fields)
+5. [Step 1: Add Ontology Mapping Configuration](#step-1-add-ontology-mapping-configuration)
+6. [Step 2: Register Your Mapping](#step-2-register-your-mapping)
+7. [Step 3: Add Ontology Configuration to Your Node Schema](#step-3-add-ontology-configuration-to-your-node-schema)
+8. [Step 4: Understanding Ontology Field Mappings](#step-4-understanding-ontology-field-mappings)
+9. [Step 5: Handle Complex Relationships](#step-5-handle-complex-relationships)
+10. [Testing Ontology Integration](#testing-ontology-integration)
+11. [Documenting Ontology Integration](#documenting-ontology-integration)
 
 ## Overview of Ontology System
 
@@ -22,16 +36,100 @@ Adds `UserAccount` labels and `_ont_*` properties to existing nodes:
 - Automatic property mapping with special handling for data transformations
 - Source tracking via `_ont_source` property
 
-### Canonical Nodes (Legacy)
+### Canonical Nodes
 
 Creates separate abstract `User`/`Device` nodes:
 - More complex - requires separate node creation and relationship management
 - Additional storage overhead
 - Useful when you need to aggregate data from multiple sources into single entities
 
+## Ontology Execution Flow
+
+Understanding when and how the ontology is applied:
+
+### Semantic Labels (Applied at Ingestion Time)
+
+Semantic labels are applied **automatically during data ingestion** when you call `load()`:
+
+1. Your module calls `load(neo4j_session, YourSchema(), data, ...)`
+2. Cartography checks if your schema has a semantic label (via `ExtraNodeLabels`)
+3. If found, it looks up the mapping in `SEMANTIC_LABELS_MAPPING`
+4. The `_ont_*` properties are automatically added to your nodes
+5. The `_ont_source` property is set to track which module provided the data
+
+### Canonical Nodes (Applied as Separate Intel Module)
+
+Canonical nodes are created by a **dedicated intel module** (`cartography.intel.ontology`) that runs after your module:
+
+1. Your module ingests data with semantic labels
+2. The ontology intel module runs (configured via CLI options)
+3. It reads source nodes from the graph matching the configured sources of truth
+4. Creates `(:User:Ontology)` or `(:Device:Ontology)` canonical nodes
+5. Executes `OntologyRelMapping` queries to link canonical nodes
+
+**Configuration:**
+```bash
+# Configure sources of truth for ontology nodes
+cartography --ontology-users-source "okta,entra,gsuite"
+cartography --ontology-devices-source "crowdstrike,kandji,duo"
+```
+
+## Available Semantic Labels and Fields
+
+For the complete list of available semantic labels and their fields, see:
+- **Schema documentation**: [Ontology Schema](../root/modules/ontology/schema.md)
+- **Mapping source code**: `cartography/models/ontology/mapping/data/`
+
 ## Step 1: Add Ontology Mapping Configuration
 
-Create mapping configurations in `cartography/models/ontology/mapping/data/`:
+Create mapping configurations in `cartography/models/ontology/mapping/data/`.
+
+### Available `special_handling` Options
+
+When mapping fields, you can use these special handling options to transform values:
+
+| Value | Description | Extra Parameters |
+|-------|-------------|------------------|
+| `invert_boolean` | Inverts the boolean value (`true` → `false`) | None |
+| `to_boolean` | Converts to boolean, treating non-null as `true` | None |
+| `or_boolean` | Logical OR of multiple boolean fields | `extra={"fields": ["field1", "field2"]}` |
+| `nor_boolean` | Logical NOR of multiple boolean fields | `extra={"fields": ["field1", "field2"]}` |
+| `equal_boolean` | Returns `true` if field value matches any of the specified values | `extra={"values": ["active", "bypass"]}` |
+| `static_value` | Sets a static value, ignoring `node_field` | `extra={"value": "dynamodb"}` |
+
+**Examples:**
+```python
+# Invert a boolean (disabled → active)
+OntologyFieldMapping(
+    ontology_field="active",
+    node_field="disabled",
+    special_handling="invert_boolean",
+)
+
+# OR multiple fields (suspended OR archived → inactive)
+OntologyFieldMapping(
+    ontology_field="active",
+    node_field="suspended",
+    extra={"fields": ["archived"]},
+    special_handling="nor_boolean",
+)
+
+# Match against allowed values
+OntologyFieldMapping(
+    ontology_field="active",
+    node_field="status",
+    extra={"values": ["active", "bypass"]},
+    special_handling="equal_boolean",
+)
+
+# Set a static value for database type
+OntologyFieldMapping(
+    ontology_field="type",
+    node_field="",
+    special_handling="static_value",
+    extra={"value": "dynamodb"},
+)
+```
 
 ### For Semantic Labels
 
@@ -113,13 +211,31 @@ your_service_mapping = OntologyMapping(
                 ON CREATE SET r.firstseen = timestamp()
                 SET r.lastupdated = $UPDATE_TAG
             """,
-            interative=False,
+            iterative=False,
         ),
     ],
 )
 ```
 
-## Step 2: Add Ontology Configuration to Your Node Schema
+## Step 2: Register Your Mapping
+
+After creating your mapping, you must register it so Cartography can discover it.
+
+1. Add your mapping to the appropriate file in `cartography/models/ontology/mapping/data/`
+
+2. Add your mapping to the dictionary at the bottom of the file:
+
+```python
+# Example: At the bottom of useraccounts.py
+USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
+    # ... existing mappings ...
+    "your_service": your_service_mapping,  # Add your mapping here
+}
+```
+
+The mappings are automatically imported via `cartography/models/ontology/mapping/__init__.py`.
+
+## Step 3: Add Ontology Configuration to Your Node Schema
 
 ### Semantic Labels
 
@@ -187,7 +303,7 @@ class UserSchema(CartographyNodeSchema):
     )
 ```
 
-## Step 3: Understanding Ontology Field Mappings
+## Step 4: Understanding Ontology Field Mappings
 
 ### Required Fields
 
@@ -230,7 +346,7 @@ OntologyNodeMapping(
 
 In this example, AWS IAM users can be linked to existing User ontology nodes through relationships, but they cannot create new User nodes since they lack email addresses.
 
-## Step 4: Handle Complex Relationships
+## Step 5: Handle Complex Relationships
 
 For services that have user-device relationships, add relationship mappings:
 
@@ -245,13 +361,87 @@ rels=[
             ON CREATE SET r.firstseen = timestamp()
             SET r.lastupdated = $UPDATE_TAG
         """,
-        interative=False,
+        iterative=False,
     ),
 ]
 ```
 
----
+## Testing Ontology Integration
 
-## Next Steps
+To verify your ontology integration works correctly:
 
-For creating security rules that leverage the ontology system, see [Creating Security Rules](create-rule.md).
+### For Semantic Labels
+
+Check that `_ont_*` properties are added to your nodes:
+
+```python
+def test_ontology_properties(neo4j_session):
+    # After running your sync function
+    result = neo4j_session.run(
+        "MATCH (n:YourServiceUser) RETURN n._ont_email, n._ont_source LIMIT 1"
+    ).single()
+
+    assert result["n._ont_email"] is not None
+    assert result["n._ont_source"] == "your_service"
+```
+
+### For Canonical Nodes
+
+Check that canonical nodes and relationships are created:
+
+```python
+def test_canonical_user_created(neo4j_session):
+    # After running the ontology intel module
+    result = neo4j_session.run(
+        """
+        MATCH (u:User:Ontology)-[:HAS_ACCOUNT]->(ua:YourServiceUser)
+        RETURN count(u) as user_count
+        """
+    ).single()
+
+    assert result["user_count"] > 0
+```
+
+## Documenting Ontology Integration
+
+When your node has an ontology integration (semantic label or canonical node relationship), you must document it in the schema file (`docs/root/modules/your_service/schema.md`).
+
+### Standard Ontology Mapping Phrase
+
+Add a blockquote immediately after the node description using this format:
+
+```markdown
+### YourServiceUser
+
+Represents a user in Your Service.
+
+> **Ontology Mapping**: This node has the extra label `{SemanticLabel}` to enable cross-platform queries for {description} across different systems (e.g., {examples}).
+```
+
+### Phrase Templates by Semantic Label
+
+| Semantic Label | Standard Phrase |
+|----------------|-----------------|
+| `UserAccount` | `> **Ontology Mapping**: This node has the extra label \`UserAccount\` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GSuiteUser).` |
+| `DeviceInstance` | `> **Ontology Mapping**: This node has the extra label \`DeviceInstance\` to enable cross-platform queries for device instances across different systems (e.g., CrowdStrikeDevice, KandjiDevice, JamfComputer).` |
+| `Tenant` | `> **Ontology Mapping**: This node has the extra label \`Tenant\` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).` |
+| `Database` | `> **Ontology Mapping**: This node has the extra label \`Database\` to enable cross-platform queries for databases across different systems (e.g., RDSInstance, DynamoDBTable, BigQueryDataset).` |
+
+### Example: AWSAccount with Tenant Label
+
+From `docs/root/modules/aws/schema.md`:
+
+```markdown
+### AWSAccount
+
+Representation of an AWS Account.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job discovered this node |
+| name | The name of the account |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The AWS Account ID number |
+```

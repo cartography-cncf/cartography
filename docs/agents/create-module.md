@@ -4,6 +4,18 @@
 
 This guide walks you through creating a new Cartography intel module from scratch, covering the complete sync pattern, data model definitions, and testing.
 
+## Table of Contents
+
+1. [Module Structure](#module-structure) - File organization and entry points
+2. [The Sync Pattern](#the-sync-pattern-get-transform-load-cleanup) - GET, TRANSFORM, LOAD, CLEANUP
+3. [Data Model](#data-model-defining-nodes-and-relationships) - Nodes, properties, and relationships
+4. [Configuration and Credentials](#configuration-and-credentials) - CLI args and validation
+5. [Testing Your Module](#testing-your-module) - Integration tests and test data
+6. [Schema Documentation](#schema-documentation) - Documenting your schema
+7. [Coding Conventions](#coding-conventions) - Error handling, type hints, logging
+8. [Common Pitfalls](#common-pitfalls) - Troubleshooting common issues
+9. [Final Checklist](#final-checklist) - Pre-submission checklist
+
 ## Module Structure
 
 Every Cartography intel module follows this structure:
@@ -244,6 +256,8 @@ class YourServiceUserNodeProperties(CartographyNodeProperties):
 - `extra_index=True`: Create database index for better query performance
 - `set_in_kwargs=True`: Value comes from kwargs passed to `load()`, not from individual records
 
+> For advanced node configurations (extra labels, ontology integration), see [Adding a New Node Type](add-node-type.md).
+
 ### Node Schema
 
 Define your complete node schema:
@@ -353,6 +367,8 @@ class YourServiceTenantToUserRel(CartographyRelSchema):
 **Relationship Directions:**
 - `LinkDirection.OUTWARD`: `(:YourServiceUser)-[:RESOURCE]->(:YourServiceTenant)`
 - `LinkDirection.INWARD`: `(:YourServiceUser)<-[:RESOURCE]-(:YourServiceTenant)`
+
+> For advanced relationship patterns (MatchLinks, one-to-many, cross-module relationships), see [Adding a New Relationship](add-relationship.md).
 
 ### Loading Data
 
@@ -581,7 +597,23 @@ def test_sync_users(mock_api, neo4j_session):
 
 ## Schema Documentation
 
-Always document your schema in `docs/schema/your_service.md`:
+Always document your schema in `docs/root/modules/your_service/schema.md`. Follow these formatting conventions:
+
+### Documentation Conventions
+
+1. **Title Levels**:
+   - Use `###` (h3) for node names
+   - Use `####` (h4) for the "Relationships" subsection
+
+2. **Indexed Fields in Bold**:
+   - Mark indexed fields (primary key, extra_index=True) with **bold** in the table
+   - Example: `|**id**| The unique identifier|`
+
+3. **Ontology Mapping Note** (if applicable):
+   - Add a blockquote after the node description for nodes with semantic labels
+   - See [Enriching the Ontology](enrich-ontology.md#documenting-ontology-integration) for the standard phrase format
+
+### Example Documentation
 
 ```markdown
 ## Your Service Schema
@@ -590,10 +622,14 @@ Always document your schema in `docs/schema/your_service.md`:
 
 Represents a user in Your Service.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GSuiteUser).
+
 | Field | Description |
 |-------|-------------|
-| id | Unique user identifier |
-| email | User email address |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique user identifier |
+| **email** | User email address (indexed for queries) |
 | name | User display name |
 | created_at | Account creation timestamp |
 | last_login | Last login timestamp |
@@ -601,8 +637,15 @@ Represents a user in Your Service.
 
 #### Relationships
 
-- User belongs to tenant: `(:YourServiceUser)-[:RESOURCE]->(:YourServiceTenant)`
-- User connected to human: `(:YourServiceUser)<-[:IDENTITY_YOUR_SERVICE]-(:Human)`
+- YourServiceUser belong to YourServiceTenant.
+    ```cypher
+    (:YourServiceTenant)-[:RESOURCE]->(:YourServiceUser)
+    ```
+
+- YourServiceUser may be connected to Human nodes.
+    ```cypher
+    (:Human)-[:IDENTITY_YOUR_SERVICE]->(:YourServiceUser)
+    ```
 ```
 
 ## File Structure Template
@@ -690,6 +733,108 @@ Neo4j 4+ supports native Python datetime objects and ISO 8601 strings:
 email: PropertyRef = PropertyRef("email", extra_index=True)
 
 # Note: Fields in target_node_matcher are indexed automatically
+```
+
+## Coding Conventions
+
+### Error Handling Principles
+
+#### Fail Loudly When Assumptions Break
+
+Cartography likes to fail loudly so that broken assumptions bubble exceptions up to operators instead of being papered over.
+
+- When key assumptions your code relies upon stop being true, **stop execution immediately** and let the error propagate.
+- Lean toward propagating errors up to callers instead of logging a warning inside a `try`/`except` block and continuing.
+- If you're confident data should always exist, access it directly. Allow natural `KeyError`, `AttributeError`, or `IndexError` exceptions to signal corruption.
+- Never manufacture "safe" default return values for required data.
+- Avoid `hasattr()`/`getattr()` for required fields - rely on schemas and tests to detect breakage.
+
+```python
+# DON'T: Catch base exceptions and continue silently
+try:
+    risky_operation()
+except Exception:
+    logger.error("Something went wrong")
+    pass  # Silently continue - BAD!
+
+# DO: Let errors propagate or handle specifically
+result = risky_operation()  # Let it fail if something is wrong
+```
+
+#### Required vs Optional Field Access
+
+```python
+def transform_user(user_data: dict[str, Any]) -> dict[str, Any]:
+    return {
+        # Required field - let it raise KeyError if missing
+        "id": user_data["id"],
+        "email": user_data["email"],
+
+        # Optional field - gracefully handle missing data
+        "name": user_data.get("display_name"),
+        "phone": user_data.get("phone_number"),
+    }
+```
+
+### Type Hints Style Guide
+
+Use Python 3.9+ style type hints:
+
+```python
+# DO: Use built-in type hints (Python 3.9+)
+def get_users(api_key: str) -> dict[str, Any]:
+    ...
+
+# DO: Use union operator for optional types
+def process_user(user_id: str | None) -> None:
+    ...
+
+# DON'T: Use objects from typing module (Dict, List, Optional)
+```
+
+### Logging Guidelines
+
+#### Log Levels
+
+Use appropriate log levels to reduce noise in production:
+
+| Level | Usage |
+|-------|-------|
+| `CRITICAL` | Framework-level component failures that cause cascading errors |
+| `ERROR` | Explicit errors raised at the module level |
+| `WARNING` | Transient errors or configuration issues that do not stop the module |
+| `INFO` | High-level milestones (module start/finish) and significant summary statistics |
+| `DEBUG` | Everything else: granular job details, empty result sets, raw data |
+
+**Key Principle**: `INFO` should be reserved for actionable, high-level events. Empty states like "Loaded 0 results" or routine operations like "Graph job executed" belong in `DEBUG`.
+
+```python
+# DO: Use INFO for significant milestones
+logger.info("Starting %s ingestion for tenant %s", module_name, tenant_id)
+logger.info("Completed sync: loaded %s users, %s devices", user_count, device_count)
+
+# DO: Use DEBUG for granular details and empty states
+logger.debug("Running cleanup job for %s", schema_name)
+logger.debug("Loaded %s results from API", len(results))  # Even if 0
+
+# DON'T: Use INFO for routine operations
+logger.info("Graph job executed")  # Should be DEBUG
+logger.info("Loaded 0 users")      # Should be DEBUG
+```
+
+#### Logging Format
+
+Use lazy evaluation with `%s` formatting instead of f-strings. This avoids string interpolation when the log level is not active:
+
+```python
+# DO: Use % formatting (lazy evaluation)
+logger.info("Processing %s users for tenant %s", count, tenant_id)
+logger.debug("API response: %s", response_data)
+logger.warning("Rate limited, retrying in %s seconds", retry_delay)
+
+# DON'T: Use f-strings (eager evaluation)
+logger.info(f"Processing {count} users for tenant {tenant_id}")
+logger.debug(f"API response: {response_data}")
 ```
 
 ## Final Checklist

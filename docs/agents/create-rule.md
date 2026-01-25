@@ -4,6 +4,22 @@
 
 This guide covers how to create security rules in Cartography to identify attack surfaces, security gaps, and compliance issues across your infrastructure.
 
+## Table of Contents
+
+1. [Overview](#overview) - Introduction to the rules system
+2. [Rule Architecture](#rule-architecture) - Rules, Facts, and Findings hierarchy
+3. [Essential Imports](#essential-imports) - Required imports
+4. [Creating Facts](#creating-facts) - Cypher queries for detection
+5. [Creating Output Models](#creating-output-models) - Pydantic models for results
+6. [Creating Rules](#creating-rules) - Combining facts into rules
+7. [Fact Maturity Levels](#fact-maturity-levels) - EXPERIMENTAL vs STABLE
+8. [Rule Versioning](#rule-versioning) - Semantic versioning
+9. [Tagging Best Practices](#tagging-best-practices) - Categorization tags
+10. [Step-by-Step: Creating a New Rule](#step-by-step-creating-a-new-rule) - Complete walkthrough
+11. [Cross-Provider Rules](#cross-provider-rules) - Multi-cloud detection
+12. [Using Ontology in Rules](#using-ontology-in-rules) - Leverage semantic labels
+13. [CIS Benchmark Rules Conventions](#cis-benchmark-rules-conventions) - Compliance rules
+
 ## Overview
 
 Cartography includes a powerful rules system that allows you to write security queries using Cypher. Rules can detect issues across multiple cloud providers by combining facts from different modules or leveraging the ontology system.
@@ -400,7 +416,14 @@ name="CIS GCP 3.9: SSL Policies With Weak Cipher Suites"
 name="CIS 1.14: Access Keys Not Rotated"
 ```
 
-**Why include the provider?** CIS control numbers don't map 1:1 across cloud providers. Including the provider ensures rule names are self-documenting.
+### Why Include the Provider?
+
+CIS control numbers don't map 1:1 across cloud providers. For example:
+
+- CIS AWS 1.18 (Expired SSL/TLS Certificates) has no GCP equivalent
+- CIS AWS 5.1 vs CIS GCP 3.9 cover different networking concepts despite similar numbers
+
+Including the provider ensures rule names are **self-documenting** when viewed in isolation (alerts, dashboards, reports, SIEM integrations).
 
 ### File Naming
 
@@ -466,6 +489,10 @@ CIS_REFERENCES = [
 - [CIS GCP Foundations Benchmark](https://www.cisecurity.org/benchmark/google_cloud_computing_platform)
 - [CIS Azure Foundations Benchmark](https://www.cisecurity.org/benchmark/azure)
 - [CIS Kubernetes Benchmark](https://www.cisecurity.org/benchmark/kubernetes)
+
+### Additional Resources
+
+- [AWS Security Hub CIS Controls](https://docs.aws.amazon.com/securityhub/latest/userguide/cis-aws-foundations-benchmark.html)
 
 ### Complete CIS Example
 
