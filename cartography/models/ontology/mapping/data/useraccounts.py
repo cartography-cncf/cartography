@@ -351,7 +351,7 @@ aws_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(ontology_field="username", node_field="name"),
                 OntologyFieldMapping(
-                    ontology_field="lastactivity", node_field="passwordlastused"
+                    ontology_field="lastactivity", node_field="last_authenticated"
                 ),
             ],
         ),

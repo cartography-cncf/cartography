@@ -1364,6 +1364,7 @@ def get_service_last_accessed_details(
     """
     Get service last accessed details for a given principal.
     This is a two-step process: generate job, then get results.
+    Handles pagination to retrieve all services accessed.
     """
     client = boto3_session.client("iam")
 
@@ -1376,6 +1377,20 @@ def get_service_last_accessed_details(
             job_response = client.get_service_last_accessed_details(JobId=job_id)
 
             if job_response["JobStatus"] == "COMPLETED":
+                # Handle pagination - collect all services
+                all_services = job_response.get("ServicesLastAccessed", [])
+
+                while job_response.get("IsTruncated", False):
+                    marker = job_response.get("Marker")
+                    if not marker:
+                        break
+                    job_response = client.get_service_last_accessed_details(
+                        JobId=job_id, Marker=marker
+                    )
+                    all_services.extend(job_response.get("ServicesLastAccessed", []))
+
+                # Return complete response with all services
+                job_response["ServicesLastAccessed"] = all_services
                 return job_response
             elif job_response["JobStatus"] == "FAILED":
                 logger.warning(
@@ -1398,7 +1413,7 @@ def get_service_last_accessed_details(
         logger.warning(
             f"Error getting service last accessed details for {arn}", exc_info=True
         )
-        return {}
+        raise
 
 
 @timeit

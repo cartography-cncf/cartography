@@ -129,6 +129,11 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 |name | The friendly name that identifies the group|
 | createdate| ISO 8601 date-time string when the group was created|
 |**arn** | The AWS-global identifier for this group|
+| last_accessed_service_name | The name of the most recently accessed AWS service |
+| last_accessed_service_namespace | The namespace of the most recently accessed service (e.g., "s3") |
+| last_authenticated | ISO 8601 date-time when the service was last accessed |
+| last_authenticated_entity | The ARN of the entity that last accessed the service |
+| last_authenticated_region | The region where the service was last accessed |
 
 #### Relationships
 - Objects part of an AWSGroup may assume AWSRoles.
@@ -762,6 +767,11 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
 | **arn** | AWS-unique identifier for this object |
 | userid | The stable and unique string identifying the user.  |
 | passwordlastused | Datetime when this user's password was last used
+| last_accessed_service_name | The name of the most recently accessed AWS service |
+| last_accessed_service_namespace | The namespace of the most recently accessed service (e.g., "s3") |
+| last_authenticated | ISO 8601 date-time when the service was last accessed |
+| last_authenticated_entity | The ARN of the entity that last accessed the service |
+| last_authenticated_region | The region where the service was last accessed |
 
 #### Relationships
 - AWS Users can be members of AWS Groups.
@@ -809,6 +819,11 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 | path | The path to the role. |
 | createdate| The date and time, in ISO 8601 date-time format, when the role was created. |
 | **arn** | AWS-unique identifier for this object |
+| last_accessed_service_name | The name of the most recently accessed AWS service |
+| last_accessed_service_namespace | The namespace of the most recently accessed service (e.g., "s3") |
+| last_authenticated | ISO 8601 date-time when the service was last accessed |
+| last_authenticated_entity | The ARN of the entity that last accessed the service |
+| last_authenticated_region | The region where the service was last accessed |
 
 
 #### Relationships
@@ -5796,33 +5811,3 @@ Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemake
     ```
     (AWSSageMakerModelPackage)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
     ```
-### ServiceLastAccessed
-
-Representation of AWS service access information from [get_service_last_accessed_details](https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetServiceLastAccessedDetails.html).
-
-| Field | Description |
-|-------|-------------|
-| firstseen| Timestamp of when a sync job first discovered this node |
-| lastupdated | Timestamp of the last time the node was updated |
-| **id** | Unique identifier: `{principal_arn}|{service_name}` |
-| service_name | The name of the service (e.g., "Amazon S3") |
-| service_namespace | The service namespace (e.g., "s3") |
-| last_authenticated | The date and time when the service was last accessed |
-| last_authenticated_entity | The entity that last accessed the service |
-| last_authenticated_region | The region where the service was last accessed |
-| total_authenticated_entities | The total `number` of authenticated entities for this service |
-
-#### Properties on AWSPrincipal
-Service last accessed information is stored as properties directly on AWSPrincipal nodes:
-- `last_accessed_service_name` - The name of the most recently accessed service
-- `last_accessed_service_namespace` - The service namespace of the most recently accessed service
-- `last_authenticated` - The date and time when the service was last accessed
-- `last_authenticated_entity` - The entity that last accessed the service
-- `last_authenticated_region` - The region where the service was last accessed
-
-Example query:
-```cypher
-MATCH (p:AWSPrincipal)
-WHERE p.last_accessed_service_name IS NOT NULL
-RETURN p.arn, p.last_accessed_service_name, p.last_authenticated
-```
