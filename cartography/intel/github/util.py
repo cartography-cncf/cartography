@@ -49,7 +49,7 @@ def handle_rate_limit_sleep(token: str) -> None:
         f"Github graphql ratelimit has {remaining} remaining and is under threshold {threshold},"
         f" sleeping until reset at {reset_at} for {sleep_duration}",
     )
-    time.sleep(sleep_duration.seconds)
+    time.sleep(sleep_duration.total_seconds())
 
 
 def call_github_api(query: str, variables: str, token: str, api_url: str) -> Dict:
@@ -266,7 +266,7 @@ def handle_rest_rate_limit_sleep(token: str, base_url: str) -> None:
         f"GitHub REST API rate limit has {remaining} remaining and is under threshold {threshold}, "
         f"sleeping until reset at {reset_at} for {sleep_duration}",
     )
-    time.sleep(sleep_duration.seconds)
+    time.sleep(sleep_duration.total_seconds())
 
 
 def fetch_all_rest_api_pages(
@@ -275,7 +275,7 @@ def fetch_all_rest_api_pages(
     endpoint: str,
     result_key: str,
     retries: int = 5,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch all pages from a GitHub REST API endpoint using Link header pagination.
 
@@ -287,8 +287,8 @@ def fetch_all_rest_api_pages(
     :param retries: Number of retries to perform on transient errors.
     :return: A list of all items from all pages.
     """
-    results: List[Dict[str, Any]] = []
-    url: Optional[str] = f"{base_url}{endpoint}"
+    results: list[dict[str, Any]] = []
+    url: str | None = f"{base_url}{endpoint}"
     headers = {
         "Authorization": f"token {token}",
         "Accept": "application/vnd.github+json",
