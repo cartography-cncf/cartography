@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -57,8 +58,22 @@ class LastpassTenantToLastpassUserRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:LastpassTenant)<-[:RESOURCE]-(:LastpassUser)
+# (:LastpassTenant)-[:RESOURCE]->(:LastpassUser)
 class LastpassTenantToUserRel(CartographyRelSchema):
+    target_node_label: str = "LastpassTenant"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: LastpassTenantToLastpassUserRelProperties = (
+        LastpassTenantToLastpassUserRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:LastpassUser)-[:RESOURCE]->(:LastpassTenant) - Backwards compatibility
+class LastpassUserToTenantDeprecatedRel(CartographyRelSchema):
     target_node_label: str = "LastpassTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
@@ -73,8 +88,15 @@ class LastpassTenantToUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class LastpassUserSchema(CartographyNodeSchema):
     label: str = "LastpassUser"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: LastpassUserNodeProperties = LastpassUserNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
-        rels=[LastpassHumanToUserRel()],
+        rels=[
+            LastpassHumanToUserRel(),
+            # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+            LastpassUserToTenantDeprecatedRel(),
+        ],
     )
     sub_resource_relationship: LastpassTenantToUserRel = LastpassTenantToUserRel()

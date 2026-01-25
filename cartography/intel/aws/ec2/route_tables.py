@@ -145,12 +145,20 @@ def _transform_route_table_routes(
     for route in routes:
         route_id, target = _get_route_id_and_target(route_table_id, route)
 
+        # Gateway VPC endpoints appear in GatewayId field (e.g. vpce-xxxxx)
+        # Extract to vpc_endpoint_id for proper relationship matching
+        gateway_id = route.get("GatewayId")
+        vpc_endpoint_id = (
+            gateway_id if gateway_id and gateway_id.startswith("vpce-") else None
+        )
+
         transformed_route = {
             "id": route_id,
             "route_table_id": route_table_id,
             "destination_cidr_block": route.get("DestinationCidrBlock"),
             "destination_ipv6_cidr_block": route.get("DestinationIpv6CidrBlock"),
-            "gateway_id": route.get("GatewayId"),
+            "gateway_id": gateway_id,
+            "vpc_endpoint_id": vpc_endpoint_id,
             "instance_id": route.get("InstanceId"),
             "instance_owner_id": route.get("InstanceOwnerId"),
             "nat_gateway_id": route.get("NatGatewayId"),

@@ -69,6 +69,43 @@ class KubernetesPodToKubernetesClusterRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesPodToSecretRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:USES_SECRET_VOLUME]->(:KubernetesSecret)
+class KubernetesPodToSecretVolumeRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesSecret"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "composite_id": PropertyRef("secret_volume_ids", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_SECRET_VOLUME"
+    properties: KubernetesPodToSecretRelProperties = (
+        KubernetesPodToSecretRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+# (:KubernetesPod)-[:USES_SECRET_ENV]->(:KubernetesSecret)
+class KubernetesPodToSecretEnvRel(CartographyRelSchema):
+    target_node_label: str = "KubernetesSecret"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "composite_id": PropertyRef("secret_env_ids", one_to_many=True),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_SECRET_ENV"
+    properties: KubernetesPodToSecretRelProperties = (
+        KubernetesPodToSecretRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesPodSchema(CartographyNodeSchema):
     label: str = "KubernetesPod"
     properties: KubernetesPodNodeProperties = KubernetesPodNodeProperties()
@@ -76,5 +113,9 @@ class KubernetesPodSchema(CartographyNodeSchema):
         KubernetesPodToKubernetesClusterRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [KubernetesPodToKubernetesNamespaceRel()]
+        [
+            KubernetesPodToKubernetesNamespaceRel(),
+            KubernetesPodToSecretVolumeRel(),
+            KubernetesPodToSecretEnvRel(),
+        ]
     )

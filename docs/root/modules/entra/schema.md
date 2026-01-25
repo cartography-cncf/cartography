@@ -4,6 +4,8 @@
 
 Representation of an Entra (formerly Azure AD) Tenant.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount, GCPOrganization).
+
 |Field | Description|
 |-------|-------------|
 |id | Entra Tenant ID (GUID)|
@@ -25,6 +27,8 @@ Representation of an Entra (formerly Azure AD) Tenant.
 ### EntraUser
 
 Representation of an Entra [User](https://learn.microsoft.com/en-us/graph/api/user-get?view=graph-rest-1.0&tabs=http).
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser, GitHubUser).
 
 |Field | Description|
 |-------|-------------|
@@ -157,6 +161,8 @@ Representation of an Entra [Group](https://learn.microsoft.com/en-us/graph/api/g
 
 Representation of an Entra [Application](https://learn.microsoft.com/en-us/graph/api/application-get?view=graph-rest-1.0&tabs=http).
 
+> **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable cross-platform queries for OAuth/SAML applications across different systems (e.g., OktaApplication, KeycloakClient).
+
 |Field | Description|
 |-------|-------------|
 |id | Entra Application ID (GUID)|
@@ -274,33 +280,3 @@ Representation of an Entra [Service Principal](https://learn.microsoft.com/en-us
     ```cypher
     (:EntraServicePrincipal)-[:FEDERATES_TO]->(:AWSIdentityCenter)
     ```
-
-## Example Queries
-
-Here are some common query patterns for working with Entra applications and access management:
-
-### Application Access Analysis
-
-**Find all users with access to a specific application:**
-```cypher
-MATCH (u:EntraUser)-[:HAS_APP_ROLE]->(ara:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(app:EntraApplication)
-WHERE app.display_name = "Finance Tracker"
-RETURN u.display_name, u.user_principal_name, ara.created_date_time
-ORDER BY ara.created_date_time DESC
-```
-
-**Find all applications a user has access to:**
-```cypher
-MATCH (u:EntraUser)-[:HAS_APP_ROLE]->(ara:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(app:EntraApplication)
-WHERE u.user_principal_name = "john.doe@example.com"
-RETURN app.display_name, app.app_id, ara.app_role_id, ara.created_date_time
-ORDER BY app.display_name
-```
-
-**Find users with access via group membership:**
-```cypher
-MATCH (u:EntraUser)-[:MEMBER_OF]->(g:EntraGroup)-[:HAS_APP_ROLE]->(ara:EntraAppRoleAssignment)-[:ASSIGNED_TO]->(app:EntraApplication)
-WHERE app.display_name = "HR Portal"
-RETURN u.display_name, u.user_principal_name, g.display_name as group_name, ara.created_date_time
-ORDER BY u.display_name
-```

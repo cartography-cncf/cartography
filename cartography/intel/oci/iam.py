@@ -10,6 +10,8 @@ from typing import List
 import neo4j
 import oci
 
+from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 
 from . import utils
@@ -89,7 +91,8 @@ def load_compartments(
     """
 
     for compartment in compartments:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_compartment,
             OCID=compartment["id"],
             COMPARTMENT_ID=compartment["compartment-id"],
@@ -126,7 +129,8 @@ def load_users(
     """
 
     for user in users:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_user,
             OCID=user["id"],
             CREATE_DATE=str(user["time-created"]),
@@ -206,7 +210,8 @@ def load_groups(
     """
 
     for group in groups:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_group,
             OCID=group["id"],
             CREATE_DATE=str(group["time-created"]),
@@ -260,7 +265,11 @@ def sync_group_memberships(
         "MATCH (group:OCIGroup)<-[:RESOURCE]-(OCITenancy{ocid: $OCI_TENANCY_ID}) "
         "return group.name as name, group.ocid as ocid;"
     )
-    groups = neo4j_session.run(query, OCI_TENANCY_ID=current_tenancy_id)
+    groups = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        query,
+        OCI_TENANCY_ID=current_tenancy_id,
+    )
     groups_membership = {
         group["ocid"]: get_group_membership_data(iam, group["ocid"], current_tenancy_id)
         for group in groups
@@ -288,7 +297,8 @@ def load_group_memberships(
     """
     for group_ocid, membership_data in group_memberships.items():
         for info in membership_data["GroupMemberships"]:
-            neo4j_session.run(
+            run_write_query(
+                neo4j_session,
                 ingest_membership,
                 COMPARTMENT_ID=info["compartment-id"],
                 GROUP_OCID=info["group-id"],
@@ -317,7 +327,8 @@ def load_policies(
     """
 
     for policy in policies:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             ingest_policy,
             OCID=policy["id"],
             POLICY_NAME=policy["name"],
@@ -386,7 +397,8 @@ def load_oci_policy_group_reference(
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_policy_group_reference,
         POLICY_ID=policy_id,
         GROUP_ID=group_id,
@@ -408,7 +420,8 @@ def load_oci_policy_compartment_reference(
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $oci_update_tag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_policy_compartment_reference,
         POLICY_ID=policy_id,
         COMPARTMENT_ID=compartment_id,
@@ -487,7 +500,8 @@ def load_region_subscriptions(
     SET r.lastupdated = $oci_update_tag
     """
     for region in regions:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             query,
             REGION_KEY=region["region-key"],
             REGION_NAME=region["region-name"],

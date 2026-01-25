@@ -113,7 +113,10 @@ class ECSServiceToECSTaskRelProperties(CartographyRelProperties):
 class ECSServiceToECSTaskRel(CartographyRelSchema):
     target_node_label: str = "ECSTask"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"service_name": PropertyRef("serviceName")}
+        {
+            "service_name": PropertyRef("serviceName"),
+            "cluster_arn": PropertyRef("clusterArn"),
+        }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_TASK"

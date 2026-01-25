@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -149,6 +150,9 @@ class DuoUserToHumanRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class DuoUserSchema(CartographyNodeSchema):
     label: str = "DuoUser"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["UserAccount"]
+    )  # UserAccount label is used for ontology mapping
     properties: DuoUserNodeProperties = DuoUserNodeProperties()
     sub_resource_relationship: DuoUserToDuoApiHostRel = DuoUserToDuoApiHostRel()
     other_relationships: OtherRelationships = OtherRelationships(

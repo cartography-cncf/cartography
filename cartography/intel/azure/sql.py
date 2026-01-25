@@ -2,6 +2,7 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import Generator
+from typing import Iterable
 from typing import List
 from typing import Tuple
 
@@ -14,7 +15,32 @@ from azure.mgmt.sql.models import SecurityAlertPolicyName
 from azure.mgmt.sql.models import TransparentDataEncryptionName
 from msrestazure.azure_exceptions import CloudError
 
-from cartography.util import run_cleanup_job
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.tag import transform_tags
+from cartography.models.azure.sql.databasethreatdetectionpolicy import (
+    AzureDatabaseThreatDetectionPolicySchema,
+)
+from cartography.models.azure.sql.elasticpool import AzureElasticPoolSchema
+from cartography.models.azure.sql.failovergroup import AzureFailoverGroupSchema
+from cartography.models.azure.sql.recoverabledatabase import (
+    AzureRecoverableDatabaseSchema,
+)
+from cartography.models.azure.sql.replicationlink import AzureReplicationLinkSchema
+from cartography.models.azure.sql.restorabledroppeddatabase import (
+    AzureRestorableDroppedDatabaseSchema,
+)
+from cartography.models.azure.sql.restorepoint import AzureRestorePointSchema
+from cartography.models.azure.sql.serveradadministrator import (
+    AzureServerADAdministratorSchema,
+)
+from cartography.models.azure.sql.serverdnsalias import AzureServerDNSAliasSchema
+from cartography.models.azure.sql.sqldatabase import AzureSQLDatabaseSchema
+from cartography.models.azure.sql.sqlserver import AzureSQLServerSchema
+from cartography.models.azure.sql.transparentdataencryption import (
+    AzureTransparentDataEncryptionSchema,
+)
+from cartography.models.azure.tags.sql_tag import AzureSQLServerTagsSchema
 from cartography.util import timeit
 
 from .util.credentials import Credentials
@@ -65,31 +91,12 @@ def load_server_data(
     server_list: List[Dict],
     azure_update_tag: int,
 ) -> None:
-    """
-    Ingest the server details into neo4j.
-    """
-    ingest_server = """
-    UNWIND $server_list as server
-    MERGE (s:AzureSQLServer{id: server.id})
-    ON CREATE SET s.firstseen = timestamp(),
-    s.resourcegroup = server.resourceGroup, s.location = server.location
-    SET s.lastupdated = $azure_update_tag,
-    s.name = server.name,
-    s.kind = server.kind,
-    s.state = server.state,
-    s.version = server.version
-    WITH s
-    MATCH (owner:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})
-    MERGE (owner)-[r:RESOURCE]->(s)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_server,
-        server_list=server_list,
+    load(
+        neo4j_session,
+        AzureSQLServerSchema(),
+        server_list,
+        lastupdated=azure_update_tag,
         AZURE_SUBSCRIPTION_ID=subscription_id,
-        azure_update_tag=azure_update_tag,
     )
 
 
@@ -102,7 +109,7 @@ def sync_server_details(
     sync_tag: int,
 ) -> None:
     details = get_server_details(credentials, subscription_id, server_list)
-    load_server_details(neo4j_session, credentials, subscription_id, details, sync_tag)  # type: ignore
+    load_server_details(neo4j_session, credentials, subscription_id, details, sync_tag)
 
 
 @timeit
@@ -391,12 +398,9 @@ def load_server_details(
     neo4j_session: neo4j.Session,
     credentials: Credentials,
     subscription_id: str,
-    details: List[Tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any]],
+    details: Iterable[Tuple[Any, Any, Any, Any, Any, Any, Any, Any, Any, Any]],
     update_tag: int,
 ) -> None:
-    """
-    Create dictionaries for every resource in the server so we can import them in a single query
-    """
     dns_aliases = []
     ad_admins = []
     recoverable_databases = []
@@ -460,17 +464,20 @@ def load_server_details(
                 db["resource_group_name"] = rg
                 databases.append(db)
 
-    _load_server_dns_aliases(neo4j_session, dns_aliases, update_tag)
-    _load_server_ad_admins(neo4j_session, ad_admins, update_tag)
-    _load_recoverable_databases(neo4j_session, recoverable_databases, update_tag)
+    _load_elastic_pools(neo4j_session, elastic_pools, subscription_id, update_tag)
+    _load_failover_groups(neo4j_session, failover_groups, subscription_id, update_tag)
+    _load_databases(neo4j_session, databases, subscription_id, update_tag)
+    _load_recoverable_databases(
+        neo4j_session, recoverable_databases, subscription_id, update_tag
+    )
     _load_restorable_dropped_databases(
         neo4j_session,
         restorable_dropped_databases,
+        subscription_id,
         update_tag,
     )
-    _load_failover_groups(neo4j_session, failover_groups, update_tag)
-    _load_elastic_pools(neo4j_session, elastic_pools, update_tag)
-    _load_databases(neo4j_session, databases, update_tag)
+    _load_server_dns_aliases(neo4j_session, dns_aliases, subscription_id, update_tag)
+    _load_server_ad_admins(neo4j_session, ad_admins, subscription_id, update_tag)
 
     sync_database_details(
         neo4j_session,
@@ -485,29 +492,18 @@ def load_server_details(
 def _load_server_dns_aliases(
     neo4j_session: neo4j.Session,
     dns_aliases: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest the DNS Alias details into neo4j.
     """
-    ingest_dns_aliases = """
-    UNWIND $dns_aliases_list as dns_alias
-    MERGE (alias:AzureServerDNSAlias{id: dns_alias.id})
-    ON CREATE SET alias.firstseen = timestamp()
-    SET alias.name = dns_alias.name,
-    alias.dnsrecord = dns_alias.azure_dns_record,
-    alias.lastupdated = $azure_update_tag
-    WITH alias, dns_alias
-    MATCH (s:AzureSQLServer{id: dns_alias.server_id})
-    MERGE (s)-[r:USED_BY]->(alias)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_dns_aliases,
-        dns_aliases_list=dns_aliases,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureServerDNSAliasSchema(),
+        dns_aliases,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -515,30 +511,18 @@ def _load_server_dns_aliases(
 def _load_server_ad_admins(
     neo4j_session: neo4j.Session,
     ad_admins: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest the Server AD Administrators details into neo4j.
     """
-    ingest_ad_admins = """
-    UNWIND $ad_admins_list as ad_admin
-    MERGE (a:AzureServerADAdministrator{id: ad_admin.id})
-    ON CREATE SET a.firstseen = timestamp()
-    SET a.name = ad_admin.name,
-    a.administratortype = ad_admin.administrator_type,
-    a.login = ad_admin.login,
-    a.lastupdated = $azure_update_tag
-    WITH a, ad_admin
-    MATCH (s:AzureSQLServer{id: ad_admin.server_id})
-    MERGE (s)-[r:ADMINISTERED_BY]->(a)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_ad_admins,
-        ad_admins_list=ad_admins,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureServerADAdministratorSchema(),
+        ad_admins,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -546,31 +530,18 @@ def _load_server_ad_admins(
 def _load_recoverable_databases(
     neo4j_session: neo4j.Session,
     recoverable_databases: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest the recoverable database details into neo4j.
     """
-    ingest_recoverable_databases = """
-    UNWIND $recoverable_databases_list as rec_db
-    MERGE (rd:AzureRecoverableDatabase{id: rec_db.id})
-    ON CREATE SET rd.firstseen = timestamp()
-    SET rd.name = rec_db.name,
-    rd.edition = rec_db.edition,
-    rd.servicelevelobjective = rec_db.service_level_objective,
-    rd.lastbackupdate = rec_db.last_available_backup_date,
-    rd.lastupdated = $azure_update_tag
-    WITH rd, rec_db
-    MATCH (s:AzureSQLServer{id: rec_db.server_id})
-    MERGE (s)-[r:RESOURCE]->(rd)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_recoverable_databases,
-        recoverable_databases_list=recoverable_databases,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureRecoverableDatabaseSchema(),
+        recoverable_databases,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -578,35 +549,18 @@ def _load_recoverable_databases(
 def _load_restorable_dropped_databases(
     neo4j_session: neo4j.Session,
     restorable_dropped_databases: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest the restorable dropped database details into neo4j.
     """
-    ingest_restorable_dropped_databases = """
-    UNWIND $restorable_dropped_databases_list as res_dropped_db
-    MERGE (rdd:AzureRestorableDroppedDatabase{id: res_dropped_db.id})
-    ON CREATE SET rdd.firstseen = timestamp(), rdd.location = res_dropped_db.location
-    SET rdd.name = res_dropped_db.name,
-    rdd.databasename = res_dropped_db.database_name,
-    rdd.creationdate = res_dropped_db.creation_date,
-    rdd.deletiondate = res_dropped_db.deletion_date,
-    rdd.restoredate = res_dropped_db.earliest_restore_date,
-    rdd.edition = res_dropped_db.edition,
-    rdd.servicelevelobjective = res_dropped_db.service_level_objective,
-    rdd.maxsizebytes = res_dropped_db.max_size_bytes,
-    rdd.lastupdated = $azure_update_tag
-    WITH rdd, res_dropped_db
-    MATCH (s:AzureSQLServer{id: res_dropped_db.server_id})
-    MERGE (s)-[r:RESOURCE]->(rdd)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_restorable_dropped_databases,
-        restorable_dropped_databases_list=restorable_dropped_databases,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureRestorableDroppedDatabaseSchema(),
+        restorable_dropped_databases,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -614,30 +568,18 @@ def _load_restorable_dropped_databases(
 def _load_failover_groups(
     neo4j_session: neo4j.Session,
     failover_groups: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest the failover groups details into neo4j.
     """
-    ingest_failover_groups = """
-    UNWIND $failover_groups_list as fg
-    MERGE (f:AzureFailoverGroup{id: fg.id})
-    ON CREATE SET f.firstseen = timestamp(), f.location = fg.location
-    SET f.name = fg.name,
-    f.replicationrole = fg.replication_role,
-    f.replicationstate = fg.replication_state,
-    f.lastupdated = $azure_update_tag
-    WITH f, fg
-    MATCH (s:AzureSQLServer{id: fg.server_id})
-    MERGE (s)-[r:RESOURCE]->(f)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_failover_groups,
-        failover_groups_list=failover_groups,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureFailoverGroupSchema(),
+        failover_groups,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -645,34 +587,18 @@ def _load_failover_groups(
 def _load_elastic_pools(
     neo4j_session: neo4j.Session,
     elastic_pools: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest the elastic pool details into neo4j.
     """
-    ingest_elastic_pools = """
-    UNWIND $elastic_pools_list as ep
-    MERGE (e:AzureElasticPool{id: ep.id})
-    ON CREATE SET e.firstseen = timestamp(), e.location = ep.location
-    SET e.name = ep.name,
-    e.kind = ep.kind,
-    e.creationdate = ep.creation_date,
-    e.state = ep.state,
-    e.maxsizebytes = ep.max_size_bytes,
-    e.licensetype = ep.license_type,
-    e.zoneredundant = ep.zone_redundant,
-    e.lastupdated = $azure_update_tag
-    WITH e, ep
-    MATCH (s:AzureSQLServer{id: ep.server_id})
-    MERGE (s)-[r:RESOURCE]->(e)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_elastic_pools,
-        elastic_pools_list=elastic_pools,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureElasticPoolSchema(),
+        elastic_pools,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -680,40 +606,38 @@ def _load_elastic_pools(
 def _load_databases(
     neo4j_session: neo4j.Session,
     databases: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest the database details into neo4j.
     """
-    ingest_databases = """
-    UNWIND $databases_list as az_database
-    MERGE (d:AzureSQLDatabase{id: az_database.id})
-    ON CREATE SET d.firstseen = timestamp(), d.location = az_database.location
-    SET d.name = az_database.name,
-    d.kind = az_database.kind,
-    d.creationdate = az_database.creation_date,
-    d.databaseid = az_database.database_id,
-    d.maxsizebytes = az_database.max_size_bytes,
-    d.licensetype = az_database.license_type,
-    d.secondarylocation = az_database.default_secondary_location,
-    d.elasticpoolid = az_database.elastic_pool_id,
-    d.collation = az_database.collation,
-    d.failovergroupid = az_database.failover_group_id,
-    d.zoneredundant = az_database.zone_redundant,
-    d.restorabledroppeddbid = az_database.restorable_dropped_database_id,
-    d.recoverabledbid = az_database.recoverable_database_id,
-    d.lastupdated = $azure_update_tag
-    WITH d, az_database
-    MATCH (s:AzureSQLServer{id: az_database.server_id})
-    MERGE (s)-[r:RESOURCE]->(d)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
+    load(
+        neo4j_session,
+        AzureSQLDatabaseSchema(),
+        databases,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
+    )
 
-    neo4j_session.run(
-        ingest_databases,
-        databases_list=databases,
-        azure_update_tag=update_tag,
+
+@timeit
+def load_sql_server_tags(
+    neo4j_session: neo4j.Session,
+    subscription_id: str,
+    servers: List[Dict],
+    update_tag: int,
+) -> None:
+    """
+    Loads tags for SQL Servers.
+    """
+    tags = transform_tags(servers, subscription_id)
+    load(
+        neo4j_session,
+        AzureSQLServerTagsSchema(),
+        tags,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -726,7 +650,7 @@ def sync_database_details(
     update_tag: int,
 ) -> None:
     db_details = get_database_details(credentials, subscription_id, databases)
-    load_database_details(neo4j_session, db_details, update_tag)  # type: ignore
+    load_database_details(neo4j_session, db_details, subscription_id, update_tag)  # type: ignore
 
 
 @timeit
@@ -904,6 +828,7 @@ def get_transparent_data_encryptions(
 def load_database_details(
     neo4j_session: neo4j.Session,
     details: List[Tuple[Any, Any, Any, Any, Any]],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
@@ -939,53 +864,37 @@ def load_database_details(
             transparent_data_encryption["database_id"] = databaseId
             encryptions_list.append(transparent_data_encryption)
 
-    _load_replication_links(neo4j_session, replication_links, update_tag)
+    _load_replication_links(
+        neo4j_session, replication_links, subscription_id, update_tag
+    )
     _load_db_threat_detection_policies(
         neo4j_session,
         threat_detection_policies,
+        subscription_id,
         update_tag,
     )
-    _load_restore_points(neo4j_session, restore_points, update_tag)
-    _load_transparent_data_encryptions(neo4j_session, encryptions_list, update_tag)
+    _load_restore_points(neo4j_session, restore_points, subscription_id, update_tag)
+    _load_transparent_data_encryptions(
+        neo4j_session, encryptions_list, subscription_id, update_tag
+    )
 
 
 @timeit
 def _load_replication_links(
     neo4j_session: neo4j.Session,
     replication_links: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest replication links into neo4j.
     """
-    ingest_replication_links = """
-    UNWIND $replication_links_list as replication_link
-    MERGE (rl:AzureReplicationLink{id: replication_link.id})
-    ON CREATE SET rl.firstseen = timestamp(),
-    rl.location = replication_link.location
-    SET rl.name = replication_link.name,
-    rl.partnerdatabase = replication_link.partner_database,
-    rl.partnerlocation = replication_link.partner_location,
-    rl.partnerrole = replication_link.partner_role,
-    rl.partnerserver = replication_link.partner_server,
-    rl.mode = replication_link.replication_mode,
-    rl.state = replication_link.replication_state,
-    rl.percentcomplete = replication_link.percent_complete,
-    rl.role = replication_link.role,
-    rl.starttime = replication_link.start_time,
-    rl.terminationallowed = replication_link.is_termination_allowed,
-    rl.lastupdated = $azure_update_tag
-    WITH rl, replication_link
-    MATCH (d:AzureSQLDatabase{id: replication_link.database_id})
-    MERGE (d)-[r:CONTAINS]->(rl)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_replication_links,
-        replication_links_list=replication_links,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureReplicationLinkSchema(),
+        replication_links,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -993,38 +902,18 @@ def _load_replication_links(
 def _load_db_threat_detection_policies(
     neo4j_session: neo4j.Session,
     threat_detection_policies: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest threat detection policy into neo4j.
     """
-    ingest_threat_detection_policies = """
-    UNWIND $threat_detection_policies_list as tdp
-    MERGE (policy:AzureDatabaseThreatDetectionPolicy{id: tdp.id})
-    ON CREATE SET policy.firstseen = timestamp(),
-    policy.location = tdp.location
-    SET policy.name = tdp.name,
-    policy.location = tdp.location,
-    policy.kind = tdp.kind,
-    policy.emailadmins = tdp.email_account_admins,
-    policy.emailaddresses = tdp.email_addresses,
-    policy.retentiondays = tdp.retention_days,
-    policy.state = tdp.state,
-    policy.storageendpoint = tdp.storage_endpoint,
-    policy.useserverdefault = tdp.use_server_default,
-    policy.disabledalerts = tdp.disabled_alerts,
-    policy.lastupdated = $azure_update_tag
-    WITH policy, tdp
-    MATCH (d:AzureSQLDatabase{id: tdp.database_id})
-    MERGE (d)-[r:CONTAINS]->(policy)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_threat_detection_policies,
-        threat_detection_policies_list=threat_detection_policies,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureDatabaseThreatDetectionPolicySchema(),
+        threat_detection_policies,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -1032,32 +921,18 @@ def _load_db_threat_detection_policies(
 def _load_restore_points(
     neo4j_session: neo4j.Session,
     restore_points: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest restore points into neo4j.
     """
-    ingest_restore_points = """
-    UNWIND $restore_points_list as rp
-    MERGE (point:AzureRestorePoint{id: rp.id})
-    ON CREATE SET point.firstseen = timestamp(),
-    point.location = rp.location
-    SET point.name = rp.name,
-    point.restoredate = rp.earliest_restore_date,
-    point.restorepointtype = rp.restore_point_type,
-    point.creationdate = rp.restore_point_creation_date,
-    point.lastupdated = $azure_update_tag
-    WITH point, rp
-    MATCH (d:AzureSQLDatabase{id: rp.database_id})
-    MERGE (d)-[r:CONTAINS]->(point)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_restore_points,
-        restore_points_list=restore_points,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureRestorePointSchema(),
+        restore_points,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -1065,30 +940,18 @@ def _load_restore_points(
 def _load_transparent_data_encryptions(
     neo4j_session: neo4j.Session,
     encryptions_list: List[Dict],
+    subscription_id: str,
     update_tag: int,
 ) -> None:
     """
     Ingest transparent data encryptions into neo4j.
     """
-    ingest_data_encryptions = """
-    UNWIND $transparent_data_encryptions_list as e
-    MERGE (tae:AzureTransparentDataEncryption{id: e.id})
-    ON CREATE SET tae.firstseen = timestamp(),
-    tae.location = e.location
-    SET tae.name = e.name,
-    tae.status = e.status,
-    tae.lastupdated = $azure_update_tag
-    WITH tae, e
-    MATCH (d:AzureSQLDatabase{id: e.database_id})
-    MERGE (d)-[r:CONTAINS]->(tae)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $azure_update_tag
-    """
-
-    neo4j_session.run(
-        ingest_data_encryptions,
-        transparent_data_encryptions_list=encryptions_list,
-        azure_update_tag=update_tag,
+    load(
+        neo4j_session,
+        AzureTransparentDataEncryptionSchema(),
+        encryptions_list,
+        lastupdated=update_tag,
+        AZURE_SUBSCRIPTION_ID=subscription_id,
     )
 
 
@@ -1097,10 +960,34 @@ def cleanup_azure_sql_servers(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
 ) -> None:
-    run_cleanup_job(
-        "azure_sql_server_cleanup.json",
-        neo4j_session,
-        common_job_parameters,
+    for node in [
+        AzureSQLServerSchema,
+        AzureServerDNSAliasSchema,
+        AzureServerADAdministratorSchema,
+        AzureReplicationLinkSchema,
+        AzureRestorePointSchema,
+        AzureTransparentDataEncryptionSchema,
+        AzureDatabaseThreatDetectionPolicySchema,
+        AzureSQLDatabaseSchema,
+        AzureElasticPoolSchema,
+        AzureFailoverGroupSchema,
+        AzureRecoverableDatabaseSchema,
+        AzureRestorableDroppedDatabaseSchema,
+    ]:
+        GraphJob.from_node_schema(node(), common_job_parameters).run(
+            neo4j_session,
+        )
+
+
+@timeit
+def cleanup_sql_server_tags(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
+    """
+    Runs cleanup job for Azure SQL Server tags.
+    """
+    GraphJob.from_node_schema(AzureSQLServerTagsSchema(), common_job_parameters).run(
+        neo4j_session
     )
 
 
@@ -1115,6 +1002,7 @@ def sync(
     logger.info("Syncing Azure SQL for subscription '%s'.", subscription_id)
     server_list = get_server_list(credentials, subscription_id)
     load_server_data(neo4j_session, subscription_id, server_list, sync_tag)
+    load_sql_server_tags(neo4j_session, subscription_id, server_list, sync_tag)
     sync_server_details(
         neo4j_session,
         credentials,
@@ -1123,3 +1011,4 @@ def sync(
         sync_tag,
     )
     cleanup_azure_sql_servers(neo4j_session, common_job_parameters)
+    cleanup_sql_server_tags(neo4j_session, common_job_parameters)

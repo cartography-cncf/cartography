@@ -4,6 +4,8 @@
 
 Representation of a Kandji Tenant.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
+
 |Field | Description|
 |-------|-------------|
 | id | Kandji Tenant id e.g. "company name"|
@@ -11,6 +13,8 @@ Representation of a Kandji Tenant.
 ### KandjiDevice
 
 Representation of a Kandji device.
+
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, TailscaleDevice).
 
 |Field | Description|
 |-------|-------------|
@@ -28,5 +32,5 @@ Representation of a Kandji device.
 - Kandji devices are enrolled to a Kandji Tenant
 
     ```
-    (KandjiDevice)-[ENROLLED_TO]->(KandjiTenant)
+    (KandjiDevice)<-[RESOURCE]-(KandjiTenant)
     ```
