@@ -9,8 +9,6 @@ Supports three levels:
 
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 from urllib.parse import quote
 
 import neo4j
@@ -20,14 +18,14 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import _get_rest_api_base_url
 from cartography.intel.github.util import fetch_all_rest_api_pages
-from cartography.models.github.actions import GitHubEnvActionsSecretSchema
-from cartography.models.github.actions import GitHubEnvActionsVariableSchema
-from cartography.models.github.actions import GitHubEnvironmentSchema
-from cartography.models.github.actions import GitHubOrgActionsSecretSchema
-from cartography.models.github.actions import GitHubOrgActionsVariableSchema
-from cartography.models.github.actions import GitHubRepoActionsSecretSchema
-from cartography.models.github.actions import GitHubRepoActionsVariableSchema
-from cartography.models.github.actions import GitHubWorkflowSchema
+from cartography.models.github.actions_secret import GitHubEnvActionsSecretSchema
+from cartography.models.github.actions_secret import GitHubOrgActionsSecretSchema
+from cartography.models.github.actions_secret import GitHubRepoActionsSecretSchema
+from cartography.models.github.actions_variable import GitHubEnvActionsVariableSchema
+from cartography.models.github.actions_variable import GitHubOrgActionsVariableSchema
+from cartography.models.github.actions_variable import GitHubRepoActionsVariableSchema
+from cartography.models.github.environment import GitHubEnvironmentSchema
+from cartography.models.github.workflow import GitHubWorkflowSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -43,7 +41,7 @@ def get_org_secrets(
     token: str,
     api_url: str,
     organization: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch organization-level Actions secrets.
     GET /orgs/{org}/actions/secrets
@@ -58,7 +56,7 @@ def get_org_variables(
     token: str,
     api_url: str,
     organization: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch organization-level Actions variables.
     GET /orgs/{org}/actions/variables
@@ -74,7 +72,7 @@ def get_repo_workflows(
     api_url: str,
     organization: str,
     repo_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch repository workflows.
     GET /repos/{owner}/{repo}/actions/workflows
@@ -90,7 +88,7 @@ def get_repo_environments(
     api_url: str,
     organization: str,
     repo_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch repository deployment environments.
     GET /repos/{owner}/{repo}/environments
@@ -106,7 +104,7 @@ def get_repo_secrets(
     api_url: str,
     organization: str,
     repo_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch repository-level Actions secrets.
     GET /repos/{owner}/{repo}/actions/secrets
@@ -122,7 +120,7 @@ def get_repo_variables(
     api_url: str,
     organization: str,
     repo_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch repository-level Actions variables.
     GET /repos/{owner}/{repo}/actions/variables
@@ -139,7 +137,7 @@ def get_env_secrets(
     organization: str,
     repo_name: str,
     env_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch environment-level Actions secrets.
     GET /repos/{owner}/{repo}/environments/{environment_name}/secrets
@@ -158,7 +156,7 @@ def get_env_variables(
     organization: str,
     repo_name: str,
     env_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetch environment-level Actions variables.
     GET /repos/{owner}/{repo}/environments/{environment_name}/variables
@@ -176,9 +174,9 @@ def get_env_variables(
 
 
 def transform_org_secrets(
-    secrets: List[Dict[str, Any]],
+    secrets: list[dict[str, Any]],
     organization: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform organization-level secrets, adding computed fields.
     """
@@ -197,9 +195,9 @@ def transform_org_secrets(
 
 
 def transform_org_variables(
-    variables: List[Dict[str, Any]],
+    variables: list[dict[str, Any]],
     organization: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform organization-level variables, adding computed fields.
     """
@@ -218,10 +216,10 @@ def transform_org_variables(
 
 
 def transform_workflows(
-    workflows: List[Dict[str, Any]],
+    workflows: list[dict[str, Any]],
     organization: str,
     repo_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform workflows, adding computed fields.
     """
@@ -238,10 +236,10 @@ def transform_workflows(
 
 
 def transform_environments(
-    environments: List[Dict[str, Any]],
+    environments: list[dict[str, Any]],
     organization: str,
     repo_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform environments, adding computed fields.
     """
@@ -258,10 +256,10 @@ def transform_environments(
 
 
 def transform_repo_secrets(
-    secrets: List[Dict[str, Any]],
+    secrets: list[dict[str, Any]],
     organization: str,
     repo_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform repository-level secrets, adding computed fields.
     """
@@ -282,10 +280,10 @@ def transform_repo_secrets(
 
 
 def transform_repo_variables(
-    variables: List[Dict[str, Any]],
+    variables: list[dict[str, Any]],
     organization: str,
     repo_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform repository-level variables, adding computed fields.
     """
@@ -306,12 +304,12 @@ def transform_repo_variables(
 
 
 def transform_env_secrets(
-    secrets: List[Dict[str, Any]],
+    secrets: list[dict[str, Any]],
     organization: str,
     repo_name: str,
     env_name: str,
     env_id: int,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform environment-level secrets, adding computed fields.
     """
@@ -331,12 +329,12 @@ def transform_env_secrets(
 
 
 def transform_env_variables(
-    variables: List[Dict[str, Any]],
+    variables: list[dict[str, Any]],
     organization: str,
     repo_name: str,
     env_name: str,
     env_id: int,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Transform environment-level variables, adding computed fields.
     """
@@ -363,7 +361,7 @@ def transform_env_variables(
 @timeit
 def load_org_secrets(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     update_tag: int,
     org_url: str,
 ) -> None:
@@ -380,7 +378,7 @@ def load_org_secrets(
 @timeit
 def load_org_variables(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     update_tag: int,
     org_url: str,
 ) -> None:
@@ -399,7 +397,7 @@ def load_org_variables(
 @timeit
 def load_workflows(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     update_tag: int,
     repo_url: str,
 ) -> None:
@@ -416,7 +414,7 @@ def load_workflows(
 @timeit
 def load_environments(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     update_tag: int,
     repo_url: str,
 ) -> None:
@@ -433,7 +431,7 @@ def load_environments(
 @timeit
 def load_repo_secrets(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     update_tag: int,
     repo_url: str,
 ) -> None:
@@ -450,7 +448,7 @@ def load_repo_secrets(
 @timeit
 def load_repo_variables(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     update_tag: int,
     repo_url: str,
 ) -> None:
@@ -467,7 +465,7 @@ def load_repo_variables(
 @timeit
 def load_env_secrets(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     update_tag: int,
     env_id: int,
 ) -> None:
@@ -484,7 +482,7 @@ def load_env_secrets(
 @timeit
 def load_env_variables(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     update_tag: int,
     env_id: int,
 ) -> None:
@@ -508,7 +506,7 @@ def load_env_variables(
 @timeit
 def cleanup_org_level(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Clean up stale organization-level GitHub Actions nodes.
@@ -529,7 +527,7 @@ def cleanup_org_level(
 @timeit
 def cleanup_repo_level(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
     repo_url: str,
 ) -> None:
     """
@@ -553,7 +551,7 @@ def cleanup_repo_level(
 @timeit
 def cleanup_env_level(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
     env_id: int,
 ) -> None:
     """
@@ -573,7 +571,7 @@ def cleanup_env_level(
 # =============================================================================
 
 
-def _get_repos_from_graph(neo4j_session: neo4j.Session, organization: str) -> List[str]:
+def _get_repos_from_graph(neo4j_session: neo4j.Session, organization: str) -> list[str]:
     """
     Get repository names for an organization from the graph.
     """
@@ -583,7 +581,7 @@ def _get_repos_from_graph(neo4j_session: neo4j.Session, organization: str) -> Li
     RETURN repo.name
     ORDER BY repo.name
     """
-    result: List[str] = neo4j_session.execute_read(
+    result: list[str] = neo4j_session.execute_read(
         read_list_of_values_tx,
         query,
         org_url=org_url,
@@ -599,7 +597,7 @@ def _get_repos_from_graph(neo4j_session: neo4j.Session, organization: str) -> Li
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
     github_api_key: str,
     github_url: str,
     organization: str,
@@ -729,5 +727,5 @@ def sync(
         cleanup_repo_level(neo4j_session, common_job_parameters, repo_url)
 
     # 4. Cleanup org-level stale nodes
-    common_job_parameters["org_url"] = org_url
-    cleanup_org_level(neo4j_session, common_job_parameters)
+    org_cleanup_params = {**common_job_parameters, "org_url": org_url}
+    cleanup_org_level(neo4j_session, org_cleanup_params)
