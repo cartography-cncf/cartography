@@ -970,12 +970,13 @@ def sync_user_inline_policies(
 
 
 @timeit
+@aws_handle_regions
 def get_mfa_devices(
     boto3_session: boto3.Session,
-    user_list: List[Dict],
-) -> List[Dict]:
+    user_list: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     client = boto3_session.client("iam")
-    mfa_devices: List[Dict] = []
+    mfa_devices: list[dict[str, Any]] = []
     for user in user_list:
         name = user["UserName"]
         user_arn = user["Arn"]
@@ -992,7 +993,7 @@ def get_mfa_devices(
     return mfa_devices
 
 
-def transform_mfa_devices(mfa_devices: List[Dict]) -> List[Dict]:
+def transform_mfa_devices(mfa_devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
     transformed_mfa_devices = []
     for device in mfa_devices:
         transformed_mfa_devices.append(

@@ -1130,6 +1130,7 @@ Representation of an AWS [MFA Device](https://docs.aws.amazon.com/IAM/latest/API
 | username | The username of the IAM user associated with the MFA device |
 | user_arn | The ARN of the IAM user associated with the MFA device |
 | enabledate | ISO 8601 date-time string when the MFA device was enabled |
+| enabledate_dt | DateTime object representing when the MFA device was enabled |
 
 #### Relationships
 - MFA Devices are associated with AWS Users.

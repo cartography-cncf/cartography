@@ -58,7 +58,7 @@ class AWSMfaDeviceToAWSUserRel(CartographyRelSchema):
     target_node_label: str = "AWSUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "arn": PropertyRef("user_arn"),  # Match AWSUser.arn with MFADevice.user_arn
+            "arn": PropertyRef("user_arn"),
         }
     )
     direction: LinkDirection = LinkDirection.INWARD
