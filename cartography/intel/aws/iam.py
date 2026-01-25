@@ -22,6 +22,7 @@ from cartography.models.aws.iam.federated_principal import AWSFederatedPrincipal
 from cartography.models.aws.iam.group import AWSGroupSchema
 from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
 from cartography.models.aws.iam.managed_policy import AWSManagedPolicySchema
+from cartography.models.aws.iam.mfa_device import AWSMfaDeviceSchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
 from cartography.models.aws.iam.role import AWSRoleSchema
 from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
@@ -890,6 +891,10 @@ def sync_users(
         boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id
     )
 
+    sync_user_mfa_devices(
+        boto3_session, data, neo4j_session, aws_update_tag, current_aws_account_id
+    )
+
 
 @timeit
 def sync_user_access_keys(
@@ -959,6 +964,75 @@ def sync_user_inline_policies(
     load_policy_data(
         neo4j_session,
         transformed_policy_data,
+        aws_update_tag,
+        current_aws_account_id,
+    )
+
+
+@timeit
+def get_mfa_devices(
+    boto3_session: boto3.Session,
+    user_list: List[Dict],
+) -> List[Dict]:
+    client = boto3_session.client("iam")
+    mfa_devices: List[Dict] = []
+    for user in user_list:
+        name = user["UserName"]
+        try:
+            paginator = client.get_paginator("list_mfa_devices")
+            for page in paginator.paginate(UserName=name):
+                mfa_devices.extend(page["MFADevices"])
+        except client.exceptions.NoSuchEntityException:
+            logger.warning(
+                f"Could not get MFA devices for user {name} due to NoSuchEntityException; skipping.",
+            )
+    return mfa_devices
+
+
+def transform_mfa_devices(mfa_devices: List[Dict]) -> List[Dict]:
+    transformed_mfa_devices = []
+    for device in mfa_devices:
+        transformed_mfa_devices.append(
+            {
+                "serialnumber": device["SerialNumber"],
+                "username": device["UserName"],
+                "enabledate": str(device["EnableDate"]),
+                "enabledate_dt": device["EnableDate"],
+            }
+        )
+    return transformed_mfa_devices
+
+
+@timeit
+def load_mfa_devices(
+    neo4j_session: neo4j.Session,
+    mfa_devices: List[Dict],
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    load(
+        neo4j_session,
+        AWSMfaDeviceSchema(),
+        mfa_devices,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def sync_user_mfa_devices(
+    boto3_session: boto3.Session,
+    data: Dict,
+    neo4j_session: neo4j.Session,
+    aws_update_tag: int,
+    current_aws_account_id: str,
+) -> None:
+    logger.info("Syncing IAM MFA Devices for account '%s'.", current_aws_account_id)
+    mfa_devices = get_mfa_devices(boto3_session, data["Users"])
+    transformed_mfa_devices = transform_mfa_devices(mfa_devices)
+    load_mfa_devices(
+        neo4j_session,
+        transformed_mfa_devices,
         aws_update_tag,
         current_aws_account_id,
     )
@@ -1321,6 +1395,9 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
         neo4j_session
     )
     GraphJob.from_node_schema(AWSServicePrincipalSchema(), common_job_parameters).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(AWSMfaDeviceSchema(), common_job_parameters).run(
         neo4j_session
     )
     GraphJob.from_node_schema(AWSUserSchema(), common_job_parameters).run(neo4j_session)
