@@ -47,7 +47,7 @@ aws_mapping = OntologyMapping(
         OntologyRelMapping(
             __comment__="Link LoadBalancer to Container via ECSTask network interface path",
             query=(
-                "MATCH (lb:LoadBalancer)-[:EXPOSE]->(ip:EC2PrivateIp)"
+                "MATCH (lb:LoadBalancer {lastupdated: $UPDATE_TAG})-[:EXPOSE]->(ip:EC2PrivateIp)"
                 "<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)"
                 "<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(c:Container) "
                 "MERGE (lb)-[r:EXPOSE]->(c) "

@@ -2687,7 +2687,11 @@ Represents an IP address range (CIDR block) associated with an EC2 Security Grou
 ### AWSLoadBalancer
 
 ```{important}
-LoadBalancer label is now used by the ontology mapping to enable cross-platform queries for load balancers across different systems. This node has been renamed to AWSLoadBalancer.
+**Label Rename:** In previous versions, Classic ELB nodes used the label `:LoadBalancer`. This has been renamed to `:AWSLoadBalancer` for consistency with other AWS resources.
+
+**Semantic Label:** All load balancers (AWS, GCP, Azure) now also have the `:LoadBalancer` label for cross-platform queries.
+
+**Migration:** Existing nodes are automatically relabeled on upgrade.
 ```
 
 Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).  See [spec for details](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).
@@ -2755,12 +2759,16 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
 ### AWSLoadBalancerV2
 
 ```{important}
-LoadBalancerV2 has been renamed to AWSLoadBalancerV2 for consistency with the ontology mapping and the AWSLoadBalancer node.
+**Label Rename:** In previous versions, ALB/NLB nodes used the label `:LoadBalancerV2`. This has been renamed to `:AWSLoadBalancerV2` for consistency with other AWS resources.
+
+**Semantic Label:** All load balancers (AWS, GCP, Azure) now also have the `:LoadBalancer` label for cross-platform queries.
+
+**Migration:** Existing nodes are automatically relabeled on upgrade.
 ```
 
 Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html) or [Network Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html).) API reference [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_LoadBalancer.html).
 
-> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., LoadBalancer, GCPForwardingRule, AzureLoadBalancer).
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancer, GCPForwardingRule, AzureLoadBalancer).
 
 | Field | Description |
 |-------|-------------|
