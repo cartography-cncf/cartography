@@ -4,6 +4,8 @@
 
 Represents a SentinelOne account, which is the top-level organizational unit for managing SentinelOne resources.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -37,10 +39,10 @@ Represents a SentinelOne account, which is the top-level organizational unit for
     (S1Account)-[RESOURCE]->(S1ApplicationVersion)
     ```
 
-- A S1Account has security risks through S1CVEs.
+- A S1Account has security risks through S1AppFindings.
 
     ```
-    (S1Account)-[RISK]->(S1CVE)
+    (S1Account)-[RESOURCE]->(S1AppFinding)
     ```
 
 ### S1Agent
@@ -61,25 +63,31 @@ Represents a SentinelOne agent installed on an endpoint device.
 | domain | The domain the computer belongs to |
 | last_active | ISO 8601 timestamp of when the agent was last active |
 | last_successful_scan | ISO 8601 timestamp of the last successful scan |
-| scan_status | Current scan status of the agent |
+| scan_status | Status of the last scan |
 
 #### Relationships
 
 - A S1Agent belongs to a S1Account.
 
     ```
-    (S1Agent)-[RESOURCE]->(S1Account)
+    (S1Agent)<-[RESOURCE]-(S1Account)
     ```
 
-- A S1Agent has installed application versions.
+- A S1Agent has installed S1ApplicationVersions.
 
     ```
     (S1Agent)-[HAS_INSTALLED]->(S1ApplicationVersion)
     ```
 
+- A S1Agent is affected by S1AppFindings.
+
+    ```
+    (S1Agent)<-[AFFECTS]-(S1AppFinding)
+    ```
+
 ### S1Application
 
-Represents an application discovered in the SentinelOne environment.
+Represents an application managed by SentinelOne.
 
 | Field | Description |
 |-------|-------------|
@@ -87,17 +95,17 @@ Represents an application discovered in the SentinelOne environment.
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The unique identifier for the application (normalized vendor:name) |
 | **name** | The name of the application |
-| **vendor** | The vendor/publisher of the application |
+| **vendor** | The vendor of the application |
 
 #### Relationships
 
 - A S1Application belongs to a S1Account.
 
     ```
-    (S1Application)-[RESOURCE]->(S1Account)
+    (S1Application)<-[RESOURCE]-(S1Account)
     ```
 
-- A S1Application has versions.
+- A S1Application has S1ApplicationVersions.
 
     ```
     (S1Application)-[VERSION]->(S1ApplicationVersion)
@@ -105,16 +113,16 @@ Represents an application discovered in the SentinelOne environment.
 
 ### S1ApplicationVersion
 
-Represents a specific version of an application installed on SentinelOne agents.
+Represents a specific version of an application.
 
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The unique identifier for the application version (normalized vendor:name:version) |
-| **application_name** | The name of the application |
-| **application_vendor** | The vendor/publisher of the application |
-| **version** | The version string of the application |
+| **version** | The version string |
+| application_name | The name of the application |
+| application_vendor | The vendor of the application |
 
 #### Relationships
 
@@ -143,47 +151,61 @@ Represents a specific version of an application installed on SentinelOne agents.
     (S1Application)-[VERSION]->(S1ApplicationVersion)
     ```
 
-- A S1ApplicationVersion can be affected by S1CVEs.
+- A S1ApplicationVersion is affected by S1AppFindings.
 
     ```
-    (S1CVE)-[AFFECTS]->(S1ApplicationVersion)
+    (S1AppFinding)-[AFFECTS]->(S1ApplicationVersion)
     ```
 
-### S1CVE
+### S1AppFinding
 
-Represents a Common Vulnerability and Exposure (CVE) discovered in applications managed by SentinelOne.
+Represents a specific **instance** of a vulnerability detection (finding) on a specific endpoint. Unlike generic CVE definitions, each `S1AppFinding` node represents a unique finding on a specific agent.
 
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | The unique identifier for the S1CVE record. Format: `S1\|{cve_id}`. |
+| **id** | The unique identifier for the specific finding instance (API ID) |
 | **cve_id** | The CVE identifier (e.g., CVE-2023-12345) |
-| base_score | The CVSS base score for the vulnerability |
-| cvss_version | The version of CVSS used for scoring |
-| published_date | ISO 8601 timestamp of when the CVE was published |
-| severity | The severity level of the vulnerability (e.g., Critical, High, Medium, Low) |
+| risk_score | Risk score |
+| report_confidence | Confidence level of the report |
+| days_detected | Number of days since detection |
+| detection_date | ISO 8601 timestamp of detection (e.g. 2018-02-27T04:49:26.257525Z) |
+| last_scan_date | ISO 8601 timestamp of last scan (e.g. 2018-02-27T04:49:26.257525Z) |
+| last_scan_result | Result of the last scan |
+| status | Status of the finding (e.g., Active) |
+| mitigation_status | Status of mitigation |
+| mitigation_status_reason | Reason for mitigation status |
+| mitigation_status_changed_by | User who changed mitigation status |
+| mitigation_status_change_time | Time of mitigation status change |
+| marked_by | User who marked the finding |
+| marked_date | Date when finding was marked |
+| mark_type_description | Description of mark type |
+| reason | Reason for the finding |
+| remediation_level | Remediation level of the finding |
 
 #### Relationships
 
-- A S1CVE belongs to a S1Account.
+- A S1AppFinding belongs to a S1Account (scoped cleanup).
 
     ```
-    (S1Account)-[RISK]->(S1CVE)
+    (S1Account)-[RESOURCE]->(S1AppFinding)
     ```
 
-- A S1CVE affects a S1ApplicationVersion.
+- A S1AppFinding affects a specific S1Agent (the endpoint where it was found).
 
     ```
-    (S1CVE)-[AFFECTS]->(S1ApplicationVersion)
+    (S1AppFinding)-[AFFECTS]->(S1Agent)
     ```
 
-    The AFFECTS relationship includes additional properties specific to each CVE finding:
+- A S1AppFinding affects a specific S1ApplicationVersion (the vulnerable software).
 
-    | Property | Description |
-    |----------|-------------|
-    | days_detected | Number of days since the CVE was first detected in this application version |
-    | detection_date | ISO 8601 timestamp of when the CVE was first detected |
-    | last_scan_date | ISO 8601 timestamp of the last scan that detected this CVE |
-    | last_scan_result | Result of the last scan for this CVE |
-    | status | Current status of the CVE finding (e.g., Active, Resolved) |
+    ```
+    (S1AppFinding)-[AFFECTS]->(S1ApplicationVersion)
+    ```
+
+- A S1AppFinding is linked to a generic CVE definition.
+
+    ```
+    (S1AppFinding)-[LINKED_TO]->(CVE)
+    ```

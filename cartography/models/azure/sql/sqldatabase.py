@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -32,21 +33,21 @@ class AzureSQLDatabaseProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AzureSQLDatabaseToSQLServerProperties(CartographyRelProperties):
+class AzureSQLDatabaseToSQLServerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:AzureSQLServer)-[:RESOURCE]->(:AzureSQLDatabase)
+# (:AzureSQLServer)-[:CONTAINS]->(:AzureSQLDatabase)
 class AzureSQLDatabaseToSQLServerRel(CartographyRelSchema):
     target_node_label: str = "AzureSQLServer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("server_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "RESOURCE"
-    properties: AzureSQLDatabaseToSQLServerProperties = (
-        AzureSQLDatabaseToSQLServerProperties()
+    rel_label: str = "CONTAINS"
+    properties: AzureSQLDatabaseToSQLServerRelProperties = (
+        AzureSQLDatabaseToSQLServerRelProperties()
     )
 
 
@@ -70,8 +71,23 @@ class AzureSQLDatabaseToSubscriptionRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# (:AzureSQLServer)-[:RESOURCE]->(:AzureSQLDatabase) - Backwards compatibility
+class AzureSQLDatabaseToSQLServerDeprecatedRel(CartographyRelSchema):
+    target_node_label: str = "AzureSQLServer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("server_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: AzureSQLDatabaseToSQLServerRelProperties = (
+        AzureSQLDatabaseToSQLServerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AzureSQLDatabaseSchema(CartographyNodeSchema):
     label: str = "AzureSQLDatabase"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Database"])
     properties: AzureSQLDatabaseProperties = AzureSQLDatabaseProperties()
     sub_resource_relationship: AzureSQLDatabaseToSubscriptionRel = (
         AzureSQLDatabaseToSubscriptionRel()
@@ -79,5 +95,7 @@ class AzureSQLDatabaseSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureSQLDatabaseToSQLServerRel(),
+            # DEPRECATED: for backward compatibility, will be removed in v1.0.0
+            AzureSQLDatabaseToSQLServerDeprecatedRel(),
         ]
     )

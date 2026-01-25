@@ -25,6 +25,7 @@ from cartography.models.aws.iam.managed_policy import AWSManagedPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
 from cartography.models.aws.iam.role import AWSRoleSchema
 from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
+from cartography.models.aws.iam.server_certificate import AWSServerCertificateSchema
 from cartography.models.aws.iam.service_principal import AWSServicePrincipalSchema
 from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMatchLink
 from cartography.models.aws.iam.user import AWSUserSchema
@@ -296,6 +297,16 @@ def get_role_list_data(boto3_session: boto3.Session) -> Dict:
 
 
 @timeit
+def get_server_certificates(boto3_session: boto3.Session) -> List[Dict]:
+    client = boto3_session.client("iam")
+    paginator = client.get_paginator("list_server_certificates")
+    certificates: List[Dict] = []
+    for page in paginator.paginate():
+        certificates.extend(page["ServerCertificateMetadataList"])
+    return certificates
+
+
+@timeit
 def get_user_access_keys_data(
     boto3_session: boto3.Session,
     users: list[dict[str, Any]],
@@ -409,7 +420,9 @@ def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "name": user["UserName"],
             "path": user["Path"],
             "createdate": str(user["CreateDate"]),
+            "createdate_dt": user["CreateDate"],
             "passwordlastused": str(user.get("PasswordLastUsed", "")),
+            "passwordlastused_dt": user.get("PasswordLastUsed"),
         }
         user_data.append(user_record)
 
@@ -427,6 +440,7 @@ def transform_groups(
             "name": group["GroupName"],
             "path": group["Path"],
             "createdate": str(group["CreateDate"]),
+            "createdate_dt": group["CreateDate"],
             "user_arns": group_memberships.get(group["Arn"], []),
         }
         group_data.append(group_record)
@@ -444,8 +458,10 @@ def transform_access_keys(
                 access_key_record = {
                     "accesskeyid": access_key["AccessKeyId"],
                     "createdate": str(access_key["CreateDate"]),
+                    "createdate_dt": access_key["CreateDate"],
                     "status": access_key["Status"],
                     "lastuseddate": str(access_key.get("LastUsedDate", "")),
+                    "lastuseddate_dt": access_key.get("LastUsedDate"),
                     "lastusedservice": access_key.get("LastUsedService", ""),
                     "lastusedregion": access_key.get("LastUsedRegion", ""),
                     "user_arn": user_arn,  # For the sub-resource relationship
@@ -524,6 +540,7 @@ def transform_role_trust_policies(
             "name": role["RoleName"],
             "path": role["Path"],
             "createdate": str(role["CreateDate"]),
+            "createdate_dt": role["CreateDate"],
             "trusted_aws_principals": list(trusted_aws_principals),
             "account_id": get_account_from_arn(role["Arn"]),
         }
@@ -1106,6 +1123,57 @@ def sync_role_assumptions(
 
 
 @timeit
+def transform_server_certificates(certificates: List[Dict]) -> List[Dict]:
+    transformed_certs = []
+    for cert in certificates:
+        transformed_certs.append(
+            {
+                "ServerCertificateName": cert["ServerCertificateName"],
+                "ServerCertificateId": cert["ServerCertificateId"],
+                "Arn": cert["Arn"],
+                "Path": cert["Path"],
+                "Expiration": cert["Expiration"],
+                "UploadDate": cert["UploadDate"],
+            }
+        )
+    return transformed_certs
+
+
+@timeit
+def load_server_certificates(
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSServerCertificateSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def sync_server_certificates(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    logger.info(
+        "Syncing IAM Server Certificates for account '%s'.", current_aws_account_id
+    )
+    raw_data = get_server_certificates(boto3_session)
+    data = transform_server_certificates(raw_data)
+    load_server_certificates(
+        neo4j_session, data, current_aws_account_id, aws_update_tag
+    )
+
+
+@timeit
 def sync_roles(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
@@ -1259,6 +1327,9 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
     GraphJob.from_node_schema(AWSGroupSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(AWSServerCertificateSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 def sync_root_principal(
@@ -1326,6 +1397,13 @@ def sync(
         common_job_parameters,
     )
     sync_user_access_keys(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
+        common_job_parameters,
+    )
+    sync_server_certificates(
         neo4j_session,
         boto3_session,
         current_aws_account_id,
