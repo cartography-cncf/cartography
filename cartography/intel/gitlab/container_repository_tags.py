@@ -14,6 +14,7 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import get_paginated
+from cartography.intel.gitlab.util import get_single
 from cartography.models.gitlab.container_repository_tags import (
     GitLabContainerRepositoryTagSchema,
 )
@@ -51,17 +52,16 @@ def get_container_repository_tags(
         if not tag_name:
             continue
 
-        detail_url = f"{gitlab_url}/api/v4/projects/{project_id}/registry/repositories/{repository_id}/tags/{tag_name}"
-        response = requests.get(
-            detail_url,
-            headers={"PRIVATE-TOKEN": token},
-            timeout=30,
-        )
-        if response.ok:
-            detailed_tags.append(response.json())
-        else:
+        try:
+            tag_detail = get_single(
+                gitlab_url,
+                token,
+                f"/api/v4/projects/{project_id}/registry/repositories/{repository_id}/tags/{tag_name}",
+            )
+            detailed_tags.append(tag_detail)
+        except requests.exceptions.HTTPError as e:
             logger.warning(
-                f"Failed to fetch details for tag {tag_name}: {response.status_code}"
+                f"Failed to fetch details for tag {tag_name} after retries: {e}"
             )
             detailed_tags.append(tag)  # Fall back to basic info
 
