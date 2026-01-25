@@ -60,7 +60,7 @@ def create_datapipeline_can_exec_relationships(neo4j_session: neo4j.Session) -> 
         principal_name = record["principal.name"]
         user_permissions = record["user_permissions"]
         
-        logger.info(f"Creating CAN_EXEC relationships for {principal_name} with permissions: {user_permissions}")
+        logger.info(f"Creating CAN_EXEC relationships for principal with {len(user_permissions)} required permissions")
         
         # Create CAN_EXEC relationships to ALL DataPipeline nodes
         create_query = """
@@ -71,7 +71,7 @@ def create_datapipeline_can_exec_relationships(neo4j_session: neo4j.Session) -> 
         """
         
         neo4j_session.run(create_query, arn=principal_arn)
-        logger.info(f"Created CAN_EXEC relationships for {principal_name} to all DataPipelines")
+        logger.info(f"Created CAN_EXEC relationships for principal to all DataPipelines")
     
     logger.info("Data Pipeline privilege escalation analysis completed")
 
