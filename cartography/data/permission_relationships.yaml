@@ -27,3 +27,11 @@
   - redshift:GetClusterCredentials
   - redshift:JoinGroup
   relationship_name: CAN_ADMINISTER
+# DataPipeline - Execute code via pipeline tasks
+- target_label: DataPipeline
+  permissions:
+  - iam:PassRole
+  - datapipeline:CreatePipeline
+  - datapipeline:PutPipelineDefinition
+  - datapipeline:ActivatePipeline
+  relationship_name: CAN_EXEC

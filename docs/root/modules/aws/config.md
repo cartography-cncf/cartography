@@ -114,8 +114,22 @@ Sync only ECR and Lambda:
 cartography --neo4j-uri bolt://localhost:7687 --aws-requested-syncs "ecr,lambda_function"
 ```
 
+Sync only Data Pipeline resources:
+```bash
+cartography --neo4j-uri bolt://localhost:7687 --aws-requested-syncs "datapipeline"
+```
+
 #### Available Resource Identifiers
 
 For a complete and up-to-date list of resource identifiers that can be specified with `--aws-requested-syncs`, refer to the `RESOURCE_FUNCTIONS` dictionary in `cartography/cartography/intel/aws/resources.py`.
+
+Common resource identifiers include:
+- `s3` - S3 buckets
+- `iam` - IAM users, roles, and policies
+- `ec2:instance` - EC2 instances
+- `lambda_function` - Lambda functions
+- `datapipeline` - Data Pipeline resources
+- `dynamodb` - DynamoDB tables
+- `rds` - RDS databases
 
 **Note**: Cartography automatically handles resource dependencies and sync order internally, so you don't need to worry about the order in which you specify resources in the list. Using `--aws-requested-syncs` can significantly reduce sync time and API calls when you only need specific resources.

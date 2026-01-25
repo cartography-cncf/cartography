@@ -34,6 +34,7 @@ Representation of an AWS Account.
                                 :AutoScalingGroup,
                                 :DNSZone,
                                 :DynamoDBTable,
+                                :DataPipeline,
                                 :EBSSnapshot,
                                 :EBSVolume,
                                 :EC2Image,
@@ -1593,6 +1594,45 @@ Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynam
     ```
     (AWSPrincipal)-[CAN_QUERY]->(DynamoDBTable)
     ```
+
+
+### DataPipeline
+
+Representation of an AWS [Data Pipeline](https://docs.aws.amazon.com/datapipeline/latest/DeveloperGuide/what-is-datapipeline.html).
+
+> **Security Note**: Data Pipeline resources are analyzed for privilege escalation risks. The `CAN_EXEC` relationship is created when a principal has the dangerous combination of permissions that allows arbitrary code execution.
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| name | The name of the pipeline |
+| description | The description of the pipeline |
+| state | The current state of the pipeline (ACTIVE, PENDING, FINISHED, etc.) |
+| userId | The user ID who created the pipeline |
+| region | The AWS region of the pipeline |
+| **id** | The pipeline identifier (e.g., df-1234567890ABCDEFGHI) |
+| **arn** | The AWS-unique identifier |
+
+#### Relationships
+- DataPipelines belong to AWS Accounts.
+    ```
+    (AWSAccount)-[RESOURCE]->(DataPipeline)
+    ```
+
+- AWSPrincipals with dangerous permission combinations can execute code via Data Pipeline. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml) to detect the datapipeline-001 attack vector.
+    ```
+    (AWSPrincipal)-[CAN_EXEC]->(DataPipeline)
+    ```
+
+#### Security Analysis
+The `CAN_EXEC` relationship indicates a principal has all of these permissions:
+- `iam:PassRole` - Pass IAM roles to Data Pipeline
+- `datapipeline:CreatePipeline` - Create new Data Pipeline
+- `datapipeline:PutPipelineDefinition` - Define pipeline tasks (including shell scripts)
+- `datapipeline:ActivatePipeline` - Activate and run the pipeline
+
+This combination allows arbitrary code execution with elevated privileges.
 
 
 ### DynamoDBGlobalSecondaryIndex
