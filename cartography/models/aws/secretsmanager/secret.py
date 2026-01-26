@@ -79,7 +79,7 @@ class SecretsManagerSecretToKMSKeyRel(CartographyRelSchema):
 
     target_node_label: str = "AWSKMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("KmsKeyId")},
+        {"arn": PropertyRef("KmsKeyId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ENCRYPTED_BY"

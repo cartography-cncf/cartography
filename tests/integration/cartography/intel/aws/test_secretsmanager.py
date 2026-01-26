@@ -225,7 +225,7 @@ def test_secret_version_kms_key_relationship(
         "SecretsManagerSecretVersion",
         "arn",
         "AWSKMSKey",
-        "id",
+        "arn",
         "ENCRYPTED_BY",
         rel_direction_right=True,
     ) == {
