@@ -56,11 +56,12 @@ def _get_manifest(
     repository_name: str,
     reference: str,
     token: str,
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """
     Fetch a manifest from the Docker Registry V2 API.
 
     Handles 401 errors by refreshing the JWT token and retrying once.
+    Returns None if the manifest is not found (404), allowing callers to skip deleted tags.
     """
     response = fetch_registry_manifest(
         gitlab_url,
@@ -70,6 +71,14 @@ def _get_manifest(
         token,
         accept_header=MANIFEST_ACCEPT_HEADER,
     )
+
+    # Handle 404 errors gracefully - tag may have been deleted between list and fetch
+    if response.status_code == 404:
+        logger.debug(
+            f"Manifest not found for {repository_name}:{reference} - tag may have been deleted"
+        )
+        return None
+
     response.raise_for_status()
 
     manifest = response.json()
@@ -93,10 +102,13 @@ def get_container_images(
 
     For each repository, fetches tags and then retrieves the manifest for each tag.
     Returns raw manifest data for transformation, plus manifest lists for attestation discovery.
+
+    Deduplication is scoped per repository to ensure complete attestation discovery.
+    If the same digest appears in multiple repositories, each will be processed separately.
     """
     all_manifests: list[dict[str, Any]] = []
     manifest_lists: list[dict[str, Any]] = []
-    seen_digests: set[str] = set()
+    seen_digests: dict[str, set[str]] = {}
 
     for repo in repositories:
         location = repo.get("location")
@@ -110,6 +122,10 @@ def get_container_images(
         # Type narrowing after the guard check
         location = str(location)
         registry_url, repository_name = _parse_repository_location(location)
+
+        # Initialize seen digests set for this repository
+        if repository_name not in seen_digests:
+            seen_digests[repository_name] = set()
 
         # Fetch tags for this repository
         tags = get_paginated(
@@ -126,11 +142,15 @@ def get_container_images(
                 gitlab_url, registry_url, repository_name, tag_name, token
             )  # can return an image or a manifest list
 
-            # Deduplicate by digest (multiple tags can point to same image)
-            digest = manifest.get("_digest")
-            if not digest or digest in seen_digests:
+            # Skip if manifest not found (tag deleted between list and fetch)
+            if manifest is None:
                 continue
-            seen_digests.add(digest)
+
+            # Deduplicate by digest within this repository (multiple tags can point to same image)
+            digest = manifest.get("_digest")
+            if not digest or digest in seen_digests[repository_name]:
+                continue
+            seen_digests[repository_name].add(digest)
 
             media_type = manifest.get("mediaType")
             is_manifest_list = media_type in MANIFEST_LIST_MEDIA_TYPES
@@ -153,13 +173,17 @@ def get_container_images(
                         continue
 
                     child_digest = child.get("digest")
-                    if child_digest in seen_digests:
+                    if child_digest in seen_digests[repository_name]:
                         continue
-                    seen_digests.add(child_digest)
+                    seen_digests[repository_name].add(child_digest)
 
                     child_manifest = _get_manifest(
                         gitlab_url, registry_url, repository_name, child_digest, token
                     )
+
+                    # Skip if child manifest not found
+                    if child_manifest is None:
+                        continue
 
                     # Fetch config blob for child image
                     child_config = child_manifest.get("config")
@@ -206,11 +230,16 @@ def transform_container_images(
         is_manifest_list = media_type in MANIFEST_LIST_MEDIA_TYPES
 
         # Extract child image digests for manifest lists
+        # Filter out attestation-manifest entries to match the ingestion logic
         child_image_digests = None
         if is_manifest_list:
             manifests_array = manifest.get("manifests", [])
             child_image_digests = [
-                m.get("digest") for m in manifests_array if m.get("digest")
+                m.get("digest")
+                for m in manifests_array
+                if m.get("digest")
+                and m.get("annotations", {}).get("vnd.docker.reference.type")
+                != "attestation-manifest"
             ]
 
         # Extract architecture, os, variant from config blob (for regular images)
