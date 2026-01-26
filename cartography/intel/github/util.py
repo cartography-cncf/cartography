@@ -311,6 +311,14 @@ def fetch_all_rest_api_pages(
             if err.response is not None and err.response.status_code == 404:
                 logger.debug(f"GitHub REST API: 404 for {url}, returning empty list")
                 return []
+            # Handle 403 gracefully
+            if err.response is not None and err.response.status_code == 403:
+                logger.warning(
+                    f"GitHub REST API: 403 Forbidden for {url}. "
+                    "This is likely due to insufficient permissions. "
+                    "Skipping this resource and continuing.",
+                )
+                return []
             retry += 1
             exc = err
         except requests.exceptions.ChunkedEncodingError as err:
