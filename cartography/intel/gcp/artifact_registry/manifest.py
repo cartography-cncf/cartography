@@ -282,7 +282,15 @@ def sync_artifact_registry_manifests(
     logger.info(f"Syncing Artifact Registry image manifests for project {project_id}.")
 
     # Get all manifests concurrently using async
-    all_manifests = asyncio.run(
+    # Use get_event_loop() + run_until_complete() to avoid tearing down loop
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        # No event loop in current thread, create one
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    all_manifests = loop.run_until_complete(
         get_all_manifests_async(credentials, docker_artifacts_raw)
     )
 
