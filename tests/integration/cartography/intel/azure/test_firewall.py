@@ -144,6 +144,52 @@ def test_sync_azure_firewalls(
         == expected_policy_nodes
     )
 
+    # Assert - Check AzureSubscription -> AzureFirewallPolicy relationship
+    # The relationship direction is INWARD, meaning (:AzureSubscription)-[:RESOURCE]->(:AzureFirewallPolicy)
+    expected_sub_policy_rels = {
+        (
+            TEST_SUBSCRIPTION_ID,
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/firewallPolicies/test-policy-1",
+        ),
+        (
+            TEST_SUBSCRIPTION_ID,
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/firewallPolicies/test-policy-2",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AzureSubscription",
+            "id",
+            "AzureFirewallPolicy",
+            "id",
+            "RESOURCE",
+            rel_direction_right=True,
+        )
+        == expected_sub_policy_rels
+    )
+
+    # Assert - Check AzureFirewallPolicy -> AzureFirewallPolicy (INHERITS_FROM) relationship
+    # test-policy-2 inherits from test-policy-1 (parent/base policy)
+    expected_policy_inheritance_rels = {
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/firewallPolicies/test-policy-2",
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/firewallPolicies/test-policy-1",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "AzureFirewallPolicy",
+            "id",
+            "AzureFirewallPolicy",
+            "id",
+            "INHERITS_FROM",
+            rel_direction_right=True,
+        )
+        == expected_policy_inheritance_rels
+    )
+
     # Assert - Check AzureFirewallIPConfiguration nodes
     expected_ip_config_nodes = {
         (

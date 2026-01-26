@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef
@@ -10,8 +9,6 @@ from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
