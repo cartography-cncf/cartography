@@ -126,7 +126,7 @@ def transform_dynamodb_tables(
         # Transform Stream
         stream_arn = table_data.get("LatestStreamArn")
         stream_spec = table_data.get("StreamSpecification", {})
-        if stream_arn:
+        if stream_arn and stream_spec:
             stream_nodes.append(
                 {
                     "Arn": stream_arn,

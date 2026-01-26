@@ -87,6 +87,7 @@ def _sync_one_account(
         "ec2:load_balancer": ["ec2:subnet", "ec2:instance"],
         "ec2:load_balancer_v2": ["ec2:subnet", "ec2:instance"],
         "ec2:route_table": ["ec2:vpc_endpoint"],
+        "dynamodb": ["kms"],
     }
     for module, dependencies in module_dependencies.items():
         if module in requested_syncs_set:

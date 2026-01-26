@@ -137,19 +137,9 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
             "SAMPLE_STREAM_VIEW_TYPE",
         ),
         (
-            "arn:aws:dynamodb:us-east-1:table/sample-table/stream/0000-00-00000:00:00.000",
-            None,
-            None,
-        ),
-        (
             "arn:aws:dynamodb:us-east-1:table/model-table/stream/0000-00-00000:00:00.000",
             True,
             "NEW_AND_OLD_IMAGES",
-        ),
-        (
-            "arn:aws:dynamodb:us-east-1:table/basic-table/stream/0000-00-00000:00:00.000",
-            None,
-            None,
         ),
         (
             "arn:aws:dynamodb:us-east-1:table/encrypted-table/stream/2021-02-10T16:45:30.000",
@@ -384,16 +374,8 @@ def test_sync_dynamodb_nodes_and_relationships(mock_get_tables, neo4j_session):
             "arn:aws:dynamodb:us-east-1:table/example-table/stream/0000-00-00000:00:00.000",
         ),
         (
-            "arn:aws:dynamodb:us-east-1:000000000000:table/sample-table",
-            "arn:aws:dynamodb:us-east-1:table/sample-table/stream/0000-00-00000:00:00.000",
-        ),
-        (
             "arn:aws:dynamodb:us-east-1:000000000000:table/model-table",
             "arn:aws:dynamodb:us-east-1:table/model-table/stream/0000-00-00000:00:00.000",
-        ),
-        (
-            "arn:aws:dynamodb:us-east-1:000000000000:table/basic-table",
-            "arn:aws:dynamodb:us-east-1:table/basic-table/stream/0000-00-00000:00:00.000",
         ),
         (
             "arn:aws:dynamodb:us-east-1:000000000000:table/encrypted-table",
