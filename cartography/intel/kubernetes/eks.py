@@ -333,20 +333,19 @@ def transform_access_entries(
         is_role = ":role/" in principal_arn
         is_user = ":user/" in principal_arn
 
-        if username:
-            user_data = {
-                "id": f"{cluster_name}/{username}",
-                "name": username,
-                "cluster_name": cluster_name,
-            }
+        user_data = {
+            "id": f"{cluster_name}/{username}",
+            "name": username,
+            "cluster_name": cluster_name,
+        }
 
-            # Add AWS relationship based on principal type
-            if is_role:
-                user_data["aws_role_arn"] = principal_arn
-            elif is_user:
-                user_data["aws_user_arn"] = principal_arn
+        # Add AWS relationship based on principal type
+        if is_role:
+            user_data["aws_role_arn"] = principal_arn
+        elif is_user:
+            user_data["aws_user_arn"] = principal_arn
 
-            all_users.append(user_data)
+        all_users.append(user_data)
 
         # Create group data for each Kubernetes group
         for group_name in group_names:
