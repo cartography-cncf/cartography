@@ -3911,6 +3911,10 @@ Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/se
     ```
     (AWSAccount)-[RESOURCE]->(SecretsManagerSecret)
     ```
+- If the secret is encrypted with a KMS key, it has a relationship to that key.
+    ```
+    (SecretsManagerSecret)-[ENCRYPTED_BY]->(KMSKey)
+    ```
 
 ### EBSVolume
 
@@ -5189,7 +5193,7 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     ```
 - If the secret version is encrypted with a KMS key, it has a relationship to that key.
     ```
-    (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
+    (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(KMSKey)
     ```
 
 ### AWSBedrockFoundationModel
