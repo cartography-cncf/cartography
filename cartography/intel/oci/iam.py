@@ -478,6 +478,9 @@ def sync_oci_policy_references(
     load_policy_references(
         neo4j_session, policies_with_refs, tenancy_id, oci_update_tag
     )
+    GraphJob.from_node_schema(
+        OCIPolicyWithReferencesSchema(), common_job_parameters
+    ).run(neo4j_session)
 
 
 @timeit
@@ -535,7 +538,9 @@ def sync_region_subscriptions(
         current_tenancy_id,
         oci_update_tag,
     )
-    # Note: Region cleanup is not implemented as regions are global/shared
+    GraphJob.from_node_schema(OCIRegionSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
