@@ -88,8 +88,6 @@ CREATE INDEX IF NOT EXISTS FOR (n:Ip) ON (n.ip);
 CREATE INDEX IF NOT EXISTS FOR (n:Ip) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:IpRange) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:IpRange) ON (n.lastupdated);
-CREATE INDEX IF NOT EXISTS FOR (n:JamfComputerGroup) ON (n.id);
-CREATE INDEX IF NOT EXISTS FOR (n:JamfComputerGroup) ON (n.lastupdated);
 CREATE INDEX IF NOT EXISTS FOR (n:LaunchConfiguration) ON (n.id);
 CREATE INDEX IF NOT EXISTS FOR (n:LaunchConfiguration) ON (n.name);
 CREATE INDEX IF NOT EXISTS FOR (n:LaunchConfiguration) ON (n.lastupdated);
