@@ -40,6 +40,25 @@ class OCICompartmentToOCITenancyRel(CartographyRelSchema):
     )
 
 
+# Relationship for nested compartments to link to parent compartment
+@dataclass(frozen=True)
+class OCICompartmentToParentCompartmentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class OCICompartmentToParentCompartmentRel(CartographyRelSchema):
+    target_node_label: str = "OCICompartment"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"ocid": PropertyRef("compartment_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "PARENT"
+    properties: OCICompartmentToParentCompartmentRelProperties = (
+        OCICompartmentToParentCompartmentRelProperties()
+    )
+
+
 # Deprecated: OCI_COMPARTMENT relationship for backward compatibility
 @dataclass(frozen=True)
 class OCICompartmentToParentRelProperties(CartographyRelProperties):
@@ -51,8 +70,8 @@ class OCICompartmentToParentRelProperties(CartographyRelProperties):
 class OCICompartmentToParentRel(CartographyRelSchema):
     """
     Deprecated: This relationship is kept for backward compatibility.
-    The parent can be either an OCITenancy or an OCICompartment (for nested compartments).
-    We use the compartment_id field which points to the parent's OCID.
+    Links all compartments to the tenancy (not to parent compartments).
+    For parent-child compartment traversal, use the PARENT relationship instead.
     """
 
     target_node_label: str = "OCITenancy"
@@ -74,5 +93,8 @@ class OCICompartmentSchema(CartographyNodeSchema):
         OCICompartmentToOCITenancyRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [OCICompartmentToParentRel()],  # Deprecated: for backward compatibility
+        [
+            OCICompartmentToParentCompartmentRel(),  # Parent-child compartment hierarchy
+            OCICompartmentToParentRel(),  # Deprecated: for backward compatibility
+        ],
     )

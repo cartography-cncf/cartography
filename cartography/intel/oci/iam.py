@@ -14,6 +14,7 @@ from cartography.models.oci.policy import OCIPolicySchema
 from cartography.models.oci.policy import OCIPolicyWithReferencesSchema
 from cartography.models.oci.region import OCIRegionSchema
 from cartography.models.oci.user import OCIUserSchema
+from cartography.util import timeit
 
 from . import utils
 
@@ -28,6 +29,7 @@ def _normalize_oci_keys(data: dict[str, Any]) -> dict[str, Any]:
     return {key.replace("-", "_"): value for key, value in data.items()}
 
 
+@timeit
 def get_compartment_list_data_recurse(
     iam: oci.identity.identity_client.IdentityClient,
     compartment_list: dict[str, Any],
@@ -50,26 +52,26 @@ def get_compartment_list_data_recurse(
         get_compartment_list_data_recurse(iam, compartment_list, compartment.id)
 
 
+@timeit
 def get_compartment_list_data(
     iam: oci.identity.identity_client.IdentityClient,
     current_tenancy_id: str,
 ) -> dict[str, Any]:
-    compartment_list: dict[str, Any] = {"Compartments": ""}
+    compartment_list: dict[str, Any] = {"Compartments": []}
     get_compartment_list_data_recurse(iam, compartment_list, current_tenancy_id)
     return compartment_list
 
 
 def transform_compartments(
-    compartments: list[dict[str, Any]] | str,
+    compartments: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
     Transform compartments data to use underscored keys.
     """
-    if not compartments or isinstance(compartments, str):
-        return []
     return [_normalize_oci_keys(c) for c in compartments]
 
 
+@timeit
 def load_compartments(
     neo4j_session: neo4j.Session,
     compartments: list[dict[str, Any]],
@@ -85,6 +87,7 @@ def load_compartments(
     )
 
 
+@timeit
 def sync_compartments(
     neo4j_session: neo4j.Session,
     iam: oci.identity.identity_client.IdentityClient,
@@ -131,6 +134,7 @@ def transform_users(users: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+@timeit
 def load_users(
     neo4j_session: neo4j.Session,
     users: list[dict[str, Any]],
@@ -146,6 +150,7 @@ def load_users(
     )
 
 
+@timeit
 def get_user_list_data(
     iam: oci.identity.identity_client.IdentityClient,
     current_tenancy_id: str,
@@ -157,6 +162,7 @@ def get_user_list_data(
     return {"Users": utils.oci_object_to_json(response.data)}
 
 
+@timeit
 def sync_users(
     neo4j_session: neo4j.Session,
     iam: oci.identity.identity_client.IdentityClient,
@@ -171,6 +177,7 @@ def sync_users(
     GraphJob.from_node_schema(OCIUserSchema(), common_job_parameters).run(neo4j_session)
 
 
+@timeit
 def get_group_list_data(
     iam: oci.identity.identity_client.IdentityClient,
     current_tenancy_id: str,
@@ -189,6 +196,7 @@ def transform_groups(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [_normalize_oci_keys(g) for g in groups]
 
 
+@timeit
 def load_groups(
     neo4j_session: neo4j.Session,
     groups: list[dict[str, Any]],
@@ -204,6 +212,7 @@ def load_groups(
     )
 
 
+@timeit
 def sync_groups(
     neo4j_session: neo4j.Session,
     iam: oci.identity.identity_client.IdentityClient,
@@ -221,6 +230,7 @@ def sync_groups(
     return [g["id"] for g in data["Groups"]]
 
 
+@timeit
 def get_group_membership_data(
     iam: oci.identity.identity_client.IdentityClient,
     group_id: str,
@@ -261,6 +271,7 @@ def transform_group_memberships(
     return result
 
 
+@timeit
 def load_group_memberships(
     neo4j_session: neo4j.Session,
     groups_with_members: list[dict[str, Any]],
@@ -279,12 +290,14 @@ def load_group_memberships(
     )
 
 
+@timeit
 def sync_group_memberships(
     neo4j_session: neo4j.Session,
     iam: oci.identity.identity_client.IdentityClient,
     group_ids: list[str],
     current_tenancy_id: str,
     oci_update_tag: int,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     logger.debug("Syncing IAM group membership for account '%s'.", current_tenancy_id)
     groups_membership = {
@@ -299,6 +312,9 @@ def sync_group_memberships(
         current_tenancy_id,
         oci_update_tag,
     )
+    GraphJob.from_node_schema(OCIGroupWithMembersSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 def transform_policies(policies: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -308,6 +324,7 @@ def transform_policies(policies: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [_normalize_oci_keys(p) for p in policies]
 
 
+@timeit
 def load_policies(
     neo4j_session: neo4j.Session,
     policies: list[dict[str, Any]],
@@ -323,6 +340,7 @@ def load_policies(
     )
 
 
+@timeit
 def get_policy_list_data(
     iam: oci.identity.identity_client.IdentityClient,
     current_tenancy_id: str,
@@ -334,6 +352,7 @@ def get_policy_list_data(
     return {"Policies": utils.oci_object_to_json(response.data)}
 
 
+@timeit
 def sync_policies(
     neo4j_session: neo4j.Session,
     iam: oci.identity.identity_client.IdentityClient,
@@ -418,6 +437,7 @@ def transform_policy_references(
     return result
 
 
+@timeit
 def load_policy_references(
     neo4j_session: neo4j.Session,
     policies_with_refs: list[dict[str, Any]],
@@ -436,6 +456,7 @@ def load_policy_references(
     )
 
 
+@timeit
 def sync_oci_policy_references(
     neo4j_session: neo4j.Session,
     tenancy_id: str,
@@ -459,6 +480,7 @@ def sync_oci_policy_references(
     )
 
 
+@timeit
 def get_region_subscriptions_list_data(
     iam: oci.identity.identity_client.IdentityClient,
     current_tenancy_id: str,
@@ -477,6 +499,7 @@ def transform_regions(regions: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [_normalize_oci_keys(r) for r in regions]
 
 
+@timeit
 def load_region_subscriptions(
     neo4j_session: neo4j.Session,
     regions: list[dict[str, Any]],
@@ -492,6 +515,7 @@ def load_region_subscriptions(
     )
 
 
+@timeit
 def sync_region_subscriptions(
     neo4j_session: neo4j.Session,
     iam: oci.identity.identity_client.IdentityClient,
@@ -514,6 +538,7 @@ def sync_region_subscriptions(
     # Note: Region cleanup is not implemented as regions are global/shared
 
 
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     iam: oci.identity.identity_client.IdentityClient,
@@ -532,6 +557,7 @@ def sync(
         group_ids,
         tenancy_id,
         oci_update_tag,
+        common_job_parameters,
     )
     sync_compartments(
         neo4j_session,

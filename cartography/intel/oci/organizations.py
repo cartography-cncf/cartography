@@ -11,14 +11,17 @@ from oci.exceptions import ProfileNotFound
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.oci.tenancy import OCITenancySchema
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
+@timeit
 def get_caller_identity() -> dict[Any, Any]:
     return {}
 
 
+@timeit
 def get_oci_account_default() -> dict[str, Any]:
     try:
         profile_oci_credentials = oci.config.from_file("~/.oci/config", "DEFAULT")
@@ -37,6 +40,7 @@ def get_oci_account_default() -> dict[str, Any]:
         return {}
 
 
+@timeit
 def get_oci_profile_names_from_config() -> list[Any]:
     config_path = oci.config._get_config_path_with_fallback("~/.oci/config")
     config = open(config_path).read()
@@ -45,6 +49,7 @@ def get_oci_profile_names_from_config() -> list[Any]:
     return m
 
 
+@timeit
 def get_oci_accounts_from_config() -> dict[str, Any]:
 
     available_profiles = get_oci_profile_names_from_config()
@@ -102,6 +107,7 @@ def transform_oci_accounts(
     ]
 
 
+@timeit
 def load_oci_accounts(
     neo4j_session: neo4j.Session,
     oci_accounts: list[dict[str, Any]],
@@ -115,6 +121,7 @@ def load_oci_accounts(
     )
 
 
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
@@ -124,6 +131,7 @@ def cleanup(
     )
 
 
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     accounts: dict[str, Any],

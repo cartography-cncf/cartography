@@ -36,15 +36,15 @@ Representation of an [OCI User](https://docs.cloud.oracle.com/iaas/api/#/en/iden
 | **ocid** | The OCI User OCID (indexed) |
 | name | The friendly name of the user |
 | description | The description of the user |
-| email | The email address of the user |
+| **email** | The email address of the user (indexed) |
 | compartmentid | The compartment OCID of the user |
-| lifecyclestate | The user's current state (CREATING, ACTIVE, INACTIVE, DELETING, DELETED) |
-| ismfaactivated | Flag indicating if MFA has been activated for the user |
-| canuseapikeys | Indicates if the user can use API keys |
-| canuseauthtokens | Indicates if the user can use auth tokens |
-| canuseconsolepassword | Indicates if the user can log in to the console |
-| canusecustomersecretkeys | Indicates if the user can use customer secret keys |
-| canusesmtpcredentials | Indicates if the user can use SMTP credentials |
+| lifecycle_state | The user's current state (CREATING, ACTIVE, INACTIVE, DELETING, DELETED) |
+| is_mfa_activated | Flag indicating if MFA has been activated for the user |
+| can_use_api_keys | Indicates if the user can use API keys |
+| can_use_auth_tokens | Indicates if the user can use auth tokens |
+| can_use_console_password | Indicates if the user can log in to the console |
+| can_use_customer_secret_keys | Indicates if the user can use customer secret keys |
+| can_use_smtp_credentials | Indicates if the user can use SMTP credentials |
 | createdate | ISO 8601 date-time when the user was created |
 
 #### Relationships
@@ -117,6 +117,12 @@ Representation of an [OCI Compartment](https://docs.cloud.oracle.com/iaas/api/#/
 
     ```
     (OCITenancy)-[RESOURCE]->(OCICompartment)
+    ```
+
+- Nested OCI Compartments link to their parent compartment:
+
+    ```
+    (OCICompartment)-[PARENT]->(OCICompartment)
     ```
 
 - OCI Compartments have a deprecated relationship for backward compatibility:

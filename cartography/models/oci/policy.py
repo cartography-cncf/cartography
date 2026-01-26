@@ -53,7 +53,7 @@ class OCIPolicyToParentRelProperties(CartographyRelProperties):
 class OCIPolicyToParentRel(CartographyRelSchema):
     """
     DEPRECATED: This relationship is kept for backward compatibility.
-    The parent is determined by the compartment_id field.
+    Links all policies to the tenancy via OCI_TENANCY_ID.
     """
 
     target_node_label: str = "OCITenancy"

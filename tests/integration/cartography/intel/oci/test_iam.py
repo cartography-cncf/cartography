@@ -181,6 +181,7 @@ def test_sync_group_memberships(
         group_ids,
         TEST_TENANCY_ID,
         TEST_UPDATE_TAG,
+        common_job_parameters,
     )
 
     # Assert - Relationships (OCIUser)-[MEMBER_OCID_GROUP]->(OCIGroup)
