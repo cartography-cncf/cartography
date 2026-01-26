@@ -204,7 +204,7 @@ Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v
     ```
 
 
-### Label: GCPBucketLabel
+### GCPBucketLabel:Label
 Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/docs/key-terms#bucket-labels).  This node contains a key-value pair.
 
  | Field       | Description                                                         |
@@ -955,42 +955,7 @@ Representation of a GCP [Bigtable Backup](https://cloud.google.com/bigtable/docs
     (GCPBigtableTable)-[:BACKED_UP_AS]->(GCPBigtableBackup)
     ```
 
-### Vertex AI Resources
-
-#### Overview
-
-Google Cloud Vertex AI is a unified machine learning platform for building, deploying, and scaling ML models. Cartography ingests the following Vertex AI resources:
-
-```mermaid
-graph LR
-    Project[GCPProject]
-    Model[GCPVertexAIModel]
-    Endpoint[GCPVertexAIEndpoint]
-    DeployedModel[GCPVertexAIDeployedModel]
-    Instance[GCPVertexAIWorkbenchInstance]
-    Pipeline[GCPVertexAITrainingPipeline]
-    FeatureGroup[GCPVertexAIFeatureGroup]
-    Dataset[GCPVertexAIDataset]
-    Bucket[GCPBucket]
-    ServiceAccount[GCPServiceAccount]
-
-    Project -->|RESOURCE| Model
-    Project -->|RESOURCE| Endpoint
-    Project -->|RESOURCE| Instance
-    Project -->|RESOURCE| Pipeline
-    Project -->|RESOURCE| FeatureGroup
-    Project -->|RESOURCE| Dataset
-
-    Endpoint -->|SERVES| DeployedModel
-    DeployedModel -->|INSTANCE_OF| Model
-    Pipeline -->|PRODUCES| Model
-    Pipeline -->|READS_FROM| Dataset
-    Pipeline -->|READS_FROM| Bucket
-    Model -->|STORED_IN| Bucket
-    Instance -->|USES_SERVICE_ACCOUNT| ServiceAccount
-```
-
-#### GCPVertexAIModel
+### GCPVertexAIModel
 
 Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models).
 
@@ -1034,7 +999,7 @@ Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/doc
     (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
     ```
 
-#### GCPVertexAIEndpoint
+### GCPVertexAIEndpoint
 
 Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints).
 
@@ -1063,7 +1028,7 @@ Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/
     (GCPVertexAIEndpoint)-[:SERVES]->(GCPVertexAIDeployedModel)
     ```
 
-#### GCPVertexAIDeployedModel
+### GCPVertexAIDeployedModel
 
 Representation of a deployed model on a Vertex AI Endpoint. This is derived from the [deployedModels field](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints#DeployedModel) on an Endpoint.
 
@@ -1092,7 +1057,7 @@ Representation of a deployed model on a Vertex AI Endpoint. This is derived from
     (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
     ```
 
-#### GCPVertexAIWorkbenchInstance
+### GCPVertexAIWorkbenchInstance
 
 Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/vertex-ai/docs/workbench/reference/rest/v2/projects.locations.instances) (v2 API).
 
@@ -1122,7 +1087,7 @@ Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/
     (GCPVertexAIWorkbenchInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
 
-#### GCPVertexAITrainingPipeline
+### GCPVertexAITrainingPipeline
 
 Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.trainingPipelines).
 
@@ -1167,7 +1132,7 @@ Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/v
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPBucket)
     ```
 
-#### GCPVertexAIFeatureGroup
+### GCPVertexAIFeatureGroup
 
 Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.featureGroups). Feature Groups are the new architecture for Vertex AI Feature Store.
 
@@ -1191,7 +1156,7 @@ Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/verte
     (GCPProject)-[:RESOURCE]->(GCPVertexAIFeatureGroup)
     ```
 
-#### GCPVertexAIDataset
+### GCPVertexAIDataset
 
 Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.datasets).
 
@@ -1222,9 +1187,7 @@ Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/d
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPVertexAIDataset)
     ```
 
-### Cloud SQL Resources
-
-#### GCPCloudSQLInstance
+### GCPCloudSQLInstance
 
 Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
 
@@ -1265,7 +1228,7 @@ Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/m
     (GCPCloudSQLInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
 
-#### GCPCloudSQLDatabase
+### GCPCloudSQLDatabase
 
 Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/databases).
 
@@ -1289,7 +1252,7 @@ Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/m
     (GCPCloudSQLInstance)-[:CONTAINS]->(GCPCloudSQLDatabase)
     ```
 
-#### GCPCloudSQLUser
+### GCPCloudSQLUser
 
 Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/users).
 
@@ -1312,7 +1275,7 @@ Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql
     (GCPCloudSQLInstance)-[:HAS_USER]->(GCPCloudSQLUser)
     ```
 
-#### GCPCloudSQLBackupConfiguration
+### GCPCloudSQLBackupConfiguration
 
 Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#backupconfiguration). This node captures the backup settings for a Cloud SQL instance.
 
@@ -1376,9 +1339,7 @@ Representation of a Google [Cloud Function](https://cloud.google.com/functions/d
     (GCPCloudFunction)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
-### Secret Manager Resources
-
-#### GCPSecretManagerSecret
+### GCPSecretManagerSecret
 
 Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets). A Secret is a logical container for secret data that can have multiple versions.
 
@@ -1407,7 +1368,7 @@ Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-
     (GCPProject)-[:RESOURCE]->(GCPSecretManagerSecret)
     ```
 
-#### GCPSecretManagerSecretVersion
+### GCPSecretManagerSecretVersion
 
 Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions). A SecretVersion stores a specific version of secret data within a Secret.
 
@@ -1628,4 +1589,142 @@ Representation of a platform-specific manifest within a multi-architecture Docke
 - GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages.
     ```
     (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
+    ```
+
+### Cloud Run Resources
+
+#### Overview
+
+Google Cloud Run is a serverless compute platform for running containers. Cartography ingests the following Cloud Run resources:
+
+```mermaid
+graph LR
+    Project[GCPProject]
+    Service[GCPCloudRunService]
+    Revision[GCPCloudRunRevision]
+    Job[GCPCloudRunJob]
+    Execution[GCPCloudRunExecution]
+    ServiceAccount[GCPServiceAccount]
+
+    Project -->|RESOURCE| Service
+    Project -->|RESOURCE| Revision
+    Project -->|RESOURCE| Job
+    Project -->|RESOURCE| Execution
+
+    Service -->|HAS_REVISION| Revision
+    Job -->|HAS_EXECUTION| Execution
+
+    Revision -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Job -->|USES_SERVICE_ACCOUNT| ServiceAccount
+```
+
+### GCPCloudRunService
+
+Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the service (e.g., `projects/{project}/locations/{location}/services/{service}`) |
+| name | Short name of the service |
+| location | The GCP location where the service is deployed |
+| container_image | The container image for the service |
+| service_account_email | The email of the service account used by this service |
+
+#### Relationships
+
+  - GCPCloudRunServices are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunService)
+    ```
+  - GCPCloudRunServices have GCPCloudRunRevisions.
+    ```
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
+    ```
+
+### GCPCloudRunRevision
+
+Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the revision (e.g., `projects/{project}/locations/{location}/services/{service}/revisions/{revision}`) |
+| name | Short name of the revision |
+| service | Full resource name of the parent service |
+| container_image | The container image for this revision |
+| service_account_email | The email of the service account used by this revision |
+| log_uri | URI to Cloud Logging for this revision |
+
+#### Relationships
+
+  - GCPCloudRunRevisions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunRevision)
+    ```
+  - GCPCloudRunServices have GCPCloudRunRevisions.
+    ```
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
+    ```
+  - GCPCloudRunRevisions use GCPServiceAccounts.
+    ```
+    (GCPCloudRunRevision)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudRunJob
+
+Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the job (e.g., `projects/{project}/locations/{location}/jobs/{job}`) |
+| name | Short name of the job |
+| location | The GCP location where the job is deployed |
+| container_image | The container image for the job |
+| service_account_email | The email of the service account used by this job |
+
+#### Relationships
+
+  - GCPCloudRunJobs are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunJob)
+    ```
+  - GCPCloudRunJobs have GCPCloudRunExecutions.
+    ```
+    (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
+    ```
+  - GCPCloudRunJobs use GCPServiceAccounts.
+    ```
+    (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudRunExecution
+
+Representation of a GCP [Cloud Run Execution](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs.executions).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the execution (e.g., `projects/{project}/locations/{location}/jobs/{job}/executions/{execution}`) |
+| name | Short name of the execution |
+| job | Full resource name of the parent job |
+| status | Completion status of the execution (e.g., `SUCCEEDED`, `FAILED`) |
+| cancelled_count | Number of tasks that were cancelled |
+| failed_count | Number of tasks that failed |
+| succeeded_count | Number of tasks that succeeded |
+
+#### Relationships
+
+  - GCPCloudRunExecutions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunExecution)
+    ```
+  - GCPCloudRunJobs have GCPCloudRunExecutions.
+    ```
+    (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
     ```
