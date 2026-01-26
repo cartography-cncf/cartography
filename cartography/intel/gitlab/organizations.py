@@ -45,7 +45,7 @@ def transform_organizations(
         }
         transformed.append(transformed_org)
 
-    logger.info("Transformed %s organizations", len(transformed))
+    logger.debug("Transformed %s organizations", len(transformed))
     return transformed
 
 

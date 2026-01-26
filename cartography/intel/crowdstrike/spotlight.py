@@ -125,7 +125,7 @@ def get_spotlight_vulnerability_ids(
     body = response.get("body", {})
     resources = body.get("resources", [])
     if not resources:
-        logger.warning("No vulnerability IDs in spotlight queryVulnerabilities.")
+        logger.debug("No vulnerability IDs in spotlight queryVulnerabilities.")
         return []
     ids.append(resources)
     after = body.get("meta", {}).get("pagination", {}).get("after")

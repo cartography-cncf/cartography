@@ -290,7 +290,7 @@ def transform_dependencies(
 
         transformed.append(transformed_dep)
 
-    logger.info("Transformed %s dependencies", len(transformed))
+    logger.debug("Transformed %s dependencies", len(transformed))
     return transformed
 
 

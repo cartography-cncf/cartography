@@ -173,7 +173,7 @@ def transform_projects(
         }
         transformed.append(transformed_project)
 
-    logger.info("Transformed %s projects (group projects only)", len(transformed))
+    logger.debug("Transformed %s projects (group projects only)", len(transformed))
     return transformed
 
 

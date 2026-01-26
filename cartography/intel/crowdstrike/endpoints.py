@@ -55,7 +55,7 @@ def get_host_ids(
     body = response.get("body", {})
     resources = body.get("resources", [])
     if not resources:
-        logger.warning("No host IDs in QueryDevicesByFilter.")
+        logger.debug("No host IDs in QueryDevicesByFilter.")
         return []
     ids.append(resources)
     offset = body.get("meta", {}).get("pagination", {}).get("offset")

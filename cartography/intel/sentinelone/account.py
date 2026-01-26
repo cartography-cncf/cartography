@@ -45,7 +45,7 @@ def get_accounts(
             "Retrieved SentinelOne account data: %s accounts", len(accounts_data)
         )
     else:
-        logger.warning("No SentinelOne accounts retrieved")
+        logger.debug("No SentinelOne accounts retrieved")
 
     return accounts_data
 
@@ -88,7 +88,7 @@ def load_accounts(
     :param update_tag: Update tag for tracking data freshness
     """
     if not accounts_data:
-        logger.warning("No account data provided to load_accounts")
+        logger.debug("No account data provided to load_accounts")
         return
 
     load(

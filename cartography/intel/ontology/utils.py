@@ -159,7 +159,7 @@ def link_ontology_nodes(
     """
     modules_mapping = ONTOLOGY_NODES_MAPPING.get(module_name)
     if modules_mapping is None:
-        logger.warning("No ontology mapping found for module '%s'.", module_name)
+        logger.debug("No ontology mapping found for module '%s'.", module_name)
         return
     for source, mapping in modules_mapping.items():
         if len(mapping.rels) == 0:

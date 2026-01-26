@@ -64,7 +64,7 @@ def transform_groups(
         }
         transformed.append(transformed_group)
 
-    logger.info("Transformed %s groups", len(transformed))
+    logger.debug("Transformed %s groups", len(transformed))
     return transformed
 
 

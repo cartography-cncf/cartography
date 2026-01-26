@@ -273,7 +273,7 @@ def sync_ec2_ownership(
     if events:
         load_cloudtrail_events(neo4j_session, events, update_tag, account_id)
     else:
-        logger.warning("No CloudTrail events found - no nodes created")
+        logger.debug("No CloudTrail events found - no nodes created")
 
     common_job_parameters = {
         "UPDATE_TAG": update_tag,

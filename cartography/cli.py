@@ -1114,7 +1114,8 @@ class CLI:
         # Okta config
         if config.okta_org_id and config.okta_api_key_env_var:
             logger.debug(
-                f"Reading API key for Okta from environment variable {config.okta_api_key_env_var}",
+                "Reading API key for Okta from environment variable %s",
+                config.okta_api_key_env_var,
             )
             config.okta_api_key = os.environ.get(config.okta_api_key_env_var)
         else:
@@ -1123,7 +1124,8 @@ class CLI:
         # GitHub config
         if config.github_config_env_var:
             logger.debug(
-                f"Reading config string for GitHub from environment variable {config.github_config_env_var}",
+                "Reading config string for GitHub from environment variable %s",
+                config.github_config_env_var,
             )
             config.github_config = os.environ.get(config.github_config_env_var)
         else:
@@ -1132,7 +1134,8 @@ class CLI:
         # DigitalOcean config
         if config.digitalocean_token_env_var:
             logger.debug(
-                f"Reading token for DigitalOcean from env variable {config.digitalocean_token_env_var}",
+                "Reading token for DigitalOcean from env variable %s",
+                config.digitalocean_token_env_var,
             )
             config.digitalocean_token = os.environ.get(
                 config.digitalocean_token_env_var,
@@ -1181,14 +1184,18 @@ class CLI:
 
         if config.statsd_enabled:
             logger.debug(
-                f"statsd enabled. Sending metrics to server {config.statsd_host}:{config.statsd_port}. "
-                f'Metrics have prefix "{config.statsd_prefix}".',
+                "statsd enabled. Sending metrics to server %s:%s. "
+                "Metrics have prefix \"%s\".",
+                config.statsd_host,
+                config.statsd_port,
+                config.statsd_prefix,
             )
 
         # Pagerduty config
         if config.pagerduty_api_key_env_var:
             logger.debug(
-                f"Reading API key for PagerDuty from environment variable {config.pagerduty_api_key_env_var}",
+                "Reading API key for PagerDuty from environment variable %s",
+                config.pagerduty_api_key_env_var,
             )
             config.pagerduty_api_key = os.environ.get(config.pagerduty_api_key_env_var)
         else:
@@ -1197,7 +1204,8 @@ class CLI:
         # Crowdstrike config
         if config.crowdstrike_client_id_env_var:
             logger.debug(
-                f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_id_env_var}",
+                "Reading API key for Crowdstrike from environment variable %s",
+                config.crowdstrike_client_id_env_var,
             )
             config.crowdstrike_client_id = os.environ.get(
                 config.crowdstrike_client_id_env_var,
@@ -1207,7 +1215,8 @@ class CLI:
 
         if config.crowdstrike_client_secret_env_var:
             logger.debug(
-                f"Reading API key for Crowdstrike from environment variable {config.crowdstrike_client_secret_env_var}",
+                "Reading API key for Crowdstrike from environment variable %s",
+                config.crowdstrike_client_secret_env_var,
             )
             config.crowdstrike_client_secret = os.environ.get(
                 config.crowdstrike_client_secret_env_var,
@@ -1218,7 +1227,8 @@ class CLI:
         # GSuite config
         if config.gsuite_tokens_env_var:
             logger.debug(
-                f"Reading config string for GSuite from environment variable {config.gsuite_tokens_env_var}",
+                "Reading config string for GSuite from environment variable %s",
+                config.gsuite_tokens_env_var,
             )
             config.gsuite_config = os.environ.get(config.gsuite_tokens_env_var)
         else:
@@ -1227,7 +1237,8 @@ class CLI:
         # Google Workspace config
         if config.googleworkspace_tokens_env_var:
             logger.debug(
-                f"Reading config string for Google Workspace from environment variable {config.googleworkspace_tokens_env_var}",
+                "Reading config string for Google Workspace from environment variable %s",
+                config.googleworkspace_tokens_env_var,
             )
             config.googleworkspace_config = os.environ.get(
                 config.googleworkspace_tokens_env_var
@@ -1238,14 +1249,16 @@ class CLI:
         # Lastpass config
         if config.lastpass_cid_env_var:
             logger.debug(
-                f"Reading CID for Lastpass from environment variable {config.lastpass_cid_env_var}",
+                "Reading CID for Lastpass from environment variable %s",
+                config.lastpass_cid_env_var,
             )
             config.lastpass_cid = os.environ.get(config.lastpass_cid_env_var)
         else:
             config.lastpass_cid = None
         if config.lastpass_provhash_env_var:
             logger.debug(
-                f"Reading provhash for Lastpass from environment variable {config.lastpass_provhash_env_var}",
+                "Reading provhash for Lastpass from environment variable %s",
+                config.lastpass_provhash_env_var,
             )
             config.lastpass_provhash = os.environ.get(config.lastpass_provhash_env_var)
         else:
@@ -1258,7 +1271,8 @@ class CLI:
             and config.bigfix_root_url
         ):
             logger.debug(
-                f"Reading BigFix password from environment variable {config.bigfix_password_env_var}",
+                "Reading BigFix password from environment variable %s",
+                config.bigfix_password_env_var,
             )
             config.bigfix_password = os.environ.get(config.bigfix_password_env_var)
 
@@ -1269,8 +1283,9 @@ class CLI:
             and config.duo_api_hostname
         ):
             logger.debug(
-                f"Reading Duo api key and secret from environment variables {config.duo_api_key_env_var}"
-                f", {config.duo_api_secret_env_var}",
+                "Reading Duo api key and secret from environment variables %s, %s",
+                config.duo_api_key_env_var,
+                config.duo_api_secret_env_var,
             )
             config.duo_api_key = os.environ.get(config.duo_api_key_env_var)
             config.duo_api_secret = os.environ.get(config.duo_api_secret_env_var)
@@ -1281,7 +1296,8 @@ class CLI:
         # GitLab config
         if config.gitlab_url and config.gitlab_token_env_var:
             logger.debug(
-                f"Reading GitLab token from environment variable {config.gitlab_token_env_var}",
+                "Reading GitLab token from environment variable %s",
+                config.gitlab_token_env_var,
             )
             config.gitlab_token = os.environ.get(config.gitlab_token_env_var)
         else:
@@ -1295,7 +1311,8 @@ class CLI:
             and config.workday_api_password_env_var
         ):
             logger.debug(
-                f"Reading Workday API password from environment variable {config.workday_api_password_env_var}",
+                "Reading Workday API password from environment variable %s",
+                config.workday_api_password_env_var,
             )
             config.workday_api_password = os.environ.get(
                 config.workday_api_password_env_var
@@ -1306,7 +1323,8 @@ class CLI:
         # Semgrep config
         if config.semgrep_app_token_env_var:
             logger.debug(
-                f"Reading Semgrep App Token from environment variable {config.semgrep_app_token_env_var}",
+                "Reading Semgrep App Token from environment variable %s",
+                config.semgrep_app_token_env_var,
             )
             config.semgrep_app_token = os.environ.get(config.semgrep_app_token_env_var)
         else:
@@ -1318,7 +1336,8 @@ class CLI:
         # CVE feed config
         if config.cve_api_key_env_var:
             logger.debug(
-                f"Reading NVD CVE API key environment variable {config.cve_api_key_env_var}",
+                "Reading NVD CVE API key environment variable %s",
+                config.cve_api_key_env_var,
             )
             config.cve_api_key = os.environ.get(config.cve_api_key_env_var)
         else:
@@ -1347,7 +1366,8 @@ class CLI:
         # Tailscale config
         if config.tailscale_token_env_var:
             logger.debug(
-                f"Reading Tailscale API token from environment variable {config.tailscale_token_env_var}",
+                "Reading Tailscale API token from environment variable %s",
+                config.tailscale_token_env_var,
             )
             config.tailscale_token = os.environ.get(config.tailscale_token_env_var)
         else:
@@ -1356,7 +1376,8 @@ class CLI:
         # Cloudflare config
         if config.cloudflare_token_env_var:
             logger.debug(
-                f"Reading Cloudflare ApiKey from environment variable {config.cloudflare_token_env_var}",
+                "Reading Cloudflare ApiKey from environment variable %s",
+                config.cloudflare_token_env_var,
             )
             config.cloudflare_token = os.environ.get(config.cloudflare_token_env_var)
         else:
@@ -1365,7 +1386,8 @@ class CLI:
         # OpenAI config
         if config.openai_apikey_env_var:
             logger.debug(
-                f"Reading OpenAI API key from environment variable {config.openai_apikey_env_var}",
+                "Reading OpenAI API key from environment variable %s",
+                config.openai_apikey_env_var,
             )
             config.openai_apikey = os.environ.get(config.openai_apikey_env_var)
         else:
@@ -1374,7 +1396,8 @@ class CLI:
         # Anthropic config
         if config.anthropic_apikey_env_var:
             logger.debug(
-                f"Reading Anthropic API key from environment variable {config.anthropic_apikey_env_var}",
+                "Reading Anthropic API key from environment variable %s",
+                config.anthropic_apikey_env_var,
             )
             config.anthropic_apikey = os.environ.get(config.anthropic_apikey_env_var)
         else:
@@ -1420,14 +1443,16 @@ class CLI:
                 id.strip() for id in config.sentinelone_account_ids.split(",")
             ]
             logger.debug(
-                f"Parsed {len(config.sentinelone_account_ids)} SentinelOne account IDs to sync"
+                "Parsed %d SentinelOne account IDs to sync",
+                len(config.sentinelone_account_ids),
             )
         else:
             config.sentinelone_account_ids = None
 
         if config.sentinelone_api_url and config.sentinelone_api_token_env_var:
             logger.debug(
-                f"Reading API token for SentinelOne from environment variable {config.sentinelone_api_token_env_var}",
+                "Reading API token for SentinelOne from environment variable %s",
+                config.sentinelone_api_token_env_var,
             )
             config.sentinelone_api_token = os.environ.get(
                 config.sentinelone_api_token_env_var
@@ -1438,7 +1463,8 @@ class CLI:
         # Keycloak config
         if config.keycloak_client_secret_env_var:
             logger.debug(
-                f"Reading Client Secret for Keycloak from environment variable {config.keycloak_client_secret_env_var}",
+                "Reading Client Secret for Keycloak from environment variable %s",
+                config.keycloak_client_secret_env_var,
             )
             config.keycloak_client_secret = os.environ.get(
                 config.keycloak_client_secret_env_var
@@ -1449,7 +1475,8 @@ class CLI:
         # Slack config
         if config.slack_token_env_var:
             logger.debug(
-                f"Reading Slack token from environment variable {config.slack_token_env_var}",
+                "Reading Slack token from environment variable %s",
+                config.slack_token_env_var,
             )
             config.slack_token = os.environ.get(config.slack_token_env_var)
         else:
@@ -1464,7 +1491,8 @@ class CLI:
             # Try to read API token
             if config.spacelift_api_token_env_var:
                 logger.debug(
-                    f"Reading API token for Spacelift from environment variable {config.spacelift_api_token_env_var}",
+                    "Reading API token for Spacelift from environment variable %s",
+                    config.spacelift_api_token_env_var,
                 )
                 config.spacelift_api_token = os.environ.get(
                     config.spacelift_api_token_env_var
@@ -1475,7 +1503,8 @@ class CLI:
             # Try to read API key ID and secret
             if config.spacelift_api_key_id_env_var:
                 logger.debug(
-                    f"Reading API key ID for Spacelift from environment variable {config.spacelift_api_key_id_env_var}",
+                    "Reading API key ID for Spacelift from environment variable %s",
+                    config.spacelift_api_key_id_env_var,
                 )
                 config.spacelift_api_key_id = os.environ.get(
                     config.spacelift_api_key_id_env_var
@@ -1485,7 +1514,8 @@ class CLI:
 
             if config.spacelift_api_key_secret_env_var:
                 logger.debug(
-                    f"Reading API key secret for Spacelift from environment variable {config.spacelift_api_key_secret_env_var}",
+                    "Reading API key secret for Spacelift from environment variable %s",
+                    config.spacelift_api_key_secret_env_var,
                 )
                 config.spacelift_api_key_secret = os.environ.get(
                     config.spacelift_api_key_secret_env_var

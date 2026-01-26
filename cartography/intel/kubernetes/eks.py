@@ -56,7 +56,8 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]
 
         result["roles"] = filtered_role_mappings
         logger.info(
-            f"Parsed {len(filtered_role_mappings)} role mappings from aws-auth ConfigMap"
+            "Parsed %d role mappings from aws-auth ConfigMap",
+            len(filtered_role_mappings),
         )
     else:
         logger.info("No mapRoles found in aws-auth ConfigMap")
@@ -76,7 +77,8 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]
 
         result["users"] = filtered_user_mappings
         logger.info(
-            f"Parsed {len(filtered_user_mappings)} user mappings from aws-auth ConfigMap"
+            "Parsed %d user mappings from aws-auth ConfigMap",
+            len(filtered_user_mappings),
         )
     else:
         logger.info("No mapUsers found in aws-auth ConfigMap")
@@ -173,10 +175,16 @@ def transform_aws_auth_mappings(
     entries_without_username = total_entries - total_entries_with_username
 
     logger.info(
-        f"Transformed {len(all_users)} users (from {total_entries_with_username} entries with usernames) "
-        f"and {len(all_groups)} groups from {len(auth_mappings.get('roles', []))} role mappings "
-        f"and {len(auth_mappings.get('users', []))} user mappings "
-        f"({entries_without_username} entries without usernames created groups only)"
+        "Transformed %d users (from %d entries with usernames) "
+        "and %d groups from %d role mappings "
+        "and %d user mappings "
+        "(%d entries without usernames created groups only)",
+        len(all_users),
+        total_entries_with_username,
+        len(all_groups),
+        len(auth_mappings.get("roles", [])),
+        len(auth_mappings.get("users", [])),
+        entries_without_username,
     )
 
     return {"users": all_users, "groups": all_groups}
@@ -362,8 +370,9 @@ def sync(
             cluster_name,
         )
         logger.info(
-            f"Successfully synced {len(auth_mappings.get('roles', []))} AWS IAM role mappings "
-            f"and {len(auth_mappings.get('users', []))} AWS IAM user mappings"
+            "Successfully synced %d AWS IAM role mappings and %d AWS IAM user mappings",
+            len(auth_mappings.get("roles", [])),
+            len(auth_mappings.get("users", [])),
         )
     else:
         logger.info("No role or user mappings found in aws-auth ConfigMap")
@@ -386,7 +395,7 @@ def sync(
             cluster_id,
             cluster_name,
         )
-        logger.info("Successfully synced %s external OIDC provider", len(oidc_provider))
+        logger.info("Successfully synced %d external OIDC provider", len(oidc_provider))
     else:
         logger.info("No external OIDC provider found for cluster")
 

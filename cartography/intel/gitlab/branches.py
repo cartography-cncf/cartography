@@ -55,7 +55,7 @@ def transform_branches(
         }
         transformed.append(transformed_branch)
 
-    logger.info("Transformed %s branches", len(transformed))
+    logger.debug("Transformed %s branches", len(transformed))
     return transformed
 
 

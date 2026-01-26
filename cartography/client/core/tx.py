@@ -102,24 +102,31 @@ def _entity_not_found_backoff_handler(details: Dict) -> None:
     exc = details.get("exception")
     if isinstance(exc, Exception) and _is_retryable_client_error(exc):
         wait = details.get("wait")
-        wait_str = f"{wait:0.1f}" if wait is not None else "unknown"
+        wait_str = "%.1f" % wait if wait is not None else "unknown"
         tries = details.get("tries", 0)
 
         if tries == 1:
-            log_msg = (
-                f"Encountered EntityNotFound error (attempt 1/{_MAX_ENTITY_NOT_FOUND_RETRIES}). "
-                f"This is expected during concurrent write operations. "
-                f"Retrying after {wait_str} seconds backoff. "
-                f"Function: {details.get('target')}. Error: {details.get('exception')}"
+            logger.warning(
+                "Encountered EntityNotFound error (attempt 1/%d). "
+                "This is expected during concurrent write operations. "
+                "Retrying after %s seconds backoff. "
+                "Function: %s. Error: %s",
+                _MAX_ENTITY_NOT_FOUND_RETRIES,
+                wait_str,
+                details.get("target"),
+                details.get("exception"),
             )
         else:
-            log_msg = (
-                f"EntityNotFound retry {tries}/{_MAX_ENTITY_NOT_FOUND_RETRIES}. "
-                f"Backing off {wait_str} seconds before next attempt. "
-                f"Function: {details.get('target')}. Error: {details.get('exception')}"
+            logger.warning(
+                "EntityNotFound retry %d/%d. "
+                "Backing off %s seconds before next attempt. "
+                "Function: %s. Error: %s",
+                tries,
+                _MAX_ENTITY_NOT_FOUND_RETRIES,
+                wait_str,
+                details.get("target"),
+                details.get("exception"),
             )
-
-        logger.warning(log_msg)
     else:
         # Fall back to standard backoff handler for other errors
         backoff_handler(details)
@@ -137,24 +144,31 @@ def _buffer_error_backoff_handler(details: Dict) -> None:
     exc = details.get("exception")
     if isinstance(exc, Exception) and _is_retryable_buffer_error(exc):
         wait = details.get("wait")
-        wait_str = f"{wait:0.1f}" if wait is not None else "unknown"
+        wait_str = "%.1f" % wait if wait is not None else "unknown"
         tries = details.get("tries", 0)
 
         if tries == 1:
-            log_msg = (
-                f"Encountered BufferError (attempt 1/{_MAX_BUFFER_ERROR_RETRIES}). "
-                f"This can occur during concurrent multi-threaded Neo4j operations. "
-                f"Retrying after {wait_str} seconds backoff. "
-                f"Function: {details.get('target')}. Error: {details.get('exception')}"
+            logger.warning(
+                "Encountered BufferError (attempt 1/%d). "
+                "This can occur during concurrent multi-threaded Neo4j operations. "
+                "Retrying after %s seconds backoff. "
+                "Function: %s. Error: %s",
+                _MAX_BUFFER_ERROR_RETRIES,
+                wait_str,
+                details.get("target"),
+                details.get("exception"),
             )
         else:
-            log_msg = (
-                f"BufferError retry {tries}/{_MAX_BUFFER_ERROR_RETRIES}. "
-                f"Backing off {wait_str} seconds before next attempt. "
-                f"Function: {details.get('target')}. Error: {details.get('exception')}"
+            logger.warning(
+                "BufferError retry %d/%d. "
+                "Backing off %s seconds before next attempt. "
+                "Function: %s. Error: %s",
+                tries,
+                _MAX_BUFFER_ERROR_RETRIES,
+                wait_str,
+                details.get("target"),
+                details.get("exception"),
             )
-
-        logger.warning(log_msg)
     else:
         # Fall back to standard backoff handler for other errors
         backoff_handler(details)
@@ -178,18 +192,24 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
             # Log success if we recovered from errors
             if network_attempts > 0:
                 logger.info(
-                    f"Successfully recovered from network error after {network_attempts} "
-                    f"{'retry' if network_attempts == 1 else 'retries'}. Function: {target}"
+                    "Successfully recovered from network error after %d %s. Function: %s",
+                    network_attempts,
+                    "retry" if network_attempts == 1 else "retries",
+                    target,
                 )
             if entity_attempts > 0:
                 logger.info(
-                    f"Successfully recovered from EntityNotFound error after {entity_attempts} "
-                    f"{'retry' if entity_attempts == 1 else 'retries'}. Function: {target}"
+                    "Successfully recovered from EntityNotFound error after %d %s. Function: %s",
+                    entity_attempts,
+                    "retry" if entity_attempts == 1 else "retries",
+                    target,
                 )
             if buffer_attempts > 0:
                 logger.info(
-                    f"Successfully recovered from BufferError after {buffer_attempts} "
-                    f"{'retry' if buffer_attempts == 1 else 'retries'}. Function: {target}"
+                    "Successfully recovered from BufferError after %d %s. Function: %s",
+                    buffer_attempts,
+                    "retry" if buffer_attempts == 1 else "retries",
+                    target,
                 )
             return result
         except _NETWORK_EXCEPTIONS as exc:
@@ -199,8 +219,11 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
             wait = next(network_wait)
             if wait is None:
                 logger.error(
-                    f"Unexpected: backoff generator returned None for wait time. "
-                    f"target={target}, attempts={network_attempts}, exc={exc}"
+                    "Unexpected: backoff generator returned None for wait time. "
+                    "target=%s, attempts=%d, exc=%s",
+                    target,
+                    network_attempts,
+                    exc,
                 )
                 wait = 1.0  # Fallback to 1 second wait
             backoff_handler(
@@ -222,8 +245,11 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
             wait = next(entity_wait)
             if wait is None:
                 logger.error(
-                    f"Unexpected: backoff generator returned None for wait time. "
-                    f"target={target}, attempts={entity_attempts}, exc={exc}"
+                    "Unexpected: backoff generator returned None for wait time. "
+                    "target=%s, attempts=%d, exc=%s",
+                    target,
+                    entity_attempts,
+                    exc,
                 )
                 wait = 1.0  # Fallback to 1 second wait
             _entity_not_found_backoff_handler(
@@ -245,8 +271,11 @@ def _run_with_retry(operation: Callable[[], T], target: str) -> T:
             wait = next(buffer_wait)
             if wait is None:
                 logger.error(
-                    f"Unexpected: backoff generator returned None for wait time. "
-                    f"target={target}, attempts={buffer_attempts}, exc={exc}"
+                    "Unexpected: backoff generator returned None for wait time. "
+                    "target=%s, attempts=%d, exc=%s",
+                    target,
+                    buffer_attempts,
+                    exc,
                 )
                 wait = 1.0  # Fallback to 1 second wait
             _buffer_error_backoff_handler(
@@ -290,7 +319,8 @@ def _run_index_query_with_retry(neo4j_session: neo4j.Session, query: str) -> Non
         # this index, which is the desired end state. Safe to ignore.
         if e.code == "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists":
             logger.debug(
-                f"Index already exists (likely created by parallel sync): {query}"
+                "Index already exists (likely created by parallel sync): %s",
+                query,
             )
             return
         raise
