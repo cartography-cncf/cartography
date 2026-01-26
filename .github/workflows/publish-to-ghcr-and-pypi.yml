@@ -63,14 +63,14 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ghcr.io/${{ github.repository }}
-          # Only tag as 'latest' for stable releases (not RC, alpha, beta, etc.)
-          # PEP 440 format (e.g., 0.110.0rc2) is not recognized by semver, so we use explicit conditions
+          # Only tag as 'latest' for stable releases (not prereleases)
+          # Uses GitHub's prerelease flag to exclude all prerelease types (rc, alpha, beta, dev, etc.)
           flavor: |
             latest=false
           tags: |
             type=pep440,pattern={{version}}
-            type=pep440,pattern={{major}}.{{minor}},enable=${{ !contains(github.event.release.tag_name, 'rc') }}
-            type=raw,value=latest,enable=${{ !contains(github.event.release.tag_name, 'rc') }}
+            type=pep440,pattern={{major}}.{{minor}},enable=${{ !github.event.release.prerelease }}
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
 
       # Install QEMU for multi-architecture builds
       - name: Set up QEMU
