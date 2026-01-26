@@ -196,7 +196,7 @@ def test_secret_version_kms_key_relationship(
 
     neo4j_session.run(
         """
-        MERGE (k:AWSKMSKey{id: $key_id})
+        MERGE (k:KMSKey{id: $key_id})
         ON CREATE SET k.firstseen = timestamp()
         SET k.arn = $key_arn,
             k.region = $region,
@@ -224,7 +224,7 @@ def test_secret_version_kms_key_relationship(
         neo4j_session,
         "SecretsManagerSecretVersion",
         "arn",
-        "AWSKMSKey",
+        "KMSKey",
         "arn",
         "ENCRYPTED_BY",
         rel_direction_right=True,

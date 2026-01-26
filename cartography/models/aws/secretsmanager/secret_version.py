@@ -82,7 +82,7 @@ class SecretsManagerSecretVersionToKMSKeyRel(CartographyRelSchema):
     Only created when KmsKeyId is present
     """
 
-    target_node_label: str = "AWSKMSKey"
+    target_node_label: str = "KMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("KmsKeyId")},
     )
