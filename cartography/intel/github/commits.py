@@ -94,7 +94,7 @@ def get_repo_commits(
         # Navigate to the nested commit history
         repo_data = response.get("data", {}).get("organization", {}).get("repository")
         if not repo_data:
-            logger.warning("No repository data found for %s/%s", organization, repo_name)
+            logger.debug("No repository data found for %s/%s", organization, repo_name)
             break
 
         default_branch = repo_data.get("defaultBranchRef")

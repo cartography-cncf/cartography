@@ -60,7 +60,7 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]
             len(filtered_role_mappings),
         )
     else:
-        logger.info("No mapRoles found in aws-auth ConfigMap")
+        logger.debug("No mapRoles found in aws-auth ConfigMap")
 
     # Parse mapUsers
     if "mapUsers" in configmap.data:
@@ -81,7 +81,7 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]
             len(filtered_user_mappings),
         )
     else:
-        logger.info("No mapUsers found in aws-auth ConfigMap")
+        logger.debug("No mapUsers found in aws-auth ConfigMap")
 
     return result
 
@@ -375,7 +375,7 @@ def sync(
             len(auth_mappings.get("users", [])),
         )
     else:
-        logger.info("No role or user mappings found in aws-auth ConfigMap")
+        logger.debug("No role or user mappings found in aws-auth ConfigMap")
 
     # 2. Sync External OIDC providers (EKS API)
     logger.info("Syncing external OIDC providers from EKS API")
@@ -397,7 +397,7 @@ def sync(
         )
         logger.info("Successfully synced %d external OIDC provider", len(oidc_provider))
     else:
-        logger.info("No external OIDC provider found for cluster")
+        logger.debug("No external OIDC provider found for cluster")
 
     # Cleanup
     common_job_parameters = {

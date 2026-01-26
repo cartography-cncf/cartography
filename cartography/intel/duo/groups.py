@@ -34,7 +34,7 @@ def _get_groups(client: duo_client.Admin) -> List[Dict[str, Any]]:
     Fetch all group data
     https://duo.com/docs/adminapi#users
     """
-    logger.info("Fetching Duo groups")
+    logger.debug("Fetching Duo groups")
     return client.get_groups()
 
 

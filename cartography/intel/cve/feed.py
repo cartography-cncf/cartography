@@ -92,7 +92,7 @@ def _call_cves_api(
     results: Dict[Any, Any] = dict()
 
     while params["resultsPerPage"] > 0 or params["startIndex"] < total_results:
-        logger.info("Calling NIST NVD API at %s with params %s", url, params)
+        logger.debug("Calling NIST NVD API at %s with params %s", url, params)
         res = http_session.get(
             url,
             params=params,

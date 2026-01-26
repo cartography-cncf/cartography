@@ -323,7 +323,7 @@ def cleanup_dependencies(
     """
     Remove stale GitLab dependencies from the graph for a specific project.
     """
-    logger.info("Running GitLab dependencies cleanup for project %s", project_url)
+    logger.debug("Running GitLab dependencies cleanup for project %s", project_url)
     cleanup_params = {**common_job_parameters, "project_url": project_url}
     GraphJob.from_node_schema(GitLabDependencySchema(), cleanup_params).run(
         neo4j_session

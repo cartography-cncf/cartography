@@ -37,7 +37,7 @@ def _get(client: duo_client.Admin) -> List[Dict[str, Any]]:
     Fetch all data
     https://duo.com/docs/adminapi#endpoints
     """
-    logger.info("Fetching data for %s", Schema.label)
+    logger.debug("Fetching data for %s", Schema.label)
     return client.get_webauthncredentials()
 
 
@@ -46,7 +46,7 @@ def _transform(data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Reformat the data before loading
     """
-    logger.info("Transforming %d items for %s", len(data), Schema.label)
+    logger.debug("Transforming %d items for %s", len(data), Schema.label)
     transformed_data = []
     for datum in data:
         transformed_datum = {

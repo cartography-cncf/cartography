@@ -82,7 +82,7 @@ def get(
 ) -> List[Dict[str, Any]]:
     result = []
     computer_list = get_computer_list(bigfix_api_url, headers)
-    logger.info("Retrieving details for %s BigFix Computers", len(computer_list))
+    logger.debug("Retrieving details for %s BigFix Computers", len(computer_list))
     for computer in computer_list:
         details = get_computer_details(
             bigfix_api_url,

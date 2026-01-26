@@ -153,7 +153,7 @@ def _parse_trivy_data(
     results = trivy_data["Results"]
     if not results:
         stat_handler.incr("image_scan_no_results_count")
-        logger.info("No vulnerabilities found for %s", source)
+        logger.debug("No vulnerabilities found for %s", source)
 
     if "Metadata" not in trivy_data or not trivy_data["Metadata"]:
         raise ValueError(f"Missing 'Metadata' in scan data for {source}")
@@ -282,7 +282,7 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     """
     Run cleanup jobs for Trivy nodes.
     """
-    logger.info("Running Trivy cleanup")
+    logger.debug("Running Trivy cleanup")
     GraphJob.from_node_schema(TrivyImageFindingSchema(), common_job_parameters).run(
         neo4j_session
     )

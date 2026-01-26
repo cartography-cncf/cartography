@@ -642,7 +642,7 @@ def start_gcp_ingestion(
         del common_job_parameters["ORG_RESOURCE_NAME"]
 
     # Run all org cleanup jobs at the very end, after all children have been cleaned up
-    logger.info("Running cleanup for GCP organizations")
+    logger.debug("Running cleanup for GCP organizations")
     for schema_class, params in org_cleanup_jobs:
         GraphJob.from_node_schema(schema_class(), params).run(neo4j_session)
 

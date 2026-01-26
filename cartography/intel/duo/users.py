@@ -36,7 +36,7 @@ def _get_users(client: duo_client.Admin) -> List[Dict[str, Any]]:
     Fetch all users data
     https://duo.com/docs/adminapi#users
     """
-    logger.info("Fetching Duo users")
+    logger.debug("Fetching Duo users")
     return client.get_users()
 
 

@@ -20,7 +20,7 @@ def get_organization(gitlab_url: str, token: str, org_id: int) -> dict[str, Any]
     """
     Fetch a specific top-level group (organization) from GitLab by ID.
     """
-    logger.info("Fetching organization ID %s from %s", org_id, gitlab_url)
+    logger.debug("Fetching organization ID %s from %s", org_id, gitlab_url)
     return get_single(gitlab_url, token, f"/api/v4/groups/{org_id}")
 
 
@@ -76,7 +76,7 @@ def cleanup_organizations(
     """
     Remove stale GitLab organizations from the graph for a specific GitLab instance.
     """
-    logger.info("Running GitLab organizations cleanup for %s", gitlab_url)
+    logger.debug("Running GitLab organizations cleanup for %s", gitlab_url)
     cleanup_params = {**common_job_parameters, "gitlab_url": gitlab_url}
     GraphJob.from_node_schema(GitLabOrganizationSchema(), cleanup_params).run(
         neo4j_session

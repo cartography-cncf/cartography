@@ -73,7 +73,7 @@ def sync_bigtable_instances(
     logger.info("Syncing Bigtable Instances for project %s.", project_id)
     instances_raw = get_bigtable_instances(client, project_id)
     if not instances_raw:
-        logger.info("No Bigtable instances found for project %s.", project_id)
+        logger.debug("No Bigtable instances found for project %s.", project_id)
         return []
 
     instances = transform_instances(instances_raw, project_id)

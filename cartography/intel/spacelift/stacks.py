@@ -32,7 +32,7 @@ query {
 
 @timeit
 def get_stacks(session: requests.Session, api_endpoint: str) -> list[dict[str, Any]]:
-    logger.info("Fetching Spacelift stacks")
+    logger.debug("Fetching Spacelift stacks")
 
     response = call_spacelift_api(session, api_endpoint, GET_STACKS_QUERY)
     stacks_data = response.get("data", {}).get("stacks", [])

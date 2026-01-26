@@ -98,7 +98,7 @@ def cleanup_groups(
     Remove stale GitLab groups from the graph for a specific organization.
     Uses cascade delete to also remove child projects and nested groups.
     """
-    logger.info("Running GitLab groups cleanup for organization %s", org_url)
+    logger.debug("Running GitLab groups cleanup for organization %s", org_url)
     cleanup_params = {**common_job_parameters, "org_url": org_url}
     GraphJob.from_node_schema(
         GitLabGroupSchema(), cleanup_params, cascade_delete=True
@@ -135,7 +135,7 @@ def sync_gitlab_groups(
     raw_groups = get_groups(gitlab_url, token, organization_id)
 
     if not raw_groups:
-        logger.info("No groups found for organization %s", org_url)
+        logger.debug("No groups found for organization %s", org_url)
         return
 
     # Transform to match our schema

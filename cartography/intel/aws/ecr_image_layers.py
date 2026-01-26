@@ -127,7 +127,7 @@ async def batch_get_manifest(
         raise
 
     if not resp.get("images"):
-        logger.warning("No image found for %s:%s", repo, image_ref)
+        logger.debug("No image found for %s:%s", repo, image_ref)
         return {}, ""
 
     manifest_json = json.loads(resp["images"][0]["imageManifest"])

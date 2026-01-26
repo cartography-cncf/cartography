@@ -50,7 +50,7 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
         "ref": "_default",
         "dedup": "true",
     }
-    logger.info("Retrieving Semgrep SCA vulns for deployment '%s'.", deployment_slug)
+    logger.debug("Retrieving Semgrep SCA vulns for deployment '%s'.", deployment_slug)
     while has_more:
 
         try:

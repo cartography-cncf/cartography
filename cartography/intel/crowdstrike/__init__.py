@@ -70,7 +70,7 @@ def start_crowdstrike_ingestion(
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
-    logger.info("Running Crowdstrike cleanup")
+    logger.debug("Running Crowdstrike cleanup")
     GraphJob.from_node_schema(CrowdstrikeHostSchema(), common_job_parameters).run(
         neo4j_session
     )

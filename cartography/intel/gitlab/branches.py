@@ -119,7 +119,7 @@ def sync_gitlab_branches(
         raw_branches = get_branches(gitlab_url, token, project_id)
 
         if not raw_branches:
-            logger.info("No branches found for project %s", project_name)
+            logger.debug("No branches found for project %s", project_name)
             continue
 
         # Transform to match our schema

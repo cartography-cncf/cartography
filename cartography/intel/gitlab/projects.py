@@ -103,7 +103,7 @@ def get_projects(gitlab_url: str, token: str, group_id: int) -> list[dict[str, A
     """
     Fetch all projects for a specific group from GitLab.
     """
-    logger.info("Fetching projects for group ID %s", group_id)
+    logger.debug("Fetching projects for group ID %s", group_id)
     projects = get_paginated(
         gitlab_url,
         token,
@@ -207,7 +207,7 @@ def cleanup_projects(
     Remove stale GitLab projects from the graph for a specific organization.
     Uses cascade delete to also remove child branches, dependency files, and dependencies.
     """
-    logger.info("Running GitLab projects cleanup for organization %s", org_url)
+    logger.debug("Running GitLab projects cleanup for organization %s", org_url)
     cleanup_params = {**common_job_parameters, "org_url": org_url}
     GraphJob.from_node_schema(
         GitLabProjectSchema(), cleanup_params, cascade_delete=True
@@ -247,7 +247,7 @@ def sync_gitlab_projects(
     raw_projects = get_projects(gitlab_url, token, organization_id)
 
     if not raw_projects:
-        logger.info("No projects found for organization %s", org_name)
+        logger.debug("No projects found for organization %s", org_name)
         return []
 
     # Fetch languages for all projects concurrently
@@ -263,7 +263,7 @@ def sync_gitlab_projects(
     )
 
     if not transformed_projects:
-        logger.info("No group projects found for organization %s", org_name)
+        logger.debug("No group projects found for organization %s", org_name)
         return raw_projects
 
     logger.info(

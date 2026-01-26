@@ -36,7 +36,7 @@ def _get_endpoints(client: duo_client.Admin) -> List[Dict[str, Any]]:
     Fetch all endpoint data
     https://duo.com/docs/adminapi#endpoints
     """
-    logger.info("Fetching Duo endpoints")
+    logger.debug("Fetching Duo endpoints")
     return client.get_endpoints()
 
 

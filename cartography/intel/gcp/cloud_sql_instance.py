@@ -135,7 +135,7 @@ def sync_sql_instances(
     logger.info("Syncing Cloud SQL Instances for project %s.", project_id)
     instances_raw = get_sql_instances(client, project_id)
     if not instances_raw:
-        logger.info("No Cloud SQL instances found for project %s.", project_id)
+        logger.debug("No Cloud SQL instances found for project %s.", project_id)
 
     instances = transform_sql_instances(instances_raw, project_id)
     load_sql_instances(neo4j_session, instances, project_id, update_tag)
