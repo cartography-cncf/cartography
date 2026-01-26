@@ -43,6 +43,7 @@ Detailed procedures are available in separate documents:
 
 **Essential Imports:**
 ```python
+import logging
 from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties, CartographyNodeSchema, ExtraNodeLabels
@@ -54,6 +55,8 @@ from cartography.models.core.relationships import (
 from cartography.client.core.tx import load, load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
 ```
 
 **PropertyRef Quick Reference:**
@@ -101,11 +104,27 @@ For detailed step-by-step instructions, see [Creating a New Module](docs/agents/
 @timeit
 def sync(neo4j_session: neo4j.Session, api_key: str, tenant_id: str,
          update_tag: int, common_job_parameters: dict[str, Any]) -> None:
-    data = get(api_key, tenant_id)              # 1. GET
-    transformed = transform(data)               # 2. TRANSFORM
-    load_entities(neo4j_session, transformed,   # 3. LOAD
-                 tenant_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters)  # 4. CLEANUP
+    """
+    Main sync entry point for the module.
+    """
+    logger.info("Starting MyResource sync")
+
+    # 1. GET - Fetch data from API
+    logger.debug("Fetching MyResource data from API")
+    raw_data = get(api_key, tenant_id)
+
+    # 2. TRANSFORM - Shape data for ingestion
+    logger.debug("Transforming %d MyResource items", len(raw_data))
+    transformed = transform(raw_data)
+
+    # 3. LOAD - Ingest to Neo4j
+    load_entities(neo4j_session, transformed, tenant_id, update_tag)
+
+    # 4. CLEANUP - Remove stale data
+    logger.debug("Running MyResource cleanup job")
+    cleanup(neo4j_session, common_job_parameters)
+
+    logger.info("Completed MyResource sync")
 ```
 
 ### Standard Load and Cleanup Patterns
@@ -117,6 +136,7 @@ def load_entities(neo4j_session: neo4j.Session, data: list[dict],
          lastupdated=update_tag, TENANT_ID=tenant_id)
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]) -> None:
+    logger.debug("Running cleanup job for MyResource")
     GraphJob.from_node_schema(YourSchema(), common_job_parameters).run(neo4j_session)
 ```
 

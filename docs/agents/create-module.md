@@ -86,19 +86,60 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Sync function following the standard pattern
+    Main sync entry point for the module.
     """
+    logger.info("Starting MyResource sync")
+
     # 1. GET - Fetch data from API
+    logger.debug("Fetching MyResource data from API")
     raw_data = get(api_key, tenant_id)
 
     # 2. TRANSFORM - Shape data for ingestion
+    logger.debug("Transforming %d MyResource items", len(raw_data))
     transformed_data = transform(raw_data)
 
     # 3. LOAD - Ingest to Neo4j using data model
     load_users(neo4j_session, transformed_data, tenant_id, update_tag)
 
     # 4. CLEANUP - Remove stale data
+    logger.debug("Running MyResource cleanup job")
     cleanup(neo4j_session, common_job_parameters)
+
+    logger.info("Completed MyResource sync")
+
+
+def load_users(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    tenant_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        MyResourceSchema(),
+        data,
+        lastupdated=update_tag,
+        TENANT_ID=tenant_id,
+    )
+
+
+def sync_for_parent(
+    neo4j_session: neo4j.Session,
+    parent_id: str,
+    config: Config,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Sync resources for a specific parent (e.g., project, account, region).
+    """
+    logger.debug("Syncing MyResource for %s", parent_id)
+
+    data = get_for_parent(parent_id, config)
+
+    logger.debug("Transforming %d MyResource for %s", len(data), parent_id)
+    transformed = transform(data)
+
+    load_users(neo4j_session, transformed, parent_id, common_job_parameters["UPDATE_TAG"])
 ```
 
 ### GET: Fetching Data
@@ -811,16 +852,19 @@ Use appropriate log levels to reduce noise in production:
 ```python
 # DO: Use INFO for significant milestones
 logger.info("Starting %s ingestion for tenant %s", module_name, tenant_id)
-logger.info("Completed sync: loaded %s users, %s devices", user_count, device_count)
+logger.info("Completed %s sync", module_name)
 
-# DO: Use DEBUG for granular details and empty states
+# DO: Use DEBUG for granular details
 logger.debug("Running cleanup job for %s", schema_name)
-logger.debug("Loaded %s results from API", len(results))  # Even if 0
+logger.debug("Fetched %s results from API", len(results))
+logger.debug("Transforming %s items", len(data))
 
 # DON'T: Use INFO for routine operations
 logger.info("Graph job executed")  # Should be DEBUG
-logger.info("Loaded 0 users")      # Should be DEBUG
+logger.info("Fetched 0 users")     # Should be DEBUG
 ```
+
+> **Note**: Do not log the number of nodes or relationships loaded. This is handled automatically by the `load()` function in `cartography/client/core/tx.py`.
 
 #### Logging Format
 
