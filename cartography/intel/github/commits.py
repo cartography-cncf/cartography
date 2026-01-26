@@ -151,7 +151,7 @@ def process_repo_commits_batch(
     # Calculate lookback date based on configured days
     lookback_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
 
-    logger.info("Processing %s repositories in batches of %s", len(repo_names), batch_size)
+    logger.debug("Processing %s repositories in batches of %s", len(repo_names), batch_size)
 
     # Process repositories in batches
     for i in range(0, len(repo_names), batch_size):
@@ -335,7 +335,7 @@ def load_github_commit_relationships(
     :param update_tag: Timestamp used to determine data freshness.
     """
     if not commit_relationships:
-        logger.info("No commit relationships to load")
+        logger.debug("No commit relationships to load")
         return
 
     logger.info(

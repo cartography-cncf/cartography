@@ -21,7 +21,7 @@ def get_agents(api_url: str, api_token: str, account_id: str) -> list[dict[str, 
     :param account_id: The SentinelOne account ID
     :return: Raw agent data from API
     """
-    logger.info("Retrieving SentinelOne agent data for account %s", account_id)
+    logger.debug("Retrieving SentinelOne agent data for account %s", account_id)
 
     agents = get_paginated_results(
         api_url=api_url,
@@ -33,7 +33,7 @@ def get_agents(api_url: str, api_token: str, account_id: str) -> list[dict[str, 
         },
     )
 
-    logger.info("Retrieved %s agents from SentinelOne account %s", len(agents), account_id)
+    logger.debug("Retrieved %s agents from SentinelOne account %s", len(agents), account_id)
     return agents
 
 

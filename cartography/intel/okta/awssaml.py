@@ -218,7 +218,7 @@ def query_for_okta_to_awssso_role_mapping(
     for group in awssso_okta_groups:
         account_role = _parse_okta_group_name(group.group_name, mapping_regex)
         if not account_role:
-            logger.info("Okta group %s has no associated AWS SSO role", group.group_name)
+            logger.debug("Okta group %s has no associated AWS SSO role", group.group_name)
             continue
 
         role_arn = get_awssso_role_arn(

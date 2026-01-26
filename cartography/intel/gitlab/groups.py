@@ -24,11 +24,11 @@ def get_groups(gitlab_url: str, token: str, org_id: int) -> list[dict[str, Any]]
     """
     Fetch all descendant groups for a specific organization from GitLab.
     """
-    logger.info("Fetching groups for organization ID %s", org_id)
+    logger.debug("Fetching groups for organization ID %s", org_id)
     groups = get_paginated(
         gitlab_url, token, f"/api/v4/groups/{org_id}/descendant_groups"
     )
-    logger.info("Fetched %s groups for organization ID %s", len(groups), org_id)
+    logger.debug("Fetched %s groups for organization ID %s", len(groups), org_id)
     return groups
 
 

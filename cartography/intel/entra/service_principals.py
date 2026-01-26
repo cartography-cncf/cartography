@@ -49,7 +49,7 @@ async def get_entra_service_principals(
             break
         page = await client.service_principals.with_url(page.odata_next_link).get()
 
-    logger.info("Retrieved %s Entra service principals total", count)
+    logger.debug("Retrieved %s Entra service principals total", count)
 
 
 async def get_service_principal_by_app_id(

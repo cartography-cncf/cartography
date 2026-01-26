@@ -280,7 +280,7 @@ def cleanup(
     common_job_parameters: Dict[str, Any],
     batch_size: int = BATCH_SIZE,
 ) -> None:
-    logger.info("Running AWS Inspector cleanup")
+    logger.debug("Running AWS Inspector cleanup")
     GraphJob.from_matchlink(
         InspectorFindingToPackageMatchLink(),
         "AWSAccount",

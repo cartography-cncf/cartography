@@ -92,7 +92,7 @@ def get_users(token: str, api_url: str, organization: str) -> Tuple[List[Dict], 
         2. data on the owning GitHub organization
         see tests.data.github.users.GITHUB_USER_DATA for shape of both
     """
-    logger.info("Retrieving users from GitHub organization %s", organization)
+    logger.debug("Retrieving users from GitHub organization %s", organization)
     users, org = fetch_all(
         token,
         api_url,
@@ -119,7 +119,7 @@ def get_enterprise_owners(
         3. data on the owning GitHub organization
         see tests.data.github.users.GITHUB_ENTERPRISE_OWNER_DATA for shape
     """
-    logger.info("Retrieving enterprise owners from GitHub organization %s", organization)
+    logger.debug("Retrieving enterprise owners from GitHub organization %s", organization)
     owners, org = fetch_all(
         token,
         api_url,
@@ -228,7 +228,7 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    logger.info("Cleaning up GitHub users")
+    logger.debug("Cleaning up GitHub users")
     GraphJob.from_node_schema(
         GitHubOrganizationUserSchema(),
         common_job_parameters,

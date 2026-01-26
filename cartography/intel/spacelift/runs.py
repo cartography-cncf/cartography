@@ -181,7 +181,7 @@ def get_runs(session: requests.Session, api_endpoint: str) -> list[dict[str, Any
             run["stack"] = stack_id
             all_runs.append(run)
 
-    logger.info("Retrieved %s Spacelift runs from %s stacks", len(all_runs), len(stacks))
+    logger.debug("Retrieved %s Spacelift runs from %s stacks", len(all_runs), len(stacks))
     return all_runs
 
 

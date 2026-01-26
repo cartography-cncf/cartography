@@ -128,7 +128,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     # ========================================
     # Cleanup Phase - Run in reverse order (leaf to root)
     # ========================================
-    logger.info("Starting GitLab cleanup phase")
+    logger.debug("Starting GitLab cleanup phase")
 
     # Cleanup leaf nodes (dependencies, dependency_files, branches) for each project
     for project in all_projects:

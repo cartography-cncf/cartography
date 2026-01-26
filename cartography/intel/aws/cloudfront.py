@@ -45,7 +45,7 @@ def get_cloudfront_distributions(
 
     CloudFront is a global service, so we query from us-east-1.
     """
-    logger.info("Fetching CloudFront distributions")
+    logger.debug("Fetching CloudFront distributions")
     client = boto3_session.client("cloudfront", region_name=CLOUDFRONT_REGION)
 
     distributions: list[dict[str, Any]] = []
@@ -255,7 +255,7 @@ def sync(
     distributions = get_cloudfront_distributions(boto3_session)
 
     if not distributions:
-        logger.info("No CloudFront distributions found")
+        logger.debug("No CloudFront distributions found")
     else:
         # Transform data for ingestion
         transformed = transform_cloudfront_distributions(distributions)

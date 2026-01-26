@@ -150,7 +150,7 @@ def sync_trivy_aws_ecr_from_s3(
         )
         raise ValueError("No ECR images with S3 json scan results found.")
 
-    logger.info("Processing %d Trivy result files from S3", len(json_files))
+    logger.debug("Processing %d Trivy result files from S3", len(json_files))
     s3_client = boto3_session.client("s3")
     for s3_object_key in json_files:
         logger.debug(
@@ -202,7 +202,7 @@ def sync_trivy_aws_ecr_from_dir(
         )
         raise ValueError("No Trivy json results found on disk")
 
-    logger.info("Processing %d local Trivy result files", len(json_files))
+    logger.debug("Processing %d local Trivy result files", len(json_files))
 
     for file_path in json_files:
         try:

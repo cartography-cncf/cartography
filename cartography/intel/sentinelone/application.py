@@ -28,7 +28,7 @@ def get_application_data(
     :param api_token: SentinelOne API token
     :return: A list of application data dictionaries
     """
-    logger.info("Retrieving SentinelOne application data for account %s", account_id)
+    logger.debug("Retrieving SentinelOne application data for account %s", account_id)
     applications = get_paginated_results(
         api_url=api_url,
         endpoint="/web/api/v2.1/application-management/inventory",
@@ -39,7 +39,7 @@ def get_application_data(
         },
     )
 
-    logger.info("Retrieved %s applications from SentinelOne", len(applications))
+    logger.debug("Retrieved %s applications from SentinelOne", len(applications))
     return applications
 
 

@@ -88,7 +88,7 @@ def sync_event_hub_namespaces(
 
     namespaces_raw = get_event_hub_namespaces(client)
     if not namespaces_raw:
-        logger.info("No Event Hub Namespaces found.")
+        logger.debug("No Event Hub Namespaces found.")
         return []
 
     transformed_namespaces = transform_namespaces(namespaces_raw)

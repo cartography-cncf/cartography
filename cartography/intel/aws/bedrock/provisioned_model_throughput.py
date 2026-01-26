@@ -33,7 +33,7 @@ def get_provisioned_throughputs(
     """
     Retrieve all provisioned model throughputs in AWS Bedrock for a given region.
     """
-    logger.info("Fetching Bedrock provisioned model throughputs in region %s", region)
+    logger.debug("Fetching Bedrock provisioned model throughputs in region %s", region)
     client = boto3_session.client(
         "bedrock",
         region_name=region,
@@ -114,7 +114,7 @@ def cleanup_provisioned_throughputs(
     """
     Remove stale provisioned throughput nodes from the graph.
     """
-    logger.info("Cleaning up stale Bedrock provisioned throughputs")
+    logger.debug("Cleaning up stale Bedrock provisioned throughputs")
 
     GraphJob.from_node_schema(
         AWSBedrockProvisionedModelThroughputSchema(),
@@ -145,7 +145,7 @@ def sync(
         throughputs = get_provisioned_throughputs(boto3_session, region)
 
         if not throughputs:
-            logger.info("No provisioned throughputs found in region %s", region)
+            logger.debug("No provisioned throughputs found in region %s", region)
             continue
 
         # Transform data for ingestion

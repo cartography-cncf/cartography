@@ -73,13 +73,13 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
         vulns = data["findings"]
         has_more = len(vulns) > 0
         if page % 10 == 0:
-            logger.info("Processed page %s of Semgrep SCA vulnerabilities.", page)
+            logger.debug("Processed page %s of Semgrep SCA vulnerabilities.", page)
         all_vulns.extend(vulns)
         retries = 0
         page += 1
         request_data["page"] = page
 
-    logger.info("Retrieved %s Semgrep SCA vulns in %s pages.", len(all_vulns), page)
+    logger.debug("Retrieved %s Semgrep SCA vulns in %s pages.", len(all_vulns), page)
     return all_vulns
 
 
@@ -236,13 +236,13 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    logger.info("Running Semgrep SCA findings cleanup job.")
+    logger.debug("Running Semgrep SCA findings cleanup job.")
     findings_cleanup_job = GraphJob.from_node_schema(
         SemgrepSCAFindingSchema(),
         common_job_parameters,
     )
     findings_cleanup_job.run(neo4j_session)
-    logger.info("Running Semgrep SCA Locations cleanup job.")
+    logger.debug("Running Semgrep SCA Locations cleanup job.")
     locations_cleanup_job = GraphJob.from_node_schema(
         SemgrepSCALocationSchema(),
         common_job_parameters,

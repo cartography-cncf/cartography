@@ -173,7 +173,7 @@ def sync_revisions(
     logger.info("Syncing Cloud Run Revisions for project %s.", project_id)
     revisions_raw = get_revisions(client, project_id)
     if not revisions_raw:
-        logger.info("No Cloud Run revisions found for project %s.", project_id)
+        logger.debug("No Cloud Run revisions found for project %s.", project_id)
 
     revisions = transform_revisions(revisions_raw, project_id)
     load_revisions(neo4j_session, revisions, project_id, update_tag)

@@ -57,7 +57,7 @@ async def get_entra_applications(
             break
         page = await client.applications.with_url(page.odata_next_link).get()
 
-    logger.info("Retrieved %s Entra applications total", count)
+    logger.debug("Retrieved %s Entra applications total", count)
 
 
 def transform_applications(

@@ -354,7 +354,7 @@ def transform(
     mapping, Python requirements files (if any) in a repo, manifests from GitHub's dependency graph, all
     dependencies from GitHub's dependency graph, and branch protection rules.
     """
-    logger.info("Processing %s GitHub repositories", len(repos_json))
+    logger.debug("Processing %s GitHub repositories", len(repos_json))
     transformed_repo_list: List[Dict] = []
     transformed_repo_languages: List[Dict] = []
     transformed_repo_owners: List[Dict] = []

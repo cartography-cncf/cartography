@@ -203,7 +203,7 @@ def cleanup_ssm(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    logger.info("Running SSM cleanup")
+    logger.debug("Running SSM cleanup")
     GraphJob.from_node_schema(
         SSMInstanceInformationSchema(),
         common_job_parameters,

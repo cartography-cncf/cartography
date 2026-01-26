@@ -31,7 +31,7 @@ def get_knowledge_bases(
     """
     Retrieve all knowledge bases in AWS Bedrock for a given region.
     """
-    logger.info("Fetching Bedrock knowledge bases in region %s", region)
+    logger.debug("Fetching Bedrock knowledge bases in region %s", region)
     client = boto3_session.client(
         "bedrock-agent",
         region_name=region,
@@ -157,7 +157,7 @@ def cleanup_knowledge_bases(
     """
     Remove stale knowledge base nodes from the graph.
     """
-    logger.info("Cleaning up stale Bedrock knowledge bases")
+    logger.debug("Cleaning up stale Bedrock knowledge bases")
 
     GraphJob.from_node_schema(
         AWSBedrockKnowledgeBaseSchema(),
@@ -188,7 +188,7 @@ def sync(
         knowledge_bases = get_knowledge_bases(boto3_session, region)
 
         if not knowledge_bases:
-            logger.info("No knowledge bases found in region %s", region)
+            logger.debug("No knowledge bases found in region %s", region)
             continue
 
         # Transform data for ingestion

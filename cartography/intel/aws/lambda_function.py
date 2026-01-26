@@ -256,7 +256,7 @@ def cleanup_lambda(neo4j_session: neo4j.Session, common_job_parameters: Dict) ->
     """
     Clean up Lambda resources
     """
-    logger.info("Running Lambda cleanup")
+    logger.debug("Running Lambda cleanup")
 
     # Clean up child entities first
     GraphJob.from_node_schema(

@@ -45,7 +45,7 @@ def get_custom_models(
         )
         return []
 
-    logger.info("Fetching Bedrock custom models in region %s", region)
+    logger.debug("Fetching Bedrock custom models in region %s", region)
     client = boto3_session.client(
         "bedrock",
         region_name=region,
@@ -65,7 +65,7 @@ def get_custom_models(
         response = client.get_custom_model(modelIdentifier=model_arn)
         models.append(response)
 
-    logger.info("Retrieved %d custom models in region %s", len(models), region)
+    logger.debug("Retrieved %d custom models in region %s", len(models), region)
 
     return models
 
@@ -120,7 +120,7 @@ def cleanup_custom_models(
     """
     Remove stale custom model nodes from the graph.
     """
-    logger.info("Cleaning up stale Bedrock custom models")
+    logger.debug("Cleaning up stale Bedrock custom models")
 
     GraphJob.from_node_schema(
         AWSBedrockCustomModelSchema(),
@@ -151,7 +151,7 @@ def sync(
         models = get_custom_models(boto3_session, region)
 
         if not models:
-            logger.info("No custom models found in region %s", region)
+            logger.debug("No custom models found in region %s", region)
             continue
 
         # Transform data for ingestion

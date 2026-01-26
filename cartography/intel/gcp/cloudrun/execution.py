@@ -179,7 +179,7 @@ def sync_executions(
     logger.info("Syncing Cloud Run Executions for project %s.", project_id)
     executions_raw = get_executions(client, project_id)
     if not executions_raw:
-        logger.info("No Cloud Run executions found for project %s.", project_id)
+        logger.debug("No Cloud Run executions found for project %s.", project_id)
 
     executions = transform_executions(executions_raw, project_id)
     load_executions(neo4j_session, executions, project_id, update_tag)

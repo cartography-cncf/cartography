@@ -31,7 +31,7 @@ def get_guardrails(
     """
     Retrieve all guardrails in AWS Bedrock for a given region.
     """
-    logger.info("Fetching Bedrock guardrails in region %s", region)
+    logger.debug("Fetching Bedrock guardrails in region %s", region)
     client = boto3_session.client(
         "bedrock",
         region_name=region,
@@ -43,7 +43,7 @@ def get_guardrails(
     for page in paginator.paginate():
         guardrails.extend(page.get("guardrails", []))
 
-    logger.info("Retrieved %d guardrails in region %s", len(guardrails), region)
+    logger.debug("Retrieved %d guardrails in region %s", len(guardrails), region)
 
     return guardrails
 
@@ -98,7 +98,7 @@ def cleanup_guardrails(
     """
     Remove stale guardrail nodes from the graph.
     """
-    logger.info("Cleaning up stale Bedrock guardrails")
+    logger.debug("Cleaning up stale Bedrock guardrails")
 
     GraphJob.from_node_schema(
         AWSBedrockGuardrailSchema(),
@@ -129,7 +129,7 @@ def sync(
         guardrails = get_guardrails(boto3_session, region)
 
         if not guardrails:
-            logger.info("No guardrails found in region %s", region)
+            logger.debug("No guardrails found in region %s", region)
             continue
 
         # Transform data for ingestion

@@ -22,7 +22,7 @@ def get_accounts(
     :param account_ids: Optional list of account IDs to filter for
     :return: Raw account data from API
     """
-    logger.info("Retrieving SentinelOne account data")
+    logger.debug("Retrieving SentinelOne account data")
 
     # Get accounts info
     response = call_sentinelone_api(

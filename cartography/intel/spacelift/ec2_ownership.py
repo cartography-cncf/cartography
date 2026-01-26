@@ -68,11 +68,11 @@ def get_ec2_ownership(
         if not json_files:
             continue
 
-        logger.info("Found %s JSON files to process in this page", len(json_files))
+        logger.debug("Found %s JSON files to process in this page", len(json_files))
 
         for s3_object in json_files:
             object_key = s3_object["Key"]
-            logger.info("Processing %s", object_key)
+            logger.debug("Processing %s", object_key)
 
             try:
                 response = s3_client.get_object(Bucket=bucket_name, Key=object_key)

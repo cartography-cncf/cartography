@@ -256,7 +256,7 @@ def _sync_project_resources(
 
             # Fetch predefined roles once for CAI fallback (they're global, not project-specific)
             if predefined_roles is None:
-                logger.info("Fetching predefined IAM roles for CAI fallback")
+                logger.debug("Fetching predefined IAM roles for CAI fallback")
                 iam_client = build_client("iam", "v1", credentials=credentials)
                 predefined_roles = iam.get_gcp_predefined_roles(iam_client)
                 logger.info(

@@ -141,7 +141,7 @@ def get_findings(
     )
 
     if not finding_ids:
-        logger.info("No findings found for detector %s in region %s", detector_id, region)
+        logger.debug("No findings found for detector %s in region %s", detector_id, region)
         return []
 
     findings_data = []
@@ -307,7 +307,7 @@ def sync_detectors(
     detector_ids = get_detectors(boto3_session, region)
 
     if not detector_ids:
-        logger.info("No GuardDuty detectors found in region %s", region)
+        logger.debug("No GuardDuty detectors found in region %s", region)
         return []
 
     # Get detector details and load into graph
@@ -417,7 +417,7 @@ def sync(
         )
 
         if not detector_ids:
-            logger.info("No GuardDuty detectors found in region %s, skipping.", region)
+            logger.debug("No GuardDuty detectors found in region %s, skipping.", region)
             continue
 
         # Sync findings for all detectors in this region

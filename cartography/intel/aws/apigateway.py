@@ -500,7 +500,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     Delete out-of-date API Gateway resources and relationships.
     Order matters - clean up certificates, stages, and resources before cleaning up the REST APIs they connect to.
     """
-    logger.info("Running API Gateway cleanup job.")
+    logger.debug("Running API Gateway cleanup job.")
 
     # Clean up certificates first
     cleanup_job = GraphJob.from_node_schema(

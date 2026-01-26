@@ -25,7 +25,7 @@ def get_aws_auth_configmap(client: K8sClient) -> V1ConfigMap:
     """
     Get aws-auth ConfigMap from kube-system namespace.
     """
-    logger.info("Retrieving aws-auth ConfigMap from cluster %s", client.name)
+    logger.debug("Retrieving aws-auth ConfigMap from cluster %s", client.name)
     return client.core.read_namespaced_config_map(
         name="aws-auth", namespace="kube-system"
     )

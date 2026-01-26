@@ -37,7 +37,7 @@ def get_stacks(session: requests.Session, api_endpoint: str) -> list[dict[str, A
     response = call_spacelift_api(session, api_endpoint, GET_STACKS_QUERY)
     stacks_data = response.get("data", {}).get("stacks", [])
 
-    logger.info("Retrieved %s Spacelift stacks", len(stacks_data))
+    logger.debug("Retrieved %s Spacelift stacks", len(stacks_data))
     return stacks_data
 
 

@@ -27,12 +27,12 @@ query {
 
 @timeit
 def get_spaces(session: requests.Session, api_endpoint: str) -> list[dict[str, Any]]:
-    logger.info("Fetching Spacelift spaces")
+    logger.debug("Fetching Spacelift spaces")
 
     response = call_spacelift_api(session, api_endpoint, GET_SPACES_QUERY)
     spaces_data = response.get("data", {}).get("spaces", [])
 
-    logger.info("Retrieved %s Spacelift spaces", len(spaces_data))
+    logger.debug("Retrieved %s Spacelift spaces", len(spaces_data))
     return spaces_data
 
 

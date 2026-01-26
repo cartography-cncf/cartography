@@ -33,7 +33,7 @@ def get_agents(
 
     This function first lists all agents, then gets detailed information for each agent
     """
-    logger.info("Fetching Bedrock agents in region %s", region)
+    logger.debug("Fetching Bedrock agents in region %s", region)
     client = boto3_session.client(
         "bedrock-agent",
         region_name=region,
@@ -87,7 +87,7 @@ def get_agents(
 
         agents.append(agent_details)
 
-    logger.info("Retrieved %d agents in region %s", len(agents), region)
+    logger.debug("Retrieved %d agents in region %s", len(agents), region)
 
     return agents
 
@@ -207,7 +207,7 @@ def cleanup_agents(
     """
     Remove stale agent nodes from the graph.
     """
-    logger.info("Cleaning up stale Bedrock agents")
+    logger.debug("Cleaning up stale Bedrock agents")
 
     GraphJob.from_node_schema(
         AWSBedrockAgentSchema(),
@@ -238,7 +238,7 @@ def sync(
         agents = get_agents(boto3_session, region)
 
         if not agents:
-            logger.info("No agents found in region %s", region)
+            logger.debug("No agents found in region %s", region)
             continue
 
         # Transform data for ingestion

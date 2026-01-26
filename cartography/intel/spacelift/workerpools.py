@@ -30,12 +30,12 @@ def get_worker_pools(
     session: requests.Session, api_endpoint: str
 ) -> list[dict[str, Any]]:
 
-    logger.info("Fetching Spacelift worker pools")
+    logger.debug("Fetching Spacelift worker pools")
 
     response = call_spacelift_api(session, api_endpoint, GET_WORKER_POOLS_QUERY)
     worker_pools_data = response.get("data", {}).get("workerPools", [])
 
-    logger.info("Retrieved %s Spacelift worker pools", len(worker_pools_data))
+    logger.debug("Retrieved %s Spacelift worker pools", len(worker_pools_data))
     return worker_pools_data
 
 

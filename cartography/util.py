@@ -244,7 +244,7 @@ def aws_paginate(
     paginator = client.get_paginator(method_name)
     for i, page in enumerate(paginator.paginate(**kwargs), start=1):
         if i % 100 == 0:
-            logger.info("fetching page number %d", i)
+            logger.debug("fetching page number %d", i)
         if object_name in page:
             items = page[object_name]
             yield from items
