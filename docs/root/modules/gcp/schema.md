@@ -1445,23 +1445,20 @@ Google Cloud Artifact Registry is a universal package manager for managing conta
 graph LR
     Project[GCPProject]
     Repository[GCPArtifactRegistryRepository]
-    DockerImage[GCPArtifactRegistryDockerImage]
+    ContainerImage[GCPArtifactRegistryContainerImage]
     HelmChart[GCPArtifactRegistryHelmChart]
     LanguagePackage[GCPArtifactRegistryLanguagePackage]
-    GenericArtifact[GCPArtifactRegistryGenericArtifact]
-    Manifest[GCPArtifactRegistryImageManifest]
+    PlatformImage[GCPArtifactRegistryPlatformImage]
 
     Project -->|RESOURCE| Repository
-    Project -->|RESOURCE| DockerImage
+    Project -->|RESOURCE| ContainerImage
     Project -->|RESOURCE| HelmChart
     Project -->|RESOURCE| LanguagePackage
-    Project -->|RESOURCE| GenericArtifact
-    Project -->|RESOURCE| Manifest
-    Repository -->|CONTAINS| DockerImage
+    Project -->|RESOURCE| PlatformImage
+    Repository -->|CONTAINS| ContainerImage
     Repository -->|CONTAINS| HelmChart
     Repository -->|CONTAINS| LanguagePackage
-    Repository -->|CONTAINS| GenericArtifact
-    DockerImage -->|HAS_MANIFEST| Manifest
+    ContainerImage -->|HAS_MANIFEST| PlatformImage
 ```
 
 #### GCPArtifactRegistryRepository
@@ -1472,7 +1469,7 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
 |-------|-------------|
 | **id** | Full resource name of the repository (e.g., `projects/{project}/locations/{location}/repositories/{repo}`) |
 | name | The short name of the repository |
-| format | The format of packages stored in the repository (e.g., `DOCKER`, `MAVEN`, `NPM`, `PYTHON`, `GO`, `APT`, `YUM`) |
+| format | The format of packages stored in the repository (e.g., `DOCKER`, `MAVEN`, `NPM`, `PYTHON`) |
 | mode | The mode of the repository (e.g., `STANDARD_REPOSITORY`, `VIRTUAL_REPOSITORY`, `REMOTE_REPOSITORY`) |
 | description | User-provided description of the repository |
 | location | The GCP region where the repository is located |
@@ -1494,15 +1491,14 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
     (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryRepository)
     ```
 
-- GCPArtifactRegistryRepositories contain artifacts (DockerImage, HelmChart, LanguagePackage, GenericArtifact).
+- GCPArtifactRegistryRepositories contain artifacts (ContainerImage, HelmChart, LanguagePackage).
     ```
-    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryDockerImage)
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryContainerImage)
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryHelmChart)
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryLanguagePackage)
-    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryGenericArtifact)
     ```
 
-#### GCPArtifactRegistryDockerImage
+#### GCPArtifactRegistryContainerImage
 
 Representation of a [Docker Image](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages) in a GCP Artifact Registry repository.
 
@@ -1525,19 +1521,19 @@ Representation of a [Docker Image](https://cloud.google.com/artifact-registry/do
 
 #### Relationships
 
-- GCPArtifactRegistryDockerImages are resources of GCPProjects.
+- GCPArtifactRegistryContainerImages are resources of GCPProjects.
     ```
-    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryDockerImage)
-    ```
-
-- GCPArtifactRegistryRepositories contain GCPArtifactRegistryDockerImages.
-    ```
-    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryDockerImage)
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryContainerImage)
     ```
 
-- GCPArtifactRegistryDockerImages have GCPArtifactRegistryImageManifests (for multi-architecture images).
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryContainerImages.
     ```
-    (GCPArtifactRegistryDockerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryImageManifest)
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryContainerImage)
+    ```
+
+- GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages (for multi-architecture images).
+    ```
+    (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
     ```
 
 #### GCPArtifactRegistryHelmChart
@@ -1603,34 +1599,7 @@ Representation of a language package in a GCP Artifact Registry repository. This
     (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryLanguagePackage)
     ```
 
-#### GCPArtifactRegistryGenericArtifact
-
-Representation of a generic artifact in a GCP Artifact Registry repository. This node type covers [APT Artifacts](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.aptArtifacts) and [YUM Artifacts](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.yumArtifacts).
-
-| Field | Description |
-|-------|-------------|
-| **id** | Full resource name of the artifact |
-| name | The short name of the artifact |
-| format | The format of the artifact (`APT`, `YUM`) |
-| package_name | The package name |
-| repository_id | Full resource name of the parent repository |
-| project_id | The GCP project ID |
-| firstseen | Timestamp of when a sync job first discovered this node |
-| lastupdated | Timestamp of the last time the node was updated |
-
-#### Relationships
-
-- GCPArtifactRegistryGenericArtifacts are resources of GCPProjects.
-    ```
-    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryGenericArtifact)
-    ```
-
-- GCPArtifactRegistryRepositories contain GCPArtifactRegistryGenericArtifacts.
-    ```
-    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryGenericArtifact)
-    ```
-
-#### GCPArtifactRegistryImageManifest
+#### GCPArtifactRegistryPlatformImage
 
 Representation of a platform-specific manifest within a multi-architecture Docker image. This node captures the individual platform configurations (architecture, OS) for images that support multiple platforms.
 
@@ -1651,12 +1620,12 @@ Representation of a platform-specific manifest within a multi-architecture Docke
 
 #### Relationships
 
-- GCPArtifactRegistryImageManifests are resources of GCPProjects.
+- GCPArtifactRegistryPlatformImages are resources of GCPProjects.
     ```
-    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryImageManifest)
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryPlatformImage)
     ```
 
-- GCPArtifactRegistryDockerImages have GCPArtifactRegistryImageManifests.
+- GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages.
     ```
-    (GCPArtifactRegistryDockerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryImageManifest)
+    (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
     ```

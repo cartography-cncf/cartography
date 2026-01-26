@@ -36,6 +36,19 @@ MOCK_DOCKER_IMAGES = [
     },
 ]
 
+MOCK_HELM_CHARTS = [
+    {
+        "name": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-chart@sha256:xyz789",
+        "uri": "us-central1-docker.pkg.dev/test-project/docker-repo/my-chart@sha256:xyz789",
+        "tags": ["0.1.0"],
+        "imageSizeBytes": "5000000",
+        "artifactType": "application/vnd.cncf.helm.config.v1+json",
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "uploadTime": "2024-01-11T00:00:00Z",
+        "updateTime": "2024-01-11T00:00:00Z",
+    },
+]
+
 MOCK_MAVEN_ARTIFACTS = [
     {
         "name": "projects/test-project/locations/us-central1/repositories/maven-repo/mavenArtifacts/com.example:my-lib:1.0.0",

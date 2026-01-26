@@ -1,8 +1,9 @@
+import asyncio
 import json
 import logging
 
+import httpx
 import neo4j
-import requests
 from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.transport.requests import Request
 
@@ -61,15 +62,16 @@ def _get_registry_url_from_uri(uri: str) -> tuple[str, str] | None:
     return manifest_url, reference
 
 
-@timeit
-def get_manifest_list(
-    credentials: GoogleCredentials,
+async def get_manifest_list_async(
+    http_client: httpx.AsyncClient,
+    auth_token: str,
     image_uri: str,
 ) -> list[dict]:
     """
-    Fetches the manifest list from the Docker Registry API for a multi-arch image.
+    Gets the manifest list from the Docker Registry API for a multi-arch image asynchronously.
 
-    :param credentials: GCP credentials for authentication.
+    :param http_client: httpx AsyncClient for making requests.
+    :param auth_token: GCP OAuth token for authentication.
     :param image_uri: The Docker image URI.
     :return: List of platform manifest dicts from the manifest list.
     """
@@ -81,16 +83,12 @@ def get_manifest_list(
     manifest_url, _ = parsed
 
     try:
-        # Refresh credentials if needed
-        if not credentials.valid:
-            credentials.refresh(Request())
-
         headers = {
-            "Authorization": f"Bearer {credentials.token}",
+            "Authorization": f"Bearer {auth_token}",
             "Accept": ", ".join(MANIFEST_LIST_MEDIA_TYPES),
         }
 
-        response = requests.get(manifest_url, headers=headers, timeout=30)
+        response = await http_client.get(manifest_url, headers=headers, timeout=30.0)
         response.raise_for_status()
 
         manifest_data = response.json()
@@ -98,12 +96,98 @@ def get_manifest_list(
         # Return the manifests array from the manifest list
         return manifest_data.get("manifests", [])
 
-    except requests.exceptions.RequestException as e:
+    except httpx.HTTPError as e:
         logger.warning(f"Failed to fetch manifest from {manifest_url}: {e}")
         return []
     except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse manifest JSON from {manifest_url}: {e}")
         return []
+
+
+async def get_all_manifests_async(
+    credentials: GoogleCredentials,
+    docker_artifacts_raw: list[dict],
+    max_concurrent: int = 50,
+) -> list[dict]:
+    """
+    Gets manifests for all multi-arch images in parallel with non-blocking I/O.
+
+    :param credentials: GCP credentials for authentication.
+    :param docker_artifacts_raw: List of raw Docker artifact data.
+    :param max_concurrent: Maximum number of concurrent HTTP requests.
+    :return: List of all transformed manifest dicts.
+    """
+    # Refresh credentials upfront (synchronous operation)
+    if not credentials.valid:
+        credentials.refresh(Request())
+
+    auth_token = credentials.token
+    all_manifests: list[dict] = []
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    # Filter to only multi-arch images
+    multi_arch_artifacts = [
+        artifact
+        for artifact in docker_artifacts_raw
+        if artifact.get("mediaType", "") in MANIFEST_LIST_MEDIA_TYPES
+    ]
+
+    if not multi_arch_artifacts:
+        return []
+
+    async def get_single_manifest(
+        artifact: dict, http_client: httpx.AsyncClient
+    ) -> list[dict]:
+        """Gets and transforms manifest for a single artifact."""
+        async with semaphore:
+            artifact_name = artifact.get("name", "")
+            artifact_uri = artifact.get("uri", "")
+            project_id = artifact_name.split("/")[1] if "/" in artifact_name else ""
+
+            manifest_entries = await get_manifest_list_async(
+                http_client, auth_token, artifact_uri
+            )
+            if manifest_entries:
+                return transform_manifests(manifest_entries, artifact_name, project_id)
+            return []
+
+    async with httpx.AsyncClient() as http_client:
+        # Create tasks for all multi-arch images
+        tasks = [
+            asyncio.create_task(get_single_manifest(artifact, http_client))
+            for artifact in multi_arch_artifacts
+        ]
+
+        total = len(tasks)
+        logger.info(
+            f"Getting manifests for {total} multi-arch images with {max_concurrent} concurrent connections..."
+        )
+
+        if not tasks:
+            return []
+
+        # Progress tracking
+        progress_interval = max(1, min(100, total // 10 or 1))
+        completed = 0
+
+        for task in asyncio.as_completed(tasks):
+            manifests = await task
+            completed += 1
+
+            if completed % progress_interval == 0 or completed == total:
+                percent = (completed / total) * 100
+                logger.info(
+                    "Got manifests for %d/%d images (%.1f%%)",
+                    completed,
+                    total,
+                    percent,
+                )
+
+            if manifests:
+                all_manifests.extend(manifests)
+
+    logger.info(f"Successfully got manifests for {len(all_manifests)} platform images")
+    return all_manifests
 
 
 def transform_manifests(
@@ -186,7 +270,7 @@ def sync_artifact_registry_manifests(
     common_job_parameters: dict,
 ) -> None:
     """
-    Syncs GCP Artifact Registry image manifests for Docker artifacts.
+    Syncs GCP Artifact Registry image manifests for Docker artifacts using async/concurrent fetching.
 
     :param neo4j_session: The Neo4j session.
     :param credentials: GCP credentials for Docker Registry API calls.
@@ -197,22 +281,10 @@ def sync_artifact_registry_manifests(
     """
     logger.info(f"Syncing Artifact Registry image manifests for project {project_id}.")
 
-    all_manifests: list[dict] = []
-
-    for artifact in docker_artifacts_raw:
-        media_type = artifact.get("mediaType", "")
-
-        # Only fetch manifests for multi-arch images
-        if media_type not in MANIFEST_LIST_MEDIA_TYPES:
-            continue
-
-        artifact_name = artifact.get("name", "")
-        artifact_uri = artifact.get("uri", "")
-
-        manifest_entries = get_manifest_list(credentials, artifact_uri)
-        if manifest_entries:
-            manifests = transform_manifests(manifest_entries, artifact_name, project_id)
-            all_manifests.extend(manifests)
+    # Get all manifests concurrently using async
+    all_manifests = asyncio.run(
+        get_all_manifests_async(credentials, docker_artifacts_raw)
+    )
 
     if not all_manifests:
         logger.info(

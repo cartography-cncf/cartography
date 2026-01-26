@@ -8,9 +8,6 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.models.gcp.artifact_registry.artifact import (
-    GCPArtifactRegistryGenericArtifactSchema,
-)
 from cartography.models.gcp.artifact_registry.container_image import (
     GCPArtifactRegistryContainerImageSchema,
 )
@@ -180,126 +177,6 @@ def get_python_packages(client: Resource, repository_name: str) -> list[dict]:
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
             f"Failed to get Python packages for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
-        )
-        return []
-
-
-@timeit
-def get_go_modules(client: Resource, repository_name: str) -> list[dict]:
-    """
-    Gets Go modules for a repository.
-
-    :param client: The Artifact Registry API client.
-    :param repository_name: The full repository resource name.
-    :return: List of Go module dicts from the API.
-    """
-    modules: list[dict] = []
-    try:
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .goModules()
-            .list(parent=repository_name)
-        )
-        while request is not None:
-            response = request.execute()
-            modules.extend(response.get("goModules", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .goModules()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-        return modules
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Go modules for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
-        )
-        return []
-
-
-@timeit
-def get_apt_artifacts(client: Resource, repository_name: str) -> list[dict]:
-    """
-    Gets APT artifacts for a repository.
-
-    :param client: The Artifact Registry API client.
-    :param repository_name: The full repository resource name.
-    :return: List of APT artifact dicts from the API.
-    """
-    artifacts: list[dict] = []
-    try:
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .aptArtifacts()
-            .list(parent=repository_name)
-        )
-        while request is not None:
-            response = request.execute()
-            artifacts.extend(response.get("aptArtifacts", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .aptArtifacts()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-        return artifacts
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get APT artifacts for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
-        )
-        return []
-
-
-@timeit
-def get_yum_artifacts(client: Resource, repository_name: str) -> list[dict]:
-    """
-    Gets YUM artifacts for a repository.
-
-    :param client: The Artifact Registry API client.
-    :param repository_name: The full repository resource name.
-    :return: List of YUM artifact dicts from the API.
-    """
-    artifacts: list[dict] = []
-    try:
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .yumArtifacts()
-            .list(parent=repository_name)
-        )
-        while request is not None:
-            response = request.execute()
-            artifacts.extend(response.get("yumArtifacts", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .yumArtifacts()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
-                )
-            )
-        return artifacts
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get YUM artifacts for repository {repository_name} "
             f"due to permissions or auth error: {e}",
         )
         return []
@@ -476,131 +353,13 @@ def transform_python_packages(
     return transformed
 
 
-def transform_go_modules(
-    modules_data: list[dict],
-    repository_id: str,
-    project_id: str,
-) -> list[dict]:
-    """
-    Transforms Go modules to the GCPArtifactRegistryLanguagePackage node format.
-    """
-    transformed: list[dict] = []
-    for module in modules_data:
-        name = module.get("name", "")
-
-        transformed.append(
-            {
-                "id": name,
-                "name": name.split("/")[-1] if name else None,
-                "format": "GO",
-                "uri": None,
-                "version": module.get("version"),
-                "package_name": None,
-                "create_time": module.get("createTime"),
-                "update_time": module.get("updateTime"),
-                "repository_id": repository_id,
-                "project_id": project_id,
-                # Maven-specific (not applicable)
-                "group_id": None,
-                "artifact_id": None,
-                # NPM-specific (not applicable)
-                "tags": None,
-            }
-        )
-    return transformed
-
-
-def transform_apt_artifacts(
-    artifacts_data: list[dict],
-    repository_id: str,
-    project_id: str,
-) -> list[dict]:
-    """
-    Transforms APT artifacts to the GCPArtifactRegistryGenericArtifact node format.
-    """
-    transformed: list[dict] = []
-    for artifact in artifacts_data:
-        name = artifact.get("name", "")
-
-        transformed.append(
-            {
-                "id": name,
-                "name": name.split("/")[-1] if name else None,
-                "format": "APT",
-                "package_name": artifact.get("packageName"),
-                "repository_id": repository_id,
-                "project_id": project_id,
-            }
-        )
-    return transformed
-
-
-def transform_yum_artifacts(
-    artifacts_data: list[dict],
-    repository_id: str,
-    project_id: str,
-) -> list[dict]:
-    """
-    Transforms YUM artifacts to the GCPArtifactRegistryGenericArtifact node format.
-    """
-    transformed: list[dict] = []
-    for artifact in artifacts_data:
-        name = artifact.get("name", "")
-
-        transformed.append(
-            {
-                "id": name,
-                "name": name.split("/")[-1] if name else None,
-                "format": "YUM",
-                "package_name": artifact.get("packageName"),
-                "repository_id": repository_id,
-                "project_id": project_id,
-            }
-        )
-    return transformed
-
-
 # Mapping of repository format to get and transform functions
 FORMAT_HANDLERS = {
     "DOCKER": (get_docker_images, transform_docker_images),
     "MAVEN": (get_maven_artifacts, transform_maven_artifacts),
     "NPM": (get_npm_packages, transform_npm_packages),
     "PYTHON": (get_python_packages, transform_python_packages),
-    "GO": (get_go_modules, transform_go_modules),
-    "APT": (get_apt_artifacts, transform_apt_artifacts),
-    "YUM": (get_yum_artifacts, transform_yum_artifacts),
 }
-
-
-@timeit
-def load_generic_artifacts(
-    neo4j_session: neo4j.Session,
-    data: list[dict],
-    project_id: str,
-    update_tag: int,
-) -> None:
-    """
-    Loads GCPArtifactRegistryGenericArtifact nodes and their relationships.
-    """
-    load(
-        neo4j_session,
-        GCPArtifactRegistryGenericArtifactSchema(),
-        data,
-        lastupdated=update_tag,
-        PROJECT_ID=project_id,
-    )
-
-
-@timeit
-def cleanup_generic_artifacts(
-    neo4j_session: neo4j.Session, common_job_parameters: dict
-) -> None:
-    """
-    Cleans up stale generic artifact nodes.
-    """
-    GraphJob.from_node_schema(
-        GCPArtifactRegistryGenericArtifactSchema(), common_job_parameters
-    ).run(neo4j_session)
 
 
 @timeit
@@ -699,8 +458,8 @@ def cleanup_helm_charts(
 # Helm chart media type identifier
 HELM_MEDIA_TYPE_IDENTIFIER = "helm"
 
-# Language package formats (Maven, NPM, Python, Go)
-LANGUAGE_PACKAGE_FORMATS = {"MAVEN", "NPM", "PYTHON", "GO"}
+# Language package formats (Maven, NPM, Python)
+LANGUAGE_PACKAGE_FORMATS = {"MAVEN", "NPM", "PYTHON"}
 
 
 @timeit
@@ -730,7 +489,6 @@ def sync_artifact_registry_artifacts(
     docker_images_transformed: list[dict] = []
     helm_charts_transformed: list[dict] = []
     language_packages_transformed: list[dict] = []
-    other_artifacts_transformed: list[dict] = []
 
     for repo in repositories:
         repo_name = repo.get("name")
@@ -754,11 +512,15 @@ def sync_artifact_registry_artifacts(
 
         # Route to appropriate collection based on format
         if repo_format == "DOCKER":
-            # Split Docker format artifacts by media type
-            # Helm charts are stored as OCI artifacts with helm in the media type
+            # Split Docker format artifacts by artifact type
+            # Helm charts are stored as OCI artifacts and identified via artifactType or mediaType
             for artifact in artifacts_raw:
+                artifact_type = artifact.get("artifactType", "")
                 media_type = artifact.get("mediaType", "")
-                if HELM_MEDIA_TYPE_IDENTIFIER in media_type.lower():
+                if (
+                    HELM_MEDIA_TYPE_IDENTIFIER in artifact_type.lower()
+                    or HELM_MEDIA_TYPE_IDENTIFIER in media_type.lower()
+                ):
                     helm_charts_transformed.extend(
                         transform_helm_charts([artifact], repo_name, project_id)
                     )
@@ -772,12 +534,6 @@ def sync_artifact_registry_artifacts(
             # Use the format-specific transformer from FORMAT_HANDLERS
             _, transform_func = handlers
             language_packages_transformed.extend(
-                transform_func(artifacts_raw, repo_name, project_id)
-            )
-        else:
-            # APT, YUM, and any other formats use the unified schema
-            _, transform_func = handlers
-            other_artifacts_transformed.extend(
                 transform_func(artifacts_raw, repo_name, project_id)
             )
 
@@ -797,19 +553,12 @@ def sync_artifact_registry_artifacts(
             neo4j_session, language_packages_transformed, project_id, update_tag
         )
 
-    # Load generic artifacts (APT, YUM) with the dedicated schema
-    if other_artifacts_transformed:
-        load_generic_artifacts(
-            neo4j_session, other_artifacts_transformed, project_id, update_tag
-        )
-
     # Cleanup all node types
     cleanup_job_params = common_job_parameters.copy()
     cleanup_job_params["PROJECT_ID"] = project_id
     cleanup_docker_images(neo4j_session, cleanup_job_params)
     cleanup_helm_charts(neo4j_session, cleanup_job_params)
     cleanup_language_packages(neo4j_session, cleanup_job_params)
-    cleanup_generic_artifacts(neo4j_session, cleanup_job_params)
 
     # Return raw Docker images for manifest sync (excludes Helm charts)
     return docker_images_raw
