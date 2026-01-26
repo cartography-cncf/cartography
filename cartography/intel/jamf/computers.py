@@ -26,7 +26,7 @@ def transform(api_result: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Transform API response into a list of computer groups.
     """
-    return api_result.get("computer_groups", [])
+    return api_result["computer_groups"]
 
 
 def load_computer_groups(
