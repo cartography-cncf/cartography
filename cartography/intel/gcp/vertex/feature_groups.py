@@ -95,7 +95,7 @@ def transform_feature_groups(feature_groups: List[Dict]) -> List[Dict]:
 
         transformed_groups.append(transformed_group)
 
-    logger.info("Transformed %d Vertex AI Feature Groups", len(transformed_groups))
+    logger.debug("Transformed %d Vertex AI Feature Groups", len(transformed_groups))
     return transformed_groups
 
 

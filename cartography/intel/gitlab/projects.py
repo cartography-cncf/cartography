@@ -187,7 +187,7 @@ def load_projects(
     """
     Load GitLab projects into the graph for a specific organization.
     """
-    logger.info("Loading %s projects for organization %s", len(projects), org_url)
+    logger.debug("Loading %s projects for organization %s", len(projects), org_url)
     load(
         neo4j_session,
         GitLabProjectSchema(),
@@ -256,7 +256,7 @@ def sync_gitlab_projects(
         _fetch_all_languages(gitlab_url, token, raw_projects)
     )
     projects_with_languages = sum(1 for langs in languages_by_project.values() if langs)
-    logger.info("Found languages for %s projects", projects_with_languages)
+    logger.debug("Found languages for %s projects", projects_with_languages)
 
     transformed_projects = transform_projects(
         raw_projects, org_url, languages_by_project
@@ -266,8 +266,8 @@ def sync_gitlab_projects(
         logger.debug("No group projects found for organization %s", org_name)
         return raw_projects
 
-    logger.info(
-        f"Found {len(transformed_projects)} projects in organization {org_name}"
+    logger.debug(
+        "Found %d projects in organization %s", len(transformed_projects), org_name
     )
 
     load_projects(neo4j_session, transformed_projects, org_url, update_tag)

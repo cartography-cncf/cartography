@@ -104,9 +104,12 @@ def run_analysis_and_ensure_deps(
     """
     if not resource_dependencies.issubset(requested_syncs):
         logger.info(
-            f"Did not run {analysis_job_name} because it needs {resource_dependencies} to be included "
-            f"as a requested sync. You specified: {requested_syncs}. If you want this job to run, please change your "
-            f"CLI args/cartography config so that all required resources are included.",
+            "Did not run %s because it needs %s to be included "
+            "as a requested sync. You specified: %s. If you want this job to run, please change your "
+            "CLI args/cartography config so that all required resources are included.",
+            analysis_job_name,
+            resource_dependencies,
+            requested_syncs,
         )
         return
 
@@ -357,9 +360,8 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
                     )
                 else:
                     logger.warning(
-                        "{} in this region. Skipping...".format(
-                            error_message,
-                        ),
+                        "%s in this region. Skipping...",
+                        error_message,
                     )
                 return []
             else:

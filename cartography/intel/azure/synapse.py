@@ -67,7 +67,8 @@ def get_dedicated_sql_pools(
         ]
     except HttpResponseError:
         logger.warning(
-            f"Failed to get dedicated SQL pools for workspace {workspace_name}.",
+            "Failed to get dedicated SQL pools for workspace %s.",
+            workspace_name,
             exc_info=True,
         )
         return []
@@ -85,7 +86,7 @@ def get_spark_pools(
         ]
     except HttpResponseError:
         logger.warning(
-            f"Failed to get Spark pools for workspace {workspace_name}.", exc_info=True
+            "Failed to get Spark pools for workspace %s.", workspace_name, exc_info=True
         )
         return []
 
@@ -98,7 +99,7 @@ def get_pipelines(credential: Any, endpoint: str) -> list[dict]:
         return [p.as_dict() for p in client.pipeline.get_pipelines_by_workspace()]
     except HttpResponseError:
         logger.warning(
-            f"Failed to get pipelines for workspace endpoint {endpoint}.", exc_info=True
+            "Failed to get pipelines for workspace endpoint %s.", endpoint, exc_info=True
         )
         return []
 
@@ -114,7 +115,8 @@ def get_linked_services(credential: Any, endpoint: str) -> list[dict]:
         ]
     except HttpResponseError:
         logger.warning(
-            f"Failed to get linked services for workspace endpoint {endpoint}.",
+            "Failed to get linked services for workspace endpoint %s.",
+            endpoint,
             exc_info=True,
         )
         return []
@@ -140,7 +142,8 @@ def get_managed_private_endpoints(
         return []
     except HttpResponseError:
         logger.warning(
-            f"Failed to get managed private endpoints for workspace {workspace_name}.",
+            "Failed to get managed private endpoints for workspace %s.",
+            workspace_name,
             exc_info=True,
         )
         return []
@@ -431,7 +434,8 @@ def _sync_artifacts(
 
     if not workspace_dev_endpoint:
         logger.warning(
-            f"Could not find development endpoint for Synapse workspace {ws_name}. Skipping artifacts sync."
+            "Could not find development endpoint for Synapse workspace %s. Skipping artifacts sync.",
+            ws_name,
         )
         return
 

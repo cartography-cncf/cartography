@@ -58,9 +58,11 @@ def get_vertex_ai_locations(aiplatform: Resource, project_id: str) -> List[str]:
             if location_id in supported_regions:
                 locations.append(location_id)
 
-        logger.info(
-            f"Found {len(locations)} supported Vertex AI locations "
-            f"(filtered from {len(all_locations)} total) for project {project_id}"
+        logger.debug(
+            "Found %d supported Vertex AI locations (filtered from %d total) for project %s",
+            len(locations),
+            len(all_locations),
+            project_id,
         )
         return locations
 
@@ -68,17 +70,21 @@ def get_vertex_ai_locations(aiplatform: Resource, project_id: str) -> List[str]:
         error_reason = e.resp.get("reason", "unknown")
         if e.resp.status == 403:
             logger.warning(
-                f"Access forbidden when trying to get Vertex AI locations for project {project_id}. "
+                "Access forbidden when trying to get Vertex AI locations for project %s. "
                 "Ensure the Vertex AI API is enabled and you have the necessary permissions.",
+                project_id,
             )
         elif e.resp.status == 404:
             logger.warning(
-                f"Vertex AI locations not found for project {project_id}. "
+                "Vertex AI locations not found for project %s. "
                 "The Vertex AI API may not be enabled.",
+                project_id,
             )
         else:
             logger.error(
-                f"Error getting Vertex AI locations for project {project_id}: {error_reason}",
+                "Error getting Vertex AI locations for project %s: %s",
+                project_id,
+                error_reason,
                 exc_info=True,
             )
         return []
@@ -170,7 +176,7 @@ def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
 
         transformed_models.append(transformed_model)
 
-    logger.info("Transformed %d Vertex AI models", len(transformed_models))
+    logger.debug("Transformed %d Vertex AI models", len(transformed_models))
     return transformed_models
 
 

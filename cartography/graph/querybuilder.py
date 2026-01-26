@@ -482,10 +482,12 @@ def _asdict_with_validate_relprops(
             and e.args == "asdict() should be called on dataclass instances"
         ):
             logger.error(
-                f'TypeError thrown when trying to draw relation "{link.rel_label}" to a "{link.target_node_label}" '
-                f"node. Please make sure that you did not forget to write `()` when specifying `properties` in the"
-                f"dataclass. "
-                f"For example, do `properties: RelProp = RelProp()`; NOT `properties: RelProp = RelProp`.",
+                'TypeError thrown when trying to draw relation "%s" to a "%s" '
+                "node. Please make sure that you did not forget to write `()` when specifying `properties` in the"
+                "dataclass. "
+                "For example, do `properties: RelProp = RelProp()`; NOT `properties: RelProp = RelProp`.",
+                link.rel_label,
+                link.target_node_label,
             )
         raise
     return rel_props_as_dict
@@ -873,9 +875,10 @@ def build_create_index_queries_for_matchlink(
     """
     if not rel_schema.source_node_matcher:
         logger.warning(
-            f"No source node matcher found for {rel_schema.rel_label}; returning empty list."
+            "No source node matcher found for %s; returning empty list. "
             "Please note that build_create_index_queries_for_matchlink() is only used for load_matchlinks() where we match on "
-            "and connect existing nodes in the graph."
+            "and connect existing nodes in the graph.",
+            rel_schema.rel_label,
         )
         return []
 

@@ -129,7 +129,7 @@ def sync_trivy_aws_ecr_from_s3(
         boto3_session: boto3 session for S3 operations
     """
     logger.info(
-        f"Using Trivy scan results from s3://{trivy_s3_bucket}/{trivy_s3_prefix}"
+        "Using Trivy scan results from s3://%s/%s", trivy_s3_bucket, trivy_s3_prefix
     )
 
     image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)

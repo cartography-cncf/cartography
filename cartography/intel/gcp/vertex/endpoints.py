@@ -71,7 +71,7 @@ def transform_vertex_ai_endpoints(endpoints: List[Dict]) -> List[Dict]:
 
         transformed_endpoints.append(transformed_endpoint)
 
-    logger.info("Transformed %d Vertex AI endpoints", len(transformed_endpoints))
+    logger.debug("Transformed %d Vertex AI endpoints", len(transformed_endpoints))
     return transformed_endpoints
 
 

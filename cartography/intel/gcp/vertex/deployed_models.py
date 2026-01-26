@@ -48,8 +48,10 @@ def transform_deployed_models_from_endpoints(endpoints: List[Dict]) -> List[Dict
 
             transformed_deployed_models.append(transformed)
 
-    logger.info(
-        f"Transformed {len(transformed_deployed_models)} deployed models from {len(endpoints)} endpoints"
+    logger.debug(
+        "Transformed %d deployed models from %d endpoints",
+        len(transformed_deployed_models),
+        len(endpoints),
     )
     return transformed_deployed_models
 

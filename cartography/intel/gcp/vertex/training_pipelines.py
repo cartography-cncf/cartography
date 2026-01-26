@@ -124,8 +124,8 @@ def transform_training_pipelines(training_pipelines: List[Dict]) -> List[Dict]:
 
         transformed_pipelines.append(transformed_pipeline)
 
-    logger.info(
-        f"Transformed {len(transformed_pipelines)} Vertex AI training pipelines"
+    logger.debug(
+        "Transformed %d Vertex AI training pipelines", len(transformed_pipelines)
     )
     return transformed_pipelines
 

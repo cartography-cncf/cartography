@@ -29,7 +29,8 @@ def get_assessments(client: SecurityCenter, subscription_id: str) -> list[dict]:
         return [a.as_dict() for a in client.assessments.list(scope)]
     except HttpResponseError:
         logger.warning(
-            f"Failed to get Security Assessments for subscription {subscription_id} due to a transient error.",
+            "Failed to get Security Assessments for subscription %s due to a transient error.",
+            subscription_id,
             exc_info=True,
         )
         return []
@@ -132,7 +133,8 @@ def sync(
     The main sync function for Azure Security Center.
     """
     logger.info(
-        f"Syncing Azure Security Center Assessments for subscription {subscription_id}."
+        "Syncing Azure Security Center Assessments for subscription %s.",
+        subscription_id,
     )
     client = SecurityCenter(credentials.credential, subscription_id)
     raw_assessments = get_assessments(client, subscription_id)

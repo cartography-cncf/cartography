@@ -62,9 +62,10 @@ def _get_route_id_and_target(
 
     if not found_target:
         logger.warning(
-            f"No target found for route in {route_table_id}. Please review the route and file an issue to "
+            "No target found for route in %s. Please review the route and file an issue to "
             "https://github.com/cartography-cncf/cartography/issues sharing what the route table looks like "
             "so that we can update the available keys.",
+            route_table_id,
         )
 
     return "|".join(parts), target

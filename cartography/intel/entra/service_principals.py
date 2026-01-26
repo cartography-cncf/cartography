@@ -73,7 +73,8 @@ async def get_service_principal_by_app_id(
 
     if not service_principals_page or not service_principals_page.value:
         logger.warning(
-            f"No service principal found for application {app_id}. Continuing."
+            "No service principal found for application %s. Continuing.",
+            app_id,
         )
         return None
 

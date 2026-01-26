@@ -37,7 +37,8 @@ def get_account_public_access_block(
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchPublicAccessBlockConfiguration":
             logger.warning(
-                f"No public access block configuration found for account {account_id} in region {region}"
+                "No public access block configuration found for account %s in region %s",
+                account_id, region,
             )
             return []
         else:

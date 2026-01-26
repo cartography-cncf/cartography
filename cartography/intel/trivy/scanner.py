@@ -146,7 +146,8 @@ def _parse_trivy_data(
 
     if "Results" not in trivy_data:
         logger.error(
-            f"Scan data did not contain a `Results` key for {source}. This indicates a malformed scan result."
+            "Scan data did not contain a `Results` key for %s. This indicates a malformed scan result.",
+            source,
         )
         raise ValueError(f"Missing 'Results' key in scan data for {source}")
 
@@ -261,7 +262,7 @@ def get_json_files_in_s3(
         )
         raise
 
-    logger.info("Found %d json files in s3://%s/%s", len(results), s3_bucket, s3_prefix)
+    logger.debug("Found %d json files in s3://%s/%s", len(results), s3_bucket, s3_prefix)
     return results
 
 
@@ -273,7 +274,7 @@ def get_json_files_in_dir(results_dir: str) -> set[str]:
         for filename in files:
             if filename.endswith(".json"):
                 results.add(os.path.join(root, filename))
-    logger.info("Found %d json files in %s", len(results), results_dir)
+    logger.debug("Found %d json files in %s", len(results), results_dir)
     return results
 
 

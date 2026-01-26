@@ -95,8 +95,9 @@ def _sync_one_account(
             ]
             if missing_deps:
                 logger.warning(
-                    f"Module '{module}' is requested without its dependencies {missing_deps}. "
-                    f"Some relationships may not be created if the dependency data doesn't exist in Neo4j.",
+                    "Module '%s' is requested without its dependencies %s. "
+                    "Some relationships may not be created if the dependency data doesn't exist in Neo4j.",
+                    module, missing_deps,
                 )
 
     # Iterate over RESOURCE_FUNCTIONS to preserve defined sync order (dependencies)
@@ -202,7 +203,8 @@ def _autodiscover_accounts(
         )
     except botocore.exceptions.ClientError:
         logger.warning(
-            f"The current account ({account_id}) doesn't have enough permissions to perform autodiscovery.",
+            "The current account (%s) doesn't have enough permissions to perform autodiscovery.",
+            account_id,
         )
 
 
@@ -267,9 +269,10 @@ def _sync_multiple_accounts(
                     f"{timestamp} - Exception for account ID: {account_id}\n{traceback_string}",
                 )
                 logger.warning(
-                    f"Caught exception syncing account {account_id}. aws-best-effort-mode is on so we are continuing "
-                    f"on to the next AWS account. All exceptions will be aggregated and re-logged at the end of the "
-                    f"sync.",
+                    "Caught exception syncing account %s. aws-best-effort-mode is on so we are continuing "
+                    "on to the next AWS account. All exceptions will be aggregated and re-logged at the end of the "
+                    "sync.",
+                    account_id,
                     exc_info=True,
                 )
                 continue
@@ -381,11 +384,10 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         return
     if len(list(aws_accounts.values())) != len(set(aws_accounts.values())):
         logger.warning(
-            (
-                "There are duplicate AWS accounts in your AWS configuration. It is strongly recommended that you run "
-                "cartography with an AWS configuration which has exactly one profile for each AWS account you want to "
-                f"sync. Doing otherwise will result in undefined and untested behavior. Account list: {aws_accounts}"
-            ),
+            "There are duplicate AWS accounts in your AWS configuration. It is strongly recommended that you run "
+            "cartography with an AWS configuration which has exactly one profile for each AWS account you want to "
+            "sync. Doing otherwise will result in undefined and untested behavior. Account list: %s",
+            aws_accounts,
         )
 
     requested_syncs: List[str] = list(RESOURCE_FUNCTIONS.keys())

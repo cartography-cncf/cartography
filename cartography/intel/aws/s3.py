@@ -79,7 +79,8 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
             if should_handle:
                 bucket["Region"] = None
                 logger.warning(
-                    "skipping bucket='{}' due to exception.".format(bucket["Name"]),
+                    "skipping bucket='%s' due to exception.",
+                    bucket["Name"],
                 )
                 continue
             else:
@@ -186,7 +187,8 @@ def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket policy for {bucket['Name']} - Could not connect to the endpoint URL",
+            "Failed to retrieve S3 bucket policy for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -206,7 +208,8 @@ def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket ACL for {bucket['Name']} - Could not connect to the endpoint URL",
+            "Failed to retrieve S3 bucket ACL for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -226,7 +229,8 @@ def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket encryption for {bucket['Name']} - Could not connect to the endpoint URL",
+            "Failed to retrieve S3 bucket encryption for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -246,7 +250,8 @@ def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket versioning for {bucket['Name']} - Could not connect to the endpoint URL",
+            "Failed to retrieve S3 bucket versioning for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -269,8 +274,9 @@ def get_public_access_block(
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket public access block for {bucket['Name']}"
+            "Failed to retrieve S3 bucket public access block for %s"
             " - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -292,8 +298,9 @@ def get_bucket_ownership_controls(
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket ownership controls for {bucket['Name']}"
+            "Failed to retrieve S3 bucket ownership controls for %s"
             " - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -313,7 +320,8 @@ def get_bucket_logging(bucket: Dict, client: botocore.client.BaseClient) -> Mayb
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket logging status for {bucket['Name']} - Could not connect to the endpoint URL",
+            "Failed to retrieve S3 bucket logging status for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -1272,7 +1280,8 @@ def _sync_s3_notifications(
             )
         except ClientError as e:
             logger.warning(
-                f"Failed to retrieve notification configuration for bucket {bucket['Name']}: {e}"
+                "Failed to retrieve notification configuration for bucket %s: %s",
+                bucket["Name"], e,
             )
             continue
 

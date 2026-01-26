@@ -33,9 +33,9 @@ def backoff_handler(details: Dict) -> None:
     team_name = details["kwargs"].get("team_name") or "not present in kwargs"
     updated_details = {**details, "team_name": team_name}
     logger.warning(
-        "Backing off {wait:0.1f} seconds after {tries} tries. Calling function {target} for team {team_name}".format(
-            **updated_details,
-        ),
+        "Backing off %.1f seconds after %s tries. Calling function %s for team %s",
+        updated_details["wait"], updated_details["tries"],
+        updated_details["target"], updated_details["team_name"],
     )
 
 

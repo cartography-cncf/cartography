@@ -142,7 +142,8 @@ def get_rest_api_client_certificate(
                 response["stageName"] = stage["stageName"]
             except ClientError as e:
                 logger.warning(
-                    f"Failed to retrieve Client Certificate for Stage {stage['stageName']} - {e}",
+                    "Failed to retrieve Client Certificate for Stage %s - %s",
+                    stage["stageName"], e,
                 )
                 raise
         else:

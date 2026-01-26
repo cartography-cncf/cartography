@@ -92,7 +92,8 @@ def get_dependencies(
             data = response.json()
         except (ReadTimeout, HTTPError):
             logger.warning(
-                f"Failed to retrieve Semgrep {ecosystem} dependencies for page {page}. Retrying...",
+                "Failed to retrieve Semgrep %s dependencies for page %s. Retrying...",
+                ecosystem, page,
             )
             retries += 1
             if retries >= _MAX_RETRIES:

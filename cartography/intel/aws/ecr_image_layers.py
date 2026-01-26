@@ -863,8 +863,9 @@ def sync(
 
         if not repo_images_list:
             logger.warning(
-                f"No ECR images found in graph for region {region}. "
-                f"Run 'ecr' sync first to populate basic ECR data."
+                "No ECR images found in graph for region %s. "
+                "Run 'ecr' sync first to populate basic ECR data.",
+                region,
             )
             continue
 

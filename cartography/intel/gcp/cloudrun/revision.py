@@ -71,7 +71,8 @@ def get_revisions(client: Resource, project_id: str, location: str = "-") -> lis
         return revisions
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get Cloud Run revisions for project {project_id} due to permissions or auth error: {e}",
+            "Failed to get Cloud Run revisions for project %s due to permissions or auth error: %s",
+            project_id, e,
         )
         raise
 

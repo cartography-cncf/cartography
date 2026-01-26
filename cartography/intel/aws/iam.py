@@ -165,7 +165,8 @@ def get_user_policy_data(
             }
         except resource_client.meta.client.exceptions.NoSuchEntityException:
             logger.warning(
-                f"Could not get policies for user {name} due to NoSuchEntityException; skipping.",
+                "Could not get policies for user %s due to NoSuchEntityException; skipping.",
+                name,
             )
     return policies
 
@@ -189,7 +190,8 @@ def get_user_managed_policy_data(
             }
         except resource_client.meta.client.exceptions.NoSuchEntityException:
             logger.warning(
-                f"Could not get policies for user {name} due to NoSuchEntityException; skipping.",
+                "Could not get policies for user %s due to NoSuchEntityException; skipping.",
+                name,
             )
     return policies
 
@@ -213,7 +215,8 @@ def get_role_policy_data(
             }
         except resource_client.meta.client.exceptions.NoSuchEntityException:
             logger.warning(
-                f"Could not get policies for role {name} due to NoSuchEntityException; skipping.",
+                "Could not get policies for role %s due to NoSuchEntityException; skipping.",
+                name,
             )
     return policies
 
@@ -237,7 +240,8 @@ def get_role_managed_policy_data(
             }
         except resource_client.meta.client.exceptions.NoSuchEntityException:
             logger.warning(
-                f"Could not get policies for role {name} due to NoSuchEntityException; skipping.",
+                "Could not get policies for role %s due to NoSuchEntityException; skipping.",
+                name,
             )
     return policies
 
@@ -342,7 +346,8 @@ def get_account_access_key_data(
         access_keys = client.list_access_keys(UserName=username)
     except client.exceptions.NoSuchEntityException:
         logger.warning(
-            f"Could not get access key for user {username} due to NoSuchEntityException; skipping.",
+            "Could not get access key for user %s due to NoSuchEntityException; skipping.",
+            username,
         )
         return access_keys
     for access_key in access_keys["AccessKeyMetadata"]:
@@ -380,7 +385,8 @@ def get_group_memberships(
                 memberships[group["Arn"]] = []
         except Exception:
             logger.warning(
-                f"Could not get membership data for group {group['GroupName']}",
+                "Could not get membership data for group %s",
+                group["GroupName"],
                 exc_info=True,
             )
             memberships[group["Arn"]] = []

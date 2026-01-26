@@ -38,10 +38,8 @@ def get_kms_key_list(boto3_session: boto3.session.Session, region: str) -> List[
             response = client.describe_key(KeyId=key["KeyId"])["KeyMetadata"]
         except ClientError as e:
             logger.warning(
-                "Failed to describe key with key id - {}. Error - {}".format(
-                    key["KeyId"],
-                    e,
-                ),
+                "Failed to describe key with key id - %s. Error - %s",
+                key["KeyId"], e,
             )
             continue
 
@@ -79,7 +77,8 @@ def get_policy(key: Dict, client: botocore.client.BaseClient) -> Any:
         if e.response["Error"]["Code"] == "AccessDeniedException":
             policy = None
             logger.warning(
-                f"kms:get_key_policy on key id {key['KeyId']} failed with AccessDeniedException; continuing sync.",
+                "kms:get_key_policy on key id %s failed with AccessDeniedException; continuing sync.",
+                key["KeyId"],
                 exc_info=True,
             )
         else:
@@ -114,7 +113,8 @@ def get_grants(key: Dict, client: botocore.client.BaseClient) -> List[Any]:
     except ClientError as e:
         if e.response["Error"]["Code"] == "AccessDeniedException":
             logger.warning(
-                f'kms:list_grants on key_id {key["KeyId"]} failed with AccessDeniedException; continuing sync.',
+                "kms:list_grants on key_id %s failed with AccessDeniedException; continuing sync.",
+                key["KeyId"],
                 exc_info=True,
             )
         else:

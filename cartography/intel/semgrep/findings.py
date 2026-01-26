@@ -64,7 +64,8 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
             data = response.json()
         except (ReadTimeout, HTTPError):
             logger.warning(
-                f"Failed to retrieve Semgrep SCA vulns for page {page}. Retrying...",
+                "Failed to retrieve Semgrep SCA vulns for page %s. Retrying...",
+                page,
             )
             retries += 1
             if retries >= _MAX_RETRIES:

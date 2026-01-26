@@ -262,10 +262,13 @@ def parse_permission_relationships_file(file_path: str) -> list[dict[str, Any]]:
         return relationship_mapping or []
     except FileNotFoundError:
         logger.warning(
-            f"GCP permission relationships file not found. Original filename passed to sync: '{file_path}', "
-            f"resolved full path: '{resolved_file_path}'. Skipping sync stage {__name__}. "
-            f"If you want to run this sync, please explicitly set a value for --gcp-permission-relationships-file in the "
-            f"command line interface."
+            "GCP permission relationships file not found. Original filename passed to sync: '%s', "
+            "resolved full path: '%s'. Skipping sync stage %s. "
+            "If you want to run this sync, please explicitly set a value for --gcp-permission-relationships-file in the "
+            "command line interface.",
+            file_path,
+            resolved_file_path,
+            __name__,
         )
         return []
 
@@ -292,9 +295,12 @@ def load_principal_mappings(
     if not principal_mappings:
         return
 
-    logger.info(
-        f"Loading {len(principal_mappings)} {matchlink_schema.rel_label} relationships "
-        f"for {matchlink_schema.source_node_label} -> {matchlink_schema.target_node_label}"
+    logger.debug(
+        "Loading %d %s relationships for %s -> %s",
+        len(principal_mappings),
+        matchlink_schema.rel_label,
+        matchlink_schema.source_node_label,
+        matchlink_schema.target_node_label,
     )
 
     load_matchlinks(
@@ -314,7 +320,7 @@ def cleanup_rpr(
     update_tag: int,
     project_id: str,
 ) -> None:
-    logger.info(
+    logger.debug(
         "Cleaning up relationship '%s' for node label '%s'",
         matchlink_schema.rel_label,
         matchlink_schema.target_node_label,
@@ -363,7 +369,7 @@ def sync(
 
         resource_dict = get_resource_ids(neo4j_session, project_id, target_label)
 
-        logger.info(
+        logger.debug(
             "Evaluating relationship '%s' for resource type '%s'",
             relationship_name,
             target_label,

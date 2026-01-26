@@ -98,7 +98,7 @@ def sync_sql_users(
             all_users.extend(transform_sql_users(users_raw, instance_id))
         except Exception:
             logger.warning(
-                f"Failed to get SQL users for instance {instance_name}", exc_info=True
+                "Failed to get SQL users for instance %s", instance_name, exc_info=True
             )
             continue
 

@@ -44,7 +44,8 @@ async def get_app_role_assignments_for_app(
 
     if not service_principal_id:
         logger.warning(
-            f"No service principal found in graph for application {app_id}. Continuing."
+            "No service principal found in graph for application %s. Continuing.",
+            app_id,
         )
         return
 
@@ -100,8 +101,9 @@ async def get_app_role_assignments_for_app(
             # Log page results with details about skipped objects
             if page_skipped_count > 0:
                 logger.warning(
-                    f"Page {page_count} for {app_id}: {page_valid_count} valid assignments, "
-                    f"{page_skipped_count} skipped objects. Total valid: {assignment_count}"
+                    "Page %s for %s: %s valid assignments, "
+                    "%s skipped objects. Total valid: %s",
+                    page_count, app_id, page_valid_count, page_skipped_count, assignment_count,
                 )
             else:
                 logger.debug(

@@ -31,20 +31,30 @@ def handle_vertex_api_response(
     """
     if response.status_code == 404:
         logger.debug(
-            f"Vertex AI {resource_type} not found in {location} for project {project_id}. "
-            f"This location may not have any {resource_type}."
+            "Vertex AI %s not found in %s for project %s. "
+            "This location may not have any %s.",
+            resource_type,
+            location,
+            project_id,
+            resource_type,
         )
         return None, False
     elif response.status_code == 403:
         logger.warning(
-            f"Access forbidden when trying to get Vertex AI {resource_type} in {location} "
-            f"for project {project_id}."
+            "Access forbidden when trying to get Vertex AI %s in %s for project %s.",
+            resource_type,
+            location,
+            project_id,
         )
         return None, False
     elif response.status_code != 200:
         logger.error(
-            f"Error getting Vertex AI {resource_type} in {location} for project {project_id}: "
-            f"HTTP {response.status_code} - {response.reason}",
+            "Error getting Vertex AI %s in %s for project %s: HTTP %s - %s",
+            resource_type,
+            location,
+            project_id,
+            response.status_code,
+            response.reason,
             exc_info=False,
         )
         return None, False
@@ -100,7 +110,11 @@ def paginate_vertex_api(
         if not page_token:
             break
 
-    logger.info(
-        f"Found {len(resources)} Vertex AI {resource_type} in {location} for project {project_id}"
+    logger.debug(
+        "Found %d Vertex AI %s in %s for project %s",
+        len(resources),
+        resource_type,
+        location,
+        project_id,
     )
     return resources

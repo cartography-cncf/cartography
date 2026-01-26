@@ -80,8 +80,8 @@ class GraphStatement:
         else:
             session.write_transaction(self._run_noniterative)
 
-        logger.info(
-            f"Completed {self.parent_job_name} statement #{self.parent_job_sequence_num}"
+        logger.debug(
+            "Completed %s statement #%s", self.parent_job_name, self.parent_job_sequence_num
         )
 
     def as_dict(self) -> Dict[str, Any]:

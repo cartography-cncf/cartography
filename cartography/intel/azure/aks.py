@@ -31,7 +31,7 @@ def _get_resource_group_from_id(resource_id: str) -> str:
         return parts[rg_index + 1]
     except (ValueError, IndexError):
         logger.warning(
-            f"Could not parse resource group name from resource ID: {resource_id}"
+            "Could not parse resource group name from resource ID: %s", resource_id
         )
         return ""
 

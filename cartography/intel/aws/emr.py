@@ -61,7 +61,8 @@ def get_emr_describe_cluster(
         code = e.response["Error"]["Code"]
         msg = e.response["Error"]["Message"]
         logger.warning(
-            f"Could not run EMR describe_cluster due to boto3 error {code}: {msg}. Skipping.",
+            "Could not run EMR describe_cluster due to boto3 error %s: %s. Skipping.",
+            code, msg,
         )
     return cluster_details
 

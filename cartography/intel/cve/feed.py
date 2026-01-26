@@ -87,7 +87,8 @@ def _call_cves_api(
     else:
         sleep_between_requests = DELAYED_SLEEP_TIME
         logger.warning(
-            f"No NIST NVD API key provided. Increasing sleep time to {sleep_between_requests}.",
+            "No NIST NVD API key provided. Increasing sleep time to %s.",
+            sleep_between_requests,
         )
     results: Dict[Any, Any] = dict()
 

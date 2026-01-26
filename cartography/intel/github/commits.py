@@ -187,7 +187,7 @@ def process_repo_commits_batch(
 
             except Exception:
                 logger.warning(
-                    f"Failed to fetch commits for {repo_name}", exc_info=True
+                    "Failed to fetch commits for %s", repo_name, exc_info=True
                 )
                 continue
 

@@ -146,7 +146,8 @@ def k8s_paginate(
             # Check if items exists on the response
             if not hasattr(response, "items"):
                 logger.warning(
-                    f"Response from {function_name} does not contain 'items' attribute."
+                    "Response from %s does not contain 'items' attribute.",
+                    function_name,
                 )
                 break
 
@@ -158,7 +159,8 @@ def k8s_paginate(
             # Check if metadata exists on the response
             if not hasattr(response, "metadata"):
                 logger.warning(
-                    f"Response from {function_name} does not contain 'metadata' attribute."
+                    "Response from %s does not contain 'metadata' attribute.",
+                    function_name,
                 )
                 break
 
@@ -169,11 +171,17 @@ def k8s_paginate(
 
         except ApiException as e:
             logger.error(
-                f"Kubernetes API error retrieving {function_name} resources. {e}: {e.status} - {e.reason}"
+                "Kubernetes API error retrieving %s resources. %s: %s - %s",
+                function_name,
+                e,
+                e.status,
+                e.reason,
             )
             break
 
     logger.debug(
-        f"Completed pagination for {function_name}: retrieved {len(all_resources)} resources"
+        "Completed pagination for %s: retrieved %d resources",
+        function_name,
+        len(all_resources),
     )
     return all_resources

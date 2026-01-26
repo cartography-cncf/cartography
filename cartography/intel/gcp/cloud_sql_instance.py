@@ -33,7 +33,9 @@ def get_sql_instances(client: Resource, project_id: str) -> list[dict]:
         return instances
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get SQL instances for project {project_id} due to permissions or auth error: {e}",
+            "Failed to get SQL instances for project %s due to permissions or auth error: %s",
+            project_id,
+            e,
         )
         raise
 

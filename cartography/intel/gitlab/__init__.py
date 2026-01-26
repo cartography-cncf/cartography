@@ -57,17 +57,20 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code == 404:
             logger.error(
-                f"Organization {organization_id} not found at {gitlab_url}. "
-                "Please verify the organization ID is correct and the token has access."
+                "Organization %s not found at %s. "
+                "Please verify the organization ID is correct and the token has access.",
+                organization_id, gitlab_url,
             )
         elif e.response is not None and e.response.status_code == 401:
             logger.error(
-                f"Authentication failed for GitLab at {gitlab_url}. "
-                "Please verify the token is valid and has required scopes (read_api)."
+                "Authentication failed for GitLab at %s. "
+                "Please verify the token is valid and has required scopes (read_api).",
+                gitlab_url,
             )
         else:
             logger.error(
-                f"Failed to fetch organization {organization_id} from {gitlab_url}: {e}"
+                "Failed to fetch organization %s from %s: %s",
+                organization_id, gitlab_url, e,
             )
         return
 

@@ -50,7 +50,8 @@ def get_jobs(client: Resource, project_id: str, location: str = "-") -> list[dic
         return jobs
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get Cloud Run jobs for project {project_id} due to permissions or auth error: {e}",
+            "Failed to get Cloud Run jobs for project %s due to permissions or auth error: %s",
+            project_id, e,
         )
         raise
 

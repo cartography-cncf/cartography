@@ -90,7 +90,7 @@ def transform_vertex_ai_datasets(datasets: List[Dict]) -> List[Dict]:
 
         transformed_datasets.append(transformed_dataset)
 
-    logger.info("Transformed %d Vertex AI datasets", len(transformed_datasets))
+    logger.debug("Transformed %d Vertex AI datasets", len(transformed_datasets))
     return transformed_datasets
 
 
