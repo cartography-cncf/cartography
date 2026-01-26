@@ -205,7 +205,7 @@ class GraphJob:
         :param iterationsize: The number of items to process in each iteration. Defaults to 100.
         """
         cleanup_link_query = build_cleanup_query_for_matchlink(rel_schema)
-        logger.debug(f"Cleanup query: {cleanup_link_query}")
+        logger.debug("Cleanup query: %s", cleanup_link_query)
 
         parameters = {
             "UPDATE_TAG": update_tag,

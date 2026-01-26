@@ -74,7 +74,7 @@ def get_repo_commits(
     # Convert datetime to ISO format for GraphQL (GitTimestamp requires 'Z' suffix for UTC)
     since_iso = since_date.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    logger.debug(f"Fetching commits for {organization}/{repo_name} since {since_iso}")
+    logger.debug("Fetching commits for %s/%s since %s", organization, repo_name, since_iso)
 
     all_commits = []
     cursor = None
@@ -94,24 +94,24 @@ def get_repo_commits(
         # Navigate to the nested commit history
         repo_data = response.get("data", {}).get("organization", {}).get("repository")
         if not repo_data:
-            logger.warning(f"No repository data found for {organization}/{repo_name}")
+            logger.warning("No repository data found for %s/%s", organization, repo_name)
             break
 
         default_branch = repo_data.get("defaultBranchRef")
         if not default_branch:
-            logger.debug(f"Repository {organization}/{repo_name} has no default branch")
+            logger.debug("Repository %s/%s has no default branch", organization, repo_name)
             break
 
         target = default_branch.get("target")
         if not target:
             logger.debug(
-                f"Repository {organization}/{repo_name} default branch has no target"
+                "Repository %s/%s default branch has no target", organization, repo_name
             )
             break
 
         history = target.get("history")
         if not history:
-            logger.debug(f"Repository {organization}/{repo_name} has no commit history")
+            logger.debug("Repository %s/%s has no commit history", organization, repo_name)
             break
 
         # Add commits from this page
@@ -151,7 +151,7 @@ def process_repo_commits_batch(
     # Calculate lookback date based on configured days
     lookback_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
 
-    logger.info(f"Processing {len(repo_names)} repositories in batches of {batch_size}")
+    logger.info("Processing %s repositories in batches of %s", len(repo_names), batch_size)
 
     # Process repositories in batches
     for i in range(0, len(repo_names), batch_size):
@@ -193,7 +193,7 @@ def process_repo_commits_batch(
 
         # Load this batch of relationships
         if batch_relationships:
-            logger.info(f"Loading {len(batch_relationships)} relationships for batch")
+            logger.info("Loading %s relationships for batch", len(batch_relationships))
             load_github_commit_relationships(
                 neo4j_session,
                 batch_relationships,
@@ -315,7 +315,7 @@ def transform_commits_to_user_repo_relationships(
             }
         )
 
-    logger.info(f"Created {len(relationships)} user-repository relationships")
+    logger.info("Created %s user-repository relationships", len(relationships))
     return relationships
 
 
@@ -402,7 +402,7 @@ def sync_github_commits(
     :param update_tag: Timestamp used to determine data freshness.
     :param lookback_days: Number of days to look back for commits.
     """
-    logger.info(f"Starting GitHub commits sync for organization: {organization}")
+    logger.info("Starting GitHub commits sync for organization: %s", organization)
 
     # Process repositories in batches to save memory and API quota
     # This approach processes repos in batches, transforms immediately, and loads in batches

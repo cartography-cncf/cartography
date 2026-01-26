@@ -134,7 +134,7 @@ def k8s_paginate(
     limit = kwargs.pop("limit", 100)
     function_name = list_func.__name__
 
-    logger.debug(f"Starting pagination for {function_name} with limit {limit}.")
+    logger.debug("Starting pagination for %s with limit %s.", function_name, limit)
 
     while True:
         try:
@@ -153,7 +153,7 @@ def k8s_paginate(
             items_count = len(response.items)
             all_resources.extend(response.items)
 
-            logger.debug(f"Retrieved {items_count} {function_name} resources")
+            logger.debug("Retrieved %s %s resources", items_count, function_name)
 
             # Check if metadata exists on the response
             if not hasattr(response, "metadata"):
@@ -164,7 +164,7 @@ def k8s_paginate(
 
             continue_token = response.metadata._continue
             if not continue_token:
-                logger.debug(f"No more {function_name} resources to retrieve.")
+                logger.debug("No more %s resources to retrieve.", function_name)
                 break
 
         except ApiException as e:

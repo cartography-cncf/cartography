@@ -104,7 +104,7 @@ def make_request_with_retry(
                 time.sleep(sleep_time)
                 retry_count += 1
             else:
-                logger.error(f"GitLab request timeout after {max_retries} retries.")
+                logger.error("GitLab request timeout after %s retries.", max_retries)
                 raise
 
         except requests.exceptions.ConnectionError as e:
@@ -118,7 +118,7 @@ def make_request_with_retry(
                 time.sleep(sleep_time)
                 retry_count += 1
             else:
-                logger.error(f"GitLab connection error after {max_retries} retries.")
+                logger.error("GitLab connection error after %s retries.", max_retries)
                 raise
 
     # Should not reach here, but raise last exception if we do

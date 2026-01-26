@@ -190,7 +190,7 @@ def load_gcp_roles(
     """
     Load GCP role data into Neo4j.
     """
-    logger.debug(f"Loading {len(roles)} roles for project {project_id}")
+    logger.debug("Loading %d roles for project %s", len(roles), project_id)
 
     load(
         neo4j_session,
@@ -243,11 +243,13 @@ def sync(
     :param gcp_update_tag: The timestamp of the current sync run.
     :param common_job_parameters: Common job parameters for the sync.
     """
-    logger.info(f"Syncing GCP IAM for project {project_id}")
+    logger.info("Syncing GCP IAM for project %s", project_id)
 
     service_accounts_raw = get_gcp_service_accounts(iam_client, project_id)
     logger.info(
-        f"Found {len(service_accounts_raw)} service accounts in project {project_id}"
+        "Found %d service accounts in project %s",
+        len(service_accounts_raw),
+        project_id,
     )
     service_accounts = transform_gcp_service_accounts(service_accounts_raw, project_id)
     load_gcp_service_accounts(
@@ -255,7 +257,7 @@ def sync(
     )
 
     roles_raw = get_gcp_roles(iam_client, project_id)
-    logger.info(f"Found {len(roles_raw)} roles in project {project_id}")
+    logger.info("Found %d roles in project %s", len(roles_raw), project_id)
     roles = transform_gcp_roles(roles_raw, project_id)
     load_gcp_roles(neo4j_session, roles, project_id, gcp_update_tag)
 

@@ -49,7 +49,7 @@ async def get_entra_service_principals(
             break
         page = await client.service_principals.with_url(page.odata_next_link).get()
 
-    logger.info(f"Retrieved {count} Entra service principals total")
+    logger.info("Retrieved %s Entra service principals total", count)
 
 
 async def get_service_principal_by_app_id(
@@ -213,5 +213,5 @@ async def sync_service_principals(
         service_principals_batch.clear()
         transformed_service_principals.clear()
 
-    logger.info(f"Completed loading {total_count} service principals")
+    logger.info("Completed loading %s service principals", total_count)
     cleanup_service_principals(neo4j_session, common_job_parameters)

@@ -56,7 +56,7 @@ def load_ec2_key_pairs(
     update_tag: int,
 ) -> None:
     # Load EC2 keypairs as known by describe-key-pairs
-    logger.info(f"Loading {len(data)} EC2 keypairs for region '{region}' into graph.")
+    logger.info("Loading %s EC2 keypairs for region '%s' into graph.", len(data), region)
     load(
         neo4j_session,
         EC2KeyPairSchema(),

@@ -20,11 +20,11 @@ def get_branches(gitlab_url: str, token: str, project_id: int) -> list[dict[str,
     """
     Fetch all branches for a specific project from GitLab.
     """
-    logger.debug(f"Fetching branches for project ID {project_id}")
+    logger.debug("Fetching branches for project ID %s", project_id)
     branches = get_paginated(
         gitlab_url, token, f"/api/v4/projects/{project_id}/repository/branches"
     )
-    logger.debug(f"Fetched {len(branches)} branches for project ID {project_id}")
+    logger.debug("Fetched %s branches for project ID %s", len(branches), project_id)
     return branches
 
 
@@ -55,7 +55,7 @@ def transform_branches(
         }
         transformed.append(transformed_branch)
 
-    logger.info(f"Transformed {len(transformed)} branches")
+    logger.info("Transformed %s branches", len(transformed))
     return transformed
 
 
@@ -69,7 +69,7 @@ def load_branches(
     """
     Load GitLab branches into the graph for a specific project.
     """
-    logger.info(f"Loading {len(branches)} branches for project {project_url}")
+    logger.info("Loading %s branches for project %s", len(branches), project_url)
     load(
         neo4j_session,
         GitLabBranchSchema(),
@@ -88,7 +88,7 @@ def cleanup_branches(
     """
     Remove stale GitLab branches from the graph for a specific project.
     """
-    logger.info(f"Running GitLab branches cleanup for project {project_url}")
+    logger.info("Running GitLab branches cleanup for project %s", project_url)
     cleanup_params = {**common_job_parameters, "project_url": project_url}
     GraphJob.from_node_schema(GitLabBranchSchema(), cleanup_params).run(neo4j_session)
 
@@ -105,7 +105,7 @@ def sync_gitlab_branches(
     """
     Sync GitLab branches for all projects.
     """
-    logger.info(f"Syncing GitLab branches for {len(projects)} projects")
+    logger.info("Syncing GitLab branches for %s projects", len(projects))
 
     # Sync branches for each project
     for project in projects:
@@ -113,13 +113,13 @@ def sync_gitlab_branches(
         project_name: str = project["name"]
         project_url: str = project["web_url"]
 
-        logger.info(f"Syncing branches for project: {project_name}")
+        logger.info("Syncing branches for project: %s", project_name)
 
         # Fetch branches for this project
         raw_branches = get_branches(gitlab_url, token, project_id)
 
         if not raw_branches:
-            logger.info(f"No branches found for project {project_name}")
+            logger.info("No branches found for project %s", project_name)
             continue
 
         # Transform to match our schema

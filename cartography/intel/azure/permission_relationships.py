@@ -41,7 +41,7 @@ def compile_azure_regex(item: str) -> re.Pattern:
         try:
             return re.compile(item, flags=re.IGNORECASE)
         except re.error:
-            logger.warning(f"Azure regex did not compile for {item}")
+            logger.warning("Azure regex did not compile for %s", item)
             # Return a regex that matches nothing -> no false positives
             return re.compile("", flags=re.IGNORECASE)
     else:
@@ -280,9 +280,11 @@ def parse_permission_relationships_file(file_path: str) -> list[dict[str, Any]]:
         return relationship_mapping or []
     except FileNotFoundError:
         logger.warning(
-            f"Azure permission relationships file {file_path} not found, skipping sync stage {__name__}. "
-            f"If you want to run this sync, please explicitly set a value for --azure-permission-relationships-file in the "
-            f"command line interface."
+            "Azure permission relationships file %s not found, skipping sync stage %s. "
+            "If you want to run this sync, please explicitly set a value for --azure-permission-relationships-file in the "
+            "command line interface.",
+            file_path,
+            __name__,
         )
         return []
 
@@ -311,7 +313,8 @@ def transform_mappings(principal_mappings: list[dict]) -> dict[str, list[dict]]:
         # Validate principal type, no silent failure in case of change in expected principal types from MS
         if assignment_principal_type not in expected_types:
             logger.warning(
-                f"Unknown principal type '{assignment_principal_type}' encountered - skipping permission relationships sync for this principal type."
+                "Unknown principal type '%s' encountered - skipping permission relationships sync for this principal type.",
+                assignment_principal_type,
             )
             continue
 
@@ -354,7 +357,11 @@ def load_principal_mappings(
         )
 
         logger.info(
-            f"Loading {len(type_mappings)} {relationship_name} relationships for {principal_type} -> {node_label}"
+            "Loading %s %s relationships for %s -> %s",
+            len(type_mappings),
+            relationship_name,
+            principal_type,
+            node_label,
         )
 
         load_matchlinks(
@@ -427,7 +434,7 @@ def sync(
     # 3. EVALUATE - Evaluate each relationship and resource ID
     for rpr in relationship_mapping:
         if not is_valid_azure_rpr(rpr):
-            logger.error(f"Invalid permission relationship configuration: {rpr}")
+            logger.error("Invalid permission relationship configuration: %s", rpr)
             continue
 
         target_label = rpr["target_label"]
@@ -437,7 +444,9 @@ def sync(
         resource_ids = get_resource_ids(neo4j_session, subscription_id, target_label)
 
         logger.info(
-            f"Evaluating relationship '{relationship_name}' for resource type '{target_label}'"
+            "Evaluating relationship '%s' for resource type '%s'",
+            relationship_name,
+            target_label,
         )
         matches = calculate_permission_relationships(
             principals, resource_ids, permissions
@@ -462,5 +471,6 @@ def sync(
         )
 
     logger.info(
-        f"Completed Azure Permission Relationships sync for subscription {subscription_id}"
+        "Completed Azure Permission Relationships sync for subscription %s",
+        subscription_id,
     )

@@ -244,17 +244,18 @@ def aws_paginate(
     paginator = client.get_paginator(method_name)
     for i, page in enumerate(paginator.paginate(**kwargs), start=1):
         if i % 100 == 0:
-            logger.info(f"fetching page number {i}")
+            logger.info("fetching page number %d", i)
         if object_name in page:
             items = page[object_name]
             yield from items
         else:
             logger.warning(
-                f"""aws_paginate: Key "{object_name}" is not present, check if this is a typo.
-If not, then the AWS datatype somehow does not have this key.""",
+                'aws_paginate: Key "%s" is not present, check if this is a typo. '
+                'If not, then the AWS datatype somehow does not have this key.',
+                object_name,
             )
         if max_pages is not None and i >= max_pages:
-            logger.warning(f"Reached max batch size of {max_pages} pages")
+            logger.warning("Reached max batch size of %s pages", max_pages)
             break
 
 

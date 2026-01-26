@@ -334,44 +334,50 @@ def _is_common_exception(e: Exception, bucket_name: str) -> Tuple[bool, bool]:
     # "No configuration" errors - valid states where no config exists
     # These return (True, False) - handle but not a failure
     if "NoSuchBucketPolicy" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - NoSuchBucketPolicy")
+        logger.warning("%s for %s - NoSuchBucketPolicy", error_msg, bucket_name)
         return (True, False)
     elif "ServerSideEncryptionConfigurationNotFoundError" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket_name} - ServerSideEncryptionConfigurationNotFoundError",
+            "%s for %s - ServerSideEncryptionConfigurationNotFoundError",
+            error_msg,
+            bucket_name,
         )
         return (True, False)
     elif "NoSuchPublicAccessBlockConfiguration" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket_name} - NoSuchPublicAccessBlockConfiguration",
+            "%s for %s - NoSuchPublicAccessBlockConfiguration",
+            error_msg,
+            bucket_name,
         )
         return (True, False)
     elif "OwnershipControlsNotFoundError" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket_name} - OwnershipControlsNotFoundError"
+            "%s for %s - OwnershipControlsNotFoundError", error_msg, bucket_name
         )
         return (True, False)
 
     # Fetch failures - should preserve existing data
     # These return (True, True) - handle and is a failure
     elif "AccessDenied" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - Access Denied")
+        logger.warning("%s for %s - Access Denied", error_msg, bucket_name)
         return (True, True)
     elif "NoSuchBucket" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - No Such Bucket")
+        logger.warning("%s for %s - No Such Bucket", error_msg, bucket_name)
         return (True, True)
     elif "AllAccessDisabled" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - Bucket is disabled")
+        logger.warning("%s for %s - Bucket is disabled", error_msg, bucket_name)
         return (True, True)
     elif "EndpointConnectionError" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - EndpointConnectionError")
+        logger.warning("%s for %s - EndpointConnectionError", error_msg, bucket_name)
         return (True, True)
     elif "InvalidToken" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - InvalidToken")
+        logger.warning("%s for %s - InvalidToken", error_msg, bucket_name)
         return (True, True)
     elif "IllegalLocationConstraintException" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket_name} - IllegalLocationConstraintException",
+            "%s for %s - IllegalLocationConstraintException",
+            error_msg,
+            bucket_name,
         )
         return (True, True)
 
@@ -1270,7 +1276,7 @@ def _sync_s3_notifications(
             )
             continue
 
-    logger.info(f"Loading {len(notifications)} S3 bucket notifications into Neo4j")
+    logger.info("Loading %s S3 bucket notifications into Neo4j", len(notifications))
     _load_s3_notifications(neo4j_session, notifications, update_tag)
 
 

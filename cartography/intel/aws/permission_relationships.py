@@ -233,7 +233,7 @@ def compile_regex(item: str) -> Pattern:
         try:
             return re.compile(item, flags=re.IGNORECASE)
         except re.error:
-            logger.warning(f"Regex did not compile for {item}")
+            logger.warning("Regex did not compile for %s", item)
             # in this case it must still return a regex.
             # So it will return an re.Pattern of empry stringm
             return re.compile("", flags=re.IGNORECASE)

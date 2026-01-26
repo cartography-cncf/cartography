@@ -141,7 +141,7 @@ def load_network_acls(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} network acls in {region}.")
+    logger.info("Loading %s network acls in %s.", len(data), region)
     load(
         neo4j_session,
         EC2NetworkAclSchema(),
@@ -160,7 +160,7 @@ def load_network_acl_inbound_rules(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} network acl inbound rules in {region}.")
+    logger.info("Loading %s network acl inbound rules in %s.", len(data), region)
     load(
         neo4j_session,
         EC2NetworkAclInboundRuleSchema(),
@@ -179,7 +179,7 @@ def load_network_acl_egress_rules(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} network acl egress rules in {region}.")
+    logger.info("Loading %s network acl egress rules in %s.", len(data), region)
     load(
         neo4j_session,
         EC2NetworkAclEgressRuleSchema(),

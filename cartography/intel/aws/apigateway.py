@@ -118,7 +118,7 @@ def get_rest_api_stages(api: Dict, client: botocore.client.BaseClient) -> Any:
     try:
         stages = client.get_stages(restApiId=api["id"])
     except ClientError as e:
-        logger.warning(f'Failed to retrieve Stages for Api Id - {api["id"]} - {e}')
+        logger.warning("Failed to retrieve Stages for Api Id - %s - %s", api["id"], e)
         raise
 
     return stages["item"]
@@ -488,7 +488,7 @@ def parse_policy(api_id: str, policy: Policy) -> Optional[Dict[Any, Any]]:
             else:
                 return None
         except json.JSONDecodeError:
-            logger.warning(f"failed to decode policy json : {policy}")
+            logger.warning("failed to decode policy json : %s", policy)
             return None
     else:
         return None

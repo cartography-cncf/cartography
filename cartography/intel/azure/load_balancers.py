@@ -247,7 +247,7 @@ def sync(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Azure Load Balancers for subscription {subscription_id}.")
+    logger.info("Syncing Azure Load Balancers for subscription %s.", subscription_id)
     client = NetworkManagementClient(credentials.credential, subscription_id)
 
     load_balancers = get_load_balancers(client)

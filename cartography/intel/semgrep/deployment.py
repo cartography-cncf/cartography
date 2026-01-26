@@ -44,7 +44,7 @@ def load_semgrep_deployment(
     deployment: Dict[str, Any],
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading SemgrepDeployment {deployment} into the graph.")
+    logger.info("Loading SemgrepDeployment %s into the graph.", deployment)
     load(
         neo4j_session,
         SemgrepDeploymentSchema(),

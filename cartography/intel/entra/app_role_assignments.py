@@ -31,7 +31,7 @@ async def get_app_role_assignments_for_app(
     :param app_id: Application ID
     :return: Generator of app role assignment data as dicts
     """
-    logger.info(f"Fetching role assignments for application: {app_id}")
+    logger.info("Fetching role assignments for application: %s", app_id)
 
     # Query the graph to get the service principal ID for this application
     query = """
@@ -123,7 +123,7 @@ async def get_app_role_assignments_for_app(
         # Using the root service_principals builder here can return ServicePrincipal objects,
         # which lack AppRoleAssignment fields like principal_id. Stay on the
         # app_role_assigned_to builder to ensure AppRoleAssignmentCollectionResponse typing.
-        logger.debug(f"Fetching page {page_count + 1} of assignments for {app_id}")
+        logger.debug("Fetching page %s of assignments for %s", page_count + 1, app_id)
         next_page_url = assignments_page.odata_next_link
         assignments_page = await (
             client.service_principals.by_service_principal_id(service_principal_id)
@@ -262,7 +262,7 @@ async def sync_app_role_assignments(
                 load_app_role_assignments(
                     neo4j_session, transformed_assignments, update_tag, tenant_id
                 )
-                logger.debug(f"Loaded batch of {len(assignments_batch)} assignments")
+                logger.debug("Loaded batch of %s assignments", len(assignments_batch))
                 assignments_batch.clear()
                 transformed_assignments.clear()
 
@@ -279,6 +279,6 @@ async def sync_app_role_assignments(
         transformed_assignments.clear()
 
     cleanup_app_role_assignments(neo4j_session, common_job_parameters)
-    logger.info(f"Completed syncing {total_assignment_count} app role assignments")
+    logger.info("Completed syncing %s app role assignments", total_assignment_count)
     # Final garbage collection
     gc.collect()

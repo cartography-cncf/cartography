@@ -154,7 +154,7 @@ def get_state(session: neo4j.Session, state: State) -> None:
         read_list_of_dicts_tx,
         state.validation_query,
     )
-    logger.debug(f"Updating results for {state.name}")
+    logger.debug("Updating results for %s", state.name)
 
     # The keys will be the same across all items in the returned list
     state.properties = list(new_results[0].keys()) if len(new_results) > 0 else []

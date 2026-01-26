@@ -26,7 +26,7 @@ def _retryable_session() -> Session:
         allowed_methods=["GET"],
     )
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-    logger.info(f"Configured session with retry policy: {retry_policy}")
+    logger.info("Configured session with retry policy: %s", retry_policy)
     return session
 
 
@@ -44,7 +44,7 @@ def _sync_year_archives(
     for year in range(1999, current_year + 1):
         if year in existing_years:
             continue
-        logger.info(f"Syncing CVE data for year {year}")
+        logger.info("Syncing CVE data for year %s", year)
         cves = feed.get_published_cves_per_year(
             http_session,
             config.nist_cve_url,

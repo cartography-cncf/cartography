@@ -84,7 +84,7 @@ def get_entities(session: requests.Session, api_endpoint: str) -> list[dict[str,
         all_entities.extend(stack.get("entities", []))
 
     logger.info(
-        f"Retrieved {len(all_entities)} Spacelift entities from {len(stacks)} stacks"
+        "Retrieved %s Spacelift entities from %s stacks", len(all_entities), len(stacks)
     )
     return all_entities
 
@@ -96,7 +96,7 @@ def transform_entities_to_run_map(
     This function processes entities to extract EC2 instance IDs and maps them to
     the runs that created or updated them.
     """
-    logger.info(f"Transforming {len(entities_data)} entities into run-to-instances map")
+    logger.info("Transforming %s entities into run-to-instances map", len(entities_data))
 
     run_to_instances: dict[str, list[dict[str, str]]] = {}
 
@@ -120,10 +120,10 @@ def transform_entities_to_run_map(
             values = json.loads(values_json)
             instance_id = values["id"]
         except (json.JSONDecodeError, KeyError) as e:
-            logger.warning(f"Failed to parse entity values:{e}")
+            logger.warning("Failed to parse entity values: %s", e)
             continue
 
-        logger.info(f"Found EC2 instance from entity: {instance_id}")
+        logger.info("Found EC2 instance from entity: %s", instance_id)
 
         # Map to creator run
         creator = entity.get("creator")
@@ -138,7 +138,7 @@ def transform_entities_to_run_map(
                 }
             )
             logger.info(
-                f"Mapped instance {instance_id} to creator run {creator_run_id}"
+                "Mapped instance %s to creator run %s", instance_id, creator_run_id
             )
 
         # Map to updater run
@@ -156,11 +156,11 @@ def transform_entities_to_run_map(
                     }
                 )
                 logger.info(
-                    f"Mapped instance {instance_id} to updater run {updater_run_id}"
+                    "Mapped instance %s to updater run %s", instance_id, updater_run_id
                 )
 
     logger.info(
-        f"Built run-to-instances map with {len(run_to_instances)} runs affecting EC2 instances"
+        "Built run-to-instances map with %s runs affecting EC2 instances", len(run_to_instances)
     )
     return run_to_instances
 
@@ -181,7 +181,7 @@ def get_runs(session: requests.Session, api_endpoint: str) -> list[dict[str, Any
             run["stack"] = stack_id
             all_runs.append(run)
 
-    logger.info(f"Retrieved {len(all_runs)} Spacelift runs from {len(stacks)} stacks")
+    logger.info("Retrieved %s Spacelift runs from %s stacks", len(all_runs), len(stacks))
     return all_runs
 
 
@@ -191,7 +191,7 @@ def transform_runs(
     account_id: str,
 ) -> list[dict[str, Any]]:
 
-    logger.info(f"Transforming {len(runs_data)} runs")
+    logger.info("Transforming %s runs", len(runs_data))
 
     result: list[dict[str, Any]] = []
 
@@ -203,7 +203,7 @@ def transform_runs(
         affected_instance_ids = [inst["instance_id"] for inst in affected_instances]
 
         if affected_instance_ids:
-            logger.info(f"Run {run_id} affects instances: {affected_instance_ids}")
+            logger.info("Run %s affects instances: %s", run_id, affected_instance_ids)
 
         # Extract commit hash from nested commit object
         commit = run.get("commit", {})
@@ -225,7 +225,9 @@ def transform_runs(
         result.append(transformed_run)
 
     logger.info(
-        f"Transformed {len(result)} runs ({sum(1 for r in result if r['affected_instance_ids'])} affecting EC2 instances)"
+        "Transformed %s runs (%s affecting EC2 instances)",
+        len(result),
+        sum(1 for r in result if r['affected_instance_ids']),
     )
     return result
 
@@ -258,7 +260,7 @@ def extract_users_from_runs(runs_data: list[dict[str, Any]]) -> list[dict[str, A
             }
         )
 
-    logger.info(f"Extracted {len(users)} unique users from {len(runs_data)} runs")
+    logger.info("Extracted %s unique users from %s runs", len(users), len(runs_data))
     return users
 
 
@@ -304,7 +306,7 @@ def extract_commits_from_runs(
         )
 
     commits = list(commits_by_sha.values())
-    logger.info(f"Extracted {len(commits)} unique commits from {len(runs_data)} runs")
+    logger.info("Extracted %s unique commits from %s runs", len(commits), len(runs_data))
     return commits
 
 
@@ -330,7 +332,7 @@ def load_users(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(users_data)} Spacelift users")
+    logger.info("Loaded %s Spacelift users", len(users_data))
 
 
 def load_runs(
@@ -350,7 +352,7 @@ def load_runs(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(runs_data)} Spacelift runs")
+    logger.info("Loaded %s Spacelift runs", len(runs_data))
 
 
 def load_commits(
@@ -371,7 +373,7 @@ def load_commits(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(commits_data)} Git commits")
+    logger.info("Loaded %s Git commits", len(commits_data))
 
 
 @timeit
@@ -458,6 +460,8 @@ def sync_runs(
     cleanup_runs(neo4j_session, common_job_parameters)
 
     logger.info(
-        f"Synced {len(extracted_users)} users, {len(extracted_commits)} commits, "
-        f"and {len(transformed_runs)} Spacelift runs"
+        "Synced %s users, %s commits, and %s Spacelift runs",
+        len(extracted_users),
+        len(extracted_commits),
+        len(transformed_runs),
     )

@@ -45,7 +45,7 @@ def _transform_users(users: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Reformat the data before loading
     """
-    logger.info(f"Transforming {len(users)} duo users")
+    logger.info("Transforming %d duo users", len(users))
     transformed_users = []
     for user in users:
         transformed_user = {
@@ -118,7 +118,7 @@ def _load_users(
     """
     Load the users into the database
     """
-    logger.info(f"Loading {len(users)} duo users")
+    logger.info("Loading %d duo users", len(users))
     load(
         neo4j_session,
         DuoUserSchema(),

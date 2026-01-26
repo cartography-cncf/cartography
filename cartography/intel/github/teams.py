@@ -84,7 +84,7 @@ def _get_teams_repos_inner_func(
     repo_urls: list[str],
     repo_permissions: list[str],
 ) -> None:
-    logger.info(f"Retrieving team repos for {team_name}.")
+    logger.info("Retrieving team repos for %s.", team_name)
     team_repos = _get_team_repos(org, api_url, token, team_name)
 
     # The `or []` is because `.nodes` can be None. See:
@@ -192,7 +192,7 @@ def _get_teams_users_inner_func(
     user_urls: List[str],
     user_roles: List[str],
 ) -> None:
-    logger.info(f"Retrieving team users for {team_name}.")
+    logger.info("Retrieving team users for %s.", team_name)
     team_users = _get_team_users(org, api_url, token, team_name)
     # The `or []` is because `.nodes` can be None. See:
     # https://docs.github.com/en/graphql/reference/objects#teammemberconnection
@@ -299,7 +299,7 @@ def _get_child_teams_inner_func(
     team_name: str,
     team_urls: List[str],
 ) -> None:
-    logger.info(f"Retrieving child teams for {team_name}.")
+    logger.info("Retrieving child teams for %s.", team_name)
     child_teams = _get_child_teams(org, api_url, token, team_name)
     # The `or []` is because `.nodes` can be None. See:
     # https://docs.github.com/en/graphql/reference/objects#teammemberconnection
@@ -447,7 +447,7 @@ def load_team_repos(
     update_tag: int,
     organization_url: str,
 ) -> None:
-    logger.info(f"Loading {len(data)} GitHub team-repos to the graph")
+    logger.info("Loading %s GitHub team-repos to the graph", len(data))
     load(
         neo4j_session,
         GitHubTeamSchema(),

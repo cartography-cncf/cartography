@@ -499,7 +499,7 @@ def sync(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Azure Networking for subscription {subscription_id}.")
+    logger.info("Syncing Azure Networking for subscription %s.", subscription_id)
     client = NetworkManagementClient(credentials.credential, subscription_id)
 
     vnets = _sync_virtual_networks(

@@ -82,7 +82,7 @@ def get(
 ) -> List[Dict[str, Any]]:
     result = []
     computer_list = get_computer_list(bigfix_api_url, headers)
-    logger.info(f"Retrieving details for {len(computer_list)} BigFix Computers")
+    logger.info("Retrieving details for %s BigFix Computers", len(computer_list))
     for computer in computer_list:
         details = get_computer_details(
             bigfix_api_url,
@@ -182,7 +182,7 @@ def load_computers(
         lastupdated=update_tag,
     )
 
-    logger.info(f"Loading {len(data)} BigFix computers to the graph")
+    logger.info("Loading %s BigFix computers to the graph", len(data))
     load(
         neo4j_session,
         BigfixComputerSchema(),

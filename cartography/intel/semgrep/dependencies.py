@@ -100,7 +100,7 @@ def get_dependencies(
             continue
         deps = data.get("dependencies", [])
         has_more = data.get("hasMore", False)
-        logger.info(f"Processed page {page} of Semgrep {ecosystem} dependencies.")
+        logger.info("Processed page %s of Semgrep %s dependencies.", page, ecosystem)
         all_deps.extend(deps)
         retries = 0
         page += 1

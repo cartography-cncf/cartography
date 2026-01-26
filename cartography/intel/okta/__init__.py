@@ -59,7 +59,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
-    logger.debug(f"Starting Okta sync on {config.okta_org_id}")
+    logger.debug("Starting Okta sync on %s", config.okta_org_id)
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
@@ -126,7 +126,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             state,
         )
     except OktaError as okta_error:
-        logger.warning(f"Unable to pull admin roles got {okta_error}")
+        logger.warning("Unable to pull admin roles got %s", okta_error)
 
         # Getting roles requires super admin which most won't be able to get easily
         if okta_error.error_code == "E0000006":

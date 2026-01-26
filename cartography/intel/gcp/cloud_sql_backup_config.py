@@ -93,7 +93,7 @@ def sync_sql_backup_configs(
     """
     Syncs Cloud SQL Backup Configurations from instance data.
     """
-    logger.info(f"Syncing Cloud SQL Backup Configurations for project {project_id}.")
+    logger.info("Syncing Cloud SQL Backup Configurations for project %s.", project_id)
     backup_configs = transform_sql_backup_configs(instances)
     load_sql_backup_configs(neo4j_session, backup_configs, project_id, update_tag)
 

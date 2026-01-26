@@ -25,7 +25,7 @@ def get_aws_auth_configmap(client: K8sClient) -> V1ConfigMap:
     """
     Get aws-auth ConfigMap from kube-system namespace.
     """
-    logger.info(f"Retrieving aws-auth ConfigMap from cluster {client.name}")
+    logger.info("Retrieving aws-auth ConfigMap from cluster %s", client.name)
     return client.core.read_namespaced_config_map(
         name="aws-auth", namespace="kube-system"
     )
@@ -50,7 +50,7 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]
         for mapping in role_mappings:
             username = mapping.get("username", "")
             if "{{" in username:
-                logger.debug(f"Skipping templated username in mapRoles: {username}")
+                logger.debug("Skipping templated username in mapRoles: %s", username)
                 continue
             filtered_role_mappings.append(mapping)
 
@@ -70,7 +70,7 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]
         for mapping in user_mappings:
             username = mapping.get("username", "")
             if "{{" in username:
-                logger.debug(f"Skipping templated username in mapUsers: {username}")
+                logger.debug("Skipping templated username in mapUsers: %s", username)
                 continue
             filtered_user_mappings.append(mapping)
 
@@ -264,7 +264,7 @@ def load_oidc_provider(
     """
     Load OIDC providers and their relationships to users and groups into Neo4j.
     """
-    logger.info(f"Loading {len(oidc_providers)} EKS OIDC providers")
+    logger.info("Loading %s EKS OIDC providers", len(oidc_providers))
     load(
         neo4j_session,
         KubernetesOIDCProviderSchema(),
@@ -286,7 +286,7 @@ def load_aws_auth_mappings(
     """
     Load Kubernetes Users/Groups with AWS Role and User relationships into Neo4j using schema-based loading.
     """
-    logger.info(f"Loading {len(users)} Kubernetes Users with AWS mappings")
+    logger.info("Loading %s Kubernetes Users with AWS mappings", len(users))
 
     # Load Kubernetes Users with AWS relationships
     if users:
@@ -299,7 +299,7 @@ def load_aws_auth_mappings(
             CLUSTER_NAME=cluster_name,
         )
 
-    logger.info(f"Loading {len(groups)} Kubernetes Groups with AWS mappings")
+    logger.info("Loading %s Kubernetes Groups with AWS mappings", len(groups))
 
     # Load Kubernetes Groups with AWS relationships
     if groups:
@@ -343,7 +343,7 @@ def sync(
     1. AWS IAM role and user mappings (aws-auth ConfigMap)
     2. External OIDC providers (EKS API)
     """
-    logger.info(f"Starting EKS identity provider sync for cluster {cluster_name}")
+    logger.info("Starting EKS identity provider sync for cluster %s", cluster_name)
 
     # 1. Sync AWS IAM mappings (aws-auth ConfigMap)
     logger.info("Syncing AWS IAM mappings from aws-auth ConfigMap")
@@ -386,7 +386,7 @@ def sync(
             cluster_id,
             cluster_name,
         )
-        logger.info(f"Successfully synced {len(oidc_provider)} external OIDC provider")
+        logger.info("Successfully synced %s external OIDC provider", len(oidc_provider))
     else:
         logger.info("No external OIDC provider found for cluster")
 
@@ -398,5 +398,6 @@ def sync(
     cleanup(neo4j_session, common_job_parameters)
 
     logger.info(
-        f"Successfully completed EKS identity provider sync for cluster {cluster_name}"
+        "Successfully completed EKS identity provider sync for cluster %s",
+        cluster_name,
     )

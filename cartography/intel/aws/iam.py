@@ -532,7 +532,7 @@ def transform_role_trust_policies(
                     trusted_aws_principals.add(principal_arn)
                 else:
                     # This should not happen but who knows.
-                    logger.warning(f"Unknown principal type: {principal_type}")
+                    logger.warning("Unknown principal type: %s", principal_type)
 
         role_record = {
             "arn": role["Arn"],

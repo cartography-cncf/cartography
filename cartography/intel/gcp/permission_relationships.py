@@ -44,7 +44,7 @@ def compile_gcp_regex(item: str) -> re.Pattern:
     try:
         return re.compile(item, flags=re.IGNORECASE)
     except re.error:
-        logger.warning(f"GCP regex did not compile for {item}")
+        logger.warning("GCP regex did not compile for %s", item)
         # Return a regex that matches nothing -> no false positives
         return re.compile("", flags=re.IGNORECASE)
 
@@ -354,7 +354,7 @@ def sync(
     # 3. EVALUATE - Evaluate each relationship and resource ID
     for rpr in relationship_mapping:
         if not is_valid_gcp_rpr(rpr):
-            logger.error(f"Invalid permission relationship configuration: {rpr}")
+            logger.error("Invalid permission relationship configuration: %s", rpr)
             continue
 
         target_label = rpr["target_label"]
@@ -364,7 +364,9 @@ def sync(
         resource_dict = get_resource_ids(neo4j_session, project_id, target_label)
 
         logger.info(
-            f"Evaluating relationship '{relationship_name}' for resource type '{target_label}'"
+            "Evaluating relationship '%s' for resource type '%s'",
+            relationship_name,
+            target_label,
         )
         matches = calculate_permission_relationships(
             principals, resource_dict, permissions
@@ -391,4 +393,4 @@ def sync(
             project_id,
         )
 
-    logger.info(f"Completed GCP Permission Relationships sync for project {project_id}")
+    logger.info("Completed GCP Permission Relationships sync for project %s", project_id)

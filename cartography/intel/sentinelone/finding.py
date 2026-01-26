@@ -83,7 +83,7 @@ def load_cves(
     """
     Load SentinelOne AppFinding data into Neo4j
     """
-    logger.info(f"Loading {len(data)} SentinelOne AppFindings into Neo4j")
+    logger.info("Loading %s SentinelOne AppFindings into Neo4j", len(data))
     load(
         neo4j_session,
         S1AppFindingSchema(),

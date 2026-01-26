@@ -38,11 +38,11 @@ def get_accounts(
         accounts_data = [
             account for account in accounts_data if account.get("id") in account_ids
         ]
-        logger.info(f"Filtered accounts data to {len(accounts_data)} matching accounts")
+        logger.info("Filtered accounts data to %s matching accounts", len(accounts_data))
 
     if accounts_data:
         logger.info(
-            f"Retrieved SentinelOne account data: {len(accounts_data)} accounts"
+            "Retrieved SentinelOne account data: %s accounts", len(accounts_data)
         )
     else:
         logger.warning("No SentinelOne accounts retrieved")
@@ -99,7 +99,7 @@ def load_accounts(
         firstseen=update_tag,
     )
 
-    logger.info(f"Loaded {len(accounts_data)} SentinelOne account nodes")
+    logger.info("Loaded %s SentinelOne account nodes", len(accounts_data))
 
 
 @timeit
@@ -136,5 +136,5 @@ def sync_accounts(
     )
 
     synced_account_ids = [account["id"] for account in transformed_accounts]
-    logger.info(f"Synced {len(synced_account_ids)} SentinelOne accounts")
+    logger.info("Synced %s SentinelOne accounts", len(synced_account_ids))
     return synced_account_ids

@@ -164,4 +164,4 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         neo4j_session, common_job_parameters, gitlab_url
     )
 
-    logger.info(f"GitLab ingestion completed for organization {organization_id}")
+    logger.info("GitLab ingestion completed for organization %s", organization_id)

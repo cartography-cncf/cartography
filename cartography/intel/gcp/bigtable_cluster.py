@@ -72,7 +72,7 @@ def sync_bigtable_clusters(
     update_tag: int,
     common_job_parameters: dict,
 ) -> list[dict]:
-    logger.info(f"Syncing Bigtable Clusters for project {project_id}.")
+    logger.info("Syncing Bigtable Clusters for project %s.", project_id)
     all_clusters_raw: list[dict] = []
     all_clusters_transformed: list[dict] = []
 

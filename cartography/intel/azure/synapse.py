@@ -496,7 +496,7 @@ def sync(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Azure Synapse for subscription {subscription_id}.")
+    logger.info("Syncing Azure Synapse for subscription %s.", subscription_id)
     mgmt_client = SynapseManagementClient(credentials.credential, subscription_id)
 
     workspaces_raw = _sync_workspaces(

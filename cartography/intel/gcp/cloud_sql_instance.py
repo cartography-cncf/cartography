@@ -132,10 +132,10 @@ def sync_sql_instances(
     """
     Syncs GCP SQL Instances and returns the raw instance data.
     """
-    logger.info(f"Syncing Cloud SQL Instances for project {project_id}.")
+    logger.info("Syncing Cloud SQL Instances for project %s.", project_id)
     instances_raw = get_sql_instances(client, project_id)
     if not instances_raw:
-        logger.info(f"No Cloud SQL instances found for project {project_id}.")
+        logger.info("No Cloud SQL instances found for project %s.", project_id)
 
     instances = transform_sql_instances(instances_raw, project_id)
     load_sql_instances(neo4j_session, instances, project_id, update_tag)

@@ -20,7 +20,7 @@ def get_organization(gitlab_url: str, token: str, org_id: int) -> dict[str, Any]
     """
     Fetch a specific top-level group (organization) from GitLab by ID.
     """
-    logger.info(f"Fetching organization ID {org_id} from {gitlab_url}")
+    logger.info("Fetching organization ID %s from %s", org_id, gitlab_url)
     return get_single(gitlab_url, token, f"/api/v4/groups/{org_id}")
 
 
@@ -45,7 +45,7 @@ def transform_organizations(
         }
         transformed.append(transformed_org)
 
-    logger.info(f"Transformed {len(transformed)} organizations")
+    logger.info("Transformed %s organizations", len(transformed))
     return transformed
 
 
@@ -58,7 +58,7 @@ def load_organizations(
     """
     Load GitLab organizations into the graph.
     """
-    logger.info(f"Loading {len(organizations)} organizations")
+    logger.info("Loading %s organizations", len(organizations))
     load(
         neo4j_session,
         GitLabOrganizationSchema(),
@@ -76,7 +76,7 @@ def cleanup_organizations(
     """
     Remove stale GitLab organizations from the graph for a specific GitLab instance.
     """
-    logger.info(f"Running GitLab organizations cleanup for {gitlab_url}")
+    logger.info("Running GitLab organizations cleanup for %s", gitlab_url)
     cleanup_params = {**common_job_parameters, "gitlab_url": gitlab_url}
     GraphJob.from_node_schema(GitLabOrganizationSchema(), cleanup_params).run(
         neo4j_session
@@ -101,7 +101,7 @@ def sync_gitlab_organizations(
     if not organization_id:
         raise ValueError("ORGANIZATION_ID must be provided in common_job_parameters")
 
-    logger.info(f"Syncing GitLab organization ID {organization_id}")
+    logger.info("Syncing GitLab organization ID %s", organization_id)
 
     # get_organization raises HTTPError on 404, so no need to check for empty response
     raw_org = get_organization(gitlab_url, token, organization_id)
@@ -110,6 +110,6 @@ def sync_gitlab_organizations(
 
     load_organizations(neo4j_session, transformed_orgs, update_tag)
 
-    logger.info(f"GitLab organization sync completed for {raw_org.get('name')}")
+    logger.info("GitLab organization sync completed for %s", raw_org.get('name'))
 
     return raw_org

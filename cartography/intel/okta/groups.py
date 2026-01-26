@@ -80,7 +80,7 @@ def get_okta_group_members(api_client: ApiClient, group_id: str) -> List[Dict]:
                 }
                 paged_response = api_client.get_path(f"/{group_id}/users", params)
         except OktaError:
-            logger.error(f"OktaError while listing members of group {group_id}")
+            logger.error("OktaError while listing members of group %s", group_id)
             raise
 
         member_list.extend(json.loads(paged_response.text))
@@ -252,7 +252,7 @@ def load_okta_group_members(
         ON CREATE SET r.firstseen = timestamp()
         SET r.lastupdated = $okta_update_tag
     """
-    logging.info(f"Loading {len(member_list)} members of group {group_id}")
+    logging.info("Loading %s members of group %s", len(member_list), group_id)
     run_write_query(
         neo4j_session,
         ingest,

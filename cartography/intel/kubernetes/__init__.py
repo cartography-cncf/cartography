@@ -41,7 +41,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
 
     for client in get_k8s_clients(config.k8s_kubeconfig):
-        logger.info(f"Syncing data for k8s cluster {client.name}...")
+        logger.info("Syncing data for k8s cluster %s...", client.name)
         try:
             cluster_info = sync_kubernetes_cluster(
                 session,

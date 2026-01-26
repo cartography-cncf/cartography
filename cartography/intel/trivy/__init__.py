@@ -139,20 +139,24 @@ def sync_trivy_aws_ecr_from_s3(
 
     if len(json_files) == 0:
         logger.error(
-            f"Trivy sync was configured, but there are no ECR images with S3 json scan results in bucket "
-            f"'{trivy_s3_bucket}' with prefix '{trivy_s3_prefix}'. "
+            "Trivy sync was configured, but there are no ECR images with S3 json scan results in bucket "
+            "'%s' with prefix '%s'. "
             "Skipping Trivy sync to avoid potential data loss. "
             "Please check the S3 bucket and prefix configuration. We expect the json files in s3 to be named "
-            f"`<image_uri>.json` and to be in the same bucket and prefix as the scan results. If the prefix is "
-            "a folder, it MUST end with a trailing slash '/'. "
+            "`<image_uri>.json` and to be in the same bucket and prefix as the scan results. If the prefix is "
+            "a folder, it MUST end with a trailing slash '/'.",
+            trivy_s3_bucket,
+            trivy_s3_prefix,
         )
         raise ValueError("No ECR images with S3 json scan results found.")
 
-    logger.info(f"Processing {len(json_files)} Trivy result files from S3")
+    logger.info("Processing %d Trivy result files from S3", len(json_files))
     s3_client = boto3_session.client("s3")
     for s3_object_key in json_files:
         logger.debug(
-            f"Reading scan results from S3: s3://{trivy_s3_bucket}/{s3_object_key}"
+            "Reading scan results from S3: s3://%s/%s",
+            trivy_s3_bucket,
+            s3_object_key,
         )
         response = s3_client.get_object(Bucket=trivy_s3_bucket, Key=s3_object_key)
         scan_data_json = response["Body"].read().decode("utf-8")
@@ -186,25 +190,26 @@ def sync_trivy_aws_ecr_from_dir(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """Sync Trivy scan results from local files for AWS ECR images."""
-    logger.info(f"Using Trivy scan results from {results_dir}")
+    logger.info("Using Trivy scan results from %s", results_dir)
 
     image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
     json_files: set[str] = get_json_files_in_dir(results_dir)
 
     if not json_files:
         logger.error(
-            f"Trivy sync was configured, but no json files were found in {results_dir}."
+            "Trivy sync was configured, but no json files were found in %s.",
+            results_dir,
         )
         raise ValueError("No Trivy json results found on disk")
 
-    logger.info(f"Processing {len(json_files)} local Trivy result files")
+    logger.info("Processing %d local Trivy result files", len(json_files))
 
     for file_path in json_files:
         try:
             with open(file_path, encoding="utf-8") as f:
                 trivy_data = json.load(f)
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to read Trivy data from {file_path}: {e}")
+            logger.error("Failed to read Trivy data from %s: %s", file_path, e)
             continue
 
         prepared = _prepare_trivy_data(

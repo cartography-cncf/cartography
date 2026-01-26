@@ -27,7 +27,9 @@ def get_resource_groups(credentials: Credentials, subscription_id: str) -> list[
         return [rg.as_dict() for rg in client.resource_groups.list()]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(
-            f"Failed to get Resource Groups for subscription {subscription_id}: {str(e)}"
+            "Failed to get Resource Groups for subscription %s: %s",
+            subscription_id,
+            e,
         )
         return []
 
@@ -112,7 +114,7 @@ def sync(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Azure Resource Groups for subscription {subscription_id}.")
+    logger.info("Syncing Azure Resource Groups for subscription %s.", subscription_id)
     raw_groups = get_resource_groups(credentials, subscription_id)
     transformed_groups = transform_resource_groups(raw_groups)
     load_resource_groups(neo4j_session, transformed_groups, subscription_id, update_tag)

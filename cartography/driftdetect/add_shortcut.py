@@ -55,7 +55,9 @@ def add_shortcut(storage, shortcut_serializer, query_directory, alias, filename)
     """
     if storage.has_file(os.path.join(query_directory, alias)):
         logger.error(
-            f"Shortcut {alias} is the name of another File in directory {query_directory}.",
+            "Shortcut %s is the name of another File in directory %s.",
+            alias,
+            query_directory,
         )
         return
     shortcut_path = os.path.join(query_directory, "shortcut.json")
@@ -63,7 +65,7 @@ def add_shortcut(storage, shortcut_serializer, query_directory, alias, filename)
     shortcut = shortcut_serializer.load(shortcut_data)
     fp = shortcut.shortcuts.get(filename, filename)
     if not storage.has_file(os.path.join(query_directory, fp)):
-        logger.error(f"File {fp} not found in directory {query_directory}.")
+        logger.error("File %s not found in directory %s.", fp, query_directory)
         return
     shortcut.shortcuts[alias] = fp
     new_shortcut_data = shortcut_serializer.dump(shortcut)

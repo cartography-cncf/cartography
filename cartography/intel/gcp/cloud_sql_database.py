@@ -88,7 +88,7 @@ def sync_sql_databases(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Cloud SQL Databases for project {project_id}.")
+    logger.info("Syncing Cloud SQL Databases for project %s.", project_id)
     all_databases: list[dict] = []
 
     for inst in instances:

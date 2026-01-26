@@ -62,7 +62,7 @@ def load_postureintegrations(
     org: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} Tailscale PostureIntegrations to the graph")
+    logger.info("Loading %s Tailscale PostureIntegrations to the graph", len(data))
     load(
         neo4j_session,
         TailscalePostureIntegrationSchema(),

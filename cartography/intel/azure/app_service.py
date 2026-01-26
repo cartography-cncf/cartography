@@ -32,7 +32,9 @@ def get_app_services(credentials: Credentials, subscription_id: str) -> List[Dic
         return [app.as_dict() for app in client.web_apps.list()]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(
-            f"Failed to get app services for subscription {subscription_id}: {str(e)}"
+            "Failed to get app services for subscription %s: %s",
+            subscription_id,
+            e,
         )
         return []
 
@@ -130,7 +132,7 @@ def sync(
     """
     The main sync function for Azure App Services.
     """
-    logger.info(f"Syncing Azure App Services for subscription {subscription_id}.")
+    logger.info("Syncing Azure App Services for subscription %s.", subscription_id)
     raw_apps = get_app_services(credentials, subscription_id)
     transformed_apps = transform_app_services(raw_apps)
     load_app_services(neo4j_session, transformed_apps, subscription_id, update_tag)

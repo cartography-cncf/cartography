@@ -28,7 +28,7 @@ def get_application_data(
     :param api_token: SentinelOne API token
     :return: A list of application data dictionaries
     """
-    logger.info(f"Retrieving SentinelOne application data for account {account_id}")
+    logger.info("Retrieving SentinelOne application data for account %s", account_id)
     applications = get_paginated_results(
         api_url=api_url,
         endpoint="/web/api/v2.1/application-management/inventory",
@@ -39,7 +39,7 @@ def get_application_data(
         },
     )
 
-    logger.info(f"Retrieved {len(applications)} applications from SentinelOne")
+    logger.info("Retrieved %s applications from SentinelOne", len(applications))
     return applications
 
 
@@ -56,16 +56,19 @@ def get_application_installs(
     :return: A list of application installs data dictionaries
     """
     logger.info(
-        f"Retrieving SentinelOne application installs for "
-        f"{len(app_inventory)} applications in account "
-        f"{account_id}",
+        "Retrieving SentinelOne application installs for %s applications in account %s",
+        len(app_inventory),
+        account_id,
     )
 
     application_installs = []
     for i, app in enumerate(app_inventory):
         logger.info(
-            f"Retrieving SentinelOne installs for {app.get('applicationName')} "
-            f"{app.get('applicationVendor')} ({i + 1}/{len(app_inventory)})",
+            "Retrieving SentinelOne installs for %s %s (%s/%s)",
+            app.get('applicationName'),
+            app.get('applicationVendor'),
+            i + 1,
+            len(app_inventory),
         )
         name = app["applicationName"]
         vendor = app["applicationVendor"]
@@ -165,7 +168,7 @@ def load_application_data(
     :param update_tag: Update tag to set on the nodes
     :return: None
     """
-    logger.info(f"Loading {len(data)} SentinelOne applications into Neo4j")
+    logger.info("Loading %s SentinelOne applications into Neo4j", len(data))
     load(
         neo4j_session,
         S1ApplicationSchema(),
@@ -182,7 +185,7 @@ def load_application_versions(
     account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} SentinelOne application versions into Neo4j")
+    logger.info("Loading %s SentinelOne application versions into Neo4j", len(data))
     load(
         neo4j_session,
         S1ApplicationVersionSchema(),

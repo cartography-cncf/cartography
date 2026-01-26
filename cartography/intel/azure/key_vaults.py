@@ -312,7 +312,7 @@ def sync(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Azure Key Vaults for subscription {subscription_id}.")
+    logger.info("Syncing Azure Key Vaults for subscription %s.", subscription_id)
 
     transformed_vaults = sync_vaults(
         neo4j_session,
@@ -341,7 +341,8 @@ def sync(
                 )
             except ResourceNotFoundError:
                 logger.warning(
-                    f"Vault {vault_id} not found when syncing secrets, likely deleted. Skipping."
+                    "Vault %s not found when syncing secrets, likely deleted. Skipping.",
+                    vault_id,
                 )
                 continue
 
@@ -357,7 +358,8 @@ def sync(
                 )
             except ResourceNotFoundError:
                 logger.warning(
-                    f"Vault {vault_id} not found when syncing keys, likely deleted. Skipping."
+                    "Vault %s not found when syncing keys, likely deleted. Skipping.",
+                    vault_id,
                 )
                 continue
 
@@ -373,5 +375,6 @@ def sync(
                 )
             except ResourceNotFoundError:
                 logger.warning(
-                    f"Vault {vault_id} not found when syncing certificates, likely deleted. Skipping."
+                    "Vault %s not found when syncing certificates, likely deleted. Skipping.",
+                    vault_id,
                 )

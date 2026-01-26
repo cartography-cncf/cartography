@@ -159,7 +159,7 @@ def load_network_interfaces(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} network interfaces in {region}.")
+    logger.info("Loading %s network interfaces in %s.", len(data), region)
     load(
         neo4j_session,
         EC2NetworkInterfaceSchema(),
@@ -181,7 +181,7 @@ def load_private_ip_network_interface(
     """
     Private IPs as known by describe-network-interfaces.
     """
-    logger.info(f"Loading {len(data)} private IPs in {region}.")
+    logger.info("Loading %s private IPs in %s.", len(data), region)
     load(
         neo4j_session,
         EC2PrivateIpNetworkInterfaceSchema(),
@@ -203,7 +203,7 @@ def load_security_group_network_interface(
     """
     Security groups as known by describe-network-interfaces.
     """
-    logger.info(f"Loading {len(data)} security groups in {region}.")
+    logger.info("Loading %s security groups in %s.", len(data), region)
     load(
         neo4j_session,
         EC2SecurityGroupNetworkInterfaceSchema(),
@@ -225,7 +225,7 @@ def load_subnet_network_interface(
     """
     Subnets as known by describe-network-interfaces.
     """
-    logger.info(f"Loading {len(data)} subnets in {region}.")
+    logger.info("Loading %s subnets in %s.", len(data), region)
     load(
         neo4j_session,
         EC2SubnetNetworkInterfaceSchema(),

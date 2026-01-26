@@ -138,7 +138,7 @@ def _extract_bucket_name_from_gcs_uri(gcs_uri: Optional[str]) -> Optional[str]:
             return parsed.netloc
         return None
     except Exception as e:
-        logger.warning(f"Failed to parse GCS URI '{gcs_uri}': {e}")
+        logger.warning("Failed to parse GCS URI '%s': %s", gcs_uri, e)
         return None
 
 
@@ -170,7 +170,7 @@ def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
 
         transformed_models.append(transformed_model)
 
-    logger.info(f"Transformed {len(transformed_models)} Vertex AI models")
+    logger.info("Transformed %d Vertex AI models", len(transformed_models))
     return transformed_models
 
 

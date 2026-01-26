@@ -169,11 +169,11 @@ def get_lambda_permissions(
                     "AnonymousActions": parsed_policy.get("AnonymousActions"),
                 }
         except client.exceptions.ResourceNotFoundException:
-            logger.debug(f"No policy found for Lambda function {function_name}")
+            logger.debug("No policy found for Lambda function %s", function_name)
             pass
         except Exception as e:
             logger.warning(
-                f"Error getting policy for Lambda function {function_name}: {e}"
+                "Error getting policy for Lambda function %s: %s", function_name, e
             )
 
     return all_permissions

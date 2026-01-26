@@ -57,7 +57,7 @@ async def get_entra_applications(
             break
         page = await client.applications.with_url(page.odata_next_link).get()
 
-    logger.info(f"Retrieved {count} Entra applications total")
+    logger.info("Retrieved %s Entra applications total", count)
 
 
 def transform_applications(
@@ -177,6 +177,6 @@ async def sync_entra_applications(
         apps_batch.clear()
         transformed_apps.clear()
     cleanup_applications(neo4j_session, common_job_parameters)
-    logger.info(f"Completed syncing {total_app_count} applications")
+    logger.info("Completed syncing %s applications", total_app_count)
     # Final garbage collection
     gc.collect()

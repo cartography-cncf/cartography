@@ -73,7 +73,7 @@ def load_secrets(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(secrets)} KubernetesSecrets")
+    logger.info("Loading %s KubernetesSecrets", len(secrets))
     load(
         session,
         KubernetesSecretSchema(),

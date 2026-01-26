@@ -277,7 +277,7 @@ def _sync_multiple_accounts(
                 raise
 
     if failed_account_ids:
-        logger.error(f"AWS sync failed for accounts {failed_account_ids}")
+        logger.error("AWS sync failed for accounts %s", failed_account_ids)
         raise Exception("\n".join(exception_tracebacks))
 
     del common_job_parameters["AWS_ID"]

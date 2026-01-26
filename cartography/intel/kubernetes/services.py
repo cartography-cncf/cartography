@@ -136,7 +136,7 @@ def load_services(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(services)} KubernetesServices")
+    logger.info("Loading %s KubernetesServices", len(services))
     load(
         session,
         KubernetesServiceSchema(),

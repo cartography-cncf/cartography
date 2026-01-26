@@ -75,7 +75,7 @@ def get_assume_role_events(
     for page in page_iterator:
         all_events.extend(page.get("Events", []))
 
-    logger.info(f"Retrieved {len(all_events)} AssumeRole events from region '{region}'")
+    logger.info("Retrieved %s AssumeRole events from region '%s'", len(all_events), region)
 
     return all_events
 
@@ -705,10 +705,10 @@ def sync_assume_role_events(
 
     # Process events region by region
     for region in regions:
-        logger.info(f"Processing CloudTrail events for region {region}")
+        logger.info("Processing CloudTrail events for region %s", region)
 
         # Process AssumeRole events specifically
-        logger.info(f"Fetching AssumeRole events specifically for region {region}")
+        logger.info("Fetching AssumeRole events specifically for region %s", region)
         assume_role_events = get_assume_role_events(
             boto3_session=boto3_session,
             region=region,
@@ -792,7 +792,7 @@ def sync_saml_role_events(
 
     # Process events region by region
     for region in regions:
-        logger.info(f"Processing CloudTrail SAML events for region {region}")
+        logger.info("Processing CloudTrail SAML events for region %s", region)
 
         # Process AssumeRoleWithSAML events specifically
         logger.info(
@@ -878,7 +878,7 @@ def sync_web_identity_role_events(
 
     # Process events region by region
     for region in regions:
-        logger.info(f"Processing CloudTrail WebIdentity events for region {region}")
+        logger.info("Processing CloudTrail WebIdentity events for region %s", region)
 
         # Process AssumeRoleWithWebIdentity events specifically
         logger.info(

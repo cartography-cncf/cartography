@@ -24,11 +24,11 @@ def get_groups(gitlab_url: str, token: str, org_id: int) -> list[dict[str, Any]]
     """
     Fetch all descendant groups for a specific organization from GitLab.
     """
-    logger.info(f"Fetching groups for organization ID {org_id}")
+    logger.info("Fetching groups for organization ID %s", org_id)
     groups = get_paginated(
         gitlab_url, token, f"/api/v4/groups/{org_id}/descendant_groups"
     )
-    logger.info(f"Fetched {len(groups)} groups for organization ID {org_id}")
+    logger.info("Fetched %s groups for organization ID %s", len(groups), org_id)
     return groups
 
 
@@ -64,7 +64,7 @@ def transform_groups(
         }
         transformed.append(transformed_group)
 
-    logger.info(f"Transformed {len(transformed)} groups")
+    logger.info("Transformed %s groups", len(transformed))
     return transformed
 
 
@@ -78,7 +78,7 @@ def load_groups(
     """
     Load GitLab groups into the graph for a specific organization.
     """
-    logger.info(f"Loading {len(groups)} groups for organization {org_url}")
+    logger.info("Loading %s groups for organization %s", len(groups), org_url)
     load(
         neo4j_session,
         GitLabGroupSchema(),
@@ -98,7 +98,7 @@ def cleanup_groups(
     Remove stale GitLab groups from the graph for a specific organization.
     Uses cascade delete to also remove child projects and nested groups.
     """
-    logger.info(f"Running GitLab groups cleanup for organization {org_url}")
+    logger.info("Running GitLab groups cleanup for organization %s", org_url)
     cleanup_params = {**common_job_parameters, "org_url": org_url}
     GraphJob.from_node_schema(
         GitLabGroupSchema(), cleanup_params, cascade_delete=True
@@ -122,20 +122,20 @@ def sync_gitlab_groups(
     if not organization_id:
         raise ValueError("ORGANIZATION_ID must be provided in common_job_parameters")
 
-    logger.info(f"Syncing GitLab groups for organization {organization_id}")
+    logger.info("Syncing GitLab groups for organization %s", organization_id)
 
     # Fetch the organization to get its URL
     org = get_organization(gitlab_url, token, organization_id)
     org_url: str = org["web_url"]
     org_name: str = org["name"]
 
-    logger.info(f"Syncing groups for organization: {org_name} ({org_url})")
+    logger.info("Syncing groups for organization: %s (%s)", org_name, org_url)
 
     # Fetch groups for this organization
     raw_groups = get_groups(gitlab_url, token, organization_id)
 
     if not raw_groups:
-        logger.info(f"No groups found for organization {org_url}")
+        logger.info("No groups found for organization %s", org_url)
         return
 
     # Transform to match our schema

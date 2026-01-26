@@ -68,7 +68,7 @@ def load_acm_certificates(
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} ACM certificates for region {region} into graph.")
+    logger.info("Loading %s ACM certificates for region %s into graph.", len(data), region)
     load(
         neo4j_session,
         ACMCertificateSchema(),

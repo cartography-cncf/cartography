@@ -21,7 +21,7 @@ def get_agents(api_url: str, api_token: str, account_id: str) -> list[dict[str, 
     :param account_id: The SentinelOne account ID
     :return: Raw agent data from API
     """
-    logger.info(f"Retrieving SentinelOne agent data for account {account_id}")
+    logger.info("Retrieving SentinelOne agent data for account %s", account_id)
 
     agents = get_paginated_results(
         api_url=api_url,
@@ -33,7 +33,7 @@ def get_agents(api_url: str, api_token: str, account_id: str) -> list[dict[str, 
         },
     )
 
-    logger.info(f"Retrieved {len(agents)} agents from SentinelOne account {account_id}")
+    logger.info("Retrieved %s agents from SentinelOne account %s", len(agents), account_id)
     return agents
 
 
@@ -83,7 +83,7 @@ def load_agents(
     :return: None
     """
     logger.info(
-        f"Loading {len(data)} SentinelOne agents into Neo4j for account {account_id}"
+        "Loading %s SentinelOne agents into Neo4j for account %s", len(data), account_id
     )
     load(
         neo4j_session,
@@ -124,7 +124,7 @@ def sync(
     account_id = common_job_parameters["S1_ACCOUNT_ID"]
     update_tag = common_job_parameters["UPDATE_TAG"]
 
-    logger.info(f"Syncing SentinelOne agent data for account {account_id}")
+    logger.info("Syncing SentinelOne agent data for account %s", account_id)
 
     # 1. GET - Fetch data from API
     agents_raw_data = get_agents(api_url, api_token, account_id)

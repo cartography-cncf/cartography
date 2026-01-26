@@ -51,7 +51,7 @@ def load_escalation_policy_data(
             p.num_loops = policy.num_loops,
             p.lastupdated = $update_tag
     """
-    logger.info(f"Loading {len(data)} pagerduty escalation_policies.")
+    logger.info("Loading %s pagerduty escalation_policies.", len(data))
 
     rules: List[Dict[str, Any]] = []
     services: List[Dict[str, Any]] = []

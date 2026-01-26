@@ -354,7 +354,7 @@ def get_user_permissionsets(
     Although a permissionset can be assigned to multiple accounts, it is possible for the user
     to be assigned to just a subset of those!
     """
-    logger.info(f"Getting permissionsets for {len(users)} users")
+    logger.info("Getting permissionsets for %s users", len(users))
     client = boto3_session.client("sso-admin", region_name=region)
     user_permissionsets = []
 
@@ -389,7 +389,7 @@ def get_group_permissionsets(
     """
     Get permissionsets for SSO groups, taking into account which accounts the group is assigned to.
     """
-    logger.info(f"Getting permissionsets for {len(groups)} groups")
+    logger.info("Getting permissionsets for %s groups", len(groups))
     client = boto3_session.client("sso-admin", region_name=region)
     group_permissionsets: list[dict[str, Any]] = []
 
@@ -534,7 +534,7 @@ def load_user_roles(
     aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(user_roles)} user roles")
+    logger.info("Loading %s user roles", len(user_roles))
     load_matchlinks(
         neo4j_session,
         AWSRoleToSSOUserMatchLink(),
@@ -552,7 +552,7 @@ def load_group_roles(
     aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(group_roles)} group roles")
+    logger.info("Loading %s group roles", len(group_roles))
     load_matchlinks(
         neo4j_session,
         AWSRoleToSSOGroupMatchLink(),
@@ -822,9 +822,9 @@ def sync_identity_center_instances(
     Account-scoped Identity Center instances don't support permission sets and will
     skip step 1 and 3, but still sync users and groups.
     """
-    logger.info(f"Syncing Identity Center instances for regions {regions}")
+    logger.info("Syncing Identity Center instances for regions %s", regions)
     for region in regions:
-        logger.info(f"Syncing Identity Center instances for region {region}")
+        logger.info("Syncing Identity Center instances for region %s", region)
         instances = get_identity_center_instances(boto3_session, region)
         load_identity_center_instances(
             neo4j_session,

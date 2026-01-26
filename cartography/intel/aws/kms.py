@@ -216,7 +216,7 @@ def load_kms_aliases(
     """
     Load KMS Aliases into Neo4j using the data model.
     """
-    logger.info(f"Loading {len(aliases)} KMS aliases for region {region} into graph.")
+    logger.info("Loading %s KMS aliases for region %s into graph.", len(aliases), region)
     load(
         neo4j_session,
         KMSAliasSchema(),
@@ -237,7 +237,7 @@ def load_kms_grants(
     """
     Load KMS Grants into Neo4j using the data model.
     """
-    logger.info(f"Loading {len(grants)} KMS grants into graph.")
+    logger.info("Loading %s KMS grants into graph.", len(grants))
     load(
         neo4j_session,
         KMSGrantSchema(),
@@ -275,7 +275,7 @@ def load_kms_keys(
     Load KMS Keys into Neo4j using the data model.
     Expects data to already be transformed by transform_kms_keys().
     """
-    logger.info(f"Loading {len(keys)} KMS keys for region {region} into graph.")
+    logger.info("Loading %s KMS keys for region %s into graph.", len(keys), region)
     load(
         neo4j_session,
         KMSKeySchema(),

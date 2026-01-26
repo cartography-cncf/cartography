@@ -155,7 +155,7 @@ def transform_record_set(
             }
     # This should never happen since we only call this for A and CNAME records,
     # but we'll log it and return None.
-    logger.warning(f"Unsupported record type: {record_set['Type']}")
+    logger.warning("Unsupported record type: %s", record_set['Type'])
     return None
 
 
@@ -179,7 +179,7 @@ def transform_ns_record_set(
     else:
         # This should never happen since we only call this for NS records
         # but we'll log it and return None.
-        logger.warning(f"NS record set missing ResourceRecords: {record_set}")
+        logger.warning("NS record set missing ResourceRecords: %s", record_set)
         return None
 
 

@@ -62,14 +62,15 @@ def get_storage_account_list(
     # ClientAuthenticationError and ResourceNotFoundError are subclasses under HttpResponseError
     except ClientAuthenticationError as e:
         logger.warning(
-            f"Client Authentication Error while retrieving storage accounts - {e}",
+            "Client Authentication Error while retrieving storage accounts - %s",
+            e,
         )
         return []
     except ResourceNotFoundError as e:
-        logger.warning(f"Storage Account not found error - {e}")
+        logger.warning("Storage Account not found error - %s", e)
         return []
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving storage accounts - {e}")
+        logger.warning("Error while retrieving storage accounts - %s", e)
         return []
 
     for storage_account in storage_account_list:
@@ -216,14 +217,15 @@ def get_queue_services(
 
     except ClientAuthenticationError as e:
         logger.warning(
-            f"Client Authentication Error while retrieving queue services - {e}",
+            "Client Authentication Error while retrieving queue services - %s",
+            e,
         )
         return []
     except ResourceNotFoundError as e:
-        logger.warning(f"Queue services resource not found error - {e}")
+        logger.warning("Queue services resource not found error - %s", e)
         return []
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving queue services list - {e}")
+        logger.warning("Error while retrieving queue services list - %s", e)
         return []
 
     return queue_service_list
@@ -247,14 +249,15 @@ def get_table_services(
 
     except ClientAuthenticationError as e:
         logger.warning(
-            f"Client Authentication Error while retrieving table services - {e}",
+            "Client Authentication Error while retrieving table services - %s",
+            e,
         )
         return []
     except ResourceNotFoundError as e:
-        logger.warning(f"Table services resource not found error - {e}")
+        logger.warning("Table services resource not found error - %s", e)
         return []
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving table services list - {e}")
+        logger.warning("Error while retrieving table services list - %s", e)
         return []
 
     return table_service_list
@@ -278,14 +281,15 @@ def get_file_services(
 
     except ClientAuthenticationError as e:
         logger.warning(
-            f"Client Authentication Error while retrieving file services - {e}",
+            "Client Authentication Error while retrieving file services - %s",
+            e,
         )
         return []
     except ResourceNotFoundError as e:
-        logger.warning(f"File services resource not found error - {e}")
+        logger.warning("File services resource not found error - %s", e)
         return []
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving file services list - {e}")
+        logger.warning("Error while retrieving file services list - %s", e)
         return []
 
     return file_service_list
@@ -314,14 +318,15 @@ def get_blob_services(
 
     except ClientAuthenticationError as e:
         logger.warning(
-            f"Client Authentication Error while retrieving blob services - {e}",
+            "Client Authentication Error while retrieving blob services - %s",
+            e,
         )
         return []
     except ResourceNotFoundError as e:
-        logger.warning(f"Blob services resource not found error - {e}")
+        logger.warning("Blob services resource not found error - %s", e)
         return []
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving blob services list - {e}")
+        logger.warning("Error while retrieving blob services list - %s", e)
         return []
 
     return blob_service_list
@@ -493,13 +498,13 @@ def get_queues(
         )
 
     except ClientAuthenticationError as e:
-        logger.warning(f"Client Authentication Error while retrieving queues - {e}")
+        logger.warning("Client Authentication Error while retrieving queues - %s", e)
         return []
     except ResourceNotFoundError as e:
-        logger.warning(f"Queue resource not found error - {e}")
+        logger.warning("Queue resource not found error - %s", e)
         return []
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving queues - {e}")
+        logger.warning("Error while retrieving queues - %s", e)
         return []
 
     return queues
@@ -599,13 +604,13 @@ def get_tables(
         )
 
     except ClientAuthenticationError as e:
-        logger.warning(f"Client Authentication Error while retrieving tables - {e}")
+        logger.warning("Client Authentication Error while retrieving tables - %s", e)
         return []
     except ResourceNotFoundError as e:
-        logger.warning(f"Table resource not found error - {e}")
+        logger.warning("Table resource not found error - %s", e)
         return []
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving tables - {e}")
+        logger.warning("Error while retrieving tables - %s", e)
         return []
 
     return tables
@@ -705,13 +710,13 @@ def get_shares(
         )
 
     except ClientAuthenticationError as e:
-        logger.warning(f"Client Authentication Error while retrieving tables - {e}")
+        logger.warning("Client Authentication Error while retrieving tables - %s", e)
         return []
     except ResourceNotFoundError as e:
-        logger.warning(f"Table resource not found error - {e}")
+        logger.warning("Table resource not found error - %s", e)
         return []
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving file shares - {e}")
+        logger.warning("Error while retrieving file shares - %s", e)
         return []
 
     return shares
@@ -816,14 +821,15 @@ def get_blob_containers(
 
     except ClientAuthenticationError as e:
         logger.warning(
-            f"Client Authentication Error while retrieving blob containers - {e}",
+            "Client Authentication Error while retrieving blob containers - %s",
+            e,
         )
         return []
     except ResourceNotFoundError as e:
-        logger.warning(f"Blob containers resource not found error - {e}")
+        logger.warning("Blob containers resource not found error - %s", e)
         return []
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving blob containers - {e}")
+        logger.warning("Error while retrieving blob containers - %s", e)
         return []
 
     return blob_containers

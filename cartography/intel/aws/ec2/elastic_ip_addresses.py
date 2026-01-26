@@ -31,7 +31,7 @@ def get_elastic_ip_addresses(
     try:
         addresses = client.describe_addresses()["Addresses"]
     except ClientError as e:
-        logger.warning(f"Failed retrieve address for region - {region}. Error - {e}")
+        logger.warning("Failed retrieve address for region - %s. Error - %s", region, e)
         raise
     return addresses
 

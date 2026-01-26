@@ -152,7 +152,7 @@ def sync(
     """
     The main sync function for Azure Function Apps.
     """
-    logger.info(f"Syncing Azure Function Apps for subscription {subscription_id}.")
+    logger.info("Syncing Azure Function Apps for subscription %s.", subscription_id)
     raw_apps = get_function_apps(credentials, subscription_id)
     transformed_apps = transform_function_apps(raw_apps)
     load_function_apps(neo4j_session, transformed_apps, subscription_id, update_tag)

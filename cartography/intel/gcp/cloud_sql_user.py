@@ -84,7 +84,7 @@ def sync_sql_users(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Cloud SQL Users for project {project_id}.")
+    logger.info("Syncing Cloud SQL Users for project %s.", project_id)
     all_users: list[dict] = []
 
     for inst in instances:

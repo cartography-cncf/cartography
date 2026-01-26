@@ -173,7 +173,9 @@ def load_gcp_service_accounts_cai(
     :param gcp_update_tag: The timestamp of the current sync run.
     """
     logger.debug(
-        f"Loading {len(service_accounts)} service accounts for project {project_id} via CAI"
+        "Loading %d service accounts for project %s via CAI",
+        len(service_accounts),
+        project_id,
     )
 
     load(
@@ -200,7 +202,7 @@ def load_gcp_roles_cai(
     :param project_id: The GCP Project ID.
     :param gcp_update_tag: The timestamp of the current sync run.
     """
-    logger.debug(f"Loading {len(roles)} roles for project {project_id} via CAI")
+    logger.debug("Loading %d roles for project %s via CAI", len(roles), project_id)
 
     load(
         neo4j_session,
@@ -224,7 +226,7 @@ def cleanup(
     :param project_id: The GCP Project ID to clean up resources for.
     :param common_job_parameters: Common job parameters for cleanup.
     """
-    logger.debug(f"Running GCP IAM cleanup job (CAI) for project {project_id}")
+    logger.debug("Running GCP IAM cleanup job (CAI) for project %s", project_id)
     job_params = {
         **common_job_parameters,
         "projectId": project_id,
@@ -260,11 +262,13 @@ def sync(
         Since predefined roles are global (not project-specific), they can be fetched once
         and reused across all target projects.
     """
-    logger.info(f"Syncing GCP IAM for project {project_id} via Cloud Asset Inventory")
+    logger.info("Syncing GCP IAM for project %s via Cloud Asset Inventory", project_id)
 
     service_accounts_raw = get_gcp_service_accounts_cai(cai_client, project_id)
     logger.info(
-        f"Found {len(service_accounts_raw)} service accounts in project {project_id} via CAI"
+        "Found %d service accounts in project %s via CAI",
+        len(service_accounts_raw),
+        project_id,
     )
     service_accounts = transform_gcp_service_accounts_cai(
         service_accounts_raw, project_id
@@ -278,12 +282,12 @@ def sync(
 
     # Get custom roles from CAI
     roles_raw = get_gcp_roles_cai(cai_client, project_id)
-    logger.info(f"Found {len(roles_raw)} custom roles in project {project_id} via CAI")
+    logger.info("Found %d custom roles in project %s via CAI", len(roles_raw), project_id)
 
     # Merge with predefined roles if provided (fetched once from IAM API and reused)
     if predefined_roles:
         roles_raw.extend(predefined_roles)
-        logger.info(f"Added {len(predefined_roles)} predefined roles from IAM API")
+        logger.info("Added %d predefined roles from IAM API", len(predefined_roles))
 
     roles = transform_gcp_roles_cai(roles_raw, project_id)
     load_gcp_roles_cai(neo4j_session, roles, project_id, gcp_update_tag)

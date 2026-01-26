@@ -44,7 +44,9 @@ def get_aks_clusters(
         return [cluster.as_dict() for cluster in client.managed_clusters.list()]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(
-            f"Failed to get AKS clusters for subscription {subscription_id}: {str(e)}"
+            "Failed to get AKS clusters for subscription %s: %s",
+            subscription_id,
+            e,
         )
         return []
 
@@ -62,7 +64,9 @@ def get_agent_pools(
         ]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(
-            f"Failed to get agent pools for cluster {cluster_name}: {str(e)}"
+            "Failed to get agent pools for cluster %s: %s",
+            cluster_name,
+            e,
         )
         return []
 
@@ -177,7 +181,7 @@ def sync(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Azure Kubernetes Service for subscription {subscription_id}.")
+    logger.info("Syncing Azure Kubernetes Service for subscription %s.", subscription_id)
     client = ContainerServiceClient(credentials.credential, subscription_id)
 
     clusters = get_aks_clusters(client, subscription_id)

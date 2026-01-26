@@ -631,7 +631,7 @@ def ensure_indexes_for_matchlinks(
     This is not used for CartographyNodeSchema objects.
     """
     queries = build_create_index_queries_for_matchlink(rel_schema)
-    logger.debug(f"CREATE INDEX queries for {rel_schema.rel_label}: {queries}")
+    logger.debug("CREATE INDEX queries for %s: %s", rel_schema.rel_label, queries)
     for query in queries:
         if not query.startswith("CREATE INDEX IF NOT EXISTS"):
             raise ValueError(
@@ -706,7 +706,7 @@ def load_matchlinks(
 
     ensure_indexes_for_matchlinks(neo4j_session, rel_schema)
     matchlink_query = build_matchlink_query(rel_schema)
-    logger.debug(f"Matchlink query: {matchlink_query}")
+    logger.debug("Matchlink query: %s", matchlink_query)
     load_graph_data(
         neo4j_session, matchlink_query, dict_list, batch_size=batch_size, **kwargs
     )

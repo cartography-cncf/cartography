@@ -1383,7 +1383,8 @@ class CLI:
         # Airbyte config
         if config.airbyte_client_id and config.airbyte_client_secret_env_var:
             logger.debug(
-                f"Reading Airbyte client secret from environment variable {config.airbyte_client_secret_env_var}",
+                "Reading Airbyte client secret from environment variable %s",
+                config.airbyte_client_secret_env_var,
             )
             config.airbyte_client_secret = os.environ.get(
                 config.airbyte_client_secret_env_var,
@@ -1393,18 +1394,19 @@ class CLI:
 
         # Trivy config
         if config.trivy_s3_bucket:
-            logger.debug(f"Trivy S3 bucket: {config.trivy_s3_bucket}")
+            logger.debug("Trivy S3 bucket: %s", config.trivy_s3_bucket)
 
         if config.trivy_s3_prefix:
-            logger.debug(f"Trivy S3 prefix: {config.trivy_s3_prefix}")
+            logger.debug("Trivy S3 prefix: %s", config.trivy_s3_prefix)
 
         if config.trivy_results_dir:
-            logger.debug(f"Trivy results dir: {config.trivy_results_dir}")
+            logger.debug("Trivy results dir: %s", config.trivy_results_dir)
 
         # Scaleway config
         if config.scaleway_secret_key_env_var:
             logger.debug(
-                f"Reading Scaleway secret key from environment variable {config.scaleway_secret_key_env_var}",
+                "Reading Scaleway secret key from environment variable %s",
+                config.scaleway_secret_key_env_var,
             )
             config.scaleway_secret_key = os.environ.get(
                 config.scaleway_secret_key_env_var,

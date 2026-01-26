@@ -92,7 +92,7 @@ def get_users(token: str, api_url: str, organization: str) -> Tuple[List[Dict], 
         2. data on the owning GitHub organization
         see tests.data.github.users.GITHUB_USER_DATA for shape of both
     """
-    logger.info(f"Retrieving users from GitHub organization {organization}")
+    logger.info("Retrieving users from GitHub organization %s", organization)
     users, org = fetch_all(
         token,
         api_url,
@@ -119,7 +119,7 @@ def get_enterprise_owners(
         3. data on the owning GitHub organization
         see tests.data.github.users.GITHUB_ENTERPRISE_OWNER_DATA for shape
     """
-    logger.info(f"Retrieving enterprise owners from GitHub organization {organization}")
+    logger.info("Retrieving enterprise owners from GitHub organization %s", organization)
     owners, org = fetch_all(
         token,
         api_url,
@@ -197,7 +197,7 @@ def load_users(
     org_data: Dict,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(user_data)} GitHub users to the graph")
+    logger.info("Loading %s GitHub users to the graph", len(user_data))
     load(
         neo4j_session,
         node_schema,
@@ -214,7 +214,7 @@ def load_organization(
     org_data: List[Dict[str, Any]],
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(org_data)} GitHub organization to the graph")
+    logger.info("Loading %s GitHub organization to the graph", len(org_data))
     load(
         neo4j_session,
         node_schema,

@@ -35,7 +35,7 @@ def get_worker_pools(
     response = call_spacelift_api(session, api_endpoint, GET_WORKER_POOLS_QUERY)
     worker_pools_data = response.get("data", {}).get("workerPools", [])
 
-    logger.info(f"Retrieved {len(worker_pools_data)} Spacelift worker pools")
+    logger.info("Retrieved %s Spacelift worker pools", len(worker_pools_data))
     return worker_pools_data
 
 
@@ -56,7 +56,7 @@ def transform_worker_pools(
 
         result.append(transformed_pool)
 
-    logger.info(f"Transformed {len(result)} worker pools")
+    logger.info("Transformed %s worker pools", len(result))
     return result
 
 
@@ -77,7 +77,7 @@ def load_worker_pools(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(worker_pools_data)} Spacelift worker pools")
+    logger.info("Loaded %s Spacelift worker pools", len(worker_pools_data))
 
 
 @timeit
@@ -128,4 +128,4 @@ def sync_worker_pools(
     # 4. CLEANUP - Remove stale data
     cleanup_worker_pools(neo4j_session, common_job_parameters)
 
-    logger.info(f"Synced {len(transformed_worker_pools)} Spacelift worker pools")
+    logger.info("Synced %s Spacelift worker pools", len(transformed_worker_pools))

@@ -46,7 +46,7 @@ def get_topic_attributes(
     try:
         return client.get_topic_attributes(TopicArn=topic_arn)
     except Exception as e:
-        logger.warning(f"Error getting attributes for SNS topic {topic_arn}: {e}")
+        logger.warning("Error getting attributes for SNS topic %s: %s", topic_arn, e)
         return None
 
 
@@ -98,7 +98,7 @@ def load_sns_topics(
     """
     Load SNS Topics information into the graph
     """
-    logger.info(f"Loading {len(data)} SNS topics for region {region} into graph.")
+    logger.info("Loading %s SNS topics for region %s into graph.", len(data), region)
 
     load(
         neo4j_session,

@@ -58,7 +58,7 @@ def get_oauth_tokens_for_user(admin: Resource, user_id: str) -> list[dict]:
             # User has no OAuth tokens, this is normal
             return []
         else:
-            logger.warning(f"Error fetching OAuth tokens for user: {e}")
+            logger.warning("Error fetching OAuth tokens for user: %s", e)
         return []
 
 
@@ -77,7 +77,7 @@ def get_all_oauth_tokens(admin: Resource, user_ids: list[str]) -> list[dict]:
         tokens = get_oauth_tokens_for_user(admin, user_id)
         all_tokens.extend(tokens)
 
-    logger.debug(f"Retrieved {len(all_tokens)} OAuth tokens for {len(user_ids)} users")
+    logger.debug("Retrieved %s OAuth tokens for %s users", len(all_tokens), len(user_ids))
     return all_tokens
 
 

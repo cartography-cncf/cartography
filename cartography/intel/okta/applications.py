@@ -40,7 +40,7 @@ def _get_okta_applications(api_client: ApiClient) -> List[Dict]:
                 }
                 paged_response = api_client.get_path("/", params)
         except OktaError as okta_error:
-            logger.debug(f"Got error while listing applications {okta_error}")
+            logger.debug("Got error while listing applications %s", okta_error)
             break
 
         app_list.extend(json.loads(paged_response.text))
