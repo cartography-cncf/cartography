@@ -33,14 +33,12 @@ def sync(
     load_policies(neo4j_session, formatted_policies, org_id, update_tag)
 
     # Get and load rules for each policy
-    policy_ids = []
     for policy in policies:
-        policy_ids.append(policy.id)
         rules = get_rules(api, policy.id)
-        formatted_rules = transform_rules(rules)
-        load_rules(neo4j_session, formatted_rules, policy.id, update_tag)
+        formatted_rules = transform_rules(rules, policy.id)
+        load_rules(neo4j_session, formatted_rules, org_id, update_tag)
 
-    cleanup(neo4j_session, policy_ids, common_job_parameters)
+    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -67,10 +65,11 @@ def transform_policies(policies: list[Policy]) -> list[dict[str, Any]]:
     return formatted_policies
 
 
-def transform_rules(rules: list[Rule]) -> list[dict[str, Any]]:
+def transform_rules(rules: list[Rule], policy_id: str) -> list[dict[str, Any]]:
     formatted_rules = []
     for rule in rules:
         formatted_rule = scaleway_obj_to_dict(rule)
+        formatted_rule["policy_id"] = policy_id
         # Convert permission_sets_scope_type enum to string
         if formatted_rule.get("permission_sets_scope_type"):
             formatted_rule["permission_sets_scope_type"] = str(
@@ -101,38 +100,32 @@ def load_policies(
 def load_rules(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
-    policy_id: str,
+    org_id: str,
     update_tag: int,
 ) -> None:
     if not data:
         return
     logger.info(
-        "Loading %d Scaleway Rules for policy '%s' into Neo4j.",
+        "Loading %d Scaleway Rules into Neo4j.",
         len(data),
-        policy_id,
     )
     load(
         neo4j_session,
         ScalewayRuleSchema(),
         data,
         lastupdated=update_tag,
-        POLICY_ID=policy_id,
+        ORG_ID=org_id,
     )
 
 
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
-    policy_ids: list[str],
     common_job_parameters: dict[str, Any],
 ) -> None:
     GraphJob.from_node_schema(ScalewayPolicySchema(), common_job_parameters).run(
         neo4j_session
     )
-    # Rules need per-policy cleanup since POLICY_ID is the sub_resource_relationship
-    for policy_id in policy_ids:
-        scoped_job_parameters = common_job_parameters.copy()
-        scoped_job_parameters["POLICY_ID"] = policy_id
-        GraphJob.from_node_schema(ScalewayRuleSchema(), scoped_job_parameters).run(
-            neo4j_session
-        )
+    GraphJob.from_node_schema(ScalewayRuleSchema(), common_job_parameters).run(
+        neo4j_session
+    )

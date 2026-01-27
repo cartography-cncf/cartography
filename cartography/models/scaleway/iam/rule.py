@@ -22,6 +22,25 @@ class ScalewayRuleNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class ScalewayRuleToOrganizationRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayRule)
+class ScalewayRuleToOrganizationRel(CartographyRelSchema):
+    target_node_label: str = "ScalewayOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ORG_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: ScalewayRuleToOrganizationRelProperties = (
+        ScalewayRuleToOrganizationRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class ScalewayRuleToPolicyRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -31,7 +50,7 @@ class ScalewayRuleToPolicyRelProperties(CartographyRelProperties):
 class ScalewayRuleToPolicyRel(CartographyRelSchema):
     target_node_label: str = "ScalewayPolicy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("POLICY_ID", set_in_kwargs=True)},
+        {"id": PropertyRef("policy_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS"
@@ -61,9 +80,12 @@ class ScalewayRuleToProjectRel(CartographyRelSchema):
 class ScalewayRuleSchema(CartographyNodeSchema):
     label: str = "ScalewayRule"
     properties: ScalewayRuleNodeProperties = ScalewayRuleNodeProperties()
-    sub_resource_relationship: ScalewayRuleToPolicyRel = ScalewayRuleToPolicyRel()
+    sub_resource_relationship: ScalewayRuleToOrganizationRel = (
+        ScalewayRuleToOrganizationRel()
+    )
     other_relationships: Optional[OtherRelationships] = OtherRelationships(
         [
+            ScalewayRuleToPolicyRel(),
             ScalewayRuleToProjectRel(),
         ]
     )
