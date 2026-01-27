@@ -24,7 +24,10 @@ def get_services(
 
     Returns:
         list[dict]: List of Cloud Run services (empty list if project has no services)
-        None: If API access is denied or API is not enabled (to signal that sync should be skipped)
+        None: If the Cloud Run Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
     """
     try:
         services: list[dict] = []

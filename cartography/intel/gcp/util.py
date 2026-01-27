@@ -130,6 +130,9 @@ def is_api_disabled_error(e: HttpError) -> bool:
         return err.get("status", "") == "PERMISSION_DENIED" or (
             err.get("message") and "API has not been used" in err.get("message")
         )
-    except (ValueError, KeyError, AttributeError):
-        # If we can't parse the error, assume it's not an API disabled error
+    except (ValueError, KeyError, AttributeError) as parse_error:
+        logger.debug(
+            "Failed to parse HttpError response as JSON: %s. Treating as non-API-disabled error.",
+            parse_error,
+        )
         return False

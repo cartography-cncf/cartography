@@ -21,7 +21,10 @@ def get_bigtable_app_profiles(client: Resource, instance_id: str) -> list[dict] 
 
     Returns:
         list[dict]: List of Bigtable app profiles (empty list if instance has no app profiles)
-        None: If API access is denied or API is not enabled (to signal that sync should be skipped)
+        None: If the Bigtable Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
     """
     try:
         app_profiles: list[dict] = []

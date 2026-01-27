@@ -22,7 +22,10 @@ def get_sql_instances(client: Resource, project_id: str) -> list[dict] | None:
 
     Returns:
         list[dict]: List of SQL instances (empty list if project has no instances)
-        None: If API access is denied or API is not enabled (to signal that sync should be skipped)
+        None: If the Cloud SQL Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
     """
     instances: list[dict] = []
     try:

@@ -29,7 +29,9 @@ def get_docker_images(client: Resource, repository_name: str) -> list[dict] | No
 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of Docker image dicts from the API, or None if API is not enabled.
+    :return: List of Docker image dicts from the API, or None if the Artifact Registry API
+             is not enabled or access is denied.
+    :raises HttpError: For errors other than API disabled or permission denied.
     """
     try:
         images: list[dict] = []
@@ -72,7 +74,9 @@ def get_maven_artifacts(client: Resource, repository_name: str) -> list[dict] | 
 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of Maven artifact dicts from the API, or None if API is not enabled.
+    :return: List of Maven artifact dicts from the API, or None if the Artifact Registry API
+             is not enabled or access is denied.
+    :raises HttpError: For errors other than API disabled or permission denied.
     """
     try:
         artifacts: list[dict] = []
@@ -115,7 +119,9 @@ def get_npm_packages(client: Resource, repository_name: str) -> list[dict] | Non
 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of npm package dicts from the API, or None if API is not enabled.
+    :return: List of npm package dicts from the API, or None if the Artifact Registry API
+             is not enabled or access is denied.
+    :raises HttpError: For errors other than API disabled or permission denied.
     """
     try:
         packages: list[dict] = []

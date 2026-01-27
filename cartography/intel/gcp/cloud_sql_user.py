@@ -23,7 +23,10 @@ def get_sql_users(
 
     Returns:
         list[dict]: List of SQL users (empty list if instance has no users)
-        None: If API access is denied or API is not enabled (to signal that sync should be skipped)
+        None: If the Cloud SQL Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
     """
     try:
         users: list[dict] = []

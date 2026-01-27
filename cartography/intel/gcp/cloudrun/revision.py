@@ -24,7 +24,10 @@ def get_revisions(
 
     Returns:
         list[dict]: List of Cloud Run revisions (empty list if project has no revisions)
-        None: If API access is denied or API is not enabled (to signal that sync should be skipped)
+        None: If the Cloud Run Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
     """
     try:
         revisions: list[dict] = []
