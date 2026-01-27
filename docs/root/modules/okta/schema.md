@@ -282,7 +282,7 @@ Representation of an [Okta Administration Role](https://developer.okta.com/docs/
     (OktaOrganization)-[RESOURCE]->(OktaAdministrationRole)
     ```
 
-### Reply Uri
+### ReplyUri
 
 Representation of [Okta Application ReplyUri](https://developer.okta.com/docs/reference/api/apps/).
 

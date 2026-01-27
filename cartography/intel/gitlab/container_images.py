@@ -115,11 +115,12 @@ def get_container_images(
         project_id = repo.get("project_id")
         repository_id = repo.get("id")
 
-        if not all([location, project_id, repository_id]):
-            logger.debug(f"Repository missing required fields: {repo}")
+        if not location or not project_id or not repository_id:
+            logger.warning(f"Repository missing required fields: {repo}")
             continue
 
-        # Type narrowing after the guard check
+        # Parse location into registry URL and repository name
+        # e.g., "registry.gitlab.com/group/project" -> ("https://registry.gitlab.com", "group/project")
         location = str(location)
         registry_url, repository_name = _parse_repository_location(location)
 
@@ -138,6 +139,7 @@ def get_container_images(
             tag_name = tag.get("name")
             if not tag_name:
                 continue
+
             manifest = _get_manifest(
                 gitlab_url, registry_url, repository_name, tag_name, token
             )  # can return an image or a manifest list
@@ -312,9 +314,8 @@ def load_container_images(
     update_tag: int,
 ) -> None:
     """
-    Load GitLab container images into the graph.
+    Load container images into the graph.
     """
-    logger.info(f"Loading {len(images)} container images for {org_url}")
     load(
         neo4j_session,
         GitLabContainerImageSchema(),
@@ -330,13 +331,11 @@ def cleanup_container_images(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Remove stale GitLab container images from the graph.
+    Clean up stale container images using the GraphJob framework.
     """
-    logger.info("Running GitLab container images cleanup")
-    GraphJob.from_node_schema(
-        GitLabContainerImageSchema(),
-        common_job_parameters,
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(GitLabContainerImageSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -351,15 +350,13 @@ def sync_container_images(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Sync GitLab container images for an organization.
-    """
-    logger.info(f"Syncing container images for organization {org_url}")
 
+    Returns (manifests, manifest_lists) for use by attestations module.
+    """
     raw_manifests, manifest_lists = get_container_images(
         gitlab_url, token, repositories
     )
-
-    transformed = transform_container_images(raw_manifests)
-    load_container_images(neo4j_session, transformed, org_url, update_tag)
+    images = transform_container_images(raw_manifests)
+    load_container_images(neo4j_session, images, org_url, update_tag)
     cleanup_container_images(neo4j_session, common_job_parameters)
-
     return raw_manifests, manifest_lists
