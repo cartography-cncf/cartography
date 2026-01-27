@@ -85,10 +85,14 @@ def get_executions(
                         )
                     )
             except HttpError as e:
-                logger.warning(
-                    f"Failed to list Cloud Run jobs/executions in {loc_name}: {e}. Skipping location.",
-                )
-                continue
+                # Only skip 403 permission errors (e.g., restricted regions)
+                # Re-raise other errors (429, 500, etc.) to surface systemic failures
+                if e.resp.status == 403:
+                    logger.warning(
+                        f"Permission denied listing Cloud Run jobs/executions in {loc_name}. Skipping location.",
+                    )
+                    continue
+                raise
 
         return executions
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
