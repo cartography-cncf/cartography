@@ -5,6 +5,7 @@ This module provides helpers to handle transient errors from GCP APIs,
 including both network-level errors and HTTP 5xx server errors.
 """
 
+import json
 import logging
 from typing import Any
 from typing import Dict
@@ -110,3 +111,25 @@ def gcp_api_execute_with_retry(request: Any) -> Any:
     :raises HttpError: If the API call fails after all retries or with a non-retryable error
     """
     return _gcp_execute(request)
+
+
+def is_api_disabled_error(e: HttpError) -> bool:
+    """
+    Check if an HttpError indicates that a GCP API is not enabled or access is denied.
+
+    This utility helps modules gracefully handle scenarios where:
+    1. An API has not been enabled on the project/quota project
+    2. The caller lacks permission to use the API
+
+    :param e: The HttpError exception to check
+    :return: True if the error indicates API is disabled or access denied, False otherwise
+    """
+    try:
+        error_json = json.loads(e.content.decode("utf-8"))
+        err = error_json.get("error", {})
+        return err.get("status", "") == "PERMISSION_DENIED" or (
+            err.get("message") and "API has not been used" in err.get("message")
+        )
+    except (ValueError, KeyError, AttributeError):
+        # If we can't parse the error, assume it's not an API disabled error
+        return False
