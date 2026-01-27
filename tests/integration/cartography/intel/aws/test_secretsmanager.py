@@ -180,16 +180,7 @@ def test_sync_secretsmanager_no_versions(
 @patch.object(
     cartography.intel.aws.secretsmanager,
     "get_secret_versions",
-    # Initial list has singular KmsKeyId, we need to modify it to use plural KmsKeyIds with UUID
-    return_value=[
-        {
-            **tests.data.aws.secretsmanager.LIST_SECRET_VERSIONS[0],
-            "KmsKeyIds": [
-                "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000"
-            ],
-            "KmsKeyId": None,  # clear singular to ensure we rely on plural
-        }
-    ],
+    return_value=copy.deepcopy(tests.data.aws.secretsmanager.LIST_SECRET_VERSIONS[:1]),
 )
 def test_secret_version_kms_key_relationship(
     mock_get_versions, mock_get_secrets, mock_dict_date, neo4j_session
@@ -234,8 +225,7 @@ def test_secret_version_kms_key_relationship(
     )
 
     # Verify relationship to KMS Key
-    # Note: We now match on KMSKey.id (UUID), but check_rels can verify using any property.
-    # We verify that the version connects to the key with the expected ARN.
+    # The relationship matches on KMSKey.arn using the ARN from kms_key_ids.
     assert check_rels(
         neo4j_session,
         "SecretsManagerSecretVersion",
