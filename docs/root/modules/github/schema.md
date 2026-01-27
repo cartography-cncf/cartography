@@ -16,8 +16,11 @@ R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
 R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
 R -- HAS_RULESET --> RS(GitHubRuleset)
+O -- RESOURCE --> RS
 RS -- CONTAINS_RULE --> RR(GitHubRulesetRule)
+O -- RESOURCE --> RR
 RS -- ALLOWS_BYPASS --> BA(GitHubRulesetBypassActor)
+O -- RESOURCE --> BA
 R -- REQUIRES --> D(Dependency)
 R -- HAS_MANIFEST --> M(DependencyGraphManifest)
 M -- HAS_DEP --> D
@@ -358,6 +361,12 @@ Representation of a GitHub Repository Ruleset [RepositoryRuleset object](https:/
 
 #### Relationships
 
+- GitHubOrganizations own GitHubRulesets (used for cleanup).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRuleset)
+    ```
+
 - GitHubRepositories have GitHubRulesets.
 
     ```
@@ -392,6 +401,12 @@ Representation of a rule within a GitHub Repository Ruleset [RepositoryRule unio
 
 #### Relationships
 
+- GitHubOrganizations own GitHubRulesetRules (used for cleanup).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetRule)
+    ```
+
 - GitHubRulesets contain GitHubRulesetRules.
 
     ```
@@ -417,6 +432,12 @@ Representation of a bypass actor for a GitHub Repository Ruleset [RepositoryRule
 
 
 #### Relationships
+
+- GitHubOrganizations own GitHubRulesetBypassActors (used for cleanup).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetBypassActor)
+    ```
 
 - GitHubRulesets allow bypass by GitHubRulesetBypassActors.
 

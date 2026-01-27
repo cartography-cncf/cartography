@@ -13,6 +13,7 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://fake.github.net/graphql/"
+TEST_ORG_URL = "https://github.com/simpsoncorp"
 
 
 def _ensure_local_neo4j_has_test_data(neo4j_session):
@@ -25,6 +26,7 @@ def _ensure_local_neo4j_has_test_data(neo4j_session):
         neo4j_session,
         TEST_JOB_PARAMS,
         repo_data,
+        TEST_ORG_URL,
     )
 
 

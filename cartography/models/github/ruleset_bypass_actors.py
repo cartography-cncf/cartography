@@ -14,6 +14,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -62,11 +63,37 @@ class GitHubRulesetBypassActorToRulesetRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitHubRulesetBypassActorToOrganizationRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubRulesetBypassActorToOrganizationRel(CartographyRelSchema):
+    """
+    Relationship: (GitHubOrganization)-[:RESOURCE]->(GitHubRulesetBypassActor)
+    Used for cleanup - bypass actors belong to an organization.
+    """
+
+    target_node_label: str = "GitHubOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("org_url", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GitHubRulesetBypassActorToOrganizationRelProperties = (
+        GitHubRulesetBypassActorToOrganizationRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitHubRulesetBypassActorSchema(CartographyNodeSchema):
     label: str = "GitHubRulesetBypassActor"
     properties: GitHubRulesetBypassActorNodeProperties = (
         GitHubRulesetBypassActorNodeProperties()
     )
-    sub_resource_relationship: GitHubRulesetBypassActorToRulesetRel = (
-        GitHubRulesetBypassActorToRulesetRel()
+    sub_resource_relationship: GitHubRulesetBypassActorToOrganizationRel = (
+        GitHubRulesetBypassActorToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitHubRulesetBypassActorToRulesetRel()]
     )

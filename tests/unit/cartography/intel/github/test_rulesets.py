@@ -6,6 +6,7 @@ import json
 
 from cartography.intel.github.repos import _transform_rulesets
 from tests.data.github.rulesets import NO_RULESETS
+from tests.data.github.rulesets import RULESET_BOOLEAN_ACTORS
 from tests.data.github.rulesets import RULESET_EVALUATE
 from tests.data.github.rulesets import RULESET_PRODUCTION
 from tests.data.github.rulesets import RULESET_TAGS
@@ -228,3 +229,53 @@ def test_transform_rulesets_enforcement_modes():
     enforcements = {r["enforcement"] for r in output_rulesets}
     assert "ACTIVE" in enforcements
     assert "EVALUATE" in enforcements
+
+
+def test_transform_rulesets_boolean_bypass_actors():
+    """
+    Test that boolean bypass actor types are correctly transformed.
+    Tests organizationAdmin, enterpriseOwner, deployKey, and repositoryRoleName.
+    """
+    output_rulesets = []
+    output_rules = []
+    output_bypass_actors = []
+
+    _transform_rulesets(
+        [RULESET_BOOLEAN_ACTORS],
+        TEST_REPO_URL,
+        output_rulesets,
+        output_rules,
+        output_bypass_actors,
+    )
+
+    assert len(output_rulesets) == 1
+    assert len(output_bypass_actors) == 4
+
+    org_admin = next(
+        a for a in output_bypass_actors if a["actor_type"] == "OrganizationAdmin"
+    )
+    assert org_admin["id"] == "RBA_kwDOBypassOrgAdmin"
+    assert org_admin["bypass_mode"] == "ALWAYS"
+    assert org_admin["actor_id"] is None
+    assert org_admin["actor_name"] is None
+
+    ent_owner = next(
+        a for a in output_bypass_actors if a["actor_type"] == "EnterpriseOwner"
+    )
+    assert ent_owner["id"] == "RBA_kwDOBypassEntOwner"
+    assert ent_owner["bypass_mode"] == "ALWAYS"
+    assert ent_owner["actor_id"] is None
+
+    deploy_key = next(a for a in output_bypass_actors if a["actor_type"] == "DeployKey")
+    assert deploy_key["id"] == "RBA_kwDOBypassDeployKey"
+    assert deploy_key["bypass_mode"] == "PULL_REQUEST"
+    assert deploy_key["actor_id"] is None
+
+    repo_role = next(
+        a for a in output_bypass_actors if a["actor_type"] == "RepositoryRole"
+    )
+    assert repo_role["id"] == "RBA_kwDOBypassRepoRole"
+    assert repo_role["bypass_mode"] == "ALWAYS"
+    assert repo_role["actor_name"] == "maintain"
+    assert repo_role["actor_database_id"] == 12345
+    assert repo_role["actor_id"] is None

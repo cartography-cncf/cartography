@@ -1011,8 +1011,11 @@ def _transform_rulesets(
             }
         )
 
-        rules_data = ruleset.get("rules", {}).get("nodes", [])
+        rules = ruleset.get("rules")
+        rules_data = rules.get("nodes", []) if rules else []
         for rule in rules_data:
+            if rule is None:
+                continue
             parameters = rule.get("parameters")
             parameters_json = json.dumps(parameters) if parameters is not None else None
 
@@ -1493,6 +1496,7 @@ def load_rulesets(
     rulesets: List[Dict],
     ruleset_rules: List[Dict],
     ruleset_bypass_actors: List[Dict],
+    org_url: str,
 ) -> None:
     """
     Ingest GitHub repository rulesets and their associated rules and bypass actors into Neo4j.
@@ -1501,6 +1505,7 @@ def load_rulesets(
     :param rulesets: List of ruleset objects from GitHub's rulesets API
     :param ruleset_rules: List of rule objects associated with rulesets
     :param ruleset_bypass_actors: List of bypass actor objects associated with rulesets
+    :param org_url: The URL of the GitHub organization
     :return: Nothing
     """
     rules_by_ruleset = defaultdict(list)
@@ -1528,6 +1533,7 @@ def load_rulesets(
             repo_rulesets,
             lastupdated=update_tag,
             repo_url=repo_url,
+            org_url=org_url,
         )
 
     for ruleset_id, rules in rules_by_ruleset.items():
@@ -1537,6 +1543,7 @@ def load_rulesets(
             rules,
             lastupdated=update_tag,
             ruleset_id=ruleset_id,
+            org_url=org_url,
         )
 
     for ruleset_id, actors in bypass_actors_by_ruleset.items():
@@ -1546,6 +1553,7 @@ def load_rulesets(
             actors,
             lastupdated=update_tag,
             ruleset_id=ruleset_id,
+            org_url=org_url,
         )
 
 
@@ -1553,40 +1561,22 @@ def load_rulesets(
 def cleanup_rulesets(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-    repo_urls: List[str],
+    org_url: str,
 ) -> None:
     """
     Delete GitHub rulesets and their child resources from the graph if they were not updated in the last sync.
     :param neo4j_session: Neo4j session
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
-    :param repo_urls: List of repository URLs to clean up rulesets for
+    :param org_url: The URL of the GitHub organization
     """
-    for repo_url in repo_urls:
-        # Get all rulesets for this repo to clean up their children
-        result = neo4j_session.run(
-            """
-            MATCH (repo:GitHubRepository {id: $repo_url})-[:HAS_RULESET]->(ruleset:GitHubRuleset)
-            RETURN ruleset.id as ruleset_id
-            """,
-            repo_url=repo_url,
-        )
-        ruleset_ids = [record["ruleset_id"] for record in result]
-
-        # Clean up child resources for each ruleset
-        for ruleset_id in ruleset_ids:
-            cleanup_params = {**common_job_parameters, "ruleset_id": ruleset_id}
-            GraphJob.from_node_schema(
-                GitHubRulesetBypassActorSchema(), cleanup_params
-            ).run(neo4j_session)
-            GraphJob.from_node_schema(GitHubRulesetRuleSchema(), cleanup_params).run(
-                neo4j_session
-            )
-
-        # Clean up the rulesets themselves
-        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-        GraphJob.from_node_schema(GitHubRulesetSchema(), cleanup_params).run(
-            neo4j_session
-        )
+    cleanup_params = {**common_job_parameters, "org_url": org_url}
+    GraphJob.from_node_schema(GitHubRulesetBypassActorSchema(), cleanup_params).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(GitHubRulesetRuleSchema(), cleanup_params).run(
+        neo4j_session
+    )
+    GraphJob.from_node_schema(GitHubRulesetSchema(), cleanup_params).run(neo4j_session)
 
 
 @timeit
@@ -1594,6 +1584,7 @@ def load(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict,
     repo_data: Dict,
+    org_url: str,
 ) -> None:
     load_github_repos(
         neo4j_session,
@@ -1648,6 +1639,7 @@ def load(
         repo_data["rulesets"],
         repo_data["ruleset_rules"],
         repo_data["ruleset_bypass_actors"],
+        org_url,
     )
 
 
@@ -1693,7 +1685,8 @@ def sync(
             exc_info=True,
         )
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
-    load(neo4j_session, common_job_parameters, repo_data)
+    org_url = f"https://github.com/{organization}"
+    load(neo4j_session, common_job_parameters, repo_data, org_url)
 
     # Collect repository URLs that have dependencies for cleanup
     repo_urls_with_dependencies = list(
@@ -1719,9 +1712,6 @@ def sync(
         neo4j_session, common_job_parameters, repo_urls_with_branch_protection_rules
     )
 
-    repo_urls_with_rulesets = list(
-        {ruleset["repo_url"] for ruleset in repo_data["rulesets"]}
-    )
-    cleanup_rulesets(neo4j_session, common_job_parameters, repo_urls_with_rulesets)
+    cleanup_rulesets(neo4j_session, common_job_parameters, org_url)
 
     run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)

@@ -132,6 +132,61 @@ RULESET_TAGS = {
     },
 }
 
+RULESET_BOOLEAN_ACTORS = {
+    "id": "RRS_kwDOBoolActors001",
+    "databaseId": 9999999,
+    "name": "Boolean Actors Ruleset",
+    "target": "BRANCH",
+    "source": {},
+    "enforcement": "ACTIVE",
+    "createdAt": "2025-01-20T10:00:00Z",
+    "updatedAt": "2025-01-20T10:00:00Z",
+    "conditions": {
+        "refName": {
+            "include": ["~DEFAULT_BRANCH"],
+            "exclude": [],
+        },
+    },
+    "rules": {
+        "nodes": [
+            {
+                "id": "RRU_kwDORule301",
+                "type": "DELETION",
+                "parameters": None,
+            },
+        ],
+    },
+    "bypassActors": {
+        "nodes": [
+            {
+                "id": "RBA_kwDOBypassOrgAdmin",
+                "bypassMode": "ALWAYS",
+                "organizationAdmin": True,
+                "actor": None,
+            },
+            {
+                "id": "RBA_kwDOBypassEntOwner",
+                "bypassMode": "ALWAYS",
+                "enterpriseOwner": True,
+                "actor": None,
+            },
+            {
+                "id": "RBA_kwDOBypassDeployKey",
+                "bypassMode": "PULL_REQUEST",
+                "deployKey": True,
+                "actor": None,
+            },
+            {
+                "id": "RBA_kwDOBypassRepoRole",
+                "bypassMode": "ALWAYS",
+                "repositoryRoleName": "maintain",
+                "repositoryRoleDatabaseId": 12345,
+                "actor": None,
+            },
+        ],
+    },
+}
+
 RULESETS_DATA: list[dict[str, Any]] = [
     RULESET_PRODUCTION,
     RULESET_EVALUATE,

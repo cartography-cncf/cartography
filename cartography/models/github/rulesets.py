@@ -14,6 +14,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -68,9 +69,35 @@ class GitHubRulesetToRepositoryRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitHubRulesetToOrganizationRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubRulesetToOrganizationRel(CartographyRelSchema):
+    """
+    Relationship: (GitHubOrganization)-[:RESOURCE]->(GitHubRuleset)
+    Used for cleanup - rulesets belong to an organization.
+    """
+
+    target_node_label: str = "GitHubOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("org_url", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GitHubRulesetToOrganizationRelProperties = (
+        GitHubRulesetToOrganizationRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitHubRulesetSchema(CartographyNodeSchema):
     label: str = "GitHubRuleset"
     properties: GitHubRulesetNodeProperties = GitHubRulesetNodeProperties()
-    sub_resource_relationship: GitHubRulesetToRepositoryRel = (
-        GitHubRulesetToRepositoryRel()
+    sub_resource_relationship: GitHubRulesetToOrganizationRel = (
+        GitHubRulesetToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitHubRulesetToRepositoryRel()]
     )
