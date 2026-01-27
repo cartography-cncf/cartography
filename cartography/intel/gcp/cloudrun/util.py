@@ -37,6 +37,10 @@ def discover_cloud_run_locations(client: Resource, project_id: str) -> set[str]:
                     "name"
                 )  # e.g., projects/foo/locations/us-central1
                 if location_name:
+                    # Normalize location name: ensure it has the 'projects/' prefix
+                    # The v1 API may return 'project-id/locations/region' without the prefix
+                    if not location_name.startswith("projects/"):
+                        location_name = f"projects/{location_name}"
                     locations_set.add(location_name)
             request = (
                 v1_client.projects()
