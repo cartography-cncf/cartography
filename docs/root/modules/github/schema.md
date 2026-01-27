@@ -15,6 +15,7 @@ U -- COMMITTED_TO --> R
 R -- LANGUAGE --> L(ProgrammingLanguage)
 R -- BRANCH --> B(GitHubBranch)
 R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
+O -- RESOURCE --> BPR
 R -- REQUIRES --> D(Dependency)
 R -- HAS_MANIFEST --> M(DependencyGraphManifest)
 M -- HAS_DEP --> D
@@ -329,6 +330,12 @@ Representation of a single GitHubBranchProtectionRule [BranchProtectionRule obje
 
     ```
     (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
+    ```
+
+- GitHubOrganizations own GitHubBranchProtectionRules as a sub-resource (for cleanup).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubBranchProtectionRule)
     ```
 
 ### ProgrammingLanguage
