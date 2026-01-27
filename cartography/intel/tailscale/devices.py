@@ -51,6 +51,7 @@ def sync(
     load_posture_attributes(
         neo4j_session,
         posture_attributes,
+        org,
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
@@ -107,9 +108,11 @@ def get_posture_attributes(
                 results.append(attribute)
                 
         except requests.exceptions.HTTPError as e:
-            logger.debug(f"Could not fetch posture attributes for device {device_id}: {e}")
-        except Exception as e:
-            logger.warning(f"Error fetching posture attributes for device {device_id}: {e}")
+            if e.response.status_code == 404:
+                logger.debug(f"No posture attributes found for device {device_id}")
+            else:
+                logger.error(f"HTTP error fetching posture attributes for device {device_id}: {e}")
+                raise
     
     return results
 
@@ -171,6 +174,7 @@ def load_tags(
 def load_posture_attributes(
     neo4j_session: neo4j.Session,
     data: List[Dict[str, Any]],
+    org: str,
     update_tag: int,
 ) -> None:
     logger.info(f"Loading {len(data)} Tailscale Device Posture Attributes to the graph")
@@ -179,6 +183,7 @@ def load_posture_attributes(
         TailscaleDevicePostureAttributeSchema(),
         data,
         lastupdated=update_tag,
+        org=org,
     )
 
 

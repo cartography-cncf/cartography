@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -20,6 +21,25 @@ class TailscaleDevicePostureAttributeNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class TailscaleDevicePostureAttributeToTailnetRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:TailscaleTailnet)-[:RESOURCE]->(:TailscaleDevicePostureAttribute)
+class TailscaleDevicePostureAttributeToTailnetRel(CartographyRelSchema):
+    target_node_label: str = "TailscaleTailnet"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("org", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: TailscaleDevicePostureAttributeToTailnetRelProperties = (
+        TailscaleDevicePostureAttributeToTailnetRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class TailscaleDevicePostureAttributeToDeviceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -29,7 +49,7 @@ class TailscaleDevicePostureAttributeToDeviceRelProperties(CartographyRelPropert
 class TailscaleDevicePostureAttributeToDeviceRel(CartographyRelSchema):
     target_node_label: str = "TailscaleDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("device_id", set_in_kwargs=True)},
+        {"id": PropertyRef("device_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "HAS_POSTURE_ATTRIBUTE"
@@ -44,6 +64,11 @@ class TailscaleDevicePostureAttributeSchema(CartographyNodeSchema):
     properties: TailscaleDevicePostureAttributeNodeProperties = (
         TailscaleDevicePostureAttributeNodeProperties()
     )
-    sub_resource_relationship: TailscaleDevicePostureAttributeToDeviceRel = (
-        TailscaleDevicePostureAttributeToDeviceRel()
+    sub_resource_relationship: TailscaleDevicePostureAttributeToTailnetRel = (
+        TailscaleDevicePostureAttributeToTailnetRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            TailscaleDevicePostureAttributeToDeviceRel(),
+        ]
     )
