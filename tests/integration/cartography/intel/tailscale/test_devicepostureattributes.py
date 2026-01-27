@@ -4,8 +4,8 @@ from unittest.mock import patch
 import requests
 
 import cartography.intel.tailscale.devices
-import tests.data.tailscale.devices
 import tests.data.tailscale.devicepostureattributes
+import tests.data.tailscale.devices
 from tests.integration.cartography.intel.tailscale.test_devices import (
     _ensure_local_neo4j_has_test_devices,
 )
@@ -24,7 +24,9 @@ TEST_ORG = "simpson.corp"
 
 def _mock_get_posture_attributes(api_session, base_url, devices):
     """Return test posture attributes."""
-    return tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES
+    return (
+        tests.data.tailscale.devicepostureattributes.TAILSCALE_DEVICE_POSTURE_ATTRIBUTES
+    )
 
 
 @patch.object(
@@ -37,7 +39,9 @@ def _mock_get_posture_attributes(api_session, base_url, devices):
     "get_posture_attributes",
     side_effect=_mock_get_posture_attributes,
 )
-def test_load_tailscale_device_posture_attributes(mock_get_attributes, mock_get_devices, neo4j_session):
+def test_load_tailscale_device_posture_attributes(
+    mock_get_attributes, mock_get_devices, neo4j_session
+):
     """Test that device posture attributes are loaded correctly."""
 
     # Arrange
@@ -63,10 +67,17 @@ def test_load_tailscale_device_posture_attributes(mock_get_attributes, mock_get_
         ("p892kg92CNTRL:falcon:ztaScore", "falcon:ztaScore", "85"),
         ("p892kg92CNTRL:falcon:osVersion", "falcon:osVersion", "10.0.19045"),
         ("n2fskgfgCNT89:intune:complianceState", "intune:complianceState", "compliant"),
-        ("n2fskgfgCNT89:intune:managedDeviceOwnerType", "intune:managedDeviceOwnerType", "company"),
+        (
+            "n2fskgfgCNT89:intune:managedDeviceOwnerType",
+            "intune:managedDeviceOwnerType",
+            "company",
+        ),
     }
     assert (
-        check_nodes(neo4j_session, "TailscaleDevicePostureAttribute", ["id", "key", "value"]) == expected_nodes
+        check_nodes(
+            neo4j_session, "TailscaleDevicePostureAttribute", ["id", "key", "value"]
+        )
+        == expected_nodes
     )
 
     # Assert Posture Attributes are connected with Devices

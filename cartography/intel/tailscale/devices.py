@@ -9,7 +9,9 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.tailscale.device import TailscaleDeviceSchema
-from cartography.models.tailscale.devicepostureattribute import TailscaleDevicePostureAttributeSchema
+from cartography.models.tailscale.devicepostureattribute import (
+    TailscaleDevicePostureAttributeSchema,
+)
 from cartography.models.tailscale.tag import TailscaleTagSchema
 from cartography.util import timeit
 
@@ -82,13 +84,13 @@ def get_posture_attributes(
 ) -> List[Dict[str, Any]]:
     """Fetch posture attributes for devices from the Tailscale API."""
     results: List[Dict[str, Any]] = []
-    
+
     for device in devices:
         device_id = device.get("nodeId")
         if not device_id:
             logger.warning("Device missing nodeId, skipping posture attributes")
             continue
-            
+
         try:
             req = api_session.get(
                 f"{base_url}/device/{device_id}/attributes",
@@ -96,7 +98,7 @@ def get_posture_attributes(
             )
             req.raise_for_status()
             attributes_data = req.json()
-            
+
             for key, attr_info in attributes_data.get("attributes", {}).items():
                 attribute = {
                     "id": f"{device_id}:{key}",
@@ -106,14 +108,16 @@ def get_posture_attributes(
                     "updated": attr_info.get("updated"),
                 }
                 results.append(attribute)
-                
+
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 logger.debug(f"No posture attributes found for device {device_id}")
             else:
-                logger.error(f"HTTP error fetching posture attributes for device {device_id}: {e}")
+                logger.error(
+                    f"HTTP error fetching posture attributes for device {device_id}: {e}"
+                )
                 raise
-    
+
     return results
 
 
@@ -197,6 +201,6 @@ def cleanup(
     GraphJob.from_node_schema(TailscaleTagSchema(), common_job_parameters).run(
         neo4j_session
     )
-    GraphJob.from_node_schema(TailscaleDevicePostureAttributeSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+    GraphJob.from_node_schema(
+        TailscaleDevicePostureAttributeSchema(), common_job_parameters
+    ).run(neo4j_session)
