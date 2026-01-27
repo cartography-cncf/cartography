@@ -1077,6 +1077,10 @@ _aws_public_databases = Fact(
     WHERE db.publicly_accessible = true
     RETURN db
     """,
+    cypher_count_query="""
+    MATCH (db:RDSInstance)
+    RETURN COUNT(db) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -1095,6 +1099,10 @@ _azure_public_databases = Fact(
     MATCH (db:AzureSQLServer)
     WHERE db.public_network_access = 'Enabled'
     RETURN db
+    """,
+    cypher_count_query="""
+    MATCH (db:AzureSQLServer)
+    RETURN COUNT(db) AS count
     """,
     module=Module.AZURE,
     maturity=Maturity.EXPERIMENTAL,

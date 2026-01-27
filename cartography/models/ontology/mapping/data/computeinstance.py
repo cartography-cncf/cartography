@@ -87,9 +87,55 @@ digitalocean_mapping = OntologyMapping(
         ),
     ],
 )
+gcp_mapping = OntologyMapping(
+    module_name="gcp",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GCPInstance",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="id", node_field="id", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="instancename", required=True
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="zone_name"),
+                OntologyFieldMapping(ontology_field="state", node_field="status"),
+                # public_ip_address: not available in GCPInstance
+                # private_ip_address: not available in GCPInstance
+                # instance type: not available in GCPInstance
+                # created_at: not available in GCPInstance
+            ],
+        ),
+    ],
+)
+azure_mapping = OntologyMapping(
+    module_name="azure",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AzureVirtualMachine",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="id", node_field="id", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="region", node_field="location"),
+                OntologyFieldMapping(ontology_field="type", node_field="size"),
+                # public_ip_address: not available in AzureVirtualMachine
+                # private_ip_address: not available in AzureVirtualMachine
+                # state: not available in AzureVirtualMachine
+                # created_at: not available in AzureVirtualMachine
+            ],
+        ),
+    ],
+)
 
 COMPUTE_INSTANCE_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "scaleway": scaleway_mapping,
     "digitalocean": digitalocean_mapping,
+    "gcp": gcp_mapping,
+    "azure": azure_mapping,
 }
