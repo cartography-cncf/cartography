@@ -20,6 +20,9 @@ class TrivyPackageNodeProperties(CartographyNodeProperties):
     version: PropertyRef = PropertyRef("InstalledVersion")
     class_name: PropertyRef = PropertyRef("Class")
     type: PropertyRef = PropertyRef("Type")
+    # Additional fields from Trivy scan results
+    purl: PropertyRef = PropertyRef("PURL")
+    pkg_id: PropertyRef = PropertyRef("PkgID")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

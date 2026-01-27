@@ -44,6 +44,7 @@ TRIVY_GITLAB_SAMPLE = {
                     "PkgName": "openssl",
                     "PkgIdentifier": {
                         "PURL": "pkg:deb/debian/openssl@3.0.15-1~deb12u1?arch=amd64&distro=debian-12.8",
+                        "UID": "a1b2c3d4e5f6g7h8",
                     },
                     "InstalledVersion": "3.0.15-1~deb12u1",
                     "FixedVersion": "3.0.16-1~deb12u1",
@@ -62,6 +63,7 @@ TRIVY_GITLAB_SAMPLE = {
                     "Title": "Test vulnerability for GitLab Trivy integration",
                     "Description": "A test vulnerability used for integration testing.",
                     "Severity": "HIGH",
+                    "CweIDs": ["CWE-295"],
                     "CVSS": {
                         "nvd": {
                             "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
@@ -70,6 +72,7 @@ TRIVY_GITLAB_SAMPLE = {
                     },
                     "References": [
                         "https://example.com/cve-2024-99999",
+                        "https://nvd.nist.gov/vuln/detail/CVE-2024-99999",
                     ],
                     "PublishedDate": "2024-01-15T00:00:00Z",
                     "LastModifiedDate": "2024-01-20T00:00:00Z",
@@ -80,6 +83,7 @@ TRIVY_GITLAB_SAMPLE = {
                     "PkgName": "curl",
                     "PkgIdentifier": {
                         "PURL": "pkg:deb/debian/curl@7.88.1-10+deb12u5?arch=amd64&distro=debian-12.8",
+                        "UID": "b2c3d4e5f6g7h8i9",
                     },
                     "InstalledVersion": "7.88.1-10+deb12u5",
                     "FixedVersion": "7.88.1-10+deb12u6",
@@ -98,6 +102,7 @@ TRIVY_GITLAB_SAMPLE = {
                     "Title": "Another test vulnerability for GitLab Trivy integration",
                     "Description": "Another test vulnerability used for integration testing.",
                     "Severity": "MEDIUM",
+                    "CweIDs": ["CWE-119", "CWE-787"],
                     "CVSS": {
                         "nvd": {
                             "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N",
@@ -106,6 +111,7 @@ TRIVY_GITLAB_SAMPLE = {
                     },
                     "References": [
                         "https://example.com/cve-2024-88888",
+                        "https://curl.se/docs/CVE-2024-88888.html",
                     ],
                     "PublishedDate": "2024-02-01T00:00:00Z",
                     "LastModifiedDate": "2024-02-10T00:00:00Z",

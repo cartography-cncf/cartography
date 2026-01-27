@@ -34,6 +34,14 @@ class TrivyImageFindingNodeProperties(CartographyNodeProperties):
     cvss_ubuntu_v3_vector: PropertyRef = PropertyRef("ubuntu_v3_vector")
     class_name: PropertyRef = PropertyRef("Class")
     type: PropertyRef = PropertyRef("Type")
+    # Additional fields from Trivy scan results
+    cwe_ids: PropertyRef = PropertyRef("CweIDs")
+    status: PropertyRef = PropertyRef("Status")
+    references: PropertyRef = PropertyRef("References")
+    data_source_id: PropertyRef = PropertyRef("DataSourceID")
+    data_source_name: PropertyRef = PropertyRef("DataSourceName")
+    layer_digest: PropertyRef = PropertyRef("LayerDigest")
+    layer_diff_id: PropertyRef = PropertyRef("LayerDiffID")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

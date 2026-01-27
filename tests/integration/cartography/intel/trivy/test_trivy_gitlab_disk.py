@@ -16,7 +16,13 @@ from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_MULTIARCH_CHILD_AR
 from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_MULTIARCH_MANIFEST_LIST
 from tests.data.trivy.trivy_gitlab_sample import TRIVY_GITLAB_SAMPLE
 from tests.integration.cartography.intel.trivy.test_helpers import (
+    assert_trivy_finding_extended_fields,
+)
+from tests.integration.cartography.intel.trivy.test_helpers import (
     assert_trivy_gitlab_image_relationships,
+)
+from tests.integration.cartography.intel.trivy.test_helpers import (
+    assert_trivy_package_extended_fields,
 )
 
 TEST_UPDATE_TAG = 123456789
@@ -141,6 +147,10 @@ def test_sync_trivy_gitlab(
         expected_package_rels,
         expected_finding_rels,
     )
+
+    # Assert extended fields are populated
+    assert_trivy_finding_extended_fields(neo4j_session)
+    assert_trivy_package_extended_fields(neo4j_session)
 
 
 def _sync_gitlab_data(neo4j_session, update_tag=TEST_UPDATE_TAG):
