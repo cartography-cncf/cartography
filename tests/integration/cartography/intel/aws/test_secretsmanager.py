@@ -180,7 +180,16 @@ def test_sync_secretsmanager_no_versions(
 @patch.object(
     cartography.intel.aws.secretsmanager,
     "get_secret_versions",
-    return_value=copy.deepcopy(tests.data.aws.secretsmanager.LIST_SECRET_VERSIONS[:1]),
+    # Initial list has singular KmsKeyId, we need to modify it to use plural KmsKeyIds with UUID
+    return_value=[
+        {
+            **tests.data.aws.secretsmanager.LIST_SECRET_VERSIONS[0],
+            "KmsKeyIds": [
+                "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000"
+            ],
+            "KmsKeyId": None,  # clear singular to ensure we rely on plural
+        }
+    ],
 )
 def test_secret_version_kms_key_relationship(
     mock_get_versions, mock_get_secrets, mock_dict_date, neo4j_session
@@ -194,6 +203,10 @@ def test_secret_version_kms_key_relationship(
     boto3_session = MagicMock()
     create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
+    # Create KMS Key with UUID as ID
+    key_id_uuid = "00000000-0000-0000-0000-000000000000"
+    key_arn = f"arn:aws:kms:us-east-1:000000000000:key/{key_id_uuid}"
+
     neo4j_session.run(
         """
         MERGE (k:KMSKey{id: $key_id})
@@ -202,8 +215,8 @@ def test_secret_version_kms_key_relationship(
             k.region = $region,
             k.lastupdated = $update_tag
     """,
-        key_id="arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
-        key_arn="arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
+        key_id=key_id_uuid,
+        key_arn=key_arn,
         region=TEST_REGION,
         update_tag=TEST_UPDATE_TAG,
     )
@@ -220,6 +233,9 @@ def test_secret_version_kms_key_relationship(
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
+    # Verify relationship to KMS Key
+    # Note: We now match on KMSKey.id (UUID), but check_rels can verify using any property.
+    # We verify that the version connects to the key with the expected ARN.
     assert check_rels(
         neo4j_session,
         "SecretsManagerSecretVersion",
@@ -231,6 +247,6 @@ def test_secret_version_kms_key_relationship(
     ) == {
         (
             "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000:version:00000000-0000-0000-0000-000000000000",
-            "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
+            key_arn,
         ),
     }
