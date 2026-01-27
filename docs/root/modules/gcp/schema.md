@@ -1396,6 +1396,207 @@ Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com
     (GCPSecretManagerSecretVersion)-[:VERSION_OF]->(GCPSecretManagerSecret)
     ```
 
+### Artifact Registry Resources
+
+#### Overview
+
+Google Cloud Artifact Registry is a universal package manager for managing container images and language packages. Cartography ingests the following Artifact Registry resources with dedicated node types for each artifact category:
+
+```mermaid
+graph LR
+    Project[GCPProject]
+    Repository[GCPArtifactRegistryRepository]
+    ContainerImage[GCPArtifactRegistryContainerImage]
+    HelmChart[GCPArtifactRegistryHelmChart]
+    LanguagePackage[GCPArtifactRegistryLanguagePackage]
+    PlatformImage[GCPArtifactRegistryPlatformImage]
+
+    Project -->|RESOURCE| Repository
+    Project -->|RESOURCE| ContainerImage
+    Project -->|RESOURCE| HelmChart
+    Project -->|RESOURCE| LanguagePackage
+    Project -->|RESOURCE| PlatformImage
+    Repository -->|CONTAINS| ContainerImage
+    Repository -->|CONTAINS| HelmChart
+    Repository -->|CONTAINS| LanguagePackage
+    ContainerImage -->|HAS_MANIFEST| PlatformImage
+```
+
+#### GCPArtifactRegistryRepository
+
+Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the repository (e.g., `projects/{project}/locations/{location}/repositories/{repo}`) |
+| name | The short name of the repository |
+| format | The format of packages stored in the repository (e.g., `DOCKER`, `MAVEN`, `NPM`, `PYTHON`) |
+| mode | The mode of the repository (e.g., `STANDARD_REPOSITORY`, `VIRTUAL_REPOSITORY`, `REMOTE_REPOSITORY`) |
+| description | User-provided description of the repository |
+| location | The GCP region where the repository is located |
+| registry_uri | The Docker registry URI for Docker format repositories (e.g., `us-east1-docker.pkg.dev/{project}/{repo}`) |
+| size_bytes | The size of the repository in bytes |
+| kms_key_name | The Cloud KMS key name used to encrypt the repository |
+| create_time | Timestamp when the repository was created |
+| update_time | Timestamp when the repository was last updated |
+| cleanup_policy_dry_run | Whether cleanup policies are in dry run mode |
+| vulnerability_scanning_enabled | Whether vulnerability scanning is enabled |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryRepositories are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryRepository)
+    ```
+
+- GCPArtifactRegistryRepositories contain artifacts (ContainerImage, HelmChart, LanguagePackage).
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryContainerImage)
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryHelmChart)
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryLanguagePackage)
+    ```
+
+#### GCPArtifactRegistryContainerImage
+
+Representation of a [Docker Image](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages) in a GCP Artifact Registry repository.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the Docker image |
+| name | The short name of the image |
+| uri | The URI of the image |
+| digest | The image digest (e.g., `sha256:...`) |
+| tags | Tags associated with the image |
+| image_size_bytes | Size of the image in bytes |
+| media_type | The media type of the image manifest |
+| upload_time | Timestamp when the image was uploaded |
+| build_time | Timestamp when the image was built |
+| update_time | Timestamp when the image was last updated |
+| repository_id | Full resource name of the parent repository |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryContainerImages are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryContainerImage)
+    ```
+
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryContainerImages.
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryContainerImage)
+    ```
+
+- GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages (for multi-architecture images).
+    ```
+    (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
+    ```
+
+#### GCPArtifactRegistryHelmChart
+
+Representation of a Helm chart stored as an OCI artifact in a GCP Artifact Registry repository. Helm charts are stored in Docker-format repositories and identified by their media type.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the Helm chart |
+| name | The short name of the chart |
+| uri | The URI of the chart |
+| version | The version of the chart (extracted from tags) |
+| create_time | Timestamp when the chart was created |
+| update_time | Timestamp when the chart was last updated |
+| repository_id | Full resource name of the parent repository |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryHelmCharts are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryHelmChart)
+    ```
+
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryHelmCharts.
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryHelmChart)
+    ```
+
+#### GCPArtifactRegistryLanguagePackage
+
+Representation of a language package in a GCP Artifact Registry repository. This node type covers [Maven Artifacts](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.mavenArtifacts), [npm Packages](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.npmPackages), [Python Packages](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.pythonPackages), and [Go Modules](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.goModules).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the package |
+| name | The short name of the package |
+| format | The format of the package (`MAVEN`, `NPM`, `PYTHON`, `GO`) |
+| uri | The URI of the package |
+| version | The version of the package |
+| package_name | Human-readable package name |
+| create_time | Timestamp when the package was created |
+| update_time | Timestamp when the package was last updated |
+| repository_id | Full resource name of the parent repository |
+| project_id | The GCP project ID |
+| group_id | (Maven only) The Maven group ID |
+| artifact_id | (Maven only) The Maven artifact ID |
+| tags | (npm only) Tags associated with the package |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryLanguagePackages are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryLanguagePackage)
+    ```
+
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryLanguagePackages.
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryLanguagePackage)
+    ```
+
+#### GCPArtifactRegistryPlatformImage
+
+Representation of a platform-specific manifest within a multi-architecture Docker image. This node captures the individual platform configurations (architecture, OS) for images that support multiple platforms.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier combining parent artifact and manifest digest |
+| digest | The digest of this specific platform manifest |
+| architecture | CPU architecture (e.g., `amd64`, `arm64`) |
+| os | Operating system (e.g., `linux`, `windows`) |
+| os_version | OS version if specified |
+| os_features | OS features if specified |
+| variant | Platform variant (e.g., `v8` for arm64) |
+| media_type | The media type of the manifest |
+| parent_artifact_id | Full resource name of the parent Docker image |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryPlatformImages are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryPlatformImage)
+    ```
+
+- GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages.
+    ```
+    (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
+    ```
+
+### Cloud Run Resources
+
+#### Overview
+
+Google Cloud Run is a serverless compute platform for running containers. Cartography ingests the following Cloud Run resources:
+
 ```mermaid
 graph LR
     Project[GCPProject]
