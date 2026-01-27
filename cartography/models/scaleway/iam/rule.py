@@ -52,7 +52,9 @@ class ScalewayRuleToProjectRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "SCOPED_TO"
-    properties: ScalewayRuleToProjectRelProperties = ScalewayRuleToProjectRelProperties()
+    properties: ScalewayRuleToProjectRelProperties = (
+        ScalewayRuleToProjectRelProperties()
+    )
 
 
 @dataclass(frozen=True)

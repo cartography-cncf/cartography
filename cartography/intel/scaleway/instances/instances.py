@@ -51,7 +51,8 @@ def transform_instances(
             ip["id"] for ip in (formatted_instance.get("public_ips") or [])
         ]
         formatted_instance["volumes_id"] = [
-            volume["id"] for volume in (formatted_instance.get("volumes") or {}).values()
+            volume["id"]
+            for volume in (formatted_instance.get("volumes") or {}).values()
         ]
         formatted_instance["private_nics"] = [
             nic["id"] for nic in (formatted_instance.get("private_nics") or [])

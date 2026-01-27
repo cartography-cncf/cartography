@@ -42,7 +42,9 @@ class ScalewayPermissionSetToOrganizationRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ScalewayPermissionSetSchema(CartographyNodeSchema):
     label: str = "ScalewayPermissionSet"
-    properties: ScalewayPermissionSetNodeProperties = ScalewayPermissionSetNodeProperties()
+    properties: ScalewayPermissionSetNodeProperties = (
+        ScalewayPermissionSetNodeProperties()
+    )
     sub_resource_relationship: ScalewayPermissionSetToOrganizationRel = (
         ScalewayPermissionSetToOrganizationRel()
     )
