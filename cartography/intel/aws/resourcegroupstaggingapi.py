@@ -156,12 +156,12 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
         "id_func": get_short_id_from_elb_arn,
     },
     "elasticloadbalancing:loadbalancer/app": {
-        "label": "LoadBalancerV2",
+        "label": "AWSLoadBalancerV2",
         "property": "name",
         "id_func": get_short_id_from_lb2_arn,
     },
     "elasticloadbalancing:loadbalancer/net": {
-        "label": "LoadBalancerV2",
+        "label": "AWSLoadBalancerV2",
         "property": "name",
         "id_func": get_short_id_from_lb2_arn,
     },
@@ -358,7 +358,7 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
     "EKSCluster": "(:EKSCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "ElasticacheCluster": "(:ElasticacheCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "LoadBalancer": "(:LoadBalancer)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
-    "LoadBalancerV2": "(:LoadBalancerV2)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
+    "AWSLoadBalancerV2": "(:AWSLoadBalancerV2)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "EMRCluster": "(:EMRCluster)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})",
     "SecretsManagerSecret": (
         "(:SecretsManagerSecret)<-[:RESOURCE]-(:AWSAccount{id: $AWS_ID})"

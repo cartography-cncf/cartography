@@ -6,6 +6,7 @@ from google.api_core.exceptions import PermissionDenied
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -40,46 +41,58 @@ def get_executions(
 
         # For each location, get jobs and their executions
         for loc_name in locations:
-            # Get all jobs in this location
-            jobs_request = client.projects().locations().jobs().list(parent=loc_name)
-            while jobs_request is not None:
-                jobs_response = jobs_request.execute()
-                jobs = jobs_response.get("jobs", [])
+            try:
+                # Get all jobs in this location
+                jobs_request = (
+                    client.projects().locations().jobs().list(parent=loc_name)
+                )
+                while jobs_request is not None:
+                    jobs_response = jobs_request.execute()
+                    jobs = jobs_response.get("jobs", [])
 
-                # For each job, get its executions
-                for job in jobs:
-                    job_name = job.get("name", "")
-                    executions_request = (
-                        client.projects()
-                        .locations()
-                        .jobs()
-                        .executions()
-                        .list(parent=job_name)
-                    )
-
-                    while executions_request is not None:
-                        executions_response = executions_request.execute()
-                        executions.extend(executions_response.get("executions", []))
+                    # For each job, get its executions
+                    for job in jobs:
+                        job_name = job.get("name", "")
                         executions_request = (
                             client.projects()
                             .locations()
                             .jobs()
                             .executions()
-                            .list_next(
-                                previous_request=executions_request,
-                                previous_response=executions_response,
-                            )
+                            .list(parent=job_name)
                         )
 
-                jobs_request = (
-                    client.projects()
-                    .locations()
-                    .jobs()
-                    .list_next(
-                        previous_request=jobs_request,
-                        previous_response=jobs_response,
+                        while executions_request is not None:
+                            executions_response = executions_request.execute()
+                            executions.extend(executions_response.get("executions", []))
+                            executions_request = (
+                                client.projects()
+                                .locations()
+                                .jobs()
+                                .executions()
+                                .list_next(
+                                    previous_request=executions_request,
+                                    previous_response=executions_response,
+                                )
+                            )
+
+                    jobs_request = (
+                        client.projects()
+                        .locations()
+                        .jobs()
+                        .list_next(
+                            previous_request=jobs_request,
+                            previous_response=jobs_response,
+                        )
                     )
-                )
+            except HttpError as e:
+                # Only skip 403 permission errors (e.g., restricted regions)
+                # Re-raise other errors (429, 500, etc.) to surface systemic failures
+                if e.resp.status == 403:
+                    logger.warning(
+                        f"Permission denied listing Cloud Run jobs/executions in {loc_name}. Skipping location.",
+                    )
+                    continue
+                raise
 
         return executions
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
