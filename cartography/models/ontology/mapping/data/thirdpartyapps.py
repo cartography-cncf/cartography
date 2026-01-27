@@ -132,9 +132,40 @@ okta_mapping = OntologyMapping(
     ],
 )
 
+# WorkOS ThirdPartyApp mapping
+workos_thirdpartyapps_mapping = OntologyMapping(
+    module_name="workos",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="WorkOSApplication",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="client_id",
+                    node_field="client_id",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="name",
+                    required=True,
+                ),
+                # enabled: Not available - WorkOS apps don't have an explicit enabled/disabled state
+                # native_app: Could be derived from application_type (oauth vs m2m) but not exactly the same
+                OntologyFieldMapping(
+                    ontology_field="protocol",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "oauth2"},  # WorkOS primarily uses OAuth2/OIDC
+                ),
+            ],
+        ),
+    ],
+)
+
 THIRDPARTYAPPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "googleworkspace": googleworkspace_mapping,
     "keycloak": keycloak_mapping,
     "entra": entra_mapping,
     "okta": okta_mapping,
+    "workos": workos_thirdpartyapps_mapping,
 }
