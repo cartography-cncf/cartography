@@ -8,6 +8,7 @@ from neo4j import Session
 from cartography.client.aws import list_accounts
 from cartography.client.aws.ecr import get_ecr_images
 from cartography.client.gitlab.container_images import get_gitlab_container_images
+from cartography.client.gitlab.container_images import get_gitlab_container_tags
 from cartography.config import Config
 from cartography.intel.trivy.scanner import cleanup
 from cartography.intel.trivy.scanner import get_json_files_in_dir
@@ -53,11 +54,16 @@ def _get_gitlab_scan_targets_and_aliases(
     neo4j_session: Session,
 ) -> tuple[set[str], dict[str, str]]:
     """
-    Return GitLab container image URIs and a mapping of digest-qualified URIs to base URIs.
+    Return GitLab container image URIs and a mapping of digest-qualified URIs to URIs.
+
+    Includes both base URIs (from GitLabContainerImage nodes) and tagged URIs
+    (from GitLabContainerRepositoryTag nodes) to support matching against both
+    RepoTags and RepoDigests in Trivy scan results.
     """
     image_uris: set[str] = set()
     digest_aliases: dict[str, str] = {}
 
+    # Get base URIs from container images
     for uri, digest in get_gitlab_container_images(neo4j_session):
         if not uri:
             continue
@@ -67,6 +73,28 @@ def _get_gitlab_scan_targets_and_aliases(
             # e.g., registry.gitlab.com/group/project@sha256:abc -> registry.gitlab.com/group/project
             digest_uri = f"{uri}@{digest}"
             digest_aliases[digest_uri] = uri
+
+    # Get tagged URIs from container repository tags
+    # This enables matching against RepoTags in Trivy output (e.g., locally built images)
+    for tag_location, digest in get_gitlab_container_tags(neo4j_session):
+        if not tag_location:
+            continue
+
+        # Add the tagged URI to image_uris for direct matching
+        # e.g., registry.gitlab.com/group/project:v1.0.0
+        image_uris.add(tag_location)
+
+        if digest:
+            # Also create digest alias mapping for this tag
+            # Strip the tag to get the repository URI
+            repo_uri = (
+                tag_location.rsplit(":", 1)[0] if ":" in tag_location else tag_location
+            )
+            digest_uri = f"{repo_uri}@{digest}"
+            # Prefer tagged URI over base URI for display purposes
+            # Don't overwrite if already exists (first tag wins)
+            if digest_uri not in digest_aliases:
+                digest_aliases[digest_uri] = tag_location
 
     return image_uris, digest_aliases
 

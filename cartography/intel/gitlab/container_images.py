@@ -163,6 +163,9 @@ def get_container_images(
 
                 # For manifest lists, fetch child manifests (but skip attestation entries)
                 child_manifests = manifest.get("manifests", [])
+                expected_children = 0
+                ingested_children = 0
+
                 for child in child_manifests:
                     # Skip buildx attestation entries stored in child manifests - they'll be handled by attestations module
                     annotations = child.get("annotations", {})
@@ -172,8 +175,11 @@ def get_container_images(
                     ):
                         continue
 
+                    expected_children += 1
                     child_digest = child.get("digest")
+
                     if child_digest in seen_digests[repository_name]:
+                        ingested_children += 1  # Already ingested
                         continue
                     seen_digests[repository_name].add(child_digest)
 
@@ -181,22 +187,46 @@ def get_container_images(
                         gitlab_url, registry_url, repository_name, child_digest, token
                     )
 
-                    # Skip if child manifest not found
+                    # Skip if child manifest not found (tag deleted between list and fetch)
                     if child_manifest is None:
+                        logger.warning(
+                            f"Failed to fetch child manifest {child_digest[:16]}... for manifest list "
+                            f"{digest[:16]}... in {repository_name}. Child will be missing from graph."
+                        )
                         continue
 
                     # Fetch config blob for child image
                     child_config = child_manifest.get("config")
                     if child_config and child_config.get("digest"):
-                        child_manifest["_config"] = fetch_registry_blob(
-                            gitlab_url,
-                            registry_url,
-                            repository_name,
-                            child_config["digest"],
-                            token,
-                        )
+                        try:
+                            child_manifest["_config"] = fetch_registry_blob(
+                                gitlab_url,
+                                registry_url,
+                                repository_name,
+                                child_config["digest"],
+                                token,
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to fetch config blob for child {child_digest[:16]}...: {e}. "
+                                f"Architecture metadata may be incomplete."
+                            )
 
                     all_manifests.append(child_manifest)
+                    ingested_children += 1
+
+                # Log summary for this manifest list
+                if expected_children > 0:
+                    logger.info(
+                        f"Manifest list {digest[:16]}... in {repository_name}: "
+                        f"ingested {ingested_children}/{expected_children} platform images"
+                    )
+                    if ingested_children < expected_children:
+                        logger.warning(
+                            f"Manifest list {digest[:16]}... is missing "
+                            f"{expected_children - ingested_children} child image(s). "
+                            f"Trivy scans of missing platforms will not link to graph."
+                        )
             else:
                 # Fetch config blob for regular images to get architecture/os/variant properties
                 config = manifest.get("config")

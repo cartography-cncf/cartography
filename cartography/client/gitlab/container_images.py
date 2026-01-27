@@ -23,3 +23,21 @@ def get_gitlab_container_images(
     RETURN img.uri AS uri, img.digest AS digest
     """
     return neo4j_session.read_transaction(read_list_of_tuples_tx, query)
+
+
+@timeit
+def get_gitlab_container_tags(
+    neo4j_session: neo4j.Session,
+) -> Set[Tuple[str, str]]:
+    """
+    Queries the graph for all GitLab container repository tags with their locations and digests.
+
+    :param neo4j_session: The neo4j session object.
+    :return: 2-tuples of (location, digest) for each GitLab container repository tag.
+    """
+    query = """
+    MATCH (tag:GitLabContainerRepositoryTag)
+    WHERE tag.location IS NOT NULL AND tag.digest IS NOT NULL
+    RETURN tag.location AS location, tag.digest AS digest
+    """
+    return neo4j_session.read_transaction(read_list_of_tuples_tx, query)
