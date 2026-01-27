@@ -37,7 +37,7 @@ def get_gitlab_container_tags(
     """
     query = """
     MATCH (tag:GitLabContainerRepositoryTag)
-    WHERE tag.location IS NOT NULL AND tag.digest IS NOT NULL
+    WHERE tag.location IS NOT NULL
     RETURN tag.location AS location, tag.digest AS digest
     """
     return neo4j_session.read_transaction(read_list_of_tuples_tx, query)
