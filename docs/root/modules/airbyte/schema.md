@@ -145,7 +145,7 @@ Provides details of a single source.
 | lastupdated |  Timestamp of the last time the node was updated |
 
 
-### Relationships
+#### Relationships
 
 - `Source` belong to an `Organization`
     ```
@@ -179,7 +179,7 @@ Provides details of a single destination.
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 
-### Relationships
+#### Relationships
 
 - `Destination` belong to an `Organization`
     ```
@@ -206,7 +206,7 @@ Provides details of a single tag.
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 
-### Relationships
+#### Relationships
 - `Tag` belong to an `Organization`
     ```
     (:AirbyteOrganization)-[:RESOURCE]->(:AirbyteTag)
