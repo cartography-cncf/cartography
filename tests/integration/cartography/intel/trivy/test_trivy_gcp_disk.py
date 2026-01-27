@@ -34,6 +34,13 @@ def _mock_get_docker_images(client, repo_name):
     return MOCK_DOCKER_IMAGES
 
 
+async def _mock_get_all_manifests_async(
+    credentials, docker_artifacts_raw, max_concurrent=50
+):
+    """Mock async manifest getting to return empty list for trivy test."""
+    return []
+
+
 @patch(
     "builtins.open",
     new_callable=mock_open,
@@ -44,8 +51,8 @@ def _mock_get_docker_images(client, repo_name):
     return_value={"/tmp/scan.json"},
 )
 @patch(
-    "cartography.intel.gcp.artifact_registry.manifest.get_manifest_list",
-    return_value=[],
+    "cartography.intel.gcp.artifact_registry.manifest.get_all_manifests_async",
+    side_effect=_mock_get_all_manifests_async,
 )
 @patch(
     "cartography.intel.gcp.artifact_registry.artifact.FORMAT_HANDLERS",
@@ -59,7 +66,7 @@ def _mock_get_docker_images(client, repo_name):
 )
 def test_sync_trivy_gcp(
     mock_get_repositories,
-    mock_get_manifest_list,
+    mock_get_manifests,
     mock_list_dir_scan_results,
     mock_file_open,
     neo4j_session,
