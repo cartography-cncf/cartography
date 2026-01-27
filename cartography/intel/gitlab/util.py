@@ -15,8 +15,140 @@ logger = logging.getLogger(__name__)
 
 # Default configuration
 DEFAULT_MAX_RETRIES = 5
+DEFAULT_TIMEOUT = 30
+
+# Cache for registry JWT tokens: cache_key -> (token, expiry_timestamp)
+# We refresh tokens 60 seconds before they expire to avoid edge cases
+_registry_token_cache: dict[str, tuple[str, float]] = {}
+_TOKEN_EXPIRY_BUFFER_SECONDS = 60
+
+
+def get_registry_token(
+    gitlab_url: str,
+    registry_url: str,
+    repository_name: str,
+    token: str,
+    force_refresh: bool = False,
+) -> str:
+    """
+    Get a JWT token for accessing the GitLab container registry.
+
+    GitLab's registry uses Docker token authentication. We request a token
+    from the auth endpoint using the personal access token as credentials.
+
+    Tokens are cached with their expiry time. GitLab registry tokens are
+    short-lived (typically 5-15 minutes), so we refresh them before expiry
+    or when force_refresh is True (e.g., after a 401 error).
+    """
+    cache_key = f"{registry_url}:{repository_name}"
+
+    # Check cache unless force refresh requested
+    if not force_refresh and cache_key in _registry_token_cache:
+        cached_token, expiry_time = _registry_token_cache[cache_key]
+        # Return cached token if it won't expire within the buffer period
+        if time.time() < expiry_time - _TOKEN_EXPIRY_BUFFER_SECONDS:
+            return cached_token
+        logger.debug(
+            f"Registry token for {cache_key} expired or expiring soon, refreshing"
+        )
+
+    # GitLab's JWT auth endpoint
+    auth_url = f"{gitlab_url}/jwt/auth"
+    params = {
+        "service": "container_registry",
+        "scope": f"repository:{repository_name}:pull",
+    }
+
+    response = requests.get(
+        auth_url,
+        params=params,
+        auth=("token", token),  # Use personal access token as password
+        timeout=DEFAULT_TIMEOUT,
+    )
+    response.raise_for_status()
+
+    data = response.json()
+    jwt_token = data.get("token")
+
+    # GitLab returns expires_in (seconds until expiry), typically 300-900 seconds
+    # Default to 5 minutes if not provided
+    expires_in = data.get("expires_in", 300)
+    expiry_time = time.time() + expires_in
+
+    _registry_token_cache[cache_key] = (jwt_token, expiry_time)
+    return jwt_token
+
+
+def fetch_registry_blob(
+    gitlab_url: str,
+    registry_url: str,
+    repository_name: str,
+    blob_digest: str,
+    token: str,
+) -> dict[str, Any]:
+    """
+    Fetch a blob (e.g., config blob) from the registry with 401 retry handling.
+    """
+    jwt_token = get_registry_token(gitlab_url, registry_url, repository_name, token)
+    blob_url = f"{registry_url}/v2/{repository_name}/blobs/{blob_digest}"
+
+    response = requests.get(
+        blob_url,
+        headers={"Authorization": f"Bearer {jwt_token}"},
+        timeout=DEFAULT_TIMEOUT,
+    )
+
+    # Handle expired token by refreshing and retrying once
+    if response.status_code == 401:
+        logger.debug(f"Got 401 for blob {blob_digest}, refreshing token and retrying")
+        jwt_token = get_registry_token(
+            gitlab_url, registry_url, repository_name, token, force_refresh=True
+        )
+        response = requests.get(
+            blob_url,
+            headers={"Authorization": f"Bearer {jwt_token}"},
+            timeout=DEFAULT_TIMEOUT,
+        )
+
+    response.raise_for_status()
+    return response.json()
+
+
+def fetch_registry_manifest(
+    gitlab_url: str,
+    registry_url: str,
+    repository_name: str,
+    reference: str,
+    token: str,
+    accept_header: str | None = None,
+) -> requests.Response:
+    """
+    Fetch a manifest from the registry with 401 retry handling.
+
+    Returns the full response object so callers can access headers (e.g., Docker-Content-Digest).
+    """
+    jwt_token = get_registry_token(gitlab_url, registry_url, repository_name, token)
+    url = f"{registry_url}/v2/{repository_name}/manifests/{reference}"
+
+    headers: dict[str, str] = {"Authorization": f"Bearer {jwt_token}"}
+    if accept_header:
+        headers["Accept"] = accept_header
+
+    response = requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT)
+
+    # Handle expired token by refreshing and retrying once
+    if response.status_code == 401:
+        logger.debug(f"Got 401 for manifest {reference}, refreshing token and retrying")
+        jwt_token = get_registry_token(
+            gitlab_url, registry_url, repository_name, token, force_refresh=True
+        )
+        headers["Authorization"] = f"Bearer {jwt_token}"
+        response = requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT)
+
+    return response
+
+
 DEFAULT_RETRY_BACKOFF_BASE = 2
-DEFAULT_TIMEOUT = 60
 DEFAULT_PER_PAGE = 100
 
 
