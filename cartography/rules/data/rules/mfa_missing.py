@@ -20,6 +20,10 @@ _missing_mfa_cloudflare = Fact(
     WHERE m.two_factor_authentication_enabled = false
     RETURN m
     """,
+    cypher_count_query="""
+    MATCH (m:CloudflareMember)
+    RETURN COUNT(m) AS count
+    """,
     maturity=Maturity.EXPERIMENTAL,
 )
 
