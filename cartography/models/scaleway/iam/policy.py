@@ -80,7 +80,9 @@ class ScalewayPolicyToGroupRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "APPLIES_TO"
-    properties: ScalewayPolicyToGroupRelProperties = ScalewayPolicyToGroupRelProperties()
+    properties: ScalewayPolicyToGroupRelProperties = (
+        ScalewayPolicyToGroupRelProperties()
+    )
 
 
 @dataclass(frozen=True)
