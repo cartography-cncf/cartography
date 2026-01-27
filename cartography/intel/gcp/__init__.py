@@ -165,6 +165,11 @@ def _sync_project_resources(
             project_id,
         )
 
+        # Track whether IAM sync succeeded for this project.
+        # Only run IAM cleanup if sync succeeded to avoid deleting valid data
+        # when both IAM API is disabled and CAI fallback fails.
+        iam_sync_succeeded = False
+
         if service_names.compute in enabled_services:
             logger.info("Syncing GCP project %s for Compute.", project_id)
             compute_cred = build_client("compute", "v1", credentials=credentials)
@@ -230,6 +235,7 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
+            iam_sync_succeeded = True
         if service_names.kms in enabled_services:
             logger.info("Syncing GCP project %s for KMS.", project_id)
             kms_cred = build_client("cloudkms", "v1", credentials=credentials)
@@ -266,6 +272,7 @@ def _sync_project_resources(
                     gcp_update_tag,
                     common_job_parameters,
                 )
+                iam_sync_succeeded = True
             except HttpError as e:
                 if e.resp.status == 403:
                     logger.warning(
@@ -274,6 +281,7 @@ def _sync_project_resources(
                         project_id,
                         e.reason,
                     )
+                    # iam_sync_succeeded stays False - don't run cleanup for this project
                 else:
                     raise
         if service_names.bigtable in enabled_services:
@@ -535,10 +543,16 @@ def _sync_project_resources(
             )
 
         # Clean up project-level IAM resources (service accounts and project roles)
-        # This happens after all resources for this project have been synced.
-        logger.debug(f"Running cleanup for IAM resources in project {project_id}")
-        iam.cleanup_service_accounts(neo4j_session, common_job_parameters)
-        iam.cleanup_project_roles(neo4j_session, common_job_parameters)
+        # Only run cleanup if IAM sync succeeded to avoid deleting valid data
+        # when sync was skipped due to permission issues.
+        if iam_sync_succeeded:
+            logger.debug(f"Running cleanup for IAM resources in project {project_id}")
+            iam.cleanup_service_accounts(neo4j_session, common_job_parameters)
+            iam.cleanup_project_roles(neo4j_session, common_job_parameters)
+        else:
+            logger.debug(
+                f"Skipping IAM cleanup for project {project_id} - IAM sync did not complete"
+            )
 
         del common_job_parameters["PROJECT_ID"]
 
