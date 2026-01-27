@@ -14,6 +14,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -78,11 +79,32 @@ class GitHubBranchProtectionRuleToRepositoryRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitHubBranchProtectionRuleToOrganizationRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitHubBranchProtectionRuleToOrganizationRel(CartographyRelSchema):
+    target_node_label: str = "GitHubOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("org_url", set_in_kwargs=True)}
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GitHubBranchProtectionRuleToOrganizationRelProperties = (
+        GitHubBranchProtectionRuleToOrganizationRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitHubBranchProtectionRuleSchema(CartographyNodeSchema):
     label: str = "GitHubBranchProtectionRule"
     properties: GitHubBranchProtectionRuleNodeProperties = (
         GitHubBranchProtectionRuleNodeProperties()
     )
-    sub_resource_relationship: GitHubBranchProtectionRuleToRepositoryRel = (
-        GitHubBranchProtectionRuleToRepositoryRel()
+    sub_resource_relationship: GitHubBranchProtectionRuleToOrganizationRel = (
+        GitHubBranchProtectionRuleToOrganizationRel()
+    )
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GitHubBranchProtectionRuleToRepositoryRel()]
     )

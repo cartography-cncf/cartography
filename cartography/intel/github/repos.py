@@ -1441,24 +1441,23 @@ def load_branch_protection_rules(
     neo4j_session: neo4j.Session,
     update_tag: int,
     branch_protection_rules: List[Dict],
+    org_url: str,
 ) -> None:
     """
     Ingest GitHub branch protection rules into Neo4j
     :param neo4j_session: Neo4J session object for server communication
     :param update_tag: Timestamp used to determine data freshness
     :param branch_protection_rules: List of branch protection rule objects from GitHub's branchProtectionRules API
+    :param org_url: The URL of the GitHub organization
     :return: Nothing
     """
-    # Group branch protection rules by repo_url for schema-based loading
     rules_by_repo = defaultdict(list)
 
     for rule in branch_protection_rules:
         repo_url = rule["repo_url"]
-        # Remove repo_url from the rule object since we'll pass it as kwargs
         rule_without_kwargs = {k: v for k, v in rule.items() if k != "repo_url"}
         rules_by_repo[repo_url].append(rule_without_kwargs)
 
-    # Load branch protection rules for each repository separately
     for repo_url, repo_rules in rules_by_repo.items():
         load_data(
             neo4j_session,
@@ -1466,6 +1465,7 @@ def load_branch_protection_rules(
             repo_rules,
             lastupdated=update_tag,
             repo_url=repo_url,
+            org_url=org_url,
         )
 
 
@@ -1473,20 +1473,18 @@ def load_branch_protection_rules(
 def cleanup_branch_protection_rules(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-    repo_urls: List[str],
+    org_url: str,
 ) -> None:
     """
     Delete GitHub branch protection rules from the graph if they were not updated in the last sync.
     :param neo4j_session: Neo4j session
     :param common_job_parameters: Common job parameters containing UPDATE_TAG
-    :param repo_urls: List of repository URLs to clean up branch protection rules for
+    :param org_url: The URL of the GitHub organization
     """
-    # Run cleanup for each repository separately
-    for repo_url in repo_urls:
-        cleanup_params = {**common_job_parameters, "repo_url": repo_url}
-        GraphJob.from_node_schema(
-            GitHubBranchProtectionRuleSchema(), cleanup_params
-        ).run(neo4j_session)
+    cleanup_params = {**common_job_parameters, "org_url": org_url}
+    GraphJob.from_node_schema(GitHubBranchProtectionRuleSchema(), cleanup_params).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -1632,6 +1630,7 @@ def load(
         neo4j_session,
         common_job_parameters["UPDATE_TAG"],
         repo_data["branch_protection_rules"],
+        org_url,
     )
     load_rulesets(
         neo4j_session,
@@ -1704,13 +1703,7 @@ def sync(
         neo4j_session, common_job_parameters, repo_urls_with_manifests
     )
 
-    # Collect repository URLs that have branch protection rules for cleanup
-    repo_urls_with_branch_protection_rules = list(
-        {rule["repo_url"] for rule in repo_data["branch_protection_rules"]}
-    )
-    cleanup_branch_protection_rules(
-        neo4j_session, common_job_parameters, repo_urls_with_branch_protection_rules
-    )
+    cleanup_branch_protection_rules(neo4j_session, common_job_parameters, org_url)
 
     cleanup_rulesets(neo4j_session, common_job_parameters, org_url)
 
