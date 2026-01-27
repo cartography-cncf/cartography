@@ -6,6 +6,7 @@ from google.api_core.exceptions import PermissionDenied
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -33,19 +34,25 @@ def get_jobs(client: Resource, project_id: str, location: str = "-") -> list[dic
 
         # Query jobs for each location
         for loc_name in locations:
-            request = client.projects().locations().jobs().list(parent=loc_name)
-            while request is not None:
-                response = request.execute()
-                jobs.extend(response.get("jobs", []))
-                request = (
-                    client.projects()
-                    .locations()
-                    .jobs()
-                    .list_next(
-                        previous_request=request,
-                        previous_response=response,
+            try:
+                request = client.projects().locations().jobs().list(parent=loc_name)
+                while request is not None:
+                    response = request.execute()
+                    jobs.extend(response.get("jobs", []))
+                    request = (
+                        client.projects()
+                        .locations()
+                        .jobs()
+                        .list_next(
+                            previous_request=request,
+                            previous_response=response,
+                        )
                     )
+            except HttpError as e:
+                logger.warning(
+                    f"Failed to list Cloud Run jobs in {loc_name}: {e}. Skipping location.",
                 )
+                continue
 
         return jobs
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
