@@ -15,6 +15,16 @@ P -- RESOURCE --> B(GitLabBranch)
 P -- RESOURCE --> DF(GitLabDependencyFile)
 P -- REQUIRES --> D(GitLabDependency)
 DF -- HAS_DEP --> D
+
+%% Container Registry
+O -- RESOURCE --> CR(GitLabContainerRepository)
+O -- RESOURCE --> CI(GitLabContainerImage)
+O -- RESOURCE --> CT(GitLabContainerRepositoryTag)
+O -- RESOURCE --> CA(GitLabContainerImageAttestation)
+CR -- HAS_TAG --> CT
+CT -- REFERENCES --> CI
+CI -- CONTAINS_IMAGE --> CI
+CA -- ATTESTS --> CI
 ```
 
 ### GitLabOrganization
@@ -322,3 +332,179 @@ Representation of a software dependency from GitLab's dependency scanning artifa
     ```
     (GitLabDependencyFile)-[HAS_DEP]->(GitLabDependency)
     ```
+
+### GitLabContainerRepository
+
+Representation of a GitLab container registry repository. Each project can have multiple container repositories at different paths (e.g., project root, /app, /worker).
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full location of the repository (e.g., `registry.gitlab.com/group/project/app`) |
+| **name** | Name of the repository |
+| **path** | Path within the project |
+| repository_id | GitLab's internal repository ID |
+| project_id | ID of the parent project |
+| created_at | GitLab timestamp from when the repository was created |
+| cleanup_policy_started_at | Timestamp of last cleanup policy run |
+| tags_count | Number of tags in the repository |
+| size | Size of the repository in bytes |
+| status | Repository status |
+
+#### Relationships
+
+- GitLabContainerRepositories belong to GitLabOrganizations.
+
+    ```
+    (GitLabOrganization)-[RESOURCE]->(GitLabContainerRepository)
+    ```
+
+- GitLabContainerRepositories have GitLabContainerRepositoryTags.
+
+    ```
+    (GitLabContainerRepository)-[HAS_TAG]->(GitLabContainerRepositoryTag)
+    ```
+
+### GitLabContainerRepositoryTag
+
+Representation of a tag within a GitLab container repository. Tags are human-readable pointers to container images.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The full location of the tag (e.g., `registry.gitlab.com/group/project/app:v1.0.0`) |
+| **name** | Name of the tag (e.g., `latest`, `v1.0.0`) |
+| path | Path including tag name |
+| repository_location | Location of the parent repository |
+| revision | Full commit revision |
+| short_revision | Short commit revision |
+| digest | Image digest this tag references (e.g., `sha256:abc...`) |
+| created_at | GitLab timestamp from when the tag was created |
+| total_size | Total size of the image in bytes |
+
+#### Relationships
+
+- GitLabContainerRepositoryTags belong to GitLabOrganizations (for cleanup).
+
+    ```
+    (GitLabOrganization)-[RESOURCE]->(GitLabContainerRepositoryTag)
+    ```
+
+- GitLabContainerRepositoryTags belong to GitLabContainerRepositories.
+
+    ```
+    (GitLabContainerRepository)-[HAS_TAG]->(GitLabContainerRepositoryTag)
+    ```
+
+- GitLabContainerRepositoryTags reference GitLabContainerImages.
+
+    ```
+    (GitLabContainerRepositoryTag)-[REFERENCES]->(GitLabContainerImage)
+    ```
+
+### GitLabContainerImage
+
+Representation of a container image identified by its digest. Images are content-addressable and can be referenced by multiple tags. Manifest lists (multi-architecture images) contain references to platform-specific child images.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The image digest (e.g., `sha256:abc123...`) |
+| digest | Same as id, the image digest |
+| media_type | OCI/Docker media type of the manifest |
+| schema_version | Manifest schema version |
+| type | Either `image` (single platform) or `manifest_list` (multi-arch) |
+| architecture | CPU architecture (e.g., `amd64`, `arm64`) - null for manifest lists |
+| os | Operating system (e.g., `linux`) - null for manifest lists |
+| variant | Architecture variant (e.g., `v8`) - null for manifest lists |
+| child_image_digests | List of child image digests (only for manifest lists) |
+
+#### Relationships
+
+- GitLabContainerImages belong to GitLabOrganizations (for cleanup and cross-project deduplication).
+
+    ```
+    (GitLabOrganization)-[RESOURCE]->(GitLabContainerImage)
+    ```
+
+- GitLabContainerImages (manifest lists) contain child GitLabContainerImages.
+
+    ```
+    (GitLabContainerImage)-[CONTAINS_IMAGE]->(GitLabContainerImage)
+    ```
+
+- GitLabContainerRepositoryTags reference GitLabContainerImages.
+
+    ```
+    (GitLabContainerRepositoryTag)-[REFERENCES]->(GitLabContainerImage)
+    ```
+
+- GitLabContainerImageAttestations attest to GitLabContainerImages.
+
+    ```
+    (GitLabContainerImageAttestation)-[ATTESTS]->(GitLabContainerImage)
+    ```
+
+### GitLabContainerImageAttestation
+
+Representation of a container image attestation (signature or provenance). Attestations can be discovered via two methods: cosign tag-based (`.sig`, `.att` suffixes) or buildx embedded (stored in manifest lists with `attestation-manifest` annotation).
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The attestation digest (e.g., `sha256:def456...`) |
+| digest | Same as id, the attestation digest |
+| media_type | OCI media type of the attestation manifest |
+| attestation_type | Type of attestation: `sig` (signature), `att` (attestation), or `buildx` |
+| predicate_type | In-toto predicate type (e.g., `https://slsa.dev/provenance/v1`) |
+| attests_digest | Digest of the image this attestation attests to |
+
+#### Relationships
+
+- GitLabContainerImageAttestations belong to GitLabOrganizations (for cleanup).
+
+    ```
+    (GitLabOrganization)-[RESOURCE]->(GitLabContainerImageAttestation)
+    ```
+
+- GitLabContainerImageAttestations attest to GitLabContainerImages.
+
+    ```
+    (GitLabContainerImageAttestation)-[ATTESTS]->(GitLabContainerImage)
+    ```
+
+#### Sample Container Registry Queries
+
+Get all container images with their tags:
+
+```cypher
+MATCH (repo:GitLabContainerRepository)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)-[:REFERENCES]->(img:GitLabContainerImage)
+RETURN repo.name, tag.name, img.digest, img.architecture, img.os
+```
+
+Find multi-arch images and their platform-specific variants:
+
+```cypher
+MATCH (parent:GitLabContainerImage {type: 'manifest_list'})-[:CONTAINS_IMAGE]->(child:GitLabContainerImage)
+RETURN parent.digest, child.digest, child.architecture, child.os
+```
+
+Find images with attestations (signed or with provenance):
+
+```cypher
+MATCH (att:GitLabContainerImageAttestation)-[:ATTESTS]->(img:GitLabContainerImage)
+RETURN img.digest, att.attestation_type, att.predicate_type
+```
+
+Get the full container registry hierarchy:
+
+```cypher
+MATCH (org:GitLabOrganization)-[:RESOURCE]->(repo:GitLabContainerRepository)
+OPTIONAL MATCH (repo)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)
+OPTIONAL MATCH (tag)-[:REFERENCES]->(img:GitLabContainerImage)
+RETURN org.name, repo.name, tag.name, img.digest
+```
