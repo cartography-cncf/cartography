@@ -148,3 +148,47 @@ def test_get_paginated_results_with_params(mock_api_call):
         api_token=TEST_API_TOKEN,
         params=TEST_PARAMS,
     )
+
+
+def test_get_paginated_results_respects_page_limit(monkeypatch):
+    from cartography.intel.sentinelone import api as sentinelone_api
+
+    monkeypatch.setattr(sentinelone_api, "MAX_PAGINATION_PAGES", 1)
+    mock_api_call = Mock(
+        return_value={
+            "data": [{"id": "item-1"}],
+            "pagination": {"nextCursor": "next"},
+        },
+    )
+    monkeypatch.setattr(sentinelone_api, "call_sentinelone_api", mock_api_call)
+
+    result = sentinelone_api.get_paginated_results(
+        TEST_API_URL,
+        TEST_ENDPOINT,
+        TEST_API_TOKEN,
+    )
+
+    assert result == [{"id": "item-1"}]
+    assert mock_api_call.call_count == 1
+
+
+def test_get_paginated_results_respects_item_limit(monkeypatch):
+    from cartography.intel.sentinelone import api as sentinelone_api
+
+    monkeypatch.setattr(sentinelone_api, "MAX_PAGINATION_ITEMS", 1)
+    mock_api_call = Mock(
+        return_value={
+            "data": [{"id": "item-1"}, {"id": "item-2"}],
+            "pagination": {"nextCursor": "next"},
+        },
+    )
+    monkeypatch.setattr(sentinelone_api, "call_sentinelone_api", mock_api_call)
+
+    result = sentinelone_api.get_paginated_results(
+        TEST_API_URL,
+        TEST_ENDPOINT,
+        TEST_API_TOKEN,
+    )
+
+    assert result == [{"id": "item-1"}, {"id": "item-2"}]
+    assert mock_api_call.call_count == 1
