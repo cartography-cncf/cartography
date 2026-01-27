@@ -8,6 +8,7 @@ ORG -- RESOURCE --> USR(User)
 ORG -- RESOURCE --> GRP(ScalewayGroup)
 ORG -- RESOURCE --> APIKEY(ScalewayApiKey)
 ORG -- RESOURCE --> POL(Policy)
+ORG -- RESOURCE --> RULE(Rule)
 ORG -- RESOURCE --> PS(PermissionSet)
 PRJ -- RESOURCE --> INS(Instance)
 PRJ -- RESOURCE --> FIP(FlexibleIp)
@@ -39,7 +40,7 @@ Represents an Organization in Scaleway.
 | lastupdated| Timestamp of the last update                 |
 
 #### Relationships
-- `Project`, `Application`, `User`, `ApiKey`, `Policy`, `PermissionSet` belong to a `ScalewayOrganization`.
+- `Project`, `Application`, `User`, `ApiKey`, `Policy`, `Rule`, `PermissionSet` belong to a `ScalewayOrganization`.
     ```
     (:ScalewayOrganization)-[:RESOURCE]->(
         :ScalewayProject,
@@ -47,6 +48,7 @@ Represents an Organization in Scaleway.
         :ScalewayUser,
         :ScalewayApiKey,
         :ScalewayPolicy,
+        :ScalewayRule,
         :ScalewayPermissionSet
     )
     ```
@@ -270,6 +272,10 @@ Represents an IAM Rule within a Policy. Rules define which permission sets apply
 | lastupdated              | Timestamp of the last update                 |
 
 #### Relationships
+- `Rule` belongs to an `Organization`.
+    ```
+    (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayRule)
+    ```
 - `Rule` belongs to a `Policy`.
     ```
     (:ScalewayPolicy)-[:HAS]->(:ScalewayRule)
