@@ -206,11 +206,11 @@ def sync(
 
     locations = get_kms_locations(kms_client, project_id)
     if not locations:
-        logger.info("No KMS locations found for project %s.", project_id)
+        logger.debug("No KMS locations found for project %s.", project_id)
 
     key_rings_raw = get_key_rings(kms_client, project_id, locations)
     if not key_rings_raw:
-        logger.info("No KMS KeyRings found for project %s.", project_id)
+        logger.debug("No KMS KeyRings found for project %s.", project_id)
     else:
         key_rings = transform_key_rings(key_rings_raw, project_id)
         load_key_rings(neo4j_session, key_rings, project_id, gcp_update_tag)

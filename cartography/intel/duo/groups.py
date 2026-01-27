@@ -34,7 +34,7 @@ def _get_groups(client: duo_client.Admin) -> List[Dict[str, Any]]:
     Fetch all group data
     https://duo.com/docs/adminapi#users
     """
-    logger.info("Fetching Duo groups")
+    logger.debug("Fetching Duo groups")
     return client.get_groups()
 
 
@@ -47,7 +47,7 @@ def _load_groups(
     """
     Load the groups into the graph
     """
-    logger.info(f"Loading {len(groups)} duo groups")
+    logger.info("Loading %d duo groups", len(groups))
     load(
         neo4j_session,
         DuoGroupSchema(),

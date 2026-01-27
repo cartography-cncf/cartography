@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get(api_url: str, api_token: str, account_id: str) -> list[dict[str, Any]]:
-    logger.info("Retrieving SentinelOne AppFinding data")
+    logger.debug("Retrieving SentinelOne AppFinding data")
     cves = get_paginated_results(
         api_url=api_url,
         endpoint="/web/api/v2.1/application-management/risks",
@@ -26,7 +26,7 @@ def get(api_url: str, api_token: str, account_id: str) -> list[dict[str, Any]]:
         },
     )
 
-    logger.info("Retrieved %d AppFindings from SentinelOne", len(cves))
+    logger.debug("Retrieved %d AppFindings from SentinelOne", len(cves))
     return cves
 
 
@@ -83,7 +83,7 @@ def load_cves(
     """
     Load SentinelOne AppFinding data into Neo4j
     """
-    logger.info(f"Loading {len(data)} SentinelOne AppFindings into Neo4j")
+    logger.info("Loading %s SentinelOne AppFindings into Neo4j", len(data))
     load(
         neo4j_session,
         S1AppFindingSchema(),

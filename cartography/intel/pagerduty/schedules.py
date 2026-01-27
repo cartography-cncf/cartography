@@ -52,7 +52,7 @@ def load_schedule_data(
             u.description = schedule.description,
             u.lastupdated = $update_tag
     """
-    logger.info(f"Loading {len(data)} pagerduty schedules.")
+    logger.info("Loading %s pagerduty schedules.", len(data))
     users: List[Dict[str, Any]] = []
     layers: List[Dict[str, Any]] = []
     for schedule in data:

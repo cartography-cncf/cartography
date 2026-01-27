@@ -29,7 +29,9 @@ def get_logic_apps(credentials: Credentials, subscription_id: str) -> list[dict]
         return [w.as_dict() for w in client.workflows.list_by_subscription()]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(
-            f"Failed to get logic apps for subscription {subscription_id}: {str(e)}"
+            "Failed to get logic apps for subscription %s: %s",
+            subscription_id,
+            e,
         )
         return []
 
@@ -129,7 +131,7 @@ def sync(
     """
     The main sync function for Azure Logic Apps.
     """
-    logger.info(f"Syncing Azure Logic Apps for subscription {subscription_id}.")
+    logger.info("Syncing Azure Logic Apps for subscription %s.", subscription_id)
     raw_apps = get_logic_apps(credentials, subscription_id)
     transformed_apps = transform_logic_apps(raw_apps)
     load_logic_apps(neo4j_session, transformed_apps, subscription_id, update_tag)

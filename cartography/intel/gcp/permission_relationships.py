@@ -44,7 +44,7 @@ def compile_gcp_regex(item: str) -> re.Pattern:
     try:
         return re.compile(item, flags=re.IGNORECASE)
     except re.error:
-        logger.warning(f"GCP regex did not compile for {item}")
+        logger.warning("GCP regex did not compile for %s", item)
         # Return a regex that matches nothing -> no false positives
         return re.compile("", flags=re.IGNORECASE)
 
@@ -262,10 +262,13 @@ def parse_permission_relationships_file(file_path: str) -> list[dict[str, Any]]:
         return relationship_mapping or []
     except FileNotFoundError:
         logger.warning(
-            f"GCP permission relationships file not found. Original filename passed to sync: '{file_path}', "
-            f"resolved full path: '{resolved_file_path}'. Skipping sync stage {__name__}. "
-            f"If you want to run this sync, please explicitly set a value for --gcp-permission-relationships-file in the "
-            f"command line interface."
+            "GCP permission relationships file not found. Original filename passed to sync: '%s', "
+            "resolved full path: '%s'. Skipping sync stage %s. "
+            "If you want to run this sync, please explicitly set a value for --gcp-permission-relationships-file in the "
+            "command line interface.",
+            file_path,
+            resolved_file_path,
+            __name__,
         )
         return []
 
@@ -292,9 +295,12 @@ def load_principal_mappings(
     if not principal_mappings:
         return
 
-    logger.info(
-        f"Loading {len(principal_mappings)} {matchlink_schema.rel_label} relationships "
-        f"for {matchlink_schema.source_node_label} -> {matchlink_schema.target_node_label}"
+    logger.debug(
+        "Loading %d %s relationships for %s -> %s",
+        len(principal_mappings),
+        matchlink_schema.rel_label,
+        matchlink_schema.source_node_label,
+        matchlink_schema.target_node_label,
     )
 
     load_matchlinks(
@@ -314,7 +320,7 @@ def cleanup_rpr(
     update_tag: int,
     project_id: str,
 ) -> None:
-    logger.info(
+    logger.debug(
         "Cleaning up relationship '%s' for node label '%s'",
         matchlink_schema.rel_label,
         matchlink_schema.target_node_label,
@@ -354,7 +360,7 @@ def sync(
     # 3. EVALUATE - Evaluate each relationship and resource ID
     for rpr in relationship_mapping:
         if not is_valid_gcp_rpr(rpr):
-            logger.error(f"Invalid permission relationship configuration: {rpr}")
+            logger.error("Invalid permission relationship configuration: %s", rpr)
             continue
 
         target_label = rpr["target_label"]
@@ -363,8 +369,10 @@ def sync(
 
         resource_dict = get_resource_ids(neo4j_session, project_id, target_label)
 
-        logger.info(
-            f"Evaluating relationship '{relationship_name}' for resource type '{target_label}'"
+        logger.debug(
+            "Evaluating relationship '%s' for resource type '%s'",
+            relationship_name,
+            target_label,
         )
         matches = calculate_permission_relationships(
             principals, resource_dict, permissions
@@ -391,4 +399,4 @@ def sync(
             project_id,
         )
 
-    logger.info(f"Completed GCP Permission Relationships sync for project {project_id}")
+    logger.info("Completed GCP Permission Relationships sync for project %s", project_id)

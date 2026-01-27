@@ -36,7 +36,7 @@ def _get_endpoints(client: duo_client.Admin) -> List[Dict[str, Any]]:
     Fetch all endpoint data
     https://duo.com/docs/adminapi#endpoints
     """
-    logger.info("Fetching Duo endpoints")
+    logger.debug("Fetching Duo endpoints")
     return client.get_endpoints()
 
 
@@ -45,7 +45,7 @@ def _transform_endpoints(endpoints: List[Dict[str, Any]]) -> List[Dict[str, Any]
     """
     Reformat the data before loading
     """
-    logger.info(f"Transforming {len(endpoints)} duo endpoints")
+    logger.debug("Transforming %d duo endpoints", len(endpoints))
     transformed_endpoints = []
     for endpoint in endpoints:
         transformed_endpoint = {
@@ -92,7 +92,7 @@ def _load_endpoints(
     """
     Load the endpoints into the database
     """
-    logger.info(f"Loading {len(endpoints)} duo endpoints")
+    logger.info("Loading %d duo endpoints", len(endpoints))
     load(
         neo4j_session,
         DuoEndpointSchema(),

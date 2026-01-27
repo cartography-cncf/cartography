@@ -280,7 +280,7 @@ def cleanup(
     common_job_parameters: Dict[str, Any],
     batch_size: int = BATCH_SIZE,
 ) -> None:
-    logger.info("Running AWS Inspector cleanup")
+    logger.debug("Running AWS Inspector cleanup")
     GraphJob.from_matchlink(
         InspectorFindingToPackageMatchLink(),
         "AWSAccount",
@@ -335,7 +335,7 @@ def _sync_findings_for_account(
                 update_tag,
                 current_aws_account_id,
             )
-            logger.info(f"Loading {len(package_data)} packages")
+            logger.info("Loading %s packages", len(package_data))
             load_inspector_packages(
                 neo4j_session,
                 package_data,
@@ -398,7 +398,7 @@ def sync(
         member_accounts = get_member_accounts(boto3_session, region)
         # the current host account may not be considered a "member", but we still fetch its findings
         member_accounts.append(current_aws_account_id)
-        logger.info(f"Member accounts to be synced: {member_accounts}")
+        logger.info("Member accounts to be synced: %s", member_accounts)
         for account_id in member_accounts:
             _sync_findings_for_account(
                 neo4j_session,

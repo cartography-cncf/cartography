@@ -204,7 +204,7 @@ def _link_es_domains_to_dns(
             dns_node_additional_label="AWSDNSRecord",
         )
     else:
-        logger.debug(f"No es endpoint data for domain id {domain_id}")
+        logger.debug("No es endpoint data for domain id %s", domain_id)
 
 
 @timeit

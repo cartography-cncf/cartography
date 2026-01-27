@@ -50,7 +50,8 @@ def get_jobs(client: Resource, project_id: str, location: str = "-") -> list[dic
         return jobs
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get Cloud Run jobs for project {project_id} due to permissions or auth error: {e}",
+            "Failed to get Cloud Run jobs for project %s due to permissions or auth error: %s",
+            project_id, e,
         )
         raise
 
@@ -139,10 +140,10 @@ def sync_jobs(
     """
     Syncs GCP Cloud Run Jobs for a project.
     """
-    logger.info(f"Syncing Cloud Run Jobs for project {project_id}.")
+    logger.info("Syncing Cloud Run Jobs for project %s.", project_id)
     jobs_raw = get_jobs(client, project_id)
     if not jobs_raw:
-        logger.info(f"No Cloud Run jobs found for project {project_id}.")
+        logger.debug("No Cloud Run jobs found for project %s.", project_id)
 
     jobs = transform_jobs(jobs_raw, project_id)
     load_jobs(neo4j_session, jobs, project_id, update_tag)

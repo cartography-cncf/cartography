@@ -32,12 +32,12 @@ query {
 
 @timeit
 def get_stacks(session: requests.Session, api_endpoint: str) -> list[dict[str, Any]]:
-    logger.info("Fetching Spacelift stacks")
+    logger.debug("Fetching Spacelift stacks")
 
     response = call_spacelift_api(session, api_endpoint, GET_STACKS_QUERY)
     stacks_data = response.get("data", {}).get("stacks", [])
 
-    logger.info(f"Retrieved {len(stacks_data)} Spacelift stacks")
+    logger.debug("Retrieved %s Spacelift stacks", len(stacks_data))
     return stacks_data
 
 
@@ -63,7 +63,7 @@ def transform_stacks(
 
         result.append(transformed_stack)
 
-    logger.info(f"Transformed {len(result)} stacks")
+    logger.info("Transformed %s stacks", len(result))
     return result
 
 
@@ -82,7 +82,7 @@ def load_stacks(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(stacks_data)} Spacelift stacks")
+    logger.info("Loaded %s Spacelift stacks", len(stacks_data))
 
 
 @timeit
@@ -116,4 +116,4 @@ def sync_stacks(
     )
     cleanup_stacks(neo4j_session, common_job_parameters)
 
-    logger.info(f"Synced {len(transformed_stacks)} Spacelift stacks")
+    logger.info("Synced %s Spacelift stacks", len(transformed_stacks))

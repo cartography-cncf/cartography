@@ -48,7 +48,8 @@ def get_sqs_queue_attributes(
         except ClientError as e:
             if e.response["Error"]["Code"] == "AWS.SimpleQueueService.NonExistentQueue":
                 logger.warning(
-                    f"Failed to retrieve SQS queue {queue_url} - Queue does not exist error",
+                    "Failed to retrieve SQS queue %s - Queue does not exist error",
+                    queue_url,
                 )
                 continue
             else:

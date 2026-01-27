@@ -52,7 +52,7 @@ def load_vendor_data(
             v.integration_guide_url = vendor.integration_guide_url,
             v.lastupdated = $update_tag
     """
-    logger.info(f"Loading {len(data)} pagerduty vendors.")
+    logger.info("Loading %s pagerduty vendors.", len(data))
 
     run_write_query(
         neo4j_session,

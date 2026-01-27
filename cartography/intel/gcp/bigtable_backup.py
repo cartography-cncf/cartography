@@ -74,7 +74,7 @@ def sync_bigtable_backups(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Bigtable Backups for project {project_id}.")
+    logger.info("Syncing Bigtable Backups for project %s.", project_id)
     all_backups_transformed: list[dict] = []
 
     for cluster in clusters:

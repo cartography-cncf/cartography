@@ -141,7 +141,7 @@ def get_findings(
     )
 
     if not finding_ids:
-        logger.info(f"No findings found for detector {detector_id} in region {region}")
+        logger.debug("No findings found for detector %s in region %s", detector_id, region)
         return []
 
     findings_data = []
@@ -159,7 +159,10 @@ def get_findings(
         findings_data.extend(findings_batch)
 
     logger.info(
-        f"Retrieved {len(findings_data)} findings for detector {detector_id} in region {region}"
+        "Retrieved %s findings for detector %s in region %s",
+        len(findings_data),
+        detector_id,
+        region,
     )
     return findings_data
 
@@ -240,7 +243,9 @@ def load_guardduty_findings(
     Load GuardDuty findings information into the graph.
     """
     logger.info(
-        f"Loading {len(data)} GuardDuty findings for region {region} into graph."
+        "Loading %s GuardDuty findings for region %s into graph.",
+        len(data),
+        region,
     )
 
     load(
@@ -263,7 +268,9 @@ def load_guardduty_detectors(
 ) -> None:
     """Load GuardDuty detector information into the graph."""
     logger.info(
-        f"Loading {len(data)} GuardDuty detectors for region {region} into graph.",
+        "Loading %s GuardDuty detectors for region %s into graph.",
+        len(data),
+        region,
     )
 
     load(
@@ -294,13 +301,13 @@ def sync_detectors(
     :param update_tag: Update tag for tracking sync time
     :return: List of detector IDs found in the region
     """
-    logger.info(f"Syncing GuardDuty detectors for {region} in account {aws_account_id}")
+    logger.info("Syncing GuardDuty detectors for %s in account %s", region, aws_account_id)
 
     # Get all detectors in the region
     detector_ids = get_detectors(boto3_session, region)
 
     if not detector_ids:
-        logger.info(f"No GuardDuty detectors found in region {region}")
+        logger.debug("No GuardDuty detectors found in region %s", region)
         return []
 
     # Get detector details and load into graph
@@ -340,7 +347,9 @@ def sync_findings(
     :param severity_threshold: Optional severity threshold filter (LOW, MEDIUM, HIGH, CRITICAL)
     """
     logger.info(
-        f"Syncing GuardDuty findings for {len(detector_ids)} detector(s) in {region}"
+        "Syncing GuardDuty findings for %s detector(s) in %s",
+        len(detector_ids),
+        region,
     )
 
     # Get findings for all detectors in this region
@@ -395,7 +404,7 @@ def sync(
 
     for region in regions:
         logger.info(
-            f"Syncing GuardDuty for {region} in account {current_aws_account_id}"
+            "Syncing GuardDuty for %s in account %s", region, current_aws_account_id
         )
 
         # Sync detectors for this region
@@ -408,7 +417,7 @@ def sync(
         )
 
         if not detector_ids:
-            logger.info(f"No GuardDuty detectors found in region {region}, skipping.")
+            logger.debug("No GuardDuty detectors found in region %s, skipping.", region)
             continue
 
         # Sync findings for all detectors in this region

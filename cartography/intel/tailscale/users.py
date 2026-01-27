@@ -61,7 +61,7 @@ def load_users(
     org: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} Tailscale Users to the graph")
+    logger.info("Loading %s Tailscale Users to the graph", len(data))
     load(
         neo4j_session,
         TailscaleUserSchema(),

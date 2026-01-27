@@ -113,7 +113,7 @@ def load_groups(
     update_tag: str,
     org: str,
 ) -> None:
-    logger.info(f"Loading {len(groups)} Tailscale Groups to the graph")
+    logger.info("Loading %s Tailscale Groups to the graph", len(groups))
     load(neo4j_session, TailscaleGroupSchema(), groups, lastupdated=update_tag, org=org)
 
 
@@ -124,7 +124,7 @@ def load_tags(
     org: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(data)} Tailscale Tags to the graph")
+    logger.info("Loading %s Tailscale Tags to the graph", len(data))
     load(
         neo4j_session,
         TailscaleTagSchema(),

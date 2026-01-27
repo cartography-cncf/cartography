@@ -26,7 +26,7 @@ def get_gcp_cloud_functions(
         list[dict[str, Any]]: List of cloud functions (empty list if project has no functions)
         None: If API access is denied or API is not enabled (to signal that sync should be skipped)
     """
-    logger.info(f"Collecting Cloud Functions for project: {project_id}")
+    logger.info("Collecting Cloud Functions for project: %s", project_id)
     collected_functions: list[dict[str, Any]] = []
     try:
         parent = f"projects/{project_id}/locations/-"
@@ -73,7 +73,7 @@ def _parse_region_from_name(name: str) -> str:
         # Full name is projects/{project}/locations/{region}/functions/{function-name}
         return name.split("/")[3]
     except IndexError:
-        logger.warning(f"Could not parse region from function name: {name}")
+        logger.warning("Could not parse region from function name: %s", name)
         # Default to global if region can't be parsed
         return "global"
 
@@ -157,7 +157,7 @@ def sync(
     """
     The main orchestration function to get, transform, load, and clean up GCP Cloud Functions.
     """
-    logger.info(f"Syncing GCP Cloud Functions for project {project_id}.")
+    logger.info("Syncing GCP Cloud Functions for project %s.", project_id)
 
     functions_data = get_gcp_cloud_functions(project_id, functions_client)
 

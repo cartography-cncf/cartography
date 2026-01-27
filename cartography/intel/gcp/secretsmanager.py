@@ -237,7 +237,7 @@ def load_secrets(
     """
     Load transformed secrets into Neo4j.
     """
-    logger.info(f"Loading {len(secrets)} secrets for project {project_id} into graph.")
+    logger.info("Loading %d secrets for project %s into graph.", len(secrets), project_id)
     load(
         neo4j_session,
         GCPSecretManagerSecretSchema(),
@@ -273,7 +273,9 @@ def load_secret_versions(
     Load transformed secret versions into Neo4j.
     """
     logger.info(
-        f"Loading {len(versions)} secret versions for project {project_id} into graph."
+        "Loading %d secret versions for project %s into graph.",
+        len(versions),
+        project_id,
     )
     load(
         neo4j_session,
@@ -310,7 +312,7 @@ def sync(
     """
     Sync GCP Secret Manager secrets and secret versions for a project.
     """
-    logger.info(f"Syncing Secret Manager for project {project_id}.")
+    logger.info("Syncing Secret Manager for project %s.", project_id)
 
     # Sync secrets
     secrets = get_secrets(secretmanager, project_id)

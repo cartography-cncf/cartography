@@ -49,7 +49,7 @@ async def get_entra_service_principals(
             break
         page = await client.service_principals.with_url(page.odata_next_link).get()
 
-    logger.info(f"Retrieved {count} Entra service principals total")
+    logger.debug("Retrieved %s Entra service principals total", count)
 
 
 async def get_service_principal_by_app_id(
@@ -73,7 +73,8 @@ async def get_service_principal_by_app_id(
 
     if not service_principals_page or not service_principals_page.value:
         logger.warning(
-            f"No service principal found for application {app_id}. Continuing."
+            "No service principal found for application %s. Continuing.",
+            app_id,
         )
         return None
 
@@ -213,5 +214,5 @@ async def sync_service_principals(
         service_principals_batch.clear()
         transformed_service_principals.clear()
 
-    logger.info(f"Completed loading {total_count} service principals")
+    logger.info("Completed loading %s service principals", total_count)
     cleanup_service_principals(neo4j_session, common_job_parameters)

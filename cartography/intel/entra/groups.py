@@ -109,7 +109,7 @@ def load_groups(
     update_tag: int,
     tenant_id: str,
 ) -> None:
-    logger.info(f"Loading {len(groups)} Entra groups")
+    logger.info("Loading %s Entra groups", len(groups))
     load(
         neo4j_session,
         EntraGroupSchema(),
@@ -166,7 +166,7 @@ async def sync_entra_groups(
             user_member_map[group.id] = users
             group_member_map[group.id] = subgroups
         except Exception as e:
-            logger.error(f"Failed to fetch members for group {group.id}: {e}")
+            logger.error("Failed to fetch members for group %s: %s", group.id, e)
             user_member_map[group.id] = []
             group_member_map[group.id] = []
 

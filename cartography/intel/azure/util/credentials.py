@@ -61,7 +61,8 @@ class Authenticator:
             )
         except Exception as e:
             logger.error(
-                f"Failed to authenticate with Azure CLI. Have you run 'az login'? Details: {e}"
+                "Failed to authenticate with Azure CLI. Have you run 'az login'? Details: %s",
+                e,
             )
             return None
 

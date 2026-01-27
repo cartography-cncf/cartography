@@ -330,7 +330,7 @@ def load_service_accounts(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(service_accounts)} KubernetesServiceAccounts")
+    logger.info("Loading %s KubernetesServiceAccounts", len(service_accounts))
     load(
         session,
         KubernetesServiceAccountSchema(),
@@ -349,7 +349,7 @@ def load_roles(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(roles)} KubernetesRoles")
+    logger.info("Loading %s KubernetesRoles", len(roles))
     load(
         session,
         KubernetesRoleSchema(),
@@ -368,7 +368,7 @@ def load_role_bindings(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(role_bindings)} KubernetesRoleBindings")
+    logger.info("Loading %s KubernetesRoleBindings", len(role_bindings))
     load(
         session,
         KubernetesRoleBindingSchema(),
@@ -387,7 +387,7 @@ def load_cluster_roles(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(cluster_roles)} KubernetesClusterRoles")
+    logger.info("Loading %s KubernetesClusterRoles", len(cluster_roles))
     load(
         session,
         KubernetesClusterRoleSchema(),
@@ -406,7 +406,7 @@ def load_cluster_role_bindings(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(cluster_role_bindings)} KubernetesClusterRoleBindings")
+    logger.info("Loading %s KubernetesClusterRoleBindings", len(cluster_role_bindings))
     load(
         session,
         KubernetesClusterRoleBindingSchema(),
@@ -425,7 +425,7 @@ def load_users(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(users)} KubernetesUsers")
+    logger.info("Loading %s KubernetesUsers", len(users))
     load(
         session,
         KubernetesUserSchema(),
@@ -444,7 +444,7 @@ def load_groups(
     cluster_id: str,
     cluster_name: str,
 ) -> None:
-    logger.info(f"Loading {len(groups)} KubernetesGroups")
+    logger.info("Loading %s KubernetesGroups", len(groups))
     load(
         session,
         KubernetesGroupSchema(),
@@ -501,7 +501,7 @@ def sync_kubernetes_rbac(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    logger.info(f"Syncing Kubernetes RBAC resources for cluster {client.name}")
+    logger.info("Syncing Kubernetes RBAC resources for cluster %s", client.name)
 
     # Get namespace-scoped resources
     service_accounts = get_service_accounts(client)

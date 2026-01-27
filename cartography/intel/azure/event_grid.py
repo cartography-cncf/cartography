@@ -122,7 +122,7 @@ def sync(
     """
     The main sync function for Azure Event Grid Topics.
     """
-    logger.info(f"Syncing Azure Event Grid Topics for subscription {subscription_id}.")
+    logger.info("Syncing Azure Event Grid Topics for subscription %s.", subscription_id)
     raw_topics = get_event_grid_topics(credentials, subscription_id)
     transformed_topics = transform_event_grid_topics(raw_topics)
     load_event_grid_topics(

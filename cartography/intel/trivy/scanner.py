@@ -146,14 +146,15 @@ def _parse_trivy_data(
 
     if "Results" not in trivy_data:
         logger.error(
-            f"Scan data did not contain a `Results` key for {source}. This indicates a malformed scan result."
+            "Scan data did not contain a `Results` key for %s. This indicates a malformed scan result.",
+            source,
         )
         raise ValueError(f"Missing 'Results' key in scan data for {source}")
 
     results = trivy_data["Results"]
     if not results:
         stat_handler.incr("image_scan_no_results_count")
-        logger.info(f"No vulnerabilities found for {source}")
+        logger.debug("No vulnerabilities found for %s", source)
 
     if "Metadata" not in trivy_data or not trivy_data["Metadata"]:
         raise ValueError(f"Missing 'Metadata' in scan data for {source}")
@@ -208,7 +209,7 @@ def sync_single_image(
         stat_handler.incr("images_processed_count")
 
     except Exception as e:
-        logger.error(f"Failed to process scan results for {source}: {e}")
+        logger.error("Failed to process scan results for %s: %s", source, e)
         raise
 
 
@@ -254,11 +255,14 @@ def get_json_files_in_s3(
 
     except Exception as e:
         logger.error(
-            f"Error listing S3 objects in bucket {s3_bucket} with prefix {s3_prefix}: {e}"
+            "Error listing S3 objects in bucket %s with prefix %s: %s",
+            s3_bucket,
+            s3_prefix,
+            e,
         )
         raise
 
-    logger.info(f"Found {len(results)} json files in s3://{s3_bucket}/{s3_prefix}")
+    logger.debug("Found %d json files in s3://%s/%s", len(results), s3_bucket, s3_prefix)
     return results
 
 
@@ -270,7 +274,7 @@ def get_json_files_in_dir(results_dir: str) -> set[str]:
         for filename in files:
             if filename.endswith(".json"):
                 results.add(os.path.join(root, filename))
-    logger.info(f"Found {len(results)} json files in {results_dir}")
+    logger.debug("Found %d json files in %s", len(results), results_dir)
     return results
 
 
@@ -279,7 +283,7 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     """
     Run cleanup jobs for Trivy nodes.
     """
-    logger.info("Running Trivy cleanup")
+    logger.debug("Running Trivy cleanup")
     GraphJob.from_node_schema(TrivyImageFindingSchema(), common_job_parameters).run(
         neo4j_session
     )
@@ -364,7 +368,7 @@ def sync_single_image_from_s3(
     """
     s3_client = boto3_session.client("s3")
 
-    logger.debug(f"Reading scan results from S3: s3://{s3_bucket}/{s3_object_key}")
+    logger.debug("Reading scan results from S3: s3://%s/%s", s3_bucket, s3_object_key)
     response = s3_client.get_object(Bucket=s3_bucket, Key=s3_object_key)
     scan_data_json = response["Body"].read().decode("utf-8")
 
@@ -379,7 +383,7 @@ def sync_single_image_from_file(
     update_tag: int,
 ) -> None:
     """Read a Trivy JSON file from disk and sync to Neo4j."""
-    logger.debug(f"Reading scan results from file: {file_path}")
+    logger.debug("Reading scan results from file: %s", file_path)
     with open(file_path, encoding="utf-8") as f:
         trivy_data = json.load(f)
 

@@ -71,7 +71,8 @@ def get_revisions(client: Resource, project_id: str, location: str = "-") -> lis
         return revisions
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get Cloud Run revisions for project {project_id} due to permissions or auth error: {e}",
+            "Failed to get Cloud Run revisions for project %s due to permissions or auth error: %s",
+            project_id, e,
         )
         raise
 
@@ -170,10 +171,10 @@ def sync_revisions(
     """
     Syncs GCP Cloud Run Revisions for a project.
     """
-    logger.info(f"Syncing Cloud Run Revisions for project {project_id}.")
+    logger.info("Syncing Cloud Run Revisions for project %s.", project_id)
     revisions_raw = get_revisions(client, project_id)
     if not revisions_raw:
-        logger.info(f"No Cloud Run revisions found for project {project_id}.")
+        logger.debug("No Cloud Run revisions found for project %s.", project_id)
 
     revisions = transform_revisions(revisions_raw, project_id)
     load_revisions(neo4j_session, revisions, project_id, update_tag)

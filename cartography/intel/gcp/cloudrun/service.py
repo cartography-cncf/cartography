@@ -39,7 +39,8 @@ def get_services(client: Resource, project_id: str, location: str = "-") -> list
         return services
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get Cloud Run services for project {project_id} due to permissions or auth error: {e}",
+            "Failed to get Cloud Run services for project %s due to permissions or auth error: %s",
+            project_id, e,
         )
         raise
 
@@ -121,10 +122,10 @@ def sync_services(
     """
     Syncs GCP Cloud Run Services for a project.
     """
-    logger.info(f"Syncing Cloud Run Services for project {project_id}.")
+    logger.info("Syncing Cloud Run Services for project %s.", project_id)
     services_raw = get_services(client, project_id)
     if not services_raw:
-        logger.info(f"No Cloud Run services found for project {project_id}.")
+        logger.debug("No Cloud Run services found for project %s.", project_id)
 
     services = transform_services(services_raw, project_id)
     load_services(neo4j_session, services, project_id, update_tag)

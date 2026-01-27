@@ -56,7 +56,7 @@ def load_user_data(
             u.job_title = user.job_title,
             u.lastupdated = $update_tag
     """
-    logger.info(f"Loading {len(data)} pagerduty users.")
+    logger.info("Loading %s pagerduty users.", len(data))
 
     run_write_query(
         neo4j_session,

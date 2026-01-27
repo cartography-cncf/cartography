@@ -87,12 +87,13 @@ def _call_cves_api(
     else:
         sleep_between_requests = DELAYED_SLEEP_TIME
         logger.warning(
-            f"No NIST NVD API key provided. Increasing sleep time to {sleep_between_requests}.",
+            "No NIST NVD API key provided. Increasing sleep time to %s.",
+            sleep_between_requests,
         )
     results: Dict[Any, Any] = dict()
 
     while params["resultsPerPage"] > 0 or params["startIndex"] < total_results:
-        logger.info(f"Calling NIST NVD API at {url} with params {params}")
+        logger.debug("Calling NIST NVD API at %s with params %s", url, params)
         res = http_session.get(
             url,
             params=params,
@@ -260,7 +261,7 @@ def transform_cves(cve_json: Dict[Any, Any]) -> List[Dict[Any, Any]]:
                 cve["exploitabilityScore"] = cvss31.get("exploitabilityScore")
                 cve["impactScore"] = cvss31.get("impactScore")
         except Exception:
-            logger.error(f"Failed to transform CVE data {data}")
+            logger.error("Failed to transform CVE data %s", data)
             raise
         cves.append(cve)
     return cves
@@ -288,7 +289,7 @@ def load_cves(
     """
     Load CVE's information
     """
-    logger.info(f"Loading {len(data)} CVEs into the graph.")
+    logger.info("Loading %s CVEs into the graph.", len(data))
     load(
         neo4j_session,
         CVESchema(),
@@ -306,7 +307,7 @@ def load_cve_feed(
     """
     Load CVE feed information
     """
-    logger.info(f"Loading CVE feed info {data} into the graph...")
+    logger.info("Loading CVE feed info %s into the graph...", data)
     load(
         neo4j_session,
         CVEFeedSchema(),

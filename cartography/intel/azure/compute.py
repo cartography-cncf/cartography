@@ -42,7 +42,7 @@ def get_vm_list(credentials: Credentials, subscription_id: str) -> List[Dict]:
         return vm_list
 
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving virtual machines - {e}")
+        logger.warning("Error while retrieving virtual machines - %s", e)
         return []
 
 
@@ -117,7 +117,7 @@ def get_disks(credentials: Credentials, subscription_id: str) -> List[Dict]:
         return disk_list
 
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving disks - {e}")
+        logger.warning("Error while retrieving disks - %s", e)
         return []
 
 
@@ -154,7 +154,7 @@ def get_snapshots_list(credentials: Credentials, subscription_id: str) -> List[D
         return snapshots
 
     except HttpResponseError as e:
-        logger.warning(f"Error while retrieving snapshots - {e}")
+        logger.warning("Error while retrieving snapshots - %s", e)
         return []
 
 

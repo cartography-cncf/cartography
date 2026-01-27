@@ -68,7 +68,8 @@ def get_images(
         self_images = client.describe_images(Owners=["self"])["Images"]
     except ClientError as e:
         logger.warning(
-            f"Failed retrieve self owned images for region - {region}. Error - {e}"
+            "Failed retrieve self owned images for region - %s. Error - %s",
+            region, e,
         )
     images.extend(self_images)
     if image_ids:
@@ -82,7 +83,8 @@ def get_images(
                 images.extend(public_images)
             except ClientError as e:
                 logger.warning(
-                    f"Failed retrieve image id {image} for region - {region}. Error - {e}"
+                    "Failed retrieve image id %s for region - %s. Error - %s",
+                    image, region, e,
                 )
     return images
 

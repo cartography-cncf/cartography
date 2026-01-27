@@ -64,7 +64,7 @@ def _transform_people_data(
     :return: Tuple of (people_list, manager_relationships_list)
     """
     people = directory_data.get("Report_Entry", [])
-    logger.info(f"Transforming {len(people)} people from Workday")
+    logger.debug("Transforming %s people from Workday", len(people))
 
     people_transformed = []
     manager_relationships = []
@@ -135,7 +135,7 @@ def _load_organizations(
             organizations.append({"Supervisory_Organization": org_name})
             seen_orgs.add(org_name)
 
-    logger.info(f"Loading {len(organizations)} Workday organizations")
+    logger.info("Loading %s Workday organizations", len(organizations))
     load(
         neo4j_session,
         WorkdayOrganizationSchema(),
@@ -157,7 +157,7 @@ def _load_people(
     :param people_data: List of transformed people data
     :param update_tag: Update tag for tracking data freshness
     """
-    logger.info(f"Loading {len(people_data)} Workday people")
+    logger.info("Loading %s Workday people", len(people_data))
     load(
         neo4j_session,
         WorkdayHumanSchema(),

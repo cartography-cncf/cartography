@@ -233,7 +233,7 @@ def compile_regex(item: str) -> Pattern:
         try:
             return re.compile(item, flags=re.IGNORECASE)
         except re.error:
-            logger.warning(f"Regex did not compile for {item}")
+            logger.warning("Regex did not compile for %s", item)
             # in this case it must still return a regex.
             # So it will return an re.Pattern of empry stringm
             return re.compile("", flags=re.IGNORECASE)
@@ -383,9 +383,10 @@ def parse_permission_relationships_file(file_path: str) -> List[Any]:
         return relationship_mapping
     except FileNotFoundError:
         logger.warning(
-            f"Permission relationships mapping file {file_path} not found, skipping sync stage {__name__}. "
-            f"If you want to run this sync, please explicitly set a value for --permission-relationships-file in the "
-            f"command line interface.",
+            "Permission relationships mapping file %s not found, skipping sync stage %s. "
+            "If you want to run this sync, please explicitly set a value for --permission-relationships-file in the "
+            "command line interface.",
+            file_path, __name__,
         )
         return []
 

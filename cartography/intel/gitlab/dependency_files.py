@@ -75,7 +75,7 @@ def get_dependency_files(
 
             if response.status_code == 404:
                 # Path doesn't exist or repository is empty
-                logger.debug(f"Path not found or empty: {current_path or 'root'}")
+                logger.debug("Path not found or empty: %s", current_path or 'root')
                 break
 
             response.raise_for_status()
@@ -100,7 +100,7 @@ def get_dependency_files(
                             "id": item.get("id", ""),
                         }
                     )
-                    logger.debug(f"Found manifest file: {item_path}")
+                    logger.debug("Found manifest file: %s", item_path)
 
                 # If it's a directory, push to queue
                 elif item_type == "tree":
@@ -142,7 +142,7 @@ def transform_dependency_files(
         }
         transformed.append(transformed_file)
 
-    logger.info(f"Transformed {len(transformed)} dependency files")
+    logger.debug("Transformed %s dependency files", len(transformed))
     return transformed
 
 
@@ -157,7 +157,7 @@ def load_dependency_files(
     Load GitLab dependency files into the graph for a specific project.
     """
     logger.info(
-        f"Loading {len(dependency_files)} dependency files for project {project_url}"
+        "Loading %s dependency files for project %s", len(dependency_files), project_url
     )
     load(
         neo4j_session,
@@ -177,7 +177,7 @@ def cleanup_dependency_files(
     """
     Remove stale GitLab dependency files from the graph for a specific project.
     """
-    logger.info(f"Running GitLab dependency files cleanup for project {project_url}")
+    logger.debug("Running GitLab dependency files cleanup for project %s", project_url)
     cleanup_params = {**common_job_parameters, "project_url": project_url}
     GraphJob.from_node_schema(GitLabDependencyFileSchema(), cleanup_params).run(
         neo4j_session
@@ -207,7 +207,7 @@ def sync_gitlab_dependency_files(
     :param projects: List of project dicts to sync.
     :return: Dict mapping project_url to list of transformed dependency files.
     """
-    logger.info(f"Syncing GitLab dependency files for {len(projects)} projects")
+    logger.info("Syncing GitLab dependency files for %s projects", len(projects))
 
     # Store dependency files per project to avoid re-fetching in dependencies sync
     dependency_files_by_project: dict[str, list[dict[str, Any]]] = {}
@@ -218,12 +218,12 @@ def sync_gitlab_dependency_files(
         project_name: str = project["name"]
         project_url: str = project["web_url"]
 
-        logger.debug(f"Syncing dependency files for project: {project_name}")
+        logger.debug("Syncing dependency files for project: %s", project_name)
 
         raw_dependency_files = get_dependency_files(gitlab_url, token, project_id)
 
         if not raw_dependency_files:
-            logger.debug(f"No dependency files found for project {project_name}")
+            logger.debug("No dependency files found for project %s", project_name)
             dependency_files_by_project[project_url] = []
             continue
 

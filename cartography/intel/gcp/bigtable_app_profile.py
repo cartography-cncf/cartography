@@ -82,7 +82,7 @@ def sync_bigtable_app_profiles(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Bigtable App Profiles for project {project_id}.")
+    logger.info("Syncing Bigtable App Profiles for project %s.", project_id)
     all_app_profiles_transformed: list[dict] = []
 
     for inst in instances:

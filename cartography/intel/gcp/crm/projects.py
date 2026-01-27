@@ -68,7 +68,8 @@ def transform_gcp_projects(data: List[Dict]) -> List[Dict]:
             project["parent_folder"] = project["parent"]
         else:
             logger.warning(
-                f"Project {project['projectId']} has unexpected parent type: {project['parent']}"
+                "Project %s has unexpected parent type: %s",
+                project["projectId"], project["parent"],
             )
 
     return data

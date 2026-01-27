@@ -79,7 +79,8 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
             if should_handle:
                 bucket["Region"] = None
                 logger.warning(
-                    "skipping bucket='{}' due to exception.".format(bucket["Name"]),
+                    "skipping bucket='%s' due to exception.",
+                    bucket["Name"],
                 )
                 continue
             else:
@@ -186,7 +187,8 @@ def get_policy(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket policy for {bucket['Name']} - Could not connect to the endpoint URL",
+            "Failed to retrieve S3 bucket policy for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -206,7 +208,8 @@ def get_acl(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFailed:
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket ACL for {bucket['Name']} - Could not connect to the endpoint URL",
+            "Failed to retrieve S3 bucket ACL for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -226,7 +229,8 @@ def get_encryption(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket encryption for {bucket['Name']} - Could not connect to the endpoint URL",
+            "Failed to retrieve S3 bucket encryption for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -246,7 +250,8 @@ def get_versioning(bucket: Dict, client: botocore.client.BaseClient) -> MaybeFai
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket versioning for {bucket['Name']} - Could not connect to the endpoint URL",
+            "Failed to retrieve S3 bucket versioning for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -269,8 +274,9 @@ def get_public_access_block(
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket public access block for {bucket['Name']}"
+            "Failed to retrieve S3 bucket public access block for %s"
             " - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -292,8 +298,9 @@ def get_bucket_ownership_controls(
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket ownership controls for {bucket['Name']}"
+            "Failed to retrieve S3 bucket ownership controls for %s"
             " - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -313,7 +320,8 @@ def get_bucket_logging(bucket: Dict, client: botocore.client.BaseClient) -> Mayb
             raise
     except EndpointConnectionError:
         logger.warning(
-            f"Failed to retrieve S3 bucket logging status for {bucket['Name']} - Could not connect to the endpoint URL",
+            "Failed to retrieve S3 bucket logging status for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
         )
         return FETCH_FAILED
 
@@ -334,44 +342,50 @@ def _is_common_exception(e: Exception, bucket_name: str) -> Tuple[bool, bool]:
     # "No configuration" errors - valid states where no config exists
     # These return (True, False) - handle but not a failure
     if "NoSuchBucketPolicy" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - NoSuchBucketPolicy")
+        logger.warning("%s for %s - NoSuchBucketPolicy", error_msg, bucket_name)
         return (True, False)
     elif "ServerSideEncryptionConfigurationNotFoundError" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket_name} - ServerSideEncryptionConfigurationNotFoundError",
+            "%s for %s - ServerSideEncryptionConfigurationNotFoundError",
+            error_msg,
+            bucket_name,
         )
         return (True, False)
     elif "NoSuchPublicAccessBlockConfiguration" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket_name} - NoSuchPublicAccessBlockConfiguration",
+            "%s for %s - NoSuchPublicAccessBlockConfiguration",
+            error_msg,
+            bucket_name,
         )
         return (True, False)
     elif "OwnershipControlsNotFoundError" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket_name} - OwnershipControlsNotFoundError"
+            "%s for %s - OwnershipControlsNotFoundError", error_msg, bucket_name
         )
         return (True, False)
 
     # Fetch failures - should preserve existing data
     # These return (True, True) - handle and is a failure
     elif "AccessDenied" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - Access Denied")
+        logger.warning("%s for %s - Access Denied", error_msg, bucket_name)
         return (True, True)
     elif "NoSuchBucket" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - No Such Bucket")
+        logger.warning("%s for %s - No Such Bucket", error_msg, bucket_name)
         return (True, True)
     elif "AllAccessDisabled" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - Bucket is disabled")
+        logger.warning("%s for %s - Bucket is disabled", error_msg, bucket_name)
         return (True, True)
     elif "EndpointConnectionError" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - EndpointConnectionError")
+        logger.warning("%s for %s - EndpointConnectionError", error_msg, bucket_name)
         return (True, True)
     elif "InvalidToken" in error_str:
-        logger.warning(f"{error_msg} for {bucket_name} - InvalidToken")
+        logger.warning("%s for %s - InvalidToken", error_msg, bucket_name)
         return (True, True)
     elif "IllegalLocationConstraintException" in error_str:
         logger.warning(
-            f"{error_msg} for {bucket_name} - IllegalLocationConstraintException",
+            "%s for %s - IllegalLocationConstraintException",
+            error_msg,
+            bucket_name,
         )
         return (True, True)
 
@@ -1266,11 +1280,12 @@ def _sync_s3_notifications(
             )
         except ClientError as e:
             logger.warning(
-                f"Failed to retrieve notification configuration for bucket {bucket['Name']}: {e}"
+                "Failed to retrieve notification configuration for bucket %s: %s",
+                bucket["Name"], e,
             )
             continue
 
-    logger.info(f"Loading {len(notifications)} S3 bucket notifications into Neo4j")
+    logger.info("Loading %s S3 bucket notifications into Neo4j", len(notifications))
     _load_s3_notifications(neo4j_session, notifications, update_tag)
 
 

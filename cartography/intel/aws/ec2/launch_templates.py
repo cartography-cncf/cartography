@@ -171,7 +171,7 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    logger.info("Running launch template cleanup job.")
+    logger.debug("Running launch template cleanup job.")
     cleanup_job = GraphJob.from_node_schema(
         LaunchTemplateSchema(),
         common_job_parameters,

@@ -67,7 +67,7 @@ def load_team_data(
             t.default_role = team.default_role,
             t.lastupdated = $update_tag
     """
-    logger.info(f"Loading {len(data)} pagerduty teams.")
+    logger.info("Loading %s pagerduty teams.", len(data))
 
     run_write_query(
         neo4j_session,

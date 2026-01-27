@@ -127,7 +127,7 @@ async def batch_get_manifest(
         raise
 
     if not resp.get("images"):
-        logger.warning(f"No image found for {repo}:{image_ref}")
+        logger.debug("No image found for %s:%s", repo, image_ref)
         return {}, ""
 
     manifest_json = json.loads(resp["images"][0]["imageManifest"])
@@ -863,8 +863,9 @@ def sync(
 
         if not repo_images_list:
             logger.warning(
-                f"No ECR images found in graph for region {region}. "
-                f"Run 'ecr' sync first to populate basic ECR data."
+                "No ECR images found in graph for region %s. "
+                "Run 'ecr' sync first to populate basic ECR data.",
+                region,
             )
             continue
 

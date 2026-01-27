@@ -72,7 +72,7 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-    logger.info("Running EKS cluster cleanup")
+    logger.debug("Running EKS cluster cleanup")
     GraphJob.from_node_schema(EKSClusterSchema(), common_job_parameters).run(
         neo4j_session,
     )

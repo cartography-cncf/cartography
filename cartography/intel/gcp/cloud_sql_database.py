@@ -88,7 +88,7 @@ def sync_sql_databases(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Cloud SQL Databases for project {project_id}.")
+    logger.info("Syncing Cloud SQL Databases for project %s.", project_id)
     all_databases: list[dict] = []
 
     for inst in instances:
@@ -102,7 +102,8 @@ def sync_sql_databases(
             all_databases.extend(transform_sql_databases(databases_raw, instance_id))
         except Exception:
             logger.warning(
-                f"Failed to get SQL databases for instance {instance_name}",
+                "Failed to get SQL databases for instance %s",
+                instance_name,
                 exc_info=True,
             )
             continue

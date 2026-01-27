@@ -35,7 +35,7 @@ def load_host_data(
     """
     Load Crowdstrike host data into Neo4j.
     """
-    logger.info(f"Loading {len(data)} crowdstrike hosts.")
+    logger.info("Loading %s crowdstrike hosts.", len(data))
     load(
         neo4j_session,
         CrowdstrikeHostSchema(),
@@ -55,7 +55,7 @@ def get_host_ids(
     body = response.get("body", {})
     resources = body.get("resources", [])
     if not resources:
-        logger.warning("No host IDs in QueryDevicesByFilter.")
+        logger.debug("No host IDs in QueryDevicesByFilter.")
         return []
     ids.append(resources)
     offset = body.get("meta", {}).get("pagination", {}).get("offset")

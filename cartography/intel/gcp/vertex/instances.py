@@ -77,32 +77,40 @@ def get_workbench_api_locations(aiplatform: Resource, project_id: str) -> List[s
             if any(location_id.startswith(prefix) for prefix in supported_prefixes):
                 locations.append(location_id)
 
-        logger.info(
-            f"Found {len(locations)} supported Notebooks API locations "
-            f"(filtered from {len(all_locations)} total) for project {project_id}"
+        logger.debug(
+            "Found %d supported Notebooks API locations (filtered from %d total) for project %s",
+            len(locations),
+            len(all_locations),
+            project_id,
         )
         return locations
 
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 403:
             logger.warning(
-                f"Access forbidden when trying to get Notebooks API locations for project {project_id}. "
+                "Access forbidden when trying to get Notebooks API locations for project %s. "
                 "Ensure the Notebooks API is enabled and you have the necessary permissions.",
+                project_id,
             )
         elif e.response.status_code == 404:
             logger.warning(
-                f"Notebooks API locations not found for project {project_id}. "
+                "Notebooks API locations not found for project %s. "
                 "The Notebooks API may not be enabled.",
+                project_id,
             )
         else:
             logger.error(
-                f"Error getting Notebooks API locations for project {project_id}: {e}",
+                "Error getting Notebooks API locations for project %s: %s",
+                project_id,
+                e,
                 exc_info=True,
             )
         return []
     except Exception as e:
         logger.error(
-            f"Unexpected error getting Notebooks API locations for project {project_id}: {e}",
+            "Unexpected error getting Notebooks API locations for project %s: %s",
+            project_id,
+            e,
             exc_info=True,
         )
         return []
@@ -183,8 +191,8 @@ def transform_workbench_instances(instances: List[Dict]) -> List[Dict]:
 
         transformed_instances.append(transformed_instance)
 
-    logger.info(
-        f"Transformed {len(transformed_instances)} Vertex AI Workbench instances"
+    logger.debug(
+        "Transformed %d Vertex AI Workbench instances", len(transformed_instances)
     )
     return transformed_instances
 

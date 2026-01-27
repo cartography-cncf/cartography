@@ -32,7 +32,9 @@ def get_container_instances(
         return [cg.as_dict() for cg in client.container_groups.list()]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(
-            f"Failed to get Container Instances for subscription {subscription_id}: {str(e)}"
+            "Failed to get Container Instances for subscription %s: %s",
+            subscription_id,
+            e,
         )
         return []
 
@@ -119,7 +121,7 @@ def sync(
     common_job_parameters: dict,
 ) -> None:
     logger.info(
-        f"Syncing Azure Container Instances for subscription {subscription_id}."
+        "Syncing Azure Container Instances for subscription %s.", subscription_id
     )
     raw_groups = get_container_instances(credentials, subscription_id)
     transformed_groups = transform_container_instances(raw_groups)

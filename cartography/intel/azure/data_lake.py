@@ -34,7 +34,7 @@ def get_datalake_accounts(credentials: Credentials, subscription_id: str) -> lis
         storage_accounts = [sa.as_dict() for sa in client.storage_accounts.list()]
         return [sa for sa in storage_accounts if sa.get("is_hns_enabled")]
     except (ClientAuthenticationError, HttpResponseError) as e:
-        logger.warning(f"Failed to get Storage Accounts for Data Lake sync: {str(e)}")
+        logger.warning("Failed to get Storage Accounts for Data Lake sync: %s", e)
         return []
 
 
@@ -54,7 +54,9 @@ def get_filesystems_for_account(
         ]
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(
-            f"Failed to get containers for storage account {account['name']}: {str(e)}",
+            "Failed to get containers for storage account %s: %s",
+            account['name'],
+            e,
         )
         return []
 
@@ -124,7 +126,8 @@ def sync(
     common_job_parameters: dict,
 ) -> None:
     logger.info(
-        f"Syncing Azure Data Lake File Systems for subscription {subscription_id}.",
+        "Syncing Azure Data Lake File Systems for subscription %s.",
+        subscription_id,
     )
     client = StorageManagementClient(credentials.credential, subscription_id)
 

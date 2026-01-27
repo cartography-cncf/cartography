@@ -90,7 +90,7 @@ def load_ec2_vpcs(
     aws_account_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(vpcs)} EC2 VPCs for region '{region}' into graph.")
+    logger.info("Loading %s EC2 VPCs for region '%s' into graph.", len(vpcs), region)
     # https://docs.aws.amazon.com/cli/latest/reference/ec2/describe-vpcs.html
     # {
     #     "Vpcs": [

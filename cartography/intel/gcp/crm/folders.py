@@ -68,7 +68,8 @@ def transform_gcp_folders(data: List[Dict]) -> List[Dict]:
             folder["parent_folder"] = folder["parent"]
         else:
             logger.warning(
-                f"Folder {folder['name']} has unexpected parent type: {folder['parent']}"
+                "Folder %s has unexpected parent type: %s",
+                folder["name"], folder["parent"],
             )
 
     return data

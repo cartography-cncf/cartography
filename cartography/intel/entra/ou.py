@@ -44,7 +44,7 @@ async def get_entra_ous(
             else:
                 current_request = None
         except Exception as e:
-            logger.error(f"Failed to retrieve administrative units: {str(e)}")
+            logger.error("Failed to retrieve administrative units: %s", str(e))
             current_request = None
 
 
@@ -74,7 +74,7 @@ def load_ous(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    logger.info(f"Loading {len(units)} Entra OUs")
+    logger.info("Loading %s Entra OUs", len(units))
     load(
         neo4j_session,
         EntraOUSchema(),

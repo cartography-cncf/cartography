@@ -87,7 +87,7 @@ def load_service_data(
             s.support_hours_days_of_week = s.support_hours.days_of_week,
             s.lastupdated = $update_tag
     """  # noqa: E501
-    logger.info(f"Loading {len(data)} pagerduty services.")
+    logger.info("Loading %s pagerduty services.", len(data))
 
     team_relations: List[Dict[str, str]] = []
     for service in data:
@@ -159,7 +159,7 @@ def load_integration_data(
         ON CREATE SET sr.firstseen = timestamp()
         SET sr.lastupdated = $update_tag
     """
-    logger.info(f"Loading {len(data)} pagerduty integrations.")
+    logger.info("Loading %s pagerduty integrations.", len(data))
 
     for integration in data:
         created_at = dateutil.parser.parse(integration["created_at"])

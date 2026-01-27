@@ -32,7 +32,8 @@ def get_reserved_instances(
         reserved_instances = client.describe_reserved_instances()["ReservedInstances"]
     except ClientError as e:
         logger.warning(
-            f"Failed retrieve reserved instances for region - {region}. Error - {e}",
+            "Failed retrieve reserved instances for region - %s. Error - %s",
+            region, e,
         )
         raise
     return reserved_instances

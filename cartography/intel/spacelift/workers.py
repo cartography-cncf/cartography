@@ -34,7 +34,7 @@ def get_workers(session: requests.Session, api_endpoint: str) -> list[dict[str, 
     Fetch all Spacelift workers from the API.
     Workers are nested under workerPools, so we query workerPools and flatten the workers.
     """
-    logger.info("Fetching Spacelift workers")
+    logger.debug("Fetching Spacelift workers")
 
     response = call_spacelift_api(session, api_endpoint, GET_WORKERS_QUERY)
     worker_pools = response.get("data", {}).get("workerPools", [])
@@ -49,7 +49,7 @@ def get_workers(session: requests.Session, api_endpoint: str) -> list[dict[str, 
             all_workers.append(worker)
 
     logger.info(
-        f"Retrieved {len(all_workers)} Spacelift workers from {len(worker_pools)} worker pools"
+        "Retrieved %s Spacelift workers from %s worker pools", len(all_workers), len(worker_pools)
     )
     return all_workers
 
@@ -72,7 +72,7 @@ def transform_workers(
 
         result.append(transformed_worker)
 
-    logger.info(f"Transformed {len(result)} workers")
+    logger.info("Transformed %s workers", len(result))
     return result
 
 
@@ -91,7 +91,7 @@ def load_workers(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Loaded {len(workers_data)} Spacelift workers")
+    logger.info("Loaded %s Spacelift workers", len(workers_data))
 
 
 @timeit
@@ -125,4 +125,4 @@ def sync_workers(
     )
     cleanup_workers(neo4j_session, common_job_parameters)
 
-    logger.info(f"Synced {len(transformed_workers)} Spacelift workers")
+    logger.info("Synced %s Spacelift workers", len(transformed_workers))

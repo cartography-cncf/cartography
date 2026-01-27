@@ -45,8 +45,9 @@ def handle_rate_limit_sleep(token: str) -> None:
     # add an extra minute for safety
     sleep_duration = reset_at - now + timedelta(minutes=1)
     logger.warning(
-        f"Github graphql ratelimit has {remaining} remaining and is under threshold {threshold},"
-        f" sleeping until reset at {reset_at} for {sleep_duration}",
+        "Github graphql ratelimit has %s remaining and is under threshold %s,"
+        " sleeping until reset at %s for %s",
+        remaining, threshold, reset_at, sleep_duration,
     )
     time.sleep(sleep_duration.seconds)
 
@@ -76,8 +77,9 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> Dic
     response_json = response.json()
     if "errors" in response_json:
         logger.warning(
-            f'call_github_api() response has errors, please investigate. Raw response: {response_json["errors"]}; '
-            f"continuing sync.",
+            "call_github_api() response has errors, please investigate. Raw response: %s; "
+            "continuing sync.",
+            response_json["errors"],
         )
     return response_json  # type: ignore
 
@@ -177,8 +179,9 @@ def fetch_all(
 
         if retry >= retries:
             logger.error(
-                f"GitHub: Could not retrieve page of resource `{resource_type}` due to HTTP error "
-                f"after {retry} retries. Raising exception.",
+                "GitHub: Could not retrieve page of resource '%s' due to HTTP error "
+                "after %s retries. Raising exception.",
+                resource_type, retry,
                 exc_info=True,
             )
             raise exc
@@ -188,9 +191,9 @@ def fetch_all(
 
         if "data" not in resp:
             logger.warning(
-                f'Got no "data" attribute in response: {resp}. '
-                f"Stopping requests for organization: {organization} and "
-                f"resource_type: {resource_type}",
+                'Got no "data" attribute in response: %s. '
+                "Stopping requests for organization: %s and resource_type: %s",
+                resp, organization, resource_type,
             )
             has_next_page = False
             continue

@@ -31,7 +31,7 @@ def call_spacelift_api(
     """
     Make a GraphQL query to the Spacelift API.
     """
-    logger.debug(f"Making GraphQL request to {api_endpoint}")
+    logger.debug("Making GraphQL request to %s", api_endpoint)
 
     # Prepare the GraphQL request payload
     payload: dict[str, Any] = {"query": query}
@@ -115,8 +115,8 @@ def get_spacelift_token(api_endpoint: str, key_id: str, key_secret: str) -> str:
         return jwt
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to exchange Spacelift API key for token: {e}")
+        logger.error("Failed to exchange Spacelift API key for token: %s", e)
         raise
     except (KeyError, ValueError) as e:
-        logger.error(f"Invalid response from Spacelift token exchange: {e}")
+        logger.error("Invalid response from Spacelift token exchange: %s", e)
         raise

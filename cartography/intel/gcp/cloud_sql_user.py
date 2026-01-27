@@ -84,7 +84,7 @@ def sync_sql_users(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Cloud SQL Users for project {project_id}.")
+    logger.info("Syncing Cloud SQL Users for project %s.", project_id)
     all_users: list[dict] = []
 
     for inst in instances:
@@ -98,7 +98,7 @@ def sync_sql_users(
             all_users.extend(transform_sql_users(users_raw, instance_id))
         except Exception:
             logger.warning(
-                f"Failed to get SQL users for instance {instance_name}", exc_info=True
+                "Failed to get SQL users for instance %s", instance_name, exc_info=True
             )
             continue
 

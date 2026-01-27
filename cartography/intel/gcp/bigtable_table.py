@@ -72,7 +72,7 @@ def sync_bigtable_tables(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
-    logger.info(f"Syncing Bigtable Tables for project {project_id}.")
+    logger.info("Syncing Bigtable Tables for project %s.", project_id)
     all_tables_transformed: list[dict] = []
 
     for inst in instances:

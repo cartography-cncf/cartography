@@ -57,7 +57,7 @@ def get_dependencies(
     }
 
     logger.debug(
-        f"Fetching dependencies from scanning artifacts for project ID {project_id}"
+        "Fetching dependencies from scanning artifacts for project ID %s", project_id
     )
 
     # Find the latest successful dependency scanning job
@@ -83,17 +83,18 @@ def get_dependencies(
 
         if not dep_scan_job:
             logger.debug(
-                f"No successful '{dependency_scan_job_name}' job found for project ID {project_id}"
+                "No successful '%s' job found for project ID %s",
+                dependency_scan_job_name, project_id,
             )
             return []
 
         job_id = dep_scan_job.get("id")
         logger.debug(
-            f"Found dependency scanning job ID {job_id} for project ID {project_id}"
+            "Found dependency scanning job ID %s for project ID %s", job_id, project_id
         )
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching jobs for project ID {project_id}: {e}")
+        logger.error("Error fetching jobs for project ID %s: %s", project_id, e)
         return []
 
     # Download the job artifacts
@@ -103,7 +104,8 @@ def get_dependencies(
     }
 
     logger.debug(
-        f"Downloading artifacts from branch '{default_branch}' for project ID {project_id}"
+        "Downloading artifacts from branch '%s' for project ID %s",
+        default_branch, project_id,
     )
 
     try:
@@ -111,7 +113,7 @@ def get_dependencies(
             "GET", artifacts_url, headers, params_artifacts
         )
 
-        logger.debug(f"Artifacts download response status: {response.status_code}")
+        logger.debug("Artifacts download response status: %s", response.status_code)
 
         if response.status_code == 404:
             logger.debug(
@@ -142,36 +144,38 @@ def get_dependencies(
 
         if not cdx_files:
             logger.debug(
-                f"No CycloneDX SBOM files found in artifacts for project ID {project_id}"
+                "No CycloneDX SBOM files found in artifacts for project ID %s",
+                project_id,
             )
-            logger.debug(f"Available files: {artifacts_zip.namelist()}")
+            logger.debug("Available files: %s", artifacts_zip.namelist())
             return []
 
         # Parse all CycloneDX files (there may be multiple for different package managers)
         all_dependencies: list[dict[str, Any]] = []
         for cdx_file in cdx_files:
-            logger.debug(f"Parsing CycloneDX SBOM file: {cdx_file}")
+            logger.debug("Parsing CycloneDX SBOM file: %s", cdx_file)
             with artifacts_zip.open(cdx_file) as report_file:
                 report_data = json.load(report_file)
                 deps = _parse_cyclonedx_sbom(report_data, dependency_files)
                 all_dependencies.extend(deps)
 
         logger.debug(
-            f"Successfully parsed {len(cdx_files)} CycloneDX SBOM file(s) for project ID {project_id}"
+            "Successfully parsed %s CycloneDX SBOM file(s) for project ID %s",
+            len(cdx_files), project_id,
         )
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error downloading artifacts for job ID {job_id}: {e}")
+        logger.error("Error downloading artifacts for job ID %s: %s", job_id, e)
         return []
     except zipfile.BadZipFile as e:
-        logger.error(f"Invalid ZIP file for job ID {job_id}: {e}")
+        logger.error("Invalid ZIP file for job ID %s: %s", job_id, e)
         return []
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in CycloneDX SBOM: {e}")
+        logger.error("Invalid JSON in CycloneDX SBOM: %s", e)
         return []
 
     logger.debug(
-        f"Extracted {len(all_dependencies)} dependencies for project ID {project_id}"
+        "Extracted %s dependencies for project ID %s", len(all_dependencies), project_id
     )
     return all_dependencies
 
@@ -286,7 +290,7 @@ def transform_dependencies(
 
         transformed.append(transformed_dep)
 
-    logger.info(f"Transformed {len(transformed)} dependencies")
+    logger.debug("Transformed %s dependencies", len(transformed))
     return transformed
 
 
@@ -300,7 +304,7 @@ def load_dependencies(
     """
     Load GitLab dependencies into the graph for a specific project.
     """
-    logger.info(f"Loading {len(dependencies)} dependencies for project {project_url}")
+    logger.info("Loading %s dependencies for project %s", len(dependencies), project_url)
     load(
         neo4j_session,
         GitLabDependencySchema(),
@@ -319,7 +323,7 @@ def cleanup_dependencies(
     """
     Remove stale GitLab dependencies from the graph for a specific project.
     """
-    logger.info(f"Running GitLab dependencies cleanup for project {project_url}")
+    logger.debug("Running GitLab dependencies cleanup for project %s", project_url)
     cleanup_params = {**common_job_parameters, "project_url": project_url}
     GraphJob.from_node_schema(GitLabDependencySchema(), cleanup_params).run(
         neo4j_session
@@ -348,7 +352,7 @@ def sync_gitlab_dependencies(
     :param dependency_files_by_project: Pre-fetched dependency files from dependency_files sync.
         If provided, avoids duplicate API calls. Dict maps project_url to list of files.
     """
-    logger.info(f"Syncing GitLab dependencies for {len(projects)} projects")
+    logger.info("Syncing GitLab dependencies for %s projects", len(projects))
 
     # Sync dependencies for each project
     for project in projects:
@@ -357,7 +361,7 @@ def sync_gitlab_dependencies(
         project_url: str = project["web_url"]
         default_branch: str = project.get("default_branch") or "main"
 
-        logger.debug(f"Syncing dependencies for project: {project_name}")
+        logger.debug("Syncing dependencies for project: %s", project_name)
 
         # Use pre-fetched dependency files if available, otherwise fetch them
         if dependency_files_by_project is not None:
@@ -371,14 +375,14 @@ def sync_gitlab_dependencies(
 
             raw_dependency_files = get_dependency_files(gitlab_url, token, project_id)
             if not raw_dependency_files:
-                logger.debug(f"No dependency files found for project {project_name}")
+                logger.debug("No dependency files found for project %s", project_name)
                 continue
             transformed_files = transform_dependency_files(
                 raw_dependency_files, project_url
             )
 
         if not transformed_files:
-            logger.debug(f"No dependency files found for project {project_name}")
+            logger.debug("No dependency files found for project %s", project_name)
             continue
 
         raw_dependencies = get_dependencies(
@@ -390,7 +394,7 @@ def sync_gitlab_dependencies(
         )
 
         if not raw_dependencies:
-            logger.debug(f"No dependencies found for project {project_name}")
+            logger.debug("No dependencies found for project %s", project_name)
             continue
 
         transformed_dependencies = transform_dependencies(raw_dependencies, project_url)

@@ -34,7 +34,7 @@ def get_foundation_models(
     """
     Retrieve all foundation models available in AWS Bedrock for a given region.
     """
-    logger.info("Fetching Bedrock foundation models in region %s", region)
+    logger.debug("Fetching Bedrock foundation models in region %s", region)
     client = boto3_session.client(
         "bedrock",
         region_name=region,
@@ -45,7 +45,7 @@ def get_foundation_models(
     response = client.list_foundation_models()
     models = response.get("modelSummaries", [])
 
-    logger.info("Retrieved %d foundation models in region %s", len(models), region)
+    logger.debug("Retrieved %d foundation models in region %s", len(models), region)
 
     return models
 
@@ -93,7 +93,7 @@ def cleanup_foundation_models(
     """
     Remove stale foundation model nodes from the graph.
     """
-    logger.info("Cleaning up stale Bedrock foundation models")
+    logger.debug("Cleaning up stale Bedrock foundation models")
 
     GraphJob.from_node_schema(
         AWSBedrockFoundationModelSchema(),
@@ -124,7 +124,7 @@ def sync(
         models = get_foundation_models(boto3_session, region)
 
         if not models:
-            logger.info("No foundation models found in region %s", region)
+            logger.debug("No foundation models found in region %s", region)
             continue
 
         # Transform data for ingestion

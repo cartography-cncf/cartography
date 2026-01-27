@@ -258,7 +258,7 @@ def _sync_project_resources(
 
             # Fetch predefined roles once for CAI fallback (they're global, not project-specific)
             if predefined_roles is None:
-                logger.info("Fetching predefined IAM roles for CAI fallback")
+                logger.debug("Fetching predefined IAM roles for CAI fallback")
                 iam_client = build_client("iam", "v1", credentials=credentials)
                 predefined_roles = iam.get_gcp_predefined_roles(iam_client)
                 logger.info(
@@ -290,7 +290,7 @@ def _sync_project_resources(
                 else:
                     raise
         if service_names.bigtable in enabled_services:
-            logger.info(f"Syncing GCP project {project_id} for Bigtable.")
+            logger.info("Syncing GCP project %s for Bigtable.", project_id)
             bigtable_client = build_client(
                 "bigtableadmin", "v2", credentials=credentials
             )
@@ -341,7 +341,7 @@ def _sync_project_resources(
                     )
 
         if service_names.aiplatform in enabled_services:
-            logger.info(f"Syncing GCP project {project_id} for Vertex AI.")
+            logger.info("Syncing GCP project %s for Vertex AI.", project_id)
             aiplatform_client = build_client(
                 "aiplatform", "v1", credentials=credentials
             )
@@ -608,7 +608,7 @@ def start_gcp_ingestion(
     for org in orgs:
         org_resource_name = org.get("name", "")  # e.g., organizations/123456789012
         if not org_resource_name or "/" not in org_resource_name:
-            logger.error(f"Invalid org resource name: {org_resource_name}")
+            logger.error("Invalid org resource name: %s", org_resource_name)
             continue
 
         # Store the full resource name for cleanup operations
@@ -643,7 +643,7 @@ def start_gcp_ingestion(
         )
 
         # Clean up projects and folders for this org (children before parents)
-        logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
+        logger.debug("Running cleanup for projects and folders in %s", org_resource_name)
         GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
             neo4j_session
         )
@@ -658,7 +658,7 @@ def start_gcp_ingestion(
         del common_job_parameters["ORG_RESOURCE_NAME"]
 
     # Run all org cleanup jobs at the very end, after all children have been cleaned up
-    logger.info("Running cleanup for GCP organizations")
+    logger.debug("Running cleanup for GCP organizations")
     for schema_class, params in org_cleanup_jobs:
         GraphJob.from_node_schema(schema_class(), params).run(neo4j_session)
 

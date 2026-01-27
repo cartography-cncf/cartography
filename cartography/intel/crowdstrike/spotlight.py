@@ -54,7 +54,7 @@ def load_vulnerability_data(
         ON CREATE SET hv.firstseen = timestamp()
         SET hv.lastupdated = $update_tag
     """
-    logger.info(f"Loading {len(data)} crowdstrike spotlight vulnerabilities.")
+    logger.info("Loading %s crowdstrike spotlight vulnerabilities.", len(data))
     vulns = []
     cves = []
     for item in data:
@@ -125,7 +125,7 @@ def get_spotlight_vulnerability_ids(
     body = response.get("body", {})
     resources = body.get("resources", [])
     if not resources:
-        logger.warning("No vulnerability IDs in spotlight queryVulnerabilities.")
+        logger.debug("No vulnerability IDs in spotlight queryVulnerabilities.")
         return []
     ids.append(resources)
     after = body.get("meta", {}).get("pagination", {}).get("after")

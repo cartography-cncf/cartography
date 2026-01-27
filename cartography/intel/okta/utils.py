@@ -59,6 +59,7 @@ def check_rate_limit(response: Response) -> None:
                     f"Okta sync to avoid blocking.",
                 )
             logger.warning(
-                f"Okta rate limit threshold reached. Waiting {sleep_time_seconds} seconds.",
+                "Okta rate limit threshold reached. Waiting %s seconds.",
+                sleep_time_seconds,
             )
             time.sleep(sleep_time_seconds)

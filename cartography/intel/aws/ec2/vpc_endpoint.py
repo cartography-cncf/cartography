@@ -156,7 +156,9 @@ def load_vpc_endpoints(
     update_tag: int,
 ) -> None:
     logger.info(
-        f"Loading {len(vpc_endpoints)} VPC Endpoints for region '{region}' into graph."
+        "Loading %s VPC Endpoints for region '%s' into graph.",
+        len(vpc_endpoints),
+        region,
     )
     load(
         neo4j_session,
@@ -181,7 +183,7 @@ def load_vpc_endpoint_subnets(
     Uses schema-based loading for automatic cleanup handling.
     """
     if subnet_list:
-        logger.info(f"Loading {len(subnet_list)} VPC endpoint subnet relationships.")
+        logger.info("Loading %s VPC endpoint subnet relationships.", len(subnet_list))
         load(
             neo4j_session,
             EC2SubnetVPCEndpointSchema(),

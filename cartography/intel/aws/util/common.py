@@ -37,8 +37,9 @@ def parse_and_validate_aws_regions(aws_regions: str) -> list[str]:
             validated_regions.append(region)
         else:
             logger.warning(
-                f'Unable to parse string "{region}". Please check the value you passed to `aws-regions`. '
-                f'You specified "{aws_regions}". Continuing on with sync.',
+                'Unable to parse string "%s". Please check the value you passed to `aws-regions`. '
+                'You specified "%s". Continuing on with sync.',
+                region, aws_regions,
             )
 
     if not validated_regions:

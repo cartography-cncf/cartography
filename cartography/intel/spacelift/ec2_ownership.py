@@ -39,7 +39,7 @@ def get_ec2_ownership(
     normalized_prefix = object_prefix.rstrip("/") + "/" if object_prefix else ""
 
     logger.info(
-        f"Fetching EC2 ownership data from s3://{bucket_name}/{normalized_prefix}"
+        "Fetching EC2 ownership data from s3://%s/%s", bucket_name, normalized_prefix
     )
 
     # Create S3 client from the boto3 session
@@ -54,7 +54,7 @@ def get_ec2_ownership(
     for page in page_iterator:
         if "Contents" not in page:
             logger.warning(
-                f"No objects found under prefix s3://{bucket_name}/{normalized_prefix}"
+                "No objects found under prefix s3://%s/%s", bucket_name, normalized_prefix
             )
             continue
 
@@ -68,11 +68,11 @@ def get_ec2_ownership(
         if not json_files:
             continue
 
-        logger.info(f"Found {len(json_files)} JSON files to process in this page")
+        logger.debug("Found %s JSON files to process in this page", len(json_files))
 
         for s3_object in json_files:
             object_key = s3_object["Key"]
-            logger.info(f"Processing {object_key}")
+            logger.debug("Processing %s", object_key)
 
             try:
                 response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
@@ -89,15 +89,17 @@ def get_ec2_ownership(
 
                 total_files_processed += 1
                 logger.info(
-                    f"Successfully processed {object_key}, added {records_added} records"
+                    "Successfully processed %s, added %s records", object_key, records_added
                 )
 
             except Exception as e:
-                logger.error(f"Failed to process {object_key}: {e}")
+                logger.error("Failed to process %s: %s", object_key, e)
                 continue
 
     logger.info(
-        f"Successfully processed {total_files_processed} files and fetched {len(all_records)} total CloudTrail records from S3"
+        "Successfully processed %s files and fetched %s total CloudTrail records from S3",
+        total_files_processed,
+        len(all_records),
     )
 
     return all_records
@@ -167,7 +169,8 @@ def transform_ec2_ownership(
     Each CloudTrail record becomes one CloudTrailSpaceliftEvent node that can connect to multiple instances.
     """
     logger.info(
-        f"Transforming {len(cloudtrail_data)} CloudTrail records to create CloudTrailSpaceliftEvent nodes"
+        "Transforming %s CloudTrail records to create CloudTrailSpaceliftEvent nodes",
+        len(cloudtrail_data),
     )
 
     events = []
@@ -202,7 +205,7 @@ def transform_ec2_ownership(
         events.append(event)
 
     logger.info(
-        f"Created {len(events)} CloudTrailSpaceliftEvent records affecting EC2 instances"
+        "Created %s CloudTrailSpaceliftEvent records affecting EC2 instances", len(events)
     )
 
     return events
@@ -219,7 +222,8 @@ def load_cloudtrail_events(
     Load CloudTrailSpaceliftEvent nodes with relationships to SpaceliftRun and EC2Instance nodes.
     """
     logger.info(
-        f"Loading {len(events)} CloudTrailSpaceliftEvent nodes with relationships into Neo4j"
+        "Loading %s CloudTrailSpaceliftEvent nodes with relationships into Neo4j",
+        len(events),
     )
 
     load(
@@ -230,7 +234,7 @@ def load_cloudtrail_events(
         spacelift_account_id=account_id,
     )
 
-    logger.info(f"Successfully loaded {len(events)} CloudTrailSpaceliftEvent nodes")
+    logger.info("Successfully loaded %s CloudTrailSpaceliftEvent nodes", len(events))
 
 
 @timeit
@@ -269,7 +273,7 @@ def sync_ec2_ownership(
     if events:
         load_cloudtrail_events(neo4j_session, events, update_tag, account_id)
     else:
-        logger.warning("No CloudTrail events found - no nodes created")
+        logger.debug("No CloudTrail events found - no nodes created")
 
     common_job_parameters = {
         "UPDATE_TAG": update_tag,

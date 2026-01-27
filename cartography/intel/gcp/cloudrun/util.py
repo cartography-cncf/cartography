@@ -66,8 +66,9 @@ def discover_cloud_run_locations(client: Resource, project_id: str) -> set[str]:
         # Auth errors (DefaultCredentialsError, RefreshError) will propagate
         # since the fallback would also fail with the same auth issue
         logger.warning(
-            f"Could not discover locations via v1 API: {e}. "
-            f"Falling back to discovery via services list.",
+            "Could not discover locations via v1 API: %s. "
+            "Falling back to discovery via services list.",
+            e,
         )
 
     # Fallback: discover locations by extracting them from service resource names

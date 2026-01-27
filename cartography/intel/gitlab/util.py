@@ -193,15 +193,16 @@ def make_request_with_retry(
                 retry_after = _get_retry_after(response)
                 if retry_count < max_retries:
                     logger.warning(
-                        f"GitLab rate limit hit (429). Sleeping {retry_after}s before retry "
-                        f"({retry_count + 1}/{max_retries})"
+                        "GitLab rate limit hit (429). Sleeping %ss before retry (%s/%s)",
+                        retry_after, retry_count + 1, max_retries,
                     )
                     time.sleep(retry_after)
                     retry_count += 1
                     continue
                 else:
                     logger.error(
-                        f"GitLab rate limit hit (429) after {max_retries} retries. Failing."
+                        "GitLab rate limit hit (429) after %s retries. Failing.",
+                        max_retries,
                     )
                     response.raise_for_status()
 
@@ -210,15 +211,16 @@ def make_request_with_retry(
                 if retry_count < max_retries:
                     sleep_time = DEFAULT_RETRY_BACKOFF_BASE**retry_count
                     logger.warning(
-                        f"GitLab server error ({response.status_code}). "
-                        f"Sleeping {sleep_time}s before retry ({retry_count + 1}/{max_retries})"
+                        "GitLab server error (%s). Sleeping %ss before retry (%s/%s)",
+                        response.status_code, sleep_time, retry_count + 1, max_retries,
                     )
                     time.sleep(sleep_time)
                     retry_count += 1
                     continue
                 else:
                     logger.error(
-                        f"GitLab server error ({response.status_code}) after {max_retries} retries."
+                        "GitLab server error (%s) after %s retries.",
+                        response.status_code, max_retries,
                     )
                     response.raise_for_status()
 
@@ -230,13 +232,13 @@ def make_request_with_retry(
             if retry_count < max_retries:
                 sleep_time = DEFAULT_RETRY_BACKOFF_BASE**retry_count
                 logger.warning(
-                    f"GitLab request timeout. Sleeping {sleep_time}s before retry "
-                    f"({retry_count + 1}/{max_retries})"
+                    "GitLab request timeout. Sleeping %ss before retry (%s/%s)",
+                    sleep_time, retry_count + 1, max_retries,
                 )
                 time.sleep(sleep_time)
                 retry_count += 1
             else:
-                logger.error(f"GitLab request timeout after {max_retries} retries.")
+                logger.error("GitLab request timeout after %s retries.", max_retries)
                 raise
 
         except requests.exceptions.ConnectionError as e:
@@ -244,13 +246,13 @@ def make_request_with_retry(
             if retry_count < max_retries:
                 sleep_time = DEFAULT_RETRY_BACKOFF_BASE**retry_count
                 logger.warning(
-                    f"GitLab connection error. Sleeping {sleep_time}s before retry "
-                    f"({retry_count + 1}/{max_retries})"
+                    "GitLab connection error. Sleeping %ss before retry (%s/%s)",
+                    sleep_time, retry_count + 1, max_retries,
                 )
                 time.sleep(sleep_time)
                 retry_count += 1
             else:
-                logger.error(f"GitLab connection error after {max_retries} retries.")
+                logger.error("GitLab connection error after %s retries.", max_retries)
                 raise
 
     # Should not reach here, but raise last exception if we do
@@ -313,7 +315,8 @@ def check_rate_limit_remaining(response: requests.Response) -> None:
             limit_int = int(limit)
             if limit_int > 0 and (remaining_int / limit_int) < 0.1:
                 logger.warning(
-                    f"GitLab rate limit low: {remaining_int}/{limit_int} requests remaining"
+                    "GitLab rate limit low: %s/%s requests remaining",
+                    remaining_int, limit_int,
                 )
         except ValueError:
             pass

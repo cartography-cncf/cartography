@@ -59,7 +59,8 @@ def get_snapshots(
         except ClientError as e:
             if e.response["Error"]["Code"] == "InvalidSnapshot.NotFound":
                 logger.warning(
-                    f"Failed to retrieve page of in-use, not owned snapshots. Continuing anyway. Error - {e}"
+                    "Failed to retrieve page of in-use, not owned snapshots. Continuing anyway. Error - %s",
+                    e,
                 )
             else:
                 raise

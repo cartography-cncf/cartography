@@ -48,11 +48,12 @@ async def _fetch_project_languages(
             return (project_id, response.json())
         except httpx.HTTPStatusError as e:
             logger.debug(
-                f"HTTP error fetching languages for project {project_id}: {e.response.status_code}"
+                "HTTP error fetching languages for project %s: %s",
+                project_id, e.response.status_code,
             )
             return (project_id, {})
         except Exception as e:
-            logger.debug(f"Error fetching languages for project {project_id}: {e}")
+            logger.debug("Error fetching languages for project %s: %s", project_id, e)
             return (project_id, {})
 
 
@@ -93,7 +94,7 @@ async def _fetch_all_languages(
             project_id, languages = result
             languages_by_project[project_id] = languages
         elif isinstance(result, Exception):
-            logger.debug(f"Exception fetching languages: {result}")
+            logger.debug("Exception fetching languages: %s", result)
 
     return languages_by_project
 
@@ -102,14 +103,14 @@ def get_projects(gitlab_url: str, token: str, group_id: int) -> list[dict[str, A
     """
     Fetch all projects for a specific group from GitLab.
     """
-    logger.info(f"Fetching projects for group ID {group_id}")
+    logger.debug("Fetching projects for group ID %s", group_id)
     projects = get_paginated(
         gitlab_url,
         token,
         f"/api/v4/groups/{group_id}/projects",
         extra_params={"include_subgroups": True},
     )
-    logger.info(f"Fetched {len(projects)} projects for group ID {group_id}")
+    logger.debug("Fetched %s projects for group ID %s", len(projects), group_id)
     return projects
 
 
@@ -172,7 +173,7 @@ def transform_projects(
         }
         transformed.append(transformed_project)
 
-    logger.info(f"Transformed {len(transformed)} projects (group projects only)")
+    logger.debug("Transformed %s projects (group projects only)", len(transformed))
     return transformed
 
 
@@ -186,7 +187,7 @@ def load_projects(
     """
     Load GitLab projects into the graph for a specific organization.
     """
-    logger.info(f"Loading {len(projects)} projects for organization {org_url}")
+    logger.debug("Loading %s projects for organization %s", len(projects), org_url)
     load(
         neo4j_session,
         GitLabProjectSchema(),
@@ -206,7 +207,7 @@ def cleanup_projects(
     Remove stale GitLab projects from the graph for a specific organization.
     Uses cascade delete to also remove child branches, dependency files, and dependencies.
     """
-    logger.info(f"Running GitLab projects cleanup for organization {org_url}")
+    logger.debug("Running GitLab projects cleanup for organization %s", org_url)
     cleanup_params = {**common_job_parameters, "org_url": org_url}
     GraphJob.from_node_schema(
         GitLabProjectSchema(), cleanup_params, cascade_delete=True
@@ -233,40 +234,40 @@ def sync_gitlab_projects(
     if not organization_id:
         raise ValueError("ORGANIZATION_ID must be provided in common_job_parameters")
 
-    logger.info(f"Syncing GitLab projects for organization {organization_id}")
+    logger.info("Syncing GitLab projects for organization %s", organization_id)
 
     # Fetch the organization to get its URL
     org = get_organization(gitlab_url, token, organization_id)
     org_url: str = org["web_url"]
     org_name: str = org["name"]
 
-    logger.info(f"Syncing projects for organization: {org_name}")
+    logger.info("Syncing projects for organization: %s", org_name)
 
     # Fetch ALL projects for this organization at once (includes all nested groups)
     raw_projects = get_projects(gitlab_url, token, organization_id)
 
     if not raw_projects:
-        logger.info(f"No projects found for organization {org_name}")
+        logger.debug("No projects found for organization %s", org_name)
         return []
 
     # Fetch languages for all projects concurrently
-    logger.info(f"Fetching languages for {len(raw_projects)} projects")
+    logger.debug("Fetching languages for %s projects", len(raw_projects))
     languages_by_project = asyncio.run(
         _fetch_all_languages(gitlab_url, token, raw_projects)
     )
     projects_with_languages = sum(1 for langs in languages_by_project.values() if langs)
-    logger.info(f"Found languages for {projects_with_languages} projects")
+    logger.debug("Found languages for %s projects", projects_with_languages)
 
     transformed_projects = transform_projects(
         raw_projects, org_url, languages_by_project
     )
 
     if not transformed_projects:
-        logger.info(f"No group projects found for organization {org_name}")
+        logger.debug("No group projects found for organization %s", org_name)
         return raw_projects
 
-    logger.info(
-        f"Found {len(transformed_projects)} projects in organization {org_name}"
+    logger.debug(
+        "Found %d projects in organization %s", len(transformed_projects), org_name
     )
 
     load_projects(neo4j_session, transformed_projects, org_url, update_tag)

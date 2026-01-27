@@ -169,11 +169,11 @@ def get_lambda_permissions(
                     "AnonymousActions": parsed_policy.get("AnonymousActions"),
                 }
         except client.exceptions.ResourceNotFoundException:
-            logger.debug(f"No policy found for Lambda function {function_name}")
+            logger.debug("No policy found for Lambda function %s", function_name)
             pass
         except Exception as e:
             logger.warning(
-                f"Error getting policy for Lambda function {function_name}: {e}"
+                "Error getting policy for Lambda function %s: %s", function_name, e
             )
 
     return all_permissions
@@ -256,7 +256,7 @@ def cleanup_lambda(neo4j_session: neo4j.Session, common_job_parameters: Dict) ->
     """
     Clean up Lambda resources
     """
-    logger.info("Running Lambda cleanup")
+    logger.debug("Running Lambda cleanup")
 
     # Clean up child entities first
     GraphJob.from_node_schema(

@@ -50,7 +50,7 @@ def start_spacelift_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
                 config.spacelift_api_key_secret,
             )
         except Exception as e:
-            logger.error(f"Failed to obtain Spacelift authentication token: {e}")
+            logger.error("Failed to obtain Spacelift authentication token: %s", e)
             logger.info("Skipping Spacelift module due to authentication failure.")
             return
     else:

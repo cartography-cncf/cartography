@@ -214,7 +214,7 @@ def _get_repo_collaborators_inner_func(
                 result[repo_url] = []
                 continue
 
-        logger.info(f"Loading {affiliation} collaborators for repo {repo_name}.")
+        logger.info("Loading %s collaborators for repo %s.", affiliation, repo_name)
         collaborators = _get_repo_collaborators(
             token,
             api_url,
@@ -354,7 +354,7 @@ def transform(
     mapping, Python requirements files (if any) in a repo, manifests from GitHub's dependency graph, all
     dependencies from GitHub's dependency graph, and branch protection rules.
     """
-    logger.info(f"Processing {len(repos_json)} GitHub repositories")
+    logger.debug("Processing %s GitHub repositories", len(repos_json))
     transformed_repo_list: List[Dict] = []
     transformed_repo_languages: List[Dict] = []
     transformed_repo_owners: List[Dict] = []
@@ -680,7 +680,7 @@ def _transform_dependency_manifests(
 
     if manifests_added > 0:
         repo_name = repo_url.split("/")[-1] if repo_url else "repository"
-        logger.info(f"Found {manifests_added} dependency manifests in {repo_name}")
+        logger.info("Found %s dependency manifests in %s", manifests_added, repo_name)
 
 
 def _transform_dependency_graph(
@@ -758,7 +758,7 @@ def _transform_dependency_graph(
 
     if dependencies_added > 0:
         repo_name = repo_url.split("/")[-1] if repo_url else "repository"
-        logger.info(f"Found {dependencies_added} dependencies in {repo_name}")
+        logger.info("Found %s dependencies in %s", dependencies_added, repo_name)
 
 
 def _canonicalize_dependency_name(name: str, package_manager: Optional[str]) -> str:
