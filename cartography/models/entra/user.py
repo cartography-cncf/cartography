@@ -40,6 +40,7 @@ class EntraUserNodeProperties(CartographyNodeProperties):
     account_enabled: PropertyRef = PropertyRef("account_enabled")
     age_group: PropertyRef = PropertyRef("age_group")
     manager_id: PropertyRef = PropertyRef("manager_id")
+    assigned_plans: PropertyRef = PropertyRef("assigned_plans")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
