@@ -754,11 +754,15 @@ def sync_artifact_registry_artifacts(
 
         # Route to appropriate collection based on format
         if repo_format == "DOCKER":
-            # Split Docker format artifacts by media type
-            # Helm charts are stored as OCI artifacts with helm in the media type
+            # Split Docker format artifacts by artifact type
+            # Helm charts are stored as OCI artifacts and identified via artifactType or mediaType
             for artifact in artifacts_raw:
+                artifact_type = artifact.get("artifactType", "")
                 media_type = artifact.get("mediaType", "")
-                if HELM_MEDIA_TYPE_IDENTIFIER in media_type.lower():
+                if (
+                    HELM_MEDIA_TYPE_IDENTIFIER in artifact_type.lower()
+                    or HELM_MEDIA_TYPE_IDENTIFIER in media_type.lower()
+                ):
                     helm_charts_transformed.extend(
                         transform_helm_charts([artifact], repo_name, project_id)
                     )
