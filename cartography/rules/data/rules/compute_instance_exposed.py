@@ -23,6 +23,11 @@ _aws_ec2_instance_internet_exposed = Fact(
     WHERE rule.fromport IN [22, 3389, 3306, 5432, 6379, 9200, 27017]
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (ec2:EC2Instance)
+    RETURN COUNT(ec2) AS count
+    """,
+    asset_id_field="instance_id",
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

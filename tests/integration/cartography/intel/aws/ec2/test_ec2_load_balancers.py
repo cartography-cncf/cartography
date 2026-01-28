@@ -67,7 +67,7 @@ def test_load_load_balancer_v2s(neo4j_session, *args):
     nodes = neo4j_session.run(
         """
         MATCH (aa:AWSAccount{id: $AWS_ACCOUNT_ID})
-            -[r1:RESOURCE]->(elbv2:LoadBalancerV2{id: $ID})
+            -[r1:RESOURCE]->(elbv2:AWSLoadBalancerV2{id: $ID})
             -[r2:ELBV2_LISTENER]->(l:ELBV2Listener{id: $LISTENER_ARN})
         RETURN aa.id, elbv2.id, l.id
         """,
@@ -100,7 +100,7 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
     load_balancer_id = "asadfmyloadbalancerid"
     neo4j_session.run(
         """
-        MERGE (elbv2:LoadBalancerV2{id: $ID})
+        MERGE (elbv2:AWSLoadBalancerV2{id: $ID})
         ON CREATE SET elbv2.firstseen = timestamp()
         SET elbv2.lastupdated = $aws_udpate_tag
         """,
@@ -120,7 +120,7 @@ def test_load_load_balancer_v2_listeners(neo4j_session, *args):
     # verify the db has (elbv2)-[r:ELBV2_LISTENER]->(l)
     nodes = neo4j_session.run(
         """
-        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:ELBV2_LISTENER]->(l:ELBV2Listener{id: $LISTENER_ARN})
+        MATCH (elbv2:AWSLoadBalancerV2{id: $ID})-[r:ELBV2_LISTENER]->(l:ELBV2Listener{id: $LISTENER_ARN})
         RETURN elbv2.id, l.id
         """,
         ID=load_balancer_id,
@@ -156,7 +156,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
     # an elbv2, ec2instance, and AWSAccount must exist or nothing will match
     neo4j_session.run(
         """
-        MERGE (elbv2:LoadBalancerV2{id: $load_balancer_id})
+        MERGE (elbv2:AWSLoadBalancerV2{id: $load_balancer_id})
         ON CREATE SET elbv2.firstseen = timestamp()
         SET elbv2.lastupdated = $aws_update_tag
 
@@ -172,7 +172,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
         ON CREATE SET lambda_fn.firstseen = timestamp()
         SET lambda_fn.lastupdated = $aws_update_tag
 
-        MERGE (target_alb:LoadBalancerV2{id: $target_alb_id, arn: $target_alb_arn})
+        MERGE (target_alb:AWSLoadBalancerV2{id: $target_alb_id, arn: $target_alb_arn})
         ON CREATE SET target_alb.firstseen = timestamp()
         SET target_alb.lastupdated = $aws_update_tag
 
@@ -201,7 +201,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
     # verify the db has EXPOSE rels to instance, ip, and lambda targets
     instance_nodes = neo4j_session.run(
         """
-        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(instance:EC2Instance{instanceid: $INSTANCE_ID})
+        MATCH (elbv2:AWSLoadBalancerV2{id: $ID})-[r:EXPOSE]->(instance:EC2Instance{instanceid: $INSTANCE_ID})
         RETURN elbv2.id, instance.instanceid
         """,
         ID=load_balancer_id,
@@ -210,7 +210,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
 
     ip_nodes = neo4j_session.run(
         """
-        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(ip:EC2PrivateIp{private_ip_address: $private_ip_address})
+        MATCH (elbv2:AWSLoadBalancerV2{id: $ID})-[r:EXPOSE]->(ip:EC2PrivateIp{private_ip_address: $private_ip_address})
         RETURN elbv2.id, ip.private_ip_address
         """,
         ID=load_balancer_id,
@@ -219,7 +219,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
 
     lambda_nodes = neo4j_session.run(
         """
-        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(lambda_fn:AWSLambda{id: $lambda_arn})
+        MATCH (elbv2:AWSLoadBalancerV2{id: $ID})-[r:EXPOSE]->(lambda_fn:AWSLambda{id: $lambda_arn})
         RETURN elbv2.id, lambda_fn.id
         """,
         ID=load_balancer_id,
@@ -228,7 +228,7 @@ def test_load_load_balancer_v2_target_groups(neo4j_session, *args):
 
     alb_nodes = neo4j_session.run(
         """
-        MATCH (elbv2:LoadBalancerV2{id: $ID})-[r:EXPOSE]->(target_alb:LoadBalancerV2{arn: $target_alb_arn})
+        MATCH (elbv2:AWSLoadBalancerV2{id: $ID})-[r:EXPOSE]->(target_alb:AWSLoadBalancerV2{arn: $target_alb_arn})
         RETURN elbv2.id, target_alb.id
         """,
         ID=load_balancer_id,
@@ -311,7 +311,7 @@ def test_load_load_balancer_v2_subnet_relationships(neo4j_session, *args):
     # Verify SUBNET relationship was created
     rels = neo4j_session.run(
         """
-        MATCH (elbv2:LoadBalancerV2{id: $lb_id})-[:SUBNET]->(subnet:EC2Subnet)
+        MATCH (elbv2:AWSLoadBalancerV2{id: $lb_id})-[:SUBNET]->(subnet:EC2Subnet)
         RETURN elbv2.id, subnet.subnetid
         """,
         lb_id=load_balancer_id,
@@ -374,7 +374,7 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
 
     # Assert Load Balancers exist
     assert check_nodes(
-        neo4j_session, "LoadBalancer", ["id", "name", "dnsname", "scheme"]
+        neo4j_session, "AWSLoadBalancer", ["id", "name", "dnsname", "scheme"]
     ) == {
         (
             "test-lb-1-1234567890.us-east-1.elb.amazonaws.com",
@@ -422,7 +422,7 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
     # Assert Load Balancer to Security Group relationships
     assert check_rels(
         neo4j_session,
-        "LoadBalancer",
+        "AWSLoadBalancer",
         "id",
         "EC2SecurityGroup",
         "id",
@@ -436,7 +436,7 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
     # Assert Load Balancers are attached to their Source Security Group
     assert check_rels(
         neo4j_session,
-        "LoadBalancer",
+        "AWSLoadBalancer",
         "id",
         "EC2SecurityGroup",
         "name",
@@ -449,7 +449,7 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
     # Assert Load Balancer to Instance relationships
     assert check_rels(
         neo4j_session,
-        "LoadBalancer",
+        "AWSLoadBalancer",
         "id",
         "EC2Instance",
         "id",
@@ -464,7 +464,7 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
     # Assert Load Balancer to Listener relationships
     assert check_rels(
         neo4j_session,
-        "LoadBalancer",
+        "AWSLoadBalancer",
         "id",
         "ELBListener",
         "id",
@@ -488,7 +488,7 @@ def test_sync_load_balancers(mock_get_instances, mock_get_loadbalancers, neo4j_s
     # Assert Load Balancer to AWS Account relationship
     assert check_rels(
         neo4j_session,
-        "LoadBalancer",
+        "AWSLoadBalancer",
         "id",
         "AWSAccount",
         "id",
@@ -553,6 +553,6 @@ def test_load_balancer_v2s_skips_missing_dnsname(neo4j_session, *args):
     valid_lb_id = ("myawesomeloadbalancer.amazonaws.com",)
     # The invalid load balancer should not be present
     invalid_lb_id = ("missingdnsnamelb",)
-    actual = check_nodes(neo4j_session, "LoadBalancerV2", ["id"])
+    actual = check_nodes(neo4j_session, "AWSLoadBalancerV2", ["id"])
     assert valid_lb_id in actual
     assert invalid_lb_id not in actual

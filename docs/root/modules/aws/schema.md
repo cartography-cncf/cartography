@@ -400,6 +400,8 @@ Representation of an AWS [IAM Instance Profile](https://docs.aws.amazon.com/IAM/
 
 Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/latest/dg/API_FunctionConfiguration.html).
 
+> **Ontology Mapping**: This node has the extra label `Function` and normalized `_ont_*` properties for cross-platform serverless function queries. See [Function](../../ontology/schema.md#function).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -1648,7 +1650,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | launchtimeunix | The time the instance was launched in unix time |
 | region | The AWS region this Instance is running in|
 | exposed\_internet |  The `exposed_internet` flag on an EC2 instance is set to `True` when (1) the instance is part of an EC2 security group or is connected to a network interface connected to an EC2 security group that allows connectivity from the 0.0.0.0/0 subnet or (2) the instance is connected to an Elastic Load Balancer that has its own `exposed_internet` flag set to `True`. |
-| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Possible values are `direct` (directly exposed via security group), `elb` (exposed via classic LoadBalancer), or `elbv2` (exposed via LoadBalancerV2). Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
+| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Possible values are `direct` (directly exposed via security group), `elb` (exposed via classic LoadBalancer), or `elbv2` (exposed via AWSLoadBalancerV2). Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
 | availabilityzone | The Availability Zone of the instance.|
 | tenancy | The tenancy of the instance.|
 | hostresourcegrouparn | The ARN of the host resource group in which to launch the instances.|
@@ -1916,9 +1918,9 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
     (LoadBalancer)-[PART_OF_SUBNET]->(EC2Subnet)
     ```
 
-- A LoadBalancerV2 can be part of an EC2 Subnet.
+- A AWSLoadBalancerV2 can be part of an EC2 Subnet.
     ```
-    (LoadBalancerV2)-[PART_OF_SUBNET]->(EC2Subnet)
+    (AWSLoadBalancerV2)-[PART_OF_SUBNET]->(EC2Subnet)
     ```
 
 
@@ -2535,9 +2537,9 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
 
 #### Relationships
 
-- LoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
+- AWSLoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
     ```
-    (:LoadBalancerV2)-[:ELBV2_LISTENER]->(:ELBV2Listener)
+    (:AWSLoadBalancerV2)-[:ELBV2_LISTENER]->(:ELBV2Listener)
     ```
 - ACM Certificates may be used by ELBV2Listeners.
     ```
@@ -2682,9 +2684,19 @@ Represents an IP address range (CIDR block) associated with an EC2 Security Grou
     ```
 
 
-### LoadBalancer
+### AWSLoadBalancer
+
+```{important}
+**Label Rename:** In previous versions, Classic ELB nodes used the label `:LoadBalancer`. This has been renamed to `:AWSLoadBalancer` for consistency with other AWS resources.
+
+**Semantic Label:** All load balancers (AWS, GCP, Azure) now also have the `:LoadBalancer` label for cross-platform queries.
+
+**Migration:** Existing nodes are automatically relabeled on upgrade.
+```
 
 Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).  See [spec for details](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, GCPForwardingRule, AzureLoadBalancer).
 
 | Field | Description |
 |-------|-------------|
@@ -2744,8 +2756,19 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
     (AWSDNSRecord, DNSRecord)-[DNS_POINTS_TO]->(LoadBalancer)
     ```
 
-### LoadBalancerV2
+### AWSLoadBalancerV2
+
+```{important}
+**Label Rename:** In previous versions, ALB/NLB nodes used the label `:LoadBalancerV2`. This has been renamed to `:AWSLoadBalancerV2` for consistency with other AWS resources.
+
+**Semantic Label:** All load balancers (AWS, GCP, Azure) now also have the `:LoadBalancer` label for cross-platform queries.
+
+**Migration:** Existing nodes are automatically relabeled on upgrade.
+```
+
 Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html) or [Network Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html).) API reference [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_LoadBalancer.html).
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancer, GCPForwardingRule, AzureLoadBalancer).
 
 | Field | Description |
 |-------|-------------|
@@ -2767,46 +2790,46 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 #### Relationships
 
 
-- LoadBalancerV2's can be connected to EC2Instances and therefore expose them.
+- AWSLoadBalancerV2's can be connected to EC2Instances and therefore expose them.
     ```
-    (LoadBalancerV2)-[EXPOSE]->(EC2Instance)
-    ```
-
-- LoadBalancerV2's can expose IP addresses when using `ip` target type.
-    ```
-    (LoadBalancerV2)-[EXPOSE]->(EC2PrivateIp)
+    (AWSLoadBalancerV2)-[EXPOSE]->(EC2Instance)
     ```
 
-- LoadBalancerV2's can expose Lambda functions when using `lambda` target type.
+- AWSLoadBalancerV2's can expose IP addresses when using `ip` target type.
     ```
-    (LoadBalancerV2)-[EXPOSE]->(AWSLambda)
+    (AWSLoadBalancerV2)-[EXPOSE]->(EC2PrivateIp)
     ```
 
-- LoadBalancerV2's can chain to other LoadBalancerV2's when using `alb` target type (ALB-to-ALB chaining).
+- AWSLoadBalancerV2's can expose Lambda functions when using `lambda` target type.
     ```
-    (LoadBalancerV2)-[EXPOSE]->(LoadBalancerV2)
+    (AWSLoadBalancerV2)-[EXPOSE]->(AWSLambda)
+    ```
+
+- AWSLoadBalancerV2's can chain to other AWSLoadBalancerV2's when using `alb` target type (ALB-to-ALB chaining).
+    ```
+    (AWSLoadBalancerV2)-[EXPOSE]->(AWSLoadBalancerV2)
     ```
 
 The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load balancer points to.
 
-- LoadBalancerV2's can be part of EC2SecurityGroups but only if their `type` = "application". NLBs don't have SGs.
+- AWSLoadBalancerV2's can be part of EC2SecurityGroups but only if their `type` = "application". NLBs don't have SGs.
     ```
-    (LoadBalancerV2)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
-    ```
-
-- LoadBalancerV2's can be part of EC2 Subnets
-    ```
-    (LoadBalancerV2)-[SUBNET]->(EC2Subnet)
+    (AWSLoadBalancerV2)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
-- LoadBalancerV2's can be part of EC2 Subnets
+- AWSLoadBalancerV2's can be part of EC2 Subnets
     ```
-    (LoadBalancerV2)-[PART_OF_SUBNET]->(EC2Subnet)
+    (AWSLoadBalancerV2)-[SUBNET]->(EC2Subnet)
     ```
 
-- LoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
+- AWSLoadBalancerV2's can be part of EC2 Subnets
     ```
-    (LoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
+    (AWSLoadBalancerV2)-[PART_OF_SUBNET]->(EC2Subnet)
+    ```
+
+- AWSLoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
+    ```
+    (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
     ```
 
 ### Nameserver
@@ -2894,9 +2917,9 @@ RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
     (LoadBalancer)-[NETWORK_INTERFACE]->(NetworkInterface)
     ```
 
-- LoadBalancerV2s can have NetworkInterfaces connected to them.
+- AWSLoadBalancerV2s can have NetworkInterfaces connected to them.
     ```
-    (LoadBalancerV2)-[NETWORK_INTERFACE]->(NetworkInterface)
+    (AWSLoadBalancerV2)-[NETWORK_INTERFACE]->(NetworkInterface)
     ```
 
 - EC2PrivateIps are connected to a NetworkInterface.
@@ -2996,8 +3019,6 @@ Representation of an AWS [RedshiftCluster](https://docs.aws.amazon.com/redshift/
 ### RDSCluster
 
 Representation of an AWS Relational Database Service [DBCluster](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBCluster.html)
-
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
