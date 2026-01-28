@@ -65,6 +65,10 @@ _aws_s3_versioning_disabled = Fact(
     WHERE bucket.versioning_status IS NULL OR bucket.versioning_status <> 'Enabled'
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (bucket:S3Bucket)
+    RETURN COUNT(bucket) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -122,6 +126,10 @@ _aws_s3_mfa_delete_disabled = Fact(
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
     WHERE bucket.mfa_delete IS NULL OR bucket.mfa_delete = false
     RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (bucket:S3Bucket)
+    RETURN COUNT(bucket) AS count
     """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -192,6 +200,10 @@ _aws_s3_block_public_access_disabled = Fact(
        OR (bucket.restrict_public_buckets IS NULL OR bucket.restrict_public_buckets <> true)
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (bucket:S3Bucket)
+    RETURN COUNT(bucket) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -248,6 +260,10 @@ _aws_s3_access_logging_disabled = Fact(
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
     WHERE bucket.logging_enabled IS NULL OR bucket.logging_enabled = false
     RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (bucket:S3Bucket)
+    RETURN COUNT(bucket) AS count
     """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -307,6 +323,10 @@ _aws_s3_encryption_disabled = Fact(
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(bucket:S3Bucket)
     WHERE bucket.default_encryption IS NULL OR bucket.default_encryption = false
     RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (bucket:S3Bucket)
+    RETURN COUNT(bucket) AS count
     """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
@@ -379,6 +399,10 @@ _aws_rds_encryption_disabled = Fact(
     WHERE rds.storage_encrypted IS NULL OR rds.storage_encrypted = false
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (rds:RDSInstance)
+    RETURN COUNT(rds) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -446,6 +470,10 @@ _aws_ebs_encryption_disabled = Fact(
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(volume:EBSVolume)
     WHERE volume.encrypted IS NULL OR volume.encrypted = false
     RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (volume:EBSVolume)
+    RETURN COUNT(volume) AS count
     """,
     module=Module.AWS,
     maturity=Maturity.STABLE,

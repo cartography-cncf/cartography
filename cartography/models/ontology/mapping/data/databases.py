@@ -15,28 +15,12 @@ aws_mapping = OntologyMapping(
     module_name="aws",
     nodes=[
         OntologyNodeMapping(
-            node_label="RDSCluster",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="name", node_field="database_name", required=True
-                ),
-                OntologyFieldMapping(ontology_field="type", node_field="engine"),
-                OntologyFieldMapping(
-                    ontology_field="version", node_field="engine_version"
-                ),
-                OntologyFieldMapping(ontology_field="endpoint", node_field="endpoint"),
-                OntologyFieldMapping(ontology_field="port", node_field="port"),
-                OntologyFieldMapping(
-                    ontology_field="encrypted", node_field="storage_encrypted"
-                ),
-                OntologyFieldMapping(ontology_field="location", node_field="region"),
-            ],
-        ),
-        OntologyNodeMapping(
             node_label="RDSInstance",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="name", node_field="db_name", required=True
+                    ontology_field="name",
+                    node_field="db_instance_identifier",
+                    required=True,
                 ),
                 OntologyFieldMapping(ontology_field="type", node_field="engine"),
                 OntologyFieldMapping(
@@ -170,6 +154,22 @@ gcp_mapping = OntologyMapping(
                 # _ont_db_endpoint: Constructed programmatically, not in model
                 # _ont_db_port: Not applicable (uses gRPC, not a fixed port)
                 # _ont_db_encrypted: Bigtable is encrypted at rest by default, not exposed
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="GCPCloudSQLInstance",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="version", node_field="database_version"
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="region"),
+                # db type: database_version contains engine+version (e.g., "POSTGRES_14"), would need parsing
+                # endpoint: connection_name available but format differs from standard endpoints
+                # port: not directly available in GCPCloudSQLInstance
+                # encrypted: not directly available in GCPCloudSQLInstance
             ],
         ),
     ],

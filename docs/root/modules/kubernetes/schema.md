@@ -150,9 +150,9 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
     (:KubernetesService)-[:TARGETS]->(:KubernetesPod)
     ```
 
-- `KubernetesService` of type `LoadBalancer` uses an AWS `LoadBalancerV2` (NLB/ALB). The relationship is matched by DNS hostname from the Kubernetes service's `status.loadBalancer.ingress[].hostname` field to the `LoadBalancerV2.dnsname` property. This allows linking EKS services to their backing AWS load balancers.
+- `KubernetesService` of type `LoadBalancer` uses an AWS `AWSLoadBalancerV2` (NLB/ALB). The relationship is matched by DNS hostname from the Kubernetes service's `status.loadBalancer.ingress[].hostname` field to the `AWSLoadBalancerV2.dnsname` property. This allows linking EKS services to their backing AWS load balancers.
     ```
-    (:KubernetesService)-[:USES_LOAD_BALANCER]->(:LoadBalancerV2)
+    (:KubernetesService)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
     ```
 
 ### KubernetesSecret

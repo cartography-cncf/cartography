@@ -8,6 +8,7 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
 from cartography.models.ontology.mapping import ONTOLOGY_MODELS
 from cartography.models.ontology.mapping import ONTOLOGY_NODES_MAPPING
+from cartography.models.ontology.mapping import SEMANTIC_LABELS_MAPPING
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 from cartography.util import timeit
 
@@ -173,4 +174,39 @@ def link_ontology_nodes(
             formated_json,
             {"UPDATE_TAG": update_tag},
             short_name=f"ontology.{module_name}.{source}.linking",
+        )
+
+
+@timeit
+def link_semantic_labels(
+    neo4j_session: neo4j.Session,
+    label_name: str,
+    update_tag: int,
+) -> None:
+    """Create relationships for semantic labels in the Neo4j graph database.
+
+    This function retrieves the ontology mapping for the specified semantic label
+    and executes any relationship statements defined in the mapping.
+
+    Args:
+        neo4j_session (neo4j.Session): The Neo4j session to use for executing the relationship statements.
+        label_name (str): The name of the semantic label module (eg. loadbalancers, containers, etc.).
+        update_tag (int): The update tag of the current run, used to tag the changes in the graph.
+    """
+    modules_mapping = SEMANTIC_LABELS_MAPPING.get(label_name)
+    if modules_mapping is None:
+        logger.warning("No semantic label mapping found for '%s'.", label_name)
+        return
+    for source, mapping in modules_mapping.items():
+        if len(mapping.rels) == 0:
+            continue
+        formatted_json = {
+            "name": f"Linking {label_name} relationships for source {source}",
+            "statements": [asdict(rel) for rel in mapping.rels],
+        }
+        GraphJob.run_from_json(
+            neo4j_session,
+            formatted_json,
+            {"UPDATE_TAG": update_tag},
+            short_name=f"semantic.{label_name}.{source}.linking",
         )

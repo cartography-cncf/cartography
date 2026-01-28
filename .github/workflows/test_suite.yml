@@ -14,8 +14,8 @@ jobs:
   linter:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.10"
       - name: Install uv
@@ -29,7 +29,7 @@ jobs:
   unit-and-integration-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       # https://stackoverflow.com/a/64592785
       - name: neo4j 4 instance setup
         run: |
@@ -40,7 +40,7 @@ jobs:
             --publish 7473:7473 \
             --publish 7687:7687 \
             neo4j:4.4-community
-      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.10"
       - name: Install uv
@@ -61,7 +61,7 @@ jobs:
   unit-and-integration-tests-neo4j5:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       # https://stackoverflow.com/a/64592785
       - name: neo4j 5 setup
         run: |
@@ -72,7 +72,7 @@ jobs:
             --publish 7473:7473 \
             --publish 7687:7687 \
             neo4j:5
-      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.10"
       - name: Install uv
@@ -94,7 +94,7 @@ jobs:
   build-docker-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0

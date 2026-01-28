@@ -42,3 +42,9 @@ Employee data contains PII (names, emails, organizational data). Ensure:
 - Neo4j database is secured with authentication
 - Access controls limit who can query employee data
 - API credentials are read-only and stored in environment variables only
+
+```{toctree}
+config
+schema
+examples
+```

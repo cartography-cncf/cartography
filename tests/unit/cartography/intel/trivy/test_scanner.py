@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cartography.intel.trivy import sync_trivy_aws_ecr_from_s3
+from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
 
@@ -402,21 +402,19 @@ def test_sync_single_image_from_s3_load_error(
 
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
 @patch("cartography.intel.trivy.get_json_files_in_s3")
-def test_sync_trivy_aws_ecr_from_s3_no_matches(
+def test_sync_trivy_from_s3_no_matches(
     mock_get_json_files,
     mock_get_targets_and_aliases,
 ):
-    """Test that sync_trivy_aws_ecr_from_s3 raises when no JSON files are present."""
+    """Test that sync_trivy_from_s3 raises when no JSON files are present."""
     mock_get_targets_and_aliases.return_value = (
         {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"},
         {},
     )
     mock_get_json_files.return_value = set()  # No scan results available
 
-    with pytest.raises(
-        ValueError, match="No ECR images with S3 json scan results found"
-    ):
-        sync_trivy_aws_ecr_from_s3(
+    with pytest.raises(ValueError, match="No json scan results found in S3"):
+        sync_trivy_from_s3(
             neo4j_session=MagicMock(),
             trivy_s3_bucket="test-bucket",
             trivy_s3_prefix="trivy-scans/",
@@ -431,7 +429,7 @@ def test_sync_trivy_aws_ecr_from_s3_no_matches(
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
 @patch("cartography.intel.trivy.get_json_files_in_s3")
 @patch("boto3.Session")
-def test_sync_trivy_aws_ecr_from_s3_digest_files(
+def test_sync_trivy_from_s3_digest_files(
     mock_boto_session,
     mock_get_json_files,
     mock_get_targets_and_aliases,
@@ -466,7 +464,7 @@ def test_sync_trivy_aws_ecr_from_s3_digest_files(
         "Body": body
     }
 
-    sync_trivy_aws_ecr_from_s3(
+    sync_trivy_from_s3(
         neo4j_session=MagicMock(),
         trivy_s3_bucket="test-bucket",
         trivy_s3_prefix="trivy-scans/",

@@ -3,6 +3,7 @@ import logging
 import neo4j
 
 import cartography.intel.ontology.devices
+import cartography.intel.ontology.loadbalancers
 import cartography.intel.ontology.users
 from cartography.config import Config
 from cartography.util import timeit
@@ -39,6 +40,11 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
     cartography.intel.ontology.devices.sync(
         neo4j_session,
         computers_source_of_truth,
+        config.update_tag,
+        common_job_parameters,
+    )
+    cartography.intel.ontology.loadbalancers.sync(
+        neo4j_session,
         config.update_tag,
         common_job_parameters,
     )

@@ -167,3 +167,20 @@ LIST_GROUP_MEMBERSHIPS = {
         },
     ],
 }
+
+LIST_REGION_SUBSCRIPTIONS = {
+    "RegionSubscriptions": [
+        {
+            "is-home-region": True,
+            "region-key": "PHX",
+            "region-name": "us-phoenix-1",
+            "status": "READY",
+        },
+        {
+            "is-home-region": False,
+            "region-key": "IAD",
+            "region-name": "us-ashburn-1",
+            "status": "READY",
+        },
+    ],
+}

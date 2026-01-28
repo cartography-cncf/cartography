@@ -86,6 +86,9 @@ def _format_and_output_results(
     output_format: str,
     total_facts: int,
     total_findings: int,
+    total_assets: int = 0,
+    total_passing: int = 0,
+    total_failing: int = 0,
 ):
     """Format and output the results of framework execution."""
     if output_format == "json":
@@ -103,11 +106,24 @@ def _format_and_output_results(
         if len(rule_names) > 1:
             print(f"Rules executed: {len(rule_names)}")
         print(f"Total facts: {total_facts}")
-        print(f"Total findings: {total_findings}")
 
-        if total_findings > 0:
+        # Display compliance metrics if available
+        if total_assets > 0:
+            print(f"Total assets: {total_assets}")
+            print(f"\033[32mPassing: {total_passing}\033[0m")
+            print(f"\033[31mFailing: {total_failing}\033[0m")
+            # Calculate compliance percentage
+            compliance_pct = (
+                (total_passing / total_assets * 100) if total_assets > 0 else 0
+            )
+            print(f"Compliance: {compliance_pct:.1f}%")
+        else:
+            print(f"Total findings: {total_findings}")
+
+        if total_failing > 0 or total_findings > 0:
+            findings_count = total_failing if total_assets > 0 else total_findings
             print(
-                f"\n\033[36mRule execution completed with {total_findings} total findings\033[0m"
+                f"\n\033[36mRule execution completed with {findings_count} total findings\033[0m"
             )
         else:
             print("\n\033[90mRule execution completed with no findings\033[0m")

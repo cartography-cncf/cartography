@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.gcp.compute
 import tests.data.gcp.compute
+from cartography.graph.job import GraphJob
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -165,6 +166,8 @@ def test_sync_gcp_instances(mock_get_instances, neo4j_session):
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
     }
+    # Create project first - required for RESOURCE relationship with data model
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
     # Act
     cartography.intel.gcp.compute.sync_gcp_instances(
@@ -362,6 +365,13 @@ def test_sync_gcp_instances_with_vpc_relationship(
         TEST_PROJECT_ID,
         None,
         TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Run the analysis job to create MEMBER_OF_GCP_VPC relationships
+    GraphJob.run_from_json_file(
+        "cartography/data/jobs/analysis/gcp_compute_instance_vpc_analysis.json",
+        neo4j_session,
         common_job_parameters,
     )
 

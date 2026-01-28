@@ -36,6 +36,12 @@ Representation of a vulnerability finding in a container image.
     (TrivyImageFinding)-[AFFECTS]->(ECRImage)
     ```
 
+- A TrivyImageFinding affects a GitLabContainerImage.
+
+    ```
+    (TrivyImageFinding)-[AFFECTS]->(GitLabContainerImage)
+    ```
+
 ### Package
 Representation of a package installed in a container image.
 
@@ -56,6 +62,12 @@ Representation of a package installed in a container image.
 
     ```
     (Package)-[DEPLOYED]->(ECRImage)
+    ```
+
+- A Package is deployed in a GitLabContainerImage.
+
+    ```
+    (Package)-[DEPLOYED]->(GitLabContainerImage)
     ```
 
 - A Package is affected by a TrivyImageFinding.

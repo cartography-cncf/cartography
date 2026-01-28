@@ -27,6 +27,10 @@ _aws_rds_public_access = Fact(
     OPTIONAL MATCH p4=(rds)-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound:IpRule)<-[:MEMBER_OF_IP_RULE]-(ip:IpRange)
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (rds:RDSInstance)
+    RETURN COUNT(rds) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

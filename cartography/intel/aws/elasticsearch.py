@@ -8,10 +8,12 @@ import botocore.config
 import neo4j
 from policyuniverse.policy import Policy
 
+from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
+from cartography.graph.job import GraphJob
 from cartography.intel.dns import ingest_dns_record_by_fqdn
+from cartography.models.aws.elasticsearch.domain import ESDomainSchema
 from cartography.util import aws_handle_regions
-from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -50,6 +52,100 @@ def _get_es_domains(client: botocore.client.BaseClient) -> List[Dict]:
     return domains
 
 
+def _transform_es_domains(domain_list: List[Dict]) -> List[Dict]:
+    """
+    Transform Elasticsearch domains data, flattening nested properties.
+
+    Returns a list of flattened domain data ready for loading.
+    """
+    domains_data = []
+
+    for domain in domain_list:
+        # Remove ServiceSoftwareOptions as it contains datetime objects
+        if "ServiceSoftwareOptions" in domain:
+            del domain["ServiceSoftwareOptions"]
+
+        domain_id = domain["DomainId"]
+
+        # Flatten nested structures
+        cluster_config = domain.get("ElasticsearchClusterConfig", {})
+        ebs_options = domain.get("EBSOptions", {})
+        encryption_options = domain.get("EncryptionAtRestOptions", {})
+        log_options = domain.get("LogPublishingOptions", {})
+        vpc_options = domain.get("VPCOptions") or {}
+
+        # Flattened data with VPC lists for one-to-many relationships
+        transformed = {
+            "DomainId": domain_id,
+            "ARN": domain.get("ARN"),
+            "Deleted": domain.get("Deleted"),
+            "Created": domain.get("Created"),
+            "Endpoint": domain.get("Endpoint"),
+            "ElasticsearchVersion": domain.get("ElasticsearchVersion"),
+            # Cluster config
+            "ElasticsearchClusterConfigInstanceType": cluster_config.get(
+                "InstanceType"
+            ),
+            "ElasticsearchClusterConfigInstanceCount": cluster_config.get(
+                "InstanceCount"
+            ),
+            "ElasticsearchClusterConfigDedicatedMasterEnabled": cluster_config.get(
+                "DedicatedMasterEnabled"
+            ),
+            "ElasticsearchClusterConfigZoneAwarenessEnabled": cluster_config.get(
+                "ZoneAwarenessEnabled"
+            ),
+            "ElasticsearchClusterConfigDedicatedMasterType": cluster_config.get(
+                "DedicatedMasterType"
+            ),
+            "ElasticsearchClusterConfigDedicatedMasterCount": cluster_config.get(
+                "DedicatedMasterCount"
+            ),
+            # EBS options
+            "EBSOptionsEBSEnabled": ebs_options.get("EBSEnabled"),
+            "EBSOptionsVolumeType": ebs_options.get("VolumeType"),
+            "EBSOptionsVolumeSize": ebs_options.get("VolumeSize"),
+            "EBSOptionsIops": ebs_options.get("Iops"),
+            # Encryption options
+            "EncryptionAtRestOptionsEnabled": encryption_options.get("Enabled"),
+            "EncryptionAtRestOptionsKmsKeyId": encryption_options.get("KmsKeyId"),
+            # Log publishing options (per log type)
+            "LogPublishingIndexSlowLogsEnabled": log_options.get(
+                "INDEX_SLOW_LOGS", {}
+            ).get("Enabled"),
+            "LogPublishingIndexSlowLogsArn": log_options.get("INDEX_SLOW_LOGS", {}).get(
+                "CloudWatchLogsLogGroupArn"
+            ),
+            "LogPublishingSearchSlowLogsEnabled": log_options.get(
+                "SEARCH_SLOW_LOGS", {}
+            ).get("Enabled"),
+            "LogPublishingSearchSlowLogsArn": log_options.get(
+                "SEARCH_SLOW_LOGS", {}
+            ).get("CloudWatchLogsLogGroupArn"),
+            "LogPublishingEsApplicationLogsEnabled": log_options.get(
+                "ES_APPLICATION_LOGS", {}
+            ).get("Enabled"),
+            "LogPublishingEsApplicationLogsArn": log_options.get(
+                "ES_APPLICATION_LOGS", {}
+            ).get("CloudWatchLogsLogGroupArn"),
+            "LogPublishingAuditLogsEnabled": log_options.get("AUDIT_LOGS", {}).get(
+                "Enabled"
+            ),
+            "LogPublishingAuditLogsArn": log_options.get("AUDIT_LOGS", {}).get(
+                "CloudWatchLogsLogGroupArn"
+            ),
+            # VPC options - keep as lists for one-to-many relationships
+            "SubnetIds": vpc_options.get("SubnetIds", []),
+            "SecurityGroupIds": vpc_options.get("SecurityGroupIds", []),
+            # Keep original for DNS/access policy processing
+            "_original": domain,
+        }
+
+        domains_data.append(transformed)
+
+    return domains_data
+
+
 @timeit
 def _load_es_domains(
     neo4j_session: neo4j.Session,
@@ -61,54 +157,25 @@ def _load_es_domains(
     Ingest Elastic Search domains
 
     :param neo4j_session: Neo4j session object
+    :param domain_list: Transformed domain list to ingest
     :param aws_account_id: The AWS account related to the domains
-    :param domains: Domain list to ingest
+    :param aws_update_tag: Update tag for the sync
     """
-    ingest_records = """
-    UNWIND $Records as record
-    MERGE (es:ESDomain{id: record.DomainId})
-    ON CREATE SET es.firstseen = timestamp(), es.arn = record.ARN, es.domainid = record.DomainId
-    SET es.lastupdated = $aws_update_tag, es.deleted = record.Deleted, es.created = record.created,
-    es.endpoint = record.Endpoint, es.elasticsearch_version = record.ElasticsearchVersion,
-    es.elasticsearch_cluster_config_instancetype = record.ElasticsearchClusterConfig.InstanceType,
-    es.elasticsearch_cluster_config_instancecount = record.ElasticsearchClusterConfig.InstanceCount,
-    es.elasticsearch_cluster_config_dedicatedmasterenabled = record.ElasticsearchClusterConfig.DedicatedMasterEnabled,
-    es.elasticsearch_cluster_config_zoneawarenessenabled = record.ElasticsearchClusterConfig.ZoneAwarenessEnabled,
-    es.elasticsearch_cluster_config_dedicatedmastertype = record.ElasticsearchClusterConfig.DedicatedMasterType,
-    es.elasticsearch_cluster_config_dedicatedmastercount = record.ElasticsearchClusterConfig.DedicatedMasterCount,
-    es.ebs_options_ebsenabled = record.EBSOptions.EBSEnabled,
-    es.ebs_options_volumetype = record.EBSOptions.VolumeType,
-    es.ebs_options_volumesize = record.EBSOptions.VolumeSize,
-    es.ebs_options_iops = record.EBSOptions.Iops,
-    es.encryption_at_rest_options_enabled = record.EncryptionAtRestOptions.Enabled,
-    es.encryption_at_rest_options_kms_key_id = record.EncryptionAtRestOptions.KmsKeyId,
-    es.log_publishing_options_cloudwatch_log_group_arn = record.LogPublishingOptions.CloudWatchLogsLogGroupArn,
-    es.log_publishing_options_enabled = record.LogPublishingOptions.Enabled
-    WITH es
-    MATCH (account:AWSAccount{id: $AWS_ACCOUNT_ID})
-    MERGE (account)-[r:RESOURCE]->(es)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $aws_update_tag
-    """
-
-    # TODO this is a hacky workaround -- neo4j doesn't accept datetime objects and this section of the object
-    # TODO contains one. we really shouldn't be sending the entire object to neo4j
-    for d in domain_list:
-        del d["ServiceSoftwareOptions"]
-
-    run_write_query(
+    # Load domain nodes with all relationships via schema
+    load(
         neo4j_session,
-        ingest_records,
-        Records=domain_list,
-        AWS_ACCOUNT_ID=aws_account_id,
-        aws_update_tag=aws_update_tag,
+        ESDomainSchema(),
+        domain_list,
+        lastupdated=aws_update_tag,
+        AWS_ID=aws_account_id,
     )
 
+    # Process DNS and access policies (kept separate per plan)
     for domain in domain_list:
+        original = domain.get("_original", {})
         domain_id = domain["DomainId"]
-        _link_es_domains_to_dns(neo4j_session, domain_id, domain, aws_update_tag)
-        _link_es_domain_vpc(neo4j_session, domain_id, domain, aws_update_tag)
-        _process_access_policy(neo4j_session, domain_id, domain)
+        _link_es_domains_to_dns(neo4j_session, domain_id, original, aws_update_tag)
+        _process_access_policy(neo4j_session, domain_id, original)
 
 
 @timeit
@@ -138,65 +205,6 @@ def _link_es_domains_to_dns(
         )
     else:
         logger.debug(f"No es endpoint data for domain id {domain_id}")
-
-
-@timeit
-def _link_es_domain_vpc(
-    neo4j_session: neo4j.Session,
-    domain_id: str,
-    domain_data: Dict,
-    aws_update_tag: int,
-) -> None:
-    """
-    Link the ES domain to its DNS FQDN endpoint and create associated nodes in the graph
-    if needed
-
-    :param neo4j_session: Neo4j session object
-    :param domain_id: ES domain id
-    :param domain_data: domain data
-    """
-    ingest_subnet = """
-    MATCH (es:ESDomain{id: $DomainId})
-    WITH es
-    UNWIND $SubnetList as subnet_id
-        MATCH (subnet_node:EC2Subnet{id: subnet_id})
-        MERGE (es)-[r:PART_OF_SUBNET]->(subnet_node)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-    """
-
-    ingest_sec_groups = """
-    MATCH (es:ESDomain{id: $DomainId})
-    WITH es
-    UNWIND $SecGroupList as ecsecgroup_id
-        MATCH (group_node:EC2SecurityGroup{id: ecsecgroup_id})
-        MERGE (es)-[r:MEMBER_OF_EC2_SECURITY_GROUP]->(group_node)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $aws_update_tag
-    """
-    # TODO we really shouldn't be sending full objects to Neo4j
-    if domain_data.get("VPCOptions"):
-        vpc_data = domain_data["VPCOptions"]
-        subnetList = vpc_data.get("SubnetIds", [])
-        groupList = vpc_data.get("SecurityGroupIds", [])
-
-        if len(subnetList) > 0:
-            run_write_query(
-                neo4j_session,
-                ingest_subnet,
-                DomainId=domain_id,
-                SubnetList=subnetList,
-                aws_update_tag=aws_update_tag,
-            )
-
-        if len(groupList) > 0:
-            run_write_query(
-                neo4j_session,
-                ingest_sec_groups,
-                DomainId=domain_id,
-                SecGroupList=groupList,
-                aws_update_tag=aws_update_tag,
-            )
 
 
 @timeit
@@ -234,10 +242,25 @@ def _process_access_policy(
 
 @timeit
 def cleanup(neo4j_session: neo4j.Session, update_tag: int, aws_account_id: int) -> None:
-    run_cleanup_job(
-        "aws_import_es_cleanup.json",
-        neo4j_session,
+    # Clean up ESDomain nodes and schema-defined relationships
+    GraphJob.from_node_schema(
+        ESDomainSchema(),
         {"UPDATE_TAG": update_tag, "AWS_ID": aws_account_id},
+    ).run(neo4j_session)
+
+    # TODO: Keep raw Cypher here for DNS cleanup since _link_es_domains_to_dns() creates
+    # DNSRecord:AWSDNSRecord nodes and DNS_POINTS_TO edges outside the schema.
+    # This will be handled at the ontology level soon.
+    cleanup_dns_query = """
+        MATCH (:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:ESDomain)<-[:DNS_POINTS_TO]-(n:DNSRecord)
+        WHERE n.lastupdated <> $UPDATE_TAG
+        DETACH DELETE n
+    """
+    run_write_query(
+        neo4j_session,
+        cleanup_dns_query,
+        AWS_ID=aws_account_id,
+        UPDATE_TAG=update_tag,
     )
 
 
@@ -262,6 +285,12 @@ def sync(
             config=_get_botocore_config(),
         )
         data = _get_es_domains(client)
-        _load_es_domains(neo4j_session, data, current_aws_account_id, update_tag)
+        domains_data = _transform_es_domains(data)
+        _load_es_domains(
+            neo4j_session,
+            domains_data,
+            current_aws_account_id,
+            update_tag,
+        )
 
     cleanup(neo4j_session, update_tag, current_aws_account_id)  # type: ignore

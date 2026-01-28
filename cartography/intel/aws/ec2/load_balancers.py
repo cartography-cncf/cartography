@@ -15,6 +15,31 @@ from .util import get_botocore_config
 logger = logging.getLogger(__name__)
 
 
+# TODO: Remove this migration function when releasing v1
+def _migrate_legacy_loadbalancer_labels(neo4j_session: neo4j.Session) -> None:
+    """One-time migration: relabel LoadBalancer → AWSLoadBalancer."""
+    check_query = """
+    MATCH (:AWSAccount)-[:RESOURCE]->(n:LoadBalancer)
+    WHERE NOT n:AWSLoadBalancer AND NOT n:LoadBalancerV2
+    RETURN count(n) as legacy_count
+    """
+    result = neo4j_session.run(check_query)
+    legacy_count = result.single()["legacy_count"]
+
+    if legacy_count == 0:
+        return
+
+    logger.info(f"Migrating {legacy_count} legacy LoadBalancer nodes...")
+    migration_query = """
+    MATCH (:AWSAccount)-[:RESOURCE]->(n:LoadBalancer)
+    WHERE NOT n:AWSLoadBalancer AND NOT n:LoadBalancerV2
+    SET n:AWSLoadBalancer
+    RETURN count(n) as migrated
+    """
+    result = neo4j_session.run(migration_query)
+    logger.info(f"Migrated {result.single()['migrated']} nodes")
+
+
 def _get_listener_id(load_balancer_id: str, port: int, protocol: str) -> str:
     """
     Generate a unique ID for a load balancer listener.
@@ -189,6 +214,8 @@ def sync_load_balancers(
     update_tag: int,
     common_job_parameters: dict,
 ) -> None:
+    _migrate_legacy_loadbalancer_labels(neo4j_session)
+
     for region in regions:
         logger.info(
             "Syncing EC2 load balancers for region '%s' in account '%s'.",

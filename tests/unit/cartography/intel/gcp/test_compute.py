@@ -56,6 +56,47 @@ def test_parse_compute_full_uri_to_partial_uri():
     )
 
 
+def test_zones_to_regions():
+    """
+    Ensure that _zones_to_regions() correctly extracts regions from zones using
+    the region URL rather than parsing zone names. This is important for
+    non-standard zone names like AI zones (e.g., us-south1-ai).
+    """
+    # Standard zones
+    standard_zones = [
+        {
+            "name": "us-central1-a",
+            "region": "https://www.googleapis.com/compute/v1/projects/my-project/regions/us-central1",
+        },
+        {
+            "name": "us-central1-b",
+            "region": "https://www.googleapis.com/compute/v1/projects/my-project/regions/us-central1",
+        },
+        {
+            "name": "europe-west1-b",
+            "region": "https://www.googleapis.com/compute/v1/projects/my-project/regions/europe-west1",
+        },
+    ]
+    result = cartography.intel.gcp.compute._zones_to_regions(standard_zones)
+    assert sorted(result) == ["europe-west1", "us-central1"]
+
+    # AI zones - these have non-standard zone names that would fail with the old
+    # implementation that simply chopped off the last 2 characters
+    ai_zones = [
+        {
+            "name": "us-south1-ai",
+            "region": "https://www.googleapis.com/compute/v1/projects/my-project/regions/us-south1",
+        },
+        {
+            "name": "us-central1-a",
+            "region": "https://www.googleapis.com/compute/v1/projects/my-project/regions/us-central1",
+        },
+    ]
+    result = cartography.intel.gcp.compute._zones_to_regions(ai_zones)
+    # Should correctly extract us-south1, not us-south1-ai or us-south1-
+    assert sorted(result) == ["us-central1", "us-south1"]
+
+
 def test_transform_gcp_firewall():
     fw_list = cartography.intel.gcp.compute.transform_gcp_firewall(
         LIST_FIREWALLS_RESPONSE,

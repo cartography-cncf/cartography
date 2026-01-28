@@ -250,7 +250,7 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
     # Pre-create some AWS resources that DNS records might point to
     neo4j_session.run(
         """
-        MERGE (lb:LoadBalancerV2 {id: "myawesomeloadbalancer.amazonaws.com", dnsname: "myawesomeloadbalancer.amazonaws.com"})
+        MERGE (lb:AWSLoadBalancerV2 {id: "myawesomeloadbalancer.amazonaws.com", dnsname: "myawesomeloadbalancer.amazonaws.com"})
         SET lb.lastupdated = $update_tag
         """,
         update_tag=TEST_UPDATE_TAG,
@@ -274,12 +274,12 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
     )
 
     # Assert
-    # DNS records -- LoadBalancerV2
+    # DNS records -- AWSLoadBalancerV2
     assert check_rels(
         neo4j_session,
         "AWSDNSRecord",
         "id",
-        "LoadBalancerV2",
+        "AWSLoadBalancerV2",
         "id",
         "DNS_POINTS_TO",
         rel_direction_right=True,
@@ -288,7 +288,7 @@ def test_sync_route53_with_existing_resources(mock_get_zones, neo4j_session):
             "/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS",
             "myawesomeloadbalancer.amazonaws.com",
         ),
-    }, "DNS records don't point to LoadBalancerV2"
+    }, "DNS records don't point to AWSLoadBalancerV2"
 
     # DNS records -- EC2 instances
     assert check_rels(

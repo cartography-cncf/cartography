@@ -85,6 +85,11 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         MATCH p4=(ec2{exposed_internet: true})-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:IpPermissionInbound)
         RETURN *
     """,
+    cypher_count_query="""
+    MATCH (ec2:EC2Instance)
+    RETURN COUNT(ec2) AS count
+    """,
+    asset_id_field="workload_id",
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -159,6 +164,11 @@ _aws_service_account_manipulation_via_lambda = Fact(
         )
         RETURN *
     """,
+    cypher_count_query="""
+    MATCH (lambda:AWSLambda)
+    RETURN COUNT(lambda) AS count
+    """,
+    asset_id_field="workload_id",
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

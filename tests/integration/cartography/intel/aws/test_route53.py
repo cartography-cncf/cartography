@@ -172,7 +172,7 @@ def test_load_dnspointsto_ec2_relationships(neo4j_session):
     result = neo4j_session.run(
         """
         MATCH (n:AWSDNSRecord{id:"/hostedzone/HOSTED_ZONE/elbv2.example.com/ALIAS"})
-        -[:DNS_POINTS_TO]->(l:LoadBalancerV2{id:"myawesomeloadbalancer.amazonaws.com"})
+        -[:DNS_POINTS_TO]->(l:AWSLoadBalancerV2{id:"myawesomeloadbalancer.amazonaws.com"})
         return n.name, l.name
         """,
     )

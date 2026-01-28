@@ -7,6 +7,7 @@ from tests.data.oci.iam import LIST_COMPARTMENTS
 from tests.data.oci.iam import LIST_GROUP_MEMBERSHIPS
 from tests.data.oci.iam import LIST_GROUPS
 from tests.data.oci.iam import LIST_POLICIES
+from tests.data.oci.iam import LIST_REGION_SUBSCRIPTIONS
 from tests.data.oci.iam import LIST_USERS
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -203,19 +204,26 @@ def test_sync_group_memberships(
     }
 
 
-def test_load_compartments(neo4j_session):
+@patch.object(iam, "get_compartment_list_data", return_value=LIST_COMPARTMENTS)
+def test_sync_compartments(mock_get_compartments, neo4j_session):
     """
-    Ensure that OCI compartments are loaded correctly.
+    Ensure that OCI compartments are synced correctly with their nodes and relationships.
     """
     # Arrange
     _create_test_tenancy(neo4j_session)
+    mock_iam_client = MagicMock()
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "OCI_TENANCY_ID": TEST_TENANCY_ID,
+    }
 
     # Act
-    iam.load_compartments(
+    iam.sync_compartments(
         neo4j_session,
-        LIST_COMPARTMENTS["Compartments"],
+        mock_iam_client,
         TEST_TENANCY_ID,
         TEST_UPDATE_TAG,
+        common_job_parameters,
     )
 
     # Assert - OCICompartment nodes exist
@@ -251,19 +259,36 @@ def test_load_compartments(neo4j_session):
     }
 
 
-def test_load_policies(neo4j_session):
+@patch.object(iam, "get_policy_list_data", return_value=LIST_POLICIES)
+@patch.object(iam, "get_compartment_list_data", return_value=LIST_COMPARTMENTS)
+def test_sync_policies(mock_get_compartments, mock_get_policies, neo4j_session):
     """
-    Ensure that OCI policies are loaded correctly.
+    Ensure that OCI policies are synced correctly with their nodes and relationships.
     """
     # Arrange
     _create_test_tenancy(neo4j_session)
+    mock_iam_client = MagicMock()
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "OCI_TENANCY_ID": TEST_TENANCY_ID,
+    }
 
-    # Act
-    iam.load_policies(
+    # First sync compartments (policies depend on compartments being in the graph)
+    iam.sync_compartments(
         neo4j_session,
-        LIST_POLICIES["Policies"],
+        mock_iam_client,
         TEST_TENANCY_ID,
         TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Act
+    iam.sync_policies(
+        neo4j_session,
+        mock_iam_client,
+        TEST_TENANCY_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
     )
 
     # Assert - OCIPolicy nodes exist
@@ -296,4 +321,132 @@ def test_load_policies(neo4j_session):
             TEST_TENANCY_ID,
             "ocid1.policy.oc1..4tvutzd5lmibackk8r1vaecin4w1x06m8lmgnb54h038960q9i41f11rwazz",
         ),
+    }
+
+
+@patch.object(
+    iam, "get_region_subscriptions_list_data", return_value=LIST_REGION_SUBSCRIPTIONS
+)
+@patch.object(iam, "get_policy_list_data", return_value=LIST_POLICIES)
+@patch.object(iam, "get_compartment_list_data", return_value=LIST_COMPARTMENTS)
+@patch.object(iam, "get_group_membership_data", return_value=LIST_GROUP_MEMBERSHIPS)
+@patch.object(iam, "get_group_list_data", return_value=LIST_GROUPS)
+@patch.object(iam, "get_user_list_data", return_value=LIST_USERS)
+def test_sync(
+    mock_get_users,
+    mock_get_groups,
+    mock_get_memberships,
+    mock_get_compartments,
+    mock_get_policies,
+    mock_get_regions,
+    neo4j_session,
+):
+    """
+    Ensure that the main sync function orchestrates all IAM sub-syncs correctly.
+    This tests the full IAM sync workflow including users, groups, memberships,
+    compartments, policies, and region subscriptions.
+    """
+    # Arrange
+    _create_test_tenancy(neo4j_session)
+    mock_iam_client = MagicMock()
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "OCI_TENANCY_ID": TEST_TENANCY_ID,
+    }
+
+    # Act - Call the main sync function
+    iam.sync(
+        neo4j_session,
+        mock_iam_client,
+        TEST_TENANCY_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Assert - OCIUser nodes exist
+    assert check_nodes(neo4j_session, "OCIUser", ["ocid", "name"]) == {
+        (
+            "ocid1.user.oc1..m5oaceraqeiq47zqstzy6ickbbfkw7vg4srozp4sskn78eapu116oyv9wcr0",
+            "example-user-0",
+        ),
+        (
+            "ocid1.user.oc1..srozp4sskn78eapu116oyv9wcr06ickbbfkw7vg4m5oaceraqeiq47zqstzy",
+            "example-user-1",
+        ),
+    }
+
+    # Assert - OCIGroup nodes exist
+    assert check_nodes(neo4j_session, "OCIGroup", ["ocid", "name"]) == {
+        (
+            "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
+            "example-group-0",
+        ),
+        (
+            "ocid1.group.oc1..bkan5que3j9ixlsf0xn56xrj7xnjgez0bhfqll68zt4d2b78uo745h5ze6at",
+            "example-group-1",
+        ),
+    }
+
+    # Assert - OCICompartment nodes exist
+    assert check_nodes(neo4j_session, "OCICompartment", ["ocid", "name"]) == {
+        (
+            "ocid1.compartment.oc1..cin4w1x06m84tnb54h038960q9i41vutzd5lmibackk8r1vaelmgf11rwazz",
+            "example-compartment-0",
+        ),
+        (
+            "ocid1.compartment.oc1..54h038960q9i41vutzd5lmibac4tnbkkcin4w1x06m88r1vaelmgf11rwazz",
+            "example-compartment-1",
+        ),
+    }
+
+    # Assert - OCIPolicy nodes exist
+    assert check_nodes(neo4j_session, "OCIPolicy", ["ocid", "name"]) == {
+        (
+            "ocid1.policy.oc1..aecin4w1x06m8lm4tvutzd5lmibackk8r1vgnb54h038960q9i41f11rwazz",
+            "example-policy-0",
+        ),
+        (
+            "ocid1.policy.oc1..4tvutzd5lmibackk8r1vaecin4w1x06m8lmgnb54h038960q9i41f11rwazz",
+            "example-policy-1",
+        ),
+    }
+
+    # Assert - OCIRegion nodes exist
+    assert check_nodes(neo4j_session, "OCIRegion", ["key", "name"]) == {
+        ("PHX", "us-phoenix-1"),
+        ("IAD", "us-ashburn-1"),
+    }
+
+    # Assert - User-Group memberships
+    assert check_rels(
+        neo4j_session,
+        "OCIUser",
+        "ocid",
+        "OCIGroup",
+        "ocid",
+        "MEMBER_OCID_GROUP",
+        rel_direction_right=True,
+    ) == {
+        (
+            "ocid1.user.oc1..m5oaceraqeiq47zqstzy6ickbbfkw7vg4srozp4sskn78eapu116oyv9wcr0",
+            "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
+        ),
+        (
+            "ocid1.user.oc1..srozp4sskn78eapu116oyv9wcr06ickbbfkw7vg4m5oaceraqeiq47zqstzy",
+            "ocid1.group.oc1..wa03xlg35zi0tb33qyrjteen36zrkauzhjz8pi0yzt4d2b78uo745h5ze6at",
+        ),
+    }
+
+    # Assert - Tenancy-Region subscriptions
+    assert check_rels(
+        neo4j_session,
+        "OCITenancy",
+        "ocid",
+        "OCIRegion",
+        "key",
+        "OCI_REGION_SUBSCRIPTION",
+        rel_direction_right=True,
+    ) == {
+        (TEST_TENANCY_ID, "PHX"),
+        (TEST_TENANCY_ID, "IAD"),
     }

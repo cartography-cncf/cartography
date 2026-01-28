@@ -1,0 +1,16 @@
+{
+    "name": "GCP Instance to VPC derived relationship analysis",
+    "statements": [
+        {
+            "__comment__": "Create MEMBER_OF_GCP_VPC relationship by traversing Instance -> NIC -> Subnet -> VPC",
+            "query": "MATCH (i:GCPInstance)-[:NETWORK_INTERFACE]->(nic:GCPNetworkInterface)-[:PART_OF_SUBNET]->(sn:GCPSubnet)<-[:HAS]-(vpc:GCPVpc) MERGE (i)-[m:MEMBER_OF_GCP_VPC]->(vpc) ON CREATE SET m.firstseen = timestamp() SET m.lastupdated = $UPDATE_TAG",
+            "iterative": false
+        },
+        {
+            "__comment__": "Delete stale MEMBER_OF_GCP_VPC relationships",
+            "query": "MATCH (i:GCPInstance)-[r:MEMBER_OF_GCP_VPC]->(vpc:GCPVpc) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) as TotalCompleted",
+            "iterative": true,
+            "iterationsize": 100
+        }
+    ]
+}

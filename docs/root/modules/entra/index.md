@@ -4,6 +4,7 @@
 ```{toctree}
 config
 schema
+examples
 ```
 
 
