@@ -10,6 +10,11 @@ U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
+LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
+LB -- EXPOSE --> CT{{Container}}
+DB{{Database}}
+TN{{Tenant}}
+FN{{Function}}
 ```
 
 :::{note}
@@ -280,3 +285,51 @@ Common tenant concepts across platforms include:
 | _ont_name | Display name or friendly name of the tenant/organization (REQUIRED for most modules). |
 | _ont_status | Current status/state of the tenant (e.g., active, suspended, archived). |
 | _ont_domain | Primary domain name associated with the tenant (for workspace/domain-based services). |
+
+
+### Function
+
+```{note}
+Function is a semantic label.
+```
+
+A function represents a serverless compute unit that runs code or containers in response to events without managing servers.
+It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Cloud Run services/jobs, and Azure Function Apps.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the function (REQUIRED). |
+| _ont_runtime | The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). Only applicable for code-based functions. |
+| _ont_memory | Memory allocated to the function (in MB). |
+| _ont_timeout | Timeout for function execution (in seconds). |
+| _ont_deployment_type | The deployment type: `code` for source code functions (Lambda, Cloud Functions, Azure Functions), `container` for container-based functions (Cloud Run). |
+
+
+### LoadBalancer
+
+```{note}
+LoadBalancer is a semantic label.
+```
+
+A load balancer distributes incoming network traffic across multiple targets to ensure high availability and reliability.
+It generalizes concepts like AWS Application/Network Load Balancers (ALB/NLB), AWS Classic ELBs, GCP Forwarding Rules, and Azure Load Balancers.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the load balancer (REQUIRED). |
+| _ont_lb_type | The type of load balancer (e.g., "application", "network", "classic", "Standard", "Basic"). |
+| _ont_scheme | The load balancing scheme (e.g., "internet-facing", "internal", "EXTERNAL", "INTERNAL"). |
+| _ont_dns_name | The DNS name or endpoint for the load balancer. |
+| _ont_region | The region or location where the load balancer is deployed. |
+
+
+#### Relationships
+
+- `LoadBalancer` can expose one or many `ComputeInstance` (semantic label):
+    ```
+    (:LoadBalancer)-[:EXPOSE]->(:ComputeInstance)
+    ```
+- `LoadBalancer` can expose one or many `Container` (semantic label):
+    ```
+    (:LoadBalancer)-[:EXPOSE]->(:Container)
+    ```

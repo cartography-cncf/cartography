@@ -315,3 +315,38 @@ def assert_trivy_gcp_image_relationships(
     # Combine both sets of relationships
     actual_finding_rels = container_image_finding_rels | platform_image_finding_rels
     assert actual_finding_rels == expected_finding_rels
+
+
+def assert_trivy_gitlab_image_relationships(
+    neo4j_session: Session,
+    expected_package_rels: set,
+    expected_finding_rels: set,
+) -> None:
+    """Assert Trivy relationships to GitLabContainerImage are correctly created."""
+    # Package to GitLabContainerImage relationships (DEPLOYED)
+    assert (
+        check_rels(
+            neo4j_session,
+            "Package",
+            "id",
+            "GitLabContainerImage",
+            "id",
+            "DEPLOYED",
+            rel_direction_right=True,
+        )
+        == expected_package_rels
+    )
+
+    # TrivyImageFinding to GitLabContainerImage relationships (AFFECTS)
+    assert (
+        check_rels(
+            neo4j_session,
+            "TrivyImageFinding",
+            "id",
+            "GitLabContainerImage",
+            "id",
+            "AFFECTS",
+            rel_direction_right=True,
+        )
+        == expected_finding_rels
+    )

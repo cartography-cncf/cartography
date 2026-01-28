@@ -1,5 +1,5 @@
 {
-  "name": "AWS ECS internet exposure",
+  "name": "AWS ECS internet exposure (deprecated: use ontology LoadBalancer-[:EXPOSE]->Container)",
   "statements": [
     {
       "__comment": "Clean up any previous exposed_internet attribute on ECSContainer",
@@ -9,7 +9,7 @@
     },
     {
       "__comment": "Mark ECS containers as exposed to the internet when they are behind an internet-facing load balancer",
-      "query": "MATCH (lb:LoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(container:ECSContainer) SET container.exposed_internet = true",
+      "query": "MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(container:ECSContainer) SET container.exposed_internet = true",
       "iterative": false
     }
   ]

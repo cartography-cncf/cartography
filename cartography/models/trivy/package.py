@@ -20,6 +20,9 @@ class TrivyPackageNodeProperties(CartographyNodeProperties):
     version: PropertyRef = PropertyRef("InstalledVersion")
     class_name: PropertyRef = PropertyRef("Class")
     type: PropertyRef = PropertyRef("Type")
+    # Additional fields from Trivy scan results
+    purl: PropertyRef = PropertyRef("PURL")
+    pkg_id: PropertyRef = PropertyRef("PkgID")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -62,6 +65,17 @@ class TrivyPackageToGCPPlatformImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TrivyPackageToGitLabImageRel(CartographyRelSchema):
+    target_node_label: str = "GitLabContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("ImageDigest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED"
+    properties: TrivyPackageToImageRelProperties = TrivyPackageToImageRelProperties()
+
+
+@dataclass(frozen=True)
 class TrivyPackageToFindingRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -90,6 +104,7 @@ class TrivyPackageSchema(CartographyNodeSchema):
             TrivyPackageToImageRel(),
             TrivyPackageToGCPImageRel(),
             TrivyPackageToGCPPlatformImageRel(),
+            TrivyPackageToGitLabImageRel(),
             TrivyPackageToFindingRel(),
         ],
     )
