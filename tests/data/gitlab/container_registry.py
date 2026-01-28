@@ -293,6 +293,7 @@ GET_CONTAINER_MANIFEST_LISTS_RESPONSE = [
 TRANSFORMED_CONTAINER_IMAGES = [
     {
         "digest": "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+        "uri": "registry.gitlab.example.com/myorg/awesome-project/app",
         "media_type": "application/vnd.docker.distribution.manifest.v2+json",
         "schema_version": 2,
         "type": "image",
@@ -303,6 +304,7 @@ TRANSFORMED_CONTAINER_IMAGES = [
     },
     {
         "digest": "sha256:bbb222333444555666777888999000aaabbbcccdddeeefff000111222333444",
+        "uri": "registry.gitlab.example.com/myorg/awesome-project/app",
         "media_type": "application/vnd.docker.distribution.manifest.list.v2+json",
         "schema_version": 2,
         "type": "manifest_list",
@@ -316,6 +318,7 @@ TRANSFORMED_CONTAINER_IMAGES = [
     },
     {
         "digest": "sha256:child1amd64555666777888999000aaabbbcccdddeeefff000111222333444",
+        "uri": "registry.gitlab.example.com/myorg/awesome-project/app",
         "media_type": "application/vnd.docker.distribution.manifest.v2+json",
         "schema_version": 2,
         "type": "image",
@@ -326,6 +329,7 @@ TRANSFORMED_CONTAINER_IMAGES = [
     },
     {
         "digest": "sha256:child2arm64555666777888999000aaabbbcccdddeeefff000111222333444",
+        "uri": "registry.gitlab.example.com/myorg/awesome-project/app",
         "media_type": "application/vnd.docker.distribution.manifest.v2+json",
         "schema_version": 2,
         "type": "image",
@@ -336,6 +340,7 @@ TRANSFORMED_CONTAINER_IMAGES = [
     },
     {
         "digest": "sha256:ccc333444555666777888999000aaabbbcccdddeeefff000111222333444555",
+        "uri": "registry.gitlab.example.com/myorg/awesome-project/worker",
         "media_type": "application/vnd.docker.distribution.manifest.v2+json",
         "schema_version": 2,
         "type": "image",

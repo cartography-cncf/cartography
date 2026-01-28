@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -100,11 +101,13 @@ class GCPForwardingRuleSchema(CartographyNodeSchema):
 
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
     sub_resource_relationship: GCPForwardingRuleToProjectRel = (
         GCPForwardingRuleToProjectRel()
     )
 
 
+# TODO: I don't think we need this schema
 @dataclass(frozen=True)
 class GCPForwardingRuleWithSubnetSchema(CartographyNodeSchema):
     """
@@ -113,6 +116,7 @@ class GCPForwardingRuleWithSubnetSchema(CartographyNodeSchema):
 
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
     sub_resource_relationship: GCPForwardingRuleToProjectRel = (
         GCPForwardingRuleToProjectRel()
     )
@@ -127,6 +131,7 @@ class GCPForwardingRuleWithSubnetSchema(CartographyNodeSchema):
 class GCPForwardingRuleWithVpcSchema(CartographyNodeSchema):
     label: str = "GCPForwardingRule"
     properties: GCPForwardingRuleNodeProperties = GCPForwardingRuleNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
     sub_resource_relationship: GCPForwardingRuleToProjectRel = (
         GCPForwardingRuleToProjectRel()
     )
