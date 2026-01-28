@@ -451,7 +451,9 @@ def _sync_project_resources(
 
         if service_names.cloud_sql in enabled_services:
             logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
-            cloud_sql_cred = build_client("sqladmin", "v1beta4")
+            cloud_sql_cred = build_client(
+                "sqladmin", "v1beta4", credentials=credentials
+            )
 
             instances_raw = cloud_sql_instance.sync_sql_instances(
                 neo4j_session,

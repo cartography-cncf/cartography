@@ -115,20 +115,31 @@ def gcp_api_execute_with_retry(request: Any) -> Any:
 
 def is_api_disabled_error(e: HttpError) -> bool:
     """
-    Check if an HttpError indicates that a GCP API is not enabled or access is denied.
+    Check if an HttpError indicates that a GCP API is not enabled on the project.
 
-    This utility helps modules gracefully handle scenarios where:
-    1. An API has not been enabled on the project/quota project
-    2. The caller lacks permission to use the API
+    This utility helps modules gracefully skip syncing when an API hasn't been
+    enabled, rather than crashing the entire sync. It intentionally does NOT
+    match general PERMISSION_DENIED errors (IAM misconfigurations) - those
+    should still fail loudly.
+
+    Matches errors with messages like:
+    - "Cloud Functions API has not been used in project X before or it is disabled"
+    - "Bigtable Admin API is not enabled"
 
     :param e: The HttpError exception to check
-    :return: True if the error indicates API is disabled or access denied, False otherwise
+    :return: True if the error indicates API is disabled, False otherwise
     """
     try:
         error_json = json.loads(e.content.decode("utf-8"))
         err = error_json.get("error", {})
-        return err.get("status", "") == "PERMISSION_DENIED" or (
-            err.get("message") and "API has not been used" in err.get("message")
+        message = err.get("message", "")
+
+        # Check for the standard "API not enabled" message patterns
+        # These indicate the API needs to be enabled in the project, not an IAM issue
+        return (
+            "API has not been used" in message
+            or "is not enabled" in message
+            or "it is disabled" in message
         )
     except (ValueError, KeyError, AttributeError) as parse_error:
         logger.debug(
