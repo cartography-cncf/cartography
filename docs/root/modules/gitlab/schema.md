@@ -5,11 +5,10 @@ graph LR
 
 O(GitLabOrganization) -- RESOURCE --> G(GitLabGroup)
 O -- RESOURCE --> P(GitLabProject)
+O -- RESOURCE --> U(GitLabUser)
 G -- MEMBER_OF --> G
 P -- MEMBER_OF --> G
-U(GitLabUser) -- MEMBER_OF --> O
 U -- MEMBER_OF --> G
-U -- MEMBER_OF --> P
 U -- COMMITTED_TO --> P
 P -- RESOURCE --> B(GitLabBranch)
 P -- RESOURCE --> DF(GitLabDependencyFile)
@@ -62,14 +61,11 @@ Representation of a GitLab top-level group (organization). In GitLab, organizati
     (GitLabOrganization)-[RESOURCE]->(GitLabProject)
     ```
 
-- GitLabUsers can be members of GitLabOrganizations with different access levels.
+- GitLabOrganizations contain GitLabUsers.
 
     ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabOrganization)
+    (GitLabOrganization)-[RESOURCE]->(GitLabUser)
     ```
-
-    The `role` property can be: owner, maintainer, developer, reporter, guest.
-    The `access_level` property corresponds to GitLab's numeric levels: 50, 40, 30, 20, 10.
 
 ### GitLabGroup
 
@@ -183,25 +179,18 @@ ORDER BY project_count DESC
     (GitLabProject)-[MEMBER_OF]->(GitLabGroup)
     ```
 
-- GitLabUsers can be members of GitLabProjects with different access levels.
-
-    ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabProject)
-    ```
-
-    The `role` property can be: owner, maintainer, developer, reporter, guest.
-    The `access_level` property corresponds to GitLab's numeric levels: 50, 40, 30, 20, 10.
-
 - GitLabUsers who have committed to GitLabProjects are tracked with commit activity data.
 
     ```
-    (GitLabUser)-[COMMITTED_TO]->(GitLabProject)
+    (GitLabUser)-[COMMITTED_TO{commit_count, last_commit_date, first_commit_date}]->(GitLabProject)
     ```
 
     This relationship includes the following properties:
     - **commit_count**: Number of commits made by the user to the project
     - **last_commit_date**: Timestamp of the user's most recent commit to the project
     - **first_commit_date**: Timestamp of the user's oldest commit to the project
+
+    Commit authors are matched to GitLab users by display name. Only commits from current members are tracked.
 
 - GitLabProjects have GitLabBranches.
 
@@ -223,7 +212,9 @@ ORDER BY project_count DESC
 
 ### GitLabUser
 
-Representation of a GitLab user. Users can be members of organizations, groups, and projects.
+Representation of a GitLab user. Users belong to an organization and can be members of groups. Commit activity is tracked to show which users have contributed code to projects.
+
+**Note:** Only current members of the organization and its groups are synced. Former members and external contributors who are not current members are not tracked.
 
 | Field | Description |
 |-------|--------------|
@@ -238,29 +229,28 @@ Representation of a GitLab user. Users can be members of organizations, groups, 
 
 #### Relationships
 
-- GitLabUsers can be members of GitLabOrganizations.
+- GitLabUsers belong to GitLabOrganizations (for cleanup scoping).
 
     ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabOrganization)
+    (GitLabOrganization)-[RESOURCE]->(GitLabUser)
     ```
 
-- GitLabUsers can be members of GitLabGroups.
+- GitLabUsers can be members of GitLabGroups with access levels.
 
     ```
     (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabGroup)
     ```
 
-- GitLabUsers can be members of GitLabProjects.
+    The `role` property can be: owner, maintainer, developer, reporter, guest.
+    The `access_level` property corresponds to GitLab's numeric levels: 50, 40, 30, 20, 10.
 
-    ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabProject)
-    ```
-
-- GitLabUsers who have committed to GitLabProjects are tracked.
+- GitLabUsers who have committed to GitLabProjects are tracked with commit activity.
 
     ```
     (GitLabUser)-[COMMITTED_TO{commit_count, last_commit_date, first_commit_date}]->(GitLabProject)
     ```
+
+    This relationship is created by analyzing git commits and matching commit authors (by name) to current GitLab members.
 
 ### GitLabBranch
 
