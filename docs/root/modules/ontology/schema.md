@@ -15,7 +15,8 @@ LB -- EXPOSE --> CT{{Container}}
 DB{{Database}}
 TN{{Tenant}}
 FN{{Function}}
-PIP(PublicIP)
+PIP(PublicIP) -- POINTS_TO --> LB
+PIP -- POINTS_TO --> CI
 ```
 
 :::{note}
@@ -362,4 +363,12 @@ If field `ip_version` is null, it should not be considered as `4` or `6`, only a
 - `PublicIP` is linked to one or many nodes that represent the IP in a module:
     ```
     (:PublicIP)-[:RESERVED_BY]->(:*)
+    ```
+- `PublicIP` can point to one or many `LoadBalancer` (semantic label) that use this IP:
+    ```
+    (:PublicIP)-[:POINTS_TO]->(:LoadBalancer)
+    ```
+- `PublicIP` can point to one or many `ComputeInstance` (semantic label) that have this IP:
+    ```
+    (:PublicIP)-[:POINTS_TO]->(:ComputeInstance)
     ```

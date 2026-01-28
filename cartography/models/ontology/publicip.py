@@ -25,6 +25,11 @@ class PublicIPToNodeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
+# =============================================================================
+# RESERVED_BY relations - Link PublicIP to provider-specific IP resources
+# =============================================================================
+
+
 # (:PublicIP)-[:RESERVED_BY]->(:ElasticIPAddress)
 class PublicIPToElasticIPAddressRel(CartographyRelSchema):
     target_node_label: str = "ElasticIPAddress"
@@ -69,6 +74,34 @@ class PublicIPToGCPNicAccessConfigRel(CartographyRelSchema):
     properties: PublicIPToNodeRelProperties = PublicIPToNodeRelProperties()
 
 
+# =============================================================================
+# POINTS_TO relations - Link PublicIP to ontology semantic labels
+# These use the standardized _ont_* fields from the ontology mappings
+# =============================================================================
+
+
+# (:PublicIP)-[:POINTS_TO]->(:ComputeInstance)
+class PublicIPToComputeInstanceRel(CartographyRelSchema):
+    target_node_label: str = "ComputeInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_public_ip_address": PropertyRef("ip_address")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "POINTS_TO"
+    properties: PublicIPToNodeRelProperties = PublicIPToNodeRelProperties()
+
+
+# (:PublicIP)-[:POINTS_TO]->(:LoadBalancer)
+class PublicIPToLoadBalancerRel(CartographyRelSchema):
+    target_node_label: str = "LoadBalancer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"_ont_ip_address": PropertyRef("ip_address")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "POINTS_TO"
+    properties: PublicIPToNodeRelProperties = PublicIPToNodeRelProperties()
+
+
 @dataclass(frozen=True)
 class PublicIPSchema(CartographyNodeSchema):
     label: str = "PublicIP"
@@ -77,11 +110,13 @@ class PublicIPSchema(CartographyNodeSchema):
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
+            # RESERVED_BY - Provider-specific IP resources
             PublicIPToElasticIPAddressRel(),
             PublicIPToAzurePublicIPAddressRel(),
             PublicIPToScalewayFlexibleIpRel(),
             PublicIPToGCPNicAccessConfigRel(),
-            PublicIPToEC2PrivateIpRel(),
-            PublicIPToEC2InstanceRel(),
+            # POINTS_TO - Ontology semantic labels
+            PublicIPToComputeInstanceRel(),
+            PublicIPToLoadBalancerRel(),
         ],
     )

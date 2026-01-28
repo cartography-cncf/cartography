@@ -2,7 +2,6 @@ import logging
 
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.device import DeviceSchema
-from cartography.models.ontology.publicip import PublicIPSchema
 from cartography.models.ontology.mapping.data.apikeys import APIKEYS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.computeinstance import (
     COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
@@ -20,7 +19,9 @@ from cartography.models.ontology.mapping.data.functions import (
 from cartography.models.ontology.mapping.data.loadbalancers import (
     LOADBALANCERS_ONTOLOGY_MAPPING,
 )
-from cartography.models.ontology.mapping.data.publicips import PUBLIC_IPS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.publicips import (
+    PUBLIC_IPS_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.thirdpartyapps import (
     THIRDPARTYAPPS_ONTOLOGY_MAPPING,
@@ -31,6 +32,7 @@ from cartography.models.ontology.mapping.data.useraccounts import (
 from cartography.models.ontology.mapping.data.users import USERS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
+from cartography.models.ontology.publicip import PublicIPSchema
 from cartography.models.ontology.user import UserSchema
 
 logger = logging.getLogger(__name__)
