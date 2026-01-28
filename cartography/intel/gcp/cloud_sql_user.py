@@ -109,6 +109,7 @@ def sync_sql_users(
 ) -> None:
     logger.info(f"Syncing Cloud SQL Users for project {project_id}.")
     all_users: list[dict] = []
+    had_failures = False
 
     for inst in instances:
         instance_name = inst.get("name")
@@ -121,14 +122,25 @@ def sync_sql_users(
             # Skip this instance if API is not enabled or access denied
             if users_raw is not None:
                 all_users.extend(transform_sql_users(users_raw, instance_id))
+            else:
+                had_failures = True
         except Exception:
             logger.warning(
                 f"Failed to get SQL users for instance {instance_name}", exc_info=True
             )
+            had_failures = True
             continue
 
     load_sql_users(neo4j_session, all_users, project_id, update_tag)
 
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["PROJECT_ID"] = project_id
-    cleanup_sql_users(neo4j_session, cleanup_job_params)
+    # Skip cleanup if we had partial failures to preserve existing data
+    if not had_failures:
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["PROJECT_ID"] = project_id
+        cleanup_sql_users(neo4j_session, cleanup_job_params)
+    else:
+        logger.warning(
+            "Skipping Cloud SQL Users cleanup for project %s due to partial failures. "
+            "Existing data will be preserved.",
+            project_id,
+        )

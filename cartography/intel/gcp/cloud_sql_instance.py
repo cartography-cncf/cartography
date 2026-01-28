@@ -139,7 +139,7 @@ def sync_sql_instances(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
-) -> list[dict]:
+) -> list[dict] | None:
     """
     Syncs GCP SQL Instances and returns the raw instance data.
     """
@@ -157,4 +157,4 @@ def sync_sql_instances(
         cleanup_job_params["PROJECT_ID"] = project_id
         cleanup_sql_instances(neo4j_session, cleanup_job_params)
 
-    return instances_raw or []
+    return instances_raw

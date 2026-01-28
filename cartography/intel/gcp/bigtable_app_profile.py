@@ -107,6 +107,7 @@ def sync_bigtable_app_profiles(
 ) -> None:
     logger.info(f"Syncing Bigtable App Profiles for project {project_id}.")
     all_app_profiles_transformed: list[dict] = []
+    had_failures = False
 
     for inst in instances:
         instance_id = inst["name"]
@@ -116,11 +117,21 @@ def sync_bigtable_app_profiles(
             all_app_profiles_transformed.extend(
                 transform_app_profiles(app_profiles_raw, instance_id),
             )
+        else:
+            had_failures = True
 
     load_bigtable_app_profiles(
         neo4j_session, all_app_profiles_transformed, project_id, update_tag
     )
 
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["PROJECT_ID"] = project_id
-    cleanup_bigtable_app_profiles(neo4j_session, cleanup_job_params)
+    # Skip cleanup if we had partial failures to preserve existing data
+    if not had_failures:
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["PROJECT_ID"] = project_id
+        cleanup_bigtable_app_profiles(neo4j_session, cleanup_job_params)
+    else:
+        logger.warning(
+            "Skipping Bigtable App Profiles cleanup for project %s due to partial failures. "
+            "Existing data will be preserved.",
+            project_id,
+        )

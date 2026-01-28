@@ -98,6 +98,7 @@ def sync_bigtable_clusters(
     logger.info(f"Syncing Bigtable Clusters for project {project_id}.")
     all_clusters_raw: list[dict] = []
     all_clusters_transformed: list[dict] = []
+    had_failures = False
 
     for inst in instances:
         instance_id = inst["name"]
@@ -108,13 +109,23 @@ def sync_bigtable_clusters(
             all_clusters_transformed.extend(
                 transform_clusters(clusters_raw, instance_id)
             )
+        else:
+            had_failures = True
 
     load_bigtable_clusters(
         neo4j_session, all_clusters_transformed, project_id, update_tag
     )
 
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["PROJECT_ID"] = project_id
-    cleanup_bigtable_clusters(neo4j_session, cleanup_job_params)
+    # Skip cleanup if we had partial failures to preserve existing data
+    if not had_failures:
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["PROJECT_ID"] = project_id
+        cleanup_bigtable_clusters(neo4j_session, cleanup_job_params)
+    else:
+        logger.warning(
+            "Skipping Bigtable Clusters cleanup for project %s due to partial failures. "
+            "Existing data will be preserved.",
+            project_id,
+        )
 
     return all_clusters_raw

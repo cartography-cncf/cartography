@@ -507,6 +507,7 @@ def sync_artifact_registry_artifacts(
     docker_images_transformed: list[dict] = []
     helm_charts_transformed: list[dict] = []
     language_packages_transformed: list[dict] = []
+    had_failures = False
 
     for repo in repositories:
         repo_name = repo.get("name")
@@ -527,6 +528,7 @@ def sync_artifact_registry_artifacts(
         artifacts_raw = get_func(client, repo_name)
         if artifacts_raw is None:
             # Skip this repository if API is not enabled or access denied
+            had_failures = True
             continue
         if not artifacts_raw:
             continue
@@ -574,12 +576,19 @@ def sync_artifact_registry_artifacts(
             neo4j_session, language_packages_transformed, project_id, update_tag
         )
 
-    # Cleanup all node types
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["PROJECT_ID"] = project_id
-    cleanup_docker_images(neo4j_session, cleanup_job_params)
-    cleanup_helm_charts(neo4j_session, cleanup_job_params)
-    cleanup_language_packages(neo4j_session, cleanup_job_params)
+    # Skip cleanup if we had partial failures to preserve existing data
+    if not had_failures:
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["PROJECT_ID"] = project_id
+        cleanup_docker_images(neo4j_session, cleanup_job_params)
+        cleanup_helm_charts(neo4j_session, cleanup_job_params)
+        cleanup_language_packages(neo4j_session, cleanup_job_params)
+    else:
+        logger.warning(
+            "Skipping Artifact Registry artifacts cleanup for project %s due to partial failures. "
+            "Existing data will be preserved.",
+            project_id,
+        )
 
     # Return raw Docker images for manifest sync (excludes Helm charts)
     return docker_images_raw

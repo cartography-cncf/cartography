@@ -92,7 +92,7 @@ def sync_bigtable_instances(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
-) -> list[dict]:
+) -> list[dict] | None:
     logger.info(f"Syncing Bigtable Instances for project {project_id}.")
     instances_raw = get_bigtable_instances(client, project_id)
 
@@ -107,4 +107,4 @@ def sync_bigtable_instances(
         cleanup_job_params["PROJECT_ID"] = project_id
         cleanup_bigtable_instances(neo4j_session, cleanup_job_params)
 
-    return instances_raw or []
+    return instances_raw

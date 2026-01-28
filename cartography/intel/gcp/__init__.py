@@ -302,7 +302,7 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
-            if instances_raw:
+            if instances_raw is not None:
                 clusters_raw = bigtable_cluster.sync_bigtable_clusters(
                     neo4j_session,
                     bigtable_client,
@@ -461,7 +461,7 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
-            if instances_raw:
+            if instances_raw is not None:
                 cloud_sql_database.sync_sql_databases(
                     neo4j_session,
                     cloud_sql_cred,
