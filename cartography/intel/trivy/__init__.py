@@ -53,20 +53,21 @@ def _get_gcp_scan_targets_and_aliases(
     neo4j_session: Session,
 ) -> tuple[set[str], dict[str, str]]:
     """
-    Return GCP Artifact Registry container image URIs and a mapping of digest-qualified URIs to base URIs.
+    Return GCP Artifact Registry container image URIs and a mapping of digest-qualified URIs to tag URIs.
+    Matches ECR's pattern for consistency.
     """
     image_uris: set[str] = set()
     digest_aliases: dict[str, str] = {}
 
-    for uri, digest in get_gcp_container_images(neo4j_session):
-        if not uri:
+    for _, _, image_uri, _, digest in get_gcp_container_images(neo4j_session):
+        if not image_uri:
             continue
-        image_uris.add(uri)
+        image_uris.add(image_uri)
         if digest:
-            # Map digest-qualified URI to base URI
-            # e.g., us-docker.pkg.dev/project/repo/image@sha256:abc -> us-docker.pkg.dev/project/repo/image
-            digest_uri = f"{uri}@{digest}"
-            digest_aliases[digest_uri] = uri
+            # repo URI is everything before the trailing ":" (if present)
+            repo_uri = image_uri.rsplit(":", 1)[0]
+            digest_uri = f"{repo_uri}@{digest}"
+            digest_aliases[digest_uri] = image_uri
 
     return image_uris, digest_aliases
 

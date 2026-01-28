@@ -7,6 +7,7 @@ from cartography.intel.gcp.artifact_registry import sync
 from cartography.intel.gcp.artifact_registry.artifact import transform_docker_images
 from cartography.intel.trivy import sync_trivy_from_dir
 from tests.data.gcp.artifact_registry import MOCK_DOCKER_IMAGES
+from tests.data.gcp.artifact_registry import MOCK_PLATFORM_IMAGES
 from tests.data.gcp.artifact_registry import MOCK_REPOSITORIES
 from tests.data.trivy.trivy_gcp_sample import TRIVY_GCP_SAMPLE
 from tests.integration.cartography.intel.trivy.test_helpers import (
@@ -37,8 +38,8 @@ def _mock_get_docker_images(client, repo_name):
 async def _mock_get_all_manifests_async(
     credentials, docker_artifacts_raw, max_concurrent=50
 ):
-    """Mock async manifest getting to return empty list for trivy test."""
-    return []
+    """Mock async manifest getting to return platform images for multi-arch test."""
+    return MOCK_PLATFORM_IMAGES
 
 
 @patch(
@@ -72,7 +73,12 @@ def test_sync_trivy_gcp(
     neo4j_session,
 ):
     """
-    Ensure that Trivy scan results create relationships to GCPArtifactRegistryContainerImage nodes.
+    Ensure that Trivy scan results create relationships to GCPArtifactRegistryPlatformImage nodes
+    for multi-arch images. The test uses:
+    - ContainerImage with manifest list digest: sha256:abc123
+    - PlatformImage with platform-specific digest: sha256:def456 (linux/amd64)
+    - Trivy reports the platform-specific digest: sha256:def456
+    - Relationships should be created to the PlatformImage, not ContainerImage
     """
     # Arrange - create GCP project
     _create_test_project(neo4j_session)
@@ -82,7 +88,7 @@ def test_sync_trivy_gcp(
         "PROJECT_ID": TEST_PROJECT_ID,
     }
 
-    # First sync GCP Artifact Registry container images
+    # First sync GCP Artifact Registry container images and platform images
     mock_client = MagicMock()
     mock_credentials = MagicMock()
 
@@ -103,26 +109,27 @@ def test_sync_trivy_gcp(
         common_job_parameters,
     )
 
-    # Assert - verify GCP container image relationships
+    # Assert - verify GCP platform image relationships
+    # Note: Trivy reports sha256:def456 (platform digest), not sha256:abc123 (manifest list digest)
     expected_package_rels = {
         (
             "3.0.15-1~deb12u1|openssl",
-            "sha256:abc123",
+            "sha256:def456",  # Platform-specific digest
         ),
         (
             "7.88.1-10+deb12u5|curl",
-            "sha256:abc123",
+            "sha256:def456",  # Platform-specific digest
         ),
     }
 
     expected_finding_rels = {
         (
             "TIF|CVE-2024-77777",
-            "sha256:abc123",
+            "sha256:def456",  # Platform-specific digest
         ),
         (
             "TIF|CVE-2024-66666",
-            "sha256:abc123",
+            "sha256:def456",  # Platform-specific digest
         ),
     }
 

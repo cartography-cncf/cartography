@@ -65,6 +65,17 @@ class TrivyFindingToGCPImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TrivyFindingToGCPPlatformImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryPlatformImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("ImageDigest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: TrivyFindingToImageRelProperties = TrivyFindingToImageRelProperties()
+
+
+@dataclass(frozen=True)
 class TrivyImageFindingSchema(CartographyNodeSchema):
     label: str = "TrivyImageFinding"
     scoped_cleanup: bool = False
@@ -74,5 +85,6 @@ class TrivyImageFindingSchema(CartographyNodeSchema):
         [
             TrivyFindingToImageRel(),
             TrivyFindingToGCPImageRel(),
+            TrivyFindingToGCPPlatformImageRel(),
         ],
     )

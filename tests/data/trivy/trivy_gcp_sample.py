@@ -1,7 +1,8 @@
 """Sample Trivy scan result for a GCP Artifact Registry container image."""
 
-# This sample uses the same digest as the Docker image in artifact_registry.py test data
-# sha256:abc123
+# This sample uses a platform-specific digest (sha256:def456) to test multi-arch matching.
+# The manifest list digest in artifact_registry.py is sha256:abc123.
+# Trivy scans the linux/amd64 platform and reports its specific digest sha256:def456.
 TRIVY_GCP_SAMPLE = {
     "SchemaVersion": 2,
     "CreatedAt": "2025-05-17T13:51:07.592255-07:00",
@@ -10,7 +11,7 @@ TRIVY_GCP_SAMPLE = {
     "Metadata": {
         "Size": 50000000,
         "OS": {"Family": "debian", "Name": "12.8"},
-        "ImageID": "sha256:abc123",
+        "ImageID": "sha256:def456",
         "DiffIDs": [
             "sha256:layer1111222333444555666777888999000aaabbbcccdddeeefff00011122",
         ],
@@ -19,7 +20,7 @@ TRIVY_GCP_SAMPLE = {
             "us-central1-docker.pkg.dev/test-project/docker-repo/my-app:v1.0.0",
         ],
         "RepoDigests": [
-            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app@sha256:abc123"
+            "us-central1-docker.pkg.dev/test-project/docker-repo/my-app@sha256:def456"
         ],
         "ImageConfig": {
             "architecture": "amd64",
