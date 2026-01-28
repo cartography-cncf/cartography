@@ -4,28 +4,39 @@ from typing import Dict
 from typing import List
 
 import neo4j
-from pdpyras import APISession
+from pagerduty import RestApiV2Client
 
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load
+from cartography.client.core.tx import load_matchlinks
+from cartography.graph.job import GraphJob
+from cartography.models.pagerduty.team import PagerDutyTeamSchema
+from cartography.models.pagerduty.team_membership import (
+    PagerDutyTeamMembershipMatchLink,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+# Sub-resource constants for MatchLinks cleanup
+SUB_RESOURCE_LABEL = "PagerDutyTeam"
 
 
 @timeit
 def sync_teams(
     neo4j_session: neo4j.Session,
     update_tag: int,
-    pd_session: APISession,
+    pd_session: RestApiV2Client,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     teams = get_teams(pd_session)
     load_team_data(neo4j_session, teams, update_tag)
     relations = get_team_members(pd_session, teams)
-    load_team_relations(neo4j_session, relations, update_tag)
+    load_team_memberships(neo4j_session, relations, update_tag)
+    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
-def get_teams(pd_session: APISession) -> List[Dict[str, Any]]:
+def get_teams(pd_session: RestApiV2Client) -> List[Dict[str, Any]]:
     all_teams: List[Dict[str, Any]] = []
     for teams in pd_session.iter_all("teams"):
         all_teams.append(teams)
@@ -34,7 +45,7 @@ def get_teams(pd_session: APISession) -> List[Dict[str, Any]]:
 
 @timeit
 def get_team_members(
-    pd_session: APISession,
+    pd_session: RestApiV2Client,
     teams: List[Dict[str, Any]],
 ) -> List[Dict[str, str]]:
     relations: List[Dict[str, str]] = []
@@ -53,48 +64,46 @@ def load_team_data(
     update_tag: int,
 ) -> None:
     """
-    Transform and load teamuser information
-    """
-    ingestion_cypher_query = """
-    UNWIND $Teams AS team
-        MERGE (t:PagerDutyTeam{id: team.id})
-        ON CREATE SET t.html_url = team.html_url,
-            t.firstseen = timestamp()
-        SET t.type = team.type,
-            t.summary = team.summary,
-            t.name = team.name,
-            t.description = team.description,
-            t.default_role = team.default_role,
-            t.lastupdated = $update_tag
+    Transform and load team information
     """
     logger.info(f"Loading {len(data)} pagerduty teams.")
-
-    run_write_query(
-        neo4j_session,
-        ingestion_cypher_query,
-        Teams=data,
-        update_tag=update_tag,
-    )
+    load(neo4j_session, PagerDutyTeamSchema(), data, lastupdated=update_tag)
 
 
-def load_team_relations(
+def load_team_memberships(
     neo4j_session: neo4j.Session,
     data: List[Dict],
     update_tag: int,
 ) -> None:
     """
-    Attach users to their teams
+    Load team membership relationships using MatchLinks.
+
+    This uses MatchLinks because the MEMBER_OF relationship has a 'role' property
+    that varies per user-team pair (e.g., "manager", "responder").
     """
-    ingestion_cypher_query = """
-    UNWIND $Relations AS relation
-        MATCH (t:PagerDutyTeam{id: relation.team}), (u:PagerDutyUser{id: relation.user})
-        MERGE (u)-[r:MEMBER_OF]->(t)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.role = relation.role
-    """
-    run_write_query(
+    logger.info(f"Loading {len(data)} pagerduty team memberships.")
+    load_matchlinks(
         neo4j_session,
-        ingestion_cypher_query,
-        Relations=data,
-        update_tag=update_tag,
+        PagerDutyTeamMembershipMatchLink(),
+        data,
+        lastupdated=update_tag,
+        _sub_resource_label=SUB_RESOURCE_LABEL,
+        _sub_resource_id="module",
     )
+
+
+@timeit
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
+    # Cleanup stale team nodes
+    GraphJob.from_node_schema(PagerDutyTeamSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    # Cleanup stale team membership relationships
+    GraphJob.from_matchlink(
+        PagerDutyTeamMembershipMatchLink(),
+        SUB_RESOURCE_LABEL,
+        "module",
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
