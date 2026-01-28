@@ -16,6 +16,7 @@ jobs:
         with:
           # TODO: for now we only want to test
           debug-only: true
+          days-before-stale: 90
           # General configuration
           remove-stale-when-updated: true
           # Issue configuration
