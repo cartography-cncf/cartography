@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -98,7 +99,8 @@ class LoadBalancerToEC2InstanceRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class LoadBalancerSchema(CartographyNodeSchema):
-    label: str = "LoadBalancer"
+    label: str = "AWSLoadBalancer"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["LoadBalancer"])
     properties: LoadBalancerNodeProperties = LoadBalancerNodeProperties()
     sub_resource_relationship: LoadBalancerToAWSAccountRel = (
         LoadBalancerToAWSAccountRel()
