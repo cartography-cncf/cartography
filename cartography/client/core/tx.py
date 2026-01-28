@@ -384,7 +384,7 @@ def read_list_of_values_tx(
 
     Examples:
         >>> query = "MATCH (a:TestNode) RETURN a.name ORDER BY a.name"
-        >>> values = neo4j_session.read_transaction(read_list_of_values_tx, query)
+        >>> values = neo4j_session.execute_read(read_list_of_values_tx, query)
         >>> print(values)
         ['Alice', 'Bob', 'Charlie']
 

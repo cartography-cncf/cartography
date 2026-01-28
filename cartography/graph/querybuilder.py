@@ -339,17 +339,6 @@ def _build_node_properties_statement(
         ...     'node_prop_1': PropertyRef("Prop1"),
         ...     'node_prop_2': PropertyRef("Prop2", set_in_kwargs=True),
         ... }
-        set_clause: str = _build_node_properties_statement(node_property_map)
-
-    Returns:
-        str: The resulting Neo4j SET clause to set the given attributes on the node.
-
-    Examples:
-        >>> node_property_map = {
-        ...     'id': PropertyRef("Id"),
-        ...     'node_prop_1': PropertyRef("Prop1"),
-        ...     'node_prop_2': PropertyRef("Prop2", set_in_kwargs=True),
-        ... }
         >>> set_clause = _build_node_properties_statement(node_property_map)
         >>> # Returns:
         >>> # i.node_prop_1 = item.Prop1,
@@ -402,16 +391,6 @@ def _build_rel_properties_statement(
         rel_var (str): The variable name to use for the relationship in the Neo4j query.
         rel_property_map (Optional[Dict[str, PropertyRef]], optional): Mapping of relationship
             attribute names as str to PropertyRef objects. Defaults to None.
-
-    Returns:
-        str: The resulting Neo4j SET clause to set the given attributes on the relationship.
-
-    Examples:
-        >>> rel_property_map = {
-        ...     'rel_prop_1': PropertyRef("Prop1"),
-            'rel_prop_2': PropertyRef("Prop2", static=True),
-        }
-        set_clause: str = _build_rel_properties_statement('r', rel_property_map)
 
     Returns:
         str: The resulting Neo4j SET clause to set the given attributes on the relationship.
