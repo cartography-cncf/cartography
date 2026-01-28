@@ -27,7 +27,10 @@ jobs:
         run: uv build
       - name: Publish distribution 📦 to PyPI
         if: startsWith(github.ref, 'refs/tags')
-        run: uv publish --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}
+        # --check-url checks if files already exist on PyPI before uploading.
+        # If the version already exists, it skips without failing, allowing
+        # downstream jobs (Docker build) to proceed on re-runs.
+        run: uv publish --check-url https://pypi.org/simple/ --username __token__ --password ${{ secrets.PYPI_API_TOKEN }}
 
   # 2. Publish to GHCR
   build-and-publish-to-ghcr:
@@ -39,6 +42,9 @@ jobs:
       # Grant the ability to write to GitHub Packages (push Docker images to
       # GitHub Container Registry).
       packages: write
+      # Required for SBOM and provenance attestations
+      id-token: write
+      attestations: write
     steps:
       # See: https://docs.docker.com/build/ci/github-actions/multi-platform/#build-and-load-multi-platform-images
       - name: Set up Docker
@@ -57,6 +63,14 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ghcr.io/${{ github.repository }}
+          # Only tag as 'latest' for stable releases (not prereleases)
+          # Uses GitHub's prerelease flag to exclude all prerelease types (rc, alpha, beta, dev, etc.)
+          flavor: |
+            latest=false
+          tags: |
+            type=pep440,pattern={{version}}
+            type=pep440,pattern={{major}}.{{minor}},enable=${{ !github.event.release.prerelease }}
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
 
       # Install QEMU for multi-architecture builds
       - name: Set up QEMU
@@ -115,3 +129,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           # e.g. '==0.98.0'
           build-args: VERSION_SPECIFIER===${{ env.VERSION }}
+          # Generate SBOM (Software Bill of Materials) attestation
+          sbom: true
+          # Generate provenance attestation for supply chain security
+          provenance: mode=max
