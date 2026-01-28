@@ -31,6 +31,7 @@ class PublicIPToNodeRelProperties(CartographyRelProperties):
 
 
 # (:PublicIP)-[:RESERVED_BY]->(:ElasticIPAddress)
+@dataclass(frozen=True)
 class PublicIPToElasticIPAddressRel(CartographyRelSchema):
     target_node_label: str = "ElasticIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -42,6 +43,7 @@ class PublicIPToElasticIPAddressRel(CartographyRelSchema):
 
 
 # (:PublicIP)-[:RESERVED_BY]->(:AzurePublicIPAddress)
+@dataclass(frozen=True)
 class PublicIPToAzurePublicIPAddressRel(CartographyRelSchema):
     target_node_label: str = "AzurePublicIPAddress"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -53,6 +55,7 @@ class PublicIPToAzurePublicIPAddressRel(CartographyRelSchema):
 
 
 # (:PublicIP)-[:RESERVED_BY]->(:ScalewayFlexibleIp)
+@dataclass(frozen=True)
 class PublicIPToScalewayFlexibleIpRel(CartographyRelSchema):
     target_node_label: str = "ScalewayFlexibleIp"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -64,6 +67,7 @@ class PublicIPToScalewayFlexibleIpRel(CartographyRelSchema):
 
 
 # (:PublicIP)-[:RESERVED_BY]->(:GCPNicAccessConfig)
+@dataclass(frozen=True)
 class PublicIPToGCPNicAccessConfigRel(CartographyRelSchema):
     target_node_label: str = "GCPNicAccessConfig"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -81,6 +85,7 @@ class PublicIPToGCPNicAccessConfigRel(CartographyRelSchema):
 
 
 # (:PublicIP)-[:POINTS_TO]->(:ComputeInstance)
+@dataclass(frozen=True)
 class PublicIPToComputeInstanceRel(CartographyRelSchema):
     target_node_label: str = "ComputeInstance"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -92,6 +97,7 @@ class PublicIPToComputeInstanceRel(CartographyRelSchema):
 
 
 # (:PublicIP)-[:POINTS_TO]->(:LoadBalancer)
+@dataclass(frozen=True)
 class PublicIPToLoadBalancerRel(CartographyRelSchema):
     target_node_label: str = "LoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

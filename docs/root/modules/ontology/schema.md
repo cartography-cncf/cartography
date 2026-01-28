@@ -69,7 +69,7 @@ If field `active` is null, it should not be considered as `true` or `false`, onl
 
 | Field | Description |
 |-------|-------------|
-| id | The unique identifier for the user. |
+| **id** | The unique identifier for the user. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | email | User's primary email. |
@@ -126,7 +126,7 @@ A client computer is a host that accesses a service made available by a server o
 
 | Field | Description |
 |-------|-------------|
-| id | The unique identifier for the user. |
+| **id** | The unique identifier for the user. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | hostname | Hostname of the device. |
@@ -352,7 +352,7 @@ If field `ip_version` is null, it should not be considered as `4` or `6`, only a
 
 | Field | Description |
 |-------|-------------|
-| id | The unique identifier for the IP address (the IP address value itself). |
+| **id** | The unique identifier for the IP address (the IP address value itself). |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | ip_address | The IP address value (e.g., "203.0.113.1" or "2001:db8::1"). |
