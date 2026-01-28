@@ -101,7 +101,6 @@ def sync_bigtable_backups(
 ) -> None:
     logger.info(f"Syncing Bigtable Backups for project {project_id}.")
     all_backups_transformed: list[dict] = []
-    had_failures = False
 
     for cluster in clusters:
         cluster_id = cluster["name"]
@@ -109,21 +108,11 @@ def sync_bigtable_backups(
         # Skip this cluster if API is not enabled or access denied
         if backups_raw is not None:
             all_backups_transformed.extend(transform_backups(backups_raw, cluster_id))
-        else:
-            had_failures = True
 
     load_bigtable_backups(
         neo4j_session, all_backups_transformed, project_id, update_tag
     )
 
-    # Skip cleanup if we had partial failures to preserve existing data
-    if not had_failures:
-        cleanup_job_params = common_job_parameters.copy()
-        cleanup_job_params["PROJECT_ID"] = project_id
-        cleanup_bigtable_backups(neo4j_session, cleanup_job_params)
-    else:
-        logger.warning(
-            "Skipping Bigtable Backups cleanup for project %s due to partial failures. "
-            "Existing data will be preserved.",
-            project_id,
-        )
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["PROJECT_ID"] = project_id
+    cleanup_bigtable_backups(neo4j_session, cleanup_job_params)

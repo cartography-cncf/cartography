@@ -97,7 +97,6 @@ def sync_bigtable_tables(
 ) -> None:
     logger.info(f"Syncing Bigtable Tables for project {project_id}.")
     all_tables_transformed: list[dict] = []
-    had_failures = False
 
     for inst in instances:
         instance_id = inst["name"]
@@ -105,19 +104,9 @@ def sync_bigtable_tables(
         # Skip this instance if API is not enabled or access denied
         if tables_raw is not None:
             all_tables_transformed.extend(transform_tables(tables_raw, instance_id))
-        else:
-            had_failures = True
 
     load_bigtable_tables(neo4j_session, all_tables_transformed, project_id, update_tag)
 
-    # Skip cleanup if we had partial failures to preserve existing data
-    if not had_failures:
-        cleanup_job_params = common_job_parameters.copy()
-        cleanup_job_params["PROJECT_ID"] = project_id
-        cleanup_bigtable_tables(neo4j_session, cleanup_job_params)
-    else:
-        logger.warning(
-            "Skipping Bigtable Tables cleanup for project %s due to partial failures. "
-            "Existing data will be preserved.",
-            project_id,
-        )
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["PROJECT_ID"] = project_id
+    cleanup_bigtable_tables(neo4j_session, cleanup_job_params)

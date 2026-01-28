@@ -137,6 +137,8 @@ def sync_services(
     logger.info(f"Syncing Cloud Run Services for project {project_id}.")
     services_raw = get_services(client, project_id)
 
+    # Only load and cleanup if we successfully retrieved data (even if empty list).
+    # If get() returned None due to API not enabled, skip both to preserve existing data.
     if services_raw is not None:
         if not services_raw:
             logger.info(f"No Cloud Run services found for project {project_id}.")

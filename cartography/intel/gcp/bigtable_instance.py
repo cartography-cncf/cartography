@@ -96,6 +96,8 @@ def sync_bigtable_instances(
     logger.info(f"Syncing Bigtable Instances for project {project_id}.")
     instances_raw = get_bigtable_instances(client, project_id)
 
+    # Only load and cleanup if we successfully retrieved data (even if empty list).
+    # If get() returned None due to API not enabled, skip both to preserve existing data.
     if instances_raw is not None:
         if not instances_raw:
             logger.info(f"No Bigtable instances found for project {project_id}.")

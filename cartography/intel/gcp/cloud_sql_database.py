@@ -111,7 +111,6 @@ def sync_sql_databases(
 ) -> None:
     logger.info(f"Syncing Cloud SQL Databases for project {project_id}.")
     all_databases: list[dict] = []
-    had_failures = False
 
     for inst in instances:
         instance_name = inst.get("name")
@@ -126,26 +125,15 @@ def sync_sql_databases(
                 all_databases.extend(
                     transform_sql_databases(databases_raw, instance_id)
                 )
-            else:
-                had_failures = True
         except Exception:
             logger.warning(
                 f"Failed to get SQL databases for instance {instance_name}",
                 exc_info=True,
             )
-            had_failures = True
             continue
 
     load_sql_databases(neo4j_session, all_databases, project_id, update_tag)
 
-    # Skip cleanup if we had partial failures to preserve existing data
-    if not had_failures:
-        cleanup_job_params = common_job_parameters.copy()
-        cleanup_job_params["PROJECT_ID"] = project_id
-        cleanup_sql_databases(neo4j_session, cleanup_job_params)
-    else:
-        logger.warning(
-            "Skipping Cloud SQL Databases cleanup for project %s due to partial failures. "
-            "Existing data will be preserved.",
-            project_id,
-        )
+    cleanup_job_params = common_job_parameters.copy()
+    cleanup_job_params["PROJECT_ID"] = project_id
+    cleanup_sql_databases(neo4j_session, cleanup_job_params)

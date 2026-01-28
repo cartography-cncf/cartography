@@ -146,6 +146,8 @@ def sync_sql_instances(
     logger.info(f"Syncing Cloud SQL Instances for project {project_id}.")
     instances_raw = get_sql_instances(client, project_id)
 
+    # Only load and cleanup if we successfully retrieved data (even if empty list).
+    # If get() returned None due to API not enabled, skip both to preserve existing data.
     if instances_raw is not None:
         if not instances_raw:
             logger.info(f"No Cloud SQL instances found for project {project_id}.")
