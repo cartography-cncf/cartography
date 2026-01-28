@@ -14,6 +14,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.config import Config
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp import artifact_registry
 from cartography.intel.gcp import bigtable_app_profile
 from cartography.intel.gcp import bigtable_backup
 from cartography.intel.gcp import bigtable_cluster
@@ -37,6 +38,10 @@ from cartography.intel.gcp import storage
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
+from cartography.intel.gcp.cloudrun import execution as cloudrun_execution
+from cartography.intel.gcp.cloudrun import job as cloudrun_job
+from cartography.intel.gcp.cloudrun import revision as cloudrun_revision
+from cartography.intel.gcp.cloudrun import service as cloudrun_service
 from cartography.intel.gcp.crm.folders import sync_gcp_folders
 from cartography.intel.gcp.crm.orgs import sync_gcp_organizations
 from cartography.intel.gcp.crm.projects import sync_gcp_projects
@@ -59,7 +64,7 @@ logger = logging.getLogger(__name__)
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
     "Services",
-    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager",
+    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager artifact_registry cloud_run",
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -74,6 +79,8 @@ service_names = Services(
     cloud_sql="sqladmin.googleapis.com",
     gcf="cloudfunctions.googleapis.com",
     secretsmanager="secretmanager.googleapis.com",
+    artifact_registry="artifactregistry.googleapis.com",
+    cloud_run="run.googleapis.com",
 )
 
 
@@ -489,6 +496,52 @@ def _sync_project_resources(
             secretsmanager.sync(
                 neo4j_session,
                 secretsmanager_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.artifact_registry in enabled_services:
+            logger.info("Syncing GCP project %s for Artifact Registry.", project_id)
+            artifact_registry_client = build_client(
+                "artifactregistry", "v1", credentials=credentials
+            )
+            artifact_registry.sync(
+                neo4j_session,
+                artifact_registry_client,
+                credentials,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+        if service_names.cloud_run in enabled_services:
+            logger.info("Syncing GCP project %s for Cloud Run.", project_id)
+            cloud_run_cred = build_client("run", "v2", credentials=credentials)
+            cloudrun_service.sync_services(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            cloudrun_revision.sync_revisions(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            cloudrun_job.sync_jobs(
+                neo4j_session,
+                cloud_run_cred,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+            cloudrun_execution.sync_executions(
+                neo4j_session,
+                cloud_run_cred,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,

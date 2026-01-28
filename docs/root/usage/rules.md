@@ -109,6 +109,7 @@ _new_attack_surface = Fact(
     description="Recently discovered attack pattern",
     cypher_query="...",
     cypher_visual_query="...",
+    cypher_count_query="...",
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,  # New, needs testing
 )
@@ -132,6 +133,7 @@ _proven_check = Fact(
     description="AWS S3 buckets accessible from the internet",
     cypher_query="...",
     cypher_visual_query="...",
+    cypher_count_query="...",
     module=Module.AWS,
     maturity=Maturity.STABLE,  # Battle-tested in production
 )
@@ -403,9 +405,9 @@ This will show you all available rules and facts.
 
 Want to add your own security rules? Here's how:
 
-### Query Structure: cypher_query vs cypher_visual_query
+### Query Structure: cypher_query, cypher_visual_query, and cypher_count_query
 
-Each Fact requires two distinct Cypher queries:
+Each Fact requires three distinct Cypher queries:
 
 #### `cypher_query` - Data Query
 Returns specific fields used to populate the output model. This query should:
@@ -441,6 +443,26 @@ WITH b
 OPTIONAL MATCH p=(b)-[:POLICY_STATEMENT]->(:S3PolicyStatement)
 RETURN *
 ```
+
+#### `cypher_count_query` - Total Asset Count Query
+Returns the total count of assets of the type being evaluated by the Fact. This query should:
+- Count **all** assets of the relevant type, regardless of whether they match the Fact criteria
+- Return a single value with `RETURN COUNT(...) AS count`
+- Enable calculation of compliance ratios (e.g., "10 public buckets out of 100 total")
+
+**Example:**
+```cypher
+MATCH (m:CloudflareMember)
+RETURN COUNT(m) AS count
+```
+
+Or for S3 buckets:
+```cypher
+MATCH (b:S3Bucket)
+RETURN COUNT(b) AS count
+```
+
+This count query allows users to understand the scope of their environment and calculate what percentage of assets are affected by a security finding.
 
 ### General Query Guidelines
 
@@ -509,7 +531,7 @@ object_storage_public = Rule(
    ```python
    from cartography.rules.spec.model import Fact, Rule, Finding, Maturity, Module
 
-   # Define facts with both data and visualization queries
+   # Define facts with data, visualization, and count queries
    _my_aws_check = Fact(
        id="my_aws_security_check",
        name="My AWS Security Check",
@@ -523,6 +545,10 @@ object_storage_public = Rule(
        MATCH (n:SomeNode)
        WHERE <condition>
        RETURN n
+       """,
+       cypher_count_query="""
+       MATCH (n:SomeNode)
+       RETURN COUNT(n) AS count
        """,
        module=Module.AWS,
        maturity=Maturity.EXPERIMENTAL,
@@ -541,6 +567,10 @@ object_storage_public = Rule(
        MATCH (n:SomeAzureNode)
        WHERE <condition>
        RETURN n
+       """,
+       cypher_count_query="""
+       MATCH (n:SomeAzureNode)
+       RETURN COUNT(n) AS count
        """,
        module=Module.AZURE,
        maturity=Maturity.EXPERIMENTAL,
