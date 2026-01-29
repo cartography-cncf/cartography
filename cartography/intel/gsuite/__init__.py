@@ -18,6 +18,7 @@ from googleapiclient.discovery import Resource
 from cartography.config import Config
 from cartography.intel.gsuite import groups
 from cartography.intel.gsuite import users
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 OAUTH_SCOPES = [
@@ -168,3 +169,10 @@ def start_gsuite_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             config.update_tag,
             scoped_job_parameters,
         )
+
+    # Link GSuite users to Human nodes if they exist
+    run_analysis_job(
+        "gsuite_human_link.json",
+        neo4j_session,
+        common_job_parameters,
+    )

@@ -343,6 +343,14 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
+    run_analysis_and_ensure_deps(
+        "aws_ecs_asset_exposure.json",
+        {"ecs", "ec2:load_balancer_v2"},
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
 
 @timeit
 def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:

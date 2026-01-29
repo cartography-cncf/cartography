@@ -724,25 +724,48 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 
 Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles).
 
-| Field               | Description                                                                 |
-| ------------------- | --------------------------------------------------------------------------- |
-| id                  | The unique identifier for the role.                                         |
-| name                | The name of the role.                                                       |
-| title               | The title of the role.                                                      |
-| description         | A description of the role.                                                  |
-| deleted             | A boolean indicating if the role is deleted.                                |
-| etag                | The ETag of the role.                                                       |
-| includedPermissions | A list of permissions included in the role.                                 |
-| roleType            | The type of the role (e.g., BASIC, PREDEFINED, CUSTOM).                     |
-| lastupdated         | The timestamp of the last update.                                           |
-| projectId           | The ID of the GCP project to which the role belongs.                        |
+Roles exist at different levels in the GCP hierarchy and are synced separately:
+- **Predefined/Basic roles** (`roles/*`) - Global roles defined by Google, synced at the organization level
+- **Custom organization roles** (`organizations/*/roles/*`) - Custom roles defined at the organization level
+- **Custom project roles** (`projects/*/roles/*`) - Custom roles defined at the project level
+
+**Important**: Organization-level roles (predefined + custom org) and project-level roles (custom project) have different sub-resource relationships:
+- Organization-level roles are sub-resources of `GCPOrganization`
+- Project-level roles are sub-resources of `GCPProject`
+
+| Field               | Description                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| id                  | The unique identifier for the role (same as name).                                                    |
+| name                | The name of the role (e.g., `roles/editor`, `organizations/123/roles/custom`, `projects/abc/roles/custom`). |
+| title               | The human-readable title of the role.                                                                 |
+| description         | A description of the role.                                                                            |
+| deleted             | A boolean indicating if the role is deleted.                                                          |
+| etag                | The ETag of the role for optimistic concurrency control.                                              |
+| permissions         | A list of permissions included in the role.                                                           |
+| role\_type          | The type of the role: `BASIC`, `PREDEFINED`, or `CUSTOM`.                                             |
+| scope               | The scope of the role: `GLOBAL` (predefined/basic), `ORGANIZATION` (custom org), or `PROJECT` (custom project). |
+| lastupdated         | The timestamp of the last update.                                                                     |
+| project\_id         | The ID of the GCP project for project-level custom roles only.                                        |
+| organization\_id    | The ID of the GCP organization for organization-level roles (predefined and custom org) only.         |
 
 #### Relationships
 
-- GCPRoles are resources of GCPProjects.
+- Organization-level GCPRoles (predefined/basic and custom org roles) are sub-resources of GCPOrganizations.
 
     ```
-    (GCPRole)-[RESOURCE]->(GCPProject)
+    (GCPOrganization)-[RESOURCE]->(GCPRole)
+    ```
+
+- Project-level GCPRoles (custom project roles) are sub-resources of GCPProjects.
+
+    ```
+    (GCPProject)-[RESOURCE]->(GCPRole)
+    ```
+
+- GCPPolicyBindings grant GCPRoles.
+
+    ```
+    (GCPPolicyBinding)-[GRANTS_ROLE]->(GCPRole)
     ```
 
 ### GCPKeyRing

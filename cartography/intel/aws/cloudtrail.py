@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @timeit
 @aws_handle_regions
 def get_cloudtrail_trails(
-    boto3_session: boto3.Session, region: str
+    boto3_session: boto3.Session, region: str, current_aws_account_id: str
 ) -> List[Dict[str, Any]]:
     client = boto3_session.client(
         "cloudtrail", region_name=region, config=get_botocore_config()
@@ -29,14 +29,32 @@ def get_cloudtrail_trails(
     trails = client.describe_trails()["trailList"]
     trails_filtered = []
     for trail in trails:
-        if trail.get("HomeRegion") == region:
-            selectors = client.get_event_selectors(TrailName=trail["TrailARN"])
-            trail["EventSelectors"] = selectors.get("EventSelectors", [])
-            trail["AdvancedEventSelectors"] = selectors.get(
-                "AdvancedEventSelectors",
-                [],
-            )
-            trails_filtered.append(trail)
+        # Filter by home region to avoid duplicates across regions
+        if trail.get("HomeRegion") != region:
+            continue
+
+        # Filter to only trails owned by this account.
+        # Organization trails from other accounts are visible via describe_trails()
+        # but should not be linked as RESOURCE of this account.
+        # ARN format: arn:aws:cloudtrail:{region}:{account_id}:trail/{name}
+        trail_arn = trail.get("TrailARN", "")
+        arn_parts = trail_arn.split(":")
+        if len(arn_parts) >= 5:
+            trail_account_id = arn_parts[4]
+            if trail_account_id != current_aws_account_id:
+                logger.debug(
+                    f"Skipping trail {trail_arn} - owned by account {trail_account_id}, "
+                    f"not current account {current_aws_account_id}",
+                )
+                continue
+
+        selectors = client.get_event_selectors(TrailName=trail["TrailARN"])
+        trail["EventSelectors"] = selectors.get("EventSelectors", [])
+        trail["AdvancedEventSelectors"] = selectors.get(
+            "AdvancedEventSelectors",
+            [],
+        )
+        trails_filtered.append(trail)
 
     return trails_filtered
 
@@ -105,7 +123,9 @@ def sync(
         logger.info(
             f"Syncing CloudTrail for region '{region}' in account '{current_aws_account_id}'.",
         )
-        trails_filtered = get_cloudtrail_trails(boto3_session, region)
+        trails_filtered = get_cloudtrail_trails(
+            boto3_session, region, current_aws_account_id
+        )
         trails = transform_cloudtrail_trails(trails_filtered, region)
 
         load_cloudtrail_trails(
