@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
 _REST_RATE_LIMIT_REMAINING_THRESHOLD = 100
+# Search API has a stricter rate limit (30 requests/minute for authenticated users)
+_SEARCH_RATE_LIMIT_REMAINING_THRESHOLD = 5
 
 
 class PaginatedGraphqlData(NamedTuple):
@@ -358,3 +360,60 @@ def fetch_all_rest_api_pages(
                     break
 
     return results
+
+
+def call_github_rest_api(
+    endpoint: str,
+    token: str,
+    api_url: str = "https://api.github.com",
+    params: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Calls the GitHub REST API and returns the JSON response.
+
+    :param endpoint: The REST API endpoint path (e.g., "/search/code", "/repos/owner/repo/contents/path")
+    :param token: The OAuth token for authentication
+    :param api_url: The GitHub API URL (GraphQL or REST base URL - will be converted as needed)
+    :param params: Optional query parameters for the request
+    :return: The JSON response as a dictionary
+    :raises requests.exceptions.HTTPError: If the request fails
+    """
+    # Use the helper to get correct REST API base URL (handles GitHub Enterprise correctly)
+    base_url = _get_rest_api_base_url(api_url) if api_url.endswith("/graphql") else api_url.rstrip("/")
+
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    url = f"{base_url}{endpoint}"
+
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=_TIMEOUT)
+    except requests.exceptions.Timeout:
+        logger.warning("GitHub REST API: requests.get('%s') timed out.", url)
+        raise
+
+    # Handle rate limiting for Search API
+    if "X-RateLimit-Remaining" in response.headers:
+        remaining = int(response.headers["X-RateLimit-Remaining"])
+        # Check if this is a search endpoint (stricter limits)
+        is_search = "/search/" in endpoint
+        threshold = _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD if is_search else _REST_RATE_LIMIT_REMAINING_THRESHOLD
+
+        if remaining < threshold:
+            reset_timestamp = int(response.headers.get("X-RateLimit-Reset", 0))
+            if reset_timestamp:
+                reset_at = datetime.fromtimestamp(reset_timestamp, tz=tz.utc)
+                now = datetime.now(tz.utc)
+                sleep_duration = reset_at - now + timedelta(seconds=10)  # Add buffer
+                if sleep_duration.total_seconds() > 0:
+                    logger.warning(
+                        f"GitHub REST API rate limit has {remaining} remaining (threshold: {threshold}), "
+                        f"sleeping until reset at {reset_at} for {sleep_duration}",
+                    )
+                    time.sleep(sleep_duration.total_seconds())
+
+    response.raise_for_status()
+    return response.json()
