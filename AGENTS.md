@@ -22,6 +22,7 @@ Detailed procedures are available in separate documents:
 | [Enriching the Ontology](docs/agents/enrich-ontology.md) | Adding ontology mappings for cross-module querying |
 | [Adding a New Node Type](docs/agents/add-node-type.md) | Advanced node schema properties and configurations |
 | [Adding a New Relationship](docs/agents/add-relationship.md) | Relationships, MatchLinks, and multi-module patterns |
+| [Adding Analysis Jobs](docs/agents/analysis-jobs.md) | Post-ingestion graph enrichment and cross-resource analysis |
 | [Creating Security Rules](docs/agents/create-rule.md) | Security rules, facts, and compliance conventions |
 | [Refactoring Legacy Code](docs/agents/refactor-legacy.md) | Converting legacy Cypher to modern data model |
 | [Troubleshooting](docs/agents/troubleshooting.md) | Common errors, debugging tips, and key files reference |
@@ -30,9 +31,10 @@ Detailed procedures are available in separate documents:
 
 **Key Cartography Concepts:**
 - **Intel Module**: Component that fetches data from external APIs and loads into Neo4j
-- **Sync Pattern**: `get()` -> `transform()` -> `load()` -> `cleanup()`
+- **Sync Pattern**: `get()` -> `transform()` -> `load()` -> `cleanup()` -> `analysis` (optional)
 - **Data Model**: Declarative schema using `CartographyNodeSchema` and `CartographyRelSchema`
 - **Update Tag**: Timestamp used for cleanup jobs to remove stale data
+- **Analysis Jobs**: Post-ingestion queries that enrich the graph (e.g., internet exposure, permission inheritance)
 
 **Critical Files to Know:**
 - `cartography/config.py` - Configuration object definitions
@@ -55,6 +57,9 @@ from cartography.models.core.relationships import (
 from cartography.client.core.tx import load, load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.util import timeit
+
+# For analysis jobs (optional)
+from cartography.util import run_analysis_job, run_scoped_analysis_job, run_analysis_and_ensure_deps
 
 logger = logging.getLogger(__name__)
 ```

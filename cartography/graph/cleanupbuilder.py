@@ -17,14 +17,40 @@ def build_cleanup_queries(
     node_schema: CartographyNodeSchema, cascade_delete: bool = False
 ) -> List[str]:
     """
-    Generates queries to clean up stale nodes and relationships from the given CartographyNodeSchema.
-    Properly handles cases where a node schema has a scoped cleanup or not.
-    Note that auto-cleanups for a node with no relationships is not currently supported.
-    :param node_schema: The given CartographyNodeSchema
-    :param cascade_delete: If True, also delete all child nodes that have a relationship to stale nodes matching
-    node_schema.sub_resource_relationship.rel_label. Defaults to False to preserve existing behavior.
-    Only valid when scoped_cleanup=True.
-    :return: A list of Neo4j queries to clean up nodes and relationships.
+    Generate Neo4j queries to clean up stale nodes and relationships.
+
+    This function creates appropriate cleanup queries based on the node schema's
+    configuration, handling different scenarios for scoped and unscoped cleanup
+    operations.
+
+    Args:
+        node_schema (CartographyNodeSchema): The node schema object defining the
+            structure and cleanup behavior for the target nodes.
+        cascade_delete (bool): If True, also delete all child nodes that have a
+            relationship to stale nodes matching node_schema.sub_resource_relationship.rel_label.
+            Defaults to False to preserve existing behavior. Only valid when scoped_cleanup=True.
+
+    Returns:
+        List[str]: A list of Neo4j queries to clean up stale nodes and relationships.
+            Returns an empty list if the node has no relationships (e.g., SyncMetadata nodes).
+
+    Raises:
+        ValueError: If the node schema has a sub resource relationship but
+            ``scoped_cleanup`` is False, which creates an inconsistent configuration.
+
+    Note:
+        The function handles four distinct cases:
+
+        1. **Standard scoped cleanup**: Node has sub resource + scoped cleanup = True
+           → Clean up stale nodes scoped to the sub resource
+        2. **Invalid configuration**: Node has sub resource + scoped cleanup = False
+           → Raises ValueError (inconsistent state)
+        3. **Relationship-only cleanup**: No sub resource + scoped cleanup = True
+           → Clean up only stale relationships, preserve nodes
+        4. **Unscoped cleanup**: No sub resource + scoped cleanup = False
+           → Clean up all stale nodes regardless of scope
+
+        Nodes without relationships (like SyncMetadata) are left for manual management.
     """
     # Validate: cascade_delete only makes sense with scoped cleanup
     if cascade_delete and not node_schema.scoped_cleanup:
@@ -99,7 +125,37 @@ def _build_cleanup_rel_query_no_sub_resource(
     selected_relationship: CartographyRelSchema,
 ) -> str:
     """
-    Helper function to delete stale relationships for node_schemas that have no sub resource relationship defined.
+    Generate a cleanup query for relationships when no sub resource is defined.
+
+    This helper function creates a query to delete stale relationships for node schemas
+    that don't have a sub resource relationship defined. It's used in scoped cleanup
+    scenarios where only relationships need to be cleaned up.
+
+    Args:
+        node_schema (CartographyNodeSchema): The node schema to delete relationships for.
+            Must not have a sub resource relationship defined.
+        selected_relationship (CartographyRelSchema): The specific relationship to delete.
+
+    Returns:
+        str: A Neo4j query to delete stale relationships for the given node schema.
+
+    Raises:
+        ValueError: If the node schema has a sub resource relationship defined.
+            This function is specifically for schemas without sub resource relationships.
+
+    Examples:
+        >>> rel_schema = CartographyRelSchema(
+        ...     target_node_label='AWSRole',
+        ...     direction=LinkDirection.OUTWARD,
+        ...     rel_label='HAS_ROLE'
+        ... )
+        >>> query = _build_cleanup_rel_query_no_sub_resource(node_schema, rel_schema)
+        >>> print(query)
+        MATCH (n:AWSUser)
+        MATCH (n)-[r:HAS_ROLE]->(...)
+        WHERE r.lastupdated <> $UPDATE_TAG
+        WITH r LIMIT $LIMIT_SIZE
+        DELETE r;
     """
     if node_schema.sub_resource_relationship:
         raise ValueError(
@@ -124,7 +180,30 @@ def _build_cleanup_rel_query_no_sub_resource(
 
 def _build_match_statement_for_cleanup(node_schema: CartographyNodeSchema) -> str:
     """
-    Helper function to build a MATCH statement for a given node schema for cleanup.
+    Build a MATCH statement for cleanup queries.
+
+    This helper function generates the appropriate MATCH clause based on whether
+    the node schema has a sub resource relationship and scoped cleanup configuration.
+
+    Args:
+        node_schema (CartographyNodeSchema): The node schema object to build the
+            MATCH statement for.
+
+    Returns:
+        str: A Neo4j MATCH statement string appropriate for the cleanup context.
+
+    Examples:
+        For simple unscoped cleanup:
+        >>> # Returns: "MATCH (n:AWSUser)"
+
+        For scoped cleanup with sub resource:
+        >>> # Returns: "MATCH (n:AWSUser)<-[s:RESOURCE]-(sub:AWSAccount{id: $account_id})"
+
+    Note:
+        - If no sub resource relationship exists and scoped cleanup is False,
+          returns a simple node match.
+        - If a sub resource relationship exists, includes the relationship pattern
+          with correct direction and matching clauses for scoped cleanup.
     """
     if not node_schema.sub_resource_relationship and not node_schema.scoped_cleanup:
         template = Template("MATCH (n:$node_label)")
@@ -168,15 +247,50 @@ def _build_cleanup_node_and_rel_queries(
     cascade_delete: bool = False,
 ) -> List[str]:
     """
-    Private function that performs the main string template logic for generating cleanup node and relationship queries.
-    :param node_schema: The given CartographyNodeSchema to generate cleanup queries for.
-    :param selected_relationship: Determines what relationship on the node_schema to build cleanup queries for.
-    selected_relationship must be in the set {node_schema.sub_resource_relationship} + node_schema.other_relationships.
-    :param cascade_delete: If True, also delete all child nodes that have a relationship to stale nodes matching
-    node_schema.sub_resource_relationship.rel_label.
-    :return: A list of 2 cleanup queries. The first one cleans up stale nodes attached to the given
-    selected_relationships, and the second one cleans up stale selected_relationships. For example outputs, see
-    tests.unit.cartography.graph.test_cleanupbuilder.
+    Generate cleanup queries for both nodes and relationships.
+
+    This function performs the main string template logic for generating cleanup
+    queries for both nodes and their relationships. It creates two queries:
+    one for cleaning up stale nodes and another for cleaning up stale relationships.
+
+    Args:
+        node_schema (CartographyNodeSchema): The node schema to generate cleanup queries for.
+        selected_relationship (CartographyRelSchema): The specific relationship to build
+            cleanup queries for. Must be either the node's sub resource relationship
+            or one of its other relationships.
+        cascade_delete (bool): If True, also delete all child nodes that have a
+            relationship to stale nodes matching node_schema.sub_resource_relationship.rel_label.
+            Defaults to False.
+
+    Returns:
+        List[str]: A list of exactly 2 cleanup queries:
+            - [0]: Query to clean up stale nodes attached to the selected relationship
+            - [1]: Query to clean up stale relationships
+
+    Raises:
+        ValueError: If the node schema doesn't have a sub resource relationship defined,
+            or if the selected relationship is not present on the node schema.
+
+    Examples:
+        >>> queries = _build_cleanup_node_and_rel_queries(node_schema, sub_resource_rel)
+        >>> len(queries)
+        2
+        >>> print(queries[0])  # Node cleanup query
+        MATCH (n:AWSUser)<-[s:RESOURCE]-(sub:AWSAccount{id: $account_id})
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n;
+
+        >>> print(queries[1])  # Relationship cleanup query
+        MATCH (n:AWSUser)<-[s:RESOURCE]-(sub:AWSAccount{id: $account_id})
+        WHERE s.lastupdated <> $UPDATE_TAG
+        WITH s LIMIT $LIMIT_SIZE
+        DELETE s;
+
+    Note:
+        - For sub resource relationships, validates that the target node matcher has
+          ``set_in_kwargs=True`` for proper GraphJob integration.
+        - For detailed examples, see ``tests.unit.cartography.graph.test_cleanupbuilder``.
     """
     if not node_schema.sub_resource_relationship:
         raise ValueError(
@@ -197,10 +311,13 @@ def _build_cleanup_node_and_rel_queries(
         # matching the sub_resource_relationship rel_label. We check child.lastupdated to avoid deleting children
         # that were re-parented to a new tenant in the current sync.
         cascade_rel_label = node_schema.sub_resource_relationship.rel_label
+        # The direction for finding children is OPPOSITE of sub_resource_relationship direction:
+        # - INWARD sub_resource means parent points to node, so node points to children (OUTWARD)
+        # - OUTWARD sub_resource means node points to parent, so children point to node (INWARD)
         if node_schema.sub_resource_relationship.direction == LinkDirection.INWARD:
-            cascade_rel_clause = f"<-[:{cascade_rel_label}]-"
-        else:
             cascade_rel_clause = f"-[:{cascade_rel_label}]->"
+        else:
+            cascade_rel_clause = f"<-[:{cascade_rel_label}]-"
         # Use a unit subquery to delete many children without collecting them and without
         # risking the parent row being filtered out by OPTIONAL MATCH + WHERE.
         delete_action_clauses = [
@@ -271,9 +388,42 @@ def _build_cleanup_node_query_unscoped(
     node_schema: CartographyNodeSchema,
 ) -> str:
     """
-    Generates a cleanup query for a node_schema to allow unscoped cleanup.
-    Note: cascade_delete is not supported for unscoped cleanup because unscoped cleanups
-    delete all stale nodes globally and don't have a parent-child ownership model.
+    Generate an unscoped cleanup query for nodes.
+
+    This function creates a cleanup query for node schemas that allow unscoped cleanup,
+    meaning all stale nodes of the given type will be deleted regardless of their
+    sub resource associations.
+
+    Args:
+        node_schema (CartographyNodeSchema): The node schema object to generate a query for.
+            Must have ``scoped_cleanup=False``.
+
+    Returns:
+        str: A Neo4j query to clean up all stale nodes for the given node schema.
+
+    Raises:
+        ValueError: If the node schema has ``scoped_cleanup=True``. This function is
+            specifically for unscoped cleanup scenarios.
+
+    Examples:
+        >>> node_schema = CartographyNodeSchema(
+        ...     label='GlobalConfig',
+        ...     scoped_cleanup=False
+        ... )
+        >>> query = _build_cleanup_node_query_unscoped(node_schema)
+        >>> print(query)
+        MATCH (n:GlobalConfig)
+        WHERE n.lastupdated <> $UPDATE_TAG
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n;
+
+    Warning:
+        This function creates queries that will delete ALL stale nodes of the given type,
+        not just those associated with a specific sub resource. Use with caution.
+
+    Note:
+        cascade_delete is not supported for unscoped cleanup because unscoped cleanups
+        delete all stale nodes globally and don't have a parent-child ownership model.
     """
     if node_schema.scoped_cleanup:
         raise ValueError(
@@ -307,7 +457,28 @@ def _build_cleanup_rel_queries_unscoped(
     selected_relationship: CartographyRelSchema,
 ) -> str:
     """
-    Generates relationship cleanup query for a node_schema with scoped_cleanup=False.
+    Generate an unscoped relationship cleanup query.
+
+    This function creates a cleanup query for relationships when the node schema
+    has ``scoped_cleanup=False``, meaning all stale relationships of the given type
+    will be deleted regardless of sub resource associations.
+
+    Args:
+        node_schema (CartographyNodeSchema): The node schema object to generate a query for.
+            Must have ``scoped_cleanup=False``.
+        selected_relationship (CartographyRelSchema): The specific relationship to delete.
+            Must be present on the node schema.
+
+    Returns:
+        str: A Neo4j query to clean up stale relationships for the given node schema.
+
+    Raises:
+        ValueError: If the node schema has ``scoped_cleanup=True``, or if the selected
+            relationship is not present on the node schema.
+
+    Warning:
+        This function creates queries that will delete ALL stale relationships of the
+        given type, not just those associated with a specific sub resource.
     """
     if node_schema.scoped_cleanup:
         raise ValueError(
@@ -345,9 +516,38 @@ def _build_cleanup_rel_queries_unscoped(
 
 def _build_selected_rel_clause(selected_relationship: CartographyRelSchema) -> str:
     """
-    Draw selected relationship with correct direction. Returns a string that looks like either
-    MATCH (n)<-[r:$SelectedRelLabel]-(:$other_node_label) or
-    MATCH (n)-[r:$SelectedRelLabel]->(:$other_node_label)
+    Build a relationship clause with correct directional syntax.
+
+    This function generates the appropriate Neo4j relationship pattern syntax
+    based on the relationship's direction configuration.
+
+    Args:
+        selected_relationship (CartographyRelSchema): The relationship to build the clause for.
+
+    Returns:
+        str: A Neo4j relationship clause string with correct directional arrows.
+            Examples:
+            - ``MATCH (n)<-[r:SELECTED_REL]-(:TargetNode)`` for INWARD direction
+            - ``MATCH (n)-[r:SELECTED_REL]->(:TargetNode)`` for OUTWARD direction
+
+    Examples:
+        >>> rel_schema = CartographyRelSchema(
+        ...     target_node_label='AWSRole',
+        ...     direction=LinkDirection.INWARD,
+        ...     rel_label='ASSUMES_ROLE'
+        ... )
+        >>> clause = _build_selected_rel_clause(rel_schema)
+        >>> print(clause)
+        MATCH (n)<-[r:ASSUMES_ROLE]-(:AWSRole)
+
+        >>> rel_schema_outward = CartographyRelSchema(
+        ...     target_node_label='AWSResource',
+        ...     direction=LinkDirection.OUTWARD,
+        ...     rel_label='OWNS'
+        ... )
+        >>> clause = _build_selected_rel_clause(rel_schema_outward)
+        >>> print(clause)
+        MATCH (n)-[r:OWNS]->(:AWSResource)
     """
     if selected_relationship.direction == LinkDirection.INWARD:
         selected_rel_template = Template("<-[r:$SelectedRelLabel]-")
@@ -368,10 +568,27 @@ def _build_selected_rel_clause(selected_relationship: CartographyRelSchema) -> s
 
 def _validate_target_node_matcher_for_cleanup_job(tgm: TargetNodeMatcher):
     """
-    Raises ValueError if a single PropertyRef in the given TargetNodeMatcher does not have set_in_kwargs=True.
-    Auto cleanups require the sub resource target node matcher to have set_in_kwargs=True because the GraphJob
-    class injects the sub resource id via a query kwarg parameter. See GraphJob and GraphStatement classes.
-    This is a private function meant only to be called when we clean up the sub resource relationship.
+    Validate PropertyRef configurations for cleanup operations.
+
+    This function ensures that all PropertyRef objects in the given TargetNodeMatcher
+    have ``set_in_kwargs=True``, which is required for auto cleanup operations.
+    The GraphJob class injects sub resource IDs via query keyword arguments.
+
+    Args:
+        tgm (TargetNodeMatcher): The TargetNodeMatcher to validate.
+
+    Raises:
+        ValueError: If any PropertyRef in the TargetNodeMatcher has ``set_in_kwargs=False``.
+            This is required for proper integration with the GraphJob cleanup system.
+
+    Note:
+        This is a private function meant only to be called when cleaning up
+        sub resource relationships. It ensures compatibility with the GraphJob
+        and GraphStatement classes that handle cleanup operations.
+
+    See Also:
+        - ``GraphJob`` class for cleanup job management
+        - ``GraphStatement`` class for query execution
     """
     tgm_asdict: Dict[str, PropertyRef] = asdict(tgm)
 
@@ -386,11 +603,32 @@ def _validate_target_node_matcher_for_cleanup_job(tgm: TargetNodeMatcher):
 
 def build_cleanup_query_for_matchlink(rel_schema: CartographyRelSchema) -> str:
     """
-    Generates a cleanup query for a matchlink relationship.
-    :param rel_schema: The CartographyRelSchema object to generate a query. This CartographyRelSchema object
-    - Must have a source_node_matcher and source_node_label defined
-    - Must have a CartographyRelProperties object where _sub_resource_label and _sub_resource_id are defined
-    :return: A Neo4j query used to clean up stale matchlink relationships.
+    Generate a cleanup query for matchlink relationships.
+
+    This function creates a Neo4j query to clean up stale matchlink relationships
+    that are scoped to specific sub resources. It's used to maintain data consistency
+    by removing outdated relationship connections.
+
+    Args:
+        rel_schema (CartographyRelSchema): The relationship schema object to generate
+            a query for. Must have the following requirements:
+
+            - ``source_node_matcher`` and ``source_node_label`` defined
+            - ``CartographyRelProperties`` object with ``_sub_resource_label`` and
+              ``_sub_resource_id`` defined
+
+    Returns:
+        str: A Neo4j query to clean up stale matchlink relationships, scoped to
+            the specified sub resource.
+
+    Raises:
+        ValueError: If the ``rel_schema`` does not have a ``source_node_matcher`` defined.
+
+    Note:
+        - The query includes scoping clauses to ensure only relationships associated
+          with the specified sub resource are cleaned up.
+        - Relationship direction is automatically determined from the schema configuration.
+        - The query uses parameterized values for security and consistency.
     """
     if not rel_schema.source_node_matcher:
         raise ValueError(
