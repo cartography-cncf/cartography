@@ -188,7 +188,7 @@ def test_write_results_to_tempfile():
 @patch("cartography.intel.github.dockerfiles.match_images_to_dockerfiles")
 @patch("cartography.intel.github.dockerfiles.write_results_to_tempfile")
 def test_sync_with_dockerfiles(
-    mock_write, mock_match, mock_get_images, mock_get_dockerfiles, neo4j_session
+    mock_write, mock_match, mock_get_ecr_images, mock_get_dockerfiles, neo4j_session
 ):
     """
     Test the full sync function when Dockerfiles are found.
@@ -203,7 +203,7 @@ def test_sync_with_dockerfiles(
         }
     ]
     mock_get_dockerfiles.return_value = mock_dockerfiles
-    mock_get_images.return_value = []  # No ECR images
+    mock_get_ecr_images.return_value = []  # No ECR images
     mock_match.return_value = []  # No matches
 
     from pathlib import Path
@@ -224,7 +224,7 @@ def test_sync_with_dockerfiles(
 
     # Assert
     mock_get_dockerfiles.assert_called_once()
-    mock_get_images.assert_called_once()
+    mock_get_ecr_images.assert_called_once()
     mock_write.assert_called_once()
     assert result == mock_temp_path
 
