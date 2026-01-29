@@ -174,13 +174,7 @@ def _parse_trivy_data(
     # Extract artifact name if present (only for file-based)
     artifact_name = trivy_data.get("ArtifactName")
 
-    if "Results" not in trivy_data:
-        logger.error(
-            f"Scan data did not contain a `Results` key for {source}. This indicates a malformed scan result."
-        )
-        raise ValueError(f"Missing 'Results' key in scan data for {source}")
-
-    results = trivy_data["Results"]
+    results = trivy_data.get("Results", [])
     if not results:
         stat_handler.incr("image_scan_no_results_count")
         logger.info(f"No vulnerabilities found for {source}")
