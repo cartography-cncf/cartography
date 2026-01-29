@@ -306,6 +306,7 @@ AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
     "UnauthorizedOperation",
     "UnrecognizedClientException",
     "InternalServerErrorException",
+    "SubscriptionRequiredException",
 ]
 
 
