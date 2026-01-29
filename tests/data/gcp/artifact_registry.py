@@ -23,6 +23,27 @@ MOCK_REPOSITORIES = [
     },
 ]
 
+# Manifest list data for multi-arch images (returned in imageManifests field)
+MOCK_MANIFEST_LIST = [
+    {
+        "digest": "sha256:def456",  # This matches what Trivy reports in trivy_gcp_sample.py
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "platform": {
+            "architecture": "amd64",
+            "os": "linux",
+        },
+    },
+    {
+        "digest": "sha256:ghi789",
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "platform": {
+            "architecture": "arm64",
+            "os": "linux",
+            "variant": "v8",
+        },
+    },
+]
+
 MOCK_DOCKER_IMAGES = [
     {
         "name": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123",
@@ -33,6 +54,7 @@ MOCK_DOCKER_IMAGES = [
         "uploadTime": "2024-01-10T00:00:00Z",
         "buildTime": "2024-01-10T00:00:00Z",
         "updateTime": "2024-01-10T00:00:00Z",
+        "imageManifests": MOCK_MANIFEST_LIST,
     },
 ]
 
@@ -58,26 +80,6 @@ MOCK_MAVEN_ARTIFACTS = [
         "version": "1.0.0",
         "createTime": "2024-01-05T00:00:00Z",
         "updateTime": "2024-01-05T00:00:00Z",
-    },
-]
-
-MOCK_MANIFEST_LIST = [
-    {
-        "digest": "sha256:def456",  # This matches what Trivy reports in trivy_gcp_sample.py
-        "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "platform": {
-            "architecture": "amd64",
-            "os": "linux",
-        },
-    },
-    {
-        "digest": "sha256:ghi789",
-        "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "platform": {
-            "architecture": "arm64",
-            "os": "linux",
-            "variant": "v8",
-        },
     },
 ]
 

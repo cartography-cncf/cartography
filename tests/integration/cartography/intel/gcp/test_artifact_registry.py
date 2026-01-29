@@ -6,7 +6,6 @@ from cartography.intel.gcp.artifact_registry.artifact import transform_docker_im
 from cartography.intel.gcp.artifact_registry.artifact import transform_maven_artifacts
 from tests.data.gcp.artifact_registry import MOCK_DOCKER_IMAGES
 from tests.data.gcp.artifact_registry import MOCK_HELM_CHARTS
-from tests.data.gcp.artifact_registry import MOCK_MANIFEST_LIST
 from tests.data.gcp.artifact_registry import MOCK_MAVEN_ARTIFACTS
 from tests.data.gcp.artifact_registry import MOCK_REPOSITORIES
 from tests.integration.util import check_nodes
@@ -43,32 +42,6 @@ def _mock_get_maven_artifacts(client, repo_name):
     return MOCK_MAVEN_ARTIFACTS
 
 
-async def _mock_get_all_manifests_async(
-    credentials, docker_artifacts_raw, max_concurrent=50
-):
-    """Mock async manifest getting to return transformed manifests."""
-    from cartography.intel.gcp.artifact_registry.manifest import transform_manifests
-
-    # Find multi-arch images and transform their manifests
-    all_manifests = []
-    for artifact in docker_artifacts_raw:
-        if artifact.get("mediaType") in {
-            "application/vnd.docker.distribution.manifest.list.v2+json",
-            "application/vnd.oci.image.index.v1+json",
-        }:
-            artifact_name = artifact.get("name", "")
-            project_id = "test-project"
-            manifests = transform_manifests(
-                MOCK_MANIFEST_LIST, artifact_name, project_id
-            )
-            all_manifests.extend(manifests)
-    return all_manifests
-
-
-@patch(
-    "cartography.intel.gcp.artifact_registry.manifest.get_all_manifests_async",
-    side_effect=_mock_get_all_manifests_async,
-)
 @patch(
     "cartography.intel.gcp.artifact_registry.artifact.FORMAT_HANDLERS",
     {
@@ -82,7 +55,6 @@ async def _mock_get_all_manifests_async(
 )
 def test_sync_artifact_registry(
     mock_get_repositories,
-    mock_get_manifests,
     neo4j_session,
 ):
     _create_prerequisite_nodes(neo4j_session)

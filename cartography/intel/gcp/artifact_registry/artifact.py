@@ -703,6 +703,34 @@ HELM_MEDIA_TYPE_IDENTIFIER = "helm"
 LANGUAGE_PACKAGE_FORMATS = {"MAVEN", "NPM", "PYTHON", "GO"}
 
 
+def transform_image_manifests(
+    docker_images_raw: list[dict],
+    project_id: str,
+) -> list[dict]:
+    """
+    Transforms image manifests from dockerImages API response to platform image format.
+
+    :param docker_images_raw: List of raw Docker image data from the API.
+    :param project_id: The GCP project ID.
+    :return: List of transformed platform image dicts.
+    """
+    from cartography.intel.gcp.artifact_registry.manifest import transform_manifests
+
+    all_manifests: list[dict] = []
+
+    for artifact in docker_images_raw:
+        artifact_name = artifact.get("name", "")
+        # imageManifests field is returned by the API for multi-arch images
+        image_manifests = artifact.get("imageManifests", [])
+
+        if image_manifests:
+            # Transform the manifests using the existing transform function
+            manifests = transform_manifests(image_manifests, artifact_name, project_id)
+            all_manifests.extend(manifests)
+
+    return all_manifests
+
+
 @timeit
 def sync_artifact_registry_artifacts(
     neo4j_session: neo4j.Session,
@@ -721,7 +749,7 @@ def sync_artifact_registry_artifacts(
     :param project_id: The GCP project ID.
     :param update_tag: The update tag for this sync.
     :param common_job_parameters: Common job parameters for cleanup.
-    :return: List of raw Docker image data from the API (for manifest sync).
+    :return: List of transformed platform image data (from imageManifests field).
     """
     logger.info(f"Syncing Artifact Registry artifacts for project {project_id}.")
 
@@ -767,7 +795,7 @@ def sync_artifact_registry_artifacts(
                         transform_helm_charts([artifact], repo_name, project_id)
                     )
                 else:
-                    # Actual Docker images - collect raw for manifest sync
+                    # Actual Docker images - collect raw for manifest extraction
                     docker_images_raw.append(artifact)
                     docker_images_transformed.extend(
                         transform_docker_images([artifact], repo_name, project_id)
@@ -815,5 +843,6 @@ def sync_artifact_registry_artifacts(
     cleanup_language_packages(neo4j_session, cleanup_job_params)
     cleanup_generic_artifacts(neo4j_session, cleanup_job_params)
 
-    # Return raw Docker images for manifest sync (excludes Helm charts)
-    return docker_images_raw
+    # Extract and transform platform images from imageManifests field (no HTTP calls needed)
+    platform_images = transform_image_manifests(docker_images_raw, project_id)
+    return platform_images
