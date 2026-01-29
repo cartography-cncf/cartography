@@ -9,11 +9,14 @@ from typing import Any
 import neo4j
 import requests
 
+from cartography.client.core.tx import load_matchlinks
+from cartography.graph.job import GraphJob
 from cartography.intel.dockerfile_parser import extract_layer_commands_from_history
 from cartography.intel.dockerfile_parser import find_best_dockerfile_matches
 from cartography.intel.dockerfile_parser import parse as parse_dockerfile
 from cartography.intel.dockerfile_parser import ParsedDockerfile
 from cartography.intel.github.util import call_github_rest_api
+from cartography.models.github.dockerfile_image import GitHubRepoBuiltFromRel
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -42,11 +45,10 @@ class ECRImage:
 
 @dataclass
 class ImageDockerfileMatch:
-    """Represents a match between an ECR image and a Dockerfile."""
+    """Represents a match between an ECR repository and a Dockerfile."""
 
-    image_digest: str
-    image_uri: str
-    image_repo_name: str
+    ecr_repo_uri: str
+    ecr_repo_name: str
     dockerfile_repo_url: str | None
     dockerfile_path: str | None
     confidence: float
@@ -283,9 +285,8 @@ def match_images_to_dockerfiles(
 
             matches.append(
                 ImageDockerfileMatch(
-                    image_digest=image.digest,
-                    image_uri=image.uri,
-                    image_repo_name=image.repo_name,
+                    ecr_repo_uri=image.repo_uri,
+                    ecr_repo_name=image.repo_name,
                     dockerfile_repo_url=df_info.get("repo_url"),
                     dockerfile_path=df_info.get("path"),
                     confidence=best_match.confidence,
@@ -306,6 +307,99 @@ def match_images_to_dockerfiles(
         f"(out of {len(images)} images, {len(parsed_dockerfiles)} Dockerfiles)"
     )
     return matches
+
+
+def transform_matches_for_matchlink(
+    matches: list[ImageDockerfileMatch],
+) -> list[dict[str, Any]]:
+    """
+    Transform ImageDockerfileMatch objects into dictionaries for load_matchlinks.
+
+    :param matches: List of ImageDockerfileMatch objects
+    :return: List of dictionaries with fields matching the MatchLink schema
+    """
+    return [
+        {
+            "repo_url": m.dockerfile_repo_url,
+            "ecr_repo_uri": m.ecr_repo_uri,
+            "dockerfile_path": m.dockerfile_path,
+            "confidence": m.confidence,
+            "matched_commands": m.matched_commands,
+            "total_commands": m.total_commands,
+            "command_similarity": m.command_similarity,
+        }
+        for m in matches
+        if m.dockerfile_repo_url is not None
+    ]
+
+
+@timeit
+def load_dockerfile_image_relationships(
+    neo4j_session: neo4j.Session,
+    matches: list[ImageDockerfileMatch],
+    organization: str,
+    update_tag: int,
+) -> None:
+    """
+    Load BUILT_FROM relationships between ECRRepositoryImage and GitHubRepository.
+
+    By matching on repo_uri, this creates relationships to ALL images in each
+    ECR repository that was built from a Dockerfile in a GitHub repository.
+
+    :param neo4j_session: Neo4j session
+    :param matches: List of ImageDockerfileMatch objects
+    :param organization: The GitHub organization name (used as sub_resource_id)
+    :param update_tag: The update timestamp tag
+    """
+    if not matches:
+        logger.info("No matches to load")
+        return
+
+    # Transform matches for MatchLink loading
+    matchlink_data = transform_matches_for_matchlink(matches)
+
+    if not matchlink_data:
+        logger.info("No valid matches with repo URLs to load")
+        return
+
+    logger.info(f"Loading {len(matchlink_data)} BUILT_FROM relationships...")
+
+    load_matchlinks(
+        neo4j_session,
+        GitHubRepoBuiltFromRel(),
+        matchlink_data,
+        lastupdated=update_tag,
+        _sub_resource_label="GitHubOrganization",
+        _sub_resource_id=organization,
+    )
+
+    logger.info(f"Loaded {len(matchlink_data)} BUILT_FROM relationships")
+
+
+@timeit
+def cleanup_dockerfile_image_relationships(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    update_tag: int,
+) -> None:
+    """
+    Clean up stale BUILT_FROM relationships.
+
+    :param neo4j_session: Neo4j session
+    :param organization: The GitHub organization name (used as sub_resource_id)
+    :param update_tag: The update timestamp tag
+    """
+    logger.info("Cleaning up stale BUILT_FROM relationships...")
+
+    cleanup_job = GraphJob.from_matchlink(
+        GitHubRepoBuiltFromRel(),
+        "GitHubOrganization",
+        organization,
+        update_tag,
+    )
+    cleanup_job.run(neo4j_session)
+
+    logger.info("Cleanup complete")
 
 
 @timeit
@@ -547,9 +641,8 @@ def write_results_to_tempfile(
     if matches is not None:
         output["matches"] = [
             {
-                "image_digest": m.image_digest,
-                "image_uri": m.image_uri,
-                "image_repo_name": m.image_repo_name,
+                "ecr_repo_uri": m.ecr_repo_uri,
+                "ecr_repo_name": m.ecr_repo_name,
                 "dockerfile_repo_url": m.dockerfile_repo_url,
                 "dockerfile_path": m.dockerfile_path,
                 "confidence": m.confidence,
@@ -596,16 +689,17 @@ def sync(
     This function:
     1. Searches for Dockerfile-related files in each repository
     2. Downloads their content and parses them
-    3. Queries ECR images from Neo4j (most recent tag per repository)
+    3. Queries ALL ECR images from Neo4j (all tags)
     4. Matches images to Dockerfiles based on layer history commands
-    5. Writes all results to a temporary JSON file
+    5. Creates BUILT_IMAGE relationships between GitHubRepository and ECRImage
+    6. Writes all results to a temporary JSON file
 
     :param neo4j_session: Neo4j session for querying ECR images
     :param token: The GitHub API token
     :param api_url: The GitHub API URL (typically the GraphQL endpoint)
     :param organization: The GitHub organization name
-    :param update_tag: The update timestamp tag (unused in current implementation)
-    :param common_job_parameters: Common job parameters (unused in current implementation)
+    :param update_tag: The update timestamp tag
+    :param common_job_parameters: Common job parameters
     :param repos: List of repository dictionaries to search for Dockerfiles
     :param match_ecr_images: Whether to query ECR images and perform matching (default: True)
     :param image_limit: Optional limit on number of ECR images to process
@@ -633,7 +727,8 @@ def sync(
 
     # Query ECR images and perform matching if requested
     if match_ecr_images:
-        logger.info("Querying ECR images from Neo4j...")
+        logger.info("Querying ECR images from Neo4j (one per repository)...")
+        # Get one image per repository for matching (relationships will link to all via repo_uri)
         images = get_ecr_images(neo4j_session, limit=image_limit)
 
         if images:
@@ -651,6 +746,22 @@ def sync(
                 f"Matching complete: {len(matches)} matches found "
                 f"({high_confidence} high confidence)"
             )
+
+            # Load BUILT_IMAGE relationships to Neo4j
+            if matches:
+                load_dockerfile_image_relationships(
+                    neo4j_session,
+                    matches,
+                    organization,
+                    update_tag,
+                )
+
+                # Cleanup stale relationships
+                cleanup_dockerfile_image_relationships(
+                    neo4j_session,
+                    organization,
+                    update_tag,
+                )
         else:
             logger.info("No ECR images found in Neo4j")
 
