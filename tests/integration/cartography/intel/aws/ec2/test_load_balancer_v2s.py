@@ -54,7 +54,7 @@ def _create_test_subnets_security_groups_and_instances(neo4j_session):
 )
 def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
     """
-    Ensure that LoadBalancerV2 and ELBV2Listener are synced correctly with relationships.
+    Ensure that AWSLoadBalancerV2 and ELBV2Listener are synced correctly with relationships.
     """
     # Arrange
     boto3_session = MagicMock()
@@ -71,10 +71,10 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Assert - LoadBalancerV2 nodes exist
+    # Assert - AWSLoadBalancerV2 nodes exist
     assert check_nodes(
         neo4j_session,
-        "LoadBalancerV2",
+        "AWSLoadBalancerV2",
         ["id", "name", "type", "scheme"],
     ) == {
         (
@@ -91,12 +91,12 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         ),
     }
 
-    # Assert - Relationships (AWSAccount)-[RESOURCE]->(LoadBalancerV2)
+    # Assert - Relationships (AWSAccount)-[RESOURCE]->(AWSLoadBalancerV2)
     assert check_rels(
         neo4j_session,
         "AWSAccount",
         "id",
-        "LoadBalancerV2",
+        "AWSLoadBalancerV2",
         "id",
         "RESOURCE",
         rel_direction_right=True,
@@ -128,10 +128,10 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         ),
     }
 
-    # Assert - Relationships (LoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
+    # Assert - Relationships (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
     assert check_rels(
         neo4j_session,
-        "LoadBalancerV2",
+        "AWSLoadBalancerV2",
         "id",
         "ELBV2Listener",
         "id",
@@ -152,10 +152,10 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         ),
     }
 
-    # Assert - Relationships (LoadBalancerV2)-[SUBNET]->(EC2Subnet)
+    # Assert - Relationships (AWSLoadBalancerV2)-[SUBNET]->(EC2Subnet)
     assert check_rels(
         neo4j_session,
-        "LoadBalancerV2",
+        "AWSLoadBalancerV2",
         "id",
         "EC2Subnet",
         "subnetid",
@@ -167,11 +167,11 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         ("test-nlb-abcdef0123.us-east-1.elb.amazonaws.com", "subnet-33333333"),
     }
 
-    # Assert - Relationships (LoadBalancerV2)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    # Assert - Relationships (AWSLoadBalancerV2)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     # Only ALBs have security groups, not NLBs
     assert check_rels(
         neo4j_session,
-        "LoadBalancerV2",
+        "AWSLoadBalancerV2",
         "id",
         "EC2SecurityGroup",
         "groupid",
@@ -182,11 +182,11 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
         ("test-alb-1234567890.us-east-1.elb.amazonaws.com", "sg-87654321"),
     }
 
-    # Assert - Relationships (LoadBalancerV2)-[EXPOSE]->(EC2Instance)
+    # Assert - Relationships (AWSLoadBalancerV2)-[EXPOSE]->(EC2Instance)
     # Only for target groups with target type = instance
     assert check_rels(
         neo4j_session,
-        "LoadBalancerV2",
+        "AWSLoadBalancerV2",
         "id",
         "EC2Instance",
         "instanceid",
