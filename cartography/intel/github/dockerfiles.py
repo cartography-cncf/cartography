@@ -143,15 +143,16 @@ def get_image_layer_history(
     :param image_digest: The image digest to get history for
     :return: List of history entries with 'created_by' and 'empty_layer' fields
     """
+    # Use layer_diff_ids array from the image to find layers in order
     query = """
-        MATCH (img:ECRImage {digest: $digest})-[:HAS_LAYER]->(layer:ECRImageLayer)
-        WITH img, layer
-        ORDER BY
-            CASE WHEN layer.diff_id IN img.layer_diff_ids
-                 THEN apoc.coll.indexOf(img.layer_diff_ids, layer.diff_id)
-                 ELSE 9999
-            END
+        MATCH (img:ECRImage {digest: $digest})
+        WHERE img.layer_diff_ids IS NOT NULL
+        WITH img.layer_diff_ids AS diff_ids
+        UNWIND range(0, size(diff_ids) - 1) AS idx
+        WITH diff_ids[idx] AS diff_id, idx
+        MATCH (layer:ECRImageLayer {diff_id: diff_id})
         RETURN layer.diff_id AS diff_id, layer.history AS history, layer.is_empty AS is_empty
+        ORDER BY idx
     """
 
     try:
