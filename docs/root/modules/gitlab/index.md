@@ -1,4 +1,9 @@
-## GitLab
+# GitLab
+
+```{toctree}
+config
+schema
+```
 
 Cartography can sync repository, group, and programming language data from GitLab instances.
 
@@ -12,7 +17,7 @@ Cartography can sync repository, group, and programming language data from GitLa
 
 ### Data Collected
 
-#### GitLabRepository Nodes
+#### GitLabProject Nodes
 - Repository identification and paths
 - Multiple URL formats (web, HTTP clone, SSH clone, README)
 - Visibility and access settings (private/internal/public, archived)
@@ -32,10 +37,14 @@ Cartography can sync repository, group, and programming language data from GitLa
 - Usage percentages (e.g., 65.5% Python, 34.5% JavaScript)
 - Shared `ProgrammingLanguage` nodes across GitHub and GitLab modules
 
+#### Backwards-Compatible Labels
+- GitLab projects also carry the `GitLabRepository` label for compatibility with existing queries.
+
 ### Graph Relationships
 
 ```
-(:GitLabGroup)-[:OWNER]->(:GitLabRepository)-[:LANGUAGE{percentage}]->(:ProgrammingLanguage)
+(:GitLabProject)-[:MEMBER_OF]->(:GitLabGroup)
+(:GitLabProject)-[:LANGUAGE{percentage}]->(:ProgrammingLanguage)
 ```
 
 ### Configuration
