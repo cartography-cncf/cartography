@@ -2180,6 +2180,11 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
+- KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
+    ```
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
+    ```
+
 - An ECRImage may be built from a parent ECRImage (derived from provenance attestations).
     ```
     (:ECRImage)-[:BUILT_FROM]->(:ECRImage)

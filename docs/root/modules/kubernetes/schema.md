@@ -125,6 +125,12 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
     ```
 
+- `KubernetesContainer` references container images from registries. The relationship matches containers to images by digest (`status_image_sha`).
+    ```
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    ```
+
 ### KubernetesService
 Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/services-networking/service/)
 

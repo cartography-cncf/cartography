@@ -2,13 +2,13 @@ import logging
 import re
 
 import neo4j
-from google.api_core.exceptions import PermissionDenied
-from google.auth.exceptions import DefaultCredentialsError
-from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.cloudrun.revision import GCPCloudRunRevisionSchema
 from cartography.util import timeit
 
@@ -16,12 +16,21 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_revisions(client: Resource, project_id: str, location: str = "-") -> list[dict]:
+def get_revisions(
+    client: Resource, project_id: str, location: str = "-"
+) -> list[dict] | None:
     """
     Gets GCP Cloud Run Revisions for a project and location.
+
+    Returns:
+        list[dict]: List of Cloud Run revisions (empty list if project has no revisions)
+        None: If the Cloud Run Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
     """
-    revisions: list[dict] = []
     try:
+        revisions: list[dict] = []
         # First, get all services so we can iterate through them to get revisions
         # The v2 API doesn't support double wildcards for location and service
         services_parent = f"projects/{project_id}/locations/{location}"
@@ -30,7 +39,7 @@ def get_revisions(client: Resource, project_id: str, location: str = "-") -> lis
         )
 
         while services_request is not None:
-            services_response = services_request.execute()
+            services_response = gcp_api_execute_with_retry(services_request)
             services = services_response.get("services", [])
 
             # For each service, get its revisions
@@ -45,7 +54,7 @@ def get_revisions(client: Resource, project_id: str, location: str = "-") -> lis
                 )
 
                 while revisions_request is not None:
-                    revisions_response = revisions_request.execute()
+                    revisions_response = gcp_api_execute_with_retry(revisions_request)
                     revisions.extend(revisions_response.get("revisions", []))
                     revisions_request = (
                         client.projects()
@@ -69,10 +78,14 @@ def get_revisions(client: Resource, project_id: str, location: str = "-") -> lis
             )
 
         return revisions
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Cloud Run revisions for project {project_id} due to permissions or auth error: {e}",
-        )
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve Cloud Run revisions on project %s due to permissions "
+                "issues or API not enabled. Skipping sync to preserve existing data.",
+                project_id,
+            )
+            return None
         raise
 
 
@@ -172,12 +185,14 @@ def sync_revisions(
     """
     logger.info(f"Syncing Cloud Run Revisions for project {project_id}.")
     revisions_raw = get_revisions(client, project_id)
-    if not revisions_raw:
-        logger.info(f"No Cloud Run revisions found for project {project_id}.")
 
-    revisions = transform_revisions(revisions_raw, project_id)
-    load_revisions(neo4j_session, revisions, project_id, update_tag)
+    if revisions_raw is not None:
+        if not revisions_raw:
+            logger.info(f"No Cloud Run revisions found for project {project_id}.")
 
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["project_id"] = project_id
-    cleanup_revisions(neo4j_session, cleanup_job_params)
+        revisions = transform_revisions(revisions_raw, project_id)
+        load_revisions(neo4j_session, revisions, project_id, update_tag)
+
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["project_id"] = project_id
+        cleanup_revisions(neo4j_session, cleanup_job_params)

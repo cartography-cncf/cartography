@@ -1,6 +1,6 @@
 # Creating a New Cartography Module
 
-> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Add Node Type](add-node-type.md) | [Add Relationship](add-relationship.md)
+> **Related docs**: [Main AGENTS.md](../../AGENTS.md) | [Add Node Type](add-node-type.md) | [Add Relationship](add-relationship.md) | [Analysis Jobs](analysis-jobs.md)
 
 This guide walks you through creating a new Cartography intel module from scratch, covering the complete sync pattern, data model definitions, and testing.
 
@@ -460,6 +460,25 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any])
     GraphJob.from_node_schema(YourServiceUserSchema(), common_job_parameters).run(neo4j_session)
 ```
 
+### Analysis Jobs (Optional)
+
+For modules that require post-ingestion graph enrichment (e.g., internet exposure analysis, permission inheritance), add analysis job calls at the end of your main ingestion function. See [Adding Analysis Jobs](analysis-jobs.md) for detailed patterns and examples.
+
+```python
+from cartography.util import run_analysis_job
+
+@timeit
+def start_your_module_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
+    # ... sync all resources ...
+
+    # Optional: Run analysis jobs after all data is synced
+    run_analysis_job(
+        "your_module_analysis.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+```
+
 ## Configuration and Credentials
 
 ### Adding CLI Arguments
@@ -895,3 +914,4 @@ Before submitting your module:
 - [ ] **Documentation**: Schema docs, docstrings, inline comments
 - [ ] **Cleanup**: Proper cleanup job implementation
 - [ ] **Indexing**: Extra indexes on frequently queried fields
+- [ ] **Analysis Jobs** (optional): If your module needs post-ingestion enrichment, see [Analysis Jobs](analysis-jobs.md)
