@@ -147,12 +147,12 @@ def test_get_dockerfiles_for_repos(mock_rest_api):
     assert dockerfile_prod["content"] == DOCKERFILE_PROD_CONTENT
 
 
-def test_write_dockerfiles_to_tempfile():
+def test_write_results_to_tempfile():
     """
-    Test that write_dockerfiles_to_tempfile creates a valid JSON file.
+    Test that write_results_to_tempfile creates a valid JSON file.
     """
     # Arrange
-    test_data = [
+    test_dockerfiles = [
         {
             "repo_url": "https://github.com/test/repo",
             "repo_name": "test/repo",
@@ -162,8 +162,8 @@ def test_write_dockerfiles_to_tempfile():
     ]
 
     # Act
-    temp_path = cartography.intel.github.dockerfiles.write_dockerfiles_to_tempfile(
-        test_data
+    temp_path = cartography.intel.github.dockerfiles.write_results_to_tempfile(
+        test_dockerfiles
     )
 
     # Assert
@@ -173,15 +173,23 @@ def test_write_dockerfiles_to_tempfile():
 
     with open(temp_path) as f:
         loaded_data = json.load(f)
-    assert loaded_data == test_data
+
+    assert "dockerfiles" in loaded_data
+    assert loaded_data["dockerfiles"] == test_dockerfiles
+    assert "summary" in loaded_data
+    assert loaded_data["summary"]["dockerfile_count"] == 1
 
     # Cleanup
     os.unlink(temp_path)
 
 
 @patch("cartography.intel.github.dockerfiles.get_dockerfiles_for_repos")
-@patch("cartography.intel.github.dockerfiles.write_dockerfiles_to_tempfile")
-def test_sync_with_dockerfiles(mock_write, mock_get_dockerfiles, neo4j_session):
+@patch("cartography.intel.github.dockerfiles.get_ecr_images")
+@patch("cartography.intel.github.dockerfiles.match_images_to_dockerfiles")
+@patch("cartography.intel.github.dockerfiles.write_results_to_tempfile")
+def test_sync_with_dockerfiles(
+    mock_write, mock_match, mock_get_images, mock_get_dockerfiles, neo4j_session
+):
     """
     Test the full sync function when Dockerfiles are found.
     """
@@ -195,6 +203,8 @@ def test_sync_with_dockerfiles(mock_write, mock_get_dockerfiles, neo4j_session):
         }
     ]
     mock_get_dockerfiles.return_value = mock_dockerfiles
+    mock_get_images.return_value = []  # No ECR images
+    mock_match.return_value = []  # No matches
 
     from pathlib import Path
 
@@ -214,7 +224,8 @@ def test_sync_with_dockerfiles(mock_write, mock_get_dockerfiles, neo4j_session):
 
     # Assert
     mock_get_dockerfiles.assert_called_once()
-    mock_write.assert_called_once_with(mock_dockerfiles)
+    mock_get_images.assert_called_once()
+    mock_write.assert_called_once()
     assert result == mock_temp_path
 
 
