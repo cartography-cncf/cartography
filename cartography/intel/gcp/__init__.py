@@ -648,25 +648,33 @@ def start_gcp_ingestion(
             credentials=credentials,
         )
 
-        # Clean up projects and folders for this org (children before parents)
+        # Clean up projects and folders for this org (children before parents).
+        # Use cascade_delete=True to also delete orphaned child resources when a
+        # project/folder is deleted. This handles the case where a project was deleted
+        # between syncs - its resources would otherwise remain as orphans since resource
+        # cleanup is scoped to PROJECT_ID and we only sync existing projects.
         logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
-        GraphJob.from_node_schema(GCPProjectSchema(), common_job_parameters).run(
-            neo4j_session
-        )
-        GraphJob.from_node_schema(GCPFolderSchema(), common_job_parameters).run(
-            neo4j_session
-        )
+        GraphJob.from_node_schema(
+            GCPProjectSchema(), common_job_parameters, cascade_delete=True
+        ).run(neo4j_session)
+        GraphJob.from_node_schema(
+            GCPFolderSchema(), common_job_parameters, cascade_delete=True
+        ).run(neo4j_session)
 
-        # Save org cleanup job for later
-        org_cleanup_jobs.append((GCPOrganizationSchema, dict(common_job_parameters)))
+        # Save org cleanup job for later (with cascade_delete for defense in depth)
+        org_cleanup_jobs.append(
+            (GCPOrganizationSchema, dict(common_job_parameters), True)
+        )
 
         # Remove org ID from common job parameters after processing
         del common_job_parameters["ORG_RESOURCE_NAME"]
 
     # Run all org cleanup jobs at the very end, after all children have been cleaned up
     logger.info("Running cleanup for GCP organizations")
-    for schema_class, params in org_cleanup_jobs:
-        GraphJob.from_node_schema(schema_class(), params).run(neo4j_session)
+    for schema_class, params, cascade in org_cleanup_jobs:
+        GraphJob.from_node_schema(schema_class(), params, cascade_delete=cascade).run(
+            neo4j_session
+        )
 
     run_analysis_job(
         "gcp_compute_asset_inet_exposure.json",
