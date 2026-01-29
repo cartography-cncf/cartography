@@ -340,12 +340,16 @@ def test_transform_ecr_image_layers_with_partial_history():
 
     # Find each layer
     layer1 = next(
-        l for l in layers
-        if l["diff_id"] == "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        layer
+        for layer in layers
+        if layer["diff_id"]
+        == "sha256:1111111111111111111111111111111111111111111111111111111111111111"
     )
     layer2 = next(
-        l for l in layers
-        if l["diff_id"] == "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        layer
+        for layer in layers
+        if layer["diff_id"]
+        == "sha256:2222222222222222222222222222222222222222222222222222222222222222"
     )
 
     # First layer should have history

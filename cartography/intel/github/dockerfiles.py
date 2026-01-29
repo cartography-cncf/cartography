@@ -44,7 +44,7 @@ def search_dockerfiles_in_repo(
 
     try:
         response = call_github_rest_api("/search/code", token, base_url, params)
-        items = response.get("items", [])
+        items: list[dict[str, Any]] = response.get("items", [])
         logger.debug(f"Found {len(items)} dockerfile(s) in {owner}/{repo}")
         return items
     except requests.exceptions.HTTPError as e:
@@ -56,7 +56,9 @@ def search_dockerfiles_in_repo(
             return []
         # Handle 404 (repo not found or not accessible)
         if e.response is not None and e.response.status_code == 404:
-            logger.debug(f"Repository {owner}/{repo} not found or not accessible for code search")
+            logger.debug(
+                f"Repository {owner}/{repo} not found or not accessible for code search"
+            )
             return []
         raise
     except Exception as e:
@@ -162,16 +164,20 @@ def get_dockerfiles_for_repos(
             content = get_file_content(token, owner, repo_name, path, base_url=base_url)
 
             if content:
-                all_dockerfiles.append({
-                    "repo_url": repo_url,
-                    "repo_name": f"{owner}/{repo_name}",
-                    "path": path,
-                    "content": content,
-                    "sha": item.get("sha"),
-                    "html_url": item.get("html_url"),
-                })
+                all_dockerfiles.append(
+                    {
+                        "repo_url": repo_url,
+                        "repo_name": f"{owner}/{repo_name}",
+                        "path": path,
+                        "content": content,
+                        "sha": item.get("sha"),
+                        "html_url": item.get("html_url"),
+                    }
+                )
 
-    logger.info(f"Retrieved content for {len(all_dockerfiles)} dockerfile(s) across {len(repos)} repositories")
+    logger.info(
+        f"Retrieved content for {len(all_dockerfiles)} dockerfile(s) across {len(repos)} repositories"
+    )
     return all_dockerfiles
 
 
@@ -218,7 +224,9 @@ def sync(
     :param repos: List of repository dictionaries to search for Dockerfiles
     :return: Path to the temporary file containing Dockerfiles, or None if no Dockerfiles found
     """
-    logger.info(f"Starting dockerfile sync for {len(repos)} repositories in {organization}")
+    logger.info(
+        f"Starting dockerfile sync for {len(repos)} repositories in {organization}"
+    )
 
     # Extract base REST API URL from the GraphQL URL
     base_url = api_url
@@ -235,5 +243,7 @@ def sync(
     # Write to temp file
     temp_path = write_dockerfiles_to_tempfile(dockerfiles)
 
-    logger.info(f"Completed dockerfile sync: {len(dockerfiles)} file(s) written to {temp_path}")
+    logger.info(
+        f"Completed dockerfile sync: {len(dockerfiles)} file(s) written to {temp_path}"
+    )
     return temp_path

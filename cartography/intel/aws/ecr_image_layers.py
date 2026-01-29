@@ -742,7 +742,13 @@ async def fetch_image_layers_async(
             # Return if we found layers or attestation data
             # Manifest lists may have attestation_data without platform_layers
             if platform_layers or attestation_data:
-                return uri, digest, platform_layers, history_by_diff_id, attestation_data
+                return (
+                    uri,
+                    digest,
+                    platform_layers,
+                    history_by_diff_id,
+                    attestation_data,
+                )
 
             return None
 
@@ -762,7 +768,12 @@ async def fetch_image_layers_async(
         )
 
         if not tasks:
-            return image_layers_data, image_digest_map, image_attestation_map
+            return (
+                image_layers_data,
+                image_digest_map,
+                all_history_by_diff_id,
+                image_attestation_map,
+            )
 
         progress_interval = max(1, min(100, total // 10 or 1))
         completed = 0
@@ -813,7 +824,12 @@ async def fetch_image_layers_async(
         logger.info(
             f"Found attestations with base image info for {len(image_attestation_map)} images"
         )
-    return image_layers_data, image_digest_map, all_history_by_diff_id, image_attestation_map
+    return (
+        image_layers_data,
+        image_digest_map,
+        all_history_by_diff_id,
+        image_attestation_map,
+    )
 
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
@@ -951,9 +967,12 @@ def sync(
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
-                loop.run_until_complete(_fetch_with_async_client())
-            )
+            (
+                image_layers_data,
+                image_digest_map,
+                history_by_diff_id,
+                image_attestation_map,
+            ) = loop.run_until_complete(_fetch_with_async_client())
 
             logger.info(
                 f"Successfully fetched layers for {len(image_layers_data)} images"

@@ -3,20 +3,16 @@ import os
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import pytest
-
 import cartography.intel.github.dockerfiles
-from tests.data.github.dockerfiles import (
-    DOCKERFILE_CONTENT,
-    DOCKERFILE_DEV_CONTENT,
-    DOCKERFILE_PROD_CONTENT,
-    FILE_CONTENT_DOCKERFILE,
-    FILE_CONTENT_DOCKERFILE_DEV,
-    FILE_CONTENT_DOCKERFILE_PROD,
-    SEARCH_DOCKERFILES_EMPTY_RESPONSE,
-    SEARCH_DOCKERFILES_RESPONSE,
-    TEST_REPOS,
-)
+from tests.data.github.dockerfiles import DOCKERFILE_CONTENT
+from tests.data.github.dockerfiles import DOCKERFILE_DEV_CONTENT
+from tests.data.github.dockerfiles import DOCKERFILE_PROD_CONTENT
+from tests.data.github.dockerfiles import FILE_CONTENT_DOCKERFILE
+from tests.data.github.dockerfiles import FILE_CONTENT_DOCKERFILE_DEV
+from tests.data.github.dockerfiles import FILE_CONTENT_DOCKERFILE_PROD
+from tests.data.github.dockerfiles import SEARCH_DOCKERFILES_EMPTY_RESPONSE
+from tests.data.github.dockerfiles import SEARCH_DOCKERFILES_RESPONSE
+from tests.data.github.dockerfiles import TEST_REPOS
 
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
@@ -106,6 +102,7 @@ def test_get_dockerfiles_for_repos(mock_rest_api):
     Test that get_dockerfiles_for_repos correctly searches and downloads
     Dockerfiles from multiple repositories.
     """
+
     # Arrange
     def mock_api_response(endpoint, token, base_url, params=None):
         if "/search/code" in endpoint:
@@ -144,7 +141,9 @@ def test_get_dockerfiles_for_repos(mock_rest_api):
     assert dockerfile_dev["content"] == DOCKERFILE_DEV_CONTENT
 
     # Check production.dockerfile
-    dockerfile_prod = next(r for r in results if r["path"] == "deploy/production.dockerfile")
+    dockerfile_prod = next(
+        r for r in results if r["path"] == "deploy/production.dockerfile"
+    )
     assert dockerfile_prod["content"] == DOCKERFILE_PROD_CONTENT
 
 
@@ -163,7 +162,9 @@ def test_write_dockerfiles_to_tempfile():
     ]
 
     # Act
-    temp_path = cartography.intel.github.dockerfiles.write_dockerfiles_to_tempfile(test_data)
+    temp_path = cartography.intel.github.dockerfiles.write_dockerfiles_to_tempfile(
+        test_data
+    )
 
     # Assert
     assert temp_path.exists()
@@ -196,6 +197,7 @@ def test_sync_with_dockerfiles(mock_write, mock_get_dockerfiles, neo4j_session):
     mock_get_dockerfiles.return_value = mock_dockerfiles
 
     from pathlib import Path
+
     mock_temp_path = Path("/tmp/test_dockerfiles.json")
     mock_write.return_value = mock_temp_path
 

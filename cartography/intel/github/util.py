@@ -261,7 +261,11 @@ def call_github_rest_api(
         remaining = int(response.headers["X-RateLimit-Remaining"])
         # Check if this is a search endpoint (stricter limits)
         is_search = "/search/" in endpoint
-        threshold = _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD if is_search else _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
+        threshold = (
+            _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD
+            if is_search
+            else _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
+        )
 
         if remaining < threshold:
             reset_timestamp = int(response.headers.get("X-RateLimit-Reset", 0))
@@ -277,4 +281,5 @@ def call_github_rest_api(
                     time.sleep(sleep_duration.total_seconds())
 
     response.raise_for_status()
-    return response.json()
+    result: Dict[str, Any] = response.json()
+    return result
