@@ -408,6 +408,7 @@ def test_sync_built_from_relationship(
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1": parent_digest,
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": child_digest,
         },
+        {},  # history_by_diff_id
         {
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": {
                 "parent_image_uri": "pkg:docker/000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository@1",
@@ -558,7 +559,7 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, attestation_map = (
+    image_layers_data, digest_map, history_map, attestation_map = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -577,6 +578,9 @@ async def test_fetch_image_layers_async_handles_manifest_list(
     # Verify digest_map includes manifest list and child images
     assert repo_image["uri"] in digest_map
     assert digest_map[repo_image["uri"]] == repo_image["imageDigest"]
+
+    # Verify history_map is populated (may be empty if test data doesn't include history)
+    assert isinstance(history_map, dict)
 
     # Verify attestation data is extracted and mapped to child AMD64 image
     # The attestation in MULTI_ARCH_INDEX attests to the AMD64 image (line 108 of test_data)
@@ -613,7 +617,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
         ecr_layers.ECR_OCI_MANIFEST_MT,
     )
 
-    image_layers_data, digest_map, attestation_map = (
+    image_layers_data, digest_map, history_map, attestation_map = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -623,6 +627,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
 
     assert image_layers_data == {}
     assert digest_map == {}
+    assert history_map == {}
 
 
 @patch("cartography.client.aws.ecr.get_ecr_images")
@@ -768,6 +773,8 @@ def test_sync_layers_preserves_multi_arch_image_properties(
             f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_AMD64_DIGEST}": test_data.MANIFEST_LIST_AMD64_DIGEST,
             f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_ARM64_DIGEST}": test_data.MANIFEST_LIST_ARM64_DIGEST,
         },
+        # history_by_diff_id (empty)
+        {},
         # image_attestation_map (empty)
         {},
     )

@@ -215,6 +215,7 @@ def test_transform_ecr_image_layers_with_attestation_data():
     layers, memberships = transform_ecr_image_layers(
         image_layers_data,
         image_digest_map,
+        None,  # history_by_diff_id
         image_attestation_map,
     )
 
@@ -268,3 +269,88 @@ def test_transform_ecr_image_layers_without_attestation_data():
     # Should NOT have parent_image_uri or parent_image_digest
     assert "parent_image_uri" not in membership
     assert "parent_image_digest" not in membership
+
+
+def test_transform_ecr_image_layers_with_history():
+    """Test that history commands are correctly added to layers."""
+    image_layers_data = {
+        "123456789012.dkr.ecr.us-east-1.amazonaws.com/app:latest": {
+            "linux/amd64": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            ]
+        }
+    }
+
+    image_digest_map = {
+        "123456789012.dkr.ecr.us-east-1.amazonaws.com/app:latest": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+    }
+
+    history_by_diff_id = {
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111": "/bin/sh -c #(nop) ADD file:abc123 in /",
+        "sha256:2222222222222222222222222222222222222222222222222222222222222222": "/bin/sh -c apt-get update && apt-get install -y python3",
+        "sha256:3333333333333333333333333333333333333333333333333333333333333333": "/bin/sh -c #(nop) COPY dir:xyz789 in /app",
+    }
+
+    layers, memberships = transform_ecr_image_layers(
+        image_layers_data,
+        image_digest_map,
+        history_by_diff_id,
+    )
+
+    # Should have 3 layers
+    assert len(layers) == 3
+
+    # Each layer should have its history command
+    for layer in layers:
+        diff_id = layer["diff_id"]
+        assert "history" in layer, f"Layer {diff_id} should have history"
+        assert layer["history"] == history_by_diff_id[diff_id]
+
+
+def test_transform_ecr_image_layers_with_partial_history():
+    """Test that layers without history in the map don't get a history field."""
+    image_layers_data = {
+        "123456789012.dkr.ecr.us-east-1.amazonaws.com/app:latest": {
+            "linux/amd64": [
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            ]
+        }
+    }
+
+    image_digest_map = {
+        "123456789012.dkr.ecr.us-east-1.amazonaws.com/app:latest": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
+    }
+
+    # Only first layer has history
+    history_by_diff_id = {
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111": "/bin/sh -c #(nop) ADD file:abc123 in /",
+    }
+
+    layers, memberships = transform_ecr_image_layers(
+        image_layers_data,
+        image_digest_map,
+        history_by_diff_id,
+    )
+
+    # Should have 2 layers
+    assert len(layers) == 2
+
+    # Find each layer
+    layer1 = next(
+        l for l in layers
+        if l["diff_id"] == "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    )
+    layer2 = next(
+        l for l in layers
+        if l["diff_id"] == "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    )
+
+    # First layer should have history
+    assert "history" in layer1
+    assert layer1["history"] == "/bin/sh -c #(nop) ADD file:abc123 in /"
+
+    # Second layer should NOT have history field (not in map)
+    assert "history" not in layer2

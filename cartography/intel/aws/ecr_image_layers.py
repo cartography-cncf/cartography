@@ -283,7 +283,14 @@ async def _diff_ids_for_manifest(
     manifest_doc: dict[str, Any],
     http_client: httpx.AsyncClient,
     platform_hint: Optional[str],
-) -> dict[str, list[str]]:
+) -> tuple[dict[str, list[str]], dict[str, str]]:
+    """
+    Extract diff_ids and history from a manifest's config blob.
+
+    Returns:
+        - dict mapping platform to list of diff_ids
+        - dict mapping diff_id to history command (created_by)
+    """
     config = manifest_doc.get("config", {})
     config_media_type = config.get("mediaType", "").lower()
 
@@ -292,17 +299,17 @@ async def _diff_ids_for_manifest(
         skip_fragment in config_media_type
         for skip_fragment in SKIP_CONFIG_MEDIA_TYPE_FRAGMENTS
     ):
-        return {}
+        return {}, {}
 
     layers = manifest_doc.get("layers", [])
     if layers and all(
         "in-toto" in layer.get("mediaType", "").lower() for layer in layers
     ):
-        return {}
+        return {}, {}
 
     cfg_digest = config.get("digest")
     if not cfg_digest:
-        return {}
+        return {}, {}
 
     cfg_json = await get_blob_json_via_presigned(
         ecr_client,
@@ -311,13 +318,27 @@ async def _diff_ids_for_manifest(
         http_client,
     )
     if not cfg_json:
-        return {}
+        return {}, {}
 
     # Docker API uses inconsistent casing - check for known variations
     rootfs = cfg_json.get("rootfs") or cfg_json.get("RootFS") or {}
     diff_ids = rootfs.get("diff_ids") or rootfs.get("DiffIDs") or []
     if not diff_ids:
-        return {}
+        return {}, {}
+
+    # Extract history and map to diff_ids
+    # History entries with empty_layer=true don't have corresponding diff_ids
+    history_list = cfg_json.get("history") or cfg_json.get("History") or []
+    history_by_diff_id: dict[str, str] = {}
+
+    diff_id_index = 0
+    for hist_entry in history_list:
+        is_empty_layer = hist_entry.get("empty_layer", False)
+        if not is_empty_layer and diff_id_index < len(diff_ids):
+            created_by = hist_entry.get("created_by", "")
+            if created_by:
+                history_by_diff_id[diff_ids[diff_id_index]] = created_by
+            diff_id_index += 1
 
     if platform_hint:
         platform = platform_hint
@@ -329,12 +350,13 @@ async def _diff_ids_for_manifest(
             cfg_json.get("variant") or cfg_json.get("Variant"),
         )
 
-    return {platform: diff_ids}
+    return {platform: diff_ids}, history_by_diff_id
 
 
 def transform_ecr_image_layers(
     image_layers_data: dict[str, dict[str, list[str]]],
     image_digest_map: dict[str, str],
+    history_by_diff_id: Optional[dict[str, str]] = None,
     image_attestation_map: Optional[dict[str, dict[str, str]]] = None,
     existing_properties_map: Optional[dict[str, dict[str, Any]]] = None,
 ) -> tuple[list[dict], list[dict]]:
@@ -344,10 +366,13 @@ def transform_ecr_image_layers(
 
     :param image_layers_data: Map of image URI to platform to diff_ids
     :param image_digest_map: Map of image URI to image digest
+    :param history_by_diff_id: Map of diff_id to history command (created_by)
     :param image_attestation_map: Map of image URI to attestation data (parent_image_uri, parent_image_digest)
     :param existing_properties_map: Map of image digest to existing ECRImage properties (type, architecture, etc.)
     :return: List of layer objects ready for ingestion
     """
+    if history_by_diff_id is None:
+        history_by_diff_id = {}
     if image_attestation_map is None:
         image_attestation_map = {}
     if existing_properties_map is None:
@@ -424,10 +449,14 @@ def transform_ecr_image_layers(
     # Convert sets back to lists for Neo4j ingestion
     layers = []
     for layer in layers_by_diff_id.values():
+        diff_id = layer["diff_id"]
         layer_dict: dict[str, Any] = {
-            "diff_id": layer["diff_id"],
+            "diff_id": diff_id,
             "is_empty": layer["is_empty"],
         }
+        # Add history command if available
+        if diff_id in history_by_diff_id:
+            layer_dict["history"] = history_by_diff_id[diff_id]
         if layer["next_diff_ids"]:
             layer_dict["next_diff_ids"] = list(layer["next_diff_ids"])
         if layer["head_image_ids"]:
@@ -504,17 +533,24 @@ async def fetch_image_layers_async(
     ecr_client: ECRClient,
     repo_images_list: list[dict],
     max_concurrent: int = 200,
-) -> tuple[dict[str, dict[str, list[str]]], dict[str, str], dict[str, dict[str, str]]]:
+) -> tuple[
+    dict[str, dict[str, list[str]]],
+    dict[str, str],
+    dict[str, str],
+    dict[str, dict[str, str]],
+]:
     """
     Fetch image layers for ECR images in parallel with caching and non-blocking I/O.
 
     Returns:
         - image_layers_data: Map of image URI to platform to diff_ids
         - image_digest_map: Map of image URI to image digest
+        - history_by_diff_id: Map of diff_id to history command (created_by)
         - image_attestation_map: Map of image URI to attestation data (parent_image_uri, parent_image_digest)
     """
     image_layers_data: dict[str, dict[str, list[str]]] = {}
     image_digest_map: dict[str, str] = {}
+    all_history_by_diff_id: dict[str, str] = {}
     image_attestation_map: dict[str, dict[str, str]] = {}
     semaphore = asyncio.Semaphore(max_concurrent)
 
@@ -563,7 +599,13 @@ async def fetch_image_layers_async(
         repo_image: dict,
         http_client: httpx.AsyncClient,
     ) -> Optional[
-        tuple[str, str, dict[str, list[str]], Optional[dict[str, dict[str, str]]]]
+        tuple[
+            str,
+            str,
+            dict[str, list[str]],
+            dict[str, str],
+            Optional[dict[str, dict[str, str]]],
+        ]
     ]:
         """
         Fetch layers for a single image and extract attestation if present.
@@ -593,13 +635,18 @@ async def fetch_image_layers_async(
 
             manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
             platform_layers: dict[str, list[str]] = {}
+            history_by_diff_id: dict[str, str] = {}
             attestation_data: Optional[dict[str, dict[str, str]]] = None
 
             if doc.get("manifests") and manifest_media_type in INDEX_MEDIA_TYPES_LOWER:
 
                 async def _process_child_manifest(
                     manifest_ref: dict,
-                ) -> tuple[dict[str, list[str]], Optional[tuple[str, dict[str, str]]]]:
+                ) -> tuple[
+                    dict[str, list[str]],
+                    dict[str, str],
+                    Optional[tuple[str, dict[str, str]]],
+                ]:
                     # Check if this is an attestation manifest
                     if (
                         manifest_ref.get("annotations", {}).get(
@@ -612,7 +659,7 @@ async def fetch_image_layers_async(
                             "vnd.docker.reference.digest"
                         )
                         if not attests_child_digest:
-                            return {}, None
+                            return {}, {}, None
 
                         # Extract base image from attestation
                         attestation_digest = manifest_ref.get("digest")
@@ -627,12 +674,12 @@ async def fetch_image_layers_async(
                             )
                             if attestation_info:
                                 # Return (attests_child_digest, parent_info) tuple
-                                return {}, (attests_child_digest, attestation_info)
-                        return {}, None
+                                return {}, {}, (attests_child_digest, attestation_info)
+                        return {}, {}, None
 
                     child_digest = manifest_ref.get("digest")
                     if not child_digest:
-                        return {}, None
+                        return {}, {}, None
 
                     # Use optimized caching for child manifest
                     child_doc, _ = await _fetch_and_cache_manifest(
@@ -641,17 +688,17 @@ async def fetch_image_layers_async(
                         [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
                     )
                     if not child_doc:
-                        return {}, None
+                        return {}, {}, None
 
                     platform_hint = extract_platform_from_manifest(manifest_ref)
-                    diff_map = await _diff_ids_for_manifest(
+                    diff_map, history_map = await _diff_ids_for_manifest(
                         ecr_client,
                         repo_name,
                         child_doc,
                         http_client,
                         platform_hint,
                     )
-                    return diff_map, None
+                    return diff_map, history_map, None
 
                 # Process all child manifests in parallel
                 child_tasks = [
@@ -667,10 +714,12 @@ async def fetch_image_layers_async(
                 attestations_by_child_digest: dict[str, dict[str, str]] = {}
 
                 for result in child_results:
-                    if isinstance(result, tuple) and len(result) == 2:
-                        layer_data, attest_data = result
+                    if isinstance(result, tuple) and len(result) == 3:
+                        layer_data, hist_data, attest_data = result
                         if layer_data:
                             platform_layers.update(layer_data)
+                        if hist_data:
+                            history_by_diff_id.update(hist_data)
                         if attest_data:
                             # attest_data is (child_digest, parent_info) tuple
                             child_digest, parent_info = attest_data
@@ -680,7 +729,7 @@ async def fetch_image_layers_async(
                 if attestations_by_child_digest:
                     attestation_data = attestations_by_child_digest
             else:
-                diff_map = await _diff_ids_for_manifest(
+                diff_map, hist_map = await _diff_ids_for_manifest(
                     ecr_client,
                     repo_name,
                     doc,
@@ -688,11 +737,12 @@ async def fetch_image_layers_async(
                     None,
                 )
                 platform_layers.update(diff_map)
+                history_by_diff_id.update(hist_map)
 
             # Return if we found layers or attestation data
             # Manifest lists may have attestation_data without platform_layers
             if platform_layers or attestation_data:
-                return uri, digest, platform_layers, attestation_data
+                return uri, digest, platform_layers, history_by_diff_id, attestation_data
 
             return None
 
@@ -731,11 +781,15 @@ async def fetch_image_layers_async(
                 )
 
             if result:
-                uri, digest, layer_data, attestations_by_child_digest = result
+                uri, digest, layer_data, history_data, attestations_by_child_digest = (
+                    result
+                )
                 if not digest:
                     raise ValueError(f"Empty digest returned for image {uri}")
                 image_layers_data[uri] = layer_data
                 image_digest_map[uri] = digest
+                if history_data:
+                    all_history_by_diff_id.update(history_data)
                 if attestations_by_child_digest:
                     # Map attestation data by child digest URIs
                     repo_uri = extract_repo_uri_from_image_uri(uri)
@@ -751,11 +805,15 @@ async def fetch_image_layers_async(
     logger.info(
         f"Successfully fetched layers for {len(image_layers_data)}/{len(repo_images_list)} images"
     )
+    if all_history_by_diff_id:
+        logger.info(
+            f"Extracted history commands for {len(all_history_by_diff_id)} layers"
+        )
     if image_attestation_map:
         logger.info(
             f"Found attestations with base image info for {len(image_attestation_map)} images"
         )
-    return image_layers_data, image_digest_map, image_attestation_map
+    return image_layers_data, image_digest_map, all_history_by_diff_id, image_attestation_map
 
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: dict) -> None:
@@ -877,6 +935,7 @@ def sync(
             async def _fetch_with_async_client() -> tuple[
                 dict[str, dict[str, list[str]]],
                 dict[str, str],
+                dict[str, str],
                 dict[str, dict[str, str]],
             ]:
                 async with aioboto3_session.client(
@@ -892,7 +951,7 @@ def sync(
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            image_layers_data, image_digest_map, image_attestation_map = (
+            image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
                 loop.run_until_complete(_fetch_with_async_client())
             )
 
@@ -902,6 +961,7 @@ def sync(
             layers, memberships = transform_ecr_image_layers(
                 image_layers_data,
                 image_digest_map,
+                history_by_diff_id,
                 image_attestation_map,
                 existing_properties,
             )
