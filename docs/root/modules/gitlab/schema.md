@@ -118,6 +118,8 @@ Representation of a GitLab nested subgroup. Groups can contain other groups (cre
 
 Representation of a GitLab project (repository). Projects are GitLab's equivalent of repositories and can belong to organizations or groups.
 
+**Note:** GitLab projects also carry the `GitLabRepository` label for backwards compatibility with existing queries.
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
