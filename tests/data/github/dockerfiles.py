@@ -4,6 +4,8 @@ Test data for GitHub Dockerfiles module.
 This module contains mock data that simulates GitHub's REST API responses
 for code search and file content endpoints.
 """
+
+import base64
 from typing import Any
 
 # Mock response from GitHub Code Search API (/search/code)
@@ -106,8 +108,6 @@ USER nobody
 EXPOSE 8080
 CMD ["gunicorn", "app:app"]
 """
-
-import base64
 
 # Mock response from GitHub Contents API (/repos/owner/repo/contents/path)
 FILE_CONTENT_DOCKERFILE: dict[str, Any] = {

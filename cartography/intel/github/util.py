@@ -416,4 +416,5 @@ def call_github_rest_api(
                     time.sleep(sleep_duration.total_seconds())
 
     response.raise_for_status()
-    return response.json()
+    result: Dict[str, Any] = response.json()
+    return result
