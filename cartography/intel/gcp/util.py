@@ -122,9 +122,9 @@ def is_api_disabled_error(e: HttpError) -> bool:
     match general PERMISSION_DENIED errors (IAM misconfigurations) - those
     should still fail loudly.
 
-    Matches errors with messages like:
-    - "Cloud Functions API has not been used in project X before or it is disabled"
-    - "Bigtable Admin API is not enabled"
+    Detection strategy:
+    1. Primary: Check error.errors[0].reason for 'accessNotConfigured' or 'SERVICE_DISABLED'
+    2. Fallback: Check error.message for standard "API not enabled" patterns
 
     :param e: The HttpError exception to check
     :return: True if the error indicates API is disabled, False otherwise
@@ -132,10 +132,24 @@ def is_api_disabled_error(e: HttpError) -> bool:
     try:
         error_json = json.loads(e.content.decode("utf-8"))
         err = error_json.get("error", {})
-        message = err.get("message", "")
 
-        # Check for the standard "API not enabled" message patterns
-        # These indicate the API needs to be enabled in the project, not an IAM issue
+        # Primary check: Use the 'reason' field (most reliable indicator)
+        # This distinguishes API disabled from IAM permission denied
+        errors_list = err.get("errors", [])
+        if errors_list:
+            reason = errors_list[0].get("reason", "")
+            if reason in ("accessNotConfigured", "SERVICE_DISABLED"):
+                return True
+            # Explicitly reject 'forbidden' and other IAM-related reasons
+            if reason in (
+                "forbidden",
+                "insufficientPermissions",
+                "IAM_PERMISSION_DENIED",
+            ):
+                return False
+
+        # Fallback: Check message patterns for APIs that may use different error formats
+        message = err.get("message", "")
         return (
             "API has not been used" in message
             or "is not enabled" in message

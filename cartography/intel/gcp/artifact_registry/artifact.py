@@ -165,6 +165,7 @@ def get_python_packages(client: Resource, repository_name: str) -> list[dict] | 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
     :return: List of Python package dicts from the API, or None if API is not enabled.
+    :raises HttpError: For errors other than API disabled or permission denied.
     """
     try:
         packages: list[dict] = []
