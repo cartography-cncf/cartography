@@ -111,6 +111,7 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         common_job_parameters,
         all_groups,
         all_projects,
+        config.gitlab_commits_since_days,
     )
 
     # Sync container repositories (includes cleanup since it's org-scoped)

@@ -12,6 +12,9 @@ could add commit author tracking to capture these users.
 """
 
 import logging
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from typing import Any
 
 import neo4j
@@ -50,9 +53,11 @@ def get_group_members(
     return members
 
 
-def get_commits(gitlab_url: str, token: str, project_id: int) -> list[dict[str, Any]]:
+def get_commits(
+    gitlab_url: str, token: str, project_id: int, since_days: int = 90
+) -> list[dict[str, Any]]:
     """
-    Fetch all commits for a specific project from GitLab.
+    Fetch commits for a specific project from GitLab.
 
     Uses the /projects/:id/repository/commits endpoint.
     Returns commit data including author name, email, and committed date.
@@ -60,11 +65,23 @@ def get_commits(gitlab_url: str, token: str, project_id: int) -> list[dict[str, 
     :param gitlab_url: GitLab instance URL
     :param token: GitLab API token
     :param project_id: Numeric project ID
+    :param since_days: Only fetch commits from the last N days. Defaults to 90.
     :return: List of commit dicts
     """
     logger.debug(f"Fetching commits for project ID {project_id}")
+
+    # Calculate the since date
+    since_date = datetime.now(timezone.utc) - timedelta(days=since_days)
+    extra_params = {"since": since_date.isoformat()}
+    logger.debug(
+        f"Fetching commits since {since_date.isoformat()} ({since_days} days ago)"
+    )
+
     commits = get_paginated(
-        gitlab_url, token, f"/api/v4/projects/{project_id}/repository/commits"
+        gitlab_url,
+        token,
+        f"/api/v4/projects/{project_id}/repository/commits",
+        extra_params=extra_params,
     )
     logger.debug(f"Fetched {len(commits)} commits for project ID {project_id}")
     return commits
@@ -72,16 +89,22 @@ def get_commits(gitlab_url: str, token: str, project_id: int) -> list[dict[str, 
 
 def transform_commit_activity(
     commits_by_project: dict[str, list[dict[str, Any]]],
+    users_by_email: dict[str, str],
     users_by_name: dict[str, str],
     user_records: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
     Transform commits into user-project commit activity records.
 
-    Groups commits by (author name, project) and calculates statistics.
+    Groups commits by (author identifier, project) and calculates statistics.
     Takes existing user records and creates new records with commit properties added.
 
+    Matching strategy:
+    1. Try to match by author_email first (more accurate)
+    2. Fall back to author_name if email not available or not found
+
     :param commits_by_project: Dict mapping project_url to list of commits
+    :param users_by_email: Dict mapping user email to user web_url
     :param users_by_name: Dict mapping user display name to user web_url
     :param user_records: Existing user records with all user properties
     :return: List of commit activity records (user data + commit properties)
@@ -92,24 +115,42 @@ def transform_commit_activity(
     # Aggregate: (user_url, project_url) -> list of commit dates
     activity: dict[tuple[str, str], list[str]] = {}
 
+    # Track matching stats for logging
+    email_matches = 0
+    name_matches = 0
+    no_matches = 0
+
     for project_url, commits in commits_by_project.items():
         for commit in commits:
             committed_date = commit.get("committed_date")
+            author_email = commit.get("author_email")
             author_name = commit.get("author_name")
 
-            if not committed_date or not author_name:
+            if not committed_date:
                 continue
 
-            # Skip if author not a current member
-            if author_name not in users_by_name:
+            # Try to match user by email first, then fall back to name
+            user_url = None
+            if author_email and author_email in users_by_email:
+                user_url = users_by_email[author_email]
+                email_matches += 1
+            elif author_name and author_name in users_by_name:
+                user_url = users_by_name[author_name]
+                name_matches += 1
+            else:
+                no_matches += 1
                 continue
 
-            user_url = users_by_name[author_name]
             key = (user_url, project_url)
 
             if key not in activity:
                 activity[key] = []
             activity[key].append(committed_date)
+
+    logger.info(
+        f"Commit author matching: {email_matches} by email, "
+        f"{name_matches} by name, {no_matches} unmatched"
+    )
 
     # Build records by taking existing user data and adding commit properties
     records = []
@@ -317,9 +358,12 @@ def sync_gitlab_users(
     common_job_parameters: dict[str, Any],
     groups: list[dict[str, Any]],
     projects: list[dict[str, Any]],
+    commits_since_days: int = 90,
 ) -> None:
     """
     Sync GitLab users, their group memberships, and commit activity for a specific organization.
+
+    :param commits_since_days: Number of days of commit history to fetch. Defaults to 90.
     """
     organization_id = common_job_parameters.get("ORGANIZATION_ID")
     if not organization_id:
@@ -365,25 +409,53 @@ def sync_gitlab_users(
     # Load users and their group memberships into Neo4j
     load_users(neo4j_session, user_records, org_url, update_tag)
 
-    # Build name-to-user mapping for commit author matching
-    # Match by display name (e.g., "John Doe") from git commits
+    # Build email and name mappings for commit author matching
+    # Try email first (more accurate), fall back to name
+    users_by_email: dict[str, str] = {}
     users_by_name: dict[str, str] = {}
-    for member in org_members:
+
+    # Track duplicate names for warning
+    duplicate_names: set[str] = set()
+
+    # Collect all members (org + groups) to process
+    all_members = list(org_members)
+    for members in group_members_by_group.values():
+        all_members.extend(members)
+
+    for member in all_members:
         name = member.get("name")
+        email = member.get("email")
         web_url = member.get("web_url")
         username = member.get("username", "")
-        if name and web_url and "_bot_" not in username:
+
+        # Skip bot users
+        if "_bot_" in username:
+            continue
+
+        # Build email mapping (if email is available)
+        if email and web_url:
+            users_by_email[email] = web_url
+
+        # Build name mapping (always available as fallback)
+        if name and web_url:
+            # Check for duplicate names
+            if name in users_by_name and users_by_name[name] != web_url:
+                duplicate_names.add(name)
             users_by_name[name] = web_url
 
-    for members in group_members_by_group.values():
-        for member in members:
-            name = member.get("name")
-            web_url = member.get("web_url")
-            username = member.get("username", "")
-            if name and web_url and "_bot_" not in username:
-                users_by_name[name] = web_url
+    # Warn about duplicate names (silent data loss risk)
+    if duplicate_names:
+        logger.warning(
+            f"Found {len(duplicate_names)} users with duplicate display names: "
+            f"{', '.join(sorted(duplicate_names))}. "
+            "Commit matching by name may be inaccurate for these users. "
+            "Email matching will be attempted first."
+        )
 
-    logger.info(f"Mapped {len(users_by_name)} user names for commit matching")
+    logger.info(
+        f"Built commit author mappings: {len(users_by_email)} by email, "
+        f"{len(users_by_name)} by name"
+    )
 
     # Fetch commits for all projects to build commit activity
     commits_by_project: dict[str, list[dict[str, Any]]] = {}
@@ -393,7 +465,7 @@ def sync_gitlab_users(
         if not project_id or not project_url:
             continue
 
-        commits = get_commits(gitlab_url, token, project_id)
+        commits = get_commits(gitlab_url, token, project_id, commits_since_days)
         if commits:
             commits_by_project[project_url] = commits
             logger.debug(f"Fetched {len(commits)} commits for project {project_url}")
@@ -403,7 +475,7 @@ def sync_gitlab_users(
     # Transform and load commit activity
     if commits_by_project:
         activity_records = transform_commit_activity(
-            commits_by_project, users_by_name, user_records
+            commits_by_project, users_by_email, users_by_name, user_records
         )
         if activity_records:
             load_commit_activity(neo4j_session, activity_records, org_url, update_tag)
