@@ -92,8 +92,14 @@ class LoadBalancerV2Schema(CartographyNodeSchema):
     Target relationships (EXPOSE) are defined as MatchLinks below for introspection.
     """
 
-    label: str = "LoadBalancerV2"
+    label: str = "AWSLoadBalancerV2"
     properties: LoadBalancerV2NodeProperties = LoadBalancerV2NodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            "LoadBalancer",  # Ontology node label
+            "LoadBalancerV2",  # DEPRECATED: for backwards compatibility
+        ]
+    )
     sub_resource_relationship: LoadBalancerV2ToAWSAccountRel = (
         LoadBalancerV2ToAWSAccountRel()
     )
@@ -130,7 +136,7 @@ class LoadBalancerV2ToEC2InstanceMatchLink(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"instanceid": PropertyRef("TargetId")},
     )
-    source_node_label: str = "LoadBalancerV2"
+    source_node_label: str = "AWSLoadBalancerV2"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("LoadBalancerId")},
     )
@@ -149,7 +155,7 @@ class LoadBalancerV2ToEC2PrivateIpMatchLink(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"private_ip_address": PropertyRef("TargetId")},
     )
-    source_node_label: str = "LoadBalancerV2"
+    source_node_label: str = "AWSLoadBalancerV2"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("LoadBalancerId")},
     )
@@ -168,7 +174,7 @@ class LoadBalancerV2ToAWSLambdaMatchLink(CartographyRelSchema):
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TargetId")},
     )
-    source_node_label: str = "LoadBalancerV2"
+    source_node_label: str = "AWSLoadBalancerV2"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("LoadBalancerId")},
     )
@@ -183,11 +189,11 @@ class LoadBalancerV2ToAWSLambdaMatchLink(CartographyRelSchema):
 class LoadBalancerV2ToLoadBalancerV2MatchLink(CartographyRelSchema):
     """(:LoadBalancerV2)-[:EXPOSE]->(:LoadBalancerV2) for ALB targets"""
 
-    target_node_label: str = "LoadBalancerV2"
+    target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"arn": PropertyRef("TargetId")},
     )
-    source_node_label: str = "LoadBalancerV2"
+    source_node_label: str = "AWSLoadBalancerV2"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {"id": PropertyRef("LoadBalancerId")},
     )
@@ -236,7 +242,7 @@ class ELBV2ListenerToLoadBalancerV2RelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ELBV2ListenerToLoadBalancerV2Rel(CartographyRelSchema):
-    target_node_label: str = "LoadBalancerV2"
+    target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("LoadBalancerId")},
     )

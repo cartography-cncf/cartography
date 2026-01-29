@@ -25,6 +25,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class GitLabContainerImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("digest")
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
+    uri: PropertyRef = PropertyRef("uri", extra_index=True)
     media_type: PropertyRef = PropertyRef("media_type")
     schema_version: PropertyRef = PropertyRef("schema_version")
     type: PropertyRef = PropertyRef("type", extra_index=True)

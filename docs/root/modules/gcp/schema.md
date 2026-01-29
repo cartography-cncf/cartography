@@ -226,6 +226,8 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
 
 Representation of a GCP [Instance](https://cloud.google.com/compute/docs/reference/rest/v1/instances).  Additional references can be found in the [official documentation]( https://cloud.google.com/compute/docs/concepts).
 
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, AzureVirtualMachine, DODroplet).
+
 | Field            | Description |
 | ---------------- | ----------- |
 | firstseen        | Timestamp of when a sync job first discovered this node |
@@ -561,6 +563,8 @@ Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/referen
 ### GCPForwardingRule
 
 Representation of GCP [Forwarding Rules](https://cloud.google.com/compute/docs/reference/rest/v1/forwardingRules/list) and [Global Forwarding Rules](https://cloud.google.com/compute/docs/reference/rest/v1/globalForwardingRules/list).
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, LoadBalancer, AzureLoadBalancer).
 
 | Field                 | Description                                                                                                                                          |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1191,6 +1195,8 @@ Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/d
 
 Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
 
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, AzureSQLDatabase, GCPBigtableInstance).
+
 | Field | Description |
 |---|---|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -1307,6 +1313,8 @@ Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.co
 ### GCPCloudFunction
 
 Representation of a Google [Cloud Function](https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions) (v1 API).
+
+> **Ontology Mapping**: This node has the extra label `Function` and normalized `_ont_*` properties for cross-platform serverless function queries. See [Function](../../ontology/schema.md#function).
 
 | Field                 | Description                                                                 |
 | --------------------- | --------------------------------------------------------------------------- |
@@ -1622,6 +1630,8 @@ graph LR
 
 Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services).
 
+> **Ontology Mapping**: This node has the extra label `Function` to enable cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction).
+
 | Field | Description |
 |---|---|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -1676,6 +1686,8 @@ Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/r
 ### GCPCloudRunJob
 
 Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
+
+> **Ontology Mapping**: This node has the extra label `Function` to enable cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction).
 
 | Field | Description |
 |---|---|

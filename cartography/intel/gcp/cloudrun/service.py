@@ -2,13 +2,13 @@ import logging
 import re
 
 import neo4j
-from google.api_core.exceptions import PermissionDenied
-from google.auth.exceptions import DefaultCredentialsError
-from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.cloudrun.service import GCPCloudRunServiceSchema
 from cartography.util import timeit
 
@@ -16,16 +16,25 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_services(client: Resource, project_id: str, location: str = "-") -> list[dict]:
+def get_services(
+    client: Resource, project_id: str, location: str = "-"
+) -> list[dict] | None:
     """
     Gets GCP Cloud Run Services for a project and location.
+
+    Returns:
+        list[dict]: List of Cloud Run services (empty list if project has no services)
+        None: If the Cloud Run Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
     """
-    services: list[dict] = []
     try:
+        services: list[dict] = []
         parent = f"projects/{project_id}/locations/{location}"
         request = client.projects().locations().services().list(parent=parent)
         while request is not None:
-            response = request.execute()
+            response = gcp_api_execute_with_retry(request)
             services.extend(response.get("services", []))
             request = (
                 client.projects()
@@ -37,10 +46,14 @@ def get_services(client: Resource, project_id: str, location: str = "-") -> list
                 )
             )
         return services
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Cloud Run services for project {project_id} due to permissions or auth error: {e}",
-        )
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve Cloud Run services on project %s due to permissions "
+                "issues or API not enabled. Skipping sync to preserve existing data.",
+                project_id,
+            )
+            return None
         raise
 
 
@@ -123,12 +136,16 @@ def sync_services(
     """
     logger.info(f"Syncing Cloud Run Services for project {project_id}.")
     services_raw = get_services(client, project_id)
-    if not services_raw:
-        logger.info(f"No Cloud Run services found for project {project_id}.")
 
-    services = transform_services(services_raw, project_id)
-    load_services(neo4j_session, services, project_id, update_tag)
+    # Only load and cleanup if we successfully retrieved data (even if empty list).
+    # If get() returned None due to API not enabled, skip both to preserve existing data.
+    if services_raw is not None:
+        if not services_raw:
+            logger.info(f"No Cloud Run services found for project {project_id}.")
 
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["project_id"] = project_id
-    cleanup_services(neo4j_session, cleanup_job_params)
+        services = transform_services(services_raw, project_id)
+        load_services(neo4j_session, services, project_id, update_tag)
+
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["project_id"] = project_id
+        cleanup_services(neo4j_session, cleanup_job_params)
