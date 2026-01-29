@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import cartography.intel.aws.ecs
 import tests.data.aws.ecs
+from cartography.util import run_analysis_job
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -775,3 +776,216 @@ def test_sync_ecs_comprehensive(
             "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster",
         ),
     }, "ECSServices"
+
+
+def test_resolve_container_image_manifests_direct_image(neo4j_session):
+    """
+    Test that containers referencing direct platform images get resolvedImageDigest set correctly.
+    When imageDigest points to an ECRImage with type='image', resolvedImageDigest should equal imageDigest.
+    """
+    # Arrange: Create ECR image node (direct platform image)
+    direct_digest = tests.data.aws.ecs.DIRECT_IMAGE_DIGEST
+    neo4j_session.run(
+        """
+        MERGE (img:ECRImage {id: $digest})
+        SET img.digest = $digest,
+            img.type = 'image',
+            img.architecture = 'amd64',
+            img.lastupdated = $update_tag
+        """,
+        digest=direct_digest,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Create ECS container pointing to the direct image
+    container_data = [tests.data.aws.ecs.ECS_CONTAINERS_FOR_RESOLUTION[0]]
+    cartography.intel.aws.ecs.load_ecs_containers(
+        neo4j_session,
+        container_data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act: Run resolution via analysis job
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+    run_analysis_job(
+        "container_image_resolution.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+    # Assert: resolved_image_digest should equal image_digest for direct images
+    result = neo4j_session.run(
+        """
+        MATCH (c:ECSContainer {name: 'direct-image-container'})
+        RETURN c.image_digest as image_digest,
+               c.resolved_image_digest as resolved_image_digest,
+               c.manifest_list_digest as manifest_list_digest
+        """,
+    ).single()
+
+    assert result is not None
+    assert result["image_digest"] == direct_digest
+    assert result["resolved_image_digest"] == direct_digest
+    assert (
+        result["manifest_list_digest"] is None
+    ), "manifest_list_digest should be null for direct images"
+
+
+def test_resolve_container_image_manifests_manifest_list(neo4j_session):
+    """
+    Test that containers referencing manifest lists get resolvedImageDigest set to the platform image.
+    When imageDigest points to an ECRImage with type='manifest_list', the resolution should follow
+    the CONTAINS_IMAGE relationship to find the platform-specific image.
+    """
+    # Arrange: Create ECR manifest list and platform images
+    manifest_list_digest = tests.data.aws.ecs.MANIFEST_LIST_DIGEST
+    amd64_digest = tests.data.aws.ecs.PLATFORM_IMAGE_AMD64_DIGEST
+    arm64_digest = tests.data.aws.ecs.PLATFORM_IMAGE_ARM64_DIGEST
+
+    # Create manifest list
+    neo4j_session.run(
+        """
+        MERGE (ml:ECRImage {id: $digest})
+        SET ml.digest = $digest,
+            ml.type = 'manifest_list',
+            ml.lastupdated = $update_tag
+        """,
+        digest=manifest_list_digest,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Create platform images
+    neo4j_session.run(
+        """
+        MERGE (img:ECRImage {id: $digest})
+        SET img.digest = $digest,
+            img.type = 'image',
+            img.architecture = $arch,
+            img.lastupdated = $update_tag
+        """,
+        digest=amd64_digest,
+        arch="amd64",
+        update_tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        """
+        MERGE (img:ECRImage {id: $digest})
+        SET img.digest = $digest,
+            img.type = 'image',
+            img.architecture = $arch,
+            img.lastupdated = $update_tag
+        """,
+        digest=arm64_digest,
+        arch="arm64",
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    # Create CONTAINS_IMAGE relationships
+    neo4j_session.run(
+        """
+        MATCH (ml:ECRImage {digest: $ml_digest})
+        MATCH (img:ECRImage {digest: $img_digest})
+        MERGE (ml)-[:CONTAINS_IMAGE]->(img)
+        """,
+        ml_digest=manifest_list_digest,
+        img_digest=amd64_digest,
+    )
+    neo4j_session.run(
+        """
+        MATCH (ml:ECRImage {digest: $ml_digest})
+        MATCH (img:ECRImage {digest: $img_digest})
+        MERGE (ml)-[:CONTAINS_IMAGE]->(img)
+        """,
+        ml_digest=manifest_list_digest,
+        img_digest=arm64_digest,
+    )
+
+    # Create ECS container pointing to the manifest list
+    container_data = [tests.data.aws.ecs.ECS_CONTAINERS_FOR_RESOLUTION[1]]
+    cartography.intel.aws.ecs.load_ecs_containers(
+        neo4j_session,
+        container_data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act: Run resolution via analysis job
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+    run_analysis_job(
+        "container_image_resolution.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+    # Assert: resolved_image_digest should be the platform image, manifest_list_digest should be the manifest list
+    result = neo4j_session.run(
+        """
+        MATCH (c:ECSContainer {name: 'manifest-list-container'})
+        RETURN c.image_digest as image_digest,
+               c.resolved_image_digest as resolved_image_digest,
+               c.manifest_list_digest as manifest_list_digest
+        """,
+    ).single()
+
+    assert result is not None
+    assert result["image_digest"] == manifest_list_digest
+    # Should resolve to amd64 (preferred) since it's first in ORDER BY
+    assert result["resolved_image_digest"] == amd64_digest
+    assert result["manifest_list_digest"] == manifest_list_digest
+
+
+def test_resolve_container_image_manifests_no_ecr_image(neo4j_session):
+    """
+    Test that containers with no matching ECRImage don't get modified.
+    This handles cases where containers use non-ECR images (e.g., Docker Hub).
+    """
+    # Arrange: Create ECS container with digest that has no matching ECRImage
+    container_data = [
+        {
+            "containerArn": "arn:aws:ecs:us-east-1:000000000000:container/test_cluster/no_ecr_task/no-ecr-container-id",
+            "taskArn": "arn:aws:ecs:us-east-1:000000000000:task/test_cluster/no_ecr_task",
+            "name": "no-ecr-container",
+            "image": "nginx:latest",
+            "imageDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+            "lastStatus": "RUNNING",
+            "healthStatus": "HEALTHY",
+            "cpu": "256",
+            "memory": "512",
+        }
+    ]
+    cartography.intel.aws.ecs.load_ecs_containers(
+        neo4j_session,
+        container_data,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act: Run resolution via analysis job (should not fail, just skip this container)
+    common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG}
+    run_analysis_job(
+        "container_image_resolution.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+    # Assert: Container should exist but resolved_image_digest should be null
+    result = neo4j_session.run(
+        """
+        MATCH (c:ECSContainer {name: 'no-ecr-container'})
+        RETURN c.image_digest as image_digest,
+               c.resolved_image_digest as resolved_image_digest,
+               c.manifest_list_digest as manifest_list_digest
+        """,
+    ).single()
+
+    assert result is not None
+    assert (
+        result["image_digest"]
+        == "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+    )
+    assert result["resolved_image_digest"] is None, "Should not resolve non-ECR images"
+    assert result["manifest_list_digest"] is None

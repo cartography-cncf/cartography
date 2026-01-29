@@ -24,6 +24,10 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     image_pull_policy: PropertyRef = PropertyRef("image_pull_policy")
     status_image_id: PropertyRef = PropertyRef("status_image_id")
     status_image_sha: PropertyRef = PropertyRef("status_image_sha", extra_index=True)
+    resolved_image_digest: PropertyRef = PropertyRef(
+        "resolvedImageDigest", extra_index=True
+    )
+    manifest_list_digest: PropertyRef = PropertyRef("manifestListDigest")
     status_ready: PropertyRef = PropertyRef("status_ready")
     status_started: PropertyRef = PropertyRef("status_started")
     status_state: PropertyRef = PropertyRef("status_state", extra_index=True)
