@@ -542,7 +542,13 @@ def _match_commands_to_dockerfile(
     image_commands: list[str],
     dockerfile: ParsedDockerfile,
 ) -> DockerfileMatch:
-    """Compare normalized commands from image history with Dockerfile instructions."""
+    """Compare normalized commands from image history with Dockerfile instructions.
+
+    For images built from multi-stage Dockerfiles, the added layers appear at the
+    END of the image history (after base image layers). We compare the LAST N
+    image commands against the Dockerfile commands, where N = number of Dockerfile
+    layer-creating instructions.
+    """
     df_instructions = dockerfile.get_final_stage_layer_instructions()
 
     if not df_instructions or not image_commands:
@@ -555,10 +561,20 @@ def _match_commands_to_dockerfile(
         )
 
     df_commands = [instr.normalized_value for instr in df_instructions]
-    total = max(len(image_commands), len(df_commands))
+
+    # Take the LAST N image commands to match against Dockerfile commands
+    # This handles the case where base image layers come first
+    n_df_commands = len(df_commands)
+    if len(image_commands) > n_df_commands:
+        # Compare last N image commands against Dockerfile commands
+        image_commands_to_compare = image_commands[-n_df_commands:]
+    else:
+        image_commands_to_compare = image_commands
+
+    total = max(len(image_commands_to_compare), len(df_commands))
     similarities = []
 
-    for img_cmd, df_cmd in zip(image_commands, df_commands):
+    for img_cmd, df_cmd in zip(image_commands_to_compare, df_commands):
         sim = compute_command_similarity(img_cmd, df_cmd)
         similarities.append(sim)
 
