@@ -341,6 +341,8 @@ Representation of a software dependency from GitLab's dependency scanning artifa
 
 Representation of a GitLab container registry repository. Each project can have multiple container repositories at different paths (e.g., project root, /app, /worker).
 
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
