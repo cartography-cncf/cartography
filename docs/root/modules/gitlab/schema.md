@@ -465,6 +465,12 @@ Representation of a container image identified by its digest. Images are content
     (Package)-[DEPLOYED]->(GitLabContainerImage)
     ```
 
+- KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
+
+    ```
+    (KubernetesContainer)-[HAS_IMAGE]->(GitLabContainerImage)
+    ```
+
 ### GitLabContainerImageAttestation
 
 Representation of a container image attestation (signature or provenance). Attestations can be discovered via two methods: cosign tag-based (`.sig`, `.att` suffixes) or buildx embedded (stored in manifest lists with `attestation-manifest` annotation).
