@@ -311,10 +311,13 @@ def _build_cleanup_node_and_rel_queries(
         # matching the sub_resource_relationship rel_label. We check child.lastupdated to avoid deleting children
         # that were re-parented to a new tenant in the current sync.
         cascade_rel_label = node_schema.sub_resource_relationship.rel_label
+        # The direction for finding children is OPPOSITE of sub_resource_relationship direction:
+        # - INWARD sub_resource means parent points to node, so node points to children (OUTWARD)
+        # - OUTWARD sub_resource means node points to parent, so children point to node (INWARD)
         if node_schema.sub_resource_relationship.direction == LinkDirection.INWARD:
-            cascade_rel_clause = f"<-[:{cascade_rel_label}]-"
-        else:
             cascade_rel_clause = f"-[:{cascade_rel_label}]->"
+        else:
+            cascade_rel_clause = f"<-[:{cascade_rel_label}]-"
         # Use a unit subquery to delete many children without collecting them and without
         # risking the parent row being filtered out by OPTIONAL MATCH + WHERE.
         delete_action_clauses = [

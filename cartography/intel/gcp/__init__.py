@@ -297,7 +297,7 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
-            if instances_raw:
+            if instances_raw is not None:
                 clusters_raw = bigtable_cluster.sync_bigtable_clusters(
                     neo4j_session,
                     bigtable_client,
@@ -325,15 +325,17 @@ def _sync_project_resources(
                     common_job_parameters,
                 )
 
-                if clusters_raw:
-                    bigtable_backup.sync_bigtable_backups(
-                        neo4j_session,
-                        bigtable_client,
-                        clusters_raw,
-                        project_id,
-                        gcp_update_tag,
-                        common_job_parameters,
-                    )
+                # Always run backup sync when instances_raw is not None.
+                # Even if clusters_raw is empty (all instances deleted), we need to
+                # run cleanup to remove stale backup nodes.
+                bigtable_backup.sync_bigtable_backups(
+                    neo4j_session,
+                    bigtable_client,
+                    clusters_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         if service_names.aiplatform in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Vertex AI.")
@@ -354,14 +356,16 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
-            if endpoints_raw:
-                sync_vertex_ai_deployed_models(
-                    neo4j_session,
-                    endpoints_raw,
-                    project_id,
-                    gcp_update_tag,
-                    common_job_parameters,
-                )
+            # Always run deployed models sync when endpoints sync succeeded.
+            # Even if endpoints_raw is empty (no endpoints), we need to
+            # run cleanup to remove stale deployed model nodes.
+            sync_vertex_ai_deployed_models(
+                neo4j_session,
+                endpoints_raw,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
             sync_workbench_instances(
                 neo4j_session,
                 aiplatform_client,
@@ -446,7 +450,9 @@ def _sync_project_resources(
 
         if service_names.cloud_sql in enabled_services:
             logger.info("Syncing GCP project %s for Cloud SQL.", project_id)
-            cloud_sql_cred = build_client("sqladmin", "v1beta4")
+            cloud_sql_cred = build_client(
+                "sqladmin", "v1beta4", credentials=credentials
+            )
 
             instances_raw = cloud_sql_instance.sync_sql_instances(
                 neo4j_session,
@@ -456,7 +462,7 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
-            if instances_raw:
+            if instances_raw is not None:
                 cloud_sql_database.sync_sql_databases(
                     neo4j_session,
                     cloud_sql_cred,
@@ -667,8 +673,11 @@ def start_gcp_ingestion(
         logger.debug(f"Running cleanup for org-level IAM roles in {org_resource_name}")
         iam.cleanup_org_roles(neo4j_session, common_job_parameters)
 
-        # Clean up projects and folders for this org (children before parents)
-        # Use cascade_delete=True for projects to clean up any remaining project children
+        # Clean up projects and folders for this org (children before parents).
+        # Use cascade_delete=True to also delete orphaned child resources when a
+        # project/folder is deleted. This handles the case where a project was deleted
+        # between syncs - its resources would otherwise remain as orphans since resource
+        # cleanup is scoped to PROJECT_ID and we only sync existing projects.
         logger.debug(f"Running cleanup for projects and folders in {org_resource_name}")
         GraphJob.from_node_schema(
             GCPProjectSchema(), common_job_parameters, cascade_delete=True
@@ -677,8 +686,10 @@ def start_gcp_ingestion(
             GCPFolderSchema(), common_job_parameters, cascade_delete=True
         ).run(neo4j_session)
 
-        # Save org cleanup job for later
-        org_cleanup_jobs.append((GCPOrganizationSchema, dict(common_job_parameters)))
+        # Save org cleanup job for later (with cascade_delete for defense in depth)
+        org_cleanup_jobs.append(
+            (GCPOrganizationSchema, dict(common_job_parameters), True)
+        )
 
         # Remove org ID from common job parameters after processing
         del common_job_parameters["ORG_RESOURCE_NAME"]
@@ -686,8 +697,8 @@ def start_gcp_ingestion(
     # Run all org cleanup jobs at the very end, after all children have been cleaned up
     # Use cascade_delete=True to clean up any remaining org children
     logger.info("Running cleanup for GCP organizations")
-    for schema_class, params in org_cleanup_jobs:
-        GraphJob.from_node_schema(schema_class(), params, cascade_delete=True).run(
+    for schema_class, params, cascade in org_cleanup_jobs:
+        GraphJob.from_node_schema(schema_class(), params, cascade_delete=cascade).run(
             neo4j_session
         )
 
