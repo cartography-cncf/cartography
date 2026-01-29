@@ -1,4 +1,141 @@
 # flake8: noqa
+# Test organization ID
+TEST_ORG_ID = "organizations/123456789012"
+
+# Source: https://cloud.google.com/iam/docs/reference/rest/v1/roles#Role
+# Predefined/Basic roles (global, not project or org specific)
+LIST_PREDEFINED_ROLES_RESPONSE = {
+    "roles": [
+        {
+            "name": "roles/owner",
+            "title": "Owner",
+            "description": "Full access to all resources.",
+            "includedPermissions": [
+                "resourcemanager.projects.get",
+                "resourcemanager.projects.delete",
+                "iam.roles.create",
+                "iam.roles.delete",
+            ],
+            "stage": "GA",
+            "etag": "etag_owner",
+            "deleted": False,
+            "version": 1,
+        },
+        {
+            "name": "roles/editor",
+            "title": "Editor",
+            "description": "Edit access to all resources.",
+            "includedPermissions": [
+                "storage.buckets.get",
+                "storage.buckets.list",
+                "storage.buckets.update",
+                "storage.objects.create",
+                "storage.objects.delete",
+            ],
+            "stage": "GA",
+            "etag": "etag_456",
+            "deleted": False,
+            "version": 1,
+        },
+        {
+            "name": "roles/viewer",
+            "title": "Viewer",
+            "description": "View access to all resources.",
+            "includedPermissions": [
+                "storage.buckets.get",
+                "storage.buckets.list",
+            ],
+            "stage": "GA",
+            "etag": "etag_viewer",
+            "deleted": False,
+            "version": 1,
+        },
+        {
+            "name": "roles/iam.securityAdmin",
+            "title": "Security Admin",
+            "description": "Security administrator role.",
+            "includedPermissions": [
+                "iam.roles.get",
+                "iam.roles.list",
+                "iam.serviceAccounts.get",
+            ],
+            "stage": "GA",
+            "etag": "etag_secadmin",
+            "deleted": False,
+            "version": 1,
+        },
+    ],
+}
+
+# Source: https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles#Role
+# Custom organization-level roles
+LIST_ORG_ROLES_RESPONSE = {
+    "roles": [
+        {
+            "name": "organizations/123456789012/roles/customOrgRole1",
+            "title": "Custom Org Role 1",
+            "description": "This is a custom organization role",
+            "includedPermissions": [
+                "resourcemanager.organizations.get",
+                "resourcemanager.folders.list",
+            ],
+            "stage": "GA",
+            "etag": "etag_org_123",
+            "deleted": False,
+            "version": 1,
+        },
+        {
+            "name": "organizations/123456789012/roles/customOrgRole2",
+            "title": "Custom Org Role 2",
+            "description": "Another custom organization role",
+            "includedPermissions": [
+                "iam.serviceAccounts.get",
+                "iam.serviceAccounts.list",
+            ],
+            "stage": "GA",
+            "etag": "etag_org_456",
+            "deleted": False,
+            "version": 1,
+        },
+    ],
+}
+
+# Source: https://cloud.google.com/iam/docs/reference/rest/v1/projects.roles#Role
+# Custom project-level roles only (no predefined roles)
+LIST_PROJECT_CUSTOM_ROLES_RESPONSE = {
+    "roles": [
+        {
+            "name": "projects/project-abc/roles/customRole1",
+            "title": "Custom Role 1",
+            "description": "This is a custom project role",
+            "includedPermissions": [
+                "iam.roles.get",
+                "iam.roles.list",
+                "storage.buckets.get",
+                "storage.buckets.list",
+            ],
+            "stage": "GA",
+            "etag": "etag_123",
+            "deleted": False,
+            "version": 1,
+        },
+        {
+            "name": "projects/project-abc/roles/customRole2",
+            "title": "Custom Role 2",
+            "description": "This is a deleted custom role",
+            "includedPermissions": [
+                "iam.serviceAccounts.get",
+                "iam.serviceAccounts.list",
+            ],
+            "stage": "DISABLED",
+            "etag": "etag_789",
+            "deleted": True,
+            "version": 2,
+        },
+    ],
+}
+
+# Combined response for backward compatibility (used by get_gcp_roles)
 # Source: https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles#Role
 LIST_ROLES_RESPONSE = {
     "roles": [

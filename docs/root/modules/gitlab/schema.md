@@ -114,9 +114,9 @@ Representation of a GitLab nested subgroup. Groups can contain other groups (cre
     (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabGroup)
     ```
 
-### GitLabProject
+### GitLabProject:GitLabRepository
 
-Representation of a GitLab project (repository). Projects are GitLab's equivalent of repositories and can belong to organizations or groups.
+Representation of a GitLab project (repository). Projects are GitLab's equivalent of repositories and can belong to organizations or groups. The `GitLabRepository` label is included for backwards compatibility with existing queries.
 
 | Field | Description |
 |-------|--------------|

@@ -16,6 +16,7 @@ import cartography.intel.gcp
 import cartography.intel.gcp.crm.folders
 import cartography.intel.gcp.crm.orgs
 import cartography.intel.gcp.crm.projects
+import cartography.intel.gcp.iam
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.models.gcp.crm.folders import GCPFolderSchema
@@ -275,6 +276,7 @@ class TestCascadeDeleteIntegration:
         """Create a mock GCP credentials object for testing."""
         creds = MagicMock()
         creds.quota_project_id = "test-quota-project"
+        creds.universe_domain = "googleapis.com"
         return creds
 
     @patch.object(
@@ -298,8 +300,20 @@ class TestCascadeDeleteIntegration:
         cartography.intel.gcp.crm.orgs,
         "get_gcp_organizations",
     )
+    @patch.object(
+        cartography.intel.gcp.iam,
+        "get_gcp_predefined_roles",
+        return_value=[],
+    )
+    @patch.object(
+        cartography.intel.gcp.iam,
+        "get_gcp_org_roles",
+        return_value=[],
+    )
     def test_full_sync_with_cascade_delete(
         self,
+        mock_get_org_roles,
+        mock_get_predefined_roles,
         mock_get_orgs,
         mock_get_folders,
         mock_get_projects,
