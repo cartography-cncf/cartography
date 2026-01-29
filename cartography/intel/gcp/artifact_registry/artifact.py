@@ -5,9 +5,12 @@ from google.api_core.exceptions import PermissionDenied
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.artifact_registry.artifact import (
     GCPArtifactRegistryGenericArtifactSchema,
 )
@@ -26,16 +29,18 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_docker_images(client: Resource, repository_name: str) -> list[dict]:
+def get_docker_images(client: Resource, repository_name: str) -> list[dict] | None:
     """
     Gets Docker images for a repository.
 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of Docker image dicts from the API.
+    :return: List of Docker image dicts from the API, or None if the Artifact Registry API
+             is not enabled or access is denied.
+    :raises HttpError: For errors other than API disabled or permission denied.
     """
-    images: list[dict] = []
     try:
+        images: list[dict] = []
         request = (
             client.projects()
             .locations()
@@ -44,7 +49,7 @@ def get_docker_images(client: Resource, repository_name: str) -> list[dict]:
             .list(parent=repository_name)
         )
         while request is not None:
-            response = request.execute()
+            response = gcp_api_execute_with_retry(request)
             images.extend(response.get("dockerImages", []))
             request = (
                 client.projects()
@@ -57,25 +62,30 @@ def get_docker_images(client: Resource, repository_name: str) -> list[dict]:
                 )
             )
         return images
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Docker images for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
-        )
-        return []
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve Docker images for repository %s due to permissions "
+                "issues or API not enabled. Skipping.",
+                repository_name,
+            )
+            return None
+        raise
 
 
 @timeit
-def get_maven_artifacts(client: Resource, repository_name: str) -> list[dict]:
+def get_maven_artifacts(client: Resource, repository_name: str) -> list[dict] | None:
     """
     Gets Maven artifacts for a repository.
 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of Maven artifact dicts from the API.
+    :return: List of Maven artifact dicts from the API, or None if the Artifact Registry API
+             is not enabled or access is denied.
+    :raises HttpError: For errors other than API disabled or permission denied.
     """
-    artifacts: list[dict] = []
     try:
+        artifacts: list[dict] = []
         request = (
             client.projects()
             .locations()
@@ -84,7 +94,7 @@ def get_maven_artifacts(client: Resource, repository_name: str) -> list[dict]:
             .list(parent=repository_name)
         )
         while request is not None:
-            response = request.execute()
+            response = gcp_api_execute_with_retry(request)
             artifacts.extend(response.get("mavenArtifacts", []))
             request = (
                 client.projects()
@@ -97,25 +107,30 @@ def get_maven_artifacts(client: Resource, repository_name: str) -> list[dict]:
                 )
             )
         return artifacts
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Maven artifacts for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
-        )
-        return []
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve Maven artifacts for repository %s due to permissions "
+                "issues or API not enabled. Skipping.",
+                repository_name,
+            )
+            return None
+        raise
 
 
 @timeit
-def get_npm_packages(client: Resource, repository_name: str) -> list[dict]:
+def get_npm_packages(client: Resource, repository_name: str) -> list[dict] | None:
     """
     Gets npm packages for a repository.
 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of npm package dicts from the API.
+    :return: List of npm package dicts from the API, or None if the Artifact Registry API
+             is not enabled or access is denied.
+    :raises HttpError: For errors other than API disabled or permission denied.
     """
-    packages: list[dict] = []
     try:
+        packages: list[dict] = []
         request = (
             client.projects()
             .locations()
@@ -124,7 +139,7 @@ def get_npm_packages(client: Resource, repository_name: str) -> list[dict]:
             .list(parent=repository_name)
         )
         while request is not None:
-            response = request.execute()
+            response = gcp_api_execute_with_retry(request)
             packages.extend(response.get("npmPackages", []))
             request = (
                 client.projects()
@@ -137,25 +152,29 @@ def get_npm_packages(client: Resource, repository_name: str) -> list[dict]:
                 )
             )
         return packages
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get npm packages for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
-        )
-        return []
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve npm packages for repository %s due to permissions "
+                "issues or API not enabled. Skipping.",
+                repository_name,
+            )
+            return None
+        raise
 
 
 @timeit
-def get_python_packages(client: Resource, repository_name: str) -> list[dict]:
+def get_python_packages(client: Resource, repository_name: str) -> list[dict] | None:
     """
     Gets Python packages for a repository.
 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of Python package dicts from the API.
+    :return: List of Python package dicts from the API, or None if API is not enabled.
+    :raises HttpError: For errors other than API disabled or permission denied.
     """
-    packages: list[dict] = []
     try:
+        packages: list[dict] = []
         request = (
             client.projects()
             .locations()
@@ -164,7 +183,7 @@ def get_python_packages(client: Resource, repository_name: str) -> list[dict]:
             .list(parent=repository_name)
         )
         while request is not None:
-            response = request.execute()
+            response = gcp_api_execute_with_retry(request)
             packages.extend(response.get("pythonPackages", []))
             request = (
                 client.projects()
@@ -177,12 +196,15 @@ def get_python_packages(client: Resource, repository_name: str) -> list[dict]:
                 )
             )
         return packages
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get Python packages for repository {repository_name} "
-            f"due to permissions or auth error: {e}",
-        )
-        return []
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve Python packages for repository %s due to permissions "
+                "issues or API not enabled. Skipping.",
+                repository_name,
+            )
+            return None
+        raise
 
 
 @timeit
@@ -777,6 +799,9 @@ def sync_artifact_registry_artifacts(
         get_func, _ = handlers
 
         artifacts_raw = get_func(client, repo_name)
+        if artifacts_raw is None:
+            # Skip this repository if API is not enabled or access denied
+            continue
         if not artifacts_raw:
             continue
 

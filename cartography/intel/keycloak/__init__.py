@@ -14,6 +14,7 @@ import cartography.intel.keycloak.roles
 import cartography.intel.keycloak.scopes
 import cartography.intel.keycloak.users
 from cartography.config import Config
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -151,3 +152,11 @@ def start_keycloak_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
                     config.keycloak_url,
                     realm_scopped_job_parameters,
                 )
+
+        # Run inheritance analysis after all realms are synced
+        # This computes transitive group memberships, role assignments, and scope permissions
+        run_analysis_job(
+            "keycloak_inheritance.json",
+            neo4j_session,
+            common_job_parameters,
+        )
