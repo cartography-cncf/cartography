@@ -330,15 +330,17 @@ def _sync_project_resources(
                     common_job_parameters,
                 )
 
-                if clusters_raw:
-                    bigtable_backup.sync_bigtable_backups(
-                        neo4j_session,
-                        bigtable_client,
-                        clusters_raw,
-                        project_id,
-                        gcp_update_tag,
-                        common_job_parameters,
-                    )
+                # Always run backup sync when instances_raw is not None.
+                # Even if clusters_raw is empty (all instances deleted), we need to
+                # run cleanup to remove stale backup nodes.
+                bigtable_backup.sync_bigtable_backups(
+                    neo4j_session,
+                    bigtable_client,
+                    clusters_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         if service_names.aiplatform in enabled_services:
             logger.info(f"Syncing GCP project {project_id} for Vertex AI.")
@@ -359,14 +361,16 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
-            if endpoints_raw:
-                sync_vertex_ai_deployed_models(
-                    neo4j_session,
-                    endpoints_raw,
-                    project_id,
-                    gcp_update_tag,
-                    common_job_parameters,
-                )
+            # Always run deployed models sync when endpoints sync succeeded.
+            # Even if endpoints_raw is empty (no endpoints), we need to
+            # run cleanup to remove stale deployed model nodes.
+            sync_vertex_ai_deployed_models(
+                neo4j_session,
+                endpoints_raw,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
             sync_workbench_instances(
                 neo4j_session,
                 aiplatform_client,
