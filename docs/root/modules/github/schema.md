@@ -30,6 +30,7 @@ T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTAINER --> T
+ECR(ECRRepositoryImage) -- BUILT_FROM --> R
 ```
 
 ### GitHubRepository
@@ -423,6 +424,26 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
     ```
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
+
+### ECRRepositoryImage to GitHubRepository (Cross-module relationship)
+
+ECR container images can be linked to the GitHubRepository that contains the Dockerfile used to build them. This relationship is created by analyzing Dockerfile content and matching layer commands against image history.
+
+#### Relationships
+
+- ECRRepositoryImages may be built from a GitHubRepository (via Dockerfile matching)
+    ```
+    (:ECRRepositoryImage)-[:BUILT_FROM]->(:GitHubRepository)
+    ```
+
+    Relationship properties:
+    - **dockerfile_path**: Path to the Dockerfile in the repository (e.g., `"subimage-backend/Dockerfile"`)
+    - **confidence**: Confidence score of the match (0.0 to 1.0)
+    - **matched_commands**: Number of commands that matched between Dockerfile and image history
+    - **total_commands**: Total number of commands compared
+    - **command_similarity**: Average similarity score of matched commands
+
+    Note: This relationship links to ALL images in an ECR repository (all tags) via `repo_uri` matching, not individual image digests.
 
 ### Dependency::PythonLibrary
 
