@@ -45,5 +45,7 @@ class GCPInstanceToProjectRel(CartographyRelSchema):
 class GCPInstanceSchema(CartographyNodeSchema):
     label: str = "GCPInstance"
     properties: GCPInstanceNodeProperties = GCPInstanceNodeProperties()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Instance"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["Instance", "ComputeInstance"]
+    )
     sub_resource_relationship: GCPInstanceToProjectRel = GCPInstanceToProjectRel()

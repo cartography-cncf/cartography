@@ -1,6 +1,5 @@
 import logging
-from typing import Dict
-from typing import List
+from typing import Any
 
 import requests.auth
 
@@ -17,7 +16,7 @@ def call_jamf_api(
     jamf_base_uri: str,
     jamf_user: str,
     jamf_password: str,
-) -> List[Dict]:
+) -> dict[str, Any]:
     uri = jamf_base_uri + api_and_parameters
     jamf_auth = requests.auth.HTTPBasicAuth(jamf_user, jamf_password)
     try:
