@@ -88,7 +88,7 @@ async def _get_okta_groups(okta_client: OktaClient) -> List[OktaGroup]:
     while resp.has_next():
         groups, _ = await resp.next()
         output_groups += groups
-        logger.info(f"Fetched {len(groups)} groups")
+        logger.debug("Fetched %s groups", len(groups))
     return output_groups
 
 
@@ -106,7 +106,7 @@ def _transform_okta_groups(
     :return: List of group dicts
     """
     transformed_groups: List[Dict] = []
-    logger.info(f"Transforming {len(okta_groups)} Okta groups")
+    logger.info("Transforming %s Okta groups", len(okta_groups))
 
     # Build a hashmap of group roles keyed by group_id for O(1) lookup
     roles_by_group: Dict[str, List[OktaGroupRole]] = {}
@@ -153,7 +153,7 @@ def _load_okta_groups(
     :param common_job_parameters: Settings used by all Okta modules
     :return: Nothing
     """
-    logger.info(f"Loading {len(group_list)} Okta groups")
+    logger.info("Loading %s Okta groups", len(group_list))
 
     load(
         neo4j_session,
@@ -215,7 +215,7 @@ def _transform_okta_group_rules(
     :return: List of group rule dicts
     """
     transformed_group_rules: List[Dict] = []
-    logger.info(f"Transforming {len(okta_group_rules)} Okta group rules")
+    logger.info("Transforming %s Okta group rules", len(okta_group_rules))
     for okta_group_rule in okta_group_rules:
         group_rule_props = {}
         group_rule_props["id"] = okta_group_rule.id
@@ -313,7 +313,7 @@ def _load_okta_group_rules(
     :return: Nothing
     """
 
-    logger.info(f"Loading {len(group_rule_list)} Okta group rules")
+    logger.info("Loading %s Okta group rules", len(group_rule_list))
 
     load(
         neo4j_session,
@@ -373,7 +373,7 @@ def _transform_okta_group_roles(
     :return: List of group role dicts
     """
     transformed_group_roles: List[Dict] = []
-    logger.info(f"Transforming {len(okta_group_roles)} Okta group roles")
+    logger.info("Transforming %s Okta group roles", len(okta_group_roles))
     for okta_group_role in okta_group_roles:
         role_props = {}
         role_props["id"] = okta_group_role.id
@@ -402,7 +402,7 @@ def _load_okta_group_roles(
     :return: Nothing
     """
 
-    logger.info(f"Loading {len(group_roles_list)} Okta group roles")
+    logger.info("Loading %s Okta group roles", len(group_roles_list))
 
     load(
         neo4j_session,
@@ -447,5 +447,5 @@ async def _get_okta_group_members(
     while resp.has_next():
         group_users, _ = await resp.next()
         member_list += group_users
-        logger.info(f"Loaded {len(group_users)} Users for Group {group_id}")
+        logger.debug("Loaded %s users for group %s", len(group_users), group_id)
     return member_list

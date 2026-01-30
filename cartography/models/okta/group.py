@@ -99,11 +99,12 @@ class OktaGroupToOktaUserRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OktaGroupToOktaUserRel(CartographyRelSchema):
+    # (:OktaGroup)<-[:MEMBER_OF_OKTA_GROUP]-(:OktaUser)
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("user_id")},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
+    direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "MEMBER_OF_OKTA_GROUP"
     properties: OktaGroupToOktaUserRelProperties = OktaGroupToOktaUserRelProperties()
 
@@ -183,12 +184,12 @@ class OktaGroupToOktaGroupRuleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OktaGroupToOktaGroupRuleRel(CartographyRelSchema):
-    # (:OktaGroup)<-[:ASSIGNED_BY_GROUP_RULE]-(:OktaGroupRule)
+    # (:OktaGroupRule)-[:ASSIGNED_BY_GROUP_RULE]->(:OktaGroup)
     target_node_label: str = "OktaGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_id")},
     )
-    direction: LinkDirection = LinkDirection.INWARD
+    direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ASSIGNED_BY_GROUP_RULE"
     properties: OktaGroupToOktaGroupRuleRelProperties = (
         OktaGroupToOktaGroupRuleRelProperties()

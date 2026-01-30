@@ -216,15 +216,10 @@ def test_sync_okta_applications_with_users(
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    # Create mock assigned users
-    assigned_user_1 = MagicMock()
-    assigned_user_1.id = "user-001"
-    assigned_user_2 = MagicMock()
-    assigned_user_2.id = "user-002"
-
     # Mock the API calls
+    # _get_application_assigned_users returns a list of user ID strings
     mock_get_apps.return_value = [test_app]
-    mock_get_users.return_value = [assigned_user_1, assigned_user_2]
+    mock_get_users.return_value = ["user-001", "user-002"]
     mock_get_groups.return_value = []
 
     okta_client = MagicMock()
@@ -295,16 +290,11 @@ def test_sync_okta_applications_with_groups(
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    # Create mock assigned groups
-    assigned_group_1 = MagicMock()
-    assigned_group_1.id = "group-001"
-    assigned_group_2 = MagicMock()
-    assigned_group_2.id = "group-002"
-
     # Mock the API calls
+    # _get_application_assigned_groups returns a list of group ID strings
     mock_get_apps.return_value = [test_app]
     mock_get_users.return_value = []
-    mock_get_groups.return_value = [assigned_group_1, assigned_group_2]
+    mock_get_groups.return_value = ["group-001", "group-002"]
 
     okta_client = MagicMock()
     common_job_parameters = _create_common_job_parameters()

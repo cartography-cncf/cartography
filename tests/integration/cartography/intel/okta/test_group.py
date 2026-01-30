@@ -117,17 +117,17 @@ def test_sync_okta_groups(
     # Assert - Verify users are members of groups
     result = neo4j_session.run(
         """
-        MATCH (g:OktaGroup)-[:MEMBER_OF_OKTA_GROUP]->(u:OktaUser)
+        MATCH (u:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(g:OktaGroup)
         RETURN g.id as group_id, u.id as user_id
         """,
     )
-    user_group_pairs = {(r["group_id"], r["user_id"]) for r in result}
+    user_group_pairs = {(r["user_id"], r["group_id"]) for r in result}
 
     # Each of the 2 users should be in both groups (4 relationships total)
     assert len(user_group_pairs) == 4
     for user_id in ["user-001", "user-002"]:
-        assert ("group-001", user_id) in user_group_pairs
-        assert ("group-002", user_id) in user_group_pairs
+        assert (user_id, "group-001") in user_group_pairs
+        assert (user_id, "group-002") in user_group_pairs
 
 
 @patch.object(cartography.intel.okta.groups, "_get_okta_groups", new_callable=AsyncMock)
@@ -290,8 +290,8 @@ def test_cleanup_okta_group_memberships(
         MERGE (o)-[:RESOURCE]->(g:OktaGroup{id: 'test-group', lastupdated: $NEW_UPDATE_TAG})
         MERGE (o)-[:RESOURCE]->(u1:OktaUser{id: 'stale-user', lastupdated: $NEW_UPDATE_TAG})
         MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: 'fresh-user', lastupdated: $NEW_UPDATE_TAG})
-        MERGE (g)-[r1:MEMBER_OF_OKTA_GROUP]->(u1)
-        MERGE (g)-[r2:MEMBER_OF_OKTA_GROUP]->(u2)
+        MERGE (u1)-[r1:MEMBER_OF_OKTA_GROUP]->(g)
+        MERGE (u2)-[r2:MEMBER_OF_OKTA_GROUP]->(g)
         SET r1.lastupdated = $OLD_UPDATE_TAG,
             r2.lastupdated = $NEW_UPDATE_TAG
         """,
@@ -312,7 +312,7 @@ def test_cleanup_okta_group_memberships(
     # Assert - Only the fresh-user relationship should remain
     result = neo4j_session.run(
         """
-        MATCH (g:OktaGroup{id: 'test-group'})-[:MEMBER_OF_OKTA_GROUP]->(u:OktaUser)
+        MATCH (u:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(g:OktaGroup{id: 'test-group'})
         RETURN u.id as user_id
         """,
     )

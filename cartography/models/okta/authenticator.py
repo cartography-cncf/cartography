@@ -51,7 +51,7 @@ class OktaAuthenticatorToOktaOrganizationRelProperties(CartographyRelProperties)
 
 
 @dataclass(frozen=True)
-# (:OktaUser)<-[:RESOURCE]-(:OktaOrganization)
+# (:OktaAuthenticator)<-[:RESOURCE]-(:OktaOrganization)
 class OktaAuthenticatorToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(

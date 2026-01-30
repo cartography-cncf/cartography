@@ -58,7 +58,7 @@ async def _get_okta_applications(okta_client: OktaClient) -> List[OktaApplicatio
     while resp.has_next():
         applications, _ = await resp.next()
         output_applications += applications
-        logger.info(f"Fetched {len(applications)} applications")
+        logger.debug("Fetched %s applications", len(applications))
     return output_applications
 
 
@@ -74,7 +74,7 @@ def _transform_okta_applications(
     :return: List of application dicts
     """
     transformed_applications: List[OktaApplication] = []
-    logger.info(f"Transforming {len(okta_applications)} Okta applications")
+    logger.info("Transforming %s Okta applications", len(okta_applications))
     for okta_application in okta_applications:
         application_props = {}
         application_props["id"] = okta_application.id
@@ -357,7 +357,7 @@ def _load_okta_applications(
     :return: Nothing
     """
 
-    logger.info(f"Loading {len(application_list)} Okta Application")
+    logger.info("Loading %s Okta applications", len(application_list))
 
     load(
         neo4j_session,
@@ -395,18 +395,33 @@ async def _get_application_assigned_users(
     """
     Get Okta application users list from Okta
     :param okta_client: An Okta client object
-    :return: List of Okta application users
+    :param app_id: The application ID to fetch users for
+    :return: List of Okta application user IDs
     """
     output_application_users = []
     query_parameters = {"limit": 500}
-    application_users, resp, _ = await okta_client.list_application_users(
+    application_users, resp, err = await okta_client.list_application_users(
         app_id, query_parameters
     )
+    if err:
+        logger.warning(
+            "Failed to fetch users for application %s: %s",
+            app_id,
+            err,
+        )
+        return []
     output_application_users += application_users
     while resp.has_next():
-        application_users, _ = await resp.next()
+        application_users, err = await resp.next()
+        if err:
+            logger.warning(
+                "Failed to fetch next page of users for application %s: %s",
+                app_id,
+                err,
+            )
+            break
         output_application_users += application_users
-        logger.info(f"Fetched {len(application_users)} application users")
+        logger.debug("Fetched %s application users", len(application_users))
     output_application_users_ids = [user.id for user in output_application_users]
     return output_application_users_ids
 
@@ -419,19 +434,34 @@ async def _get_application_assigned_groups(
     okta_client: OktaClient, app_id: str
 ) -> List[str]:
     """
-    Get application data from Okta server
-    :param app_client: api client
-    :return: application data
+    Get Okta application groups list from Okta
+    :param okta_client: An Okta client object
+    :param app_id: The application ID to fetch groups for
+    :return: List of Okta application group IDs
     """
     output_application_groups = []
     query_parameters = {"limit": 200}
-    application_groups, resp, _ = await okta_client.list_application_group_assignments(
+    application_groups, resp, err = await okta_client.list_application_group_assignments(
         app_id, query_parameters
     )
+    if err:
+        logger.warning(
+            "Failed to fetch groups for application %s: %s",
+            app_id,
+            err,
+        )
+        return []
     output_application_groups += application_groups
     while resp.has_next():
-        application_groups, _ = await resp.next()
+        application_groups, err = await resp.next()
+        if err:
+            logger.warning(
+                "Failed to fetch next page of groups for application %s: %s",
+                app_id,
+                err,
+            )
+            break
         output_application_groups += application_groups
-        logger.info(f"Fetched {len(application_groups)} application users")
+        logger.debug("Fetched %s application groups", len(application_groups))
     output_application_group_ids = [group.id for group in output_application_groups]
     return output_application_group_ids

@@ -40,7 +40,7 @@ def sync_okta_user_factors(
         transformed = _transform_okta_user_factors(user_factors, user_id)
         all_factors.extend(transformed)
 
-    logger.info(f"Total factors to load: {len(all_factors)}")
+    logger.info("Total factors to load: %s", len(all_factors))
     _load_okta_user_factors(neo4j_session, all_factors, common_job_parameters)
     _cleanup_okta_user_factors(neo4j_session, common_job_parameters)
 
@@ -56,19 +56,10 @@ async def _get_okta_user_factors(
     :param user_id: The user ID to fetch factors for
     :return: List of Okta user factors
     """
-    try:
-        factors, _, err = await okta_client.list_factors(user_id)
-        if err:
-            logger.debug(
-                f"Unable to get factors for user id {user_id}: {err}",
-            )
-            return []
-        return factors or []
-    except Exception as e:
-        logger.debug(
-            f"Unable to get factors for user id {user_id}: {e}",
-        )
-        return []
+    factors, _, err = await okta_client.list_factors(user_id)
+    if err:
+        raise err
+    return factors or []
 
 
 @timeit
@@ -114,7 +105,7 @@ def _load_okta_user_factors(
     :param common_job_parameters: Settings used by all Okta modules
     :return: Nothing
     """
-    logger.info(f"Loading {len(factor_list)} Okta user factors")
+    logger.info("Loading %s Okta user factors", len(factor_list))
     load(
         neo4j_session,
         OktaUserFactorSchema(),

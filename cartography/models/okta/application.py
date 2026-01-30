@@ -217,13 +217,13 @@ class OktaApplicationToOktaUserProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OktaApplicationToOktaUserPropertiesRel(CartographyRelSchema):
-    # (:OktaApplication)<-[:IS_ASSIGNED_APP]-(:OktaUser)
+    # (:OktaApplication)<-[:APPLICATION]-(:OktaUser)
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("user_id")},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "IS_ASSIGNED_APP"
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "APPLICATION"
     properties: OktaApplicationToOktaUserProperties = (
         OktaApplicationToOktaUserProperties()
     )
@@ -236,13 +236,13 @@ class OktaApplicationToOktaGroupProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OktaApplicationToOktaGroupPropertiesRel(CartographyRelSchema):
-    # (:OktaApplication)<-[:IS_ASSIGNED_APP]-(:OktaUser)
+    # (:OktaApplication)<-[:APPLICATION]-(:OktaGroup)
     target_node_label: str = "OktaGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("group_id")},
     )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "IS_ASSIGNED_APP"
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "APPLICATION"
     properties: OktaApplicationToOktaGroupProperties = (
         OktaApplicationToOktaGroupProperties()
     )

@@ -60,7 +60,7 @@ async def _get_okta_user_types(okta_client: OktaClient) -> List[OktaUserType]:
     # This won't ever be paginated
     user_types, _, _ = await okta_client.list_user_types()
     output_user_types += user_types
-    logger.info(f"Fetched {len(user_types)} user types")
+    logger.debug("Fetched %s user types", len(user_types))
     return output_user_types
 
 
@@ -75,7 +75,7 @@ def _transform_okta_user_types(
     """
 
     transformed_users: List[Dict] = []
-    logger.info(f"Transforming {len(okta_user_types)} Okta user types")
+    logger.info("Transforming %s Okta user types", len(okta_user_types))
     for okta_user_type in okta_user_types:
         user_type_props = {}
         user_type_props["id"] = okta_user_type.id
@@ -104,7 +104,7 @@ def _load_okta_user_types(
     :param common_job_parameters: Settings used by all Okta modules
     :return: Nothing
     """
-    logger.info(f"Loading {len(user_type_list)} Okta user types")
+    logger.info("Loading %s Okta user types", len(user_type_list))
     load(
         neo4j_session,
         OktaUserTypeSchema(),
@@ -195,7 +195,7 @@ async def _get_okta_users(okta_client: OktaClient) -> List[OktaUser]:
         while resp.has_next():
             users, _ = await resp.next()
             output_users += users
-            logger.info(f"Fetched {len(users)} {status} users")
+            logger.debug("Fetched %s %s users", len(users), status)
     return output_users
 
 
@@ -211,7 +211,7 @@ def _transform_okta_users(
     :return: List of users dicts
     """
     transformed_users: List[Dict] = []
-    logger.info(f"Transforming {len(okta_users)} Okta users")
+    logger.info("Transforming %s Okta users", len(okta_users))
     for okta_user in okta_users:
         user_props: Dict[str, Any] = {}
         # Dynamic properties added that change based on tenant
@@ -236,14 +236,6 @@ def _transform_okta_users(
     return transformed_users
 
 
-class CustomOktaUserNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("id")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-    def __init__(self, user_attributes: Dict[str, Any]) -> None:
-        for key in user_attributes:
-            self.__dict__[key] = PropertyRef(key)
-            setattr(self, key, PropertyRef(key))
 
 
 @timeit
@@ -260,12 +252,16 @@ def _load_okta_users(
     :return: Nothing
     """
 
-    logger.info(f"Loading {len(user_list)} Okta users")
+    logger.info("Loading %s Okta users", len(user_list))
     # We want to allow for dynamic properties on this element
     # Iterate through all the users and pick out all valid profile attribute names
     valid_keys = set()
     for user in user_list:
         valid_keys.update(user.keys())
+
+    # Ensure mandatory properties are included
+    valid_keys.add("id")
+    valid_keys.add("lastupdated")
 
     # Make sure each user has a value set for every parameter, even if None
     for user in user_list:
@@ -278,11 +274,15 @@ def _load_okta_users(
     prop_value_dict = {}
     for key in valid_keys:
         properties.append((key, PropertyRef))
-        prop_value_dict[key] = PropertyRef(key)
+        if key == "lastupdated":
+            prop_value_dict[key] = PropertyRef(key, set_in_kwargs=True)
+        else:
+            prop_value_dict[key] = PropertyRef(key)
 
     custom_node_prop_class_def = dataclasses.make_dataclass(
         "OktaUserNodeProperties",
         properties,
+        frozen=True,
     )
     custom_node_prop_class = custom_node_prop_class_def(**prop_value_dict)
     # Assign our custom class to our normal OktaUserSchema
@@ -351,7 +351,7 @@ def _transform_okta_user_roles(
     :return: List of user roles dicts
     """
     transformed_user_roles: List[Dict] = []
-    logger.info(f"Transforming {len(okta_user_roles)} Okta user roles")
+    logger.info("Transforming %s Okta user roles", len(okta_user_roles))
     for okta_user_role in okta_user_roles:
         role_props: Dict[str, Any] = {}
         role_props["id"] = okta_user_role.id
@@ -388,7 +388,7 @@ def _load_okta_user_roles(
     :return: Nothing
     """
 
-    logger.info(f"Loading {len(user_roles_list)} Okta user roles")
+    logger.info("Loading %s Okta user roles", len(user_roles_list))
 
     load(
         neo4j_session,

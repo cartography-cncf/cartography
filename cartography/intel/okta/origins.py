@@ -46,13 +46,17 @@ async def _get_okta_origins(okta_client: OktaClient) -> List[OktaTrustedOrigin]:
     """
     output_origins = []
     query_parameters = {"limit": 200}
-    origins, resp, _ = await okta_client.list_origins(query_parameters)
+    origins, resp, err = await okta_client.list_origins(query_parameters)
+    if err:
+        raise err
 
     output_origins += origins
     while resp.has_next():
-        origins, _ = await resp.next()
+        origins, err = await resp.next()
+        if err:
+            raise err
         output_origins += origins
-        logger.info(f"Fetched {len(origins)} origins")
+        logger.debug("Fetched %s origins", len(origins))
     return output_origins
 
 
@@ -66,7 +70,7 @@ def _transform_okta_origins(
     :return: List of origin dicts
     """
     transformed_origins: List[Dict] = []
-    logger.info(f"Transforming {len(okta_origins)} Okta origins")
+    logger.info("Transforming %s Okta origins", len(okta_origins))
     for okta_origin in okta_origins:
         origin_props: Dict[str, Any] = {}
         origin_props["id"] = okta_origin.id
@@ -110,7 +114,7 @@ def _load_okta_origins(
     :return: Nothing
     """
 
-    logger.info(f"Loading {len(origin_list)} Okta origins")
+    logger.info("Loading %s Okta origins", len(origin_list))
 
     load(
         neo4j_session,
