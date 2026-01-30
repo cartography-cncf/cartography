@@ -33,11 +33,11 @@ class GCPCISFinding(Finding):
 
 
 # =============================================================================
-# CIS 3.1: Default network should not exist
+# CIS GCP 3.1: Default network should not exist
 # =============================================================================
 _cis_gcp_3_1_default_network = Fact(
     id="cis_gcp_3_1_default_network",
-    name="CIS 3.1: Default network exists in project",
+    name="CIS GCP 3.1: Default network exists in project",
     description="Detects GCP projects that still contain the default network.",
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)
@@ -69,7 +69,7 @@ _cis_gcp_3_1_default_network = Fact(
 
 cis_gcp_3_1_default_network = Rule(
     id="cis_gcp_3_1_default_network",
-    name="CIS 3.1: Default network should be removed",
+    name="CIS GCP 3.1: Default network should be removed",
     description="Detects projects that still have the default network.",
     output_model=GCPCISFinding,
     facts=(_cis_gcp_3_1_default_network,),
@@ -80,11 +80,11 @@ cis_gcp_3_1_default_network = Rule(
 
 
 # =============================================================================
-# CIS 3.6: SSH should not be open to the internet
+# CIS GCP 3.6: SSH should not be open to the internet
 # =============================================================================
 _cis_gcp_3_6_unrestricted_ssh = Fact(
     id="cis_gcp_3_6_unrestricted_ssh",
-    name="CIS 3.6: SSH open to the internet",
+    name="CIS GCP 3.6: SSH open to the internet",
     description="Flags ingress firewall rules that allow SSH (port 22) from the internet (0.0.0.0/0 or ::/0).",
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
@@ -132,7 +132,7 @@ _cis_gcp_3_6_unrestricted_ssh = Fact(
 
 cis_gcp_3_6_unrestricted_ssh = Rule(
     id="cis_gcp_3_6_unrestricted_ssh",
-    name="CIS 3.6: SSH open to the internet",
+    name="CIS GCP 3.6: SSH open to the internet",
     description="Ingress firewall rules should not allow SSH from the internet (0.0.0.0/0 or ::/0).",
     output_model=GCPCISFinding,
     facts=(_cis_gcp_3_6_unrestricted_ssh,),
@@ -143,11 +143,11 @@ cis_gcp_3_6_unrestricted_ssh = Rule(
 
 
 # =============================================================================
-# CIS 3.7: RDP should not be open to the internet
+# CIS GCP 3.7: RDP should not be open to the internet
 # =============================================================================
 _cis_gcp_3_7_unrestricted_rdp = Fact(
     id="cis_gcp_3_7_unrestricted_rdp",
-    name="CIS 3.7: RDP open to the internet",
+    name="CIS GCP 3.7: RDP open to the internet",
     description="Flags ingress firewall rules that allow RDP (port 3389) from the internet (0.0.0.0/0 or ::/0).",
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
@@ -195,7 +195,7 @@ _cis_gcp_3_7_unrestricted_rdp = Fact(
 
 cis_gcp_3_7_unrestricted_rdp = Rule(
     id="cis_gcp_3_7_unrestricted_rdp",
-    name="CIS 3.7: RDP open to the internet",
+    name="CIS GCP 3.7: RDP open to the internet",
     description="Ingress firewall rules should not allow RDP from the internet (0.0.0.0/0 or ::/0).",
     output_model=GCPCISFinding,
     facts=(_cis_gcp_3_7_unrestricted_rdp,),
@@ -206,11 +206,11 @@ cis_gcp_3_7_unrestricted_rdp = Rule(
 
 
 # =============================================================================
-# CIS 4.9: Compute instances should not have public IPs
+# CIS GCP 4.9: Compute instances should not have public IPs
 # =============================================================================
 _cis_gcp_4_9_public_ip = Fact(
     id="cis_gcp_4_9_public_ip",
-    name="CIS 4.9: Compute instances have public IPs",
+    name="CIS GCP 4.9: Compute instances have public IPs",
     description="Detects VM instances with public NAT IPs attached to their network interfaces.",
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(instance:GCPInstance)
@@ -246,7 +246,7 @@ _cis_gcp_4_9_public_ip = Fact(
 
 cis_gcp_4_9_public_ip = Rule(
     id="cis_gcp_4_9_public_ip",
-    name="CIS 4.9: Compute instances should not have public IPs",
+    name="CIS GCP 4.9: Compute instances should not have public IPs",
     description="VM instances should not have external IPs attached to NICs.",
     output_model=GCPCISFinding,
     facts=(_cis_gcp_4_9_public_ip,),
@@ -257,11 +257,11 @@ cis_gcp_4_9_public_ip = Rule(
 
 
 # =============================================================================
-# CIS 5.2: Buckets should have uniform bucket-level access
+# CIS GCP 5.2: Buckets should have uniform bucket-level access
 # =============================================================================
 _cis_gcp_5_2_bucket_uniform_access = Fact(
     id="cis_gcp_5_2_bucket_uniform_access",
-    name="CIS 5.2: Bucket without uniform bucket-level access",
+    name="CIS GCP 5.2: Bucket without uniform bucket-level access",
     description="Identifies buckets without uniform bucket-level access (bucket policy only) enabled.",
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(bucket:GCPBucket)
@@ -295,7 +295,7 @@ _cis_gcp_5_2_bucket_uniform_access = Fact(
 
 cis_gcp_5_2_bucket_uniform_access = Rule(
     id="cis_gcp_5_2_bucket_uniform_access",
-    name="CIS 5.2: Buckets should enforce uniform bucket-level access",
+    name="CIS GCP 5.2: Buckets should enforce uniform bucket-level access",
     description="Buckets should enable uniform bucket-level access (bucket policy only).",
     output_model=GCPCISFinding,
     facts=(_cis_gcp_5_2_bucket_uniform_access,),
