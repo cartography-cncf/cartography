@@ -48,7 +48,7 @@ _cis_1_1_2sv_not_enforced = Fact(
     RETURN
         u.id AS target_id,
         u.primary_email AS target_email,
-        'Control 1.1 - Enforce 2-Step Verification for all users' AS control_name,
+        'Control 1.1 - Users without enforced 2-Step Verification' AS control_name,
         u.is_admin AS is_admin,
         u.org_unit_path AS org_unit_path,
         u.is_enrolled_in_2_sv AS is_enrolled_in_2sv,
@@ -87,7 +87,7 @@ _cis_1_2_admin_2sv_not_enforced = Fact(
     RETURN
         u.id AS target_id,
         u.primary_email AS target_email,
-        'Control 1.2 - Super admins with enforced 2-Step Verification' AS control_name,
+        'Control 1.2 - Admin accounts without enforced 2-Step Verification' AS control_name,
         u.is_enrolled_in_2_sv AS is_enrolled_in_2sv,
         u.is_enforced_in_2_sv AS is_enforced_in_2sv,
         u.org_unit_path AS org_unit_path,
