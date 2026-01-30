@@ -153,8 +153,13 @@ def sync_okta_users(
     users = asyncio.run(_get_okta_users(okta_client))
 
     # Gather user roles
-    # Note: User role fetching is disabled pending Okta SDK support for
+    # Note: Per-user role fetching is currently disabled because it requires O(n) API calls
+    # (one per user), which is inefficient for large organizations.
+    # The Okta API supports bulk role assignment listing via:
     # https://developer.okta.com/docs/reference/api/roles/#list-users-with-role-assignments
+    # However, this endpoint is not currently supported in the Okta Python SDK.
+    # When SDK support is added, this can be enabled using a single bulk API call.
+    # The _get_okta_user_roles function below is ready to use when SDK support is available.
     user_roles: List[OktaUserRole] = []
     transformed_user_roles = _transform_okta_user_roles(user_roles)
     _load_okta_user_roles(neo4j_session, transformed_user_roles, common_job_parameters)

@@ -119,8 +119,11 @@ def _transform_okta_applications(
         application_props["features"] = okta_application.features
         application_props["label"] = okta_application.label
         application_props["last_updated"] = okta_application.last_updated
-        # This is not always defined
-        # TODO: see if there are other definitions
+        # Licensing information varies by application type and license model.
+        # seat_count is only available for applications with seat-based licensing.
+        # Other licensing models may have different attributes (e.g., unlimited, per-user).
+        # We extract seat_count when available; other licensing attributes can be added
+        # as needed based on specific application requirements.
         if hasattr(okta_application.licensing, "seat_count"):
             application_props["licensing_seat_count"] = (
                 okta_application.licensing.seat_count
@@ -176,9 +179,75 @@ def _transform_okta_applications(
             application_props["settings_notes_enduser"] = (
                 okta_application.settings.notes.enduser
             )
-        # TODO: saml_sign_on
-        if hasattr(okta_application.settings, "sign_on"):
-            pass
+        # Parse SAML sign-on configuration if present
+        if (
+            hasattr(okta_application.settings, "sign_on")
+            and okta_application.settings.sign_on
+        ):
+            sign_on = okta_application.settings.sign_on
+            # Common SAML sign-on properties
+            if hasattr(sign_on, "default_relay_state"):
+                application_props["settings_sign_on_default_relay_state"] = (
+                    sign_on.default_relay_state
+                )
+            if hasattr(sign_on, "sso_acs_url"):
+                application_props["settings_sign_on_sso_acs_url"] = sign_on.sso_acs_url
+            if hasattr(sign_on, "sso_acs_url_override"):
+                application_props["settings_sign_on_sso_acs_url_override"] = (
+                    sign_on.sso_acs_url_override
+                )
+            if hasattr(sign_on, "recipient"):
+                application_props["settings_sign_on_recipient"] = sign_on.recipient
+            if hasattr(sign_on, "recipient_override"):
+                application_props["settings_sign_on_recipient_override"] = (
+                    sign_on.recipient_override
+                )
+            if hasattr(sign_on, "destination"):
+                application_props["settings_sign_on_destination"] = sign_on.destination
+            if hasattr(sign_on, "destination_override"):
+                application_props["settings_sign_on_destination_override"] = (
+                    sign_on.destination_override
+                )
+            if hasattr(sign_on, "audience"):
+                application_props["settings_sign_on_audience"] = sign_on.audience
+            if hasattr(sign_on, "audience_override"):
+                application_props["settings_sign_on_audience_override"] = (
+                    sign_on.audience_override
+                )
+            if hasattr(sign_on, "idp_issuer"):
+                application_props["settings_sign_on_idp_issuer"] = sign_on.idp_issuer
+            if hasattr(sign_on, "subject_name_id_template"):
+                application_props["settings_sign_on_subject_name_id_template"] = (
+                    sign_on.subject_name_id_template
+                )
+            if hasattr(sign_on, "subject_name_id_format"):
+                application_props["settings_sign_on_subject_name_id_format"] = (
+                    sign_on.subject_name_id_format
+                )
+            if hasattr(sign_on, "response_signed"):
+                application_props["settings_sign_on_response_signed"] = (
+                    sign_on.response_signed
+                )
+            if hasattr(sign_on, "assertion_signed"):
+                application_props["settings_sign_on_assertion_signed"] = (
+                    sign_on.assertion_signed
+                )
+            if hasattr(sign_on, "signature_algorithm"):
+                application_props["settings_sign_on_signature_algorithm"] = (
+                    sign_on.signature_algorithm
+                )
+            if hasattr(sign_on, "digest_algorithm"):
+                application_props["settings_sign_on_digest_algorithm"] = (
+                    sign_on.digest_algorithm
+                )
+            if hasattr(sign_on, "honor_force_authn"):
+                application_props["settings_sign_on_honor_force_authn"] = (
+                    sign_on.honor_force_authn
+                )
+            if hasattr(sign_on, "authn_context_class_ref"):
+                application_props["settings_sign_on_authn_context_class_ref"] = (
+                    sign_on.authn_context_class_ref
+                )
         # oauth_client, sometimes this doesn't exist, sometimes its None
         if (
             hasattr(okta_application.settings, "oauth_client")

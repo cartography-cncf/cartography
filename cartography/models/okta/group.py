@@ -147,8 +147,13 @@ class OktaGroupRuleNodeProperties(CartographyNodeProperties):
     status: PropertyRef = PropertyRef("status")
     last_updated: PropertyRef = PropertyRef("last_updated")
     created: PropertyRef = PropertyRef("created")
+    # Condition properties - supports expression, group_membership, and complex types
+    condition_type: PropertyRef = PropertyRef("condition_type")
     conditions: PropertyRef = PropertyRef("conditions")
+    expression_type: PropertyRef = PropertyRef("expression_type")
+    # People filter properties
     exclusions: PropertyRef = PropertyRef("exclusions")
+    inclusions: PropertyRef = PropertyRef("inclusions")
     assigned_groups: PropertyRef = PropertyRef("assigned_groups")
 
 

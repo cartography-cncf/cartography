@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from typing import Dict
 
@@ -86,19 +85,28 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     groups.sync_okta_groups(okta_client, neo4j_session, common_job_parameters)
     users.sync_okta_user_types(okta_client, neo4j_session, common_job_parameters)
     applications.sync_okta_applications(
-        okta_client, neo4j_session, common_job_parameters,
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
     )
     origins.sync_okta_origins(okta_client, neo4j_session, common_job_parameters)
     authenticators.sync_okta_authenticators(
-        okta_client, neo4j_session, common_job_parameters,
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
     )
     factors.sync_okta_user_factors(
-        okta_client, neo4j_session, common_job_parameters, user_ids,
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+        user_ids,
     )
 
     # Sync Okta groups to AWS roles via SAML
     awssaml.sync_okta_aws_saml(
-        neo4j_session, config.okta_saml_role_regex, config.update_tag,
+        neo4j_session,
+        config.okta_saml_role_regex,
+        config.update_tag,
     )
 
     _cleanup_okta_organizations(neo4j_session, common_job_parameters)

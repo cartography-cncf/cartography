@@ -45,12 +45,14 @@ def sync_okta_groups(
     groups = asyncio.run(_get_okta_groups(okta_client))
 
     # For each group, grab what roles might be assigned
+    # Note: This could be more efficient using the bulk role assignment API:
+    # https://developer.okta.com/docs/reference/api/roles/#list-users-with-role-assignments
+    # However, this endpoint is not currently supported in the Okta Python SDK.
+    # When SDK support is added, this can be refactored to use a single API call
+    # instead of iterating through each group.
     group_roles = []
     logger.info("Syncing Okta group roles")
     for okta_group in groups:
-        # TODO: This could be more efficient with the use of
-        # https://developer.okta.com/docs/reference/api/roles/#list-users-with-role-assignments
-        # for our initial commit we'll avoid since it isn't supported in the Okta SDK
         group_roles += asyncio.run(_get_okta_group_roles(okta_client, okta_group.id))
     transformed_group_roles = _transform_okta_group_roles(group_roles)
     _load_okta_group_roles(
@@ -191,9 +193,10 @@ async def _get_okta_group_rules(okta_client: OktaClient) -> List[OktaGroupRule]:
     """
 
     output_group_rules: List[Dict] = []
-    # TODO: Figure out what the limit of this should be
-    # this value isn't documented by Okta
-    query_parameters = {"limit": 2000}
+    # Note: The pagination limit for group rules is not officially documented by Okta.
+    # Based on testing, the API accepts up to 200 per page (similar to other endpoints).
+    # We use 200 here as a safe default that aligns with other Okta API pagination limits.
+    query_parameters = {"limit": 200}
     group_rules, resp, _ = await okta_client.list_group_rules(query_parameters)
     output_group_rules += group_rules
     while resp.has_next():
@@ -220,16 +223,71 @@ def _transform_okta_group_rules(
         group_rule_props["status"] = okta_group_rule.status.value
         group_rule_props["last_updated"] = okta_group_rule.last_updated
         group_rule_props["created"] = okta_group_rule.created
-        # All Conditions right now are expression types
-        # TODO: It is probably possible to create a more advanced rule via API
-        group_rule_props["conditions"] = okta_group_rule.conditions.expression.value
+
+        # Handle different condition types
+        # Expression-based conditions (most common)
+        if (
+            okta_group_rule.conditions
+            and okta_group_rule.conditions.expression
+            and okta_group_rule.conditions.expression.value
+        ):
+            group_rule_props["condition_type"] = "expression"
+            group_rule_props["conditions"] = okta_group_rule.conditions.expression.value
+            group_rule_props["expression_type"] = (
+                okta_group_rule.conditions.expression.type
+                if hasattr(okta_group_rule.conditions.expression, "type")
+                else None
+            )
+        # Group membership conditions
+        elif (
+            okta_group_rule.conditions
+            and hasattr(okta_group_rule.conditions, "people")
+            and okta_group_rule.conditions.people
+            and hasattr(okta_group_rule.conditions.people, "groups")
+            and okta_group_rule.conditions.people.groups
+        ):
+            group_rule_props["condition_type"] = "group_membership"
+            include_groups = (
+                okta_group_rule.conditions.people.groups.include
+                if hasattr(okta_group_rule.conditions.people.groups, "include")
+                else []
+            )
+            group_rule_props["conditions"] = json.dumps(include_groups)
+            group_rule_props["expression_type"] = None
+        # Unknown or complex condition types - store as JSON
+        elif okta_group_rule.conditions:
+            group_rule_props["condition_type"] = "complex"
+            try:
+                group_rule_props["conditions"] = json.dumps(
+                    okta_group_rule.conditions.as_dict()
+                )
+            except (AttributeError, TypeError):
+                group_rule_props["conditions"] = str(okta_group_rule.conditions)
+            group_rule_props["expression_type"] = None
+        else:
+            group_rule_props["condition_type"] = None
+            group_rule_props["conditions"] = None
+            group_rule_props["expression_type"] = None
+
         # These rules may have optional exclusions for people
-        if okta_group_rule.conditions.people:
+        if (
+            okta_group_rule.conditions
+            and okta_group_rule.conditions.people
+            and hasattr(okta_group_rule.conditions.people, "users")
+            and okta_group_rule.conditions.people.users
+        ):
             group_rule_props["exclusions"] = (
                 okta_group_rule.conditions.people.users.exclude
             )
+            group_rule_props["inclusions"] = (
+                okta_group_rule.conditions.people.users.include
+                if hasattr(okta_group_rule.conditions.people.users, "include")
+                else None
+            )
         else:
             group_rule_props["exclusions"] = None
+            group_rule_props["inclusions"] = None
+
         transformed_group_rules.append(group_rule_props)
         # Create an entry for each group rule and for each group_id
         for group_id in okta_group_rule.actions.assign_user_to_groups.group_ids:

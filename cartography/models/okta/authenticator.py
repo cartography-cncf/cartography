@@ -19,8 +19,27 @@ class OktaAuthenticatorNodeProperties(CartographyNodeProperties):
     key: PropertyRef = PropertyRef("key")
     last_updated: PropertyRef = PropertyRef("last_updated")
     name: PropertyRef = PropertyRef("name")
+    # Provider properties (parsed from provider.configuration)
     provider_type: PropertyRef = PropertyRef("provider_type")
+    provider_auth_port: PropertyRef = PropertyRef("provider_auth_port")
+    provider_host_name: PropertyRef = PropertyRef("provider_host_name")
+    provider_instance_id: PropertyRef = PropertyRef("provider_instance_id")
+    provider_integration_key: PropertyRef = PropertyRef("provider_integration_key")
+    provider_secret_key: PropertyRef = PropertyRef("provider_secret_key")
+    provider_shared_secret: PropertyRef = PropertyRef("provider_shared_secret")
+    provider_user_name_template: PropertyRef = PropertyRef(
+        "provider_user_name_template"
+    )
     provider_configuration: PropertyRef = PropertyRef("provider_configuration")
+    # Settings properties (parsed from settings)
+    settings_allowed_for: PropertyRef = PropertyRef("settings_allowed_for")
+    settings_token_lifetime_minutes: PropertyRef = PropertyRef(
+        "settings_token_lifetime_minutes"
+    )
+    settings_compliance: PropertyRef = PropertyRef("settings_compliance")
+    settings_channel_binding: PropertyRef = PropertyRef("settings_channel_binding")
+    settings_user_verification: PropertyRef = PropertyRef("settings_user_verification")
+    settings_app_instance_id: PropertyRef = PropertyRef("settings_app_instance_id")
     settings: PropertyRef = PropertyRef("settings")
     status: PropertyRef = PropertyRef("status")
     authenticator_type: PropertyRef = PropertyRef("authenticator_type")

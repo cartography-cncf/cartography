@@ -130,6 +130,57 @@ class OktaApplicationNodeProperties(CartographyNodeProperties):
     settings_oauth_client_wildcard_redirect: PropertyRef = PropertyRef(
         "settings_oauth_client_wildcard_redirect"
     )
+    # SAML sign-on configuration properties
+    settings_sign_on_default_relay_state: PropertyRef = PropertyRef(
+        "settings_sign_on_default_relay_state"
+    )
+    settings_sign_on_sso_acs_url: PropertyRef = PropertyRef(
+        "settings_sign_on_sso_acs_url"
+    )
+    settings_sign_on_sso_acs_url_override: PropertyRef = PropertyRef(
+        "settings_sign_on_sso_acs_url_override"
+    )
+    settings_sign_on_recipient: PropertyRef = PropertyRef("settings_sign_on_recipient")
+    settings_sign_on_recipient_override: PropertyRef = PropertyRef(
+        "settings_sign_on_recipient_override"
+    )
+    settings_sign_on_destination: PropertyRef = PropertyRef(
+        "settings_sign_on_destination"
+    )
+    settings_sign_on_destination_override: PropertyRef = PropertyRef(
+        "settings_sign_on_destination_override"
+    )
+    settings_sign_on_audience: PropertyRef = PropertyRef("settings_sign_on_audience")
+    settings_sign_on_audience_override: PropertyRef = PropertyRef(
+        "settings_sign_on_audience_override"
+    )
+    settings_sign_on_idp_issuer: PropertyRef = PropertyRef(
+        "settings_sign_on_idp_issuer"
+    )
+    settings_sign_on_subject_name_id_template: PropertyRef = PropertyRef(
+        "settings_sign_on_subject_name_id_template"
+    )
+    settings_sign_on_subject_name_id_format: PropertyRef = PropertyRef(
+        "settings_sign_on_subject_name_id_format"
+    )
+    settings_sign_on_response_signed: PropertyRef = PropertyRef(
+        "settings_sign_on_response_signed"
+    )
+    settings_sign_on_assertion_signed: PropertyRef = PropertyRef(
+        "settings_sign_on_assertion_signed"
+    )
+    settings_sign_on_signature_algorithm: PropertyRef = PropertyRef(
+        "settings_sign_on_signature_algorithm"
+    )
+    settings_sign_on_digest_algorithm: PropertyRef = PropertyRef(
+        "settings_sign_on_digest_algorithm"
+    )
+    settings_sign_on_honor_force_authn: PropertyRef = PropertyRef(
+        "settings_sign_on_honor_force_authn"
+    )
+    settings_sign_on_authn_context_class_ref: PropertyRef = PropertyRef(
+        "settings_sign_on_authn_context_class_ref"
+    )
     sign_on_mode: PropertyRef = PropertyRef("sign_on_mode")
     status: PropertyRef = PropertyRef("status")
     visibility_app_links: PropertyRef = PropertyRef("visibility_app_links")
