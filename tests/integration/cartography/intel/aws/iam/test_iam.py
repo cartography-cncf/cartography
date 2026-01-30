@@ -216,18 +216,14 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
     assert actual == expected
 
 
-@mock.patch.object(cartography.intel.aws.iam, "get_saml_providers")
-def test_sync_saml_providers(mock_get_saml, neo4j_session):
+def test_sync_saml_providers(neo4j_session):
     _create_base_account(neo4j_session)
-    mock_get_saml.return_value = tests.data.aws.iam.LIST_SAML_PROVIDERS
 
-    cartography.intel.aws.iam.sync(
+    cartography.intel.aws.iam.load_saml_providers(
         neo4j_session,
-        mock.MagicMock(),
-        [TEST_REGION],
+        tests.data.aws.iam.LIST_SAML_PROVIDERS["SAMLProviderList"],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     nodes = check_nodes(neo4j_session, "AWSSAMLProvider", ["arn"])

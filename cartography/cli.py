@@ -671,6 +671,15 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--gitlab-commits-since-days",
+            type=int,
+            default=90,
+            help=(
+                "Number of days of commit history to fetch for GitLab projects. "
+                "Defaults to 90 days. Set to a lower value for faster syncs or higher for more history."
+            ),
+        )
+        parser.add_argument(
             "--workday-api-url",
             type=str,
             default=None,

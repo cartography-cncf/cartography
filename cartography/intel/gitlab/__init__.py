@@ -14,6 +14,7 @@ import cartography.intel.gitlab.dependency_files
 import cartography.intel.gitlab.groups
 import cartography.intel.gitlab.organizations
 import cartography.intel.gitlab.projects
+import cartography.intel.gitlab.users
 from cartography.config import Config
 from cartography.util import timeit
 
@@ -81,7 +82,8 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     common_job_parameters["org_url"] = org_url
 
     # Sync groups (nested subgroups within this organization)
-    cartography.intel.gitlab.groups.sync_gitlab_groups(
+    # Returns the groups list to avoid redundant API calls
+    all_groups = cartography.intel.gitlab.groups.sync_gitlab_groups(
         neo4j_session,
         gitlab_url,
         token,
@@ -97,6 +99,19 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         token,
         config.update_tag,
         common_job_parameters,
+    )
+
+    # Sync users (members of organization and groups) with commit activity
+    # Must happen after projects sync since we need projects to fetch commits
+    cartography.intel.gitlab.users.sync_gitlab_users(
+        neo4j_session,
+        gitlab_url,
+        token,
+        config.update_tag,
+        common_job_parameters,
+        all_groups,
+        all_projects,
+        config.gitlab_commits_since_days,
     )
 
     # Sync container repositories (includes cleanup since it's org-scoped)
@@ -208,6 +223,11 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     # Cleanup projects with cascade delete
     cartography.intel.gitlab.projects.cleanup_projects(
+        neo4j_session, common_job_parameters, org_url
+    )
+
+    # Cleanup users
+    cartography.intel.gitlab.users.cleanup_users(
         neo4j_session, common_job_parameters, org_url
     )
 
