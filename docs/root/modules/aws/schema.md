@@ -129,6 +129,11 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 |name | The friendly name that identifies the group|
 | createdate| ISO 8601 date-time string when the group was created|
 |**arn** | The AWS-global identifier for this group|
+| last_accessed_service_name | The name of the most recently accessed AWS service |
+| last_accessed_service_namespace | The namespace of the most recently accessed service (e.g., "s3") |
+| last_authenticated | ISO 8601 date-time when the service was last accessed |
+| last_authenticated_entity | The ARN of the entity that last accessed the service |
+| last_authenticated_region | The region where the service was last accessed |
 
 #### Relationships
 - Objects part of an AWSGroup may assume AWSRoles.
@@ -764,6 +769,11 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
 | **arn** | AWS-unique identifier for this object |
 | userid | The stable and unique string identifying the user.  |
 | passwordlastused | Datetime when this user's password was last used
+| last_accessed_service_name | The name of the most recently accessed AWS service |
+| last_accessed_service_namespace | The namespace of the most recently accessed service (e.g., "s3") |
+| last_authenticated | ISO 8601 date-time when the service was last accessed |
+| last_authenticated_entity | The ARN of the entity that last accessed the service |
+| last_authenticated_region | The region where the service was last accessed |
 
 #### Relationships
 - AWS Users can be members of AWS Groups.
@@ -796,6 +806,12 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (:AWSUser)-[:POLICY]->(:AWSPolicy)
     ```
 
+- AWS Users can have MFA Devices.
+
+    ```cypher
+    (AWSUser)-[:MFA_DEVICE]->(AWSMfaDevice)
+    ```
+
 
 ### AWSPrincipal::AWSRole
 
@@ -811,6 +827,11 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 | path | The path to the role. |
 | createdate| The date and time, in ISO 8601 date-time format, when the role was created. |
 | **arn** | AWS-unique identifier for this object |
+| last_accessed_service_name | The name of the most recently accessed AWS service |
+| last_accessed_service_namespace | The namespace of the most recently accessed service (e.g., "s3") |
+| last_authenticated | ISO 8601 date-time when the service was last accessed |
+| last_authenticated_entity | The ARN of the entity that last accessed the service |
+| last_authenticated_region | The region where the service was last accessed |
 
 
 #### Relationships
@@ -1111,6 +1132,34 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 - Account Access Keys are a resource under the AWS Account.
     ```
     (:AWSAccount)-[:RESOURCE]->(:AccountAccessKey)
+    ```
+
+### AWSMfaDevice
+
+Representation of an AWS [MFA Device](https://docs.aws.amazon.com/IAM/latest/APIReference/API_MFADevice.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The serial number of the MFA device (same as serialnumber) |
+| **serialnumber** | The serial number that uniquely identifies the MFA device |
+| username | The username of the IAM user associated with the MFA device |
+| user_arn | The ARN of the IAM user associated with the MFA device |
+| enabledate | ISO 8601 date-time string when the MFA device was enabled |
+| enabledate_dt | DateTime object representing when the MFA device was enabled |
+
+#### Relationships
+- MFA Devices are associated with AWS Users.
+
+    ```cypher
+    (AWSUser)-[:MFA_DEVICE]->(AWSMfaDevice)
+    ```
+
+- MFA Devices are resources under the AWS Account.
+
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(AWSMfaDevice)
     ```
 
 ### CloudTrailTrail
@@ -1994,6 +2043,8 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 
 Representation of an AWS Elastic Container Registry [Repository](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_Repository.html).
 
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
+
 | Field | Description |
 |--------|-----------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -2178,6 +2229,11 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 - ECSContainers have images.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    ```
+
+- KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
+    ```
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
 - An ECRImage may be built from a parent ECRImage (derived from provenance attestations).

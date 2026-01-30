@@ -4,13 +4,10 @@ from unittest.mock import MagicMock
 import cartography.intel.aws.iam
 import cartography.intel.aws.permission_relationships
 import tests.data.aws.iam
-from cartography.cli import CLI
 from cartography.client.core.tx import load
-from cartography.config import Config
 from cartography.intel.aws.iam import _transform_policy_statements
 from cartography.intel.aws.iam import sync_root_principal
 from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
-from cartography.sync import build_default_sync
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -23,6 +20,10 @@ def test_permission_relationships_file_arguments():
     """
     Test that we correctly read arguments for --permission-relationships-file
     """
+    from cartography.cli import CLI
+    from cartography.config import Config
+    from cartography.sync import build_default_sync
+
     # Test the correct field is set in the Cartography config object
     fname = "/some/test/file.yaml"
     config = Config(
@@ -93,6 +94,75 @@ def test_load_groups(neo4j_session):
     )
 
 
+@mock.patch.object(
+    cartography.intel.aws.iam,
+    "get_service_last_accessed_details",
+    return_value=tests.data.aws.iam.SERVICE_LAST_ACCESSED_DETAILS,
+)
+def test_sync_service_last_accessed_details(mock_get, neo4j_session):
+    """
+    Test that sync_service_last_accessed_details correctly fetches and loads
+    service last accessed data for principals.
+    """
+    _create_base_account(neo4j_session)
+
+    # Create a test principal that the sync function will find
+    test_principal_arn = "arn:aws:iam::000000000000:user/example-user-0"
+    neo4j_session.run(
+        "MERGE (u:AWSUser:AWSPrincipal{id: $arn}) "
+        "SET u.arn = $arn "
+        "WITH u "
+        "MATCH (aa:AWSAccount{id: $account_id}) "
+        "MERGE (aa)-[r:RESOURCE]->(u)",
+        arn=test_principal_arn,
+        account_id=TEST_ACCOUNT_ID,
+    )
+
+    # Call the sync function (which queries for principals and calls the API)
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AWS_ID": TEST_ACCOUNT_ID,
+    }
+    cartography.intel.aws.iam.sync_service_last_accessed_details(
+        neo4j_session,
+        MagicMock(),  # boto3_session - mocked via patch
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
+    # Verify the service last accessed data was loaded onto the principal
+    nodes = check_nodes(
+        neo4j_session,
+        "AWSPrincipal",
+        [
+            "arn",
+            "last_accessed_service_name",
+            "last_accessed_service_namespace",
+            "last_authenticated",
+            "last_authenticated_entity",
+            "last_authenticated_region",
+        ],
+    )
+
+    test_principal_data = {
+        node for node in nodes if node[0] == test_principal_arn and node[1] is not None
+    }
+
+    expected_data = {
+        (
+            test_principal_arn,
+            "Amazon EC2",
+            "ec2",
+            "2019-01-02 00:00:01",
+            "role/example-role-0",
+            "us-west-2",
+        ),
+    }
+
+    assert test_principal_data == expected_data
+
+
 def _get_principal_role_nodes(neo4j_session):
     """
     Get AWSPrincipal node tuples (rolearn, arn) that have arns with substring `:role/`
@@ -144,6 +214,28 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
     )
 
     assert actual == expected
+
+
+@mock.patch.object(cartography.intel.aws.iam, "get_saml_providers")
+def test_sync_saml_providers(mock_get_saml, neo4j_session):
+    _create_base_account(neo4j_session)
+    mock_get_saml.return_value = tests.data.aws.iam.LIST_SAML_PROVIDERS
+
+    cartography.intel.aws.iam.sync(
+        neo4j_session,
+        mock.MagicMock(),
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    nodes = check_nodes(neo4j_session, "AWSSAMLProvider", ["arn"])
+    expected = {
+        ("arn:aws:iam::000000000000:saml-provider/ADFS",),
+        ("arn:aws:iam::000000000000:saml-provider/Okta",),
+    }
+    assert nodes == expected
 
 
 def test_load_inline_policy(neo4j_session):

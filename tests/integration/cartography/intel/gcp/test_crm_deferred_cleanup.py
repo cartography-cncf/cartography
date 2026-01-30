@@ -10,6 +10,7 @@ import cartography.intel.gcp
 import cartography.intel.gcp.crm.folders
 import cartography.intel.gcp.crm.orgs
 import cartography.intel.gcp.crm.projects
+import cartography.intel.gcp.iam
 import tests.data.gcp.crm
 from cartography.config import Config
 from cartography.graph.job import GraphJob
@@ -26,6 +27,7 @@ def _make_fake_credentials():
     """Create a mock GCP credentials object for testing."""
     creds = MagicMock()
     creds.quota_project_id = "test-quota-project"
+    creds.universe_domain = "googleapis.com"
     return creds
 
 
@@ -54,7 +56,19 @@ def _make_fake_credentials():
     "get_gcp_organizations",
     return_value=tests.data.gcp.crm.GCP_ORGANIZATIONS,
 )
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_predefined_roles",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_org_roles",
+    return_value=[],
+)
 def test_deferred_cleanup_order(
+    mock_get_org_roles,
+    mock_get_predefined_roles,
     mock_get_orgs,
     mock_get_folders,
     mock_get_projects,
@@ -143,7 +157,19 @@ def test_deferred_cleanup_order(
     cartography.intel.gcp.crm.orgs,
     "get_gcp_organizations",
 )
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_predefined_roles",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_org_roles",
+    return_value=[],
+)
 def test_org_deletion_cleanup(
+    mock_get_org_roles,
+    mock_get_predefined_roles,
     mock_get_orgs,
     mock_get_folders,
     mock_get_projects,
@@ -229,7 +255,19 @@ def test_org_deletion_cleanup(
     cartography.intel.gcp.crm.orgs,
     "get_gcp_organizations",
 )
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_predefined_roles",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_org_roles",
+    return_value=[],
+)
 def test_partial_deletion_cleanup(
+    mock_get_org_roles,
+    mock_get_predefined_roles,
     mock_get_orgs,
     mock_get_folders,
     mock_get_projects,
@@ -287,8 +325,22 @@ def test_partial_deletion_cleanup(
     "_sync_project_resources",
     return_value=None,  # Skip project resource sync for these tests
 )
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_predefined_roles",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_org_roles",
+    return_value=[],
+)
 def test_project_migration_between_orgs(
-    mock_sync_resources, mock_get_creds, neo4j_session
+    mock_get_org_roles,
+    mock_get_predefined_roles,
+    mock_sync_resources,
+    mock_get_creds,
+    neo4j_session,
 ):
     """
     Test that when a project migrates from one org to another,
