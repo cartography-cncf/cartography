@@ -4,6 +4,7 @@ Framework and Fact execution logic for Cartography rules.
 
 from neo4j import Driver
 from neo4j import GraphDatabase
+from neo4j import basic_auth
 
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.rules.data.rules import RULES
@@ -205,7 +206,7 @@ def run_rules(
     # Connect to Neo4j
     if output_format == "text":
         print(f"Connecting to Neo4j at {uri}...")
-    driver = GraphDatabase.driver(uri, auth=(neo4j_user, neo4j_password))
+    driver = GraphDatabase.driver(uri, auth=basic_auth(neo4j_user, neo4j_password))
 
     try:
         driver.verify_connectivity()
