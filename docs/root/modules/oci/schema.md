@@ -125,10 +125,11 @@ Representation of an [OCI Compartment](https://docs.cloud.oracle.com/iaas/api/#/
     (OCICompartment)-[PARENT]->(OCICompartment)
     ```
 
-- OCI Compartments have a deprecated relationship for backward compatibility:
+- OCI Compartments have deprecated relationships for backward compatibility:
 
     ```
     (OCITenancy)-[OCI_COMPARTMENT]->(OCICompartment)
+    (OCICompartment)-[OCI_COMPARTMENT]->(OCICompartment)
     ```
 
 - OCI Policies can reference OCI Compartments:
