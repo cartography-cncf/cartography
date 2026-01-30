@@ -21,7 +21,7 @@ def test_rules_registered_and_metadata():
         assert rule.version == "0.1.0"
         assert rule.output_model.__name__ == "GoogleWorkspaceCISFinding"
         assert rule.modules == {Module.GOOGLEWORKSPACE}
-        assert rule.tags[0] == "cis"
+        assert rule.tags[0].startswith("cis:")
         assert rule.references
 
 
