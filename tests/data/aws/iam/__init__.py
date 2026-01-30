@@ -233,3 +233,28 @@ INSTACE = {
         },
     ],
 }
+
+
+SERVICE_LAST_ACCESSED_DETAILS = {
+    "JobStatus": "COMPLETED",
+    "JobCreationDate": datetime.datetime(2019, 1, 1, 0, 0, 1),
+    "JobCompletionDate": datetime.datetime(2019, 1, 1, 0, 0, 2),
+    "ServicesLastAccessed": [
+        {
+            "ServiceName": "Amazon S3",
+            "ServiceNamespace": "s3",
+            "LastAuthenticated": datetime.datetime(2019, 1, 1, 0, 0, 1),
+            "LastAuthenticatedEntity": "user/example-user-0",
+            "LastAuthenticatedRegion": "us-east-1",
+            "TotalAuthenticatedEntities": 1,
+        },
+        {
+            "ServiceName": "Amazon EC2",
+            "ServiceNamespace": "ec2",
+            "LastAuthenticated": datetime.datetime(2019, 1, 2, 0, 0, 1),
+            "LastAuthenticatedEntity": "role/example-role-0",
+            "LastAuthenticatedRegion": "us-west-2",
+            "TotalAuthenticatedEntities": 2,
+        },
+    ],
+}

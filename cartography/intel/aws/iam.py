@@ -1,6 +1,7 @@
 import enum
 import json
 import logging
+import time
 from collections import namedtuple
 from typing import Any
 from typing import Dict
@@ -23,6 +24,9 @@ from cartography.models.aws.iam.group import AWSGroupSchema
 from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
 from cartography.models.aws.iam.managed_policy import AWSManagedPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
+from cartography.models.aws.iam.principal_service_access import (
+    AWSPrincipalServiceAccessSchema,
+)
 from cartography.models.aws.iam.role import AWSRoleSchema
 from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
 from cartography.models.aws.iam.samlprovider import AWSSAMLProviderSchema
@@ -1386,6 +1390,173 @@ def sync_root_principal(
 
 
 @timeit
+@aws_handle_regions
+def get_service_last_accessed_details(
+    boto3_session: boto3.session.Session, arn: str
+) -> Dict:
+    """
+    Get service last accessed details for a given principal.
+    This is a two-step process: generate job, then get results.
+    Handles pagination to retrieve all services accessed.
+    """
+    client = boto3_session.client("iam")
+
+    try:
+        response = client.generate_service_last_accessed_details(Arn=arn)
+        job_id = response["JobId"]
+
+        max_attempts = 30
+        for attempt in range(max_attempts):
+            job_response = client.get_service_last_accessed_details(JobId=job_id)
+
+            if job_response["JobStatus"] == "COMPLETED":
+                # Handle pagination - collect all services
+                all_services = job_response.get("ServicesLastAccessed", [])
+
+                while job_response.get("IsTruncated", False):
+                    marker = job_response.get("Marker")
+                    if not marker:
+                        break
+                    job_response = client.get_service_last_accessed_details(
+                        JobId=job_id, Marker=marker
+                    )
+                    all_services.extend(job_response.get("ServicesLastAccessed", []))
+
+                # Return complete response with all services
+                job_response["ServicesLastAccessed"] = all_services
+                return job_response
+            elif job_response["JobStatus"] == "FAILED":
+                logger.warning(
+                    f"Service last accessed job failed for ARN {arn}: {job_response.get('JobCompletionDate', 'Unknown error')}"
+                )
+                return {}
+
+            time.sleep(2)
+
+        logger.warning(f"Service last accessed job timed out for ARN {arn}")
+        return {}
+
+    except client.exceptions.NoSuchEntityException:
+        logger.warning(
+            f"Principal {arn} not found for service last accessed details",
+            exc_info=True,
+        )
+        return {}
+    except Exception:
+        logger.warning(
+            f"Error getting service last accessed details for {arn}", exc_info=True
+        )
+        raise
+
+
+@timeit
+def load_service_last_accessed_details(
+    neo4j_session: neo4j.Session,
+    service_details: Dict,
+    principal_arn: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    """
+    Load only the most recently accessed service details into Neo4j.
+    Updates the principal with last accessed service information.
+    """
+    if not service_details or not service_details.get("ServicesLastAccessed"):
+        return
+
+    services = service_details.get("ServicesLastAccessed", [])
+    accessed_services = [s for s in services if s.get("LastAuthenticated")]
+
+    if not accessed_services:
+        return
+
+    most_recent_service = max(
+        accessed_services, key=lambda s: s.get("LastAuthenticated")
+    )
+
+    # Transform the data for the data model
+    principal_data = [
+        {
+            "arn": principal_arn,
+            "last_accessed_service_name": most_recent_service.get("ServiceName"),
+            "last_accessed_service_namespace": most_recent_service.get(
+                "ServiceNamespace"
+            ),
+            "last_authenticated": str(most_recent_service.get("LastAuthenticated", "")),
+            "last_authenticated_entity": most_recent_service.get(
+                "LastAuthenticatedEntity", ""
+            ),
+            "last_authenticated_region": most_recent_service.get(
+                "LastAuthenticatedRegion", ""
+            ),
+        }
+    ]
+
+    # Use the data model to load the service access information
+    load(
+        neo4j_session,
+        AWSPrincipalServiceAccessSchema(),
+        principal_data,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def sync_service_last_accessed_details(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    """
+    Sync service last accessed details for all principals in the account.
+    """
+    logger.info(
+        "Syncing service last accessed details for account '%s'.",
+        current_aws_account_id,
+    )
+
+    principals_query = """
+    MATCH (account:AWSAccount{id: $AWS_ACCOUNT_ID})-[:RESOURCE]->(principal)
+    WHERE principal:AWSUser OR principal:AWSRole OR principal:AWSGroup
+    RETURN principal.arn as arn
+    """
+
+    results = neo4j_session.run(principals_query, AWS_ACCOUNT_ID=current_aws_account_id)
+    principal_arns = [record["arn"] for record in results]
+
+    logger.info(
+        f"Found {len(principal_arns)} principals to process for service last accessed details"
+    )
+
+    for principal_arn in principal_arns:
+        logger.debug(
+            f"Getting service last accessed details for principal: {principal_arn}"
+        )
+        service_details = get_service_last_accessed_details(
+            boto3_session, principal_arn
+        )
+
+        if service_details:
+            load_service_last_accessed_details(
+                neo4j_session,
+                service_details,
+                principal_arn,
+                current_aws_account_id,
+                aws_update_tag,
+            )
+
+    # Cleanup: Remove service access data from principals that weren't updated in this sync
+    GraphJob.from_node_schema(
+        AWSPrincipalServiceAccessSchema(), common_job_parameters
+    ).run(
+        neo4j_session,
+    )
+
+
+@timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
@@ -1417,6 +1588,14 @@ def sync(
         common_job_parameters,
     )
     sync_roles(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
+        common_job_parameters,
+    )
+    # Sync service last accessed details after all principals (users, groups, roles) are synced
+    sync_service_last_accessed_details(
         neo4j_session,
         boto3_session,
         current_aws_account_id,
