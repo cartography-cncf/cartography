@@ -3,6 +3,7 @@ import datetime
 from cartography.intel.aws import iam
 from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
+from tests.data.aws.iam.mfa_devices import LIST_MFA_DEVICES
 from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES_RESPONSE
 
 SINGLE_STATEMENT = {
@@ -168,3 +169,36 @@ def test_transform_server_certificates():
     assert isinstance(result[0]["UploadDate"], datetime.datetime)
     assert result[0]["Expiration"] == datetime.datetime(2024, 1, 1, 0, 0, 0)
     assert result[0]["UploadDate"] == datetime.datetime(2023, 1, 1, 0, 0, 0)
+
+
+def test_transform_mfa_devices():
+    raw_data = LIST_MFA_DEVICES
+    result = iam.transform_mfa_devices(raw_data)
+    assert len(result) == 3
+
+    assert result[0]["serialnumber"] == "arn:aws:iam::000000000000:mfa/user-0"
+    assert result[0]["username"] == "user-0"
+    assert result[0]["user_arn"] == "arn:aws:iam::000000000000:user/user-0"
+    assert result[0]["enabledate"] == "2024-01-15 10:30:00"
+    assert isinstance(result[0]["enabledate_dt"], datetime.datetime)
+    assert result[0]["enabledate_dt"] == datetime.datetime(2024, 1, 15, 10, 30, 0)
+
+    assert result[1]["serialnumber"] == "arn:aws:iam::000000000000:mfa/user-0-backup"
+    assert result[1]["username"] == "user-0"
+    assert result[1]["user_arn"] == "arn:aws:iam::000000000000:user/user-0"
+    assert result[1]["enabledate"] == "2024-02-20 14:45:00"
+    assert isinstance(result[1]["enabledate_dt"], datetime.datetime)
+    assert result[1]["enabledate_dt"] == datetime.datetime(2024, 2, 20, 14, 45, 0)
+
+    assert result[2]["serialnumber"] == "arn:aws:iam::000000000000:mfa/user-1"
+    assert result[2]["username"] == "user-1"
+    assert result[2]["user_arn"] == "arn:aws:iam::000000000000:user/user-1"
+    assert result[2]["enabledate"] == "2023-12-01 09:00:00"
+    assert isinstance(result[2]["enabledate_dt"], datetime.datetime)
+    assert result[2]["enabledate_dt"] == datetime.datetime(2023, 12, 1, 9, 0, 0)
+
+
+def test_transform_mfa_devices_empty():
+    raw_data = []
+    result = iam.transform_mfa_devices(raw_data)
+    assert result == []

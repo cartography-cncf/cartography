@@ -333,3 +333,21 @@ It generalizes concepts like AWS Application/Network Load Balancers (ALB/NLB), A
     ```
     (:LoadBalancer)-[:EXPOSE]->(:Container)
     ```
+
+
+### ContainerRegistry
+
+```{note}
+ContainerRegistry is a semantic label.
+```
+
+A container registry represents a storage and distribution system for container images.
+It generalizes concepts like AWS ECR repositories, GCP Artifact Registry repositories, and GitLab Container Registries.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the container registry/repository (REQUIRED). |
+| _ont_uri | The registry URI/endpoint for pulling images. |
+| _ont_location | The region/location where the registry is hosted. |
+| _ont_created_at | Timestamp when the registry was created. |
+| _ont_size_bytes | Storage size in bytes. |
