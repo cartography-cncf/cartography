@@ -5,6 +5,10 @@ import neo4j
 import requests
 
 import cartography.intel.gitlab.branches
+import cartography.intel.gitlab.container_image_attestations
+import cartography.intel.gitlab.container_images
+import cartography.intel.gitlab.container_repositories
+import cartography.intel.gitlab.container_repository_tags
 import cartography.intel.gitlab.dependencies
 import cartography.intel.gitlab.dependency_files
 import cartography.intel.gitlab.groups
@@ -73,6 +77,9 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     org_url: str = organization["web_url"]
 
+    # Add org_url to common_job_parameters for cleanup jobs
+    common_job_parameters["org_url"] = org_url
+
     # Sync groups (nested subgroups within this organization)
     cartography.intel.gitlab.groups.sync_gitlab_groups(
         neo4j_session,
@@ -88,6 +95,56 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         neo4j_session,
         gitlab_url,
         token,
+        config.update_tag,
+        common_job_parameters,
+    )
+
+    # Sync container repositories (includes cleanup since it's org-scoped)
+    all_container_repositories = (
+        cartography.intel.gitlab.container_repositories.sync_container_repositories(
+            neo4j_session,
+            gitlab_url,
+            token,
+            org_url,
+            organization_id,
+            config.update_tag,
+            common_job_parameters,
+        )
+    )
+
+    # Sync container images before tags since tags have REFERENCES relationship to images
+    # Returns raw manifests and manifest lists for downstream attestation sync
+    all_image_manifests, manifest_lists = (
+        cartography.intel.gitlab.container_images.sync_container_images(
+            neo4j_session,
+            gitlab_url,
+            token,
+            org_url,
+            all_container_repositories,
+            config.update_tag,
+            common_job_parameters,
+        )
+    )
+
+    # Sync container repository tags (includes cleanup since it's org-scoped)
+    cartography.intel.gitlab.container_repository_tags.sync_container_repository_tags(
+        neo4j_session,
+        gitlab_url,
+        token,
+        org_url,
+        all_container_repositories,
+        config.update_tag,
+        common_job_parameters,
+    )
+
+    # Sync container image attestations (includes cleanup since it's org-scoped)
+    cartography.intel.gitlab.container_image_attestations.sync_container_image_attestations(
+        neo4j_session,
+        gitlab_url,
+        token,
+        org_url,
+        all_image_manifests,
+        manifest_lists,
         config.update_tag,
         common_job_parameters,
     )

@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cartography.intel.trivy import sync_trivy_aws_ecr_from_s3
+from cartography.intel.trivy import sync_trivy_from_s3
 from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.intel.trivy.scanner import sync_single_image_from_s3
 
@@ -166,15 +166,30 @@ def test_list_s3_scan_results_s3_error(mock_boto3_session):
 
 @patch("cartography.intel.trivy.scanner.sync_single_image")
 @patch("boto3.Session")
-def test_sync_single_image_from_s3_missing_results_key(
+def test_sync_single_image_from_s3_handles_missing_results_key(
     mock_boto3_session, mock_sync_single_image
 ):
+    """Test that scan data without 'Results' key is handled gracefully.
+
+    Trivy scans for images with zero vulnerabilities may omit the 'Results' key
+    entirely instead of returning an empty array. This should be treated as
+    "no vulnerabilities found" rather than an error.
+    """
     # Arrange
+    mock_neo4j_session = MagicMock()
+
     s3_bucket = "test-bucket"
     image_uri = "555666777888.dkr.ecr.ap-southeast-2.amazonaws.com/microservice:latest"
     s3_object_key = f"{image_uri}.json"
 
-    mock_scan_data = {"Metadata": {"ImageID": "test-image"}}
+    # Scan data with Metadata but no Results key (clean image with no vulnerabilities)
+    mock_scan_data = {
+        "Metadata": {
+            "RepoDigests": [
+                f"{image_uri.split(':')[0]}@sha256:abc123def456abc123def456abc123def456abc123def456abc123def456abc1"
+            ]
+        }
+    }
 
     mock_response_body = MagicMock()
     mock_response_body.read.return_value.decode.return_value = json.dumps(
@@ -184,21 +199,23 @@ def test_sync_single_image_from_s3_missing_results_key(
         "Body": mock_response_body
     }
 
-    # Make sync_single_image raise the error when called
-    mock_sync_single_image.side_effect = ValueError(
-        "Missing 'Results' key in scan data"
+    # Act
+    sync_single_image_from_s3(
+        mock_neo4j_session,
+        image_uri,
+        12345,  # update_tag
+        s3_bucket,
+        s3_object_key,
+        mock_boto3_session.return_value,
     )
 
-    # Act & Assert
-    with pytest.raises(ValueError, match="Missing 'Results' key in scan data"):
-        sync_single_image_from_s3(
-            MagicMock(),  # neo4j_session
-            image_uri,
-            12345,  # update_tag
-            s3_bucket,
-            s3_object_key,
-            mock_boto3_session.return_value,
-        )
+    # Assert - sync_single_image should have been called with the scan data
+    mock_sync_single_image.assert_called_once_with(
+        mock_neo4j_session,
+        mock_scan_data,
+        image_uri,
+        12345,
+    )
 
 
 @patch("cartography.intel.trivy.scanner.sync_single_image")
@@ -402,21 +419,19 @@ def test_sync_single_image_from_s3_load_error(
 
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
 @patch("cartography.intel.trivy.get_json_files_in_s3")
-def test_sync_trivy_aws_ecr_from_s3_no_matches(
+def test_sync_trivy_from_s3_no_matches(
     mock_get_json_files,
     mock_get_targets_and_aliases,
 ):
-    """Test that sync_trivy_aws_ecr_from_s3 raises when no JSON files are present."""
+    """Test that sync_trivy_from_s3 raises when no JSON files are present."""
     mock_get_targets_and_aliases.return_value = (
         {"987654321098.dkr.ecr.us-east-1.amazonaws.com/my-repo:4e380d"},
         {},
     )
     mock_get_json_files.return_value = set()  # No scan results available
 
-    with pytest.raises(
-        ValueError, match="No ECR images with S3 json scan results found"
-    ):
-        sync_trivy_aws_ecr_from_s3(
+    with pytest.raises(ValueError, match="No json scan results found in S3"):
+        sync_trivy_from_s3(
             neo4j_session=MagicMock(),
             trivy_s3_bucket="test-bucket",
             trivy_s3_prefix="trivy-scans/",
@@ -431,7 +446,7 @@ def test_sync_trivy_aws_ecr_from_s3_no_matches(
 @patch("cartography.intel.trivy._get_scan_targets_and_aliases")
 @patch("cartography.intel.trivy.get_json_files_in_s3")
 @patch("boto3.Session")
-def test_sync_trivy_aws_ecr_from_s3_digest_files(
+def test_sync_trivy_from_s3_digest_files(
     mock_boto_session,
     mock_get_json_files,
     mock_get_targets_and_aliases,
@@ -466,7 +481,7 @@ def test_sync_trivy_aws_ecr_from_s3_digest_files(
         "Body": body
     }
 
-    sync_trivy_aws_ecr_from_s3(
+    sync_trivy_from_s3(
         neo4j_session=MagicMock(),
         trivy_s3_bucket="test-bucket",
         trivy_s3_prefix="trivy-scans/",

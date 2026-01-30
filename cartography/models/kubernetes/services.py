@@ -44,7 +44,7 @@ class KubernetesServiceToLoadBalancerV2Rel(CartographyRelSchema):
     to the LoadBalancerV2.dnsname property.
     """
 
-    target_node_label: str = "LoadBalancerV2"
+    target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"dnsname": PropertyRef("load_balancer_dns_names", one_to_many=True)}
     )

@@ -321,25 +321,40 @@ def _build_node_properties_statement(
     """
     Generate a Neo4j clause that sets node properties using the given mapping of attribute names to PropertyRefs.
 
-    As seen in this example,
+    This function creates a SET clause for Neo4j queries that assigns values from the data item
+    to node properties, excluding the 'id' field which is handled by the MERGE clause.
+    It also handles setting extra node labels if provided.
 
-        node_property_map: dict[str, PropertyRef] = {
-            'id': PropertyRef("Id"),
-            'node_prop_1': PropertyRef("Prop1"),
-            'node_prop_2': PropertyRef("Prop2", set_in_kwargs=True),
-        }
-        set_clause: str = _build_node_properties_statement(node_property_map)
+    Args:
+        node_property_map (Dict[str, PropertyRef]): Mapping of node attribute names as str to PropertyRef objects.
+        extra_node_labels (Optional[ExtraNodeLabels], optional): ExtraNodeLabels object to set on the node as string.
+            Defaults to None.
 
-    the returned set_clause will be
-        ```
-        i.id = item.Id,
-        i.node_prop_1 = item.Prop1,
-        i.node_prop_2 = $Prop2
-        ```
-    where `i` is a reference to the Neo4j node.
-    :param node_property_map: Mapping of node attribute names as str to PropertyRef objects
-    :param extra_node_labels: Optional ExtraNodeLabels object to set on the node as string
-    :return: The resulting Neo4j SET clause to set the given attributes on the node
+    Returns:
+        str: The resulting Neo4j SET clause to set the given attributes on the node.
+
+    Examples:
+        >>> node_property_map = {
+        ...     'id': PropertyRef("Id"),
+        ...     'node_prop_1': PropertyRef("Prop1"),
+        ...     'node_prop_2': PropertyRef("Prop2", set_in_kwargs=True),
+        ... }
+        >>> set_clause = _build_node_properties_statement(node_property_map)
+        >>> # Returns:
+        >>> # i.node_prop_1 = item.Prop1,
+        >>> # i.node_prop_2 = $Prop2
+        >>> # (note: 'id' is excluded as it's handled by MERGE)
+
+        >>> # With extra labels
+        >>> extra_labels = ExtraNodeLabels(['Resource', 'CloudAsset'])
+        >>> set_clause = _build_node_properties_statement(node_property_map, extra_labels)
+        >>> # Returns the property assignments plus:
+        >>> # i:Resource:CloudAsset
+
+    Note:
+        The 'id' field is intentionally excluded from the SET clause as it's already
+        handled by the MERGE clause in the query pattern. The variable 'i' refers
+        to the Neo4j node being processed.
     """
     ingest_fields_template = Template("i.$node_property = $property_ref")
 
@@ -367,25 +382,37 @@ def _build_rel_properties_statement(
     rel_property_map: dict[str, PropertyRef] | None = None,
 ) -> str:
     """
-    Generate a Neo4j clause that sets relationship properties using the given mapping of attribute names to
-    PropertyRefs.
+    Generate a Neo4j clause that sets relationship properties using the given mapping of attribute names to PropertyRefs.
 
-    In this code example:
+    This function creates a SET clause for Neo4j relationships, mapping relationship
+    properties from the data item to the relationship variable.
 
-        rel_property_map: dict[str, PropertyRef] = {
-            'rel_prop_1': PropertyRef("Prop1"),
-            'rel_prop_2': PropertyRef("Prop2", static=True),
-        }
-        set_clause: str = _build_rel_properties_statement('r', rel_property_map)
+    Args:
+        rel_var (str): The variable name to use for the relationship in the Neo4j query.
+        rel_property_map (Optional[Dict[str, PropertyRef]], optional): Mapping of relationship
+            attribute names as str to PropertyRef objects. Defaults to None.
 
-    the returned set_clause will be:
+    Returns:
+        str: The resulting Neo4j SET clause to set the given attributes on the relationship.
+            Returns empty string if rel_property_map is None or empty.
 
-        r.rel_prop_1 = item.Prop1,
-        r.rel_prop_2 = $Prop2
+    Examples:
+        >>> rel_property_map = {
+        ...     'rel_prop_1': PropertyRef("Prop1"),
+        ...     'rel_prop_2': PropertyRef("Prop2", set_in_kwargs=True),
+        ... }
+        >>> set_clause = _build_rel_properties_statement('r', rel_property_map)
+        >>> # Returns:
+        >>> # r.rel_prop_1 = item.Prop1,
+        >>> # r.rel_prop_2 = $Prop2
 
-    :param rel_var: The variable name to use for the relationship in the Neo4j query
-    :param rel_property_map: Mapping of relationship attribute names as str to PropertyRef objects
-    :return: The resulting Neo4j SET clause to set the given attributes on the relationship
+        >>> # With empty property map
+        >>> set_clause = _build_rel_properties_statement('r', None)
+        >>> # Returns: ""
+
+    Note:
+        The rel_var parameter should match the relationship variable used in the
+        Neo4j MERGE or MATCH clause.
     """
     set_clause = ""
     ingest_fields_template = Template("$rel_var.$rel_property = $property_ref")
@@ -407,8 +434,31 @@ def _build_rel_properties_statement(
 def _build_match_clause(matcher: TargetNodeMatcher | SourceNodeMatcher) -> str:
     """
     Generate a Neo4j match statement on one or more keys and values for a given node.
-    :param matcher: A TargetNodeMatcher or SourceNodeMatcher object
-    :return: a Neo4j match clause
+
+    This function creates a property matching clause for Neo4j queries, typically used
+    within MATCH statements to identify nodes based on their properties.
+
+    Args:
+        matcher (TargetNodeMatcher | SourceNodeMatcher): A matcher object containing
+            the property keys and PropertyRef values to match against.
+
+    Returns:
+        str: A Neo4j match clause in the format "key1: value1, key2: value2, ...".
+
+    Examples:
+        >>> matcher = TargetNodeMatcher(
+        ...     id=PropertyRef('target_id'),
+        ...     name=PropertyRef('target_name')
+        ... )
+        >>> clause = _build_match_clause(matcher)
+        >>> # Returns: "id: item.target_id, name: item.target_name"
+
+        >>> # Used in a MATCH statement
+        >>> # MATCH (n:Node{id: item.target_id, name: item.target_name})
+
+    Note:
+        The returned clause is designed to be used within curly braces in Neo4j
+        MATCH statements for property-based node matching.
     """
     match = Template("$Key: $PropRef")
     matcher_asdict = asdict(matcher)
@@ -423,10 +473,41 @@ def _build_where_clause_for_rel_match(
     matcher: TargetNodeMatcher,
 ) -> str:
     """
-    Same as _build_match_clause, but puts the matching logic in a WHERE clause.
-    This is intended specifically to use for joining with relationships where we need a case-insensitive match.
-    :param matcher: A TargetNodeMatcher object
-    :return: a Neo4j where clause
+    Generate a Neo4j WHERE clause for relationship matching with advanced matching options.
+
+    This function creates WHERE clauses for Neo4j queries, specifically designed for
+    relationship matching scenarios where case-insensitive, fuzzy, or one-to-many
+    matching is required.
+
+    Args:
+        node_var (str): The variable name to use for the node in the Neo4j query.
+        matcher (TargetNodeMatcher): A TargetNodeMatcher object containing properties
+            with matching configuration (ignore_case, fuzzy_and_ignore_case, one_to_many).
+
+    Returns:
+        str: A Neo4j WHERE clause with appropriate matching logic joined by AND operators.
+
+    Examples:
+        >>> matcher = TargetNodeMatcher(
+        ...     name=PropertyRef('name', ignore_case=True),
+        ...     tags=PropertyRef('tag_list', one_to_many=True)
+        ... )
+        >>> where_clause = _build_where_clause_for_rel_match('n', matcher)
+        >>> # Returns:
+        >>> # toLower(n.name) = toLower(item.name) AND
+        >>> # n.tags IN item.tag_list
+
+        >>> # With fuzzy matching
+        >>> matcher = TargetNodeMatcher(
+        ...     description=PropertyRef('desc', fuzzy_and_ignore_case=True)
+        ... )
+        >>> where_clause = _build_where_clause_for_rel_match('n', matcher)
+        >>> # Returns: toLower(n.description) CONTAINS toLower(item.desc)
+
+    Note:
+        This function is specifically intended for relationship joining where
+        case-insensitive or fuzzy matching is needed, unlike _build_match_clause
+        which only supports exact matching.
     """
     match = Template("$node_var.$key = $prop_ref")
     case_insensitive_match = Template("toLower($node_var.$key) = toLower($prop_ref)")
@@ -470,8 +551,49 @@ def _asdict_with_validate_relprops(
     link: CartographyRelSchema,
 ) -> dict[str, PropertyRef]:
     """
-    Give a helpful error message when forgetting to put `()` when instantiating a CartographyRelSchema, as this
-    isn't always caught by IDEs.
+    Convert CartographyRelSchema properties to dict with validation and helpful error messages.
+
+    This function converts a CartographyRelSchema's properties to a dictionary while
+    providing helpful error messages when common instantiation mistakes are made,
+    such as forgetting to add parentheses when instantiating dataclass properties.
+
+    Args:
+        link (CartographyRelSchema): The CartographyRelSchema object to convert to a dict.
+
+    Returns:
+        Dict[str, PropertyRef]: A dictionary of relationship properties as str keys
+            mapped to PropertyRef values.
+
+    Raises:
+        TypeError: If the link's properties are not a dataclass instance, which indicates
+            that the user forgot to instantiate the properties dataclass with `()`.
+
+    Examples:
+        >>> # Correct usage
+        >>> class MyRelProps:
+        ...     prop1: PropertyRef = PropertyRef('prop1')
+        ...     prop2: PropertyRef = PropertyRef('prop2')
+        >>>
+        >>> rel_schema = CartographyRelSchema(
+        ...     target_node_label='Target',
+        ...     properties=MyRelProps(),  # Note the ()
+        ...     ...
+        ... )
+        >>> props_dict = _asdict_with_validate_relprops(rel_schema)
+        >>> # Returns: {'prop1': PropertyRef('prop1'), 'prop2': PropertyRef('prop2')}
+
+        >>> # Incorrect usage (missing parentheses)
+        >>> rel_schema = CartographyRelSchema(
+        ...     target_node_label='Target',
+        ...     properties=MyRelProps,  # Missing ()
+        ...     ...
+        ... )
+        >>> props_dict = _asdict_with_validate_relprops(rel_schema)
+        >>> # Raises TypeError with helpful message
+
+    Note:
+        This validation is particularly useful because IDEs don't always catch
+        the missing parentheses error when instantiating dataclass properties.
     """
     try:
         rel_props_as_dict: dict[str, PropertyRef] = asdict(link.properties)
@@ -482,10 +604,12 @@ def _asdict_with_validate_relprops(
             and e.args == "asdict() should be called on dataclass instances"
         ):
             logger.error(
-                f'TypeError thrown when trying to draw relation "{link.rel_label}" to a "{link.target_node_label}" '
-                f"node. Please make sure that you did not forget to write `()` when specifying `properties` in the"
-                f"dataclass. "
-                f"For example, do `properties: RelProp = RelProp()`; NOT `properties: RelProp = RelProp`.",
+                'TypeError thrown when trying to draw relation "%s" to a "%s" '
+                "node. Please make sure that you did not forget to write `()` when specifying `properties` in the"
+                "dataclass. "
+                "For example, do `properties: RelProp = RelProp()`; NOT `properties: RelProp = RelProp`.",
+                link.rel_label,
+                link.target_node_label,
             )
         raise
     return rel_props_as_dict
@@ -495,16 +619,46 @@ def _build_attach_sub_resource_statement(
     sub_resource_link: CartographyRelSchema | None = None,
 ) -> str:
     """
-    Generates a Neo4j statement to attach a sub resource to a node. A 'sub resource' is a term we made up to describe
-    billing units of a given resource. For example,
-    - In AWS, the sub resource is an AWSAccount.
-    - In Azure, the sub resource is a Subscription.
-    - In GCP, the sub resource is a GCPProject.
-    - etc.
-    This is a private function not meant to be called outside of build_ingest_query().
-    :param sub_resource_link: Optional: The CartographyRelSchema object connecting previous node(s) to the sub resource.
-    :return: a Neo4j clause that connects previous node(s) to a sub resource, taking into account the labels, attribute
-    keys, and directionality. If sub_resource_link is None, return an empty string.
+    Generate a Neo4j statement to attach a sub resource to a node.
+
+    A 'sub resource' is a cartography term for billing units of a given resource.
+    This function creates the Neo4j clause to connect nodes to their sub resources,
+    handling the relationship direction and properties appropriately.
+
+    Args:
+        sub_resource_link (Optional[CartographyRelSchema], optional): The CartographyRelSchema
+            object connecting previous node(s) to the sub resource. Defaults to None.
+
+    Returns:
+        str: A Neo4j clause that connects previous node(s) to a sub resource, taking into
+            account the labels, attribute keys, and directionality. Returns empty string
+            if sub_resource_link is None.
+
+    Examples:
+        Sub resource examples by cloud provider:
+        - AWS: AWSAccount
+        - Azure: Subscription
+        - GCP: GCPProject
+
+        >>> # AWS example
+        >>> sub_resource_link = CartographyRelSchema(
+        ...     target_node_label='AWSAccount',
+        ...     target_node_matcher=TargetNodeMatcher(id=PropertyRef('account_id')),
+        ...     direction=LinkDirection.INWARD,
+        ...     rel_label='RESOURCE',
+        ...     properties=SubResourceRel()
+        ... )
+        >>> statement = _build_attach_sub_resource_statement(sub_resource_link)
+        >>> # Returns Neo4j clause for connecting to AWS account
+
+        >>> # No sub resource
+        >>> statement = _build_attach_sub_resource_statement(None)
+        >>> # Returns: ""
+
+    Note:
+        This is a private function not meant to be called outside of build_ingest_query().
+        The generated statement includes proper firstseen timestamp handling and
+        relationship property setting.
     """
     if not sub_resource_link:
         return ""
@@ -555,13 +709,51 @@ def _build_attach_additional_links_statement(
     additional_relationships: OtherRelationships | None = None,
 ) -> str:
     """
-    Generates a Neo4j statement to attach one or more CartographyRelSchemas to node(s) previously mentioned in the
-    query.
-    This is a private function not meant to be called outside of build_ingestion_query().
-    :param additional_relationships: Optional list of CartographyRelSchema describing what other relationships should
-    be created from the previous node(s) in this query.
-    :return: A Neo4j clause that connects previous node(s) to the given additional_links., taking into account the
-    labels, attribute keys, and directionality. If additional_relationships is None, return an empty string.
+    Generate a Neo4j statement to attach multiple additional relationships to nodes.
+
+    This function creates Neo4j clauses to connect nodes with additional relationships
+    beyond the sub resource relationship. It handles multiple relationship types,
+    directions, and properties in a single statement.
+
+    Args:
+        additional_relationships (Optional[OtherRelationships], optional): List of
+            CartographyRelSchema objects describing additional relationships to create
+            from the previous node(s) in the query. Defaults to None.
+
+    Returns:
+        str: A Neo4j clause that connects previous node(s) to the additional relationships,
+            taking into account labels, attribute keys, and directionality. Returns empty
+            string if additional_relationships is None.
+
+    Examples:
+        >>> # Multiple additional relationships
+        >>> additional_rels = OtherRelationships([
+        ...     CartographyRelSchema(
+        ...         target_node_label='Role',
+        ...         target_node_matcher=TargetNodeMatcher(name=PropertyRef('role_name')),
+        ...         direction=LinkDirection.OUTWARD,
+        ...         rel_label='HAS_ROLE',
+        ...         properties=RoleRel()
+        ...     ),
+        ...     CartographyRelSchema(
+        ...         target_node_label='Group',
+        ...         target_node_matcher=TargetNodeMatcher(id=PropertyRef('group_id')),
+        ...         direction=LinkDirection.INWARD,
+        ...         rel_label='MEMBER_OF',
+        ...         properties=GroupRel()
+        ...     )
+        ... ])
+        >>> statement = _build_attach_additional_links_statement(additional_rels)
+        >>> # Returns Neo4j UNION clause connecting to both Role and Group nodes
+
+        >>> # No additional relationships
+        >>> statement = _build_attach_additional_links_statement(None)
+        >>> # Returns: ""
+
+    Note:
+        This is a private function not meant to be called outside of build_ingestion_query().
+        The generated statement uses UNION to combine multiple relationship attachments
+        and includes proper firstseen timestamp handling.
     """
     if not additional_relationships:
         return ""
@@ -629,12 +821,48 @@ def _build_attach_relationships_statement(
     other_relationships: OtherRelationships | None,
 ) -> str:
     """
-    Use Neo4j subqueries to attach sub resource and/or other relationships.
-    Subqueries allow the query to continue to run even if we only have data for some but not all the relationships
-    defined by a schema.
-    For example, if an EC2Instance has attachments to NetworkInterfaces and AWSAccounts, but our data only includes
-    EC2Instance to AWSAccount information, structuring the ingestion query with subqueries allows us to build a query
-    that will ignore the null relationships and continue to MERGE the ones that exist.
+    Generate Neo4j subqueries to attach sub resource and/or other relationships.
+
+    This function uses Neo4j subqueries to attach relationships, allowing the query
+    to continue running even if only partial relationship data is available. This
+    approach enables graceful handling of missing relationship data.
+
+    Args:
+        sub_resource_relationship (Optional[CartographyRelSchema]): CartographyRelSchema
+            that describes the sub resource relationship to attach.
+        other_relationships (Optional[OtherRelationships]): OtherRelationships object
+            that describes the additional relationships to attach.
+
+    Returns:
+        str: A Neo4j clause that attaches the sub resource and/or other relationships
+            to the previous node(s) in the query. Returns empty string if both
+            parameters are None.
+
+    Examples:
+        >>> # With both sub resource and other relationships
+        >>> sub_resource_rel = CartographyRelSchema(...)
+        >>> other_rels = OtherRelationships([...])
+        >>> statement = _build_attach_relationships_statement(sub_resource_rel, other_rels)
+        >>> # Returns:
+        >>> # WITH i, item
+        >>> # CALL {
+        >>> #     [sub resource attachment] UNION [other relationships attachment]
+        >>> # }
+
+        >>> # With only sub resource
+        >>> statement = _build_attach_relationships_statement(sub_resource_rel, None)
+        >>> # Returns subquery with only sub resource attachment
+
+        >>> # No relationships
+        >>> statement = _build_attach_relationships_statement(None, None)
+        >>> # Returns: ""
+
+    Note:
+        Subqueries allow the ingestion query to continue even if we only have data
+        for some relationships. For example, if an EC2Instance has attachments to
+        NetworkInterfaces and AWSAccounts, but data only includes EC2Instance to
+        AWSAccount information, the query will ignore null relationships and continue
+        to MERGE the existing ones.
     """
     if not sub_resource_relationship and not other_relationships:
         return ""
@@ -674,7 +902,35 @@ def rel_present_on_node_schema(
     rel_schema: CartographyRelSchema,
 ) -> bool:
     """
-    Answers the question: is the given rel_schema is present on the given node_schema?
+    Check if a relationship schema is present on a node schema.
+
+    This function determines whether a given relationship schema is defined
+    on the provided node schema, checking both sub resource relationships
+    and other relationships.
+
+    Args:
+        node_schema (CartographyNodeSchema): The node schema to check for the relationship.
+        rel_schema (CartographyRelSchema): The relationship schema to look for.
+
+    Returns:
+        bool: True if the relationship schema is present on the node schema, False otherwise.
+
+    Examples:
+        >>> node_schema = CartographyNodeSchema(
+        ...     label='AWSUser',
+        ...     sub_resource_relationship=account_rel,
+        ...     other_relationships=OtherRelationships([role_rel, group_rel])
+        ... )
+        >>> rel_present_on_node_schema(node_schema, account_rel)
+        True
+        >>> rel_present_on_node_schema(node_schema, role_rel)
+        True
+        >>> rel_present_on_node_schema(node_schema, unknown_rel)
+        False
+
+    Note:
+        This function is commonly used for validation in cleanup operations and
+        query building to ensure that only valid relationships are processed.
     """
     sub_res_rel, other_rels = filter_selected_relationships(node_schema, {rel_schema})
     if sub_res_rel or other_rels:
@@ -687,13 +943,51 @@ def filter_selected_relationships(
     selected_relationships: set[CartographyRelSchema],
 ) -> tuple[CartographyRelSchema | None, OtherRelationships | None]:
     """
-    Ensures that selected relationships specified to build_ingestion_query() are actually present on
-    node_schema.sub_resource_relationship and node_schema.other_relationships.
-    :param node_schema: The node schema object to filter relationships against
-    :param selected_relationships: The set of relationships to check if they exist in the node schema. If empty set,
-    this means that no relationships have been selected. None is not an accepted value here.
-    :return: a tuple of the shape (sub resource rel [if present in selected_relationships], an OtherRelationships object
-    containing all values of node_schema.other_relationships that are present in selected_relationships)
+    Filter and validate selected relationships against a node schema.
+
+    This function ensures that selected relationships specified to build_ingestion_query()
+    are actually present on the node schema. It validates the relationships exist and
+    separates them into sub resource and other relationship categories.
+
+    Args:
+        node_schema (CartographyNodeSchema): The node schema object to filter relationships against.
+        selected_relationships (Set[CartographyRelSchema]): The set of relationships to check
+            if they exist in the node schema. If empty set, this means no relationships have
+            been selected. None is not an accepted value.
+
+    Returns:
+        Tuple[Optional[CartographyRelSchema], Optional[OtherRelationships]]: A tuple containing:
+            - Sub resource relationship (if present in selected_relationships)
+            - OtherRelationships object containing all other relationships from
+              selected_relationships that are present in the node schema
+
+    Raises:
+        ValueError: If any selected relationship is not defined on the node schema.
+
+    Examples:
+        >>> node_schema = CartographyNodeSchema(
+        ...     label='EC2Instance',
+        ...     sub_resource_relationship=account_rel,
+        ...     other_relationships=OtherRelationships([vpc_rel, subnet_rel])
+        ... )
+        >>>
+        >>> # Select subset of relationships
+        >>> selected = {account_rel, vpc_rel}
+        >>> sub_rel, other_rels = filter_selected_relationships(node_schema, selected)
+        >>> # Returns: (account_rel, OtherRelationships([vpc_rel]))
+
+        >>> # Empty set means no relationships selected
+        >>> sub_rel, other_rels = filter_selected_relationships(node_schema, set())
+        >>> # Returns: (None, None)
+
+        >>> # Invalid relationship raises error
+        >>> invalid_selected = {unknown_rel}
+        >>> filter_selected_relationships(node_schema, invalid_selected)
+        >>> # Raises: ValueError
+
+    Note:
+        This function is used internally by build_ingestion_query() to validate
+        and filter the selected_relationships parameter.
     """
     # The empty set means no relationships are selected
     if selected_relationships == set():
@@ -731,23 +1025,47 @@ def build_ingestion_query(
     selected_relationships: set[CartographyRelSchema] | None = None,
 ) -> str:
     """
-    Generates a Neo4j query from the given CartographyNodeSchema to ingest the specified nodes and relationships so that
-    cartography module authors don't need to handwrite their own queries.
-    :param node_schema: The CartographyNodeSchema object to build a Neo4j query from.
-    :param selected_relationships: If specified, generates a query that attaches only the relationships in this optional
-    set of CartographyRelSchema. The RelSchema specified here _must_ be present in node_schema.sub_resource_relationship
-    or node_schema.other_relationships.
-    If selected_relationships is None (default), then we create a query using all RelSchema specified in
-    node_schema.sub_resource_relationship + node_schema.other_relationships.
-    If selected_relationships is the empty set, we create a query with no relationship attachments at all.
-    :return: An optimized Neo4j query that can be used to ingest nodes and relationships.
-    Important notes:
-    - The resulting query uses the UNWIND + MERGE pattern (see
-      https://neo4j.com/docs/cypher-manual/current/clauses/unwind/#unwind-creating-nodes-from-a-list-parameter) to batch
-      load the data for speed.
-    - The query assumes that a list of dicts will be passed to it through parameter $DictList.
-    - The query sets `firstseen` attributes on all the nodes and relationships that it creates.
-    - The query is intended to be supplied as input to cartography.core.client.tx.load_graph_data().
+    Generate a Neo4j query from a CartographyNodeSchema to ingest nodes and relationships.
+
+    This function creates an optimized Neo4j query that cartography module authors can use
+    instead of handwriting their own queries. It handles node creation, property setting,
+    and relationship attachment in a single optimized query.
+
+    Args:
+        node_schema (CartographyNodeSchema): The CartographyNodeSchema object to build a Neo4j query from.
+        selected_relationships (Optional[Set[CartographyRelSchema]], optional): If specified, generates
+            a query that attaches only the relationships in this set. The RelSchema specified must be
+            present in node_schema.sub_resource_relationship or node_schema.other_relationships.
+            Defaults to None (uses all relationships). If empty set, creates query with no relationships.
+
+    Returns:
+        str: An optimized Neo4j query that can be used to ingest nodes and relationships.
+
+    Examples:
+        >>> # Basic node schema with relationships
+        >>> node_schema = CartographyNodeSchema(
+        ...     label='EC2Instance',
+        ...     properties=EC2InstanceProperties(),
+        ...     sub_resource_relationship=account_rel,
+        ...     other_relationships=OtherRelationships([vpc_rel, subnet_rel])
+        ... )
+        >>> query = build_ingestion_query(node_schema)
+        >>> # Returns complete ingestion query with all relationships
+
+        >>> # Query with selected relationships only
+        >>> selected_rels = {account_rel, vpc_rel}
+        >>> query = build_ingestion_query(node_schema, selected_rels)
+        >>> # Returns query with only account and VPC relationships
+
+        >>> # Query with no relationships
+        >>> query = build_ingestion_query(node_schema, set())
+        >>> # Returns query that only creates nodes, no relationships
+
+    Note:
+        - The resulting query uses the UNWIND + MERGE pattern for batch loading data efficiently
+        - The query assumes a list of dicts will be passed via parameter $DictList
+        - The query sets `firstseen` attributes on all created nodes and relationships
+        - The query is intended for use with cartography.core.client.tx.load_graph_data()
     """
     query_template = Template(
         """
@@ -802,8 +1120,40 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
     """
     Generate queries to create indexes for the given CartographyNodeSchema and all node types attached to it via its
     relationships.
-    :param node_schema: The Cartography node_schema object
-    :return: A list of queries of the form `CREATE INDEX IF NOT EXISTS FOR (n:$TargetNodeLabel) ON (n.$TargetAttribute)`
+
+    This function creates Neo4j CREATE INDEX queries for optimal query performance.
+    It handles indexes for the main node schema, its relationships, and any extra
+    labels or properties that require indexing.
+
+    Args:
+        node_schema (CartographyNodeSchema): The Cartography node schema object to create indexes for.
+
+    Returns:
+        List[str]: A list of CREATE INDEX queries of the form
+                   `CREATE INDEX IF NOT EXISTS FOR (n:$TargetNodeLabel) ON (n.$TargetAttribute)`
+
+    Examples:
+        >>> node_schema = CartographyNodeSchema(
+        ...     label='AWSUser',
+        ...     properties=Properties(
+        ...         id=PropertyRef('id'),
+        ...         arn=PropertyRef('arn', extra_index=True),
+        ...         name=PropertyRef('name')
+        ...     ),
+        ...     sub_resource_relationship=account_rel,
+        ...     other_relationships=OtherRelationships([role_rel])
+        ... )
+        >>> queries = build_create_index_queries(node_schema)
+        >>> # Returns indexes for:
+        >>> # - AWSUser.id and AWSUser.lastupdated (standard indexes)
+        >>> # - AWSUser.arn (extra index due to extra_index=True)
+        >>> # - Target node properties from relationships
+        >>> # - Extra node labels if present
+
+    Note:
+        This function automatically creates indexes for 'id' and 'lastupdated' fields
+        on all node types, plus any properties marked with extra_index=True.
+        It also indexes target node properties from all relationships.
     """
     index_template = Template(
         "CREATE INDEX IF NOT EXISTS FOR (n:$TargetNodeLabel) ON (n.$TargetAttribute);",
@@ -866,16 +1216,50 @@ def build_create_index_queries_for_matchlink(
     rel_schema: CartographyRelSchema,
 ) -> list[str]:
     """
-    Generate queries to create indexes for the given CartographyRelSchema and all node types attached to it via its
-    relationships.
-    :param rel_schema: The CartographyRelSchema object
-    :return: A list of queries of the form `CREATE INDEX IF NOT EXISTS FOR (n:$TargetNodeLabel) ON (n.$TargetAttribute)`
+    Generate queries to create indexes for the given CartographyRelSchema and all node types attached to it.
+
+    This function creates Neo4j CREATE INDEX queries specifically for matchlink operations,
+    which are used to connect existing nodes in the graph. It creates indexes for both
+    source and target node properties, plus composite relationship indexes.
+
+    Args:
+        rel_schema (CartographyRelSchema): The CartographyRelSchema object to create indexes for.
+
+    Returns:
+        List[str]: A list of CREATE INDEX queries for source nodes, target nodes, and relationships.
+                   Returns empty list if source_node_matcher is not defined.
+
+    Examples:
+        >>> rel_schema = CartographyRelSchema(
+        ...     source_node_label='User',
+        ...     source_node_matcher=SourceNodeMatcher(id=PropertyRef('user_id')),
+        ...     target_node_label='Role',
+        ...     target_node_matcher=TargetNodeMatcher(name=PropertyRef('role_name')),
+        ...     rel_label='HAS_ROLE',
+        ...     direction=LinkDirection.OUTWARD
+        ... )
+        >>> queries = build_create_index_queries_for_matchlink(rel_schema)
+        >>> # Returns:
+        >>> # - CREATE INDEX FOR (n:User) ON (n.id)
+        >>> # - CREATE INDEX FOR (n:Role) ON (n.name)
+        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id)
+
+        >>> # Missing source node matcher
+        >>> incomplete_rel = CartographyRelSchema(target_node_label='Role', ...)
+        >>> queries = build_create_index_queries_for_matchlink(incomplete_rel)
+        >>> # Returns: [] (empty list with warning logged)
+
+    Note:
+        This function is only used for load_matchlinks() where we match and connect
+        existing nodes in the graph. It requires source_node_matcher to be defined
+        and creates composite indexes for relationship performance.
     """
     if not rel_schema.source_node_matcher:
         logger.warning(
-            f"No source node matcher found for {rel_schema.rel_label}; returning empty list."
+            "No source node matcher found for %s; returning empty list. "
             "Please note that build_create_index_queries_for_matchlink() is only used for load_matchlinks() where we match on "
-            "and connect existing nodes in the graph."
+            "and connect existing nodes in the graph.",
+            rel_schema.rel_label,
         )
         return []
 
@@ -927,11 +1311,49 @@ def build_create_index_queries_for_matchlink(
 def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
     """
     Generate a Neo4j query to link two existing nodes when given a CartographyRelSchema object.
-    This is only used for load_matchlinks().
-    :param rel_schema: The CartographyRelSchema object to generate a query. This CartographyRelSchema object
-    - Must have a source_node_matcher and source_node_label defined
-    - Must have a CartographyRelProperties object where _sub_resource_label and _sub_resource_id are defined
-    :return: A Neo4j query that can be used to link two existing nodes.
+
+    This function creates a Neo4j query specifically for connecting existing nodes in the graph
+    based on their properties. It is designed for use with load_matchlinks() operations.
+
+    Args:
+        rel_schema (CartographyRelSchema): The CartographyRelSchema object to generate a query for.
+            This object must have:
+            - source_node_matcher and source_node_label defined
+            - CartographyRelProperties with _sub_resource_label and _sub_resource_id defined
+
+    Returns:
+        str: A Neo4j query that can be used to link two existing nodes.
+
+    Raises:
+        ValueError: If the rel_schema does not have a source_node_matcher or source_node_label defined,
+            or if the rel_schema properties do not have _sub_resource_label or _sub_resource_id defined.
+
+    Examples:
+        >>> rel_schema = CartographyRelSchema(
+        ...     source_node_label='User',
+        ...     source_node_matcher=SourceNodeMatcher(id=PropertyRef('user_id')),
+        ...     target_node_label='Role',
+        ...     target_node_matcher=TargetNodeMatcher(name=PropertyRef('role_name')),
+        ...     rel_label='HAS_ROLE',
+        ...     direction=LinkDirection.OUTWARD,
+        ...     properties=UserRoleRel(
+        ...         _sub_resource_label=PropertyRef('_sub_resource_label', set_in_kwargs=True),
+        ...         _sub_resource_id=PropertyRef('_sub_resource_id', set_in_kwargs=True)
+        ...     )
+        ... )
+        >>> query = build_matchlink_query(rel_schema)
+        >>> # Returns:
+        >>> # UNWIND $DictList as item
+        >>> #     MATCH (from:User{id: item.user_id})
+        >>> #     MATCH (to:Role{name: item.role_name})
+        >>> #     MERGE (from)-[r:HAS_ROLE]->(to)
+        >>> #     ON CREATE SET r.firstseen = timestamp()
+        >>> #     SET r._sub_resource_label = $_sub_resource_label, ...
+
+    Note:
+        This function is only used for load_matchlinks() operations where we need to
+        connect existing nodes. The _sub_resource_label and _sub_resource_id properties
+        are required for the cleanup query functionality.
     """
     if not rel_schema.source_node_matcher or not rel_schema.source_node_label:
         raise ValueError(
@@ -944,12 +1366,12 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
     # These are needed for the cleanup query
     if "_sub_resource_label" not in rel_props_as_dict:
         raise ValueError(
-            f"Expected _sub_resource_label to be defined on {rel_schema.properties.__class__.__name__}"
+            f"Expected _sub_resource_label to be defined on {rel_schema.properties.__class__.__name__}. "
             "Please include `_sub_resource_label: PropertyRef = PropertyRef('_sub_resource_label', set_in_kwargs=True)`"
         )
     if "_sub_resource_id" not in rel_props_as_dict:
         raise ValueError(
-            f"Expected _sub_resource_id to be defined on {rel_schema.properties.__class__.__name__}"
+            f"Expected _sub_resource_id to be defined on {rel_schema.properties.__class__.__name__}. "
             "Please include `_sub_resource_id: PropertyRef = PropertyRef('_sub_resource_id', set_in_kwargs=True)`"
         )
 

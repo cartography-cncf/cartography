@@ -22,6 +22,10 @@ _inactive_user_active_accounts_ontology = Fact(
     AND COALESCE(a.active, False) = True
     RETURN a, u
     """,
+    cypher_count_query="""
+    MATCH (a:UserAccount)
+    RETURN COUNT(a) AS count
+    """,
     module=Module.CROSS_CLOUD,
     maturity=Maturity.EXPERIMENTAL,
 )

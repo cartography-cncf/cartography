@@ -15,17 +15,13 @@ import os
 import sys
 from datetime import datetime
 
-sys.path.insert(0, os.path.abspath("../.."))
+# Use __file__ for robustness when conf.py is copied to generated/rst/ by build.sh
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def setup(app):
     app.add_config_value("release_level", "", "env")
 
-
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-# sys.path.insert(0, os.path.abspath('.'))
 
 # -- General configuration ------------------------------------------------
 
@@ -41,6 +37,9 @@ extensions = [
     "sphinx.ext.githubpages",
     "sphinxcontrib.mermaid",
     "myst_parser",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.coverage",
     "sphinx_copybutton",
 ]
 
@@ -246,3 +245,19 @@ myst_enable_extensions = [
 myst_linkify_fuzzy_links = False
 suppress_warnings = ["myst.header"]
 myst_fence_as_directive = ["mermaid"]
+
+# Napoleon settings
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = False
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = True
+napoleon_use_admonition_for_examples = True
+napoleon_use_admonition_for_notes = True
+napoleon_use_admonition_for_references = True
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = True
+napoleon_preprocess_types = False
+napoleon_type_aliases = None
+napoleon_attr_annotations = True
