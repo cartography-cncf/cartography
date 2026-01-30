@@ -169,7 +169,7 @@ _cis_2_1_high_risk_oauth_scopes = Fact(
 
 google_workspace_cis_1_1_enforce_2sv = Rule(
     id="google_workspace_cis_1_1_enforce_2sv",
-    name="CIS 1.1 - Enforce 2-Step Verification",
+    name="CIS Google Workspace 1.1: Enforce 2-Step Verification",
     description=(
         "Detect users without enforced 2-Step Verification. Requires Google Workspace user ingestion "
         "with security fields (admin.directory.user.security scope)."
@@ -183,7 +183,7 @@ google_workspace_cis_1_1_enforce_2sv = Rule(
 
 google_workspace_cis_1_2_admins_enforced_2sv = Rule(
     id="google_workspace_cis_1_2_admins_enforced_2sv",
-    name="CIS 1.2 - Super admins with enforced 2-Step Verification",
+    name="CIS Google Workspace 1.2: Admin 2-Step Verification Enforcement",
     description=(
         "Detect admin accounts without enforced 2-Step Verification. Enrolled but not enforced is "
         "non-compliant per CIS 4.1.1.1. Requires admin.directory.user.security scope."
@@ -197,7 +197,7 @@ google_workspace_cis_1_2_admins_enforced_2sv = Rule(
 
 google_workspace_cis_2_1_high_risk_oauth = Rule(
     id="google_workspace_cis_2_1_high_risk_oauth",
-    name="CIS 2.1 - Review high-risk OAuth access",
+    name="CIS Google Workspace 2.1: High-Risk OAuth Access",
     description=(
         "Detect third-party OAuth apps authorized with high-risk scopes (Admin SDK, Drive, Gmail). "
         "Requires OAuth token ingestion with scopes for users."
