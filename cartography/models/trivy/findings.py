@@ -62,6 +62,28 @@ class TrivyFindingToImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TrivyFindingToGCPImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("ImageDigest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: TrivyFindingToImageRelProperties = TrivyFindingToImageRelProperties()
+
+
+@dataclass(frozen=True)
+class TrivyFindingToGCPPlatformImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryPlatformImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("ImageDigest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "AFFECTS"
+    properties: TrivyFindingToImageRelProperties = TrivyFindingToImageRelProperties()
+
+
+@dataclass(frozen=True)
 class TrivyFindingToGitLabImageRel(CartographyRelSchema):
     target_node_label: str = "GitLabContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -81,6 +103,8 @@ class TrivyImageFindingSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             TrivyFindingToImageRel(),
+            TrivyFindingToGCPImageRel(),
+            TrivyFindingToGCPPlatformImageRel(),
             TrivyFindingToGitLabImageRel(),
         ],
     )

@@ -43,6 +43,28 @@ class TrivyPackageToImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TrivyPackageToGCPImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("ImageDigest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED"
+    properties: TrivyPackageToImageRelProperties = TrivyPackageToImageRelProperties()
+
+
+@dataclass(frozen=True)
+class TrivyPackageToGCPPlatformImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryPlatformImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("ImageDigest")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DEPLOYED"
+    properties: TrivyPackageToImageRelProperties = TrivyPackageToImageRelProperties()
+
+
+@dataclass(frozen=True)
 class TrivyPackageToGitLabImageRel(CartographyRelSchema):
     target_node_label: str = "GitLabContainerImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -80,6 +102,8 @@ class TrivyPackageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             TrivyPackageToImageRel(),
+            TrivyPackageToGCPImageRel(),
+            TrivyPackageToGCPPlatformImageRel(),
             TrivyPackageToGitLabImageRel(),
             TrivyPackageToFindingRel(),
         ],

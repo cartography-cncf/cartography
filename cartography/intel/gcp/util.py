@@ -113,6 +113,27 @@ def gcp_api_execute_with_retry(request: Any) -> Any:
     return _gcp_execute(request)
 
 
+def determine_role_type_and_scope(role_name: str) -> tuple[str, str]:
+    """
+    Determine the role type and scope based on the role name.
+
+    :param role_name: The name of the role (e.g., "roles/editor", "organizations/123/roles/custom").
+    :return: A tuple of (role_type, scope).
+    """
+    if role_name.startswith("roles/"):
+        # Predefined or basic roles
+        if role_name in ["roles/owner", "roles/editor", "roles/viewer"]:
+            return "BASIC", "GLOBAL"
+        return "PREDEFINED", "GLOBAL"
+    if role_name.startswith("organizations/"):
+        return "CUSTOM", "ORGANIZATION"
+    if role_name.startswith("projects/"):
+        return "CUSTOM", "PROJECT"
+
+    # Unknown format, default to custom project
+    return "CUSTOM", "PROJECT"
+
+
 def is_api_disabled_error(e: HttpError) -> bool:
     """
     Check if an HttpError indicates that a GCP API is not enabled on the project.
