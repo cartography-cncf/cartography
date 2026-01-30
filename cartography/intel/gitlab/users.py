@@ -155,7 +155,10 @@ def transform_commit_activity(
     # Build records by taking existing user data and adding commit properties
     records = []
     for (user_url, project_url), dates in activity.items():
-        dates.sort()
+        # Parse ISO dates to datetime objects for proper timezone-aware comparison
+        commit_dates = [
+            datetime.fromisoformat(date.replace("Z", "+00:00")) for date in dates
+        ]
 
         # Find the user record (may have multiple if they have group memberships)
         # Just take the first one since we only need the user properties
@@ -166,13 +169,17 @@ def transform_commit_activity(
             )
             continue
 
+        # Get min/max dates and convert back to ISO format with Z suffix
+        first_date = min(commit_dates).isoformat().replace("+00:00", "Z")
+        last_date = max(commit_dates).isoformat().replace("+00:00", "Z")
+
         # Create new record with user properties + commit properties
         record = {
             **base_user_data,  # Copy all user properties
             "project_url": project_url,
             "commit_count": len(dates),
-            "first_commit_date": dates[0],
-            "last_commit_date": dates[-1],
+            "first_commit_date": first_date,
+            "last_commit_date": last_date,
         }
         # Remove group relationship properties since this is for commits
         record.pop("group_url", None)
@@ -304,6 +311,11 @@ def load_users(
 ) -> None:
     """
     Load GitLab users and their group memberships into the graph.
+
+    Note: Uses GitLabUserSchema which defines both MEMBER_OF (to groups) and
+    COMMITTED_TO (to projects) relationships. Cartography automatically skips
+    relationships when the required PropertyRef fields are missing from the data.
+    Here, records contain group_url but not project_url, so only MEMBER_OF is created.
     """
     logger.info(f"Loading {len(user_records)} user records for organization {org_url}")
     load(
@@ -324,6 +336,10 @@ def load_commit_activity(
 ) -> None:
     """
     Load GitLab user commit activity into the graph.
+
+    Note: Uses the same GitLabUserSchema as load_users(). Cartography automatically
+    skips relationships when the required PropertyRef fields are missing from the data.
+    Here, records contain project_url but not group_url, so only COMMITTED_TO is created.
     """
     logger.info(f"Loading {len(activity_records)} commit activity records")
     load(
@@ -379,8 +395,14 @@ def sync_gitlab_users(
     logger.info(f"Syncing users for organization: {org_name} ({org_url})")
 
     # Fetch organization members
-    org_members = get_group_members(gitlab_url, token, organization_id)
-    logger.info(f"Fetched {len(org_members)} members from organization {org_name}")
+    try:
+        org_members = get_group_members(gitlab_url, token, organization_id)
+        logger.info(f"Fetched {len(org_members)} members from organization {org_name}")
+    except Exception:
+        logger.warning(
+            f"Failed to fetch members for organization {org_name}", exc_info=True
+        )
+        org_members = []
 
     # Fetch members for all descendant groups
     group_members_by_group: dict[str, list[dict[str, Any]]] = {}
@@ -390,10 +412,16 @@ def sync_gitlab_users(
         if not group_id or not group_url:
             continue
 
-        members = get_group_members(gitlab_url, token, group_id)
-        if members:
-            group_members_by_group[group_url] = members
-            logger.debug(f"Fetched {len(members)} members for group {group_url}")
+        try:
+            members = get_group_members(gitlab_url, token, group_id)
+            if members:
+                group_members_by_group[group_url] = members
+                logger.debug(f"Fetched {len(members)} members for group {group_url}")
+        except Exception:
+            logger.warning(
+                f"Failed to fetch members for group {group_url}", exc_info=True
+            )
+            continue
 
     logger.info(
         f"Fetched members from {len(group_members_by_group)} groups in {org_name}"
@@ -446,8 +474,7 @@ def sync_gitlab_users(
     # Warn about duplicate names (silent data loss risk)
     if duplicate_names:
         logger.warning(
-            f"Found {len(duplicate_names)} users with duplicate display names: "
-            f"{', '.join(sorted(duplicate_names))}. "
+            f"Found {len(duplicate_names)} users with duplicate display names. "
             "Commit matching by name may be inaccurate for these users. "
             "Email matching will be attempted first."
         )
@@ -465,10 +492,18 @@ def sync_gitlab_users(
         if not project_id or not project_url:
             continue
 
-        commits = get_commits(gitlab_url, token, project_id, commits_since_days)
-        if commits:
-            commits_by_project[project_url] = commits
-            logger.debug(f"Fetched {len(commits)} commits for project {project_url}")
+        try:
+            commits = get_commits(gitlab_url, token, project_id, commits_since_days)
+            if commits:
+                commits_by_project[project_url] = commits
+                logger.debug(
+                    f"Fetched {len(commits)} commits for project {project_url}"
+                )
+        except Exception:
+            logger.warning(
+                f"Failed to fetch commits for project {project_url}", exc_info=True
+            )
+            continue
 
     logger.info(f"Fetched commits from {len(commits_by_project)} projects")
 
