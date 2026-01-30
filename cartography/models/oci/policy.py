@@ -48,17 +48,33 @@ class OCIPolicyToParentRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# DEPRECATED: OCI_POLICY relationship for backward compatibility
+# DEPRECATED: OCI_POLICY relationship for backward compatibility (tenancy)
 @dataclass(frozen=True)
-class OCIPolicyToParentRel(CartographyRelSchema):
+class OCIPolicyToTenancyParentRel(CartographyRelSchema):
     """
     DEPRECATED: This relationship is kept for backward compatibility.
-    Links all policies to the tenancy via OCI_TENANCY_ID.
+    Links policies to tenancy via compartment_id (for policies at tenancy level).
     """
 
     target_node_label: str = "OCITenancy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"ocid": PropertyRef("OCI_TENANCY_ID", set_in_kwargs=True)},
+        {"ocid": PropertyRef("compartment_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "OCI_POLICY"
+    properties: OCIPolicyToParentRelProperties = OCIPolicyToParentRelProperties()
+
+
+# OCI_POLICY relationship to parent compartment
+@dataclass(frozen=True)
+class OCIPolicyToCompartmentParentRel(CartographyRelSchema):
+    """
+    Links policies to compartment via compartment_id (for policies at compartment level).
+    """
+
+    target_node_label: str = "OCICompartment"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"ocid": PropertyRef("compartment_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OCI_POLICY"
@@ -130,7 +146,10 @@ class OCIPolicySchema(CartographyNodeSchema):
     properties: OCIPolicyNodeProperties = OCIPolicyNodeProperties()
     sub_resource_relationship: OCIPolicyToOCITenancyRel = OCIPolicyToOCITenancyRel()
     other_relationships: OtherRelationships = OtherRelationships(
-        [OCIPolicyToParentRel()],  # DEPRECATED: for backward compatibility
+        [
+            OCIPolicyToTenancyParentRel(),  # Deprecated: replaced by RESOURCE
+            OCIPolicyToCompartmentParentRel(),  # OCI_POLICY to parent compartment
+        ],
     )
 
 

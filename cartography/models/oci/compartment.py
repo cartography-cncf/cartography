@@ -65,18 +65,36 @@ class OCICompartmentToParentRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# Deprecated: OCI_COMPARTMENT relationship for backward compatibility
+# Deprecated: OCI_COMPARTMENT relationship for backward compatibility (tenancy)
 @dataclass(frozen=True)
-class OCICompartmentToParentRel(CartographyRelSchema):
+class OCICompartmentToTenancyParentRel(CartographyRelSchema):
     """
     Deprecated: This relationship is kept for backward compatibility.
-    Links all compartments to the tenancy (not to parent compartments).
+    Links root compartments to tenancy via compartment_id.
     For parent-child compartment traversal, use the PARENT relationship instead.
     """
 
     target_node_label: str = "OCITenancy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"ocid": PropertyRef("OCI_TENANCY_ID", set_in_kwargs=True)},
+        {"ocid": PropertyRef("compartment_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "OCI_COMPARTMENT"
+    properties: OCICompartmentToParentRelProperties = (
+        OCICompartmentToParentRelProperties()
+    )
+
+
+# OCI_COMPARTMENT relationship to parent compartment
+@dataclass(frozen=True)
+class OCICompartmentToCompartmentParentRel(CartographyRelSchema):
+    """
+    Links nested compartments to parent compartment via compartment_id.
+    """
+
+    target_node_label: str = "OCICompartment"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"ocid": PropertyRef("compartment_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "OCI_COMPARTMENT"
@@ -95,6 +113,7 @@ class OCICompartmentSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             OCICompartmentToParentCompartmentRel(),  # Parent-child compartment hierarchy
-            OCICompartmentToParentRel(),  # Deprecated: for backward compatibility
+            OCICompartmentToTenancyParentRel(),  # Deprecated: replaced by RESOURCE
+            OCICompartmentToCompartmentParentRel(),  # OCI_COMPARTMENT to parent compartment
         ],
     )
