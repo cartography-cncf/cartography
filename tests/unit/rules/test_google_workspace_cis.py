@@ -2,7 +2,7 @@ from cartography.rules.data.rules.google_workspace_cis import (
     google_workspace_cis_1_1_enforce_2sv,
 )
 from cartography.rules.data.rules.google_workspace_cis import (
-    google_workspace_cis_1_2_admins_enrolled_2sv,
+    google_workspace_cis_1_2_admins_enforced_2sv,
 )
 from cartography.rules.data.rules.google_workspace_cis import (
     google_workspace_cis_2_1_high_risk_oauth,
@@ -13,7 +13,7 @@ from cartography.rules.spec.model import Module
 def test_rules_registered_and_metadata():
     rules = [
         google_workspace_cis_1_1_enforce_2sv,
-        google_workspace_cis_1_2_admins_enrolled_2sv,
+        google_workspace_cis_1_2_admins_enforced_2sv,
         google_workspace_cis_2_1_high_risk_oauth,
     ]
 
@@ -28,13 +28,13 @@ def test_rules_registered_and_metadata():
 def test_facts_have_expected_structure():
     expected_fact_ids = {
         "gw-cis-1-1-2sv-not-enforced",
-        "gw-cis-1-2-admin-2sv-not-enrolled",
+        "gw-cis-1-2-admin-2sv-not-enforced",
         "gw-cis-2-1-high-risk-oauth-scopes",
     }
 
     for rule in (
         google_workspace_cis_1_1_enforce_2sv,
-        google_workspace_cis_1_2_admins_enrolled_2sv,
+        google_workspace_cis_1_2_admins_enforced_2sv,
         google_workspace_cis_2_1_high_risk_oauth,
     ):
         assert len(rule.facts) == 1

@@ -31,13 +31,14 @@ _google_workspace_cis_reference = RuleReference(
     url="https://www.cisecurity.org/benchmark/google_workspace",
 )
 
-# Control 1.1 – Enforce 2-Step Verification for all users
+# Control 1.1 – Enforce 2-Step Verification for all users (CIS 4.1.1.3)
 _cis_1_1_2sv_not_enforced = Fact(
     id="gw-cis-1-1-2sv-not-enforced",
     name="Users without enforced 2-Step Verification",
     description=(
         "Identifies Google Workspace users that do not have 2-Step Verification enforcement enabled. "
-        "Requires Google Workspace user ingestion (admin.directory.user.security scope)."
+        "Aligns with CIS 4.1.1.3. Uses coalesce to treat missing security data as non-compliant. "
+        "Requires admin.directory.user.security scope."
     ),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
@@ -55,8 +56,8 @@ _cis_1_1_2sv_not_enforced = Fact(
         '1.1' AS cis_id,
         'HIGH' AS severity,
         'is_enforced_in_2_sv=false' AS property_check,
-        'Enforce 2-Step Verification for all user org units.' AS remediation,
-        'CIS 1.1 - Enforce 2-Step Verification' AS reference
+        'Enforce 2-Step Verification for all user org units via Security > 2-Step Verification.' AS remediation,
+        'CIS 4.1.1.3 - Ensure 2-Step Verification is enforced for all users' AS reference
     """,
     cypher_visual_query="""
     MATCH p=(t:GoogleWorkspaceTenant)-[:RESOURCE]->(u:GoogleWorkspaceUser)
@@ -69,35 +70,37 @@ _cis_1_1_2sv_not_enforced = Fact(
     """,
 )
 
-# Control 1.2 – Ensure super admins are enrolled in 2-Step Verification
-_cis_1_2_admin_not_enrolled = Fact(
-    id="gw-cis-1-2-admin-2sv-not-enrolled",
-    name="Admin accounts without enrolled 2-Step Verification",
+# Control 1.2 – Ensure super admins have 2-Step Verification enforced (CIS 4.1.1.1)
+_cis_1_2_admin_2sv_not_enforced = Fact(
+    id="gw-cis-1-2-admin-2sv-not-enforced",
+    name="Admin accounts without enforced 2-Step Verification",
     description=(
-        "Finds Google Workspace super admin accounts that are not enrolled in 2-Step Verification. "
-        "Requires Google Workspace user ingestion (admin.directory.user.security scope)."
+        "Finds Google Workspace admin accounts that do not have 2-Step Verification enforced. "
+        "Admins who are enrolled but not enforced can still disable 2SV, which is a security risk. "
+        "Aligns with CIS 4.1.1.1. Requires admin.directory.user.security scope."
     ),
     module=Module.GOOGLEWORKSPACE,
     maturity=Maturity.EXPERIMENTAL,
     cypher_query="""
     MATCH (u:GoogleWorkspaceUser)
-    WHERE u.is_admin = true AND coalesce(u.is_enrolled_in_2_sv, false) = false
+    WHERE u.is_admin = true AND coalesce(u.is_enforced_in_2_sv, false) = false
     RETURN
         u.id AS target_id,
         u.primary_email AS target_email,
-        'Control 1.2 - Super admins enrolled in 2-Step Verification' AS control_name,
+        'Control 1.2 - Super admins with enforced 2-Step Verification' AS control_name,
+        u.is_enrolled_in_2_sv AS is_enrolled_in_2sv,
         u.is_enforced_in_2_sv AS is_enforced_in_2sv,
         u.org_unit_path AS org_unit_path,
         'GoogleWorkspaceUser' AS target_label,
         '1.2' AS cis_id,
         'CRITICAL' AS severity,
-        'is_admin=true AND is_enrolled_in_2_sv=false' AS property_check,
-        'Enroll super admins in 2-Step Verification with enforcement.' AS remediation,
-        'CIS 1.2 - Ensure super admin accounts use 2-Step Verification' AS reference
+        'is_admin=true AND is_enforced_in_2_sv=false' AS property_check,
+        'Enforce 2-Step Verification for all admin accounts via Security > 2-Step Verification.' AS remediation,
+        'CIS 4.1.1.1 - Ensure 2-Step Verification is enforced for all users in administrative roles' AS reference
     """,
     cypher_visual_query="""
     MATCH p=(t:GoogleWorkspaceTenant)-[:RESOURCE]->(u:GoogleWorkspaceUser)
-    WHERE u.is_admin = true AND coalesce(u.is_enrolled_in_2_sv, false) = false
+    WHERE u.is_admin = true AND coalesce(u.is_enforced_in_2_sv, false) = false
     RETURN p
     """,
     cypher_count_query="""
@@ -178,16 +181,16 @@ google_workspace_cis_1_1_enforce_2sv = Rule(
     references=[_google_workspace_cis_reference],
 )
 
-google_workspace_cis_1_2_admins_enrolled_2sv = Rule(
-    id="google_workspace_cis_1_2_admins_enrolled_2sv",
-    name="CIS 1.2 - Super admins enrolled in 2-Step Verification",
+google_workspace_cis_1_2_admins_enforced_2sv = Rule(
+    id="google_workspace_cis_1_2_admins_enforced_2sv",
+    name="CIS 1.2 - Super admins with enforced 2-Step Verification",
     description=(
-        "Detect super admin accounts not enrolled in 2-Step Verification. Requires Google Workspace user "
-        "ingestion with security fields (admin.directory.user.security scope)."
+        "Detect admin accounts without enforced 2-Step Verification. Enrolled but not enforced is "
+        "non-compliant per CIS 4.1.1.1. Requires admin.directory.user.security scope."
     ),
     tags=("cis", "googleworkspace", "identity", "compliance"),
     version="0.1.0",
-    facts=(_cis_1_2_admin_not_enrolled,),
+    facts=(_cis_1_2_admin_2sv_not_enforced,),
     output_model=GoogleWorkspaceCISFinding,
     references=[_google_workspace_cis_reference],
 )
