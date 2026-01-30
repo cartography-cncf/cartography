@@ -60,6 +60,20 @@ def cleanup(
         neo4j_session,
     )
 
+    # DEPRECATED: need to be deleted in v1
+    # Clean up orphaned pre-migration nodes without RESOURCE rel
+    neo4j_session.run(
+        """
+        MATCH (n:JamfComputerGroup)
+        WHERE n.lastupdated <> $UPDATE_TAG
+          AND NOT (n)<-[:RESOURCE]-(:JamfTenant)
+        WITH n LIMIT $LIMIT_SIZE
+        DETACH DELETE n
+        """,
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+        LIMIT_SIZE=100,
+    )
+
 
 @timeit
 def sync(
