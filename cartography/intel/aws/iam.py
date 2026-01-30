@@ -25,6 +25,7 @@ from cartography.models.aws.iam.managed_policy import AWSManagedPolicySchema
 from cartography.models.aws.iam.policy_statement import AWSPolicyStatementSchema
 from cartography.models.aws.iam.role import AWSRoleSchema
 from cartography.models.aws.iam.root_principal import AWSRootPrincipalSchema
+from cartography.models.aws.iam.samlprovider import AWSSAMLProviderSchema
 from cartography.models.aws.iam.server_certificate import AWSServerCertificateSchema
 from cartography.models.aws.iam.service_principal import AWSServicePrincipalSchema
 from cartography.models.aws.iam.sts_assumerole_allow import STSAssumeRoleAllowMatchLink
@@ -297,10 +298,39 @@ def get_role_list_data(boto3_session: boto3.Session) -> Dict:
 
 
 @timeit
-def get_server_certificates(boto3_session: boto3.Session) -> List[Dict]:
+@aws_handle_regions
+def get_saml_providers(boto3_session: boto3.session.Session) -> dict[str, Any]:
+    client = boto3_session.client("iam")
+    # list_saml_providers returns a single page
+    response = client.list_saml_providers()
+    # Shape into a dict list similar to other getters
+    return {"SAMLProviderList": response.get("SAMLProviderList", [])}
+
+
+@timeit
+def load_saml_providers(
+    neo4j_session: neo4j.Session,
+    saml_providers: list[dict[str, Any]],
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    if not saml_providers:
+        return
+    load(
+        neo4j_session,
+        AWSSAMLProviderSchema(),
+        saml_providers,
+        lastupdated=aws_update_tag,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+@aws_handle_regions
+def get_server_certificates(boto3_session: boto3.Session) -> list[dict[str, Any]]:
     client = boto3_session.client("iam")
     paginator = client.get_paginator("list_server_certificates")
-    certificates: List[Dict] = []
+    certificates: list[dict[str, Any]] = []
     for page in paginator.paginate():
         certificates.extend(page["ServerCertificateMetadataList"])
     return certificates
@@ -1330,6 +1360,9 @@ def cleanup_iam(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> No
     GraphJob.from_node_schema(AWSServerCertificateSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(AWSSAMLProviderSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 def sync_root_principal(
@@ -1402,6 +1435,14 @@ def sync(
         current_aws_account_id,
         update_tag,
         common_job_parameters,
+    )
+    # SAML providers are global (not region-scoped) for the account
+    saml = get_saml_providers(boto3_session)
+    load_saml_providers(
+        neo4j_session,
+        saml.get("SAMLProviderList", []),
+        current_aws_account_id,
+        update_tag,
     )
     sync_server_certificates(
         neo4j_session,
