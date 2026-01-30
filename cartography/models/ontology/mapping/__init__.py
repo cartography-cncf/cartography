@@ -6,6 +6,9 @@ from cartography.models.ontology.mapping.data.apikeys import APIKEYS_ONTOLOGY_MA
 from cartography.models.ontology.mapping.data.computeinstance import (
     COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.containerregistries import (
+    CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.containers import (
     CONTAINER_ONTOLOGY_MAPPING,
 )
@@ -48,6 +51,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "apikeys": APIKEYS_ONTOLOGY_MAPPING,
     "computeinstance": COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
     "containers": CONTAINER_ONTOLOGY_MAPPING,
+    "containerregistries": CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
     "databases": DATABASES_ONTOLOGY_MAPPING,
     "functions": FUNCTIONS_ONTOLOGY_MAPPING,
     "loadbalancers": LOADBALANCERS_ONTOLOGY_MAPPING,
