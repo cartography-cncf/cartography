@@ -37,6 +37,19 @@ def _create_test_project(neo4j_session):
     )
 
 
+def _create_test_organization(neo4j_session):
+    """Create a test GCP organization node for org-level roles."""
+    neo4j_session.run(
+        """
+        MERGE (org:GCPOrganization{id: $org_id})
+        ON CREATE SET org.firstseen = timestamp()
+        SET org.lastupdated = $update_tag
+        """,
+        org_id=COMMON_JOB_PARAMS["ORG_RESOURCE_NAME"],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+
 @patch.object(
     cartography.intel.gcp.policy_bindings,
     "get_policy_bindings",
@@ -59,8 +72,18 @@ def _create_test_project(neo4j_session):
 )
 @patch.object(
     cartography.intel.gcp.iam,
-    "get_gcp_roles",
+    "get_gcp_predefined_roles",
     return_value=tests.data.gcp.policy_bindings.MOCK_IAM_ROLES,
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_org_roles",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.gcp.iam,
+    "get_gcp_project_custom_roles",
+    return_value=[],
 )
 @patch.object(
     cartography.intel.gcp.iam,
@@ -69,7 +92,9 @@ def _create_test_project(neo4j_session):
 )
 def test_sync_gcp_policy_bindings(
     mock_get_service_accounts,
-    mock_get_roles,
+    mock_get_project_custom_roles,
+    mock_get_org_roles,
+    mock_get_predefined_roles,
     mock_get_all_users,
     mock_get_all_groups,
     mock_get_group_members,
@@ -81,10 +106,21 @@ def test_sync_gcp_policy_bindings(
     """
     # ARRANGE
     _create_test_project(neo4j_session)
+    _create_test_organization(neo4j_session)
     mock_iam_client = MagicMock()
     mock_admin_resource = MagicMock()
     mock_asset_client = MagicMock()
 
+    # Sync org-level IAM (predefined roles) first
+    cartography.intel.gcp.iam.sync_org_iam(
+        neo4j_session,
+        mock_iam_client,
+        COMMON_JOB_PARAMS["ORG_RESOURCE_NAME"],
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+    )
+
+    # Sync project-level IAM (service accounts and project custom roles)
     cartography.intel.gcp.iam.sync(
         neo4j_session,
         mock_iam_client,

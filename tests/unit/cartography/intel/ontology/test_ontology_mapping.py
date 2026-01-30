@@ -37,6 +37,35 @@ def _get_model_by_node_label(node_label: str) -> list[Type[CartographyNodeSchema
     return models
 
 
+def _get_models_with_properties_for_label(
+    node_label: str,
+) -> list[Type[CartographyNodeSchema]]:
+    """
+    Get all models that can contribute properties to nodes with the given label.
+    This includes:
+    1. Models with the exact label
+    2. Models targeting any of the extra_node_labels of the primary models (composite schemas)
+    """
+    # First get the primary models for this label
+    primary_models = _get_model_by_node_label(node_label)
+    all_models = list(primary_models)
+
+    # Collect all extra_node_labels from primary models
+    # Need to instantiate to get the actual value (property returns None on class if not defined)
+    extra_labels: set[str] = set()
+    for model_class in primary_models:
+        model_instance = model_class()
+        if model_instance.extra_node_labels:
+            extra_labels.update(model_instance.extra_node_labels.labels)
+
+    # Find composite schemas that target these extra labels
+    for extra_label in extra_labels:
+        composite_models = _get_model_by_node_label(extra_label)
+        all_models.extend(composite_models)
+
+    return all_models
+
+
 def test_ontology_mapping_modules():
     # Verify that all modules defined in the ontology mapping exist in TOP_LEVEL_MODULES
     # and that module names match between the mapping and the key.
@@ -70,8 +99,9 @@ def test_ontology_mapping_fields():
                 # TODO: Remove that uggly exception once all models are migrated to the new data model system
                 if node.node_label in OLD_FORMAT_NODES:
                     continue
-                # Load the model classes for the module
-                model_classes = _get_model_by_node_label(node.node_label)
+                # Load all model classes that can contribute properties to this node
+                # This includes primary models and composite schemas targeting extra labels
+                model_classes = _get_models_with_properties_for_label(node.node_label)
                 assert len(model_classes) > 0, (
                     f"Model class for node label '{node.node_label}' "
                     f"in module '{module_name}' not found."

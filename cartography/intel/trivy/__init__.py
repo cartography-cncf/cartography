@@ -7,6 +7,7 @@ from neo4j import Session
 
 from cartography.client.aws import list_accounts
 from cartography.client.aws.ecr import get_ecr_images
+from cartography.client.gcp.artifact_registry import get_gcp_container_images
 from cartography.client.gitlab.container_images import get_gitlab_container_images
 from cartography.client.gitlab.container_images import get_gitlab_container_tags
 from cartography.config import Config
@@ -46,6 +47,29 @@ def _get_ecr_scan_targets_and_aliases(
                 repo_uri = image_uri.rsplit(":", 1)[0]
                 digest_uri = f"{repo_uri}@{digest}"
                 digest_aliases[digest_uri] = image_uri
+
+    return image_uris, digest_aliases
+
+
+def _get_gcp_scan_targets_and_aliases(
+    neo4j_session: Session,
+) -> tuple[set[str], dict[str, str]]:
+    """
+    Return GCP Artifact Registry container image URIs and a mapping of digest-qualified URIs to tag URIs.
+    Matches ECR's pattern for consistency.
+    """
+    image_uris: set[str] = set()
+    digest_aliases: dict[str, str] = {}
+
+    for _, _, image_uri, _, digest in get_gcp_container_images(neo4j_session):
+        if not image_uri:
+            continue
+        image_uris.add(image_uri)
+        if digest:
+            # repo URI is everything before the trailing ":" (if present)
+            repo_uri = image_uri.rsplit(":", 1)[0]
+            digest_uri = f"{repo_uri}@{digest}"
+            digest_aliases[digest_uri] = image_uri
 
     return image_uris, digest_aliases
 
@@ -104,19 +128,22 @@ def _get_scan_targets_and_aliases(
     account_ids: list[str] | None = None,
 ) -> tuple[set[str], dict[str, str]]:
     """
-    Return image URIs and digest aliases for both ECR and GitLab container images.
+    Return image URIs and digest aliases for ECR, GCP, and GitLab container images.
     """
     # Get ECR targets
     ecr_uris, ecr_aliases = _get_ecr_scan_targets_and_aliases(
         neo4j_session, account_ids
     )
 
+    # Get GCP targets
+    gcp_uris, gcp_aliases = _get_gcp_scan_targets_and_aliases(neo4j_session)
+
     # Get GitLab targets
     gitlab_uris, gitlab_aliases = _get_gitlab_scan_targets_and_aliases(neo4j_session)
 
     # Merge results
-    image_uris = ecr_uris | gitlab_uris
-    digest_aliases = {**ecr_aliases, **gitlab_aliases}
+    image_uris = ecr_uris | gcp_uris | gitlab_uris
+    digest_aliases = {**ecr_aliases, **gcp_aliases, **gitlab_aliases}
 
     return image_uris, digest_aliases
 
@@ -191,7 +218,7 @@ def sync_trivy_from_s3(
     boto3_session: boto3.Session,
 ) -> None:
     """
-    Sync Trivy scan results from S3 for container images (ECR and GitLab).
+    Sync Trivy scan results from S3 for container images (ECR, GCP, and GitLab).
 
     Args:
         neo4j_session: Neo4j session for database operations
@@ -258,7 +285,7 @@ def sync_trivy_from_dir(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    """Sync Trivy scan results from local files for container images (ECR and GitLab)."""
+    """Sync Trivy scan results from local files for container images (ECR, GCP, and GitLab)."""
     logger.info(f"Using Trivy scan results from {results_dir}")
 
     image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
