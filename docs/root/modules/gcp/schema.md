@@ -1464,6 +1464,8 @@ graph LR
 
 Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories).
 
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Full resource name of the repository (e.g., `projects/{project}/locations/{location}/repositories/{repo}`) |

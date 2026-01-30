@@ -112,11 +112,12 @@ def sync_gitlab_groups(
     token: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
-) -> None:
+) -> list[dict[str, Any]]:
     """
     Sync GitLab groups for a specific organization.
 
     The organization ID should be passed in common_job_parameters["ORGANIZATION_ID"].
+    Returns the raw groups list to avoid redundant API calls in downstream sync functions.
     """
     organization_id = common_job_parameters.get("ORGANIZATION_ID")
     if not organization_id:
@@ -136,7 +137,7 @@ def sync_gitlab_groups(
 
     if not raw_groups:
         logger.info(f"No groups found for organization {org_url}")
-        return
+        return []
 
     # Transform to match our schema
     transformed_groups = transform_groups(raw_groups, org_url)
@@ -145,3 +146,4 @@ def sync_gitlab_groups(
     load_groups(neo4j_session, transformed_groups, org_url, update_tag)
 
     logger.info("GitLab groups sync completed")
+    return raw_groups
