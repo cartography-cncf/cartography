@@ -58,6 +58,11 @@ _cis_gcp_3_1_default_network = Fact(
     WHERE vpc.name = 'default'
     RETURN project, vpc
     """,
+    cypher_count_query="""
+    MATCH (vpc:GCPVpc)
+    RETURN COUNT(vpc) AS count
+    """,
+    asset_id_field="resource_id",
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -116,6 +121,11 @@ _cis_gcp_3_6_unrestricted_ssh = Fact(
       AND rule.fromport <= 22 AND rule.toport >= 22
     RETURN project, vpc, fw, rule, range
     """,
+    cypher_count_query="""
+    MATCH (fw:GCPFirewall)
+    RETURN COUNT(fw) AS count
+    """,
+    asset_id_field="resource_id",
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -174,6 +184,11 @@ _cis_gcp_3_7_unrestricted_rdp = Fact(
       AND rule.fromport <= 3389 AND rule.toport >= 3389
     RETURN project, vpc, fw, rule, range
     """,
+    cypher_count_query="""
+    MATCH (fw:GCPFirewall)
+    RETURN COUNT(fw) AS count
+    """,
+    asset_id_field="resource_id",
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -220,6 +235,11 @@ _cis_gcp_4_9_public_ip = Fact(
     WHERE access.public_ip IS NOT NULL
     RETURN project, instance, nic, access
     """,
+    cypher_count_query="""
+    MATCH (instance:GCPInstance)
+    RETURN COUNT(instance) AS count
+    """,
+    asset_id_field="resource_id",
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -264,6 +284,11 @@ _cis_gcp_5_2_bucket_uniform_access = Fact(
     WHERE coalesce(bucket.iam_config_bucket_policy_only, false) = false
     RETURN project, bucket
     """,
+    cypher_count_query="""
+    MATCH (bucket:GCPBucket)
+    RETURN COUNT(bucket) AS count
+    """,
+    asset_id_field="resource_id",
     module=Module.GCP,
     maturity=Maturity.EXPERIMENTAL,
 )
