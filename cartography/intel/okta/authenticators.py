@@ -1,20 +1,19 @@
 # Okta intel module - Authenticators
 import asyncio
-import logging
 import json
+import logging
+from typing import Any
 from typing import Dict
 from typing import List
-from typing import Any
 
 import neo4j
+from okta.client import Client as OktaClient
+from okta.models.authenticator import Authenticator as OktaAuthenticator
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from okta.client import Client as OktaClient
-from okta.models.authenticator import Authenticator as OktaAuthenticator
 from cartography.models.okta.authenticator import OktaAuthenticatorSchema
 from cartography.util import timeit
-
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +127,3 @@ def _cleanup_okta_authenticators(
     GraphJob.from_node_schema(OktaAuthenticatorSchema(), common_job_parameters).run(
         neo4j_session
     )
-
-
-# TODO: Authenticator's enrolled per user
-# There is currently a bug in Okta where this isn't working

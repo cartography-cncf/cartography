@@ -1,25 +1,24 @@
 # Okta intel module - Groups
 import asyncio
-import logging
 import json
+import logging
+from typing import Any
 from typing import Dict
 from typing import List
-from typing import Any
 
 import neo4j
-
-from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from okta.client import Client as OktaClient
 from okta.models.group import Group as OktaGroup
 from okta.models.group_rule import GroupRule as OktaGroupRule
 from okta.models.role import Role as OktaGroupRole
 from okta.models.user import User as OktaUser
-from cartography.models.okta.group import OktaGroupSchema
-from cartography.models.okta.group import OktaGroupRuleSchema
-from cartography.models.okta.group import OktaGroupRoleSchema
-from cartography.util import timeit
 
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.okta.group import OktaGroupRoleSchema
+from cartography.models.okta.group import OktaGroupRuleSchema
+from cartography.models.okta.group import OktaGroupSchema
+from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
@@ -226,9 +225,9 @@ def _transform_okta_group_rules(
         group_rule_props["conditions"] = okta_group_rule.conditions.expression.value
         # These rules may have optional exclusions for people
         if okta_group_rule.conditions.people:
-            group_rule_props[
-                "exclusions"
-            ] = okta_group_rule.conditions.people.users.exclude
+            group_rule_props["exclusions"] = (
+                okta_group_rule.conditions.people.users.exclude
+            )
         else:
             group_rule_props["exclusions"] = None
         transformed_group_rules.append(group_rule_props)

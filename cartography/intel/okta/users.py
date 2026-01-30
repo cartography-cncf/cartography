@@ -153,12 +153,9 @@ def sync_okta_users(
     users = asyncio.run(_get_okta_users(okta_client))
 
     # Gather user roles
-    user_roles: List[OktaUserRole] = []
-    # for okta_user in users:
-    # TODO: This could be more efficient with the use of
+    # Note: User role fetching is disabled pending Okta SDK support for
     # https://developer.okta.com/docs/reference/api/roles/#list-users-with-role-assignments
-    # for our initial commit we'll avoid since it isn't supported in the Okta API
-    #    user_roles += asyncio.run(_get_okta_user_roles(okta_client, okta_user.id))
+    user_roles: List[OktaUserRole] = []
     transformed_user_roles = _transform_okta_user_roles(user_roles)
     _load_okta_user_roles(neo4j_session, transformed_user_roles, common_job_parameters)
     _cleanup_okta_user_roles(neo4j_session, common_job_parameters)

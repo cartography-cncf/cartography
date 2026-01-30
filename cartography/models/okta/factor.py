@@ -32,6 +32,7 @@ class OktaUserFactorToOktaUserRel(CartographyRelSchema):
     """
     (:OktaUserFactor)<-[:FACTOR]-(:OktaUser)
     """
+
     target_node_label: str = "OktaUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("user_id")},
@@ -53,6 +54,7 @@ class OktaUserFactorToOktaOrganizationRel(CartographyRelSchema):
     """
     (:OktaUserFactor)<-[:RESOURCE]-(:OktaOrganization)
     """
+
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("OKTA_ORG_ID", set_in_kwargs=True)},

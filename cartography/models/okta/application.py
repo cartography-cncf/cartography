@@ -15,8 +15,6 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class OktaApplicationNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    # TODO: Find out when this is used
-    # embedded: PropertyRef = PropertyRef("embedded")
     accessibility_error_redirect_url: PropertyRef = PropertyRef(
         "accessibility_error_redirect_url"
     )
@@ -54,9 +52,6 @@ class OktaApplicationNodeProperties(CartographyNodeProperties):
     last_updated: PropertyRef = PropertyRef("last_updated")
     licensing_seat_count: PropertyRef = PropertyRef("licensing_seat_count")
     name: PropertyRef = PropertyRef("name")
-    # TODO: Figure out profile
-    # profile: PropertyRef = PropertyRef("profile")
-    # TODO: figure out settings
     settings_app_acs_url: PropertyRef = PropertyRef("settings_app_acs_url")
     settings_app_button_field: PropertyRef = PropertyRef("settings_app_button_field")
     settings_app_login_url_regex: PropertyRef = PropertyRef(
@@ -114,7 +109,6 @@ class OktaApplicationNodeProperties(CartographyNodeProperties):
     settings_oauth_client_initiate_login_uri: PropertyRef = PropertyRef(
         "settings_oauth_client_initiate_login_uri"
     )
-    # settings_oauth_client_jwks: PropertyRef = PropertyRef("settings_oauth_client_jwks")
     settings_oauth_client_logo_uri: PropertyRef = PropertyRef(
         "settings_oauth_client_logo_uri"
     )
@@ -127,9 +121,6 @@ class OktaApplicationNodeProperties(CartographyNodeProperties):
     settings_oauth_client_redirect_uris: PropertyRef = PropertyRef(
         "settings_oauth_client_redirect_uris"
     )
-    # settings_oauth_client_refresh_token: PropertyRef = PropertyRef(
-    #    "settings_oauth_client_refresh_token"
-    # )
     settings_oauth_client_response_types: PropertyRef = PropertyRef(
         "settings_oauth_client_response_types"
     )
@@ -168,6 +159,7 @@ class OktaApplicationToOktaOrganizationRelPropertiesRel(CartographyRelSchema):
     )
 
 
+@dataclass(frozen=True)
 class OktaApplicationToOktaUserProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -186,6 +178,7 @@ class OktaApplicationToOktaUserPropertiesRel(CartographyRelSchema):
     )
 
 
+@dataclass(frozen=True)
 class OktaApplicationToOktaGroupProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

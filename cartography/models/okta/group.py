@@ -10,7 +10,6 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
-
 ####
 # User Role
 ####
@@ -36,7 +35,7 @@ class OktaGroupRoleToOktaOrganizationRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:OktaUserType)<-[:RESOURCE]-(:OktaOrganization)
+# (:OktaGroupRole)<-[:RESOURCE]-(:OktaOrganization)
 class OktaGroupRoleToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -70,7 +69,7 @@ class OktaGroupNodeProperties(CartographyNodeProperties):
     last_updated: PropertyRef = PropertyRef("last_updated")
     object_class: PropertyRef = PropertyRef("object_class")
     profile_description: PropertyRef = PropertyRef("profile_description")
-    profile_name: PropertyRef = PropertyRef("profile_name")
+    profile_name: PropertyRef = PropertyRef("profile_name", extra_index=True)
     group_type: PropertyRef = PropertyRef("group_type")
 
 
@@ -80,7 +79,7 @@ class OktaGroupToOktaOrganizationRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:OktaUser)<-[:RESOURCE]-(:OktaOrganization)
+# (:OktaGroup)<-[:RESOURCE]-(:OktaOrganization)
 class OktaGroupToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -93,6 +92,7 @@ class OktaGroupToOktaOrganizationRel(CartographyRelSchema):
     )
 
 
+@dataclass(frozen=True)
 class OktaGroupToOktaUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -115,7 +115,7 @@ class OktaGroupToOktaGroupRoleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class OktaGroupToOktaGroupRoleRel(CartographyRelSchema):
-    # (:OktaGroup)-[:HAS_ROLE]->(:OktaGroupRule)
+    # (:OktaGroup)-[:HAS_ROLE]->(:OktaGroupRole)
     target_node_label: str = "OktaGroupRole"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("role_id")},
@@ -158,7 +158,7 @@ class OktaGroupRuleToOktaOrganizationRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-# (:OktaUser)<-[:RESOURCE]-(:OktaOrganization)
+# (:OktaGroupRule)<-[:RESOURCE]-(:OktaOrganization)
 class OktaGroupRuleToOktaOrganizationRel(CartographyRelSchema):
     target_node_label: str = "OktaOrganization"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -171,6 +171,7 @@ class OktaGroupRuleToOktaOrganizationRel(CartographyRelSchema):
     )
 
 
+@dataclass(frozen=True)
 class OktaGroupToOktaGroupRuleRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
