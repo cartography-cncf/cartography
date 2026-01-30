@@ -91,10 +91,10 @@ _cis_gcp_3_6_unrestricted_ssh = Fact(
     MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
     WHERE range.range IN ['0.0.0.0/0', '::/0']
       AND coalesce(fw.disabled, false) = false
-      AND rule.protocol = 'tcp'
-      AND rule.fromport IS NOT NULL
-      AND rule.toport IS NOT NULL
-      AND rule.fromport <= 22 AND rule.toport >= 22
+      AND (
+        (rule.protocol = 'tcp' AND rule.fromport <= 22 AND rule.toport >= 22)
+        OR rule.protocol = 'all'
+      )
     RETURN
         '3.6' AS control_id,
         'Ensure That SSH Access Is Restricted From the Internet' AS control_title,
@@ -115,10 +115,10 @@ _cis_gcp_3_6_unrestricted_ssh = Fact(
     MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
     WHERE range.range IN ['0.0.0.0/0', '::/0']
       AND coalesce(fw.disabled, false) = false
-      AND rule.protocol = 'tcp'
-      AND rule.fromport IS NOT NULL
-      AND rule.toport IS NOT NULL
-      AND rule.fromport <= 22 AND rule.toport >= 22
+      AND (
+        (rule.protocol = 'tcp' AND rule.fromport <= 22 AND rule.toport >= 22)
+        OR rule.protocol = 'all'
+      )
     RETURN project, vpc, fw, rule, range
     """,
     cypher_count_query="""
@@ -154,10 +154,10 @@ _cis_gcp_3_7_unrestricted_rdp = Fact(
     MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
     WHERE range.range IN ['0.0.0.0/0', '::/0']
       AND coalesce(fw.disabled, false) = false
-      AND rule.protocol = 'tcp'
-      AND rule.fromport IS NOT NULL
-      AND rule.toport IS NOT NULL
-      AND rule.fromport <= 3389 AND rule.toport >= 3389
+      AND (
+        (rule.protocol = 'tcp' AND rule.fromport <= 3389 AND rule.toport >= 3389)
+        OR rule.protocol = 'all'
+      )
     RETURN
         '3.7' AS control_id,
         'Ensure That RDP Access Is Restricted From the Internet' AS control_title,
@@ -178,10 +178,10 @@ _cis_gcp_3_7_unrestricted_rdp = Fact(
     MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
     WHERE range.range IN ['0.0.0.0/0', '::/0']
       AND coalesce(fw.disabled, false) = false
-      AND rule.protocol = 'tcp'
-      AND rule.fromport IS NOT NULL
-      AND rule.toport IS NOT NULL
-      AND rule.fromport <= 3389 AND rule.toport >= 3389
+      AND (
+        (rule.protocol = 'tcp' AND rule.fromport <= 3389 AND rule.toport >= 3389)
+        OR rule.protocol = 'all'
+      )
     RETURN project, vpc, fw, rule, range
     """,
     cypher_count_query="""
