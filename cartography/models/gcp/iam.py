@@ -27,26 +27,12 @@ class GCPServiceAccountNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class GCPRoleNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("name", extra_index=True)
-    name: PropertyRef = PropertyRef("name", extra_index=True)
-    title: PropertyRef = PropertyRef("title")
-    description: PropertyRef = PropertyRef("description")
-    deleted: PropertyRef = PropertyRef("deleted")
-    etag: PropertyRef = PropertyRef("etag")
-    permissions: PropertyRef = PropertyRef("includedPermissions")
-    role_type: PropertyRef = PropertyRef("roleType")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    project_id: PropertyRef = PropertyRef("projectId", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
 class GCPIAMToProjectRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-# (:GCPUser|GCPServiceAccount|GCPRole)<-[:RESOURCE]-(:GCPProject)
+# (:GCPServiceAccount)<-[:RESOURCE]-(:GCPProject)
 class GCPPrincipalToProjectRel(CartographyRelSchema):
     target_node_label: str = "GCPProject"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -66,8 +52,119 @@ class GCPServiceAccountSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
 
 
+# =============================================================================
+# Organization-level roles (predefined/basic roles and custom org roles)
+# =============================================================================
+
+
 @dataclass(frozen=True)
-class GCPRoleSchema(CartographyNodeSchema):
+class GCPOrgRoleNodeProperties(CartographyNodeProperties):
+    """Properties for organization-level roles (predefined and custom org roles)."""
+
+    id: PropertyRef = PropertyRef("name", extra_index=True)
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    title: PropertyRef = PropertyRef("title")
+    description: PropertyRef = PropertyRef("description")
+    deleted: PropertyRef = PropertyRef("deleted")
+    etag: PropertyRef = PropertyRef("etag")
+    permissions: PropertyRef = PropertyRef("includedPermissions")
+    role_type: PropertyRef = PropertyRef("roleType")  # BASIC, PREDEFINED, or CUSTOM
+    scope: PropertyRef = PropertyRef("scope")  # GLOBAL or ORGANIZATION
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    organization_id: PropertyRef = PropertyRef("organizationId", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPOrgRoleToOrganizationRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPOrgRoleToOrganizationRel(CartographyRelSchema):
+    """Relationship connecting organization-level GCPRole to GCPOrganization."""
+
+    target_node_label: str = "GCPOrganization"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("organizationId", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPOrgRoleToOrganizationRelProperties = (
+        GCPOrgRoleToOrganizationRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPOrgRoleSchema(CartographyNodeSchema):
+    """
+    Schema for organization-level GCP IAM Roles.
+
+    This includes:
+    - Predefined roles (roles/*) - global roles defined by Google
+    - Basic roles (roles/owner, roles/editor, roles/viewer)
+    - Custom organization roles (organizations/*/roles/*)
+
+    These roles are sub-resources of GCPOrganization.
+    """
+
     label: str = "GCPRole"
-    properties: GCPRoleNodeProperties = GCPRoleNodeProperties()
-    sub_resource_relationship: GCPPrincipalToProjectRel = GCPPrincipalToProjectRel()
+    properties: GCPOrgRoleNodeProperties = GCPOrgRoleNodeProperties()
+    sub_resource_relationship: GCPOrgRoleToOrganizationRel = (
+        GCPOrgRoleToOrganizationRel()
+    )
+
+
+# =============================================================================
+# Project-level roles (custom project roles only)
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class GCPProjectRoleNodeProperties(CartographyNodeProperties):
+    """Properties for project-level custom roles."""
+
+    id: PropertyRef = PropertyRef("name", extra_index=True)
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    title: PropertyRef = PropertyRef("title")
+    description: PropertyRef = PropertyRef("description")
+    deleted: PropertyRef = PropertyRef("deleted")
+    etag: PropertyRef = PropertyRef("etag")
+    permissions: PropertyRef = PropertyRef("includedPermissions")
+    role_type: PropertyRef = PropertyRef("roleType")  # Always CUSTOM for project roles
+    scope: PropertyRef = PropertyRef("scope")  # Always PROJECT
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    project_id: PropertyRef = PropertyRef("projectId", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPProjectRoleToProjectRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPProjectRoleToProjectRel(CartographyRelSchema):
+    """Relationship connecting project-level GCPRole to GCPProject."""
+
+    target_node_label: str = "GCPProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("projectId", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: GCPProjectRoleToProjectRelProperties = (
+        GCPProjectRoleToProjectRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPProjectRoleSchema(CartographyNodeSchema):
+    """
+    Schema for project-level GCP IAM Roles.
+
+    This includes only custom project roles (projects/*/roles/*).
+    These roles are sub-resources of GCPProject.
+    """
+
+    label: str = "GCPRole"
+    properties: GCPProjectRoleNodeProperties = GCPProjectRoleNodeProperties()
+    sub_resource_relationship: GCPProjectRoleToProjectRel = GCPProjectRoleToProjectRel()

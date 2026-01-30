@@ -46,7 +46,7 @@ def test_cascade_cleanup_sub_rel():
         WITH n LIMIT $LIMIT_SIZE
         CALL {
             WITH n
-            OPTIONAL MATCH (n)<-[:RELATIONSHIP_LABEL]-(child)
+            OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
             WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
             DETACH DELETE child
         }
@@ -80,7 +80,7 @@ def test_cascade_cleanup_with_selected_rel():
         WITH n LIMIT $LIMIT_SIZE
         CALL {
             WITH n
-            OPTIONAL MATCH (n)<-[:RELATIONSHIP_LABEL]-(child)
+            OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
             WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
             DETACH DELETE child
         }
@@ -113,7 +113,7 @@ def test_build_cleanup_queries_with_cascade():
         WITH n LIMIT $LIMIT_SIZE
         CALL {
             WITH n
-            OPTIONAL MATCH (n)<-[:RELATIONSHIP_LABEL]-(child)
+            OPTIONAL MATCH (n)-[:RELATIONSHIP_LABEL]->(child)
             WITH child WHERE child IS NOT NULL AND child.lastupdated <> $UPDATE_TAG
             DETACH DELETE child
         }
