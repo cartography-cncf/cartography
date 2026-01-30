@@ -62,7 +62,7 @@ reviews:
         Avoid premature optimization:
         Functions should avoid defensive checks for conditions that are unlikely to ever occur in practice, as these create unnecessary code complexity and can mask real design issues. When a parameter is typed as a required type like str but the code defensively checks for None/empty values, it suggests either the type annotation is wrong or the check is unnecessary defensive programming. These "just in case" guards with silent failures often indicate a lack of confidence in the calling code and should be replaced with proper error handling or removed entirely if the condition truly cannot occur.
 
-        Only include uv.lock if pyproject.toml was updated: 
+        Only include uv.lock if pyproject.toml was updated:
         as a general guideline, uv.lock should only be updated in PRs that intentionally change or refresh dependencies, typically alongside pyproject.toml updates — to avoid unnecessary diffs and uv sync issues for others
     - name: Modules follow project requirements
       description: |-
@@ -114,42 +114,3 @@ pr_descriptions:
 issues:
   fix_with_cubic_buttons: true
   fix_commits_to_pr: false
-
-# -----------------------------------------------------------------------------
-# Sample configuration (commented out). Uncomment the sections you need.
-# -----------------------------------------------------------------------------
-# version: 1
-# reviews:
-#   enabled: true
-#   sensitivity: medium
-#   incremental_commits: true
-#   check_drafts: true
-#   architecture_diagrams: false
-#   show_ai_feedback_buttons: true
-#   resolve_threads_when_addressed: true
-#   custom_instructions: "Add any reviewer guidance here."
-#   ignore:
-#     files:
-#       - docs/**
-#       - "**/*.md"
-#     head_branches:
-#       - feature/*
-#     base_branches:
-#       - release/*
-#     pr_labels:
-#       - WIP
-#     pr_titles:
-#       - "draft:*"
-#   custom_rules:
-#     - name: Example rule name
-#       description: Explain what should be enforced.
-#       include:
-#         - "src/**/*.ts"
-#       exclude:
-#         - "**/*.spec.ts"
-# pr_descriptions:
-#   generate: true
-#   instructions: "Summaries should highlight risk and testing steps."
-# issues:
-#   fix_with_cubic_buttons: true
-#   fix_commits_to_pr: false
