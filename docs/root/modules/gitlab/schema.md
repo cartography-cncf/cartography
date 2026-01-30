@@ -25,6 +25,10 @@ CR -- HAS_TAG --> CT
 CT -- REFERENCES --> CI
 CI -- CONTAINS_IMAGE --> CI
 CA -- ATTESTS --> CI
+
+%% Trivy Vulnerability Scanning
+TIF(TrivyImageFinding) -- AFFECTS --> CI
+PKG(Package) -- DEPLOYED --> CI
 ```
 
 ### GitLabOrganization
@@ -110,9 +114,9 @@ Representation of a GitLab nested subgroup. Groups can contain other groups (cre
     (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabGroup)
     ```
 
-### GitLabProject
+### GitLabProject:GitLabRepository
 
-Representation of a GitLab project (repository). Projects are GitLab's equivalent of repositories and can belong to organizations or groups.
+Representation of a GitLab project (repository). Projects are GitLab's equivalent of repositories and can belong to organizations or groups. The `GitLabRepository` label is included for backwards compatibility with existing queries.
 
 | Field | Description |
 |-------|--------------|
@@ -414,6 +418,7 @@ Representation of a container image identified by its digest. Images are content
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The image digest (e.g., `sha256:abc123...`) |
 | digest | Same as id, the image digest |
+| uri | The base repository URI (e.g., `registry.gitlab.com/group/project`) |
 | media_type | OCI/Docker media type of the manifest |
 | schema_version | Manifest schema version |
 | type | Either `image` (single platform) or `manifest_list` (multi-arch) |
@@ -446,6 +451,24 @@ Representation of a container image identified by its digest. Images are content
 
     ```
     (GitLabContainerImageAttestation)-[ATTESTS]->(GitLabContainerImage)
+    ```
+
+- TrivyImageFindings affect GitLabContainerImages.
+
+    ```
+    (TrivyImageFinding)-[AFFECTS]->(GitLabContainerImage)
+    ```
+
+- Packages are deployed in GitLabContainerImages.
+
+    ```
+    (Package)-[DEPLOYED]->(GitLabContainerImage)
+    ```
+
+- KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
+
+    ```
+    (KubernetesContainer)-[HAS_IMAGE]->(GitLabContainerImage)
     ```
 
 ### GitLabContainerImageAttestation
@@ -507,4 +530,31 @@ MATCH (org:GitLabOrganization)-[:RESOURCE]->(repo:GitLabContainerRepository)
 OPTIONAL MATCH (repo)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)
 OPTIONAL MATCH (tag)-[:REFERENCES]->(img:GitLabContainerImage)
 RETURN org.name, repo.name, tag.name, img.digest
+```
+
+#### Trivy Integration Queries
+
+Find all vulnerabilities affecting GitLab container images:
+
+```cypher
+MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(img:GitLabContainerImage)
+RETURN vuln.name, vuln.severity, img.uri, img.digest
+ORDER BY vuln.severity DESC
+```
+
+Find packages deployed in GitLab container images with their vulnerabilities:
+
+```cypher
+MATCH (pkg:Package)-[:DEPLOYED]->(img:GitLabContainerImage)
+OPTIONAL MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(pkg)
+RETURN img.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
+```
+
+Find critical vulnerabilities in GitLab images with available fixes:
+
+```cypher
+MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GitLabContainerImage)
+MATCH (vuln)-[:AFFECTS]->(pkg:Package)
+OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
+RETURN vuln.name, img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
 ```

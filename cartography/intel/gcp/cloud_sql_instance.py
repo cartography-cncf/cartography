@@ -2,13 +2,13 @@ import json
 import logging
 
 import neo4j
-from google.api_core.exceptions import PermissionDenied
-from google.auth.exceptions import DefaultCredentialsError
-from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import Resource
+from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.cloudsql.instance import GCPSqlInstanceSchema
 from cartography.util import timeit
 
@@ -16,25 +16,36 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_sql_instances(client: Resource, project_id: str) -> list[dict]:
+def get_sql_instances(client: Resource, project_id: str) -> list[dict] | None:
     """
     Gets GCP SQL Instances for a project.
+
+    Returns:
+        list[dict]: List of SQL instances (empty list if project has no instances)
+        None: If the Cloud SQL Admin API is not enabled or access is denied
+
+    Raises:
+        HttpError: For errors other than API disabled or permission denied
     """
     instances: list[dict] = []
     try:
         request = client.instances().list(project=project_id)
         while request is not None:
-            response = request.execute()
+            response = gcp_api_execute_with_retry(request)
             instances.extend(response.get("items", []))
             request = client.instances().list_next(
                 previous_request=request,
                 previous_response=response,
             )
         return instances
-    except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-        logger.warning(
-            f"Failed to get SQL instances for project {project_id} due to permissions or auth error: {e}",
-        )
+    except HttpError as e:
+        if is_api_disabled_error(e):
+            logger.warning(
+                "Could not retrieve Cloud SQL instances on project %s due to permissions "
+                "issues or API not enabled. Skipping sync to preserve existing data.",
+                project_id,
+            )
+            return None
         raise
 
 
@@ -128,20 +139,24 @@ def sync_sql_instances(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
-) -> list[dict]:
+) -> list[dict] | None:
     """
     Syncs GCP SQL Instances and returns the raw instance data.
     """
     logger.info(f"Syncing Cloud SQL Instances for project {project_id}.")
     instances_raw = get_sql_instances(client, project_id)
-    if not instances_raw:
-        logger.info(f"No Cloud SQL instances found for project {project_id}.")
 
-    instances = transform_sql_instances(instances_raw, project_id)
-    load_sql_instances(neo4j_session, instances, project_id, update_tag)
+    # Only load and cleanup if we successfully retrieved data (even if empty list).
+    # If get() returned None due to API not enabled, skip both to preserve existing data.
+    if instances_raw is not None:
+        if not instances_raw:
+            logger.info(f"No Cloud SQL instances found for project {project_id}.")
 
-    cleanup_job_params = common_job_parameters.copy()
-    cleanup_job_params["PROJECT_ID"] = project_id
-    cleanup_sql_instances(neo4j_session, cleanup_job_params)
+        instances = transform_sql_instances(instances_raw, project_id)
+        load_sql_instances(neo4j_session, instances, project_id, update_tag)
+
+        cleanup_job_params = common_job_parameters.copy()
+        cleanup_job_params["PROJECT_ID"] = project_id
+        cleanup_sql_instances(neo4j_session, cleanup_job_params)
 
     return instances_raw

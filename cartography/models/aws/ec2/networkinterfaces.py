@@ -58,7 +58,7 @@ class EC2NetworkInterfaceToElbRelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceToElbRel(CartographyRelSchema):
-    target_node_label: str = "LoadBalancer"
+    target_node_label: str = "AWSLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"name": PropertyRef("ElbV1Id")},
     )
@@ -76,7 +76,7 @@ class EC2NetworkInterfaceToElbV2RelRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class EC2NetworkInterfaceToElbV2Rel(CartographyRelSchema):
-    target_node_label: str = "LoadBalancerV2"
+    target_node_label: str = "AWSLoadBalancerV2"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("ElbV2Id")},
     )
