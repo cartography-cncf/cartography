@@ -166,7 +166,7 @@ def test_sync_group_memberships(
         TEST_UPDATE_TAG,
         common_job_parameters,
     )
-    iam.sync_groups(
+    group_ids = iam.sync_groups(
         neo4j_session,
         mock_iam_client,
         TEST_TENANCY_ID,
@@ -178,6 +178,7 @@ def test_sync_group_memberships(
     iam.sync_group_memberships(
         neo4j_session,
         mock_iam_client,
+        group_ids,
         TEST_TENANCY_ID,
         TEST_UPDATE_TAG,
         common_job_parameters,
