@@ -1,8 +1,9 @@
+from dataclasses import dataclass
+from typing import Optional
+
 from cartography.graph.querybuilder import build_conditional_label_queries
 from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_ingestion_query
-from cartography.graph.querybuilder import _get_cartography_version
-from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
@@ -13,8 +14,6 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import TargetNodeMatcher
-from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -28,43 +27,53 @@ class SimpleNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class NodeWithConditionalLabelSchema(CartographyNodeSchema):
     """Test schema with a conditional label."""
+
     label: str = "TestAsset"
     properties: SimpleNodeProperties = SimpleNodeProperties()
-    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels([
-        "Resource",
-        ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
-    ])
+    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+        [
+            "Resource",
+            ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
+        ]
+    )
 
 
 @dataclass(frozen=True)
 class NodeWithMultipleConditionalLabelsSchema(CartographyNodeSchema):
     """Test schema with multiple conditional labels."""
+
     label: str = "TestAsset"
     properties: SimpleNodeProperties = SimpleNodeProperties()
-    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels([
-        "Resource",
-        "AWSResource",
-        ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
-        ConditionalNodeLabel(
-            label="PublicResource",
-            conditions={"is_public": "true", "severity": "high"},
-        ),
-    ])
+    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+        [
+            "Resource",
+            "AWSResource",
+            ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
+            ConditionalNodeLabel(
+                label="PublicResource",
+                conditions={"is_public": "true", "severity": "high"},
+            ),
+        ]
+    )
 
 
 @dataclass(frozen=True)
 class NodeWithOnlyConditionalLabelSchema(CartographyNodeSchema):
     """Test schema with only conditional labels (no string labels)."""
+
     label: str = "TestAsset"
     properties: SimpleNodeProperties = SimpleNodeProperties()
-    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels([
-        ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
-    ])
+    extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+        [
+            ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
+        ]
+    )
 
 
 @dataclass(frozen=True)
 class NodeWithNoExtraLabelsSchema(CartographyNodeSchema):
     """Test schema without extra labels."""
+
     label: str = "TestAsset"
     properties: SimpleNodeProperties = SimpleNodeProperties()
 
@@ -183,10 +192,12 @@ def test_build_conditional_label_queries_only_string_labels():
     class NodeWithOnlyStringLabelsSchema(CartographyNodeSchema):
         label: str = "TestAsset"
         properties: SimpleNodeProperties = SimpleNodeProperties()
-        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels([
-            "Resource",
-            "AWSResource",
-        ])
+        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+            [
+                "Resource",
+                "AWSResource",
+            ]
+        )
 
     queries = build_conditional_label_queries(NodeWithOnlyStringLabelsSchema())
     assert queries == []
@@ -201,12 +212,14 @@ def test_build_conditional_label_queries_escapes_special_chars():
     class NodeWithSpecialCharsSchema(CartographyNodeSchema):
         label: str = "TestAsset"
         properties: SimpleNodeProperties = SimpleNodeProperties()
-        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels([
-            ConditionalNodeLabel(
-                label="Special",
-                conditions={"severity": 'value with "quotes" and \\backslash'},
-            ),
-        ])
+        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+            [
+                ConditionalNodeLabel(
+                    label="Special",
+                    conditions={"severity": 'value with "quotes" and \\backslash'},
+                ),
+            ]
+        )
 
     queries = build_conditional_label_queries(NodeWithSpecialCharsSchema())
 
@@ -215,8 +228,8 @@ def test_build_conditional_label_queries_escapes_special_chars():
     # Check the SET query (second one) for escaped values
     set_query = queries[1]
     # Check that quotes and backslashes are escaped
-    assert r'\"quotes\"' in set_query
-    assert r'\\backslash' in set_query
+    assert r"\"quotes\"" in set_query
+    assert r"\\backslash" in set_query
 
 
 def test_build_create_index_queries_includes_conditional_label_indexes():
@@ -265,10 +278,14 @@ def test_build_conditional_label_queries_empty_conditions_skipped():
     class NodeWithEmptyConditionsSchema(CartographyNodeSchema):
         label: str = "TestAsset"
         properties: SimpleNodeProperties = SimpleNodeProperties()
-        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels([
-            ConditionalNodeLabel(label="EmptyCondition", conditions={}),
-            ConditionalNodeLabel(label="ValidCondition", conditions={"severity": "high"}),
-        ])
+        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+            [
+                ConditionalNodeLabel(label="EmptyCondition", conditions={}),
+                ConditionalNodeLabel(
+                    label="ValidCondition", conditions={"severity": "high"}
+                ),
+            ]
+        )
 
     queries = build_conditional_label_queries(NodeWithEmptyConditionsSchema())
 
@@ -306,10 +323,12 @@ def test_build_conditional_label_queries_scoped_by_sub_resource():
         label: str = "TestAsset"
         properties: SimpleNodeProperties = SimpleNodeProperties()
         sub_resource_relationship: TestAssetToAWSAccountRel = TestAssetToAWSAccountRel()
-        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels([
-            "Resource",
-            ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
-        ])
+        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+            [
+                "Resource",
+                ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
+            ]
+        )
 
     queries = build_conditional_label_queries(ScopedNodeSchema())
 
@@ -358,9 +377,11 @@ def test_build_conditional_label_queries_scoped_outward_direction():
         label: str = "TestAsset"
         properties: SimpleNodeProperties = SimpleNodeProperties()
         sub_resource_relationship: TestAssetToTenantRel = TestAssetToTenantRel()
-        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels([
-            ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
-        ])
+        extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
+            [
+                ConditionalNodeLabel(label="Critical", conditions={"severity": "high"}),
+            ]
+        )
 
     queries = build_conditional_label_queries(OutwardScopedNodeSchema())
 

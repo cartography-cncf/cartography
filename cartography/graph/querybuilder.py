@@ -375,8 +375,7 @@ def _build_node_properties_statement(
     if extra_node_labels:
         # Filter out ConditionalNodeLabel objects - only include string labels
         string_labels = [
-            label for label in extra_node_labels.labels
-            if isinstance(label, str)
+            label for label in extra_node_labels.labels if isinstance(label, str)
         ]
         if string_labels:
             extra_labels = ":".join(string_labels)
@@ -1165,7 +1164,8 @@ def build_conditional_label_queries(
 
     # Extract only ConditionalNodeLabel objects
     conditional_labels = [
-        label for label in node_schema.extra_node_labels.labels
+        label
+        for label in node_schema.extra_node_labels.labels
         if isinstance(label, ConditionalNodeLabel)
     ]
 
