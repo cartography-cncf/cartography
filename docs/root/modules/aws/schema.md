@@ -2415,6 +2415,20 @@ This way, more than one `ECRRepositoryImage` can reference/be connected to the s
     (:ECRRepositoryImage)-[:IMAGE]->(:ECRImage)
     ```
 
+- ECRRepositoryImages may be built from a GitHubRepository (cross-module relationship via Dockerfile matching)
+    ```
+    (:ECRRepositoryImage)-[:BUILT_FROM]->(:GitHubRepository)
+    ```
+
+    Relationship properties:
+    - **dockerfile_path**: Path to the Dockerfile in the repository
+    - **confidence**: Confidence score of the match (0.0 to 1.0)
+    - **matched_commands**: Number of commands that matched
+    - **total_commands**: Total number of commands compared
+    - **command_similarity**: Average similarity score
+
+    This relationship links all images in an ECR repository to the source GitHub repository via `repo_uri` matching.
+
 
 ### ECRImage
 
@@ -2510,6 +2524,7 @@ Representation of an individual Docker image layer discovered while processing E
 | diff_id | Digest of the layer |
 | lastupdated | Timestamp of the last time the node was updated |
 | is_empty | Boolean flag identifying Docker's empty layer (true when the **DiffID** is `sha256:5f70bf18...`). |
+| history | The `created_by` command from the image config that created this layer (e.g., `/bin/sh -c pip install flask`). Used for Dockerfile matching. |
 
 #### Relationships
 

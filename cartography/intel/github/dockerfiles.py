@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -62,18 +63,19 @@ class ImageDockerfileMatch:
 # =============================================================================
 
 
-def get_ecr_images(
+def get_ecr_images_with_history(
     neo4j_session: neo4j.Session,
     limit: int | None = None,
 ) -> list[ECRImage]:
     """
-    Query the graph to get ECR images with their metadata.
+    Query the graph to get ECR images with their metadata AND layer history in a single query.
     Returns one image per repository (preferring 'latest' tag, then most recently pushed).
 
     :param neo4j_session: Neo4j session
     :param limit: Optional limit on number of images to return
-    :return: List of ECRImage objects with layer history
+    :return: List of ECRImage objects with layer history populated
     """
+    # Single query that gets images AND their layer history
     query = """
         MATCH (img:ECRImage)<-[:IMAGE]-(repo_img:ECRRepositoryImage)<-[:REPO_IMAGE]-(repo:ECRRepository)
         WHERE img.layer_diff_ids IS NOT NULL
@@ -94,6 +96,18 @@ def get_ecr_images(
             architecture: img.architecture,
             os: img.os
         })[0] AS best
+        // Get layer history for each best image
+        WITH best
+        UNWIND range(0, size(best.layer_diff_ids) - 1) AS idx
+        WITH best, best.layer_diff_ids[idx] AS diff_id, idx
+        OPTIONAL MATCH (layer:ECRImageLayer {diff_id: diff_id})
+        WITH best, idx, {
+            diff_id: diff_id,
+            history: layer.history,
+            is_empty: layer.is_empty
+        } AS layer_info
+        ORDER BY idx
+        WITH best, collect(layer_info) AS layer_history
         RETURN
             best.digest AS digest,
             best.uri AS uri,
@@ -103,7 +117,8 @@ def get_ecr_images(
             best.layer_diff_ids AS layer_diff_ids,
             best.type AS type,
             best.architecture AS architecture,
-            best.os AS os
+            best.os AS os,
+            layer_history
     """
 
     if limit:
@@ -113,6 +128,16 @@ def get_ecr_images(
     images = []
 
     for record in result:
+        # Convert layer_history from query result to expected format
+        layer_history = [
+            {
+                "created_by": layer.get("history") or "",
+                "empty_layer": layer.get("is_empty") or False,
+                "diff_id": layer.get("diff_id"),
+            }
+            for layer in (record["layer_history"] or [])
+        ]
+
         images.append(
             ECRImage(
                 digest=record["digest"],
@@ -124,95 +149,12 @@ def get_ecr_images(
                 image_type=record["type"],
                 architecture=record["architecture"],
                 os=record["os"],
-                layer_history=[],  # Will be populated separately
+                layer_history=layer_history,
             )
         )
 
-    logger.info(f"Found {len(images)} ECR images (one per repository)")
+    logger.info(f"Found {len(images)} ECR images with layer history (one per repository)")
     return images
-
-
-def get_image_layer_history(
-    neo4j_session: neo4j.Session,
-    image_digest: str,
-) -> list[dict[str, Any]]:
-    """
-    Get layer history commands for an image from Neo4j.
-
-    :param neo4j_session: Neo4j session
-    :param image_digest: The image digest to get history for
-    :return: List of history entries with 'created_by' and 'empty_layer' fields
-    """
-    # Use layer_diff_ids array from the image to find layers in order
-    query = """
-        MATCH (img:ECRImage {digest: $digest})
-        WHERE img.layer_diff_ids IS NOT NULL
-        WITH img.layer_diff_ids AS diff_ids
-        UNWIND range(0, size(diff_ids) - 1) AS idx
-        WITH diff_ids[idx] AS diff_id, idx
-        MATCH (layer:ECRImageLayer {diff_id: diff_id})
-        RETURN layer.diff_id AS diff_id, layer.history AS history, layer.is_empty AS is_empty
-        ORDER BY idx
-    """
-
-    try:
-        result = neo4j_session.run(query, digest=image_digest)
-        history = []
-        for record in result:
-            history.append(
-                {
-                    "created_by": record["history"] or "",
-                    "empty_layer": record["is_empty"] or False,
-                    "diff_id": record["diff_id"],
-                }
-            )
-        return history
-    except Exception as e:
-        logger.warning(f"Failed to get layer history for {image_digest}: {e}")
-        return []
-
-
-def get_image_base_info(
-    neo4j_session: neo4j.Session,
-    image_digest: str,
-) -> tuple[str | None, list[str] | None]:
-    """
-    Get base image info from BUILT_FROM relationship.
-
-    :param neo4j_session: Neo4j session
-    :param image_digest: The image digest
-    :return: (base_digest, base_layer_diff_ids) or (None, None) if not found
-    """
-    query = """
-        MATCH (img:ECRImage {digest: $digest})-[:BUILT_FROM]->(base:ECRImage)
-        RETURN base.digest AS base_digest, base.layer_diff_ids AS base_layers
-        LIMIT 1
-    """
-
-    result = neo4j_session.run(query, digest=image_digest)
-    record = result.single()
-    if record:
-        return record["base_digest"], record["base_layers"]
-    return None, None
-
-
-def compute_added_layer_count(
-    image_layers: list[str],
-    base_layers: list[str] | None,
-) -> int | None:
-    """
-    Compute how many layers were added on top of the base image.
-
-    :param image_layers: List of layer diff_ids for the image
-    :param base_layers: List of layer diff_ids for the base image
-    :return: Number of added layers, or None if cannot be determined
-    """
-    if not base_layers:
-        return None
-
-    base_set = set(base_layers)
-    added_count = sum(1 for layer in image_layers if layer not in base_set)
-    return added_count
 
 
 # =============================================================================
@@ -221,7 +163,6 @@ def compute_added_layer_count(
 
 
 def match_images_to_dockerfiles(
-    neo4j_session: neo4j.Session,
     images: list[ECRImage],
     dockerfiles: list[dict[str, Any]],
     min_confidence: float = 0.5,
@@ -229,8 +170,7 @@ def match_images_to_dockerfiles(
     """
     Match ECR images to Dockerfiles based on layer history commands.
 
-    :param neo4j_session: Neo4j session
-    :param images: List of ECR images to match
+    :param images: List of ECR images to match (with layer_history already populated)
     :param dockerfiles: List of dockerfile dictionaries (from get_dockerfiles_for_repos)
     :param min_confidence: Minimum confidence threshold for matches
     :return: List of ImageDockerfileMatch objects
@@ -257,18 +197,13 @@ def match_images_to_dockerfiles(
     matches: list[ImageDockerfileMatch] = []
 
     for image in images:
-        # Get layer history from Neo4j
-        history = get_image_layer_history(neo4j_session, image.digest)
-        if not history:
+        # Use pre-loaded layer history from the image
+        if not image.layer_history:
             logger.debug(f"No layer history for image {image.repo_name}:{image.tag}")
             continue
 
-        # Get base image info to determine added layers
-        base_digest, base_layers = get_image_base_info(neo4j_session, image.digest)
-        added_layer_count = compute_added_layer_count(image.layer_diff_ids, base_layers)
-
-        # Extract commands from history
-        image_commands = extract_layer_commands_from_history(history, added_layer_count)
+        # Extract commands from history (no added_layer_count filtering for now)
+        image_commands = extract_layer_commands_from_history(image.layer_history)
         if not image_commands:
             logger.debug(
                 f"No commands extracted for image {image.repo_name}:{image.tag}"
@@ -404,6 +339,69 @@ def cleanup_dockerfile_image_relationships(
 
 
 @timeit
+def search_dockerfiles_in_org(
+    token: str,
+    org: str,
+    base_url: str = "https://api.github.com",
+) -> list[dict[str, Any]]:
+    """
+    Search for all Dockerfile-related files in an organization using GitHub Code Search API.
+
+    This performs a single org-wide search instead of per-repo queries, which is more
+    efficient and reduces API rate limit consumption.
+
+    The search is case-insensitive and matches files containing "dockerfile" in the name.
+    This includes: Dockerfile, dockerfile, DOCKERFILE, Dockerfile.*, *.dockerfile, etc.
+
+    :param token: The GitHub API token
+    :param org: The organization name
+    :param base_url: The base URL for the GitHub API
+    :return: List of file items from the search results (with pagination)
+    """
+    # GitHub Code Search is case-insensitive by default
+    # The filename: qualifier matches files with "dockerfile" anywhere in the name
+    query = f"filename:dockerfile org:{org}"
+
+    all_items: list[dict[str, Any]] = []
+    page = 1
+    max_pages = 10  # GitHub limits to 1000 results (10 pages * 100 per_page)
+
+    while page <= max_pages:
+        params = {
+            "q": query,
+            "per_page": 100,
+            "page": page,
+        }
+
+        try:
+            response = call_github_rest_api("/search/code", token, base_url, params)
+            items: list[dict[str, Any]] = response.get("items", [])
+            all_items.extend(items)
+
+            # Check if there are more pages
+            total_count = response.get("total_count", 0)
+            if len(all_items) >= total_count or len(items) < 100:
+                break
+
+            page += 1
+
+        except requests.exceptions.HTTPError as e:
+            # Handle 403 (rate limit) and 422 (validation error) gracefully
+            if e.response is not None and e.response.status_code in (403, 422):
+                logger.warning(
+                    f"Failed to search dockerfiles in org {org}: "
+                    f"{e.response.status_code} - {e.response.reason}"
+                )
+                break
+            raise
+        except Exception as e:
+            logger.warning(f"Failed to search dockerfiles in org {org}: {e}")
+            break
+
+    logger.info(f"Found {len(all_items)} dockerfile(s) in org {org}")
+    return all_items
+
+
 def search_dockerfiles_in_repo(
     token: str,
     owner: str,
@@ -413,8 +411,7 @@ def search_dockerfiles_in_repo(
     """
     Search for all Dockerfile-related files in a repository using GitHub Code Search API.
 
-    The search is case-insensitive and matches files containing "dockerfile" in the name.
-    This includes: Dockerfile, dockerfile, DOCKERFILE, Dockerfile.*, *.dockerfile, etc.
+    Note: For multiple repos in the same org, prefer search_dockerfiles_in_org() for efficiency.
 
     :param token: The GitHub API token
     :param owner: The repository owner (user or organization)
@@ -422,8 +419,6 @@ def search_dockerfiles_in_repo(
     :param base_url: The base URL for the GitHub API
     :return: List of file items from the search results
     """
-    # GitHub Code Search is case-insensitive by default
-    # The filename: qualifier matches files with "dockerfile" anywhere in the name
     query = f"filename:dockerfile repo:{owner}/{repo}"
 
     params = {
@@ -437,16 +432,9 @@ def search_dockerfiles_in_repo(
         logger.debug(f"Found {len(items)} dockerfile(s) in {owner}/{repo}")
         return items
     except requests.exceptions.HTTPError as e:
-        # Handle 403 (rate limit) and 422 (validation error) gracefully
-        if e.response is not None and e.response.status_code in (403, 422):
-            logger.warning(
-                f"Failed to search dockerfiles in {owner}/{repo}: {e.response.status_code} - {e.response.reason}"
-            )
-            return []
-        # Handle 404 (repo not found or not accessible)
-        if e.response is not None and e.response.status_code == 404:
+        if e.response is not None and e.response.status_code in (403, 404, 422):
             logger.debug(
-                f"Repository {owner}/{repo} not found or not accessible for code search"
+                f"Search failed for {owner}/{repo}: {e.response.status_code}"
             )
             return []
         raise
@@ -503,172 +491,259 @@ def get_file_content(
         return None
 
 
+def _extract_repo_info(repo: dict[str, Any]) -> tuple[str | None, str | None, str | None]:
+    """Extract owner, repo_name, and repo_url from a repository dict."""
+    owner = None
+    repo_name = None
+    repo_url = None
+
+    if isinstance(repo.get("owner"), dict):
+        owner = repo["owner"].get("login")
+    elif "nameWithOwner" in repo:
+        name_with_owner = repo["nameWithOwner"]
+        if "/" in name_with_owner:
+            owner = name_with_owner.split("/")[0]
+
+    repo_name = repo.get("name")
+    repo_url = repo.get("url")
+
+    return owner, repo_name, repo_url
+
+
+def _build_dockerfile_info(
+    item: dict[str, Any],
+    content: str,
+    repo_url: str | None,
+    full_name: str,
+) -> dict[str, Any]:
+    """Build dockerfile info dict with parsed content."""
+    path = item.get("path", "")
+
+    try:
+        parsed = parse_dockerfile(content)
+        return {
+            "repo_url": repo_url,
+            "repo_name": full_name,
+            "path": path,
+            "content": content,
+            "sha": item.get("sha"),
+            "html_url": item.get("html_url"),
+            "is_multistage": parsed.is_multistage,
+            "stage_count": parsed.stage_count,
+            "final_base_image": parsed.final_base_image,
+            "all_base_images": parsed.all_base_images,
+            "layer_count": parsed.layer_creating_instruction_count,
+            "stages": [
+                {
+                    "name": stage.name,
+                    "base_image": stage.base_image,
+                    "base_image_tag": stage.base_image_tag,
+                    "layer_count": stage.layer_count,
+                }
+                for stage in parsed.stages
+            ],
+        }
+    except Exception as e:
+        logger.warning(f"Failed to parse Dockerfile {full_name}/{path}: {e}")
+        return {
+            "repo_url": repo_url,
+            "repo_name": full_name,
+            "path": path,
+            "content": content,
+            "sha": item.get("sha"),
+            "html_url": item.get("html_url"),
+            "parse_error": str(e),
+        }
+
+
 @timeit
 def get_dockerfiles_for_repos(
     token: str,
     repos: list[dict[str, Any]],
     base_url: str = "https://api.github.com",
+    org: str | None = None,
 ) -> list[dict[str, Any]]:
     """
     Search and download Dockerfiles for a list of repositories.
 
+    Uses org-wide search when possible (single API call) instead of per-repo queries.
+
     :param token: The GitHub API token
     :param repos: List of repository dictionaries (from GitHub API or transformed data)
     :param base_url: The base URL for the GitHub API
+    :param org: Organization name for org-wide search. If None, extracted from repos.
     :return: List of dictionaries containing repo info, file path, and content
     """
-    all_dockerfiles: list[dict[str, Any]] = []
+    if not repos:
+        return []
+
+    # Build lookup maps for repos
+    repo_info_map: dict[str, tuple[str, str, str | None]] = {}  # full_name -> (owner, name, url)
+    orgs_found: set[str] = set()
 
     for repo in repos:
-        # Handle both raw GitHub API response format and transformed format
-        # Raw format has owner.login, transformed has different structure
-        owner = None
-        repo_name = None
-        repo_url = None
-
-        # Try to extract owner/repo from different possible formats
-        if isinstance(repo.get("owner"), dict):
-            owner = repo["owner"].get("login")
-        elif "nameWithOwner" in repo:
-            name_with_owner = repo["nameWithOwner"]
-            if "/" in name_with_owner:
-                owner = name_with_owner.split("/")[0]
-
-        repo_name = repo.get("name")
-        repo_url = repo.get("url")
-
+        owner, repo_name, repo_url = _extract_repo_info(repo)
         if not owner or not repo_name:
-            logger.debug(f"Skipping repo with missing owner or name: {repo}")
             continue
+        full_name = f"{owner}/{repo_name}"
+        repo_info_map[full_name] = (owner, repo_name, repo_url)
+        orgs_found.add(owner)
 
-        # Search for Dockerfiles in the repo
-        dockerfile_items = search_dockerfiles_in_repo(token, owner, repo_name, base_url)
+    if not repo_info_map:
+        logger.warning("No valid repositories found")
+        return []
 
+    # Determine search strategy
+    search_org = org or (orgs_found.pop() if len(orgs_found) == 1 else None)
+
+    all_dockerfiles: list[dict[str, Any]] = []
+
+    if search_org and len(orgs_found) <= 1:
+        # Single org: use efficient org-wide search
+        logger.info(f"Using org-wide search for {search_org}")
+        dockerfile_items = search_dockerfiles_in_org(token, search_org, base_url)
+
+        # Group items by repo
+        items_by_repo: dict[str, list[dict[str, Any]]] = {}
         for item in dockerfile_items:
-            path = item.get("path")
-            if not path:
-                continue
+            repo_info = item.get("repository", {})
+            full_name = repo_info.get("full_name", "")
+            if full_name in repo_info_map:
+                items_by_repo.setdefault(full_name, []).append(item)
 
-            # Download the content
-            content = get_file_content(token, owner, repo_name, path, base_url=base_url)
-
-            if content:
-                # Parse the Dockerfile to extract structured information
-                try:
-                    parsed = parse_dockerfile(content)
-                    dockerfile_info = {
-                        "repo_url": repo_url,
-                        "repo_name": f"{owner}/{repo_name}",
-                        "path": path,
-                        "content": content,
-                        "sha": item.get("sha"),
-                        "html_url": item.get("html_url"),
-                        # Parsed information
-                        "is_multistage": parsed.is_multistage,
-                        "stage_count": parsed.stage_count,
-                        "final_base_image": parsed.final_base_image,
-                        "all_base_images": parsed.all_base_images,
-                        "layer_count": parsed.layer_creating_instruction_count,
-                        "stages": [
-                            {
-                                "name": stage.name,
-                                "base_image": stage.base_image,
-                                "base_image_tag": stage.base_image_tag,
-                                "layer_count": stage.layer_count,
-                            }
-                            for stage in parsed.stages
-                        ],
-                    }
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to parse Dockerfile {owner}/{repo_name}/{path}: {e}"
-                    )
-                    dockerfile_info = {
-                        "repo_url": repo_url,
-                        "repo_name": f"{owner}/{repo_name}",
-                        "path": path,
-                        "content": content,
-                        "sha": item.get("sha"),
-                        "html_url": item.get("html_url"),
-                        "parse_error": str(e),
-                    }
-
-                all_dockerfiles.append(dockerfile_info)
+        # Download content for matching repos
+        for full_name, items in items_by_repo.items():
+            owner, repo_name, repo_url = repo_info_map[full_name]
+            for item in items:
+                path = item.get("path")
+                if not path:
+                    continue
+                content = get_file_content(token, owner, repo_name, path, base_url=base_url)
+                if content:
+                    dockerfile_info = _build_dockerfile_info(item, content, repo_url, full_name)
+                    all_dockerfiles.append(dockerfile_info)
+    else:
+        # Multiple orgs or org not specified: fall back to per-repo search
+        logger.info(f"Using per-repo search for {len(repo_info_map)} repositories")
+        for full_name, (owner, repo_name, repo_url) in repo_info_map.items():
+            dockerfile_items = search_dockerfiles_in_repo(token, owner, repo_name, base_url)
+            for item in dockerfile_items:
+                path = item.get("path")
+                if not path:
+                    continue
+                content = get_file_content(token, owner, repo_name, path, base_url=base_url)
+                if content:
+                    dockerfile_info = _build_dockerfile_info(item, content, repo_url, full_name)
+                    all_dockerfiles.append(dockerfile_info)
 
     logger.info(
-        f"Retrieved content for {len(all_dockerfiles)} dockerfile(s) across {len(repos)} repositories"
+        f"Retrieved {len(all_dockerfiles)} dockerfile(s) from {len(repo_info_map)} repositories"
     )
     return all_dockerfiles
 
 
-def write_results_to_tempfile(
-    dockerfiles: list[dict[str, Any]],
-    images: list[ECRImage] | None = None,
-    matches: list[ImageDockerfileMatch] | None = None,
-) -> Path:
-    """
-    Write the analysis results to a temporary JSON file.
+@dataclass
+class DockerfileSyncResult:
+    """Results from dockerfile sync operation."""
 
-    :param dockerfiles: List of dockerfile dictionaries with repo info and content
-    :param images: Optional list of ECR images
-    :param matches: Optional list of image-to-dockerfile matches
-    :return: Path to the created temporary file
-    """
-    # Create a temp file that won't be deleted on close
-    temp_file = Path(tempfile.mktemp(suffix=".json", prefix="github_dockerfiles_"))
+    dockerfiles: list[dict[str, Any]]
+    images: list[ECRImage] | None = None
+    matches: list[ImageDockerfileMatch] | None = None
 
-    # Build output structure
-    output: dict[str, Any] = {
-        "dockerfiles": dockerfiles,
-    }
+    @property
+    def dockerfile_count(self) -> int:
+        return len(self.dockerfiles)
 
-    if images is not None:
-        output["images"] = [
-            {
-                "digest": img.digest,
-                "uri": img.uri,
-                "repo_uri": img.repo_uri,
-                "repo_name": img.repo_name,
-                "tag": img.tag,
-                "layer_count": len(img.layer_diff_ids),
-                "layer_diff_ids": img.layer_diff_ids,
-                "type": img.image_type,
-                "architecture": img.architecture,
-                "os": img.os,
-            }
-            for img in images
-        ]
+    @property
+    def image_count(self) -> int:
+        return len(self.images) if self.images else 0
 
-    if matches is not None:
-        output["matches"] = [
-            {
-                "ecr_repo_uri": m.ecr_repo_uri,
-                "ecr_repo_name": m.ecr_repo_name,
-                "dockerfile_repo_url": m.dockerfile_repo_url,
-                "dockerfile_path": m.dockerfile_path,
-                "confidence": m.confidence,
-                "matched_commands": m.matched_commands,
-                "total_commands": m.total_commands,
-                "command_similarity": m.command_similarity,
-            }
-            for m in matches
-        ]
+    @property
+    def match_count(self) -> int:
+        return len(self.matches) if self.matches else 0
 
-    # Add summary statistics
-    output["summary"] = {
-        "dockerfile_count": len(dockerfiles),
-        "image_count": len(images) if images else 0,
-        "match_count": len(matches) if matches else 0,
-        "high_confidence_matches": (
-            sum(1 for m in matches if m.confidence >= 0.75) if matches else 0
-        ),
-    }
+    @property
+    def high_confidence_match_count(self) -> int:
+        if not self.matches:
+            return 0
+        return sum(1 for m in self.matches if m.confidence >= 0.75)
 
-    with open(temp_file, "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
+    def to_dict(self) -> dict[str, Any]:
+        """Convert results to a dictionary for serialization."""
+        output: dict[str, Any] = {
+            "dockerfiles": self.dockerfiles,
+        }
 
-    logger.info(f"Wrote analysis results to {temp_file}")
-    return temp_file
+        if self.images is not None:
+            output["images"] = [
+                {
+                    "digest": img.digest,
+                    "uri": img.uri,
+                    "repo_uri": img.repo_uri,
+                    "repo_name": img.repo_name,
+                    "tag": img.tag,
+                    "layer_count": len(img.layer_diff_ids),
+                    "layer_diff_ids": img.layer_diff_ids,
+                    "type": img.image_type,
+                    "architecture": img.architecture,
+                    "os": img.os,
+                }
+                for img in self.images
+            ]
+
+        if self.matches is not None:
+            output["matches"] = [
+                {
+                    "ecr_repo_uri": m.ecr_repo_uri,
+                    "ecr_repo_name": m.ecr_repo_name,
+                    "dockerfile_repo_url": m.dockerfile_repo_url,
+                    "dockerfile_path": m.dockerfile_path,
+                    "confidence": m.confidence,
+                    "matched_commands": m.matched_commands,
+                    "total_commands": m.total_commands,
+                    "command_similarity": m.command_similarity,
+                }
+                for m in self.matches
+            ]
+
+        output["summary"] = {
+            "dockerfile_count": self.dockerfile_count,
+            "image_count": self.image_count,
+            "match_count": self.match_count,
+            "high_confidence_matches": self.high_confidence_match_count,
+        }
+
+        return output
+
+    @contextmanager
+    def to_tempfile(self):
+        """
+        Context manager that writes results to a temporary JSON file.
+        The file is automatically deleted when the context exits.
+
+        Usage:
+            with result.to_tempfile() as temp_path:
+                print(f"Results at: {temp_path}")
+                # Use the file...
+            # File is automatically deleted here
+        """
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".json",
+            prefix="github_dockerfiles_",
+            delete=False,
+            encoding="utf-8",
+        ) as f:
+            json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
+            temp_path = Path(f.name)
+
+        logger.info(f"Wrote analysis results to {temp_path}")
+        try:
+            yield temp_path
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+                logger.debug(f"Cleaned up temp file {temp_path}")
 
 
 @timeit
@@ -683,7 +758,7 @@ def sync(
     match_ecr_images: bool = True,
     image_limit: int | None = None,
     min_match_confidence: float = 0.5,
-) -> Path | None:
+) -> DockerfileSyncResult | None:
     """
     Sync Dockerfiles from GitHub repositories, query ECR images, and identify matches.
 
@@ -692,8 +767,7 @@ def sync(
     2. Downloads their content and parses them
     3. Queries ALL ECR images from Neo4j (all tags)
     4. Matches images to Dockerfiles based on layer history commands
-    5. Creates BUILT_IMAGE relationships between GitHubRepository and ECRImage
-    6. Writes all results to a temporary JSON file
+    5. Creates BUILT_FROM relationships between ECRRepositoryImage and GitHubRepository
 
     :param neo4j_session: Neo4j session for querying ECR images
     :param token: The GitHub API token
@@ -705,7 +779,17 @@ def sync(
     :param match_ecr_images: Whether to query ECR images and perform matching (default: True)
     :param image_limit: Optional limit on number of ECR images to process
     :param min_match_confidence: Minimum confidence threshold for matches (default: 0.5)
-    :return: Path to the temporary file containing results, or None if no Dockerfiles found
+    :return: DockerfileSyncResult with dockerfiles, images, and matches, or None if no Dockerfiles found
+
+    Example usage:
+        result = sync(neo4j_session, token, api_url, org, update_tag, params, repos)
+        if result:
+            # Access results directly
+            print(f"Found {result.dockerfile_count} dockerfiles")
+
+            # Or write to temp file for debugging (auto-cleaned up)
+            with result.to_tempfile() as temp_path:
+                print(f"Results written to {temp_path}")
     """
     logger.info(
         f"Starting dockerfile sync for {len(repos)} repositories in {organization}"
@@ -716,8 +800,8 @@ def sync(
     if base_url.endswith("/graphql"):
         base_url = base_url[:-8]
 
-    # Search and download Dockerfiles
-    dockerfiles = get_dockerfiles_for_repos(token, repos, base_url)
+    # Search and download Dockerfiles (uses org-wide search for efficiency)
+    dockerfiles = get_dockerfiles_for_repos(token, repos, base_url, org=organization)
 
     if not dockerfiles:
         logger.info(f"No dockerfiles found in {organization}")
@@ -728,14 +812,13 @@ def sync(
 
     # Query ECR images and perform matching if requested
     if match_ecr_images:
-        logger.info("Querying ECR images from Neo4j (one per repository)...")
-        # Get one image per repository for matching (relationships will link to all via repo_uri)
-        images = get_ecr_images(neo4j_session, limit=image_limit)
+        logger.info("Querying ECR images with layer history from Neo4j...")
+        # Single query gets images AND their layer history
+        images = get_ecr_images_with_history(neo4j_session, limit=image_limit)
 
         if images:
             logger.info(f"Found {len(images)} ECR images, performing matching...")
             matches = match_images_to_dockerfiles(
-                neo4j_session,
                 images,
                 dockerfiles,
                 min_confidence=min_match_confidence,
@@ -748,7 +831,7 @@ def sync(
                 f"({high_confidence} high confidence)"
             )
 
-            # Load BUILT_IMAGE relationships to Neo4j
+            # Load BUILT_FROM relationships to Neo4j
             if matches:
                 load_dockerfile_image_relationships(
                     neo4j_session,
@@ -766,12 +849,14 @@ def sync(
         else:
             logger.info("No ECR images found in Neo4j")
 
-    # Write results to temp file
-    temp_path = write_results_to_tempfile(dockerfiles, images, matches)
+    result = DockerfileSyncResult(
+        dockerfiles=dockerfiles,
+        images=images,
+        matches=matches,
+    )
 
     logger.info(
-        f"Completed dockerfile sync: {len(dockerfiles)} dockerfile(s), "
-        f"{len(images) if images else 0} image(s), "
-        f"{len(matches) if matches else 0} match(es) written to {temp_path}"
+        f"Completed dockerfile sync: {result.dockerfile_count} dockerfile(s), "
+        f"{result.image_count} image(s), {result.match_count} match(es)"
     )
-    return temp_path
+    return result

@@ -66,6 +66,57 @@ SEARCH_DOCKERFILES_EMPTY_RESPONSE: dict[str, Any] = {
     "items": [],
 }
 
+# Mock response from GitHub Code Search API for org-wide search
+# when searching for "filename:dockerfile org:testorg"
+SEARCH_DOCKERFILES_ORG_RESPONSE: dict[str, Any] = {
+    "total_count": 3,
+    "incomplete_results": False,
+    "items": [
+        {
+            "name": "Dockerfile",
+            "path": "Dockerfile",
+            "sha": "abc123def456",
+            "url": "https://api.github.com/repos/testorg/testrepo/contents/Dockerfile?ref=main",
+            "git_url": "https://api.github.com/repos/testorg/testrepo/git/blobs/abc123def456",
+            "html_url": "https://github.com/testorg/testrepo/blob/main/Dockerfile",
+            "repository": {
+                "id": 123456789,
+                "name": "testrepo",
+                "full_name": "testorg/testrepo",
+            },
+            "score": 1.0,
+        },
+        {
+            "name": "Dockerfile.dev",
+            "path": "docker/Dockerfile.dev",
+            "sha": "def789ghi012",
+            "url": "https://api.github.com/repos/testorg/testrepo/contents/docker/Dockerfile.dev?ref=main",
+            "git_url": "https://api.github.com/repos/testorg/testrepo/git/blobs/def789ghi012",
+            "html_url": "https://github.com/testorg/testrepo/blob/main/docker/Dockerfile.dev",
+            "repository": {
+                "id": 123456789,
+                "name": "testrepo",
+                "full_name": "testorg/testrepo",
+            },
+            "score": 1.0,
+        },
+        {
+            "name": "production.dockerfile",
+            "path": "deploy/production.dockerfile",
+            "sha": "ghi345jkl678",
+            "url": "https://api.github.com/repos/testorg/testrepo/contents/deploy/production.dockerfile?ref=main",
+            "git_url": "https://api.github.com/repos/testorg/testrepo/git/blobs/ghi345jkl678",
+            "html_url": "https://github.com/testorg/testrepo/blob/main/deploy/production.dockerfile",
+            "repository": {
+                "id": 123456789,
+                "name": "testrepo",
+                "full_name": "testorg/testrepo",
+            },
+            "score": 1.0,
+        },
+    ],
+}
+
 # Mock Dockerfile content (base64 encoded as returned by GitHub Contents API)
 DOCKERFILE_CONTENT = """FROM python:3.11-slim
 
