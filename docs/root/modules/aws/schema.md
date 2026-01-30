@@ -806,6 +806,12 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (:AWSUser)-[:POLICY]->(:AWSPolicy)
     ```
 
+- AWS Users can have MFA Devices.
+
+    ```cypher
+    (AWSUser)-[:MFA_DEVICE]->(AWSMfaDevice)
+    ```
+
 
 ### AWSPrincipal::AWSRole
 
@@ -1126,6 +1132,34 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 - Account Access Keys are a resource under the AWS Account.
     ```
     (:AWSAccount)-[:RESOURCE]->(:AccountAccessKey)
+    ```
+
+### AWSMfaDevice
+
+Representation of an AWS [MFA Device](https://docs.aws.amazon.com/IAM/latest/APIReference/API_MFADevice.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The serial number of the MFA device (same as serialnumber) |
+| **serialnumber** | The serial number that uniquely identifies the MFA device |
+| username | The username of the IAM user associated with the MFA device |
+| user_arn | The ARN of the IAM user associated with the MFA device |
+| enabledate | ISO 8601 date-time string when the MFA device was enabled |
+| enabledate_dt | DateTime object representing when the MFA device was enabled |
+
+#### Relationships
+- MFA Devices are associated with AWS Users.
+
+    ```cypher
+    (AWSUser)-[:MFA_DEVICE]->(AWSMfaDevice)
+    ```
+
+- MFA Devices are resources under the AWS Account.
+
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(AWSMfaDevice)
     ```
 
 ### CloudTrailTrail
