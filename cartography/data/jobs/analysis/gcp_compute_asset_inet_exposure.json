@@ -1,7 +1,7 @@
 {
   "statements": [
   {
-    "query": "MATCH (n) where n.exposed_internet IS NOT NULL AND labels(n) IN ['GCPInstance'] WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type return COUNT(*) as TotalCompleted",
+    "query": "MATCH (n:GCPInstance) where n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
     "iterative": true,
     "iterationsize": 1000,
     "__comment__": "Delete exposed_internet off nodes so we can start fresh"

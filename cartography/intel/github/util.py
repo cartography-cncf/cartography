@@ -1,6 +1,9 @@
 import json
 import logging
 import time
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone as tz
 from typing import Any
 from typing import Dict
 from typing import List
@@ -13,11 +16,39 @@ import requests
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
+_GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
 
 
 class PaginatedGraphqlData(NamedTuple):
     nodes: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
+
+
+def handle_rate_limit_sleep(token: str) -> None:
+    """
+    Check the remaining rate limit and sleep if remaining is below threshold
+    :param token: The Github API token as string.
+    """
+    response = requests.get(
+        "https://api.github.com/rate_limit",
+        headers={"Authorization": f"token {token}"},
+    )
+    response.raise_for_status()
+    response_json = response.json()
+    rate_limit_obj = response_json["resources"]["graphql"]
+    remaining = rate_limit_obj["remaining"]
+    threshold = _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
+    if remaining > threshold:
+        return
+    reset_at = datetime.fromtimestamp(rate_limit_obj["reset"], tz=tz.utc)
+    now = datetime.now(tz.utc)
+    # add an extra minute for safety
+    sleep_duration = reset_at - now + timedelta(minutes=1)
+    logger.warning(
+        f"Github graphql ratelimit has {remaining} remaining and is under threshold {threshold},"
+        f" sleeping until reset at {reset_at} for {sleep_duration}",
+    )
+    time.sleep(sleep_duration.seconds)
 
 
 def call_github_api(query: str, variables: str, token: str, api_url: str) -> Dict:
@@ -29,11 +60,11 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> Dic
     :param api_url: the URL to call for the API
     :return: query results json
     """
-    headers = {'Authorization': f"token {token}"}
+    headers = {"Authorization": f"token {token}"}
     try:
         response = requests.post(
             api_url,
-            json={'query': query, 'variables': variables},
+            json={"query": query, "variables": variables},
             headers=headers,
             timeout=_TIMEOUT,
         )
@@ -46,18 +77,18 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> Dic
     if "errors" in response_json:
         logger.warning(
             f'call_github_api() response has errors, please investigate. Raw response: {response_json["errors"]}; '
-            f'continuing sync.',
+            f"continuing sync.",
         )
     return response_json  # type: ignore
 
 
 def fetch_page(
-        token: str,
-        api_url: str,
-        organization: str,
-        query: str,
-        cursor: Optional[str] = None,
-        **kwargs: Any,
+    token: str,
+    api_url: str,
+    organization: str,
+    query: str,
+    cursor: Optional[str] = None,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """
     Return a single page of max size 100 elements from the Github api_url using the given `query` and `cursor` params.
@@ -72,8 +103,8 @@ def fetch_page(
     """
     gql_vars = {
         **kwargs,
-        'login': organization,
-        'cursor': cursor,
+        "login": organization,
+        "cursor": cursor,
     }
     gql_vars_json = json.dumps(gql_vars)
     response = call_github_api(query, gql_vars_json, token, api_url)
@@ -81,14 +112,14 @@ def fetch_page(
 
 
 def fetch_all(
-        token: str,
-        api_url: str,
-        organization: str,
-        query: str,
-        resource_type: str,
-        retries: int = 5,
-        resource_inner_type: Optional[str] = None,
-        **kwargs: Any,
+    token: str,
+    api_url: str,
+    organization: str,
+    query: str,
+    resource_type: str,
+    retries: int = 5,
+    resource_inner_type: Optional[str] = None,
+    **kwargs: Any,
 ) -> Tuple[PaginatedGraphqlData, Dict[str, Any]]:
     """
     Fetch and return all data items of the given `resource_type` and `field_name` from Github's paginated GraphQL API as
@@ -110,39 +141,78 @@ def fetch_all(
     """
     cursor = None
     has_next_page = True
+    org_data: Dict[str, Any] = {}
     data: PaginatedGraphqlData = PaginatedGraphqlData(nodes=[], edges=[])
     retry = 0
 
     while has_next_page:
+        exc: Any = None
         try:
+            # In the future, we may use also use the rateLimit object from the graphql response.
+            # But we still need at least one call to the REST endpoint in case the graphql remaining is already 0
+            handle_rate_limit_sleep(token)
             resp = fetch_page(token, api_url, organization, query, cursor, **kwargs)
             retry = 0
-        except requests.exceptions.Timeout:
+        except requests.exceptions.Timeout as err:
             retry += 1
-        except requests.exceptions.HTTPError:
+            exc = err
+        except requests.exceptions.HTTPError as err:
+            if (
+                err.response is not None
+                and err.response.status_code == 502
+                and kwargs.get("count")
+                and kwargs["count"] > 1
+            ):
+                kwargs["count"] = max(1, kwargs["count"] // 2)
+                logger.warning(
+                    "GitHub: Received 502 response. Reducing page size to %s and retrying.",
+                    kwargs["count"],
+                )
+                continue
             retry += 1
-        except requests.exceptions.ChunkedEncodingError:
+            exc = err
+        except requests.exceptions.ChunkedEncodingError as err:
             retry += 1
+            exc = err
 
         if retry >= retries:
             logger.error(
-                f"GitHub: Could not retrieve page of resource `{resource_type}` due to HTTP error.",
+                f"GitHub: Could not retrieve page of resource `{resource_type}` due to HTTP error "
+                f"after {retry} retries. Raising exception.",
                 exc_info=True,
             )
-            raise
+            raise exc
         elif retry > 0:
-            time.sleep(1 * retry)
+            time.sleep(2**retry)
             continue
 
-        resource = resp['data']['organization'][resource_type]
+        if "data" not in resp:
+            logger.warning(
+                f'Got no "data" attribute in response: {resp}. '
+                f"Stopping requests for organization: {organization} and "
+                f"resource_type: {resource_type}",
+            )
+            has_next_page = False
+            continue
+
+        resource = resp["data"]["organization"][resource_type]
         if resource_inner_type:
-            resource = resp['data']['organization'][resource_type][resource_inner_type]
+            resource = resp["data"]["organization"][resource_type][resource_inner_type]
 
         # Allow for paginating both nodes and edges fields of the GitHub GQL structure.
-        data.nodes.extend(resource.get('nodes', []))
-        data.edges.extend(resource.get('edges', []))
+        data.nodes.extend(resource.get("nodes", []))
+        data.edges.extend(resource.get("edges", []))
 
-        cursor = resource['pageInfo']['endCursor']
-        has_next_page = resource['pageInfo']['hasNextPage']
-    org_data = {'url': resp['data']['organization']['url'], 'login': resp['data']['organization']['login']}
+        cursor = resource["pageInfo"]["endCursor"]
+        has_next_page = resource["pageInfo"]["hasNextPage"]
+        if not org_data:
+            org_data = {
+                "url": resp["data"]["organization"]["url"],
+                "login": resp["data"]["organization"]["login"],
+            }
+
+    if not org_data:
+        raise ValueError(
+            f"Didn't get any organization data for organization: {organization} and resource_type: {resource_type}",
+        )
     return data, org_data

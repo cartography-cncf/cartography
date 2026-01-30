@@ -2,37 +2,102 @@ import datetime
 import json
 
 LIST_BUCKETS = {
-    'Buckets': [
+    "Buckets": [
         {
-            'Name': 'bucket-1',
-            'CreationDate': datetime.datetime(2014, 4, 16, 18, 14, 49),
-            'Region': 'eu-west-1',
-        }, {
-            'Name': 'bucket-2',
-            'CreationDate': datetime.datetime(2015, 7, 24, 4, 8, 29),
-            'Region': 'me-south-1',
-        }, {
-            'Name': 'bucket-3',
-            'CreationDate': datetime.datetime(2019, 9, 17, 1, 16, 19),
-            'Region': None,
+            "Name": "bucket-1",
+            "CreationDate": datetime.datetime(2014, 4, 16, 18, 14, 49),
+            "Region": "eu-west-1",
+        },
+        {
+            "Name": "bucket-2",
+            "CreationDate": datetime.datetime(2015, 7, 24, 4, 8, 29),
+            "Region": "me-south-1",
+        },
+        {
+            "Name": "bucket-3",
+            "CreationDate": datetime.datetime(2019, 9, 17, 1, 16, 19),
+            "Region": None,
         },
     ],
-    'Owner': {
-        'DisplayName': 'OWNER_NAME',
-        'ID': 'OWNER_ID',
+    "Owner": {
+        "DisplayName": "OWNER_NAME",
+        "ID": "OWNER_ID",
+    },
+}
+
+OPEN_BUCKET_ACLS = {
+    "bucket-1": {
+        "Owner": {
+            "DisplayName": "my-display-name-1",
+            "ID": "3cb8",
+        },
+        "Grants": [
+            {
+                "Grantee": {
+                    "DisplayName": "my-display-name-1",
+                    "ID": "3cb8",
+                    "Type": "CanonicalUser",
+                },
+                "Permission": "FULL_CONTROL",
+            },
+        ],
+    },
+    "bucket-2": {
+        "Owner": {
+            "DisplayName": "my-display-name-2",
+            "ID": "828a",
+        },
+        "Grants": [
+            {
+                "Grantee": {
+                    "Type": "Group",
+                    "URI": "http://acs.amazonaws.com/groups/global/AllUsers",
+                },
+                "Permission": "READ",
+            },
+            {
+                "Grantee": {
+                    "Type": "Group",
+                    "URI": "http://acs.amazonaws.com/groups/global/AuthenticatedUsers",
+                },
+                "Permission": "READ_ACP",
+            },
+        ],
+    },
+    "bucket-3": {
+        "Owner": {
+            "DisplayName": "my-display-name-2",
+            "ID": "828a",
+        },
+        "Grants": [
+            {
+                "Grantee": {
+                    "Type": "Group",
+                    "URI": "http://acs.amazonaws.com/groups/global/AllUsers",
+                },
+                "Permission": "WRITE_ACP",
+            },
+            {
+                "Grantee": {
+                    "Type": "Group",
+                    "URI": "http://acs.amazonaws.com/groups/global/AuthenticatedUsers",
+                },
+                "Permission": "WRITE",
+            },
+        ],
     },
 }
 
 GET_ENCRYPTION = {
-    'bucket': 'bucket-1',
-    'default_encryption': True,
-    'encryption_algorithm': 'aws:kms',
-    'encryption_key_id': 'arn:aws:kms:eu-east-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d',
-    'bucket_key_enabled': False,
+    "bucket": "bucket-1",
+    "default_encryption": True,
+    "encryption_algorithm": "aws:kms",
+    "encryption_key_id": "arn:aws:kms:eu-east-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+    "bucket_key_enabled": False,
 }
 
 LIST_STATEMENTS = {
-    'Policy': json.dumps(
+    "Policy": json.dumps(
         {
             "Version": "2012-10-17",
             "Id": "S3PolicyId1",
@@ -71,3 +136,116 @@ LIST_STATEMENTS = {
         },
     ),
 }
+
+S3_NOTIFICATIONS = {
+    "TopicConfigurations": [
+        {
+            "TopicArn": "arn:aws:sns:us-east-1:123456789012:test-topic",
+            "Events": ["s3:ObjectCreated:*"],
+            "Id": "ObjectCreatedEvents",
+            "Filter": {
+                "Key": {
+                    "FilterRules": [
+                        {"Name": "prefix", "Value": "test/"},
+                        {"Name": "suffix", "Value": ".txt"},
+                    ],
+                },
+            },
+        },
+    ],
+}
+
+SNS_TOPICS = [
+    {
+        "TopicArn": "arn:aws:sns:us-east-1:123456789012:test-topic",
+        "TopicName": "test-topic",
+        "DisplayName": "Test Topic",
+        "Owner": "123456789012",
+        "SubscriptionsPending": 0,
+        "SubscriptionsConfirmed": 1,
+        "SubscriptionsDeleted": 0,
+        "DeliveryPolicy": "",
+        "EffectiveDeliveryPolicy": "",
+        "KmsMasterKeyId": "",
+    },
+]
+
+SNS_TOPIC_ATTRIBUTES = {
+    "Attributes": {
+        "DisplayName": "Test Topic",
+        "Owner": "123456789012",
+        "SubscriptionsPending": "0",
+        "SubscriptionsConfirmed": "1",
+        "SubscriptionsDeleted": "0",
+        "DeliveryPolicy": "",
+        "EffectiveDeliveryPolicy": "",
+        "KmsMasterKeyId": "",
+    },
+}
+GET_BUCKET_OWNERSHIP_CONTROLS = {
+    "bucket": "bucket-1",
+    "object_ownership": "BucketOwnerPreferred",
+}
+
+GET_BUCKET_LOGGING_ENABLED = {"LoggingEnabled": {"TargetBucket": "log-bucket"}}
+
+GET_BUCKET_LOGGING_DISABLED: dict = {}
+
+
+# Mock data for get_s3_bucket_details generator output
+# Returns: (bucket_name, acl, policy, encryption, versioning, public_access_block, bucket_ownership_controls, bucket_logging)
+GET_S3_BUCKET_DETAILS = [
+    (
+        "bucket-1",
+        OPEN_BUCKET_ACLS["bucket-1"],
+        LIST_STATEMENTS,
+        {
+            "ServerSideEncryptionConfiguration": {
+                "Rules": [
+                    {
+                        "ApplyServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "aws:kms",
+                            "KMSMasterKeyID": "arn:aws:kms:eu-east-1:000000000000:key/9a1ad414-6e3b-47ce-8366-6b8f26ba467d",
+                        },
+                        "BucketKeyEnabled": False,
+                    },
+                ],
+            },
+        },
+        {"Status": "Enabled", "MFADelete": "Disabled"},
+        {
+            "PublicAccessBlockConfiguration": {
+                "BlockPublicAcls": True,
+                "IgnorePublicAcls": True,
+                "BlockPublicPolicy": True,
+                "RestrictPublicBuckets": True,
+            },
+        },
+        {
+            "OwnershipControls": {
+                "Rules": [{"ObjectOwnership": "BucketOwnerPreferred"}],
+            },
+        },
+        GET_BUCKET_LOGGING_ENABLED,
+    ),
+    (
+        "bucket-2",
+        OPEN_BUCKET_ACLS["bucket-2"],
+        None,
+        None,
+        None,
+        None,
+        None,
+        GET_BUCKET_LOGGING_DISABLED,
+    ),
+    (
+        "bucket-3",
+        OPEN_BUCKET_ACLS["bucket-3"],
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ),
+]

@@ -26,16 +26,14 @@ def test_load_graph_data_match_on_multiple_attrs(neo4j_session):
 
     # Assert that Homer has 2 computers and Lisa has 1 computer
     expected = {
-        ('server-in-the-closet', 'Homer'),
-        ('beefy-box', 'Homer'),
-        ('macbook-air', 'Lisa'),
+        ("server-in-the-closet", "Homer"),
+        ("beefy-box", "Homer"),
+        ("macbook-air", "Lisa"),
     }
     result = neo4j_session.run(
         """
         MATCH (n1:TestComputer)<-[:OWNS]-(n2:Person) RETURN n1.name, n2.first_name;
         """,
     )
-    actual = {
-        (r['n1.name'], r['n2.first_name']) for r in result
-    }
+    actual = {(r["n1.name"], r["n2.first_name"]) for r in result}
     assert actual == expected

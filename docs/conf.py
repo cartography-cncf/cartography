@@ -15,19 +15,13 @@ import os
 import sys
 from datetime import datetime
 
-import sphinx_material
-
-sys.path.insert(0, os.path.abspath("../.."))
+# Use __file__ for robustness when conf.py is copied to generated/rst/ by build.sh
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def setup(app):
     app.add_config_value("release_level", "", "env")
 
-
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-# sys.path.insert(0, os.path.abspath('.'))
 
 # -- General configuration ------------------------------------------------
 
@@ -38,11 +32,15 @@ def setup(app):
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx.ext.autosectionlabel",
     "sphinx.ext.extlinks",
     "sphinx.ext.ifconfig",
     "sphinx.ext.githubpages",
-    "m2r2",
+    "sphinxcontrib.mermaid",
+    "myst_parser",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.coverage",
+    "sphinx_copybutton",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -61,7 +59,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "cartography"
-copyright = f"2021-{datetime.now().year}, Lyft"
+copyright = f"2021-{datetime.now().year}, The Linux Foundation"
 author = "cartography Project Authors"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -122,22 +120,28 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "sphinx_material"
-html_theme_path = sphinx_material.html_theme_path()
-html_context = sphinx_material.get_html_context()
+html_theme = "shibuya"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    'globaltoc_depth': 2,
-    'globaltoc_collapse': True,
-    'repo_url': 'https://github.com/lyft/cartography',
-    'repo_name': 'cartography',
-    'repo_type': 'github',
+    "globaltoc_depth": 0,
+    "globaltoc_collapse": True,
+    "github_url": "https://github.com/cartography-cncf/cartography",
+    "repo_name": "cartography",
+    "repo_type": "github",
+    "page_layout": "default",
+    "accent_color": "cyan",
+    "slack_url": "https://communityinviter.com/apps/cloud-native/cncf",
 }
-html_sidebars = {
-    "**": ["globaltoc.html", "localtoc.html", "searchbox.html"],
+
+html_context = {
+    "source_type": "github",
+    "source_user": "cartography-cncf",
+    "source_repo": "cartography",
+    "source_version": "master",
+    "source_docs_path": "/docs/root/",
 }
 
 # The name for this set of Sphinx documents.
@@ -154,12 +158,13 @@ html_logo = "images/logo-vertical.svg"
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-html_favicon = 'images/logo-vertical.svg'
+html_favicon = "images/logo-vertical.svg"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ["_static"]
+html_static_path = ["_static"]
+html_css_files = ["custom.css"]
 
 # html_style = 'css/cartography.css'
 
@@ -229,5 +234,30 @@ html_search_language = "en"
 # htmlhelp_basename = 'cartography-doc'
 
 # i18n
-locale_dirs = ['locale/']
+locale_dirs = ["locale/"]
 gettext_compact = False
+
+# myst_parser
+myst_enable_extensions = [
+    "linkify",
+    "colon_fence",
+]
+myst_linkify_fuzzy_links = False
+suppress_warnings = ["myst.header"]
+myst_fence_as_directive = ["mermaid"]
+
+# Napoleon settings
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = False
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = True
+napoleon_use_admonition_for_examples = True
+napoleon_use_admonition_for_notes = True
+napoleon_use_admonition_for_references = True
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = True
+napoleon_preprocess_types = False
+napoleon_type_aliases = None
+napoleon_attr_annotations = True

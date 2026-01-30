@@ -5,6 +5,7 @@ from typing import List
 import boto3
 import neo4j
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -14,22 +15,28 @@ logger = logging.getLogger(__name__)
 
 @timeit
 @aws_handle_regions
-def get_configuration_recorders(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client('config', region_name=region)
+def get_configuration_recorders(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict]:
+    client = boto3_session.client("config", region_name=region)
     recorders: List[Dict] = []
     response = client.describe_configuration_recorders()
-    for recorder in response.get('ConfigurationRecorders'):
+    for recorder in response.get("ConfigurationRecorders"):
         recorders.append(recorder)
     return recorders
 
 
 @timeit
 @aws_handle_regions
-def get_delivery_channels(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client('config', region_name=region)
+def get_delivery_channels(
+    boto3_session: boto3.session.Session,
+    region: str,
+) -> List[Dict]:
+    client = boto3_session.client("config", region_name=region)
     channels: List[Dict] = []
     response = client.describe_delivery_channels()
-    for channel in response.get('DeliveryChannels'):
+    for channel in response.get("DeliveryChannels"):
         channels.append(channel)
     return channels
 
@@ -37,11 +44,11 @@ def get_delivery_channels(boto3_session: boto3.session.Session, region: str) -> 
 @timeit
 @aws_handle_regions
 def get_config_rules(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client('config', region_name=region)
-    paginator = client.get_paginator('describe_config_rules')
+    client = boto3_session.client("config", region_name=region)
+    paginator = client.get_paginator("describe_config_rules")
     rules: List[Dict] = []
     for page in paginator.paginate():
-        rules.extend(page['ConfigRules'])
+        rules.extend(page["ConfigRules"])
     return rules
 
 
@@ -72,9 +79,10 @@ def load_configuration_recorders(
     # generate a unique id using a combo of the name, account id and region, since the name
     # itself is unique per region.
     for recorder in data:
-        recorder['_id'] = f'{recorder["name"]}:{current_aws_account_id}:{region}'
+        recorder["_id"] = f'{recorder["name"]}:{current_aws_account_id}:{region}'
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_configuration_recorders,
         Recorders=data,
         Region=region,
@@ -112,9 +120,10 @@ def load_delivery_channels(
     # generate a unique id using a combo of the name, account id and region, since the name
     # itself is unique per region.
     for channel in data:
-        channel['_id'] = f'{channel["name"]}:{current_aws_account_id}:{region}'
+        channel["_id"] = f'{channel["name"]}:{current_aws_account_id}:{region}'
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_delivery_channels,
         Channels=data,
         Region=region,
@@ -157,11 +166,12 @@ def load_config_rules(
     """
     for rule in data:
         details = []
-        if rule.get('Source', {}).get('SourceDetails'):
+        if rule.get("Source", {}).get("SourceDetails"):
             for detail in rule["Source"]["SourceDetails"]:
-                details.append(f'{detail}')
+                details.append(f"{detail}")
         rule["_source_details"] = details
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingest_config_rules,
         Rules=data,
         Region=region,
@@ -172,20 +182,50 @@ def load_config_rules(
 
 @timeit
 def cleanup_config(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    run_cleanup_job('aws_import_config_cleanup.json', neo4j_session, common_job_parameters)
+    run_cleanup_job(
+        "aws_import_config_cleanup.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 @timeit
 def sync(
-    neo4j_session: neo4j.Session, boto3_session: boto3.session.Session, regions: List[str], current_aws_account_id: str,
-    update_tag: int, common_job_parameters: Dict,
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
 ) -> None:
     for region in regions:
-        logger.info("Syncing AWS Config for region '%s' in account '%s'.", region, current_aws_account_id)
+        logger.info(
+            "Syncing AWS Config for region '%s' in account '%s'.",
+            region,
+            current_aws_account_id,
+        )
         recorders = get_configuration_recorders(boto3_session, region)
-        load_configuration_recorders(neo4j_session, recorders, region, current_aws_account_id, update_tag)
+        load_configuration_recorders(
+            neo4j_session,
+            recorders,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
         channels = get_delivery_channels(boto3_session, region)
-        load_delivery_channels(neo4j_session, channels, region, current_aws_account_id, update_tag)
+        load_delivery_channels(
+            neo4j_session,
+            channels,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
         rules = get_config_rules(boto3_session, region)
-        load_config_rules(neo4j_session, rules, region, current_aws_account_id, update_tag)
+        load_config_rules(
+            neo4j_session,
+            rules,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
     cleanup_config(neo4j_session, common_job_parameters)

@@ -1,7 +1,5 @@
 ## Azure Configuration
 
-.. _azure_config:
-
 Follow these steps to analyze Microsoft Azure assets with Cartography:
 
 1. Set up an Azure identity for Cartography to use, and ensure that this identity has the built-in Azure [Reader role](https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#reader) attached:

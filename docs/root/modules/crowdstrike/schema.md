@@ -1,10 +1,10 @@
 ## Crowdstrike Schema
 
-.. _crowdstrike_schema:
-
 ### CrowdstrikeHost
 
 Representation of a Crowdstrike Host
+
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, KandjiDevice, TailscaleDevice).
 
 | Field | Description |
 |-------|-------------|

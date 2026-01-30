@@ -39,4 +39,7 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception:
-            logger.exception("An exception occurred while executing discovered analysis job: %s", path)
+            logger.exception(
+                "An exception occurred while executing discovered analysis job: %s",
+                path,
+            )

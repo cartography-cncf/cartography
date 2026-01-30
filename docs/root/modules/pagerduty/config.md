@@ -1,7 +1,5 @@
 ## Pagerduty Configuration
 
-.. _pagerduty_config:
-
 Follow these steps to analyze PagerDuty objects with Cartography.
 
 1. Prepare your PagerDuty API key.

@@ -6,6 +6,7 @@ from typing import List
 import neo4j
 from pdpyras import APISession
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,8 @@ def get_teams(pd_session: APISession) -> List[Dict[str, Any]]:
 
 @timeit
 def get_team_members(
-    pd_session: APISession, teams: List[Dict[str, Any]],
+    pd_session: APISession,
+    teams: List[Dict[str, Any]],
 ) -> List[Dict[str, str]]:
     relations: List[Dict[str, str]] = []
     for team in teams:
@@ -46,7 +48,9 @@ def get_team_members(
 
 
 def load_team_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load teamuser information
@@ -65,7 +69,8 @@ def load_team_data(
     """
     logger.info(f"Loading {len(data)} pagerduty teams.")
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Teams=data,
         update_tag=update_tag,
@@ -73,7 +78,9 @@ def load_team_data(
 
 
 def load_team_relations(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Attach users to their teams
@@ -85,7 +92,8 @@ def load_team_relations(
         ON CREATE SET r.firstseen = timestamp()
         SET r.role = relation.role
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,

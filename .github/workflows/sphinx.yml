@@ -6,6 +6,9 @@ on:
     branches:
       - 'master'
 
+# Declare default permissions as read only.
+permissions: read-all
+
 env:
   DEFAULT_BRANCH: "master"
 
@@ -13,33 +16,30 @@ jobs:
   build-and-deploy:
     name: Build and gh-pages
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       # https://github.com/marketplace/actions/checkout
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           lfs: true
       # https://github.com/marketplace/actions/setup-python
       # ^-- This gives info on matrix testing.
       - name: Install Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: 3.9
-      # https://docs.github.com/en/actions/guides/building-and-testing-python#caching-dependencies
-      # ^-- How to set up caching for pip on Ubuntu
-      - name: Cache pip
-        uses: actions/cache@v2
+          python-version: "3.10"
+      - name: Install uv
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-            ${{ runner.os }}-
-
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install the project
+        run: uv sync --frozen --group doc
       # Build
       - name: Build Sphinx docs
-        run: |
-         ./docs/build.sh
+        run: uv run ./docs/build.sh
 
       # Clone and set up the old gh-pages branch
       - name: Clone old gh-pages
@@ -100,7 +100,7 @@ jobs:
       # Deploy
       # https://github.com/peaceiris/actions-gh-pages
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3.8.0
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         if: ${{ github.event_name == 'push' }}
         with:
           publish_branch: gh-pages

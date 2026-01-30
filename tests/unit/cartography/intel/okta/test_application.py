@@ -3,7 +3,9 @@ import json
 from cartography.intel.okta.applications import transform_application_assigned_groups
 from cartography.intel.okta.applications import transform_application_assigned_users
 from cartography.intel.okta.applications import transform_okta_application
-from cartography.intel.okta.applications import transform_okta_application_extract_replyurls
+from cartography.intel.okta.applications import (
+    transform_okta_application_extract_replyurls,
+)
 from tests.data.okta.application import APPLICATION_WITH_REDITECT_URIS
 from tests.data.okta.application import create_test_application
 from tests.data.okta.application import LIST_APPLICATION_GROUP_ASSIGNED_RESPONSE
@@ -16,15 +18,15 @@ def test_application_with_all_values():
     result = transform_okta_application(app)
 
     expected = {
-        'id': app['id'],
-        'name': app['name'],
-        'label': app['label'],
-        'created': '01/01/2019, 00:00:01',
-        'okta_last_updated': '01/01/2019, 00:00:01',
-        'status': app['status'],
-        'activated': '01/01/2019, 00:00:01',
-        'features': app['features'],
-        'sign_on_mode': app['signOnMode'],
+        "id": app["id"],
+        "name": app["name"],
+        "label": app["label"],
+        "created": "01/01/2019, 00:00:01",
+        "okta_last_updated": "01/01/2019, 00:00:01",
+        "status": app["status"],
+        "activated": "01/01/2019, 00:00:01",
+        "features": app["features"],
+        "sign_on_mode": app["signOnMode"],
     }
 
     assert result == expected
@@ -37,15 +39,15 @@ def test_application_with_created_none():
     result = transform_okta_application(app)
 
     expected = {
-        'id': app["id"],
-        'name': app["name"],
-        'label': app["label"],
-        'created': None,
-        'okta_last_updated': '01/01/2019, 00:00:01',
-        'status': app["status"],
-        'activated': '01/01/2019, 00:00:01',
-        'features': app["features"],
-        'sign_on_mode': app["signOnMode"],
+        "id": app["id"],
+        "name": app["name"],
+        "label": app["label"],
+        "created": None,
+        "okta_last_updated": "01/01/2019, 00:00:01",
+        "status": app["status"],
+        "activated": "01/01/2019, 00:00:01",
+        "features": app["features"],
+        "sign_on_mode": app["signOnMode"],
     }
 
     assert result == expected
@@ -58,15 +60,15 @@ def test_application_with_last_updated_none():
     result = transform_okta_application(app)
 
     expected = {
-        'id': app["id"],
-        'name': app["name"],
-        'label': app["label"],
-        'created': '01/01/2019, 00:00:01',
-        'okta_last_updated': None,
-        'status': app["status"],
-        'activated': '01/01/2019, 00:00:01',
-        'features': app["features"],
-        'sign_on_mode': app["signOnMode"],
+        "id": app["id"],
+        "name": app["name"],
+        "label": app["label"],
+        "created": "01/01/2019, 00:00:01",
+        "okta_last_updated": None,
+        "status": app["status"],
+        "activated": "01/01/2019, 00:00:01",
+        "features": app["features"],
+        "sign_on_mode": app["signOnMode"],
     }
 
     assert result == expected
@@ -79,15 +81,15 @@ def test_application_with_activated_none():
     result = transform_okta_application(app)
 
     expected = {
-        'id': app["id"],
-        'name': app["name"],
-        'label': app["label"],
-        'created': '01/01/2019, 00:00:01',
-        'okta_last_updated': '01/01/2019, 00:00:01',
-        'status': app["status"],
-        'activated': None,
-        'features': app["features"],
-        'sign_on_mode': app["signOnMode"],
+        "id": app["id"],
+        "name": app["name"],
+        "label": app["label"],
+        "created": "01/01/2019, 00:00:01",
+        "okta_last_updated": "01/01/2019, 00:00:01",
+        "status": app["status"],
+        "activated": None,
+        "features": app["features"],
+        "sign_on_mode": app["signOnMode"],
     }
 
     assert result == expected
@@ -104,7 +106,9 @@ def test_application_with_reply_uris():
 def test_application_assigned_users():
     result = []
 
-    result = transform_application_assigned_users(LIST_APPLICATION_USER_ASSIGNED_RESPONSE)
+    result = transform_application_assigned_users(
+        LIST_APPLICATION_USER_ASSIGNED_RESPONSE,
+    )
 
     expected = ["00ui2sVIFZNCNKFFNBPM", "00ujsgVNDRESKKXERBUJ"]
     assert result == expected
@@ -113,7 +117,9 @@ def test_application_assigned_users():
 def test_application_assigned_groups():
     result = []
 
-    result = transform_application_assigned_groups(LIST_APPLICATION_GROUP_ASSIGNED_RESPONSE)
+    result = transform_application_assigned_groups(
+        LIST_APPLICATION_GROUP_ASSIGNED_RESPONSE,
+    )
 
     expected = ["00gbkkGFFWZDLCNTAGQR", "00gg0xVALADWBPXOFZAS"]
     assert result == expected

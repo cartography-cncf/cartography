@@ -1,21 +1,34 @@
-FROM ubuntu:bionic
+# Base image
+FROM python:3.10.19-slim@sha256:f5d029fe39146b08200bcc73595795ac19b85997ad0e5001a02c7c32e8769efa AS base
+# Default to ''. Overridden with a specific version specifier e.g. '==0.98.0' by build args or from GitHub actions.
+ARG VERSION_SPECIFIER
+# the UID and GID to run cartography as
+# (https://github.com/hexops/dockerfile#do-not-use-a-uid-below-10000).
+ARG uid=10001
+ARG gid=10001
+USER ${uid}:${gid}
+WORKDIR /var/cartography
+ENV HOME=/var/cartography
 
-WORKDIR /srv/cartography
 
-ENV PATH=/venv/bin:$PATH
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3.8-dev python3-pip python3-setuptools openssl libssl-dev gcc pkg-config libffi-dev libxml2-dev libxmlsec1-dev curl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-COPY . /srv/cartography
 
-# Installs pip supported by python3.8
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python3.8 get-pip.py
+# Intermediate image to build the venv
+FROM base AS builder
+# Install uv version 0.7.3
+COPY --from=ghcr.io/astral-sh/uv@sha256:87a04222b228501907f487b338ca6fc1514a93369bfce6930eb06c8d576e58a4 /uv /uvx /bin/
+# Install cartography
+RUN ls -alh /var/cartography
+RUN uv tool install cartography${VERSION_SPECIFIER}
+RUN ls -alh /var/cartography
 
-RUN pip install -e . && \
-    pip install -r test-requirements.txt
 
-RUN groupadd cartography && \
-    useradd -s /bin/bash -d /home/cartography -m -g cartography cartography
+# Final production image
+FROM base AS production
+# Copy venv from the builder stage
+COPY --from=builder --chown=${uid}:${gid} /var/cartography/.local /var/cartography/.local
+ENV PATH="/var/cartography/.local/bin:$PATH"
+# verify that the binary at least runs
+RUN cartography -h
 
-USER cartography
+ENTRYPOINT ["cartography"]
+CMD ["-h"]

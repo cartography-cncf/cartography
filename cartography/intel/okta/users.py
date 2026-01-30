@@ -1,26 +1,25 @@
 # Okta intel module - Users
 import asyncio
+import dataclasses
 import logging
+from typing import Any
 from typing import Dict
 from typing import List
-from typing import Any
 
 import neo4j
-
-from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties
-from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from okta.client import Client as OktaClient
+from okta.models.role import Role as OktaUserRole
 from okta.models.user import User as OktaUser
 from okta.models.user_type import UserType as OktaUserType
-from okta.models.role import Role as OktaUserRole
+
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.nodes import CartographyNodeProperties
+from cartography.models.okta.user import OktaUserRoleSchema
 from cartography.models.okta.user import OktaUserSchema
 from cartography.models.okta.user import OktaUserTypeSchema
-from cartography.models.okta.user import OktaUserRoleSchema
-
 from cartography.util import timeit
-
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +116,8 @@ def _load_okta_user_types(
 
 @timeit
 def _cleanup_okta_user_types(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
 ) -> None:
     """
     Cleanup user types nodes and relationships
@@ -126,7 +126,7 @@ def _cleanup_okta_user_types(
     :return: Nothing
     """
     GraphJob.from_node_schema(OktaUserTypeSchema(), common_job_parameters).run(
-        neo4j_session
+        neo4j_session,
     )
 
 
@@ -140,20 +140,20 @@ def sync_okta_users(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
     common_job_parameters: Dict[str, Any],
-) -> None:
+) -> List[str]:
     """
     Sync Okta users
     :param okta_client: An Okta client object
     :param neo4j_session: Session with Neo4j server
     :param common_job_parameters: Settings used by all Okta modules
-    :return: Nothing
+    :return: List of user IDs that were synced
     """
 
     logger.info("Syncing Okta users")
     users = asyncio.run(_get_okta_users(okta_client))
 
     # Gather user roles
-    user_roles = []
+    user_roles: List[OktaUserRole] = []
     # for okta_user in users:
     # TODO: This could be more efficient with the use of
     # https://developer.okta.com/docs/reference/api/roles/#list-users-with-role-assignments
@@ -166,6 +166,9 @@ def sync_okta_users(
     transformed_users = _transform_okta_users(users, user_roles)
     _load_okta_users(neo4j_session, transformed_users, common_job_parameters)
     _cleanup_okta_users(neo4j_session, common_job_parameters)
+
+    # Return user IDs for factors sync
+    return [user.id for user in users]
 
 
 @timeit
@@ -196,29 +199,31 @@ async def _get_okta_users(okta_client: OktaClient) -> List[OktaUser]:
 
 @timeit
 def _transform_okta_users(
-    okta_users: List[OktaUser], okta_user_roles: List[OktaUserRole]
+    okta_users: List[OktaUser],
+    okta_user_roles: List[OktaUserRole],
 ) -> List[Dict[str, Any]]:
     """
     Convert a list of Okta users into a format for Neo4j
     :param okta_users: List of Okta users
+    :param okta_user_roles: List of Okta user roles
     :return: List of users dicts
     """
     transformed_users: List[Dict] = []
     logger.info(f"Transforming {len(okta_users)} Okta users")
     for okta_user in okta_users:
-        user_props = {}
+        user_props: Dict[str, Any] = {}
         # Dynamic properties added that change based on tenant
         user_props.update(okta_user.profile.__dict__)
         user_props["id"] = okta_user.id
         user_props["created"] = okta_user.created
-        user_props["status"] = okta_user.status.value
+        user_props["status"] = okta_user.status.value if okta_user.status else None
         user_props["transition_to_status"] = okta_user.transitioning_to_status
         user_props["activated"] = okta_user.activated
         user_props["status_changed"] = okta_user.status_changed
         user_props["last_login"] = okta_user.last_login
         user_props["last_updated"] = okta_user.last_updated
         user_props["password_changed"] = okta_user.password_changed
-        user_props["type"] = okta_user.type.id
+        user_props["type"] = okta_user.type.id if okta_user.type else None
         # Add role information on a per user basis
         for user_role in okta_user_roles:
             if user_role.assignee != okta_user.id:
@@ -233,7 +238,7 @@ class CustomOktaUserNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
-    def __init__(self, user_attributes):
+    def __init__(self, user_attributes: Dict[str, Any]) -> None:
         for key in user_attributes:
             self.__dict__[key] = PropertyRef(key)
             setattr(self, key, PropertyRef(key))
@@ -273,10 +278,9 @@ def _load_okta_users(
         properties.append((key, PropertyRef))
         prop_value_dict[key] = PropertyRef(key)
 
-    import dataclasses
-
     custom_node_prop_class_def = dataclasses.make_dataclass(
-        "OktaUserNodeProperties", properties
+        "OktaUserNodeProperties",
+        properties,
     )
     custom_node_prop_class = custom_node_prop_class_def(**prop_value_dict)
     # Assign our custom class to our normal OktaUserSchema
@@ -296,7 +300,8 @@ def _load_okta_users(
 
 @timeit
 def _cleanup_okta_users(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
 ) -> None:
     """
     Cleanup user nodes and relationships
@@ -305,7 +310,7 @@ def _cleanup_okta_users(
     :return: Nothing
     """
     GraphJob.from_node_schema(OktaUserSchema(), common_job_parameters).run(
-        neo4j_session
+        neo4j_session,
     )
 
 
@@ -316,11 +321,13 @@ def _cleanup_okta_users(
 
 @timeit
 async def _get_okta_user_roles(
-    okta_client: OktaClient, user_id: str
+    okta_client: OktaClient,
+    user_id: str,
 ) -> List[OktaUserRole]:
     """
     Get Okta user roles list from Okta
     :param okta_client: An Okta client object
+    :param user_id: The user ID to fetch roles for
     :return: List of Okta user roles
     """
     # This won't ever be paginated
@@ -334,7 +341,7 @@ async def _get_okta_user_roles(
 
 @timeit
 def _transform_okta_user_roles(
-    okta_user_roles: List[OktaUser],
+    okta_user_roles: List[OktaUserRole],
 ) -> List[Dict[str, Any]]:
     """
     Convert a list of Okta user roles into a format for Neo4j
@@ -344,15 +351,23 @@ def _transform_okta_user_roles(
     transformed_user_roles: List[Dict] = []
     logger.info(f"Transforming {len(okta_user_roles)} Okta user roles")
     for okta_user_role in okta_user_roles:
-        role_props = {}
+        role_props: Dict[str, Any] = {}
         role_props["id"] = okta_user_role.id
-        role_props["assignment_type"] = okta_user_role.assignment_type.value
+        role_props["assignment_type"] = (
+            okta_user_role.assignment_type.value
+            if okta_user_role.assignment_type
+            else None
+        )
         role_props["created"] = okta_user_role.created
         role_props["description"] = okta_user_role.description
         role_props["label"] = okta_user_role.label
         role_props["last_updated"] = okta_user_role.last_updated
-        role_props["status"] = okta_user_role.status.value
-        role_props["role_type"] = okta_user_role.type.value
+        role_props["status"] = (
+            okta_user_role.status.value if okta_user_role.status else None
+        )
+        role_props["role_type"] = (
+            okta_user_role.type.value if okta_user_role.type else None
+        )
         transformed_user_roles.append(role_props)
     return transformed_user_roles
 
@@ -384,7 +399,8 @@ def _load_okta_user_roles(
 
 @timeit
 def _cleanup_okta_user_roles(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
 ) -> None:
     """
     Cleanup user role nodes and relationships
@@ -393,5 +409,5 @@ def _cleanup_okta_user_roles(
     :return: Nothing
     """
     GraphJob.from_node_schema(OktaUserRoleSchema(), common_job_parameters).run(
-        neo4j_session
+        neo4j_session,
     )

@@ -1,5 +1,5 @@
 BF_COMPUTER_DETAILS = [
-    '''<?xml version="1.0" encoding="UTF-8"?>
+    """<?xml version="1.0" encoding="UTF-8"?>
 <BESAPI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="BESAPI.xsd">
     <Computer Resource="https://bigfixroot.example.com/api/computer/223212">
         <Property Name="Computer Name">my-server-2</Property>
@@ -47,8 +47,8 @@ BF_COMPUTER_DETAILS = [
         <Property Name="cis">User-defined error: not enforced</Property>
     </Computer>
 </BESAPI>
-    ''',
-    '''<?xml version="1.0" encoding="UTF-8"?>
+    """,
+    """<?xml version="1.0" encoding="UTF-8"?>
 <BESAPI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="BESAPI.xsd">
     <Computer Resource="https://bigfixroot.example.com/api/computer/302143">
         <Property Name="Computer Name">WIN-AFAFAF</Property>
@@ -98,8 +98,8 @@ BF_COMPUTER_DETAILS = [
         <Property Name="_BESClient_UsageManager_OperatorApps">User-defined error: not set</Property>
         <Property Name="company">User-defined error: not set</Property>
     </Computer>
-</BESAPI>''',
-    '''<?xml version="1.0" encoding="UTF-8"?>
+</BESAPI>""",
+    """<?xml version="1.0" encoding="UTF-8"?>
 <BESAPI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="BESAPI.xsd">
     <Computer Resource="https://bigfixroot.example.com/api/computer/540385">
         <Property Name="Computer Name">WIN-ABCD</Property>
@@ -147,10 +147,10 @@ BF_COMPUTER_DETAILS = [
         <Property Name="Distance to BES Relay">User-defined error: unknown</Property>
         <Property Name="company">User-defined error: not set</Property>
     </Computer>
-</BESAPI>''',
+</BESAPI>""",
 ]
 
-BF_COMPUTER_LIST = '''<?xml version="1.0" encoding="UTF-8"?>
+BF_COMPUTER_LIST = """<?xml version="1.0" encoding="UTF-8"?>
 <BESAPI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="BESAPI.xsd">
     <Computer Resource="https://bigfixroot.example.com/api/computer/223212">
         <LastReportTime>Tue, 18 Apr 2023 19:26:02 +0000</LastReportTime>
@@ -165,4 +165,4 @@ BF_COMPUTER_LIST = '''<?xml version="1.0" encoding="UTF-8"?>
         <ID>540385</ID>
     </Computer>
 </BESAPI>
-'''
+"""

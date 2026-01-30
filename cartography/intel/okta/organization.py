@@ -5,22 +5,17 @@ from typing import Dict
 
 import neo4j
 
-from cartography.util import timeit
-
-logger = logging.getLogger(__name__)
-
-
 from cartography.client.core.tx import load
 from cartography.models.okta.organization import OktaOrganizationSchema
 from cartography.util import timeit
-
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
 def sync_okta_organization(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
 ) -> None:
     """
     Add the OktaOrganization subresource
@@ -30,7 +25,8 @@ def sync_okta_organization(
 
 @timeit
 def _load_organization(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
 ) -> None:
     """
     Load the host node into the graph

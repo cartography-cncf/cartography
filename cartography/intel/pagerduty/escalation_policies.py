@@ -6,6 +6,7 @@ from typing import List
 import neo4j
 from pdpyras import APISession
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,9 @@ def get_escalation_policies(pd_session: APISession) -> List[Dict[str, Any]]:
 
 
 def load_escalation_policy_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load escalation_policy information
@@ -70,7 +73,8 @@ def load_escalation_policy_data(
             for team in policy["teams"]:
                 teams.append({"escalation_policy": policy["id"], "team": team["id"]})
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         EscalationPolicies=data,
         update_tag=update_tag,
@@ -82,7 +86,9 @@ def load_escalation_policy_data(
 
 
 def _attach_rules(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add escalation policy rules, and attach them to targets.
@@ -111,7 +117,8 @@ def _attach_rules(
                 elif target["type"] == "schedule":
                     schedules.append({"rule": rule["id"], "schedule": target["id"]})
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Rules=data,
         update_tag=update_tag,
@@ -122,7 +129,9 @@ def _attach_rules(
 
 
 def _attach_user_targets(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between escalation policy and services.
@@ -134,7 +143,8 @@ def _attach_user_targets(
         MERGE (p)-[r:ASSOCIATED_WITH]->(u)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,
@@ -142,7 +152,9 @@ def _attach_user_targets(
 
 
 def _attach_schedule_targets(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between escalation policy and services.
@@ -154,7 +166,8 @@ def _attach_schedule_targets(
         MERGE (p)-[r:ASSOCIATED_WITH]->(s)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,
@@ -162,7 +175,9 @@ def _attach_schedule_targets(
 
 
 def _attach_services(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between escalation policy and services.
@@ -174,7 +189,8 @@ def _attach_services(
         MERGE (s)-[r:ASSOCIATED_WITH]->(p)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,
@@ -182,7 +198,9 @@ def _attach_services(
 
 
 def _attach_teams(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between escalation policy and teams.
@@ -194,7 +212,8 @@ def _attach_teams(
         MERGE (t)-[r:ASSOCIATED_WITH]->(p)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,

@@ -1,7 +1,5 @@
 ## Duo Configuration
 
-.. _duo_config:
-
 Follow these steps to analyze Duo objects with Cartography.
 
 1. Prepare a [admin api creds](https://duo.com/docs/adminapi).

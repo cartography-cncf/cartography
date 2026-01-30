@@ -1,0 +1,139 @@
+import json
+import logging
+from typing import Any
+from typing import Dict
+from typing import List
+
+import boto3
+import neo4j
+
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.models.aws.cloudtrail.trail import CloudTrailTrailSchema
+from cartography.util import aws_handle_regions
+from cartography.util import timeit
+
+logger = logging.getLogger(__name__)
+
+
+@timeit
+@aws_handle_regions
+def get_cloudtrail_trails(
+    boto3_session: boto3.Session, region: str, current_aws_account_id: str
+) -> List[Dict[str, Any]]:
+    client = boto3_session.client(
+        "cloudtrail", region_name=region, config=get_botocore_config()
+    )
+
+    trails = client.describe_trails()["trailList"]
+    trails_filtered = []
+    for trail in trails:
+        # Filter by home region to avoid duplicates across regions
+        if trail.get("HomeRegion") != region:
+            continue
+
+        # Filter to only trails owned by this account.
+        # Organization trails from other accounts are visible via describe_trails()
+        # but should not be linked as RESOURCE of this account.
+        # ARN format: arn:aws:cloudtrail:{region}:{account_id}:trail/{name}
+        trail_arn = trail.get("TrailARN", "")
+        arn_parts = trail_arn.split(":")
+        if len(arn_parts) >= 5:
+            trail_account_id = arn_parts[4]
+            if trail_account_id != current_aws_account_id:
+                logger.debug(
+                    f"Skipping trail {trail_arn} - owned by account {trail_account_id}, "
+                    f"not current account {current_aws_account_id}",
+                )
+                continue
+
+        selectors = client.get_event_selectors(TrailName=trail["TrailARN"])
+        trail["EventSelectors"] = selectors.get("EventSelectors", [])
+        trail["AdvancedEventSelectors"] = selectors.get(
+            "AdvancedEventSelectors",
+            [],
+        )
+        trails_filtered.append(trail)
+
+    return trails_filtered
+
+
+def transform_cloudtrail_trails(
+    trails: List[Dict[str, Any]], region: str
+) -> List[Dict[str, Any]]:
+    """
+    Transform CloudTrail trail data for ingestion
+    """
+    for trail in trails:
+        arn = trail.get("CloudWatchLogsLogGroupArn")
+        if arn:
+            trail["CloudWatchLogsLogGroupArn"] = arn.split(":*")[0]
+        trail["EventSelectors"] = json.dumps(trail.get("EventSelectors", []))
+        trail["AdvancedEventSelectors"] = json.dumps(
+            trail.get("AdvancedEventSelectors", []),
+        )
+
+    return trails
+
+
+@timeit
+def load_cloudtrail_trails(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        f"Loading CloudTrail {len(data)} trails for region '{region}' into graph.",
+    )
+    load(
+        neo4j_session,
+        CloudTrailTrailSchema(),
+        data,
+        lastupdated=aws_update_tag,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+    )
+
+
+@timeit
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    logger.debug("Running CloudTrail cleanup job.")
+    cleanup_job = GraphJob.from_node_schema(
+        CloudTrailTrailSchema(), common_job_parameters
+    )
+    cleanup_job.run(neo4j_session)
+
+
+@timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    for region in regions:
+        logger.info(
+            f"Syncing CloudTrail for region '{region}' in account '{current_aws_account_id}'.",
+        )
+        trails_filtered = get_cloudtrail_trails(
+            boto3_session, region, current_aws_account_id
+        )
+        trails = transform_cloudtrail_trails(trails_filtered, region)
+
+        load_cloudtrail_trails(
+            neo4j_session,
+            trails,
+            region,
+            current_aws_account_id,
+            update_tag,
+        )
+
+    cleanup(neo4j_session, common_job_parameters)

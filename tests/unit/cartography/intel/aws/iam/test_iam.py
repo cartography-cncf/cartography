@@ -1,6 +1,10 @@
+import datetime
+
 from cartography.intel.aws import iam
 from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
+from tests.data.aws.iam.mfa_devices import LIST_MFA_DEVICES
+from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES_RESPONSE
 
 SINGLE_STATEMENT = {
     "Resource": "*",
@@ -41,56 +45,60 @@ def test_get_account_from_arn():
 
 def test__get_role_tags_valid_tags(mocker):
     mocker.patch(
-        'cartography.intel.aws.iam.get_role_list_data', return_value={
-            'Roles': [
+        "cartography.intel.aws.iam.get_role_list_data",
+        return_value={
+            "Roles": [
                 {
-                    'RoleName': 'test-role',
-                    'Arn': 'test-arn',
+                    "RoleName": "test-role",
+                    "Arn": "test-arn",
                 },
             ],
         },
     )
-    mocker.patch('boto3.session.Session')
+    mocker.patch("boto3.session.Session")
     mock_session = mocker.Mock()
     mock_client = mocker.Mock()
     mock_role = mocker.Mock()
     mock_role.tags = [
         {
-            'Key': 'k1', 'Value': 'v1',
+            "Key": "k1",
+            "Value": "v1",
         },
     ]
     mock_client.Role.return_value = mock_role
     mock_session.resource.return_value = mock_client
     result = iam.get_role_tags(mock_session)
 
-    assert result == [{
-        'ResourceARN': 'test-arn',
-        'Tags': [
-            {
-                'Key': 'k1',
-                'Value': 'v1',
-            },
-        ],
-    }]
+    assert result == [
+        {
+            "ResourceARN": "test-arn",
+            "Tags": [
+                {
+                    "Key": "k1",
+                    "Value": "v1",
+                },
+            ],
+        },
+    ]
 
 
 def test__get_role_tags_no_tags(mocker):
     mocker.patch(
-        'cartography.intel.aws.iam.get_role_list_data', return_value={
-            'Roles': [
+        "cartography.intel.aws.iam.get_role_list_data",
+        return_value={
+            "Roles": [
                 {
-                    'RoleName': 'test-role',
-                    'Arn': 'test-arn',
+                    "RoleName": "test-role",
+                    "Arn": "test-arn",
                 },
             ],
         },
     )
-    mocker.patch('boto3.session.Session')
+    mocker.patch("boto3.session.Session")
     mock_session = mocker.Mock()
     mock_client = mocker.Mock()
     mock_role = mocker.Mock()
-    mock_role.tags = [
-    ]
+    mock_role.tags = []
     mock_client.Role.return_value = mock_role
     mock_session.resource.return_value = mock_client
     result = iam.get_role_tags(mock_session)
@@ -100,19 +108,97 @@ def test__get_role_tags_no_tags(mocker):
 
 def test_transform_policy_data_correctly_creates_lists_of_statements():
     # "pol-name" is a policy containing a single statement
-    # See https://github.com/lyft/cartography/issues/1102
+    # See https://github.com/cartography-cncf/cartography/issues/1102
     pol_statement_map = {
-        'some-arn': {
-            'pol-name': {
-                'Effect': 'Allow',
-                'Action': 'secretsmanager:GetSecretValue',
-                'Resource': 'arn:aws:secretsmanager:XXXXX:XXXXXXXX',
+        "some-arn": {
+            "pol-name": {
+                "Effect": "Allow",
+                "Action": "secretsmanager:GetSecretValue",
+                "Resource": "arn:aws:secretsmanager:XXXXX:XXXXXXXX",
             },
         },
     }
 
     # Act: call transform on the object
-    transform_policy_data(pol_statement_map, PolicyType.inline.value)
+    result = transform_policy_data(pol_statement_map, PolicyType.inline.value)
 
-    # Assert that we correctly converted the statement to a list
-    assert type(pol_statement_map['some-arn']['pol-name']) == list
+    # Assert the structure of the result
+    assert len(result.inline_policies) == 1
+    assert len(result.managed_policies) == 0
+    assert len(result.statements_by_policy_id) == 1
+
+    # Check the inline policy data
+    expected_policy_id = "some-arn/inline_policy/pol-name"
+    expected_inline_policies = [
+        {
+            "id": expected_policy_id,
+            "name": "pol-name",
+            "type": "inline",
+            "arn": None,  # Inline policies don't have ARNs
+            "principal_arns": ["some-arn"],
+        }
+    ]
+    assert result.inline_policies == expected_inline_policies
+
+    # Check the statements
+    assert expected_policy_id in result.statements_by_policy_id
+    statements = result.statements_by_policy_id[expected_policy_id]
+    assert isinstance(statements, list)
+    assert len(statements) == 1
+
+    # Check the statements
+    expected_statements = [
+        {
+            "id": f"{expected_policy_id}/statement/1",
+            "policy_id": expected_policy_id,
+            "Effect": "Allow",
+            "Sid": None,  # No Sid in original statement
+            "Action": ["secretsmanager:GetSecretValue"],
+            "Resource": ["arn:aws:secretsmanager:XXXXX:XXXXXXXX"],
+        }
+    ]
+    assert statements == expected_statements
+
+
+def test_transform_server_certificates():
+    raw_data = LIST_SERVER_CERTIFICATES_RESPONSE["ServerCertificateMetadataList"]
+    result = iam.transform_server_certificates(raw_data)
+    assert len(result) == 1
+    assert result[0]["ServerCertificateName"] == "test-cert"
+    assert isinstance(result[0]["Expiration"], datetime.datetime)
+    assert isinstance(result[0]["UploadDate"], datetime.datetime)
+    assert result[0]["Expiration"] == datetime.datetime(2024, 1, 1, 0, 0, 0)
+    assert result[0]["UploadDate"] == datetime.datetime(2023, 1, 1, 0, 0, 0)
+
+
+def test_transform_mfa_devices():
+    raw_data = LIST_MFA_DEVICES
+    result = iam.transform_mfa_devices(raw_data)
+    assert len(result) == 3
+
+    assert result[0]["serialnumber"] == "arn:aws:iam::000000000000:mfa/user-0"
+    assert result[0]["username"] == "user-0"
+    assert result[0]["user_arn"] == "arn:aws:iam::000000000000:user/user-0"
+    assert result[0]["enabledate"] == "2024-01-15 10:30:00"
+    assert isinstance(result[0]["enabledate_dt"], datetime.datetime)
+    assert result[0]["enabledate_dt"] == datetime.datetime(2024, 1, 15, 10, 30, 0)
+
+    assert result[1]["serialnumber"] == "arn:aws:iam::000000000000:mfa/user-0-backup"
+    assert result[1]["username"] == "user-0"
+    assert result[1]["user_arn"] == "arn:aws:iam::000000000000:user/user-0"
+    assert result[1]["enabledate"] == "2024-02-20 14:45:00"
+    assert isinstance(result[1]["enabledate_dt"], datetime.datetime)
+    assert result[1]["enabledate_dt"] == datetime.datetime(2024, 2, 20, 14, 45, 0)
+
+    assert result[2]["serialnumber"] == "arn:aws:iam::000000000000:mfa/user-1"
+    assert result[2]["username"] == "user-1"
+    assert result[2]["user_arn"] == "arn:aws:iam::000000000000:user/user-1"
+    assert result[2]["enabledate"] == "2023-12-01 09:00:00"
+    assert isinstance(result[2]["enabledate_dt"], datetime.datetime)
+    assert result[2]["enabledate_dt"] == datetime.datetime(2023, 12, 1, 9, 0, 0)
+
+
+def test_transform_mfa_devices_empty():
+    raw_data = []
+    result = iam.transform_mfa_devices(raw_data)
+    assert result == []

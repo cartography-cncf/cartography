@@ -1,0 +1,76 @@
+version: 2
+updates:
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "master"
+    commit-message:
+      # Prefix all commit messages with "chore: "
+      prefix: "chore: "
+    groups:
+      # Group all minor and patch updates for GitHub Actions
+      # Keep individual updates for major updates
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+  # Maintain dependencies for Python
+  # TODO: Remove when uv ecosystem supports updating pyproject.toml
+  # https://github.com/dependabot/dependabot-core/issues/12609
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "master"
+    commit-message:
+      # Prefix all commit messages with "chore: "
+      prefix: "chore: "
+    groups:
+      # Group all minor and patch updates for Python
+      # Keep individual updates for major updates
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    # Loose versioning strategy, increase the version only if necessary
+    # As we use uv.lock for build reproducibility, we can be more permissive with version updates
+    versioning-strategy: increase-if-necessary
+    # TODO: Remove when #857 is fixed
+    ignore:
+      - dependency-name: "okta"
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "master"
+    commit-message:
+      # Prefix all commit messages with "chore: "
+      prefix: "chore: "
+    groups:
+      # Group all minor and patch updates for Python
+      # Keep individual updates for major updates
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    # TODO: Remove when #857 is fixed
+    ignore:
+      - dependency-name: "okta"
+  # Maintain dependencies for Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "master"
+    commit-message:
+      # Prefix all commit messages with "chore: "
+      prefix: "chore: "
+    # Ignore major & minor updates to stay on python:3.10
+    # TODO: Remove when ready to upgrade to python:3.11
+    ignore:
+      - dependency-name: "*"
+        update-types:
+        - version-update:semver-major
+        - version-update:semver-minor

@@ -7,6 +7,7 @@ import dateutil.parser
 import neo4j
 from pdpyras import APISession
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,8 @@ def get_services(pd_session: APISession) -> List[Dict[str, Any]]:
 
 @timeit
 def get_integrations(
-    pd_session: APISession, services: List[Dict[str, Any]],
+    pd_session: APISession,
+    services: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     """
     Get integrations from services.
@@ -51,7 +53,9 @@ def get_integrations(
 
 
 def load_service_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load service information
@@ -93,7 +97,8 @@ def load_service_data(
             for team in service["teams"]:
                 team_relations.append({"service": service["id"], "team": team["id"]})
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Services=data,
         update_tag=update_tag,
@@ -104,7 +109,9 @@ def load_service_data(
 
 
 def _attach_teams(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Add relationship between teams and services.
@@ -115,7 +122,8 @@ def _attach_teams(
         MERGE (t)-[r:ASSOCIATED_WITH]->(s)
         ON CREATE SET r.firstseen = timestamp()
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Relations=data,
         update_tag=update_tag,
@@ -123,7 +131,9 @@ def _attach_teams(
 
 
 def load_integration_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load integration information
@@ -155,7 +165,8 @@ def load_integration_data(
         created_at = dateutil.parser.parse(integration["created_at"])
         integration["created_at"] = int(created_at.timestamp())
 
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Integrations=data,
         update_tag=update_tag,

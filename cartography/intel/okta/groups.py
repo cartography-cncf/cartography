@@ -106,8 +106,16 @@ def _transform_okta_groups(
     """
     transformed_groups: List[Dict] = []
     logger.info(f"Transforming {len(okta_groups)} Okta groups")
+
+    # Build a hashmap of group roles keyed by group_id for O(1) lookup
+    roles_by_group: Dict[str, List[OktaGroupRole]] = {}
+    for role in okta_group_roles:
+        if role.assignee not in roles_by_group:
+            roles_by_group[role.assignee] = []
+        roles_by_group[role.assignee].append(role)
+
     for okta_group in okta_groups:
-        group_props = {}
+        group_props: Dict[str, Any] = {}
         group_props["id"] = okta_group.id
         group_props["created"] = okta_group.created
         group_props["last_membership_updated"] = okta_group.last_membership_updated
@@ -117,18 +125,14 @@ def _transform_okta_groups(
         group_props["profile_name"] = okta_group.profile.name
         group_props["group_type"] = okta_group.type.value
         # For each group, grab what users might assigned
-        group_members: List[Dict] = asyncio.run(
-            _get_okta_group_members(okta_client, okta_group.id)
+        group_members: List[OktaUser] = asyncio.run(
+            _get_okta_group_members(okta_client, okta_group.id),
         )
         for group_member in group_members:
             match_user = {**group_props, "user_id": group_member.id}
             transformed_groups.append(match_user)
         # Check to see if this group has any matching group roles
-        # TODO: Converting this into a hashmap would make perform better
-        # For the initial commit we'll leave it for simplicity
-        for group_role in okta_group_roles:
-            if group_role.assignee != okta_group.id:
-                continue
+        for group_role in roles_by_group.get(okta_group.id, []):
             match_role = {**group_props, "role_id": group_role.id}
             transformed_groups.append(match_role)
         transformed_groups.append(group_props)
@@ -304,7 +308,7 @@ async def _get_okta_group_roles(
 
 @timeit
 def _transform_okta_group_roles(
-    okta_group_roles: List[OktaGroup],
+    okta_group_roles: List[OktaGroupRole],
 ) -> List[Dict[str, Any]]:
     """
     Convert a list of Okta group roles into a format for Neo4j

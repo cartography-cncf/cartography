@@ -1,19 +1,18 @@
 # Okta intel module - Origins
 import asyncio
 import logging
+from typing import Any
 from typing import Dict
 from typing import List
-from typing import Any
 
 import neo4j
+from okta.client import Client as OktaClient
+from okta.models.trusted_origin import TrustedOrigin as OktaTrustedOrigin
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from okta.client import Client as OktaClient
-from okta.models.trusted_origin import TrustedOrigin as OktaTrustedOrigin
 from cartography.models.okta.origin import OktaTrustedOriginSchema
 from cartography.util import timeit
-
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +68,7 @@ def _transform_okta_origins(
     transformed_origins: List[Dict] = []
     logger.info(f"Transforming {len(okta_origins)} Okta origins")
     for okta_origin in okta_origins:
-        origin_props = {}
+        origin_props: Dict[str, Any] = {}
         origin_props["id"] = okta_origin.id
         origin_props["created"] = okta_origin.created
         origin_props["created_by"] = okta_origin.created_by
@@ -81,20 +80,16 @@ def _transform_okta_origins(
         # currently supported are CORS, Redirect, and IFrame
         for scope in okta_origin.scopes:
             apps = []
-            string_value = None
             for app in scope.allowed_okta_apps:
                 apps.append(app.value)
             if scope.type.value == "CORS":
                 origin_props["cors_allowed_okta_apps"] = apps
-                origin_props["cors_value"] = string_value
                 origin_props["cors_allowed"] = True
             elif scope.type.value == "REDIRECT":
                 origin_props["redirect_allowed_okta_apps"] = apps
-                origin_props["redirect_value"] = string_value
                 origin_props["redirect_allowed"] = True
             elif scope.type.value == "IFRAME_EMBED":
                 origin_props["iframe_allowed_okta_apps"] = apps
-                origin_props["iframe_value"] = string_value
                 origin_props["iframe_allowed"] = True
         origin_props["status"] = okta_origin.status
         transformed_origins.append(origin_props)
@@ -128,7 +123,8 @@ def _load_okta_origins(
 
 @timeit
 def _cleanup_okta_origins(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
 ) -> None:
     """
     Cleanup origin nodes and relationships
@@ -137,5 +133,5 @@ def _cleanup_okta_origins(
     :return: Nothing
     """
     GraphJob.from_node_schema(OktaTrustedOriginSchema(), common_job_parameters).run(
-        neo4j_session
+        neo4j_session,
     )

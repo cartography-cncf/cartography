@@ -1,11 +1,10 @@
 ## BigFix Schema
 
-.. _bigfix_schema:
-
-
 ### BigfixComputer
 
 Represents a computer tracked by BigFix.
+
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., CrowdstrikeHost, KandjiDevice, TailscaleDevice).
 
 | Field | Description |
 |-------|--------------|

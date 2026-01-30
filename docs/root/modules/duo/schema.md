@@ -1,10 +1,10 @@
 ## Duo Schema
 
-.. _duo_schema:
-
 ### DuoApiHost
 
-Represents a Duo API Host to conain Duo resources.
+Represents a Duo API Host to contain Duo resources.
+
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., GitHubOrganization, AWSAccount, SpaceliftAccount).
 
 | Field | Description |
 |-------|--------------|
@@ -87,6 +87,8 @@ Represents a [group](https://duo.com/docs/adminapi#groups) in Duo.
 
 Represents a [user](https://duo.com/docs/adminapi#users) in Duo.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser, EntraUser).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first discovered this node  |
@@ -100,14 +102,14 @@ Represents a [user](https://duo.com/docs/adminapi#users) in Duo.
 | created | The user's creation date as a UNIX timestamp. |
 | email | The user's email address. |
 | firstname | The user's given name. |
-| groups | List of groups to which this user belongs. See Retrieve Groups for response info. |
-| is_enrolled | Is true if the user has a phone, hardware token, U2F token, WebAuthn security key, or other WebAuthn method available for authentication. Otherwise, false. |
-| last_directory_sync | An integer indicating the last update to the user via directory sync as a Unix timestamp, or null if the user has never synced with an external directory or if the directory that originally created the user has been deleted from Duo. |
-| last_login | An integer indicating the last time this user logged in, as a Unix timestamp, or null if the user has not logged in. |
+| groups | List of groups to which this user belongs. See Retrieve Groups for response info. |
+| is_enrolled | Is true if the user has a phone, hardware token, U2F token, WebAuthn security key, or other WebAuthn method available for authentication. Otherwise, false. |
+| last_directory_sync | An integer indicating the last update to the user via directory sync as a Unix timestamp, or null if the user has never synced with an external directory or if the directory that originally created the user has been deleted from Duo. |
+| last_login | An integer indicating the last time this user logged in, as a Unix timestamp, or null if the user has not logged in. |
 | lastname | The user's surname. |
 | notes | Notes about this user. Viewable in the Duo Admin Panel. |
 | realname | The user's real name (or full name). |
-| status | The user's status. One of: "active", "bypass", "disabled", "locked out", "pending deletion". |
+| status | The user's status. One of: "active", "bypass", "disabled", "locked out", "pending deletion". |
 | tokens | A list of tokens that this user can use. A list of JSON strings |
 | u2f_tokens | A list of U2F tokens that this user can use. A list of JSON strings |
 | user_id | The user's ID. |
@@ -162,6 +164,8 @@ Represents a [user](https://duo.com/docs/adminapi#users) in Duo.
 
 Represents a [endpoint](https://duo.com/docs/adminapi#endpoints) in Duo.
 
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, KandjiDevice).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first discovered this node  |
@@ -215,6 +219,8 @@ Represents a [endpoint](https://duo.com/docs/adminapi#endpoints) in Duo.
 ### DuoPhone
 
 Represents a [phone](https://duo.com/docs/adminapi#phones) in Duo.
+
+> **Ontology Mapping**: This node has the extra label `Device` to enable cross-platform queries for devices across different systems (e.g., BigfixComputer, CrowdstrikeHost, KandjiDevice).
 
 | Field | Description |
 |-------|--------------|

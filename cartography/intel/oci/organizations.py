@@ -11,6 +11,7 @@ from oci.exceptions import ConfigFileNotFound
 from oci.exceptions import InvalidConfig
 from oci.exceptions import ProfileNotFound
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import run_cleanup_job
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ def get_oci_account_default() -> Dict[str, Any]:
 def get_oci_profile_names_from_config() -> List[Any]:
     config_path = oci.config._get_config_path_with_fallback("~/.oci/config")
     config = open(config_path).read()
-    pattern = r'\[(.*)\]'
+    pattern = r"\[(.*)\]"
     m = re.findall(pattern, config)
     return m
 
@@ -52,16 +53,20 @@ def get_oci_accounts_from_config() -> Dict[str, Any]:
 
     d = {}
     for profile_name in available_profiles:
-        if profile_name == 'DEFAULT':
+        if profile_name == "DEFAULT":
             logger.debug("Skipping OCI profile 'DEFAULT'.")
             continue
         try:
-            profile_oci_credentials = oci.config.from_file("~/.oci/config", profile_name)
+            profile_oci_credentials = oci.config.from_file(
+                "~/.oci/config",
+                profile_name,
+            )
             oci.config.validate_config(profile_oci_credentials)
         except (ConfigFileNotFound, ProfileNotFound, InvalidConfig) as e:
             logger.debug(
                 "Error occurred calling oci.config.from_file with profile_name '%s'.",
-                profile_name, exc_info=True,
+                profile_name,
+                exc_info=True,
             )
             logger.error(
                 (
@@ -96,7 +101,8 @@ def load_oci_accounts(
     SET aa.lastupdated = $oci_update_tag, aa.name = $ACCOUNT_NAME
     """
     for name in oci_accounts:
-        neo4j_session.run(
+        run_write_query(
+            neo4j_session,
             query,
             TENANCY_ID=oci_accounts[name]["tenancy"],
             ACCOUNT_NAME=name,
@@ -104,8 +110,11 @@ def load_oci_accounts(
         )
 
 
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]) -> None:
-    run_cleanup_job('oci_tenancy_cleanup.json', neo4j_session, common_job_parameters)
+def cleanup(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict[str, Any],
+) -> None:
+    run_cleanup_job("oci_tenancy_cleanup.json", neo4j_session, common_job_parameters)
 
 
 def sync(

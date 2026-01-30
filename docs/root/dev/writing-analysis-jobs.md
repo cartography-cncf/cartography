@@ -4,13 +4,13 @@
 In a nutshell, Analysis Jobs let you add your own customizations to Cartography by writing Neo4j queries. This helps you add powerful enhancements to your data without the need to write Python code.
 
 ### The stages
-There are 3 stages to a cartography sync. First we create database indexes, next we ingest assets via intel modules, and finally we can run Analysis Jobs on the database (see [cartography.sync.build\_default\_sync()](https://github.com/lyft/cartography/blob/master/cartography/sync.py)). This tutorial focuses on Analysis Jobs.
+There are 3 stages to a cartography sync. First we create database indexes, next we ingest assets via intel modules, and finally we can run Analysis Jobs on the database (see [cartography.sync.build\_default\_sync()](https://github.com/cartography-cncf/cartography/blob/master/cartography/sync.py)). This tutorial focuses on Analysis Jobs.
 
 ### How to run
 Each Analysis Job is a JSON file with a list of Neo4j statements which get run in order. To run Analysis Jobs, in your call to `cartography`, set the `--analysis-job-directory` parameter to the folder path of your jobs. Although the order of statements within a single job is preserved, we don't guarantee the order in which jobs are executed.
 
 ## Example job: which of my EC2 instances is accessible to any host on the internet?
-The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs that we've included by default in Cartography's source tree is [cartography/data/jobs/analysis/aws_ec2_asset_exposure.json](https://github.com/lyft/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.
+The easiest way to learn how to write an Analysis Job is through an example. One of the Analysis Jobs that we've included by default in Cartography's source tree is [cartography/data/jobs/analysis/aws_ec2_asset_exposure.json](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). This tutorial covers only the EC2 instance part of that job, but after reading this you should be able to understand the other steps in that file.
 
 ### Our goal
 After ingesting all our AWS data, we want to explicitly mark EC2 instances that are accessible to the public internet - a useful thing to know for anyone running an internet service. If any internet-open nodes are found, the job will add an attribute `exposed_internet = True` to the node. This way we can easily query to find the assets later on and take remediation action if needed.

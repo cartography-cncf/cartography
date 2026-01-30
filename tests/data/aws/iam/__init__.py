@@ -1,6 +1,5 @@
 import datetime
 
-
 LIST_USERS = {
     "Users": [
         {
@@ -42,16 +41,48 @@ LIST_GROUPS = {
     ],
 }
 
-INLINE_POLICY_STATEMENTS = [{
-    "id": "allow_all_policy",
-    "Action": [
-        "*",
+LIST_GROUPS_SAMPLE = {
+    "Groups": [
+        {
+            "Path": "/",
+            "CreateDate": datetime.datetime(2019, 1, 1, 0, 0, 1),
+            "GroupId": "AGPA000000000000000000",
+            "Arn": "arn:aws:iam::1234:group/example-group-0",
+            "GroupName": "example-group-0",
+        },
+        {
+            "Path": "/",
+            "CreateDate": datetime.datetime(2019, 1, 1, 0, 0, 1),
+            "GroupId": "AGPA000000000000000001",
+            "Arn": "arn:aws:iam::1234:group/example-group-1",
+            "GroupName": "example-group-1",
+        },
     ],
-    "Resource": [
-        "*",
+}
+
+# Group membership data - maps group ARN to list of user ARNs
+GET_GROUP_MEMBERSHIPS_DATA = {
+    "arn:aws:iam::1234:group/example-group-0": [
+        "arn:aws:iam::1234:user/user1",
+        "arn:aws:iam::1234:user/user2",
     ],
-    "Effect": "Allow",
-}]
+    "arn:aws:iam::1234:group/example-group-1": [
+        "arn:aws:iam::1234:user/user3",
+    ],
+}
+
+INLINE_POLICY_STATEMENTS = [
+    {
+        "id": "allow_all_policy",
+        "Action": [
+            "*",
+        ],
+        "Resource": [
+            "*",
+        ],
+        "Effect": "Allow",
+    },
+]
 
 LIST_ROLES = {
     "Roles": [
@@ -143,8 +174,23 @@ LIST_ROLES = {
     ],
 }
 
+LIST_SAML_PROVIDERS = {
+    "SAMLProviderList": [
+        {
+            "Arn": "arn:aws:iam::000000000000:saml-provider/ADFS",
+            "ValidUntil": datetime.datetime(2025, 12, 31, 23, 59, 59),
+            "CreateDate": datetime.datetime(2020, 1, 1, 0, 0, 0),
+        },
+        {
+            "Arn": "arn:aws:iam::000000000000:saml-provider/Okta",
+            "ValidUntil": datetime.datetime(2026, 1, 1, 0, 0, 0),
+            "CreateDate": datetime.datetime(2021, 6, 15, 12, 0, 0),
+        },
+    ]
+}
+
 INSTACE = {
-    'Roles': [
+    "Roles": [
         {
             "AssumeRolePolicyDocument": {
                 "Version": "2012-10-17",
@@ -184,6 +230,31 @@ INSTACE = {
             "RoleName": "ANOTHER_SERVICE_NAME",
             "Path": "/",
             "Arn": "arn:aws:iam::000000000000:role/ANOTHER_SERVICE_NAME",
+        },
+    ],
+}
+
+
+SERVICE_LAST_ACCESSED_DETAILS = {
+    "JobStatus": "COMPLETED",
+    "JobCreationDate": datetime.datetime(2019, 1, 1, 0, 0, 1),
+    "JobCompletionDate": datetime.datetime(2019, 1, 1, 0, 0, 2),
+    "ServicesLastAccessed": [
+        {
+            "ServiceName": "Amazon S3",
+            "ServiceNamespace": "s3",
+            "LastAuthenticated": datetime.datetime(2019, 1, 1, 0, 0, 1),
+            "LastAuthenticatedEntity": "user/example-user-0",
+            "LastAuthenticatedRegion": "us-east-1",
+            "TotalAuthenticatedEntities": 1,
+        },
+        {
+            "ServiceName": "Amazon EC2",
+            "ServiceNamespace": "ec2",
+            "LastAuthenticated": datetime.datetime(2019, 1, 2, 0, 0, 1),
+            "LastAuthenticatedEntity": "role/example-role-0",
+            "LastAuthenticatedRegion": "us-west-2",
+            "TotalAuthenticatedEntities": 2,
         },
     ],
 }

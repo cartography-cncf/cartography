@@ -6,6 +6,7 @@ import neo4j
 from falconpy.oauth2 import OAuth2
 from falconpy.spotlight_vulnerabilities import Spotlight_Vulnerabilities
 
+from cartography.client.core.tx import run_write_query
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,9 @@ def sync_vulnerabilities(
 
 
 def load_vulnerability_data(
-    neo4j_session: neo4j.Session, data: List[Dict], update_tag: int,
+    neo4j_session: neo4j.Session,
+    data: List[Dict],
+    update_tag: int,
 ) -> None:
     """
     Transform and load scan information
@@ -77,7 +80,8 @@ def load_vulnerability_data(
             cves.append(cve)
         vuln["host_info_local_ip"] = item.get("host_info", {}).get("local_ip")
         vulns.append(vuln)
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         Vulnerabilities=vulns,
         update_tag=update_tag,
@@ -104,14 +108,17 @@ def _load_cves(neo4j_session: neo4j.Session, data: List[Dict], update_tag: int) 
         ON CREATE SET hc.firstseen = timestamp()
         SET hc.lastupdated = $update_tag
     """
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         ingestion_cypher_query,
         cves=data,
         update_tag=update_tag,
     )
 
 
-def get_spotlight_vulnerability_ids(client: Spotlight_Vulnerabilities) -> List[List[str]]:
+def get_spotlight_vulnerability_ids(
+    client: Spotlight_Vulnerabilities,
+) -> List[List[str]]:
     ids = []
     parameters = {"filter": 'status:!"closed"', "limit": 400}
     response = client.queryVulnerabilities(parameters=parameters)
@@ -135,7 +142,8 @@ def get_spotlight_vulnerability_ids(client: Spotlight_Vulnerabilities) -> List[L
 
 
 def get_spotlight_vulnerabilities(
-    client: Spotlight_Vulnerabilities, ids: List[str],
+    client: Spotlight_Vulnerabilities,
+    ids: List[str],
 ) -> List[Dict]:
     response = client.getVulnerabilities(ids=",".join(ids))
     body = response.get("body", {})

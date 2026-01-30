@@ -1,0 +1,15 @@
+{
+    "name": "EC2 Instances assume IAM roles",
+    "statements": [
+        {
+            "__comment": "Create STS_ASSUMEROLE_ALLOW relationships from EC2 instances to the IAM roles they can assume via their iaminstanceprofiles",
+            "query":"MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(i:EC2Instance)-[:INSTANCE_PROFILE]->(p:AWSInstanceProfile)-[:ASSOCIATED_WITH]->(r:AWSRole)\nMERGE (i)-[s:STS_ASSUMEROLE_ALLOW]->(r)\nON CREATE SET s.firstseen = timestamp(), s.lastupdated = $UPDATE_TAG",
+            "iterative": true
+        },
+        {
+            "__comment": "Cleanup",
+            "query":"MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(:EC2Instance)-[s:STS_ASSUMEROLE_ALLOW]->(:AWSRole)\nWHERE s.lastupdated <> $UPDATE_TAG\nDELETE s",
+            "iterative": true
+        }
+    ]
+}

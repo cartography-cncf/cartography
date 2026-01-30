@@ -14,18 +14,22 @@ jobs:
   linter:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.8"
-      - uses: pre-commit/action@v3.0.0
+          python-version: "3.10"
+      - name: Install uv
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
+      - name: Check lockfile is up-to-date
+        run: uv lock --check
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
         with:
           extra_args: --all-files --show-diff-on-failure
 
   unit-and-integration-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       # https://stackoverflow.com/a/64592785
       - name: neo4j 4 instance setup
         run: |
@@ -36,30 +40,28 @@ jobs:
             --publish 7473:7473 \
             --publish 7687:7687 \
             neo4j:4.4-community
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.8"
-      # Cache our pip dir for efficiency; see https://medium.com/ai2-blog/python-caching-in-github-actions-e9452698e98d.
-      - uses: actions/cache@v2
+          python-version: "3.10"
+      - name: Install uv
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
         with:
-          path: ~/.cache/pip
-          key: ${{ hashFiles('setup.py') }}-${{ hashFiles('test-requirements.txt') }}
-      - name: Install cartography
-        run: |
-          pip install -e .
-          pip install -r test-requirements.txt
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install the project
+        run: uv sync --frozen --all-extras --dev
       - name: Wait for neo4j 4 to be ready
         timeout-minutes: 1
         run: (docker logs -f neo4j-4 & ) | grep -q Started
-      - name: make test_unit
+      - name: run test_unit
         run: make test_unit
-      - name: make test_integration
+      - name: run test_integration
         run: make test_integration
 
   unit-and-integration-tests-neo4j5:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       # https://stackoverflow.com/a/64592785
       - name: neo4j 5 setup
         run: |
@@ -70,43 +72,42 @@ jobs:
             --publish 7473:7473 \
             --publish 7687:7687 \
             neo4j:5
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: "3.8"
-      # Cache our pip dir for efficiency; see https://medium.com/ai2-blog/python-caching-in-github-actions-e9452698e98d.
-      - uses: actions/cache@v2
+          python-version: "3.10"
+      - name: Install uv
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
         with:
-          path: ~/.cache/pip
-          key: ${{ hashFiles('setup.py') }}-${{ hashFiles('test-requirements.txt') }}
-      - name: Install cartography
-        run: |
-          pip install -e .
-          pip install -r test-requirements.txt
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install the project
+        run: uv sync --frozen --all-extras --dev
       - name: Wait for neo4j 5 to be ready
         timeout-minutes: 1
         run: (docker logs -f neo4j-5 & ) | grep -q Started
-      - name: make test_unit
-        run: make test_unit
-      - name: make test_integration
+      - name: run test_unit
+        run:  make test_unit
+      - name: run test_integration
         run: make test_integration
 
-  build-dist-docker-image:
+  # Test that the docker image builds successfully on each commit
+  build-docker-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ghcr.io/${{ github.repository }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Build
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
-          file: dist.Dockerfile
+          file: dev.Dockerfile
           push: false # only build the image, don't push it anywhere
           context: .
           tags: ${{ steps.meta.outputs.tags }}

@@ -1,0 +1,29 @@
+{
+  "statements": [
+    {
+      "__comment__": "READ -> ListBucket, ListBucketVersions, ListBucketMultipartUploads",
+      "query": "MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\nWHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'READ'\nSET bucket.anonymous_access = true, bucket.anonymous_actions = coalesce(bucket.anonymous_actions, []) + ['s3:ListBucket', 's3:ListBucketVersions', 's3:ListBucketMultipartUploads']",
+      "iterative": false
+    },
+    {
+      "__comment__": "WRITE -> PutObject",
+      "query": "MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\nWHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'WRITE'\nSET bucket.anonymous_access = true, bucket.anonymous_actions = coalesce(bucket.anonymous_actions, []) + ['s3:PutObject']",
+      "iterative": false
+    },
+    {
+      "__comment__": "READ_ACP -> GetBucketAcl",
+      "query": "MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\nWHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'READ_ACP'\nSET bucket.anonymous_access = true, bucket.anonymous_actions = coalesce(bucket.anonymous_actions, []) + ['s3:GetBucketAcl']",
+      "iterative": false
+    },
+    {
+      "__comment__": "WRITE_ACP -> PutBucketAcl",
+      "query": "MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\nWHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'WRITE_ACP'\nSET bucket.anonymous_access = true, bucket.anonymous_actions = coalesce(bucket.anonymous_actions, []) + ['s3:PutBucketAcl']",
+      "iterative": false
+    },
+    {
+      "__comment__": "FULL_CONTROL -> Pretty much everything",
+      "query": "MATCH (acl:S3Acl)-[:APPLIES_TO]->(bucket:S3Bucket)<-[:RESOURCE]-(aws:AWSAccount{id: $AWS_ID})\nWHERE acl.uri IN ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers'] AND acl.permission = 'FULL_CONTROL'\nSET bucket.anonymous_access = true, bucket.anonymous_actions = coalesce(bucket.anonymous_actions, []) + ['s3:ListBucket', 's3:ListBucketVersions', 's3:ListBucketMultipartUploads', 's3:PutObject', 's3:DeleteObject', 's3:DeleteObjectVersion', 's3:PutBucketAcl']",
+      "iterative": false
+    }],
+  "name": "AWS S3 Acl exposure analysis"
+}

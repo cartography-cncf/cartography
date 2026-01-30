@@ -22,14 +22,112 @@
 
 - In these docs, more specific nodes will be decorated with `GenericNode::SpecificNode` notation. For example, if we have a `Car` node and a `RaceCar` node, we will refer to the `RaceCar` as `Car::RaceCar`.
 
-.. mdinclude:: ../modules/aws/schema.md
-.. mdinclude:: ../modules/azure/schema.md
-.. mdinclude:: ../modules/crxcavator/schema.md
-.. mdinclude:: ../modules/digitalocean/schema.md
-.. mdinclude:: ../modules/gcp/schema.md
-.. mdinclude:: ../modules/github/schema.md
-.. mdinclude:: ../modules/gsuite/schema.md
-.. mdinclude:: ../modules/jamf/schema.md
-.. mdinclude:: ../modules/kubernetes/schema.md
-.. mdinclude:: ../modules/okta/schema.md
-.. mdinclude:: ../modules/pagerduty/schema.md
+
+```{include} ../modules/_cartography-metadata/schema.md
+```
+
+```{include} ../modules/airbyte/schema.md
+```
+
+
+```{include} ../modules/anthropic/schema.md
+```
+
+```{include} ../modules/aws/schema.md
+```
+
+```{include} ../modules/azure/schema.md
+```
+
+```{include} ../modules/bigfix/schema.md
+```
+
+```{include} ../modules/cloudflare/schema.md
+```
+
+```{include} ../modules/crowdstrike/schema.md
+```
+
+```{include} ../modules/cve/schema.md
+```
+
+```{include} ../modules/digitalocean/schema.md
+```
+
+```{include} ../modules/duo/schema.md
+```
+
+```{include} ../modules/entra/schema.md
+```
+
+```{include} ../modules/gcp/schema.md
+```
+
+```{include} ../modules/github/schema.md
+```
+
+```{include} ../modules/gitlab/schema.md
+```
+
+```{include} ../modules/googleworkspace/schema.md
+```
+
+```{include} ../modules/gsuite/schema.md
+```
+
+```{include} ../modules/jamf/schema.md
+```
+
+```{include} ../modules/kandji/schema.md
+```
+
+```{include} ../modules/keycloak/schema.md
+```
+
+```{include} ../modules/kubernetes/schema.md
+```
+
+```{include} ../modules/lastpass/schema.md
+```
+
+```{include} ../modules/oci/schema.md
+```
+
+```{include} ../modules/okta/schema.md
+```
+
+```{include} ../modules/ontology/schema.md
+```
+
+```{include} ../modules/openai/schema.md
+```
+
+```{include} ../modules/pagerduty/schema.md
+```
+
+```{include} ../modules/scaleway/schema.md
+```
+
+```{include} ../modules/semgrep/schema.md
+```
+
+```{include} ../modules/sentinelone/schema.md
+```
+
+```{include} ../modules/slack/schema.md
+```
+
+```{include} ../modules/snipeit/schema.md
+```
+
+```{include} ../modules/spacelift/schema.md
+```
+
+```{include} ../modules/tailscale/schema.md
+```
+
+```{include} ../modules/trivy/schema.md
+```
+
+```{include} ../modules/workday/schema.md
+```

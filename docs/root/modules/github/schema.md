@@ -1,6 +1,28 @@
 ## Github Schema
 
-.. _github_schema:
+```mermaid
+graph LR
+
+O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
+O -- RESOURCE --> T(GitHubTeam)
+U(GitHubUser) -- MEMBER_OF --> O
+U -- ADMIN_OF --> O
+U -- UNAFFILIATED --> O
+U -- OWNER --> R
+U -- OUTSIDE_COLLAB_{ACTION} --> R
+U -- DIRECT_COLLAB_{ACTION} --> R
+U -- COMMITTED_TO --> R
+R -- LANGUAGE --> L(ProgrammingLanguage)
+R -- BRANCH --> B(GitHubBranch)
+R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
+R -- REQUIRES --> D(Dependency)
+R -- HAS_MANIFEST --> M(DependencyGraphManifest)
+M -- HAS_DEP --> D
+T -- {ROLE} --> R
+T -- MEMBER_OF_TEAM --> T
+U -- MEMBER --> T
+U -- MAINTAINER --> T
+```
 
 ### GitHubRepository
 
@@ -39,11 +61,18 @@ Representation of a single GitHubRepository (repo) [repository object](https://d
     (GitHubOrganization)-[OWNER]->(GitHubRepository)
     ```
 
-- GitHubRepositories in an organization can have outside collaborators with different permissions, including ADMIN,
+- GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
 WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
 
     ```
     (GitHubUser)-[:OUTSIDE_COLLAB_{ACTION}]->(GitHubRepository)
+    ```
+
+- GitHubRepositories in an organization also mark all [direct collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation), folks who are not necessarily 'outside' but who are granted access directly to the repository (as opposed to via membership in a team).  They may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
+
+    ```
+    (GitHubUser)-[:DIRECT_COLLAB_{ACTION}]->(GitHubRepository)
     ```
 
 - GitHubRepositories use ProgrammingLanguages
@@ -54,16 +83,32 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
     ```
    (GitHubRepository)-[:BRANCH]->(GitHubBranch)
     ```
+- GitHubRepositories have GitHubBranchProtectionRules.
+    ```
+   (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
+    ```
 - GitHubTeams can have various levels of [access](https://docs.github.com/en/graphql/reference/enums#repositorypermission) to GitHubRepositories.
 
   ```
   (GitHubTeam)-[ADMIN|READ|WRITE|TRIAGE|MAINTAIN]->(GitHubRepository)
   ```
 
+- GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
+
+  ```
+  (GitHubUser)-[:COMMITTED_TO]->(GitHubRepository)
+  ```
+
+  This relationship includes the following properties:
+  - **commit_count**: Number of commits made by the user to the repository in the last 30 days
+  - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
+  - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
+
 ### GitHubOrganization
 
 Representation of a single GitHubOrganization [organization object](https://developer.github.com/v4/object/organization/). This node contains minimal data for the GitHub Organization.
 
+> **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).
 
 | Field | Description |
 |-------|--------------|
@@ -85,6 +130,23 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
     ```
     (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
+    ```
+
+- GitHubUsers relate to GitHubOrganizations in a few ways:
+  - Most typically, they are members of an organization.
+  - They may also be org admins (aka org owners), with broad permissions over repo and team settings.  In these cases, they will be graphed with two relationships between GitHubUser and GitHubOrganization, both `MEMBER_OF` and `ADMIN_OF`.
+  - In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
+
+    ```
+    # a typical member
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+
+    # an admin member has two relationships to the org
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+    (GitHubUser)-[ADMIN_OF]->(GitHubOrganization)
+
+    # an unaffiliated user (e.g. an enterprise owner)
+    (GitHubUser)-[UNAFFILIATED]->(GitHubOrganization)
     ```
 
 
@@ -116,10 +178,24 @@ A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/
     (GitHubOrganization)-[RESOURCE]->(GitHubTeam)
     ```
 
+- GitHubTeams may be children of other teams:
+
+    ```
+    (GitHubTeam)-[MEMBER_OF_TEAM]->(GitHubTeam)
+    ```
+
+- GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
+
+    ```
+    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    ```
+
+
 ### GitHubUser
 
 Representation of a single GitHubUser [user object](https://developer.github.com/v4/object/user/). This node contains minimal data for the GitHub User.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser, EntraUser).
 
 | Field | Description |
 |-------|--------------|
@@ -129,12 +205,12 @@ Representation of a single GitHubUser [user object](https://developer.github.com
 | username | Name of the user |
 | fullname | The full name |
 | has_2fa_enabled | Whether the user has 2-factor authentication enabled |
-| role | Either 'ADMIN' (denoting that the user is an owner of a Github organization) or 'MEMBER' |
 | is_site_admin | Whether the user is a site admin |
-| permission | Only present if the user is an [outside collaborator](https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection) of this repo.
-`permission` is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE ([ref](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
-| email | The user's publicly visible profile email.
-| company | The user's public profile company.
+| is_enterprise_owner | Whether the user is an [enterprise owner](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) |
+| permission | Only present if the user is an [outside collaborator](https://docs.github.com/en/graphql/reference/objects#repositorycollaboratorconnection) of this repo.  `permission` is either ADMIN, MAINTAIN, READ, TRIAGE, or WRITE ([ref](https://docs.github.com/en/graphql/reference/enums#repositorypermission)). |
+| email | The user's publicly visible profile email. |
+| company | The user's public profile company. |
+| organization_verified_domain_emails | List of emails verified by the user's organization. |
 
 
 #### Relationships
@@ -145,12 +221,60 @@ Representation of a single GitHubUser [user object](https://developer.github.com
     (GitHubUser)-[OWNER]->(GitHubRepository)
     ```
 
-- GitHubRepositories in an organization can have outside collaborators with different permissions, including ADMIN,
+- GitHubRepositories in an organization can have [outside collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation) who may be granted different levels of access, including ADMIN,
 WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
 
     ```
     (GitHubUser)-[:OUTSIDE_COLLAB_{ACTION}]->(GitHubRepository)
     ```
+
+- GitHubRepositories in an organization also mark all [direct collaborators](https://docs.github.com/en/graphql/reference/enums#collaboratoraffiliation), folks who are not necessarily 'outside' but who are granted access directly to the repository (as opposed to via membership in a team).  They may be granted different levels of access, including ADMIN,
+WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphql/reference/enums#repositorypermission)).
+
+    ```
+    (GitHubUser)-[:DIRECT_COLLAB_{ACTION}]->(GitHubRepository)
+    ```
+
+- GitHubUsers relate to GitHubOrganizations in a few ways:
+  - Most typically, they are members of an organization.
+  - They may also be org admins (aka org owners), with broad permissions over repo and team settings.  In these cases, they will be graphed with two relationships between GitHubUser and GitHubOrganization, both `MEMBER_OF` and `ADMIN_OF`.
+  - In some cases there may be a user who is "unaffiliated" with an org, for example if the user is an enterprise owner, but not member of, the org.  [Enterprise owners](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-accounts-and-repositories/managing-users-in-your-enterprise/roles-in-an-enterprise#enterprise-owners) have complete control over the enterprise (i.e. they can manage all enterprise settings, members, and policies) yet may not show up on member lists of the GitHub org.
+
+    ```
+    # a typical member
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+
+    # an admin member has two relationships to the org
+    (GitHubUser)-[MEMBER_OF]->(GitHubOrganization)
+    (GitHubUser)-[ADMIN_OF]->(GitHubOrganization)
+
+    # an unaffiliated user (e.g. an enterprise owner)
+    (GitHubUser)-[UNAFFILIATED]->(GitHubOrganization)
+    ```
+
+- GitHubTeams may be children of other teams:
+
+    ```
+    (GitHubTeam)-[MEMBER_OF_TEAM]->(GitHubTeam)
+    ```
+
+- GitHubUsers may be ['immediate'](https://docs.github.com/en/graphql/reference/enums#teammembershiptype) members of a team (as opposed to being members via membership in a child team), with their membership [role](https://docs.github.com/en/graphql/reference/enums#teammemberrole) being MEMBER or MAINTAINER.
+
+    ```
+    (GitHubUser)-[MEMBER|MAINTAINER]->(GitHubTeam)
+    ```
+
+- GitHubUsers who have committed to GitHubRepositories in the last 30 days are tracked with commit activity data.
+
+    ```
+    (GitHubUser)-[:COMMITTED_TO]->(GitHubRepository)
+    ```
+
+    This relationship includes the following properties:
+    - **commit_count**: Number of commits made by the user to the repository in the last 30 days
+    - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
+    - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
+
 
 ### GitHubBranch
 
@@ -171,6 +295,40 @@ Representation of a single GitHubBranch [ref object](https://developer.github.co
 
     ```
     (GitHubBranch)<-[BRANCH]-(GitHubRepository)
+    ```
+
+### GitHubBranchProtectionRule
+
+Representation of a single GitHubBranchProtectionRule [BranchProtectionRule object](https://docs.github.com/en/graphql/reference/objects#branchprotectionrule). This node contains branch protection configuration for repositories.
+
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| id | The GitHub branch protection rule id |
+| pattern | The branch name pattern protected by this rule (e.g., "main", "release/*") |
+| allows_deletions | Whether users can delete matching branches |
+| allows_force_pushes | Whether force pushes are allowed on matching branches |
+| dismisses_stale_reviews | Whether reviews are dismissed when new commits are pushed |
+| is_admin_enforced | Whether admins must follow this rule |
+| requires_approving_reviews | Whether pull requests require approval before merging |
+| required_approving_review_count | Number of approvals required (if requires_approving_reviews is true) |
+| requires_code_owner_reviews | Whether code owner review is required |
+| requires_commit_signatures | Whether commits must be signed |
+| requires_linear_history | Whether merge commits are prohibited |
+| requires_status_checks | Whether status checks must pass before merging |
+| requires_strict_status_checks | Whether branches must be up to date before merging |
+| restricts_pushes | Whether push access is restricted |
+| restricts_review_dismissals | Whether review dismissals are restricted |
+
+
+#### Relationships
+
+- GitHubRepositories have GitHubBranchProtectionRules.
+
+    ```
+    (GitHubRepository)-[:HAS_RULE]->(GitHubBranchProtectionRule)
     ```
 
 ### ProgrammingLanguage
@@ -195,6 +353,69 @@ Representation of a single Programming Language [language object](https://develo
     ```
 
 
+### DependencyGraphManifest
+
+Represents a dependency manifest file (e.g., package.json, requirements.txt, pom.xml) from GitHub's dependency graph API.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier: `{repo_url}#{blob_path}` |
+| **blob_path** | Path to the manifest file in the repository (e.g., "/package.json") |
+| **filename** | Name of the manifest file (e.g., "package.json") |
+| **dependencies_count** | Number of dependencies listed in this manifest |
+| **repo_url** | URL of the GitHub repository containing this manifest |
+
+#### Relationships
+
+- **GitHubRepository** via **HAS_MANIFEST** relationship
+  - GitHubRepositories can have multiple dependency manifests
+
+    ```
+    (GitHubRepository)-[:HAS_MANIFEST]->(DependencyGraphManifest)
+    ```
+
+- **Dependency** via **HAS_DEP** relationship
+  - Each manifest lists specific dependencies
+
+    ```
+    (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
+    ```
+
+### Dependency
+https://docs.github.com/en/graphql/reference/objects#dependencygraphdependency
+Represents a software dependency from GitHub's dependency graph manifests. This node contains information about a package dependency within a repository
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Identifier: `{canonical_name}|{requirements}` when a requirements string exists, otherwise `{canonical_name}` |
+| **name** | Canonical name of the dependency (ecosystem-specific normalization) |
+| **original_name** | Original name as specified in the manifest file |
+| **requirements** | Unparsed requirement string from the manifest (e.g., `"18.2.0"`, `"==4.2.0"`, `"^4.17.21"`, `"1.*.*"`) |
+| **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
+| **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
+| **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
+
+#### Relationships
+
+- **GitHubRepository** via **REQUIRES** relationship
+  - **requirements**: Original requirement string from manifest
+  - **manifest_path**: Path to manifest file in repository
+
+    ```
+    (GitHubRepository)-[:REQUIRES]->(Dependency)
+    ```
+
+- **DependencyGraphManifest** via **HAS_DEP** relationship
+  - Dependencies are linked to their specific manifest files
+
+    ```
+    (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
+    ```
+
 ### Dependency::PythonLibrary
 
 Representation of a Python library as listed in a [requirements.txt](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
@@ -216,3 +437,9 @@ Within a setup.cfg file, cartography will load everything from `install_requires
     ```
 
     - specifier: A string describing this library's version e.g. "<4.0,>=3.0" or "==1.0.2". This field is only present on the `:REQUIRES` edge if the repo's requirements file provided a version pin.
+
+- A Python Dependency is affected by a SemgrepSCAFinding (optional)
+
+    ```
+    (:SemgrepSCAFinding)-[:AFFECTS]->(:PythonLibrary)
+    ```

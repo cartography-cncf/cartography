@@ -1,23 +1,50 @@
 TARGET_GROUPS = [
     {
-        'TargetType': 'instance',
-        'Targets': ["i-0f76fade"],
+        "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/instance-tg/1234567890abcdef",
+        "TargetType": "instance",
+        "Targets": ["i-0f76fade"],
+        "Port": 80,
+        "Protocol": "HTTP",
+    },
+    {
+        "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/ip-tg/abcdef1234567890",
+        "TargetType": "ip",
+        "Targets": ["10.0.0.1"],
+        "Port": 443,
+        "Protocol": "HTTPS",
+    },
+    {
+        # Lambda target groups don't have Port (Port is None in AWS API)
+        "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/lambda-tg/fedcba0987654321",
+        "TargetType": "lambda",
+        "Targets": ["arn:aws:lambda:us-east-1:000000000000:function:example"],
+        "Protocol": "HTTPS",
+    },
+    {
+        # ALB targets require TCP/TLS protocol on NLB (not HTTP/HTTPS)
+        "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/alb-tg/0123456789abcdef",
+        "TargetType": "alb",
+        "Targets": [
+            "arn:aws:elasticloadbalancing:us-east-1:000000000000:loadbalancer/app/target-alb/1234567890abcdef"
+        ],
+        "Port": 80,
+        "Protocol": "TCP",
     },
 ]
 
 # 'TargetGroups': [
 #         'TargetGroupArn': 'string',
 #         ...
-#         'TargetType': 'instance'|'ip'|'lambda',
+#         'TargetType': 'instance'|'ip'|'lambda'|'alb',
 #         'Targets': ["i-0f76fade"]
 #     ]
 
 LOAD_BALANCER_LISTENERS = [
     {
-        'ListenerArn': "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/myawesomeloadb/LBId/ListId",
-        'Port': 443,
-        'Protocol': 'HTTPS',
-        'TargetGroupArn': 'arn:aws:ec2:us-east-1:012345678912:targetgroup',
+        "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:listener/app/myawesomeloadb/LBId/ListId",
+        "Port": 443,
+        "Protocol": "HTTPS",
+        "TargetGroupArn": "arn:aws:ec2:us-east-1:012345678912:targetgroup",
     },
 ]
 
@@ -88,26 +115,48 @@ LOAD_BALANCER_LISTENERS = [
 
 LOAD_BALANCER_DATA = [
     {
-        'DNSName': 'myawesomeloadbalancer.amazonaws.com',
-        'CreatedTime': '10-27-2019 12:35AM',
-        'LoadBalancerName': 'myawesomeloadbalancer',
-        'Type': 'application',
-        'Scheme': 'internet-facing',
-        'AvailabilityZones': [
+        "DNSName": "myawesomeloadbalancer.amazonaws.com",
+        "CreatedTime": "10-27-2019 12:35AM",
+        "LoadBalancerName": "myawesomeloadbalancer",
+        "Type": "application",
+        "Scheme": "internet-facing",
+        "AvailabilityZones": [
             {
-                'ZoneName': 'myAZ',
-                'SubnetId': 'mysubnetIdA',
-                'LoadBalancerAddresses': [
+                "ZoneName": "myAZ",
+                "SubnetId": "mysubnetIdA",
+                "LoadBalancerAddresses": [
                     {
-                        'IpAddress': '50.0.1.0',
-                        'AllocationId': 'someId',
+                        "IpAddress": "50.0.1.0",
+                        "AllocationId": "someId",
                     },
                 ],
             },
         ],
-        'SecurityGroups': ['sg-123456', 'sg-234567'],
-        'Listeners': LOAD_BALANCER_LISTENERS,
-        'TargetGroups': TARGET_GROUPS,
+        "SecurityGroups": ["sg-123456", "sg-234567"],
+        "Listeners": LOAD_BALANCER_LISTENERS,
+        "TargetGroups": TARGET_GROUPS,
+    },
+    # Entry with missing DNSName to test skip/warning logic
+    {
+        "CreatedTime": "10-27-2019 12:35AM",
+        "LoadBalancerName": "missingdnsnamelb",
+        "Type": "application",
+        "Scheme": "internet-facing",
+        "AvailabilityZones": [
+            {
+                "ZoneName": "myAZ",
+                "SubnetId": "mysubnetIdB",
+                "LoadBalancerAddresses": [
+                    {
+                        "IpAddress": "50.0.2.0",
+                        "AllocationId": "someId2",
+                    },
+                ],
+            },
+        ],
+        "SecurityGroups": ["sg-345678"],
+        "Listeners": LOAD_BALANCER_LISTENERS,
+        "TargetGroups": TARGET_GROUPS,
     },
 ]
 
@@ -170,3 +219,67 @@ LOAD_BALANCER_DATA = [
 #         ]
 #     },
 # ],
+
+DESCRIBE_LOAD_BALANCERS = {
+    "LoadBalancerDescriptions": [
+        {
+            "LoadBalancerName": "test-lb-1",
+            "DNSName": "test-lb-1-1234567890.us-east-1.elb.amazonaws.com",
+            "CanonicalHostedZoneName": "test-lb-1-1234567890.us-east-1.elb.amazonaws.com",
+            "CanonicalHostedZoneNameID": "Z35SXDOTRQ7X7K",
+            "Scheme": "internet-facing",
+            "CreatedTime": "2024-01-01T00:00:00.000Z",
+            "SecurityGroups": ["SOME_GROUP_ID_2", "THIS_IS_A_SG_ID"],
+            "Instances": [
+                {"InstanceId": "i-01"},
+                {"InstanceId": "i-02"},
+            ],
+            "SourceSecurityGroup": {
+                "GroupName": "default",
+                "OwnerAlias": "abcdef",
+            },
+            "ListenerDescriptions": [
+                {
+                    "Listener": {
+                        "LoadBalancerPort": 80,
+                        "Protocol": "HTTP",
+                        "InstancePort": 8080,
+                        "InstanceProtocol": "HTTP",
+                    },
+                    "PolicyNames": ["test-policy-1"],
+                },
+                {
+                    "Listener": {
+                        "LoadBalancerPort": 443,
+                        "Protocol": "HTTPS",
+                        "InstancePort": 8443,
+                        "InstanceProtocol": "HTTPS",
+                    },
+                    "PolicyNames": ["test-policy-2"],
+                },
+            ],
+        },
+        {
+            "LoadBalancerName": "test-lb-2",
+            "DNSName": "test-lb-2-1234567890.us-east-1.elb.amazonaws.com",
+            "CanonicalHostedZoneName": "test-lb-2-1234567890.us-east-1.elb.amazonaws.com",
+            "CanonicalHostedZoneNameID": "Z35SXDOTRQ7X7K",
+            "Scheme": "internal",
+            "CreatedTime": "2024-01-02T00:00:00.000Z",
+            "Instances": [
+                {"InstanceId": "i-03"},
+            ],
+            "ListenerDescriptions": [
+                {
+                    "Listener": {
+                        "LoadBalancerPort": 8080,
+                        "Protocol": "TCP",
+                        "InstancePort": 8080,
+                        "InstanceProtocol": "TCP",
+                    },
+                    "PolicyNames": ["test-policy-3"],
+                },
+            ],
+        },
+    ],
+}

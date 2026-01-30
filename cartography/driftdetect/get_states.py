@@ -74,13 +74,25 @@ def run_get_states(config: UpdateConfig) -> None:
         return
 
     with neo4j_driver.session() as session:
-        filename = '.'.join([str(i) for i in time.gmtime()] + ["json"])
+        filename = ".".join([str(i) for i in time.gmtime()] + ["json"])
         state_serializer = StateSchema()
         shortcut_serializer = ShortcutSchema()
         for query_directory in FileSystem.walk(config.drift_detection_directory):
             try:
-                get_query_state(session, query_directory, state_serializer, FileSystem, filename)
-                add_shortcut(FileSystem, shortcut_serializer, query_directory, 'most-recent', filename)
+                get_query_state(
+                    session,
+                    query_directory,
+                    state_serializer,
+                    FileSystem,
+                    filename,
+                )
+                add_shortcut(
+                    FileSystem,
+                    shortcut_serializer,
+                    query_directory,
+                    "most-recent",
+                    filename,
+                )
             except ValidationError as err:
                 msg = "Unable to create State for directory {}, with data \n{}".format(
                     query_directory,
@@ -97,11 +109,11 @@ def run_get_states(config: UpdateConfig) -> None:
 
 
 def get_query_state(
-        session: neo4j.Session,
-        query_directory: str,
-        state_serializer: StateSchema,
-        storage,
-        filename: str,
+    session: neo4j.Session,
+    query_directory: str,
+    state_serializer: StateSchema,
+    storage,
+    filename: str,
 ) -> State:
     """
     Gets the most recent state of a query.
@@ -145,9 +157,9 @@ def get_state(session: neo4j.Session, state: State) -> None:
     logger.debug(f"Updating results for {state.name}")
 
     # The keys will be the same across all items in the returned list
-    state.properties = list(new_results[0].keys())
-    results = []
+    state.properties = list(new_results[0].keys()) if len(new_results) > 0 else []
 
+    results = []
     for record in new_results:
         values = []
         for field in record.values():
