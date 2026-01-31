@@ -30,4 +30,14 @@ It can also be used to absract many different permissions into one. This example
   - dynamodb:Query
   relationship_name: CAN_QUERY
 ```
+This example shows the Data Pipeline privilege escalation mapping that detects the datapipeline-001 attack vector:
+```yaml
+- target_label: DataPipeline
+  permissions:
+  - iam:PassRole
+  - datapipeline:CreatePipeline
+  - datapipeline:PutPipelineDefinition
+  - datapipeline:ActivatePipeline
+  relationship_name: CAN_EXEC
+```
 If a principal has any of the permission it will be mapped

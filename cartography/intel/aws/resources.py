@@ -14,6 +14,7 @@ from . import cloudwatch
 from . import codebuild
 from . import cognito
 from . import config
+from . import datapipeline
 from . import dynamodb
 from . import ecr
 from . import ecr_image_layers
@@ -75,6 +76,8 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "iam": iam.sync,
         "iaminstanceprofiles": sync_iam_instance_profiles,
         "s3": s3.sync,
+        "config": config.sync,
+        "datapipeline": datapipeline.sync,
         "dynamodb": dynamodb.sync,
         "ec2:launch_templates": sync_ec2_launch_templates,
         "ec2:autoscalinggroup": sync_ec2_auto_scaling_groups,
@@ -130,7 +133,6 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ssm": ssm.sync,
         "acm:certificate": acm.sync,
         "inspector": inspector.sync,
-        "config": config.sync,
         "identitycenter": identitycenter.sync_identity_center_instances,
         "cloudtrail": cloudtrail.sync,
         "cloudtrail_management_events": cloudtrail_management_events.sync,
