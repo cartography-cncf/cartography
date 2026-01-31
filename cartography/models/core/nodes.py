@@ -1,8 +1,8 @@
 import abc
 from dataclasses import dataclass
 from dataclasses import field
-from typing import List
 from typing import Optional
+from typing import Union
 
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.relationships import CartographyRelSchema
@@ -69,22 +69,72 @@ class CartographyNodeProperties(abc.ABC):
 
 
 @dataclass(frozen=True)
+class ConditionalNodeLabel:
+    """
+    A conditional label that is applied to nodes only when specific field conditions are met.
+
+    Conditional labels allow you to dynamically apply labels to nodes based on their property values.
+    During ingestion, after the main node creation/update, a separate query is run to match nodes
+    that meet the specified conditions and apply the label.
+
+    Attributes:
+        label (str): The label to apply to matching nodes.
+        conditions (Dict[str, str]): A dictionary of field_name -> value pairs that must all match
+            for the label to be applied. All conditions must be satisfied (AND logic).
+
+    Examples:
+        >>> # Apply 'Critical' label to nodes where severity is 'high'
+        >>> conditional = ConditionalNodeLabel(
+        ...     label='Critical',
+        ...     conditions={'severity': 'high'}
+        ... )
+
+        >>> # Apply 'PublicResource' label to nodes matching multiple conditions
+        >>> conditional = ConditionalNodeLabel(
+        ...     label='PublicResource',
+        ...     conditions={'is_public': 'true', 'exposed_to_internet': 'true'}
+        ... )
+
+    Note:
+        - The conditions are matched using exact string equality
+        - All conditions must be met for the label to be applied (AND logic)
+        - The query generated is: MATCH (n:<primary_label> {field: value, ...}) SET n:<conditional_label>
+    """
+
+    label: str
+    conditions: dict[str, str]
+
+
+@dataclass(frozen=True)
 class ExtraNodeLabels:
     """
-    Encapsulates a list of strings representing additional labels for the CartographyNodeSchema.
+    Encapsulates a list of labels for the CartographyNodeSchema.
 
     This wrapper class is used to ensure dataclass immutability for the CartographyNodeSchema
     while providing additional Neo4j labels beyond the primary node label.
 
+    Labels can be either:
+    - Simple strings: Applied unconditionally to all nodes
+    - ConditionalNodeLabel objects: Applied only to nodes matching specific conditions
+
     Attributes:
-        labels (List[str]): A list of string labels to be applied to the node.
+        labels (List[Union[str, ConditionalNodeLabel]]): A list of labels to be applied to the node.
+            String labels are applied unconditionally, ConditionalNodeLabel objects are applied
+            only when their conditions are met.
 
     Examples:
-        >>> # AWS resources with additional labels
+        >>> # Simple string labels (applied to all nodes)
         >>> extra_labels = ExtraNodeLabels(['Resource', 'AWSResource'])
+
+        >>> # Mix of simple and conditional labels
+        >>> extra_labels = ExtraNodeLabels([
+        ...     'Resource',
+        ...     'AWSResource',
+        ...     ConditionalNodeLabel(label='Critical', conditions={'severity': 'high'}),
+        ... ])
     """
 
-    labels: List[str]
+    labels: list[Union[str, ConditionalNodeLabel]]
 
 
 @dataclass(frozen=True)
