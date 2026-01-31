@@ -10,6 +10,7 @@ from cartography.intel.aws.iam import transform_users
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
 from tests.data.kubernetes.eks import AWS_AUTH_CONFIGMAP_DATA
+from tests.data.kubernetes.eks import MOCK_ACCESS_ENTRIES
 from tests.data.kubernetes.eks import MOCK_AWS_ROLES
 from tests.data.kubernetes.eks import MOCK_AWS_USERS
 from tests.data.kubernetes.eks import MOCK_CLUSTER_DATA
@@ -33,14 +34,16 @@ def create_mock_aws_auth_configmap():
     )
 
 
+@patch("cartography.intel.kubernetes.eks.get_access_entries")
 @patch("cartography.intel.kubernetes.eks.get_oidc_provider")
 def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
     mock_get_oidc_provider,
+    mock_get_access_entries,
     neo4j_session,
 ):
     """
     Test that EKS sync creates the expected AWS Role/User to Kubernetes User/Group relationships
-    and OIDC provider infrastructure nodes with cluster relationships.
+    from aws-auth ConfigMap, Access Entries, and OIDC provider infrastructure nodes with cluster relationships.
     """
     # Arrange: Create AWS Account first (required for role loading)
     neo4j_session.run(
@@ -75,6 +78,9 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
+
+    # Arrange: Mock Access Entries
+    mock_get_access_entries.return_value = MOCK_ACCESS_ENTRIES
 
     # Arrange: Mock OIDC providers
     mock_get_oidc_provider.return_value = MOCK_OIDC_PROVIDER
@@ -208,6 +214,121 @@ def test_eks_sync_creates_aws_role_relationships_and_oidc_providers(
         "TRUSTS",
     )
     assert expected_cluster_relationships.issubset(actual_cluster_relationships)
+
+    # Assert: Verify users from Access Entries are created
+    expected_access_entry_users = {
+        ("test-cluster/alice-access-entry", "alice-access-entry"),
+        ("test-cluster/access-role-user", "access-role-user"),
+        ("test-cluster/bob-access-entry", "bob-access-entry"),
+        (
+            "test-cluster/arn:aws:iam::123456789012:role/EKSViewerRole",
+            "arn:aws:iam::123456789012:role/EKSViewerRole",
+        ),
+    }
+    actual_access_entry_users = check_nodes(
+        neo4j_session,
+        "KubernetesUser",
+        ["id", "name"],
+    )
+    assert expected_access_entry_users.issubset(actual_access_entry_users)
+
+    # Assert: Verify groups from Access Entries are created
+    expected_access_entry_groups = {
+        ("test-cluster/access-entry-devs", "access-entry-devs"),
+        ("test-cluster/access-entry-team", "access-entry-team"),
+        ("test-cluster/access-entry-admins", "access-entry-admins"),
+        ("test-cluster/platform-team", "platform-team"),
+        ("test-cluster/viewers", "viewers"),
+        ("test-cluster/readonly-access", "readonly-access"),
+    }
+    actual_access_entry_groups = check_nodes(
+        neo4j_session,
+        "KubernetesGroup",
+        ["id", "name"],
+    )
+    assert expected_access_entry_groups.issubset(actual_access_entry_groups)
+
+    # Assert: Verify Access Entry AWS User to Kubernetes User relationships
+    expected_access_entry_user_relationships = {
+        ("arn:aws:iam::123456789012:user/alice", "test-cluster/alice-access-entry"),
+        ("arn:aws:iam::123456789012:user/bob", "test-cluster/bob-access-entry"),
+    }
+    actual_access_entry_user_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert expected_access_entry_user_relationships.issubset(
+        actual_access_entry_user_relationships
+    )
+
+    # Assert: Verify Access Entry AWS Role to Kubernetes User relationships
+    expected_access_entry_role_user_relationships = {
+        (
+            "arn:aws:iam::123456789012:role/EKSAccessRole",
+            "test-cluster/access-role-user",
+        ),
+        (
+            "arn:aws:iam::123456789012:role/EKSViewerRole",
+            "test-cluster/arn:aws:iam::123456789012:role/EKSViewerRole",
+        ),
+    }
+    actual_access_entry_role_user_relationships = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "KubernetesUser",
+        "id",
+        "MAPS_TO",
+    )
+    assert expected_access_entry_role_user_relationships.issubset(
+        actual_access_entry_role_user_relationships
+    )
+
+    # Assert: Verify Access Entry AWS User to Kubernetes Group relationships
+    expected_access_entry_user_group_relationships = {
+        ("arn:aws:iam::123456789012:user/alice", "test-cluster/access-entry-devs"),
+        ("arn:aws:iam::123456789012:user/alice", "test-cluster/access-entry-team"),
+    }
+    actual_access_entry_user_group_relationships = check_rels(
+        neo4j_session,
+        "AWSUser",
+        "arn",
+        "KubernetesGroup",
+        "id",
+        "MAPS_TO",
+    )
+    assert expected_access_entry_user_group_relationships.issubset(
+        actual_access_entry_user_group_relationships
+    )
+
+    # Assert: Verify Access Entry AWS Role to Kubernetes Group relationships
+    expected_access_entry_role_group_relationships = {
+        (
+            "arn:aws:iam::123456789012:role/EKSAccessRole",
+            "test-cluster/access-entry-admins",
+        ),
+        ("arn:aws:iam::123456789012:role/EKSAccessRole", "test-cluster/platform-team"),
+        ("arn:aws:iam::123456789012:role/EKSViewerRole", "test-cluster/viewers"),
+        (
+            "arn:aws:iam::123456789012:role/EKSViewerRole",
+            "test-cluster/readonly-access",
+        ),
+    }
+    actual_access_entry_role_group_relationships = check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "KubernetesGroup",
+        "id",
+        "MAPS_TO",
+    )
+    assert expected_access_entry_role_group_relationships.issubset(
+        actual_access_entry_role_group_relationships
+    )
 
     # Note: OIDC Provider nodes only contain infrastructure metadata.
     # Identity relationships (OktaUser/Group -> KubernetesUser/Group) are handled
