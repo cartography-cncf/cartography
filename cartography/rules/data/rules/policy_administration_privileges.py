@@ -73,6 +73,14 @@ _aws_policy_manipulation_capabilities = Fact(
     )
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (principal:AWSPrincipal)
+    WHERE NOT principal.name STARTS WITH 'AWSServiceRole'
+    AND NOT principal.name CONTAINS 'QuickSetup'
+    AND principal.name <> 'OrganizationAccountAccessRole'
+    RETURN COUNT(principal) AS count
+    """,
+    asset_id_field="principal_identifier",
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

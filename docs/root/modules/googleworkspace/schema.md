@@ -216,7 +216,7 @@ https://developers.google.com/admin-sdk/directory/v1/reference/groups
     ```
 
 
-## GoogleWorkspaceDevice
+### GoogleWorkspaceDevice
 
 Represents a device managed by Google Workspace.
 
@@ -258,7 +258,7 @@ Represents a device managed by Google Workspace.
 | endpoint_verification_specific_attributes | Endpoint verification attributes |
 | customer_id | The Google Workspace customer ID |
 
-### Relationships
+#### Relationships
 
 - Device belongs to tenant:
 
@@ -273,7 +273,7 @@ Represents a device managed by Google Workspace.
     ```
 
 
-## GoogleWorkspaceOAuthApp
+### GoogleWorkspaceOAuthApp
 
 Represents third-party OAuth applications that have been authorized by users in the Google Workspace organization.
 
@@ -293,11 +293,7 @@ https://developers.google.com/workspace/admin/directory/reference/rest/v1/tokens
 | lastupdated | Timestamp of when a sync job last updated this node |
 | firstseen | Timestamp of when a sync job first discovered this node |
 
-#### Node Labels
-
-- `GoogleWorkspaceOAuthApp`
-
-### Relationships
+#### Relationships
 
 - App belongs to tenant:
 

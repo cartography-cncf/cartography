@@ -6,6 +6,7 @@ from tests.data.github.users import GITHUB_ENTERPRISE_OWNER_DATA
 from tests.data.github.users import GITHUB_ORG_DATA
 from tests.data.github.users import GITHUB_USER_DATA
 from tests.data.github.users import GITHUB_USER_DATA_AT_TIMESTAMP_2
+from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
@@ -56,125 +57,88 @@ def test_sync(mock_owners, mock_users, neo4j_session):
         TEST_GITHUB_ORG,
     )
 
-    # Assert
-
-    # Ensure the expected users are there
-    nodes = neo4j_session.run(
-        """
-        MATCH (g:GitHubUser) RETURN g.id;
-        """,
-    )
-    expected_nodes = {
+    # Assert - Verify GitHubUser nodes exist
+    assert check_nodes(neo4j_session, "GitHubUser", ["id"]) == {
         ("https://github.com/hjsimpson",),
         ("https://github.com/lmsimpson",),
         ("https://github.com/mbsimpson",),
         ("https://github.com/kbroflovski",),
     }
-    actual_nodes = {(n["g.id"],) for n in nodes}
-    assert actual_nodes == expected_nodes
 
-    # Ensure users are connected to the expected organization
-    nodes = neo4j_session.run(
-        """
-        MATCH(user:GitHubUser)-[r]->(org:GitHubOrganization)
-        RETURN user.id, type(r), org.id
-        """,
-    )
-    actual_nodes = {
-        (
-            n["user.id"],
-            n["type(r)"],
-            n["org.id"],
-        )
-        for n in nodes
+    # Assert - Verify MEMBER_OF relationships
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "id",
+        "GitHubOrganization",
+        "id",
+        "MEMBER_OF",
+        rel_direction_right=True,
+    ) == {
+        ("https://github.com/hjsimpson", "https://github.com/simpsoncorp"),
+        ("https://github.com/lmsimpson", "https://github.com/simpsoncorp"),
+        ("https://github.com/mbsimpson", "https://github.com/simpsoncorp"),
     }
-    expected_nodes = {
-        (
-            "https://github.com/hjsimpson",
-            "MEMBER_OF",
-            "https://github.com/simpsoncorp",
-        ),
-        (
-            "https://github.com/lmsimpson",
-            "MEMBER_OF",
-            "https://github.com/simpsoncorp",
-        ),
-        (
-            "https://github.com/mbsimpson",
-            "MEMBER_OF",
-            "https://github.com/simpsoncorp",
-        ),
-        (
-            "https://github.com/mbsimpson",
-            "ADMIN_OF",
-            "https://github.com/simpsoncorp",
-        ),
-        (
-            "https://github.com/kbroflovski",
-            "UNAFFILIATED",
-            "https://github.com/simpsoncorp",
-        ),
-    }
-    assert actual_nodes == expected_nodes
 
-    # Ensure enterprise owners are identified
-    nodes = neo4j_session.run(
-        """
-        MATCH (g:GitHubUser) RETURN g.id, g.is_enterprise_owner
-        """,
-    )
-    expected_nodes = {
+    # Assert - Verify ADMIN_OF relationships
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "id",
+        "GitHubOrganization",
+        "id",
+        "ADMIN_OF",
+        rel_direction_right=True,
+    ) == {
+        ("https://github.com/mbsimpson", "https://github.com/simpsoncorp"),
+    }
+
+    # Assert - Verify UNAFFILIATED relationships
+    assert check_rels(
+        neo4j_session,
+        "GitHubUser",
+        "id",
+        "GitHubOrganization",
+        "id",
+        "UNAFFILIATED",
+        rel_direction_right=True,
+    ) == {
+        ("https://github.com/kbroflovski", "https://github.com/simpsoncorp"),
+    }
+
+    # Assert - Verify enterprise owners are identified
+    assert check_nodes(neo4j_session, "GitHubUser", ["id", "is_enterprise_owner"]) == {
         ("https://github.com/hjsimpson", False),
         ("https://github.com/lmsimpson", True),
         ("https://github.com/mbsimpson", True),
         ("https://github.com/kbroflovski", True),
     }
-    actual_nodes = {
-        (
-            n["g.id"],
-            n["g.is_enterprise_owner"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
 
-    # Ensure hasTwoFactorEnabled has not been improperly overwritten for enterprise owners
-    nodes = neo4j_session.run(
-        """
-        MATCH (g:GitHubUser) RETURN g.id, g.has_2fa_enabled
-        """,
-    )
-    expected_nodes = {
+    # Assert - Verify hasTwoFactorEnabled has not been improperly overwritten
+    assert check_nodes(neo4j_session, "GitHubUser", ["id", "has_2fa_enabled"]) == {
         ("https://github.com/hjsimpson", None),
         ("https://github.com/lmsimpson", None),
         ("https://github.com/mbsimpson", True),
         ("https://github.com/kbroflovski", None),
     }
-    actual_nodes = {
-        (
-            n["g.id"],
-            n["g.has_2fa_enabled"],
-        )
-        for n in nodes
-    }
-    assert actual_nodes == expected_nodes
 
-    # Ensure organization_verified_domain_emails emails come through
+    # Assert - Verify organization_verified_domain_emails
+    # Note: check_nodes returns tuples with lists converted, so we need a raw query for list values
     nodes = neo4j_session.run(
         """
         MATCH (g:GitHubUser) RETURN g.id, g.organization_verified_domain_emails
         """,
     )
-    expected_nodes = {
+    actual_emails = {
+        n["g.id"]: n["g.organization_verified_domain_emails"] for n in nodes
+    }
+    expected_emails = {
         "https://github.com/hjsimpson": ["hjsimpson@burns.corp"],
         "https://github.com/lmsimpson": None,
         "https://github.com/mbsimpson": None,
         "https://github.com/kbroflovski": None,
     }
-    actual_nodes = {
-        n["g.id"]: n["g.organization_verified_domain_emails"] for n in nodes
-    }
-    assert actual_nodes == expected_nodes
+    assert actual_emails == expected_emails
 
 
 @patch.object(

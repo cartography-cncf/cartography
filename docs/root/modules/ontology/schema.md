@@ -10,6 +10,13 @@ U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
+LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
+LB -- EXPOSE --> CT{{Container}}
+DB{{Database}}
+TN{{Tenant}}
+FN{{Function}}
+PIP(PublicIP) -- POINTS_TO --> LB
+PIP -- POINTS_TO --> CI
 ```
 
 :::{note}
@@ -58,11 +65,11 @@ A user often has one or many user accounts.
 
 ```{important}
 If field `active` is null, it should not be considered as `true` or `false`, only as unknown.
-```{note}
+```
 
 | Field | Description |
 |-------|-------------|
-| id | The unique identifier for the user. |
+| **id** | The unique identifier for the user. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | email | User's primary email. |
@@ -119,7 +126,7 @@ A client computer is a host that accesses a service made available by a server o
 
 | Field | Description |
 |-------|-------------|
-| id | The unique identifier for the user. |
+| **id** | The unique identifier for the user. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | hostname | Hostname of the device. |
@@ -280,3 +287,106 @@ Common tenant concepts across platforms include:
 | _ont_name | Display name or friendly name of the tenant/organization (REQUIRED for most modules). |
 | _ont_status | Current status/state of the tenant (e.g., active, suspended, archived). |
 | _ont_domain | Primary domain name associated with the tenant (for workspace/domain-based services). |
+
+
+### Function
+
+```{note}
+Function is a semantic label.
+```
+
+A function represents a serverless compute unit that runs code or containers in response to events without managing servers.
+It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Cloud Run services/jobs, and Azure Function Apps.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the function (REQUIRED). |
+| _ont_runtime | The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). Only applicable for code-based functions. |
+| _ont_memory | Memory allocated to the function (in MB). |
+| _ont_timeout | Timeout for function execution (in seconds). |
+| _ont_deployment_type | The deployment type: `code` for source code functions (Lambda, Cloud Functions, Azure Functions), `container` for container-based functions (Cloud Run). |
+
+
+### LoadBalancer
+
+```{note}
+LoadBalancer is a semantic label.
+```
+
+A load balancer distributes incoming network traffic across multiple targets to ensure high availability and reliability.
+It generalizes concepts like AWS Application/Network Load Balancers (ALB/NLB), AWS Classic ELBs, GCP Forwarding Rules, and Azure Load Balancers.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the load balancer (REQUIRED). |
+| _ont_lb_type | The type of load balancer (e.g., "application", "network", "classic", "Standard", "Basic"). |
+| _ont_scheme | The load balancing scheme (e.g., "internet-facing", "internal", "EXTERNAL", "INTERNAL"). |
+| _ont_dns_name | The DNS name or endpoint for the load balancer. |
+| _ont_region | The region or location where the load balancer is deployed. |
+
+
+#### Relationships
+
+- `LoadBalancer` can expose one or many `ComputeInstance` (semantic label):
+    ```
+    (:LoadBalancer)-[:EXPOSE]->(:ComputeInstance)
+    ```
+- `LoadBalancer` can expose one or many `Container` (semantic label):
+    ```
+    (:LoadBalancer)-[:EXPOSE]->(:Container)
+    ```
+
+
+### PublicIP
+
+```{note}
+PublicIP is an abstract ontology node.
+```
+
+A public IP address represents a unique numerical identifier assigned to a device that is routable on the internet.
+Public IP addresses can be either IPv4 or IPv6.
+
+```{important}
+If field `ip_version` is null, it should not be considered as `4` or `6`, only as unknown.
+```
+
+| Field | Description |
+|-------|-------------|
+| **id** | The unique identifier for the IP address (the IP address value itself). |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| ip_address | The IP address value (e.g., "203.0.113.1" or "2001:db8::1"). |
+| ip_version | Integer indicating the IP version: `4` for IPv4, `6` for IPv6, or `null` if unknown. |
+
+#### Relationships
+
+- `PublicIP` is linked to one or many nodes that represent the IP in a module:
+    ```
+    (:PublicIP)-[:RESERVED_BY]->(:*)
+    ```
+- `PublicIP` can point to one or many `LoadBalancer` (semantic label) that use this IP:
+    ```
+    (:PublicIP)-[:POINTS_TO]->(:LoadBalancer)
+    ```
+- `PublicIP` can point to one or many `ComputeInstance` (semantic label) that have this IP:
+    ```
+    (:PublicIP)-[:POINTS_TO]->(:ComputeInstance)
+    ```
+
+
+### ContainerRegistry
+
+```{note}
+ContainerRegistry is a semantic label.
+```
+
+A container registry represents a storage and distribution system for container images.
+It generalizes concepts like AWS ECR repositories, GCP Artifact Registry repositories, and GitLab Container Registries.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the container registry/repository (REQUIRED). |
+| _ont_uri | The registry URI/endpoint for pulling images. |
+| _ont_location | The region/location where the registry is hosted. |
+| _ont_created_at | Timestamp when the registry was created. |
+| _ont_size_bytes | Storage size in bytes. |

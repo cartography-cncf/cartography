@@ -66,6 +66,11 @@ _aws_cloudtrail_not_multi_region = Fact(
     WHERE trail.is_multi_region_trail IS NULL OR trail.is_multi_region_trail = false
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (trail:CloudTrailTrail)
+    RETURN COUNT(trail) AS count
+    """,
+    asset_id_field="trail_arn",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -124,6 +129,11 @@ _aws_cloudtrail_log_validation_disabled = Fact(
     WHERE trail.log_file_validation_enabled IS NULL OR trail.log_file_validation_enabled = false
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (trail:CloudTrailTrail)
+    RETURN COUNT(trail) AS count
+    """,
+    asset_id_field="trail_arn",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -189,6 +199,11 @@ _aws_cloudtrail_no_cloudwatch = Fact(
     WHERE trail.cloudwatch_logs_log_group_arn IS NULL OR trail.cloudwatch_logs_log_group_arn = ''
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (trail:CloudTrailTrail)
+    RETURN COUNT(trail) AS count
+    """,
+    asset_id_field="trail_arn",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )
@@ -254,6 +269,11 @@ _aws_cloudtrail_not_encrypted = Fact(
     WHERE trail.kms_key_id IS NULL OR trail.kms_key_id = ''
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (trail:CloudTrailTrail)
+    RETURN COUNT(trail) AS count
+    """,
+    asset_id_field="trail_arn",
     module=Module.AWS,
     maturity=Maturity.STABLE,
 )

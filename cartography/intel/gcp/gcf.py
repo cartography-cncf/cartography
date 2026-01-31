@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Any
 
@@ -9,6 +8,7 @@ from googleapiclient.errors import HttpError
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.gcf import GCPCloudFunctionSchema
 from cartography.util import timeit
 
@@ -24,7 +24,7 @@ def get_gcp_cloud_functions(
 
     Returns:
         list[dict[str, Any]]: List of cloud functions (empty list if project has no functions)
-        None: If API access is denied or API is not enabled (to signal that sync should be skipped)
+        None: If the Cloud Functions API is not enabled
     """
     logger.info(f"Collecting Cloud Functions for project: {project_id}")
     collected_functions: list[dict[str, Any]] = []
@@ -48,21 +48,14 @@ def get_gcp_cloud_functions(
             )
         return collected_functions
     except HttpError as e:
-        error_json = json.loads(e.content.decode("utf-8"))
-        err = error_json.get("error", {})
-        if err.get("status", "") == "PERMISSION_DENIED" or (
-            err.get("message") and "API has not been used" in err.get("message")
-        ):
+        if is_api_disabled_error(e):
             logger.warning(
-                "Could not retrieve Cloud Functions on project %s due to permissions "
-                "issues or API not enabled. Code: %s, Message: %s. Skipping sync to preserve existing data.",
+                "Could not retrieve Cloud Functions on project %s due to "
+                "API not enabled. Skipping.",
                 project_id,
-                err.get("code"),
-                err.get("message"),
             )
             return None
-        else:
-            raise
+        raise
 
 
 def _parse_region_from_name(name: str) -> str:
@@ -161,9 +154,8 @@ def sync(
 
     functions_data = get_gcp_cloud_functions(project_id, functions_client)
 
-    # Only load and cleanup if we successfully retrieved data (even if empty list of functions)
-    # If get() returned None due to permission/API errors, we skip both load and cleanup
-    # to avoid deleting previously ingested data
+    # Only load and cleanup if we successfully retrieved data (even if empty list).
+    # If get() returned None due to API not enabled, skip both to preserve existing data.
     if functions_data is not None:
         if functions_data:
             transformed_functions = transform_gcp_cloud_functions(functions_data)

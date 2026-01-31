@@ -187,11 +187,11 @@ Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v
 | ---------- | ------------------------------------------------------- |
 | created_at | The date and time the zone was created                  |
 | description              | An optional description of the zone|
-| dns_name | The DNS name of this managed zone, for instance "example.com.".
+| dns_name | The DNS name of this managed zone, for instance "example.com.". |
 | firstseen  | Timestamp of when a sync job first discovered this node |
 | **id**                   |Unique identifier|
 | name       | The name of the zone                                    |
-| nameservers |Virtual name servers the zone is delegated to
+| nameservers |Virtual name servers the zone is delegated to |
 | visibility | The zone's visibility: `public` zones are exposed to the Internet, while `private` zones are visible only to Virtual Private Cloud resources.|
 
 
@@ -204,7 +204,7 @@ Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v
     ```
 
 
-### Label: GCPBucketLabel
+### GCPBucketLabel:Label
 Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/docs/key-terms#bucket-labels).  This node contains a key-value pair.
 
  | Field       | Description                                                         |
@@ -225,6 +225,8 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
 ### GCPInstance
 
 Representation of a GCP [Instance](https://cloud.google.com/compute/docs/reference/rest/v1/instances).  Additional references can be found in the [official documentation]( https://cloud.google.com/compute/docs/concepts).
+
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, AzureVirtualMachine, DODroplet).
 
 | Field            | Description |
 | ---------------- | ----------- |
@@ -258,6 +260,9 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
     ```
     (GCPInstance)-[:MEMBER_OF_GCP_VPC]->(GCPVpc)
     ```
+
+    This relationship is created by an [analysis job](../../dev/writing-analysis-jobs.html)
+    defined at `cartography/data/jobs/analysis/gcp_compute_instance_vpc_analysis.json`.
 
     Also note that this relationship is a shortcut for:
 
@@ -559,6 +564,8 @@ Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/referen
 
 Representation of GCP [Forwarding Rules](https://cloud.google.com/compute/docs/reference/rest/v1/forwardingRules/list) and [Global Forwarding Rules](https://cloud.google.com/compute/docs/reference/rest/v1/globalForwardingRules/list).
 
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, LoadBalancer, AzureLoadBalancer).
+
 | Field                 | Description                                                                                                                                          |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | firstseen             | Timestamp of when a sync job first discovered this node                                                                                              |
@@ -717,25 +724,48 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 
 Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles).
 
-| Field               | Description                                                                 |
-| ------------------- | --------------------------------------------------------------------------- |
-| id                  | The unique identifier for the role.                                         |
-| name                | The name of the role.                                                       |
-| title               | The title of the role.                                                      |
-| description         | A description of the role.                                                  |
-| deleted             | A boolean indicating if the role is deleted.                                |
-| etag                | The ETag of the role.                                                       |
-| includedPermissions | A list of permissions included in the role.                                 |
-| roleType            | The type of the role (e.g., BASIC, PREDEFINED, CUSTOM).                     |
-| lastupdated         | The timestamp of the last update.                                           |
-| projectId           | The ID of the GCP project to which the role belongs.                        |
+Roles exist at different levels in the GCP hierarchy and are synced separately:
+- **Predefined/Basic roles** (`roles/*`) - Global roles defined by Google, synced at the organization level
+- **Custom organization roles** (`organizations/*/roles/*`) - Custom roles defined at the organization level
+- **Custom project roles** (`projects/*/roles/*`) - Custom roles defined at the project level
+
+**Important**: Organization-level roles (predefined + custom org) and project-level roles (custom project) have different sub-resource relationships:
+- Organization-level roles are sub-resources of `GCPOrganization`
+- Project-level roles are sub-resources of `GCPProject`
+
+| Field               | Description                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| id                  | The unique identifier for the role (same as name).                                                    |
+| name                | The name of the role (e.g., `roles/editor`, `organizations/123/roles/custom`, `projects/abc/roles/custom`). |
+| title               | The human-readable title of the role.                                                                 |
+| description         | A description of the role.                                                                            |
+| deleted             | A boolean indicating if the role is deleted.                                                          |
+| etag                | The ETag of the role for optimistic concurrency control.                                              |
+| permissions         | A list of permissions included in the role.                                                           |
+| role\_type          | The type of the role: `BASIC`, `PREDEFINED`, or `CUSTOM`.                                             |
+| scope               | The scope of the role: `GLOBAL` (predefined/basic), `ORGANIZATION` (custom org), or `PROJECT` (custom project). |
+| lastupdated         | The timestamp of the last update.                                                                     |
+| project\_id         | The ID of the GCP project for project-level custom roles only.                                        |
+| organization\_id    | The ID of the GCP organization for organization-level roles (predefined and custom org) only.         |
 
 #### Relationships
 
-- GCPRoles are resources of GCPProjects.
+- Organization-level GCPRoles (predefined/basic and custom org roles) are sub-resources of GCPOrganizations.
 
     ```
-    (GCPRole)-[RESOURCE]->(GCPProject)
+    (GCPOrganization)-[RESOURCE]->(GCPRole)
+    ```
+
+- Project-level GCPRoles (custom project roles) are sub-resources of GCPProjects.
+
+    ```
+    (GCPProject)-[RESOURCE]->(GCPRole)
+    ```
+
+- GCPPolicyBindings grant GCPRoles.
+
+    ```
+    (GCPPolicyBinding)-[GRANTS_ROLE]->(GCPRole)
     ```
 
 ### GCPKeyRing
@@ -952,42 +982,7 @@ Representation of a GCP [Bigtable Backup](https://cloud.google.com/bigtable/docs
     (GCPBigtableTable)-[:BACKED_UP_AS]->(GCPBigtableBackup)
     ```
 
-### Vertex AI Resources
-
-#### Overview
-
-Google Cloud Vertex AI is a unified machine learning platform for building, deploying, and scaling ML models. Cartography ingests the following Vertex AI resources:
-
-```mermaid
-graph LR
-    Project[GCPProject]
-    Model[GCPVertexAIModel]
-    Endpoint[GCPVertexAIEndpoint]
-    DeployedModel[GCPVertexAIDeployedModel]
-    Instance[GCPVertexAIWorkbenchInstance]
-    Pipeline[GCPVertexAITrainingPipeline]
-    FeatureGroup[GCPVertexAIFeatureGroup]
-    Dataset[GCPVertexAIDataset]
-    Bucket[GCPBucket]
-    ServiceAccount[GCPServiceAccount]
-
-    Project -->|RESOURCE| Model
-    Project -->|RESOURCE| Endpoint
-    Project -->|RESOURCE| Instance
-    Project -->|RESOURCE| Pipeline
-    Project -->|RESOURCE| FeatureGroup
-    Project -->|RESOURCE| Dataset
-
-    Endpoint -->|SERVES| DeployedModel
-    DeployedModel -->|INSTANCE_OF| Model
-    Pipeline -->|PRODUCES| Model
-    Pipeline -->|READS_FROM| Dataset
-    Pipeline -->|READS_FROM| Bucket
-    Model -->|STORED_IN| Bucket
-    Instance -->|USES_SERVICE_ACCOUNT| ServiceAccount
-```
-
-#### GCPVertexAIModel
+### GCPVertexAIModel
 
 Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.models).
 
@@ -1031,7 +1026,7 @@ Representation of a GCP [Vertex AI Model](https://cloud.google.com/vertex-ai/doc
     (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
     ```
 
-#### GCPVertexAIEndpoint
+### GCPVertexAIEndpoint
 
 Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints).
 
@@ -1060,7 +1055,7 @@ Representation of a GCP [Vertex AI Endpoint](https://cloud.google.com/vertex-ai/
     (GCPVertexAIEndpoint)-[:SERVES]->(GCPVertexAIDeployedModel)
     ```
 
-#### GCPVertexAIDeployedModel
+### GCPVertexAIDeployedModel
 
 Representation of a deployed model on a Vertex AI Endpoint. This is derived from the [deployedModels field](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.endpoints#DeployedModel) on an Endpoint.
 
@@ -1089,7 +1084,7 @@ Representation of a deployed model on a Vertex AI Endpoint. This is derived from
     (GCPVertexAIDeployedModel)-[:INSTANCE_OF]->(GCPVertexAIModel)
     ```
 
-#### GCPVertexAIWorkbenchInstance
+### GCPVertexAIWorkbenchInstance
 
 Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/vertex-ai/docs/workbench/reference/rest/v2/projects.locations.instances) (v2 API).
 
@@ -1119,7 +1114,7 @@ Representation of a GCP [Vertex AI Workbench Instance](https://cloud.google.com/
     (GCPVertexAIWorkbenchInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
 
-#### GCPVertexAITrainingPipeline
+### GCPVertexAITrainingPipeline
 
 Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.trainingPipelines).
 
@@ -1164,7 +1159,7 @@ Representation of a GCP [Vertex AI Training Pipeline](https://cloud.google.com/v
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPBucket)
     ```
 
-#### GCPVertexAIFeatureGroup
+### GCPVertexAIFeatureGroup
 
 Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.featureGroups). Feature Groups are the new architecture for Vertex AI Feature Store.
 
@@ -1188,7 +1183,7 @@ Representation of a GCP [Vertex AI Feature Group](https://cloud.google.com/verte
     (GCPProject)-[:RESOURCE]->(GCPVertexAIFeatureGroup)
     ```
 
-#### GCPVertexAIDataset
+### GCPVertexAIDataset
 
 Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.datasets).
 
@@ -1219,11 +1214,11 @@ Representation of a GCP [Vertex AI Dataset](https://cloud.google.com/vertex-ai/d
     (GCPVertexAITrainingPipeline)-[:READS_FROM]->(GCPVertexAIDataset)
     ```
 
-### Cloud SQL Resources
-
-#### GCPCloudSQLInstance
+### GCPCloudSQLInstance
 
 Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances).
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., RDSInstance, AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |---|---|
@@ -1262,7 +1257,7 @@ Representation of a GCP [Cloud SQL Instance](https://cloud.google.com/sql/docs/m
     (GCPCloudSQLInstance)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
     ```
 
-#### GCPCloudSQLDatabase
+### GCPCloudSQLDatabase
 
 Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/databases).
 
@@ -1286,7 +1281,7 @@ Representation of a GCP [Cloud SQL Database](https://cloud.google.com/sql/docs/m
     (GCPCloudSQLInstance)-[:CONTAINS]->(GCPCloudSQLDatabase)
     ```
 
-#### GCPCloudSQLUser
+### GCPCloudSQLUser
 
 Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/users).
 
@@ -1309,7 +1304,7 @@ Representation of a GCP [Cloud SQL User](https://cloud.google.com/sql/docs/mysql
     (GCPCloudSQLInstance)-[:HAS_USER]->(GCPCloudSQLUser)
     ```
 
-#### GCPCloudSQLBackupConfiguration
+### GCPCloudSQLBackupConfiguration
 
 Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances#backupconfiguration). This node captures the backup settings for a Cloud SQL instance.
 
@@ -1342,6 +1337,8 @@ Representation of a GCP [Cloud SQL Backup Configuration](https://cloud.google.co
 
 Representation of a Google [Cloud Function](https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions) (v1 API).
 
+> **Ontology Mapping**: This node has the extra label `Function` and normalized `_ont_*` properties for cross-platform serverless function queries. See [Function](../../ontology/schema.md#function).
+
 | Field                 | Description                                                                 |
 | --------------------- | --------------------------------------------------------------------------- |
 | id                    | The full, unique resource name of the function.                             |
@@ -1373,9 +1370,7 @@ Representation of a Google [Cloud Function](https://cloud.google.com/functions/d
     (GCPCloudFunction)-[:RUNS_AS]->(GCPServiceAccount)
     ```
 
-### Secret Manager Resources
-
-#### GCPSecretManagerSecret
+### GCPSecretManagerSecret
 
 Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets). A Secret is a logical container for secret data that can have multiple versions.
 
@@ -1404,7 +1399,7 @@ Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-
     (GCPProject)-[:RESOURCE]->(GCPSecretManagerSecret)
     ```
 
-#### GCPSecretManagerSecretVersion
+### GCPSecretManagerSecretVersion
 
 Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions). A SecretVersion stores a specific version of secret data within a Secret.
 
@@ -1430,4 +1425,415 @@ Representation of a GCP [Secret Manager Secret Version](https://cloud.google.com
 - GCPSecretManagerSecretVersions are versions of GCPSecretManagerSecrets.
     ```
     (GCPSecretManagerSecretVersion)-[:VERSION_OF]->(GCPSecretManagerSecret)
+    ```
+
+### Artifact Registry Resources
+
+#### Overview
+
+Google Cloud Artifact Registry is a universal package manager for managing container images and language packages. Cartography ingests the following Artifact Registry resources with dedicated node types for each artifact category:
+
+```mermaid
+graph LR
+    Project[GCPProject]
+    Repository[GCPArtifactRegistryRepository]
+    ContainerImage[GCPArtifactRegistryContainerImage]
+    HelmChart[GCPArtifactRegistryHelmChart]
+    LanguagePackage[GCPArtifactRegistryLanguagePackage]
+    GenericArtifact[GCPArtifactRegistryGenericArtifact]
+    PlatformImage[GCPArtifactRegistryPlatformImage]
+    TrivyFinding[TrivyImageFinding]
+    Package[Package]
+
+    Project -->|RESOURCE| Repository
+    Project -->|RESOURCE| ContainerImage
+    Project -->|RESOURCE| HelmChart
+    Project -->|RESOURCE| LanguagePackage
+    Project -->|RESOURCE| GenericArtifact
+    Project -->|RESOURCE| PlatformImage
+    Repository -->|CONTAINS| ContainerImage
+    Repository -->|CONTAINS| HelmChart
+    Repository -->|CONTAINS| LanguagePackage
+    Repository -->|CONTAINS| GenericArtifact
+    ContainerImage -->|HAS_MANIFEST| PlatformImage
+    TrivyFinding -->|AFFECTS| ContainerImage
+    Package -->|DEPLOYED| ContainerImage
+```
+
+#### GCPArtifactRegistryRepository
+
+Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories).
+
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the repository (e.g., `projects/{project}/locations/{location}/repositories/{repo}`) |
+| name | The short name of the repository |
+| format | The format of packages stored in the repository (e.g., `DOCKER`, `MAVEN`, `NPM`, `PYTHON`, `GO`, `APT`, `YUM`) |
+| mode | The mode of the repository (e.g., `STANDARD_REPOSITORY`, `VIRTUAL_REPOSITORY`, `REMOTE_REPOSITORY`) |
+| description | User-provided description of the repository |
+| location | The GCP region where the repository is located |
+| registry_uri | The Docker registry URI for Docker format repositories (e.g., `us-east1-docker.pkg.dev/{project}/{repo}`) |
+| size_bytes | The size of the repository in bytes |
+| kms_key_name | The Cloud KMS key name used to encrypt the repository |
+| create_time | Timestamp when the repository was created |
+| update_time | Timestamp when the repository was last updated |
+| cleanup_policy_dry_run | Whether cleanup policies are in dry run mode |
+| vulnerability_scanning_enabled | Whether vulnerability scanning is enabled |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryRepositories are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryRepository)
+    ```
+
+- GCPArtifactRegistryRepositories contain artifacts (ContainerImage, HelmChart, LanguagePackage, GenericArtifact).
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryContainerImage)
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryHelmChart)
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryLanguagePackage)
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryGenericArtifact)
+    ```
+
+#### GCPArtifactRegistryContainerImage
+
+Representation of a [Docker Image](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages) in a GCP Artifact Registry repository.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the Docker image |
+| name | The short name of the image |
+| uri | The URI of the image |
+| digest | The image digest (e.g., `sha256:...`) |
+| tags | Tags associated with the image |
+| image_size_bytes | Size of the image in bytes |
+| media_type | The media type of the image manifest |
+| upload_time | Timestamp when the image was uploaded |
+| build_time | Timestamp when the image was built |
+| update_time | Timestamp when the image was last updated |
+| repository_id | Full resource name of the parent repository |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryContainerImages are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryContainerImage)
+    ```
+
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryContainerImages.
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryContainerImage)
+    ```
+
+- GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages (for multi-architecture images).
+    ```
+    (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
+    ```
+
+- TrivyImageFindings affect GCPArtifactRegistryContainerImages.
+    ```
+    (TrivyImageFinding)-[:AFFECTS]->(GCPArtifactRegistryContainerImage)
+    ```
+
+- Packages are deployed in GCPArtifactRegistryContainerImages.
+    ```
+    (Package)-[:DEPLOYED]->(GCPArtifactRegistryContainerImage)
+    ```
+
+#### GCPArtifactRegistryHelmChart
+
+Representation of a Helm chart stored as an OCI artifact in a GCP Artifact Registry repository. Helm charts are stored in Docker-format repositories and identified by their media type.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the Helm chart |
+| name | The short name of the chart |
+| uri | The URI of the chart |
+| version | The version of the chart (extracted from tags) |
+| create_time | Timestamp when the chart was created |
+| update_time | Timestamp when the chart was last updated |
+| repository_id | Full resource name of the parent repository |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryHelmCharts are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryHelmChart)
+    ```
+
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryHelmCharts.
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryHelmChart)
+    ```
+
+#### GCPArtifactRegistryLanguagePackage
+
+Representation of a language package in a GCP Artifact Registry repository. This node type covers [Maven Artifacts](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.mavenArtifacts), [npm Packages](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.npmPackages), [Python Packages](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.pythonPackages), and [Go Modules](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.goModules).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the package |
+| name | The short name of the package |
+| format | The format of the package (`MAVEN`, `NPM`, `PYTHON`, `GO`) |
+| uri | The URI of the package |
+| version | The version of the package |
+| package_name | Human-readable package name |
+| create_time | Timestamp when the package was created |
+| update_time | Timestamp when the package was last updated |
+| repository_id | Full resource name of the parent repository |
+| project_id | The GCP project ID |
+| group_id | (Maven only) The Maven group ID |
+| artifact_id | (Maven only) The Maven artifact ID |
+| tags | (npm only) Tags associated with the package |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryLanguagePackages are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryLanguagePackage)
+    ```
+
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryLanguagePackages.
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryLanguagePackage)
+    ```
+
+#### GCPArtifactRegistryGenericArtifact
+
+Representation of a generic artifact in a GCP Artifact Registry repository. This node type covers [APT Artifacts](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.aptArtifacts) and [YUM Artifacts](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.yumArtifacts).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Full resource name of the artifact |
+| name | The short name of the artifact |
+| format | The format of the artifact (`APT`, `YUM`) |
+| package_name | The package name |
+| repository_id | Full resource name of the parent repository |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryGenericArtifacts are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryGenericArtifact)
+    ```
+
+- GCPArtifactRegistryRepositories contain GCPArtifactRegistryGenericArtifacts.
+    ```
+    (GCPArtifactRegistryRepository)-[:CONTAINS]->(GCPArtifactRegistryGenericArtifact)
+    ```
+
+#### GCPArtifactRegistryPlatformImage
+
+Representation of a platform-specific manifest within a multi-architecture Docker image. This node captures the individual platform configurations (architecture, OS) for images that support multiple platforms.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Unique identifier combining parent artifact and manifest digest |
+| digest | The digest of this specific platform manifest |
+| architecture | CPU architecture (e.g., `amd64`, `arm64`) |
+| os | Operating system (e.g., `linux`, `windows`) |
+| os_version | OS version if specified |
+| os_features | OS features if specified |
+| variant | Platform variant (e.g., `v8` for arm64) |
+| media_type | The media type of the manifest |
+| parent_artifact_id | Full resource name of the parent Docker image |
+| project_id | The GCP project ID |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+
+- GCPArtifactRegistryPlatformImages are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPArtifactRegistryPlatformImage)
+    ```
+
+- GCPArtifactRegistryContainerImages have GCPArtifactRegistryPlatformImages.
+    ```
+    (GCPArtifactRegistryContainerImage)-[:HAS_MANIFEST]->(GCPArtifactRegistryPlatformImage)
+    ```
+
+#### Trivy Integration Queries
+
+Find all vulnerabilities affecting GCP Artifact Registry container images:
+
+```cypher
+MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(img:GCPArtifactRegistryContainerImage)
+RETURN vuln.name, vuln.severity, img.uri, img.digest
+ORDER BY vuln.severity DESC
+```
+
+Find packages deployed in GCP container images with their vulnerabilities:
+
+```cypher
+MATCH (pkg:Package)-[:DEPLOYED]->(img:GCPArtifactRegistryContainerImage)
+OPTIONAL MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(pkg)
+RETURN img.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
+```
+
+Find critical vulnerabilities in GCP images with available fixes:
+
+```cypher
+MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GCPArtifactRegistryContainerImage)
+MATCH (vuln)-[:AFFECTS]->(pkg:Package)
+OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
+RETURN vuln.name, img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
+```
+
+### Cloud Run Resources
+
+#### Overview
+
+Google Cloud Run is a serverless compute platform for running containers. Cartography ingests the following Cloud Run resources:
+
+```mermaid
+graph LR
+    Project[GCPProject]
+    Service[GCPCloudRunService]
+    Revision[GCPCloudRunRevision]
+    Job[GCPCloudRunJob]
+    Execution[GCPCloudRunExecution]
+    ServiceAccount[GCPServiceAccount]
+
+    Project -->|RESOURCE| Service
+    Project -->|RESOURCE| Revision
+    Project -->|RESOURCE| Job
+    Project -->|RESOURCE| Execution
+
+    Service -->|HAS_REVISION| Revision
+    Job -->|HAS_EXECUTION| Execution
+
+    Revision -->|USES_SERVICE_ACCOUNT| ServiceAccount
+    Job -->|USES_SERVICE_ACCOUNT| ServiceAccount
+```
+
+### GCPCloudRunService
+
+Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services).
+
+> **Ontology Mapping**: This node has the extra label `Function` to enable cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the service (e.g., `projects/{project}/locations/{location}/services/{service}`) |
+| name | Short name of the service |
+| location | The GCP location where the service is deployed |
+| container_image | The container image for the service |
+| service_account_email | The email of the service account used by this service |
+
+#### Relationships
+
+  - GCPCloudRunServices are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunService)
+    ```
+  - GCPCloudRunServices have GCPCloudRunRevisions.
+    ```
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
+    ```
+
+### GCPCloudRunRevision
+
+Representation of a GCP [Cloud Run Revision](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services.revisions).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the revision (e.g., `projects/{project}/locations/{location}/services/{service}/revisions/{revision}`) |
+| name | Short name of the revision |
+| service | Full resource name of the parent service |
+| container_image | The container image for this revision |
+| service_account_email | The email of the service account used by this revision |
+| log_uri | URI to Cloud Logging for this revision |
+
+#### Relationships
+
+  - GCPCloudRunRevisions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunRevision)
+    ```
+  - GCPCloudRunServices have GCPCloudRunRevisions.
+    ```
+    (GCPCloudRunService)-[:HAS_REVISION]->(GCPCloudRunRevision)
+    ```
+  - GCPCloudRunRevisions use GCPServiceAccounts.
+    ```
+    (GCPCloudRunRevision)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudRunJob
+
+Representation of a GCP [Cloud Run Job](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs).
+
+> **Ontology Mapping**: This node has the extra label `Function` to enable cross-platform queries for serverless functions across different systems (e.g., AWSLambda, AzureFunctionApp, GCPCloudFunction).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the job (e.g., `projects/{project}/locations/{location}/jobs/{job}`) |
+| name | Short name of the job |
+| location | The GCP location where the job is deployed |
+| container_image | The container image for the job |
+| service_account_email | The email of the service account used by this job |
+
+#### Relationships
+
+  - GCPCloudRunJobs are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunJob)
+    ```
+  - GCPCloudRunJobs have GCPCloudRunExecutions.
+    ```
+    (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
+    ```
+  - GCPCloudRunJobs use GCPServiceAccounts.
+    ```
+    (GCPCloudRunJob)-[:USES_SERVICE_ACCOUNT]->(GCPServiceAccount)
+    ```
+
+### GCPCloudRunExecution
+
+Representation of a GCP [Cloud Run Execution](https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs.executions).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated| Timestamp of the last time the node was updated |
+| **id** | Full resource name of the execution (e.g., `projects/{project}/locations/{location}/jobs/{job}/executions/{execution}`) |
+| name | Short name of the execution |
+| job | Full resource name of the parent job |
+| status | Completion status of the execution (e.g., `SUCCEEDED`, `FAILED`) |
+| cancelled_count | Number of tasks that were cancelled |
+| failed_count | Number of tasks that failed |
+| succeeded_count | Number of tasks that succeeded |
+
+#### Relationships
+
+  - GCPCloudRunExecutions are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudRunExecution)
+    ```
+  - GCPCloudRunJobs have GCPCloudRunExecutions.
+    ```
+    (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
     ```
