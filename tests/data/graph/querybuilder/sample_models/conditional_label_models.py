@@ -54,7 +54,9 @@ class ContainerImageSchema(CartographyNodeSchema):
 
     label: str = "ContainerImage"
     properties: ContainerImageProperties = ContainerImageProperties()
-    sub_resource_relationship: ContainerImageToRegistryRel = ContainerImageToRegistryRel()
+    sub_resource_relationship: ContainerImageToRegistryRel = (
+        ContainerImageToRegistryRel()
+    )
     extra_node_labels: Optional[ExtraNodeLabels] = ExtraNodeLabels(
         [
             "Resource",  # Unconditional label applied to all nodes

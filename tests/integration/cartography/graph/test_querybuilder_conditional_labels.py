@@ -10,13 +10,23 @@ import pytest
 from cartography.client.core.tx import load
 from tests.data.graph.querybuilder.sample_data.conditional_label_data import (
     CONTAINER_IMAGES,
+)
+from tests.data.graph.querybuilder.sample_data.conditional_label_data import (
     CONTAINER_IMAGES_UPDATED,
+)
+from tests.data.graph.querybuilder.sample_data.conditional_label_data import (
     MERGE_CONTAINER_REGISTRY_QUERY,
+)
+from tests.data.graph.querybuilder.sample_data.conditional_label_data import (
     VULNERABILITIES,
 )
 from tests.data.graph.querybuilder.sample_models.conditional_label_models import (
     ContainerImageSchema,
+)
+from tests.data.graph.querybuilder.sample_models.conditional_label_models import (
     ContainerImageSchemaNoSubResource,
+)
+from tests.data.graph.querybuilder.sample_models.conditional_label_models import (
     VulnerabilitySchema,
 )
 
@@ -96,9 +106,7 @@ def test_conditional_labels_updated_when_conditions_change(neo4j_session):
     )
 
     # Verify initial state
-    result = neo4j_session.run(
-        "MATCH (n:ContainerImage:Image) RETURN n.id AS id"
-    )
+    result = neo4j_session.run("MATCH (n:ContainerImage:Image) RETURN n.id AS id")
     assert [r["id"] for r in result] == ["sha256:abc123"]
 
     result = neo4j_session.run(
@@ -160,9 +168,7 @@ def test_conditional_labels_with_multiple_conditions(neo4j_session):
     assert critical_ids == ["CVE-2024-0001", "CVE-2024-0002"]
 
     # Assert: "Urgent" label only on severity="critical" AND is_exploitable="true" nodes
-    result = neo4j_session.run(
-        "MATCH (n:Vulnerability:Urgent) RETURN n.id AS id"
-    )
+    result = neo4j_session.run("MATCH (n:Vulnerability:Urgent) RETURN n.id AS id")
     urgent_ids = [r["id"] for r in result]
     assert urgent_ids == ["CVE-2024-0001"]
 
@@ -206,15 +212,24 @@ def test_conditional_labels_scoped_to_sub_resource(neo4j_session):
     queries should only affect nodes within the current sub-resource scope.
     """
     # Arrange: Create two container registries
-    neo4j_session.run("MERGE (r:ContainerRegistry{id: 'registry-1'}) SET r.lastupdated = 1")
-    neo4j_session.run("MERGE (r:ContainerRegistry{id: 'registry-2'}) SET r.lastupdated = 1")
+    neo4j_session.run(
+        "MERGE (r:ContainerRegistry{id: 'registry-1'}) SET r.lastupdated = 1"
+    )
+    neo4j_session.run(
+        "MERGE (r:ContainerRegistry{id: 'registry-2'}) SET r.lastupdated = 1"
+    )
 
     # Load images to registry-1
     load(
         neo4j_session,
         ContainerImageSchema(),
         [
-            {"id": "img-1", "digest": "sha256:1", "image_type": "IMAGE", "repository": "app1"},
+            {
+                "id": "img-1",
+                "digest": "sha256:1",
+                "image_type": "IMAGE",
+                "repository": "app1",
+            },
         ],
         lastupdated=1,
         REGISTRY_ID="registry-1",
@@ -225,7 +240,12 @@ def test_conditional_labels_scoped_to_sub_resource(neo4j_session):
         neo4j_session,
         ContainerImageSchema(),
         [
-            {"id": "img-2", "digest": "sha256:2", "image_type": "IMAGE_ATTESTATION", "repository": "app2"},
+            {
+                "id": "img-2",
+                "digest": "sha256:2",
+                "image_type": "IMAGE_ATTESTATION",
+                "repository": "app2",
+            },
         ],
         lastupdated=1,
         REGISTRY_ID="registry-2",
@@ -252,7 +272,12 @@ def test_conditional_labels_scoped_to_sub_resource(neo4j_session):
         neo4j_session,
         ContainerImageSchema(),
         [
-            {"id": "img-1", "digest": "sha256:1", "image_type": "IMAGE_ATTESTATION", "repository": "app1"},
+            {
+                "id": "img-1",
+                "digest": "sha256:1",
+                "image_type": "IMAGE_ATTESTATION",
+                "repository": "app1",
+            },
         ],
         lastupdated=2,
         REGISTRY_ID="registry-1",
@@ -287,9 +312,7 @@ def test_conditional_labels_without_sub_resource(neo4j_session):
     )
 
     # Assert: Labels are applied based on conditions
-    result = neo4j_session.run(
-        "MATCH (n:ContainerImage:Image) RETURN n.id AS id"
-    )
+    result = neo4j_session.run("MATCH (n:ContainerImage:Image) RETURN n.id AS id")
     assert [r["id"] for r in result] == ["sha256:abc123"]
 
     result = neo4j_session.run(
@@ -309,7 +332,14 @@ def test_all_labels_present_on_node(neo4j_session):
     load(
         neo4j_session,
         ContainerImageSchema(),
-        [{"id": "test-img", "digest": "sha256:test", "image_type": "IMAGE", "repository": "test"}],
+        [
+            {
+                "id": "test-img",
+                "digest": "sha256:test",
+                "image_type": "IMAGE",
+                "repository": "test",
+            }
+        ],
         lastupdated=1,
         REGISTRY_ID="registry-1",
     )
