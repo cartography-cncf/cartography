@@ -829,7 +829,6 @@ def load(
     stat_handler.incr(f"node.{node_schema.label.lower()}.loaded", node_count)
     logger.info("Loaded %d %s nodes", node_count, node_schema.label)
 
-
 def load_matchlinks(
     neo4j_session: neo4j.Session,
     rel_schema: CartographyRelSchema,
