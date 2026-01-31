@@ -372,3 +372,21 @@ If field `ip_version` is null, it should not be considered as `4` or `6`, only a
     ```
     (:PublicIP)-[:POINTS_TO]->(:ComputeInstance)
     ```
+
+
+### ContainerRegistry
+
+```{note}
+ContainerRegistry is a semantic label.
+```
+
+A container registry represents a storage and distribution system for container images.
+It generalizes concepts like AWS ECR repositories, GCP Artifact Registry repositories, and GitLab Container Registries.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the container registry/repository (REQUIRED). |
+| _ont_uri | The registry URI/endpoint for pulling images. |
+| _ont_location | The region/location where the registry is hosted. |
+| _ont_created_at | Timestamp when the registry was created. |
+| _ont_size_bytes | Storage size in bytes. |

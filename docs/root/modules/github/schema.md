@@ -5,6 +5,8 @@ graph LR
 
 O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
 O -- RESOURCE --> T(GitHubTeam)
+O -- RESOURCE --> OS(GitHubActionsSecret)
+O -- RESOURCE --> OV(GitHubActionsVariable)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
@@ -17,6 +19,12 @@ R -- BRANCH --> B(GitHubBranch)
 R -- HAS_RULE --> BPR(GitHubBranchProtectionRule)
 R -- REQUIRES --> D(Dependency)
 R -- HAS_MANIFEST --> M(DependencyGraphManifest)
+R -- HAS_WORKFLOW --> W(GitHubWorkflow)
+R -- HAS_SECRET --> RS(GitHubActionsSecret)
+R -- HAS_VARIABLE --> RV(GitHubActionsVariable)
+R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
+E -- HAS_SECRET --> ES(GitHubActionsSecret)
+E -- HAS_VARIABLE --> EV(GitHubActionsVariable)
 M -- HAS_DEP --> D
 T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
@@ -442,4 +450,151 @@ Within a setup.cfg file, cartography will load everything from `install_requires
 
     ```
     (:SemgrepSCAFinding)-[:AFFECTS]->(:PythonLibrary)
+    ```
+
+
+### GitHubWorkflow
+
+Represents a GitHub Actions workflow definition file in a repository.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The GitHub workflow ID |
+| **name** | Name of the workflow |
+| **path** | Path to the workflow file (e.g., `.github/workflows/ci.yml`) |
+| **state** | Workflow state: `active`, `disabled_manually`, `disabled_inactivity`, `disabled_fork`, or `deleted` |
+| **created_at** | Timestamp when the workflow was created |
+| **updated_at** | Timestamp when the workflow was last updated |
+| **html_url** | Web URL for viewing the workflow file |
+
+#### Relationships
+
+- GitHubRepositories have GitHubWorkflows.
+
+    ```
+    (GitHubRepository)-[:HAS_WORKFLOW]->(GitHubWorkflow)
+    ```
+
+
+### GitHubEnvironment
+
+Represents a GitHub deployment environment for a repository.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The GitHub environment ID |
+| **name** | Name of the environment (e.g., `production`, `staging`) |
+| **html_url** | Web URL for viewing the environment settings |
+| **created_at** | Timestamp when the environment was created |
+| **updated_at** | Timestamp when the environment was last updated |
+
+#### Relationships
+
+- GitHubRepositories have GitHubEnvironments.
+
+    ```
+    (GitHubRepository)-[:HAS_ENVIRONMENT]->(GitHubEnvironment)
+    ```
+
+- GitHubEnvironments can have GitHubActionsSecrets.
+
+    ```
+    (GitHubEnvironment)-[:HAS_SECRET]->(GitHubActionsSecret)
+    ```
+
+- GitHubEnvironments can have GitHubActionsVariables.
+
+    ```
+    (GitHubEnvironment)-[:HAS_VARIABLE]->(GitHubActionsVariable)
+    ```
+
+
+### GitHubActionsSecret
+
+Represents a GitHub Actions secret. Secrets can exist at three levels: organization, repository, or environment.
+Note that secret **values are never exposed** by the GitHub API - only metadata is stored.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (composite URL based on level) |
+| **name** | Name of the secret |
+| **level** | Level of the secret: `organization`, `repository`, or `environment` |
+| **visibility** | Visibility setting (organization-level only): `all`, `private`, or `selected` |
+| **created_at** | Timestamp when the secret was created |
+| **updated_at** | Timestamp when the secret was last updated |
+
+#### Relationships
+
+- GitHubOrganizations have organization-level GitHubActionsSecrets.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsSecret {level: "organization"})
+    ```
+
+- GitHubRepositories have repository-level GitHubActionsSecrets.
+
+    ```
+    (GitHubRepository)-[:HAS_SECRET]->(GitHubActionsSecret {level: "repository"})
+    ```
+
+- GitHubEnvironments have environment-level GitHubActionsSecrets.
+
+    ```
+    (GitHubEnvironment)-[:HAS_SECRET]->(GitHubActionsSecret {level: "environment"})
+    ```
+
+- GitHubOrganizations are sub-resources for environment-level GitHubActionsSecrets (for cleanup scoping).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsSecret {level: "environment"})
+    ```
+
+
+### GitHubActionsVariable
+
+Represents a GitHub Actions variable. Variables can exist at three levels: organization, repository, or environment.
+Unlike secrets, variable **values are stored in plaintext**.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (composite URL based on level) |
+| **name** | Name of the variable |
+| **value** | Value of the variable (plaintext) |
+| **level** | Level of the variable: `organization`, `repository`, or `environment` |
+| **visibility** | Visibility setting (organization-level only): `all`, `private`, or `selected` |
+| **created_at** | Timestamp when the variable was created |
+| **updated_at** | Timestamp when the variable was last updated |
+
+#### Relationships
+
+- GitHubOrganizations have organization-level GitHubActionsVariables.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "organization"})
+    ```
+
+- GitHubRepositories have repository-level GitHubActionsVariables.
+
+    ```
+    (GitHubRepository)-[:HAS_VARIABLE]->(GitHubActionsVariable {level: "repository"})
+    ```
+
+- GitHubEnvironments have environment-level GitHubActionsVariables.
+
+    ```
+    (GitHubEnvironment)-[:HAS_VARIABLE]->(GitHubActionsVariable {level: "environment"})
+    ```
+
+- GitHubOrganizations are sub-resources for environment-level GitHubActionsVariables (for cleanup scoping).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "environment"})
     ```
