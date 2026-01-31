@@ -3988,6 +3988,10 @@ Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/se
     ```
     (AWSAccount)-[RESOURCE]->(SecretsManagerSecret)
     ```
+- If the secret is encrypted with a KMS key, it has a relationship to that key.
+    ```
+    (SecretsManagerSecret)-[ENCRYPTED_BY]->(KMSKey)
+    ```
 
 ### EBSVolume
 
@@ -5250,7 +5254,7 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 | version_id | The unique identifier of this version of the secret. |
 | version_stages | A list of staging labels that are currently attached to this version of the secret. |
 | created_date | The date and time that this version of the secret was created. |
-| kms_key_id | The ID of the AWS KMS key used to encrypt the secret version. |
+| kms_key_ids | A list of IDs of the AWS KMS keys used to encrypt the secret version. |
 | tags | A list of tags attached to this secret version. |
 | region | The AWS region where the secret version exists. |
 
@@ -5266,7 +5270,7 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     ```
 - If the secret version is encrypted with a KMS key, it has a relationship to that key.
     ```
-    (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
+    (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(KMSKey)
     ```
 
 ### AWSBedrockFoundationModel
