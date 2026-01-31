@@ -43,6 +43,7 @@ dependencies = [
     "policyuniverse>=1.1.0.0",
     "google-api-python-client>=1.7.8",
     "google-auth>=2.37.0",
+    "google-cloud-storage>=2.0.0",
     "marshmallow>=3.0.0rc7",
     "oci>=2.71.0",
     "okta<1.0.0",
