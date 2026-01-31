@@ -12,7 +12,6 @@ from typing import Any
 
 import neo4j
 import requests
-from urllib.parse import urlparse
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -254,7 +253,7 @@ def get_container_images(
             # Create tag nodes
             for tag_name in tags:
                 all_tags.append({
-                    "id": f"{package_name}:{tag_name}",
+                    "id": f"{package_id}:{tag_name}",
                     "name": tag_name,
                     "digest": digest,
                     "package_id": package_id,
@@ -338,10 +337,10 @@ def load_container_data(
     """
     # Load Packages
     load(neo4j_session, GitHubContainerPackageSchema(), packages, lastupdated=update_tag, org_url=org_url)
-    
+
     # Load Images
     load(neo4j_session, GitHubContainerImageSchema(), images, lastupdated=update_tag, org_url=org_url)
-    
+
     # Load Tags
     load(neo4j_session, GitHubContainerPackageTagSchema(), tags, lastupdated=update_tag, org_url=org_url)
 

@@ -1,7 +1,7 @@
 import cartography.intel.github.container_packages
-import neo4j
 from tests.data.github.container_packages import GET_CONTAINER_PACKAGES, GET_PACKAGE_VERSIONS, IMAGE_MANIFEST, IMAGE_CONFIG
 from unittest.mock import patch, MagicMock
+
 
 @patch("cartography.intel.github.container_packages.util.fetch_all_rest_api_pages")
 @patch("cartography.intel.github.container_packages._get_ghcr_token")
@@ -18,17 +18,17 @@ def test_sync_container_packages(
         GET_CONTAINER_PACKAGES,  # get_container_packages
         GET_PACKAGE_VERSIONS,      # get_package_versions
     ]
-    
+
     # Mock Token
     mock_token.return_value = "fake-jwt-token"
-    
+
     # Mock Manifest Response
     mock_manifest_resp = MagicMock()
     mock_manifest_resp.status_code = 200
     mock_manifest_resp.json.return_value = IMAGE_MANIFEST
     mock_manifest_resp.headers = {"Docker-Content-Digest": "sha256:digest123"}
     mock_manifest.return_value = mock_manifest_resp
-    
+
     # Mock Config Blob
     mock_config_blob.return_value = IMAGE_CONFIG
 
@@ -92,7 +92,7 @@ def test_cleanup_container_packages(
 
     # Mock empty sync
     mock_fetch_all.return_value = []
-    
+
     # Run sync with new update tag
     cartography.intel.github.container_packages.sync_container_packages(
         neo4j_session,
