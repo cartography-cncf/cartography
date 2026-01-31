@@ -7,6 +7,7 @@ from string import Template
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
 from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -370,10 +371,15 @@ def _build_node_properties_statement(
         ],
     )
 
-    # Set extra labels on the node if specified
+    # Set extra labels on the node if specified (excluding conditional labels)
     if extra_node_labels:
-        extra_labels = ":".join([label for label in extra_node_labels.labels])
-        set_clause += f",\n                i:{extra_labels}"
+        # Filter out ConditionalNodeLabel objects - only include string labels
+        string_labels = [
+            label for label in extra_node_labels.labels if isinstance(label, str)
+        ]
+        if string_labels:
+            extra_labels = ":".join(string_labels)
+            set_clause += f",\n                i:{extra_labels}"
     return set_clause
 
 
@@ -1116,6 +1122,161 @@ def build_ingestion_query(
     return ingest_query
 
 
+def build_conditional_label_queries(
+    node_schema: CartographyNodeSchema,
+) -> list[str]:
+    """
+    Generate Neo4j queries to apply conditional labels to nodes.
+
+    Conditional labels are labels that are only applied to nodes matching specific conditions.
+    This function generates one query per ConditionalNodeLabel defined in the node schema's
+    extra_node_labels.
+
+    Args:
+        node_schema (CartographyNodeSchema): The CartographyNodeSchema object containing
+            conditional labels in its extra_node_labels property.
+
+    Returns:
+        list[str]: A list of Neo4j queries, one per conditional label. Each query matches
+            nodes of the schema's primary label that satisfy the conditions, and applies
+            the conditional label.
+
+    Examples:
+        >>> # Given a schema with a conditional label
+        >>> node_schema = CartographyNodeSchema(
+        ...     label='AWSResource',
+        ...     extra_node_labels=ExtraNodeLabels([
+        ...         'Resource',
+        ...         ConditionalNodeLabel(label='Critical', conditions={'severity': 'high'}),
+        ...     ])
+        ... )
+        >>> queries = build_conditional_label_queries(node_schema)
+        >>> # Returns:
+        >>> # ['MATCH (n:AWSResource) WHERE n.severity = "high" SET n:Critical']
+
+    Note:
+        - Only ConditionalNodeLabel objects are processed; string labels are ignored
+        - Returns an empty list if no conditional labels are defined
+        - Values are escaped for Cypher string literals
+    """
+    if not node_schema.extra_node_labels:
+        return []
+
+    # Extract only ConditionalNodeLabel objects
+    conditional_labels = [
+        label
+        for label in node_schema.extra_node_labels.labels
+        if isinstance(label, ConditionalNodeLabel)
+    ]
+
+    if not conditional_labels:
+        return []
+
+    queries = []
+    sub_rel = node_schema.sub_resource_relationship
+
+    # Build the sub-resource matching clause if a sub_resource_relationship exists
+    # This scopes the queries to the current tenant to avoid affecting other tenants' nodes
+    if sub_rel:
+        # Build the relationship pattern based on direction
+        if sub_rel.direction == LinkDirection.INWARD:
+            # (node)<-[:REL]-(sub_resource)
+            rel_pattern = f"<-[:{sub_rel.rel_label}]-"
+        else:
+            # (node)-[:REL]->(sub_resource)
+            rel_pattern = f"-[:{sub_rel.rel_label}]->"
+
+        # Build the match clause for the sub-resource node
+        sub_match_clause = _build_match_clause(sub_rel.target_node_matcher)
+
+        # Scoped templates that filter by sub-resource
+        remove_template = Template(
+            """
+            MATCH (n:$node_label:$conditional_label)$rel_pattern(sub:$sub_label{$sub_match_clause})
+            REMOVE n:$conditional_label
+            """,
+        )
+
+        set_template = Template(
+            """
+            MATCH (n:$node_label)$rel_pattern(sub:$sub_label{$sub_match_clause})
+            WHERE $where_clause
+            SET n:$conditional_label
+            """,
+        )
+    else:
+        # Unscoped templates for global resources without a tenant relationship
+        remove_template = Template(
+            """
+            MATCH (n:$node_label:$conditional_label)
+            REMOVE n:$conditional_label
+            """,
+        )
+
+        set_template = Template(
+            """
+            MATCH (n:$node_label)
+            WHERE $where_clause
+            SET n:$conditional_label
+            """,
+        )
+
+    for cond_label in conditional_labels:
+        # Skip conditional labels with empty conditions - they would apply to all nodes,
+        # which should be done with a regular string label instead
+        if not cond_label.conditions:
+            logger.warning(
+                "ConditionalNodeLabel '%s' on node schema '%s' has empty conditions. "
+                "Skipping. Use a string label instead to apply a label to all nodes.",
+                cond_label.label,
+                node_schema.label,
+            )
+            continue
+
+        # Build WHERE clause from conditions
+        where_parts = []
+        for field_name, field_value in cond_label.conditions.items():
+            # Escape the value for Cypher string literal
+            escaped_value = _escape_cypher_string(str(field_value))
+            where_parts.append(f'n.{field_name} = "{escaped_value}"')
+
+        where_clause = " AND ".join(where_parts)
+
+        if sub_rel:
+            # Scoped queries
+            remove_query = remove_template.safe_substitute(
+                node_label=node_schema.label,
+                conditional_label=cond_label.label,
+                rel_pattern=rel_pattern,
+                sub_label=sub_rel.target_node_label,
+                sub_match_clause=sub_match_clause,
+            )
+            set_query = set_template.safe_substitute(
+                node_label=node_schema.label,
+                where_clause=where_clause,
+                conditional_label=cond_label.label,
+                rel_pattern=rel_pattern,
+                sub_label=sub_rel.target_node_label,
+                sub_match_clause=sub_match_clause,
+            )
+        else:
+            # Unscoped queries
+            remove_query = remove_template.safe_substitute(
+                node_label=node_schema.label,
+                conditional_label=cond_label.label,
+            )
+            set_query = set_template.safe_substitute(
+                node_label=node_schema.label,
+                where_clause=where_clause,
+                conditional_label=cond_label.label,
+            )
+
+        queries.append(remove_query)
+        queries.append(set_query)
+
+    return queries
+
+
 def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
     """
     Generate queries to create indexes for the given CartographyNodeSchema and all node types attached to it via its
@@ -1171,15 +1332,32 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
         ),
     ]
     if node_schema.extra_node_labels:
-        result.extend(
-            [
-                index_template.safe_substitute(
-                    TargetNodeLabel=label,
-                    TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
+        for label in node_schema.extra_node_labels.labels:
+            if isinstance(label, str):
+                # Simple string label - create index on id
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label,
+                        TargetAttribute="id",  # Precondition: 'id' is defined on all cartography node_schema objects.
+                    ),
                 )
-                for label in node_schema.extra_node_labels.labels
-            ],
-        )
+            elif isinstance(label, ConditionalNodeLabel):
+                # Conditional label - create index on the conditional label's id
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label.label,
+                        TargetAttribute="id",
+                    ),
+                )
+                # Also create indexes on the condition fields for the primary node label
+                # to speed up the WHERE clause in the conditional label query
+                for condition_field in label.conditions.keys():
+                    result.append(
+                        index_template.safe_substitute(
+                            TargetNodeLabel=node_schema.label,
+                            TargetAttribute=condition_field,
+                        ),
+                    )
 
     # Next, for all relationships possible out of this node, ensure that indexes exist for all target nodes' properties
     # as specified in their TargetNodeMatchers.

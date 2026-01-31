@@ -52,11 +52,17 @@ def _get_models_with_properties_for_label(
 
     # Collect all extra_node_labels from primary models
     # Need to instantiate to get the actual value (property returns None on class if not defined)
+    # Extract label strings from both string labels and ConditionalNodeLabel objects
     extra_labels: set[str] = set()
     for model_class in primary_models:
         model_instance = model_class()
         if model_instance.extra_node_labels:
-            extra_labels.update(model_instance.extra_node_labels.labels)
+            for label in model_instance.extra_node_labels.labels:
+                if isinstance(label, str):
+                    extra_labels.add(label)
+                else:
+                    # ConditionalNodeLabel - extract the label attribute
+                    extra_labels.add(label.label)
 
     # Find composite schemas that target these extra labels
     for extra_label in extra_labels:
