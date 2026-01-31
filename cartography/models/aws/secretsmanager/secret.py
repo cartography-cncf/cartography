@@ -74,7 +74,7 @@ class SecretsManagerSecretToAWSAccountRel(CartographyRelSchema):
 class SecretsManagerSecretToKMSKeyRel(CartographyRelSchema):
     """
     Relationship between Secret and its KMS key
-    Only created when KmsKeyId is present
+    Only created when kms_key_id is present
     """
 
     target_node_label: str = "KMSKey"

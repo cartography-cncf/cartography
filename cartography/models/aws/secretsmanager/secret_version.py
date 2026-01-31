@@ -79,7 +79,7 @@ class SecretsManagerSecretVersionToSecretRel(CartographyRelSchema):
 class SecretsManagerSecretVersionToKMSKeyRel(CartographyRelSchema):
     """
     Relationship between Secret Version and its KMS key
-    Only created when KmsKeyId is present
+    Only created when kms_key_ids is present
     """
 
     target_node_label: str = "KMSKey"
