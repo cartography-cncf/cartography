@@ -322,13 +322,9 @@ def transform_access_entries(
     all_groups = []
 
     for entry in access_entries:
-        principal_arn = entry.get("principalArn")
-        username = entry.get("username")
+        principal_arn = entry["principalArn"]
+        username = entry["username"]
         group_names = entry.get("kubernetesGroups", [])
-
-        if not principal_arn:
-            logger.warning("Access entry missing principalArn, skipping")
-            continue
 
         is_role = ":role/" in principal_arn
         is_user = ":user/" in principal_arn
