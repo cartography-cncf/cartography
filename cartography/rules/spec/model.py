@@ -256,7 +256,15 @@ class Rule:
         return {fact.module for fact in self.facts}
 
     def get_fact_by_id(self, fact_id: str) -> Fact | None:
-        """Returns a fact by its ID, or None if not found."""
+        """
+        Returns a fact by its ID, or None if not found.
+
+        Args:
+            fact_id (str): The ID of the Fact to find (case-insensitive).
+
+        Returns:
+            Fact | None: The matching Fact, or None if not found.
+        """
         for fact in self.facts:
             if fact.id.lower() == fact_id.lower():
                 return fact
@@ -265,7 +273,20 @@ class Rule:
     def parse_results(
         self, fact: Fact, fact_results: list[dict[str, Any]]
     ) -> list[Finding]:
-        # DOC
+        """
+        Parse raw query results into typed Finding objects.
+
+        This method converts the raw dictionary results from a Cypher query
+        into strongly-typed Finding objects using the Rule's output_model.
+        Fields not defined in the output model are stored in the ``extra`` dict.
+
+        Args:
+            fact (Fact): The Fact that produced these results (used for source tracking).
+            fact_results (list[dict[str, Any]]): Raw results from the Cypher query.
+
+        Returns:
+            list[Finding]: A list of typed Finding objects.
+        """
         result: list[Finding] = []
         for result_item in fact_results:
             parsed_output: dict[str, Any] = {"extra": {}, "source": fact.module.value}

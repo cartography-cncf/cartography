@@ -26,7 +26,21 @@ def _run_fact(
     output_format: str,
     neo4j_uri: str,
 ) -> FactResult:
-    """Execute a single fact and return the result."""
+    """
+    Execute a single fact and return the result.
+
+    Args:
+        fact (Fact): The Fact to execute.
+        rule (Rule): The Rule that contains this Fact.
+        driver (Driver): The Neo4j driver instance.
+        database (str): The name of the Neo4j database to query.
+        counter (CounterResult): Counter object to track execution progress and totals.
+        output_format (str): Output format, either "text" or "json".
+        neo4j_uri (str): The Neo4j URI for generating browser links.
+
+    Returns:
+        FactResult: The result of executing the Fact, including findings and metrics.
+    """
     if output_format == "text":
         print(
             f"\n\033[1mFact {counter.current_fact}/{counter.total_facts}: {fact.name}\033[0m"
@@ -125,7 +139,21 @@ def _run_single_rule(
     fact_filter: str | None = None,
     exclude_experimental: bool = False,
 ) -> RuleResult:
-    """Execute a single rule and return results."""
+    """
+    Execute a single rule and return results.
+
+    Args:
+        rule_name (str): The name of the rule to execute.
+        driver (GraphDatabase.driver): The Neo4j driver instance.
+        database (str): The name of the Neo4j database to query.
+        output_format (str): Output format, either "text" or "json".
+        neo4j_uri (str): The Neo4j URI for generating browser links.
+        fact_filter (str | None): Optional fact ID to filter execution (case-insensitive).
+        exclude_experimental (bool): Whether to exclude experimental facts from execution.
+
+    Returns:
+        RuleResult: The result of executing the rule, including all fact results and counters.
+    """
     rule = RULES[rule_name]
     counter = CounterResult()
 
@@ -184,15 +212,19 @@ def run_rules(
     """
     Execute the specified rules and present results.
 
-    :param rule_names: The names of the rules to execute.
-    :param uri: The URI of the Neo4j database. E.g. "bolt://localhost:7687" or "neo4j+s://tenant123.databases.neo4j.io:7687"
-    :param neo4j_user: The username for the Neo4j database.
-    :param neo4j_password: The password for the Neo4j database.
-    :param neo4j_database: The name of the Neo4j database.
-    :param output_format: Either "text" or "json". Defaults to "text".
-    :param fact_filter: Optional fact ID to filter execution (case-insensitive).
-    :param exclude_experimental: Whether to exclude experimental facts from execution.
-    :return: The exit code.
+    Args:
+        rule_names (list[str]): The names of the rules to execute.
+        uri (str): The URI of the Neo4j database.
+            E.g. "bolt://localhost:7687" or "neo4j+s://tenant123.databases.neo4j.io:7687"
+        neo4j_user (str): The username for the Neo4j database.
+        neo4j_password (str): The password for the Neo4j database.
+        neo4j_database (str): The name of the Neo4j database.
+        output_format (str): Either "text" or "json". Defaults to "text".
+        fact_filter (str | None): Optional fact ID to filter execution (case-insensitive).
+        exclude_experimental (bool): Whether to exclude experimental facts from execution.
+
+    Returns:
+        int: The exit code (0 for success, 1 for failure).
     """
     # Validate all rules exist
     for rule_name in rule_names:
