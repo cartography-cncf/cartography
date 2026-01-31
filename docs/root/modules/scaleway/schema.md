@@ -7,6 +7,9 @@ ORG -- RESOURCE --> APP(Application)
 ORG -- RESOURCE --> USR(User)
 ORG -- RESOURCE --> GRP(ScalewayGroup)
 ORG -- RESOURCE --> APIKEY(ScalewayApiKey)
+ORG -- RESOURCE --> POL(Policy)
+ORG -- RESOURCE --> RULE(Rule)
+ORG -- RESOURCE --> PS(PermissionSet)
 PRJ -- RESOURCE --> INS(Instance)
 PRJ -- RESOURCE --> FIP(FlexibleIp)
 PRJ -- RESOURCE --> VOL(Volume)
@@ -18,6 +21,11 @@ USR -- MEMBER_OF --> GRP(ScalewayGroup)
 USR -- HAS --> APIKEY(ScalewayApiKey)
 APP -- MEMBER_OF --> GRP(ScalewayGroup)
 APP -- HAS --> APIKEY(ScalewayApiKey)
+POL -- APPLIES_TO --> USR
+POL -- APPLIES_TO --> GRP
+POL -- APPLIES_TO --> APP
+POL -- HAS --> RULE(Rule)
+RULE -- SCOPED_TO --> PRJ
 ```
 
 ### ScalewayOrganization
@@ -32,13 +40,16 @@ Represents an Organization in Scaleway.
 | lastupdated| Timestamp of the last update                 |
 
 #### Relationships
-- `Project`, `Application`, `User`, `ApiKey` belong to a `ScalewayOrganization`.
+- `Project`, `Application`, `User`, `ApiKey`, `Policy`, `Rule`, `PermissionSet` belong to a `ScalewayOrganization`.
     ```
     (:ScalewayOrganization)-[:RESOURCE]->(
         :ScalewayProject,
         :ScalewayApplication,
         :ScalewayUser,
-        :ScalewayApiKey
+        :ScalewayApiKey,
+        :ScalewayPolicy,
+        :ScalewayRule,
+        :ScalewayPermissionSet
     )
     ```
 
@@ -207,6 +218,91 @@ Represents an ApiKey in Scaleway.
     ```
     (:ScalewayUser)-[:HAS]->(:ScalewayApiKey)
     (:ScalewayApplication)-[:HAS]->(:ScalewayApiKey)
+    ```
+
+
+### ScalewayPolicy
+
+Represents an IAM Policy in Scaleway. Policies define permissions for users, groups, or applications.
+
+| Field             | Description                                  |
+|-------------------|----------------------------------------------|
+| id                | ID of the policy.                            |
+| name              | Name of the policy.                          |
+| description       | Description of the policy.                   |
+| created_at        | Date and time of policy creation.            |
+| updated_at        | Date and time of last policy update.         |
+| editable          | Defines whether or not the policy is editable. |
+| deletable         | Defines whether or not the policy is deletable. |
+| managed           | Defines whether or not the policy is managed. |
+| tags              | Tags associated with the policy.             |
+| nb_rules          | Number of rules in the policy.               |
+| nb_scopes         | Number of scopes in the policy.              |
+| nb_permission_sets| Number of permission sets in the policy.     |
+| no_principal      | True if the policy has no principal attached. |
+| lastupdated       | Timestamp of the last update                 |
+
+#### Relationships
+- `Policy` belongs to an `Organization`.
+    ```
+    (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayPolicy)
+    ```
+- `Policy` applies to a `User`, `Group`, or `Application`.
+    ```
+    (:ScalewayPolicy)-[:APPLIES_TO]->(:ScalewayUser)
+    (:ScalewayPolicy)-[:APPLIES_TO]->(:ScalewayGroup)
+    (:ScalewayPolicy)-[:APPLIES_TO]->(:ScalewayApplication)
+    ```
+- `Policy` has `Rule`s.
+    ```
+    (:ScalewayPolicy)-[:HAS]->(:ScalewayRule)
+    ```
+
+
+### ScalewayRule
+
+Represents an IAM Rule within a Policy. Rules define which permission sets apply and to which projects.
+
+| Field                    | Description                                  |
+|--------------------------|----------------------------------------------|
+| id                       | ID of the rule.                              |
+| permission_sets_scope_type | Scope type of the permission sets.         |
+| condition                | Condition for the rule.                      |
+| permission_set_names     | Names of the permission sets granted by this rule. |
+| lastupdated              | Timestamp of the last update                 |
+
+#### Relationships
+- `Rule` belongs to an `Organization`.
+    ```
+    (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayRule)
+    ```
+- `Rule` belongs to a `Policy`.
+    ```
+    (:ScalewayPolicy)-[:HAS]->(:ScalewayRule)
+    ```
+- `Rule` is scoped to `Project`s.
+    ```
+    (:ScalewayRule)-[:SCOPED_TO]->(:ScalewayProject)
+    ```
+
+
+### ScalewayPermissionSet
+
+Represents a Permission Set in Scaleway. Permission sets are predefined collections of permissions.
+
+| Field       | Description                                  |
+|-------------|----------------------------------------------|
+| id          | ID of the permission set.                    |
+| name        | Name of the permission set.                  |
+| scope_type  | Scope type of the permission set.            |
+| description | Description of the permission set.           |
+| categories  | Categories of the permission set.            |
+| lastupdated | Timestamp of the last update                 |
+
+#### Relationships
+- `PermissionSet` belongs to an `Organization`.
+    ```
+    (:ScalewayOrganization)-[:RESOURCE]->(:ScalewayPermissionSet)
     ```
 
 
