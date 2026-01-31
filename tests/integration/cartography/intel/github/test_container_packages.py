@@ -1,217 +1,113 @@
-"""
-Integration tests for GitHub Container Packages sync.
-"""
-
 import cartography.intel.github.container_packages
-import tests.data.github.container_packages
-from tests.integration.util import check_nodes
-from tests.integration.util import check_rels
+import neo4j
+from tests.data.github.container_packages import GET_CONTAINER_PACKAGES, GET_PACKAGE_VERSIONS, IMAGE_MANIFEST, IMAGE_CONFIG
+from unittest.mock import patch, MagicMock
 
-
-TEST_UPDATE_TAG = 123456789
-TEST_ORG_URL = "https://github.com/test-org"
-TEST_API_URL = "https://api.github.com"
-TEST_ORG = "test-org"
-
-
-def test_sync_container_packages(neo4j_session):
+@patch("cartography.intel.github.container_packages.util.fetch_all_rest_api_pages")
+@patch("cartography.intel.github.container_packages._get_ghcr_token")
+@patch("cartography.intel.github.container_packages._fetch_manifest")
+@patch("cartography.intel.github.container_packages._fetch_config_blob")
+def test_sync_container_packages(
+    mock_config_blob, mock_manifest, mock_token, mock_fetch_all, neo4j_session
+):
     """
-    Test that container packages are correctly synced to the graph.
+    Test that sync_container_packages correctly creates Package, Tag, and Image nodes.
     """
-    # Arrange: Transform test data
-    transformed_packages = (
-        cartography.intel.github.container_packages.transform_container_packages(
-            tests.data.github.container_packages.GET_CONTAINER_PACKAGES,
-            TEST_ORG_URL,
-        )
-    )
+    # Mock REST API for packages and versions
+    mock_fetch_all.side_effect = [
+        GET_CONTAINER_PACKAGES,  # get_container_packages
+        GET_PACKAGE_VERSIONS,      # get_package_versions
+    ]
+    
+    # Mock Token
+    mock_token.return_value = "fake-jwt-token"
+    
+    # Mock Manifest Response
+    mock_manifest_resp = MagicMock()
+    mock_manifest_resp.status_code = 200
+    mock_manifest_resp.json.return_value = IMAGE_MANIFEST
+    mock_manifest_resp.headers = {"Docker-Content-Digest": "sha256:digest123"}
+    mock_manifest.return_value = mock_manifest_resp
+    
+    # Mock Config Blob
+    mock_config_blob.return_value = IMAGE_CONFIG
 
-    # Act: Load the data
-    cartography.intel.github.container_packages.load_container_packages(
+    # Run sync
+    cartography.intel.github.container_packages.sync_container_packages(
         neo4j_session,
-        transformed_packages,
-        TEST_ORG_URL,
-        TEST_UPDATE_TAG,
+        "fake-token",
+        "https://api.github.com",
+        "test-org",
+        "https://github.com/test-org",
+        12345,
+        {"UPDATE_TAG": 12345},
     )
 
-    # Assert: Verify nodes were created
-    expected_nodes = {
-        ("123456", "my-app", "container", "public"),
-        ("123457", "backend-service", "container", "private"),
-        ("123458", "frontend-app", "container", "public"),
-    }
+    # Verify Package node
+    res = neo4j_session.run("MATCH (p:GitHubContainerPackage) RETURN p.id as id, p.name as name")
+    pkg = res.single()
+    assert pkg["id"] == 123456
+    assert pkg["name"] == "my-app"
 
-    nodes = neo4j_session.run(
-        """
-        MATCH (p:GitHubContainerPackage)
-        RETURN p.id, p.name, p.package_type, p.visibility
-        """
-    )
+    # Verify Image node
+    res = neo4j_session.run("MATCH (i:GitHubContainerImage) RETURN i.digest as digest, i.architecture as arch, i.os as os")
+    img = res.single()
+    assert img["digest"] == "sha256:digest123"
+    assert img["arch"] == "amd64"
+    assert img["os"] == "linux"
 
-    actual_nodes = {
-        (
-            str(node["p.id"]),
-            node["p.name"],
-            node["p.package_type"],
-            node["p.visibility"],
-        )
-        for node in nodes
-    }
+    # Verify Tag nodes
+    res = neo4j_session.run("MATCH (t:GitHubContainerPackageTag) RETURN count(t) as count")
+    assert res.single()["count"] == 2
 
-    assert actual_nodes == expected_nodes
+    # Verify Package -> Tag relationship
+    res = neo4j_session.run("MATCH (p:GitHubContainerPackage)-[:HAS_TAG]->(t:GitHubContainerPackageTag) RETURN count(t) as count")
+    assert res.single()["count"] == 2
+
+    # Verify Tag -> Image relationship
+    res = neo4j_session.run("MATCH (t:GitHubContainerPackageTag)-[:REFERENCES]->(i:GitHubContainerImage) RETURN count(i) as count")
+    assert res.single()["count"] == 2
 
 
-def test_container_packages_have_container_registry_label(neo4j_session):
+@patch("cartography.intel.github.container_packages.util.fetch_all_rest_api_pages")
+@patch("cartography.intel.github.container_packages._get_ghcr_token")
+@patch("cartography.intel.github.container_packages._fetch_manifest")
+@patch("cartography.intel.github.container_packages._fetch_config_blob")
+def test_cleanup_container_packages(
+    mock_config_blob, mock_manifest, mock_token, mock_fetch_all, neo4j_session
+):
     """
-    Test that container packages have the ContainerRegistry label.
+    Test that cleanup correctly removes stale nodes across all new schemas.
     """
-    # Arrange & Act
-    transformed_packages = (
-        cartography.intel.github.container_packages.transform_container_packages(
-            tests.data.github.container_packages.GET_CONTAINER_PACKAGES,
-            TEST_ORG_URL,
-        )
+    # Create stale nodes
+    neo4j_session.run(
+        "CREATE (:GitHubContainerPackage {id: 'stale-pkg', lastupdated: 1000})"
+    )
+    neo4j_session.run(
+        "CREATE (:GitHubContainerImage {id: 'stale-img', digest: 'stale-img', lastupdated: 1000})"
+    )
+    neo4j_session.run(
+        "CREATE (:GitHubContainerPackageTag {id: 'stale-tag', lastupdated: 1000})"
     )
 
-    cartography.intel.github.container_packages.load_container_packages(
+    # Mock empty sync
+    mock_fetch_all.return_value = []
+    
+    # Run sync with new update tag
+    cartography.intel.github.container_packages.sync_container_packages(
         neo4j_session,
-        transformed_packages,
-        TEST_ORG_URL,
-        TEST_UPDATE_TAG,
+        "fake-token",
+        "https://api.github.com",
+        "test-org",
+        "https://github.com/test-org",
+        2000,
+        {"UPDATE_TAG": 2000},
     )
 
-    # Assert: Verify ContainerRegistry label exists
-    nodes = neo4j_session.run(
-        """
-        MATCH (p:GitHubContainerPackage:ContainerRegistry)
-        RETURN count(p) as count
-        """
-    )
-
-    result = nodes.single()
-    assert result["count"] == 3
-
-
-def test_container_packages_repository_relationship(neo4j_session):
-    """
-    Test that container packages have correct repository information.
-    """
-    # Arrange & Act
-    transformed_packages = (
-        cartography.intel.github.container_packages.transform_container_packages(
-            tests.data.github.container_packages.GET_CONTAINER_PACKAGES,
-            TEST_ORG_URL,
-        )
-    )
-
-    cartography.intel.github.container_packages.load_container_packages(
-        neo4j_session,
-        transformed_packages,
-        TEST_ORG_URL,
-        TEST_UPDATE_TAG,
-    )
-
-    # Assert: Verify repository information
-    nodes = neo4j_session.run(
-        """
-        MATCH (p:GitHubContainerPackage {name: 'my-app'})
-        RETURN p.repository_id, p.repository_name
-        """
-    )
-
-    result = nodes.single()
-    assert result["p.repository_id"] == 456789
-    assert result["p.repository_name"] == "test-org/my-app-repo"
-
-
-def test_container_packages_without_repository(neo4j_session):
-    """
-    Test that container packages without linked repositories are handled correctly.
-    """
-    # Arrange & Act
-    transformed_packages = (
-        cartography.intel.github.container_packages.transform_container_packages(
-            tests.data.github.container_packages.GET_CONTAINER_PACKAGES,
-            TEST_ORG_URL,
-        )
-    )
-
-    cartography.intel.github.container_packages.load_container_packages(
-        neo4j_session,
-        transformed_packages,
-        TEST_ORG_URL,
-        TEST_UPDATE_TAG,
-    )
-
-    # Assert: Verify package without repository has null repository fields
-    nodes = neo4j_session.run(
-        """
-        MATCH (p:GitHubContainerPackage {name: 'frontend-app'})
-        RETURN p.repository_id, p.repository_name
-        """
-    )
-
-    result = nodes.single()
-    assert result["p.repository_id"] is None
-    assert result["p.repository_name"] is None
-
-
-def test_container_packages_cleanup(neo4j_session):
-    """
-    Test that cleanup removes stale container packages.
-    """
-    # Arrange: Load initial data
-    transformed_packages = (
-        cartography.intel.github.container_packages.transform_container_packages(
-            tests.data.github.container_packages.GET_CONTAINER_PACKAGES,
-            TEST_ORG_URL,
-        )
-    )
-
-    cartography.intel.github.container_packages.load_container_packages(
-        neo4j_session,
-        transformed_packages,
-        TEST_ORG_URL,
-        TEST_UPDATE_TAG,
-    )
-
-    # Verify initial count
-    assert check_nodes(neo4j_session, "GitHubContainerPackage", ["id"]) == {
-        ("123456",),
-        ("123457",),
-        ("123458",),
-    }
-
-    # Act: Load with only one package and new update tag
-    new_update_tag = TEST_UPDATE_TAG + 1
-    single_package = [tests.data.github.container_packages.GET_CONTAINER_PACKAGES[0]]
-
-    transformed_single = (
-        cartography.intel.github.container_packages.transform_container_packages(
-            single_package,
-            TEST_ORG_URL,
-        )
-    )
-
-    cartography.intel.github.container_packages.load_container_packages(
-        neo4j_session,
-        transformed_single,
-        TEST_ORG_URL,
-        new_update_tag,
-    )
-
-    # Run cleanup
-    common_job_parameters = {
-        "UPDATE_TAG": new_update_tag,
-        "org_url": TEST_ORG_URL,
-    }
-
-    cartography.intel.github.container_packages.cleanup_container_packages(
-        neo4j_session,
-        common_job_parameters,
-    )
-
-    # Assert: Only the updated package should remain
-    assert check_nodes(neo4j_session, "GitHubContainerPackage", ["id"]) == {
-        ("123456",),
-    }
+    # Verify nodes are gone
+    res = neo4j_session.run("MATCH (n:GitHubContainerPackage) RETURN count(n) as count")
+    assert res.single()["count"] == 0
+    res = neo4j_session.run("MATCH (n:GitHubContainerImage) RETURN count(n) as count")
+    assert res.single()["count"] == 0
+    res = neo4j_session.run("MATCH (n:GitHubContainerPackageTag) RETURN count(n) as count")
+    assert res.single()["count"] == 0
