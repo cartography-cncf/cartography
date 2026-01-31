@@ -5,6 +5,7 @@ from typing import cast
 
 import neo4j
 
+import cartography.intel.github.actions
 import cartography.intel.github.commits
 import cartography.intel.github.repos
 import cartography.intel.github.teams
@@ -75,6 +76,15 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             auth_data["name"],
         )
         cartography.intel.github.teams.sync_github_teams(
+            neo4j_session,
+            common_job_parameters,
+            auth_data["token"],
+            auth_data["url"],
+            auth_data["name"],
+        )
+
+        # Sync GitHub Actions (workflows, secrets, variables, environments)
+        cartography.intel.github.actions.sync(
             neo4j_session,
             common_job_parameters,
             auth_data["token"],
