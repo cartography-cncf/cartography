@@ -7,6 +7,7 @@ O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
 O -- RESOURCE --> T(GitHubTeam)
 O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
+O -- RESOURCE --> CP(GitHubContainerPackage)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
@@ -598,3 +599,37 @@ Unlike secrets, variable **values are stored in plaintext**.
     ```
     (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "environment"})
     ```
+
+
+### GitHubContainerPackage
+
+Represents a container package stored in GitHub Container Registry (GHCR). Container packages are OCI-compliant container images that can be associated with repositories or organizations.
+
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., GitLabContainerRepository, ECRRepository).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The GitHub package ID |
+| **name** | Name of the container package (e.g., `my-app`, `backend-service`) |
+| **package_type** | Type of package (always `container` for GHCR packages) |
+| **visibility** | Visibility of the package: `public`, `private`, or `internal` |
+| **url** | API URL for the package |
+| **html_url** | Web URL for viewing the package in the GitHub UI |
+| **created_at** | Timestamp when the package was created |
+| **updated_at** | Timestamp when the package was last updated |
+| **owner_login** | Login name of the package owner (organization or user) |
+| **owner_type** | Type of owner: `Organization` or `User` |
+| **repository_id** | ID of the linked repository (if any) |
+| **repository_name** | Full name of the linked repository (e.g., `org/repo`) |
+
+#### Relationships
+
+- GitHubOrganizations have GitHubContainerPackages as resources.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerPackage)
+    ```
+
+    This relationship enables organization-scoped cleanup of container packages.
