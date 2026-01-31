@@ -26,6 +26,7 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
                                        :KubernetesContainer,
                                        :KubernetesService,
                                        :KubernetesSecret,
+                                       :KubernetesIngress,
                                        :KubernetesUser,
                                        :KubernetesGroup,
                                        :KubernetesServiceAccount,
@@ -63,6 +64,7 @@ Representation of a [Kubernetes Namespace.](https://kubernetes.io/docs/concepts/
                                          :KubernetesContainer,
                                          :KubernetesService,
                                          :KubernetesSecret,
+                                         :KubernetesIngress,
                                          :KubernetesServiceAccount,
                                          :KubernetesRole,
                                          :KubernetesRoleBinding,
@@ -159,6 +161,44 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 - `KubernetesService` of type `LoadBalancer` uses an AWS `AWSLoadBalancerV2` (NLB/ALB). The relationship is matched by DNS hostname from the Kubernetes service's `status.loadBalancer.ingress[].hostname` field to the `AWSLoadBalancerV2.dnsname` property. This allows linking EKS services to their backing AWS load balancers.
     ```
     (:KubernetesService)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
+    ```
+
+### KubernetesIngress
+Representation of a [Kubernetes Ingress.](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+
+An Ingress is an API object that manages external access to services in a cluster, typically HTTP. Ingress may provide load balancing, SSL termination, and name-based virtual hosting.
+
+| Field | Description |
+|-------|-------------|
+| id | UID of the Kubernetes Ingress |
+| name | Name of the Kubernetes Ingress |
+| namespace | The Kubernetes namespace where this Ingress is deployed |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes Ingress |
+| deletion\_timestamp | Timestamp of the deletion time of the Kubernetes Ingress |
+| ingress\_class\_name | The name of the IngressClass cluster resource. Specifies which controller will implement the ingress (e.g. `nginx`, `alb`) |
+| rules | The list of host rules used to configure the Ingress. Stored as a JSON-encoded string containing host/path routing rules |
+| annotations | Annotations on the Ingress resource. Stored as a JSON-encoded string. Contains controller-specific configuration |
+| default\_backend | A default backend capable of servicing requests that don't match any rule. Stored as a JSON-encoded string |
+| cluster\_name | Name of the Kubernetes cluster where this Ingress is deployed |
+| ingress\_group\_name | The ingress group name from the `alb.ingress.kubernetes.io/group.name` annotation (AWS Load Balancer Controller). Allows multiple Ingresses to share a single ALB |
+| load\_balancer\_dns\_names | List of DNS hostnames from the Ingress status. Used to match to cloud load balancers (e.g., AWS ALB) |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesIngress` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesIngress)
+    ```
+
+- `KubernetesIngress` is contained in a `KubernetesNamespace`.
+    ```
+    (:KubernetesNamespace)-[:CONTAINS]->(:KubernetesIngress)
+    ```
+
+- `KubernetesIngress` targets `KubernetesService`. Routes traffic to backend services based on the configured rules.
+    ```
+    (:KubernetesIngress)-[:TARGETS]->(:KubernetesService)
     ```
 
 ### KubernetesSecret
