@@ -27,7 +27,7 @@ class SecretsManagerSecretVersionNodeProperties(CartographyNodeProperties):
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     # Make KMS and tags properties without required=False parameter
-    kms_key_id: PropertyRef = PropertyRef("KmsKeyId")
+    kms_key_ids: PropertyRef = PropertyRef("kms_key_ids")
     tags: PropertyRef = PropertyRef("Tags")
 
 
@@ -79,12 +79,12 @@ class SecretsManagerSecretVersionToSecretRel(CartographyRelSchema):
 class SecretsManagerSecretVersionToKMSKeyRel(CartographyRelSchema):
     """
     Relationship between Secret Version and its KMS key
-    Only created when KmsKeyId is present
+    Only created when kms_key_ids is present
     """
 
-    target_node_label: str = "AWSKMSKey"
+    target_node_label: str = "KMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("KmsKeyId")},
+        {"arn": PropertyRef("kms_key_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ENCRYPTED_BY"

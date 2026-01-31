@@ -5,7 +5,7 @@ from unittest.mock import patch
 import cartography.intel.aws.ecr
 import cartography.intel.trivy
 import tests.data.aws.ecr
-from cartography.intel.trivy import sync_trivy_aws_ecr_from_s3
+from cartography.intel.trivy import sync_trivy_from_s3
 from tests.data.trivy.trivy_sample import TRIVY_SAMPLE
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.cartography.intel.trivy.test_helpers import (
@@ -76,7 +76,7 @@ def test_sync_trivy_aws_ecr(
         s3_client_mock.get_object.return_value = {"Body": mock_response_body}
 
         # Act
-        sync_trivy_aws_ecr_from_s3(
+        sync_trivy_from_s3(
             neo4j_session,
             "test-bucket",
             "trivy-scans/",

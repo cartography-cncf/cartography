@@ -7,6 +7,9 @@ from neo4j import Session
 
 from cartography.client.aws import list_accounts
 from cartography.client.aws.ecr import get_ecr_images
+from cartography.client.gcp.artifact_registry import get_gcp_container_images
+from cartography.client.gitlab.container_images import get_gitlab_container_images
+from cartography.client.gitlab.container_images import get_gitlab_container_tags
 from cartography.config import Config
 from cartography.intel.trivy.scanner import cleanup
 from cartography.intel.trivy.scanner import get_json_files_in_dir
@@ -19,12 +22,12 @@ logger = logging.getLogger(__name__)
 stat_handler = get_stats_client("trivy.scanner")
 
 
-def _get_scan_targets_and_aliases(
+def _get_ecr_scan_targets_and_aliases(
     neo4j_session: Session,
     account_ids: list[str] | None = None,
 ) -> tuple[set[str], dict[str, str]]:
     """
-    Return tag URIs and a mapping of digest-qualified URIs to tag URIs.
+    Return ECR tag URIs and a mapping of digest-qualified URIs to tag URIs.
     """
     if not account_ids:
         aws_accounts = list_accounts(neo4j_session)
@@ -44,6 +47,103 @@ def _get_scan_targets_and_aliases(
                 repo_uri = image_uri.rsplit(":", 1)[0]
                 digest_uri = f"{repo_uri}@{digest}"
                 digest_aliases[digest_uri] = image_uri
+
+    return image_uris, digest_aliases
+
+
+def _get_gcp_scan_targets_and_aliases(
+    neo4j_session: Session,
+) -> tuple[set[str], dict[str, str]]:
+    """
+    Return GCP Artifact Registry container image URIs and a mapping of digest-qualified URIs to tag URIs.
+    Matches ECR's pattern for consistency.
+    """
+    image_uris: set[str] = set()
+    digest_aliases: dict[str, str] = {}
+
+    for _, _, image_uri, _, digest in get_gcp_container_images(neo4j_session):
+        if not image_uri:
+            continue
+        image_uris.add(image_uri)
+        if digest:
+            # repo URI is everything before the trailing ":" (if present)
+            repo_uri = image_uri.rsplit(":", 1)[0]
+            digest_uri = f"{repo_uri}@{digest}"
+            digest_aliases[digest_uri] = image_uri
+
+    return image_uris, digest_aliases
+
+
+def _get_gitlab_scan_targets_and_aliases(
+    neo4j_session: Session,
+) -> tuple[set[str], dict[str, str]]:
+    """
+    Return GitLab container image URIs and a mapping of digest-qualified URIs to URIs.
+
+    Includes both base URIs (from GitLabContainerImage nodes) and tagged URIs
+    (from GitLabContainerRepositoryTag nodes) to support matching against both
+    RepoTags and RepoDigests in Trivy scan results.
+    """
+    image_uris: set[str] = set()
+    digest_aliases: dict[str, str] = {}
+
+    # Get base URIs from container images
+    for uri, digest in get_gitlab_container_images(neo4j_session):
+        if not uri:
+            continue
+        image_uris.add(uri)
+        if digest:
+            # Map digest-qualified URI to base URI
+            # e.g., registry.gitlab.com/group/project@sha256:abc -> registry.gitlab.com/group/project
+            digest_uri = f"{uri}@{digest}"
+            digest_aliases[digest_uri] = uri
+
+    # Get tagged URIs from container repository tags
+    # This enables matching against RepoTags in Trivy output (e.g., locally built images)
+    for tag_location, digest in get_gitlab_container_tags(neo4j_session):
+        if not tag_location:
+            continue
+
+        # Add the tagged URI to image_uris for direct matching
+        # e.g., registry.gitlab.com/group/project:v1.0.0
+        image_uris.add(tag_location)
+
+        if digest:
+            # Also create digest alias mapping for this tag
+            # Strip the tag to get the repository URI
+            repo_uri = (
+                tag_location.rsplit(":", 1)[0] if ":" in tag_location else tag_location
+            )
+            digest_uri = f"{repo_uri}@{digest}"
+            # Prefer tagged URI over base URI for display purposes
+            # Don't overwrite if already exists (first tag wins)
+            if digest_uri not in digest_aliases:
+                digest_aliases[digest_uri] = tag_location
+
+    return image_uris, digest_aliases
+
+
+def _get_scan_targets_and_aliases(
+    neo4j_session: Session,
+    account_ids: list[str] | None = None,
+) -> tuple[set[str], dict[str, str]]:
+    """
+    Return image URIs and digest aliases for ECR, GCP, and GitLab container images.
+    """
+    # Get ECR targets
+    ecr_uris, ecr_aliases = _get_ecr_scan_targets_and_aliases(
+        neo4j_session, account_ids
+    )
+
+    # Get GCP targets
+    gcp_uris, gcp_aliases = _get_gcp_scan_targets_and_aliases(neo4j_session)
+
+    # Get GitLab targets
+    gitlab_uris, gitlab_aliases = _get_gitlab_scan_targets_and_aliases(neo4j_session)
+
+    # Merge results
+    image_uris = ecr_uris | gcp_uris | gitlab_uris
+    digest_aliases = {**ecr_aliases, **gcp_aliases, **gitlab_aliases}
 
     return image_uris, digest_aliases
 
@@ -109,7 +209,7 @@ def _prepare_trivy_data(
 
 
 @timeit
-def sync_trivy_aws_ecr_from_s3(
+def sync_trivy_from_s3(
     neo4j_session: Session,
     trivy_s3_bucket: str,
     trivy_s3_prefix: str,
@@ -118,7 +218,7 @@ def sync_trivy_aws_ecr_from_s3(
     boto3_session: boto3.Session,
 ) -> None:
     """
-    Sync Trivy scan results from S3 for AWS ECR images.
+    Sync Trivy scan results from S3 for container images (ECR, GCP, and GitLab).
 
     Args:
         neo4j_session: Neo4j session for database operations
@@ -139,14 +239,14 @@ def sync_trivy_aws_ecr_from_s3(
 
     if len(json_files) == 0:
         logger.error(
-            f"Trivy sync was configured, but there are no ECR images with S3 json scan results in bucket "
+            f"Trivy sync was configured, but there are no json scan results in bucket "
             f"'{trivy_s3_bucket}' with prefix '{trivy_s3_prefix}'. "
             "Skipping Trivy sync to avoid potential data loss. "
             "Please check the S3 bucket and prefix configuration. We expect the json files in s3 to be named "
             f"`<image_uri>.json` and to be in the same bucket and prefix as the scan results. If the prefix is "
             "a folder, it MUST end with a trailing slash '/'. "
         )
-        raise ValueError("No ECR images with S3 json scan results found.")
+        raise ValueError("No json scan results found in S3.")
 
     logger.info(f"Processing {len(json_files)} Trivy result files from S3")
     s3_client = boto3_session.client("s3")
@@ -179,13 +279,13 @@ def sync_trivy_aws_ecr_from_s3(
 
 
 @timeit
-def sync_trivy_aws_ecr_from_dir(
+def sync_trivy_from_dir(
     neo4j_session: Session,
     results_dir: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    """Sync Trivy scan results from local files for AWS ECR images."""
+    """Sync Trivy scan results from local files for container images (ECR, GCP, and GitLab)."""
     logger.info(f"Using Trivy scan results from {results_dir}")
 
     image_uris, digest_aliases = _get_scan_targets_and_aliases(neo4j_session)
@@ -243,7 +343,7 @@ def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
         common_job_parameters = {
             "UPDATE_TAG": config.update_tag,
         }
-        sync_trivy_aws_ecr_from_dir(
+        sync_trivy_from_dir(
             neo4j_session,
             config.trivy_results_dir,
             config.update_tag,
@@ -260,7 +360,7 @@ def start_trivy_ingestion(neo4j_session: Session, config: Config) -> None:
 
     boto3_session = boto3.Session()
 
-    sync_trivy_aws_ecr_from_s3(
+    sync_trivy_from_s3(
         neo4j_session,
         config.trivy_s3_bucket,
         config.trivy_s3_prefix,

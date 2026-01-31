@@ -351,7 +351,7 @@ aws_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(ontology_field="username", node_field="name"),
                 OntologyFieldMapping(
-                    ontology_field="lastactivity", node_field="passwordlastused"
+                    ontology_field="lastactivity", node_field="last_authenticated"
                 ),
             ],
         ),
@@ -389,6 +389,26 @@ slack_mapping = OntologyMapping(
         ),
     ],
 )
+spacelift_mapping = OntologyMapping(
+    module_name="spacelift",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SpaceliftUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                # firstname: not available in SpaceliftUser
+                # lastname: not available in SpaceliftUser
+                # has_mfa: not available in SpaceliftUser
+                # active/inactive: not available in SpaceliftUser
+                # lastactivity: not available in SpaceliftUser
+            ],
+        ),
+    ],
+)
 
 # UserAccount fields:
 # has_mfa
@@ -413,4 +433,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "googleworkspace": googleworkspace_mapping,
     "slack": slack_mapping,
+    "spacelift": spacelift_mapping,
 }
