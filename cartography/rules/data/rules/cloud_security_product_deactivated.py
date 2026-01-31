@@ -26,6 +26,11 @@ aws_guard_duty_detector_disabled = Fact(
     }
     RETURN *
     """,
+    cypher_count_query="""
+    MATCH (a:AWSAccount)-[:RESOURCE]-(r:EC2Instance|EKSCluster|AWSLambda|ECSCluster|RDSInstance|RDSCluster)
+    WITH DISTINCT a, r.region AS region
+    RETURN COUNT(*) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )

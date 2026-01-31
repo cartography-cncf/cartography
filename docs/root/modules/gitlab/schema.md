@@ -5,11 +5,10 @@ graph LR
 
 O(GitLabOrganization) -- RESOURCE --> G(GitLabGroup)
 O -- RESOURCE --> P(GitLabProject)
+O -- RESOURCE --> U(GitLabUser)
 G -- MEMBER_OF --> G
 P -- MEMBER_OF --> G
-U(GitLabUser) -- MEMBER_OF --> O
 U -- MEMBER_OF --> G
-U -- MEMBER_OF --> P
 U -- COMMITTED_TO --> P
 P -- RESOURCE --> B(GitLabBranch)
 P -- RESOURCE --> DF(GitLabDependencyFile)
@@ -25,6 +24,10 @@ CR -- HAS_TAG --> CT
 CT -- REFERENCES --> CI
 CI -- CONTAINS_IMAGE --> CI
 CA -- ATTESTS --> CI
+
+%% Trivy Vulnerability Scanning
+TIF(TrivyImageFinding) -- AFFECTS --> CI
+PKG(Package) -- DEPLOYED --> CI
 ```
 
 ### GitLabOrganization
@@ -58,14 +61,11 @@ Representation of a GitLab top-level group (organization). In GitLab, organizati
     (GitLabOrganization)-[RESOURCE]->(GitLabProject)
     ```
 
-- GitLabUsers can be members of GitLabOrganizations with different access levels.
+- GitLabOrganizations contain GitLabUsers.
 
     ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabOrganization)
+    (GitLabOrganization)-[RESOURCE]->(GitLabUser)
     ```
-
-    The `role` property can be: owner, maintainer, developer, reporter, guest.
-    The `access_level` property corresponds to GitLab's numeric levels: 50, 40, 30, 20, 10.
 
 ### GitLabGroup
 
@@ -110,9 +110,9 @@ Representation of a GitLab nested subgroup. Groups can contain other groups (cre
     (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabGroup)
     ```
 
-### GitLabProject
+### GitLabProject:GitLabRepository
 
-Representation of a GitLab project (repository). Projects are GitLab's equivalent of repositories and can belong to organizations or groups.
+Representation of a GitLab project (repository). Projects are GitLab's equivalent of repositories and can belong to organizations or groups. The `GitLabRepository` label is included for backwards compatibility with existing queries.
 
 | Field | Description |
 |-------|--------------|
@@ -179,25 +179,18 @@ ORDER BY project_count DESC
     (GitLabProject)-[MEMBER_OF]->(GitLabGroup)
     ```
 
-- GitLabUsers can be members of GitLabProjects with different access levels.
-
-    ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabProject)
-    ```
-
-    The `role` property can be: owner, maintainer, developer, reporter, guest.
-    The `access_level` property corresponds to GitLab's numeric levels: 50, 40, 30, 20, 10.
-
 - GitLabUsers who have committed to GitLabProjects are tracked with commit activity data.
 
     ```
-    (GitLabUser)-[COMMITTED_TO]->(GitLabProject)
+    (GitLabUser)-[COMMITTED_TO{commit_count, last_commit_date, first_commit_date}]->(GitLabProject)
     ```
 
     This relationship includes the following properties:
     - **commit_count**: Number of commits made by the user to the project
     - **last_commit_date**: Timestamp of the user's most recent commit to the project
     - **first_commit_date**: Timestamp of the user's oldest commit to the project
+
+    Commit authors are matched to GitLab users by display name. Only commits from current members are tracked.
 
 - GitLabProjects have GitLabBranches.
 
@@ -219,7 +212,9 @@ ORDER BY project_count DESC
 
 ### GitLabUser
 
-Representation of a GitLab user. Users can be members of organizations, groups, and projects.
+Representation of a GitLab user. Users belong to an organization and can be members of groups. Commit activity is tracked to show which users have contributed code to projects.
+
+**Note:** Only current members of the organization and its groups are synced. Former members and external contributors who are not current members are not tracked.
 
 | Field | Description |
 |-------|--------------|
@@ -234,29 +229,28 @@ Representation of a GitLab user. Users can be members of organizations, groups, 
 
 #### Relationships
 
-- GitLabUsers can be members of GitLabOrganizations.
+- GitLabUsers belong to GitLabOrganizations (for cleanup scoping).
 
     ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabOrganization)
+    (GitLabOrganization)-[RESOURCE]->(GitLabUser)
     ```
 
-- GitLabUsers can be members of GitLabGroups.
+- GitLabUsers can be members of GitLabGroups with access levels.
 
     ```
     (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabGroup)
     ```
 
-- GitLabUsers can be members of GitLabProjects.
+    The `role` property can be: owner, maintainer, developer, reporter, guest.
+    The `access_level` property corresponds to GitLab's numeric levels: 50, 40, 30, 20, 10.
 
-    ```
-    (GitLabUser)-[MEMBER_OF{role, access_level}]->(GitLabProject)
-    ```
-
-- GitLabUsers who have committed to GitLabProjects are tracked.
+- GitLabUsers who have committed to GitLabProjects are tracked with commit activity.
 
     ```
     (GitLabUser)-[COMMITTED_TO{commit_count, last_commit_date, first_commit_date}]->(GitLabProject)
     ```
+
+    This relationship is created by analyzing git commits and matching commit authors (by name) to current GitLab members.
 
 ### GitLabBranch
 
@@ -337,6 +331,8 @@ Representation of a software dependency from GitLab's dependency scanning artifa
 
 Representation of a GitLab container registry repository. Each project can have multiple container repositories at different paths (e.g., project root, /app, /worker).
 
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
@@ -414,6 +410,7 @@ Representation of a container image identified by its digest. Images are content
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The image digest (e.g., `sha256:abc123...`) |
 | digest | Same as id, the image digest |
+| uri | The base repository URI (e.g., `registry.gitlab.com/group/project`) |
 | media_type | OCI/Docker media type of the manifest |
 | schema_version | Manifest schema version |
 | type | Either `image` (single platform) or `manifest_list` (multi-arch) |
@@ -446,6 +443,24 @@ Representation of a container image identified by its digest. Images are content
 
     ```
     (GitLabContainerImageAttestation)-[ATTESTS]->(GitLabContainerImage)
+    ```
+
+- TrivyImageFindings affect GitLabContainerImages.
+
+    ```
+    (TrivyImageFinding)-[AFFECTS]->(GitLabContainerImage)
+    ```
+
+- Packages are deployed in GitLabContainerImages.
+
+    ```
+    (Package)-[DEPLOYED]->(GitLabContainerImage)
+    ```
+
+- KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
+
+    ```
+    (KubernetesContainer)-[HAS_IMAGE]->(GitLabContainerImage)
     ```
 
 ### GitLabContainerImageAttestation
@@ -507,4 +522,31 @@ MATCH (org:GitLabOrganization)-[:RESOURCE]->(repo:GitLabContainerRepository)
 OPTIONAL MATCH (repo)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)
 OPTIONAL MATCH (tag)-[:REFERENCES]->(img:GitLabContainerImage)
 RETURN org.name, repo.name, tag.name, img.digest
+```
+
+#### Trivy Integration Queries
+
+Find all vulnerabilities affecting GitLab container images:
+
+```cypher
+MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(img:GitLabContainerImage)
+RETURN vuln.name, vuln.severity, img.uri, img.digest
+ORDER BY vuln.severity DESC
+```
+
+Find packages deployed in GitLab container images with their vulnerabilities:
+
+```cypher
+MATCH (pkg:Package)-[:DEPLOYED]->(img:GitLabContainerImage)
+OPTIONAL MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(pkg)
+RETURN img.uri, pkg.name, pkg.installed_version, collect(vuln.name) AS vulnerabilities
+```
+
+Find critical vulnerabilities in GitLab images with available fixes:
+
+```cypher
+MATCH (vuln:TrivyImageFinding {severity: 'CRITICAL'})-[:AFFECTS]->(img:GitLabContainerImage)
+MATCH (vuln)-[:AFFECTS]->(pkg:Package)
+OPTIONAL MATCH (pkg)-[:SHOULD_UPDATE_TO]->(fix:TrivyFix)
+RETURN vuln.name, img.uri, pkg.name, pkg.installed_version, fix.version AS fixed_version
 ```

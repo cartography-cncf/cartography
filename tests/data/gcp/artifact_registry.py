@@ -23,6 +23,27 @@ MOCK_REPOSITORIES = [
     },
 ]
 
+# Manifest list data for multi-arch images (returned in imageManifests field)
+MOCK_MANIFEST_LIST = [
+    {
+        "digest": "sha256:def456",  # This matches what Trivy reports in trivy_gcp_sample.py
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "platform": {
+            "architecture": "amd64",
+            "os": "linux",
+        },
+    },
+    {
+        "digest": "sha256:ghi789",
+        "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "platform": {
+            "architecture": "arm64",
+            "os": "linux",
+            "variant": "v8",
+        },
+    },
+]
+
 MOCK_DOCKER_IMAGES = [
     {
         "name": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123",
@@ -33,6 +54,7 @@ MOCK_DOCKER_IMAGES = [
         "uploadTime": "2024-01-10T00:00:00Z",
         "buildTime": "2024-01-10T00:00:00Z",
         "updateTime": "2024-01-10T00:00:00Z",
+        "imageManifests": MOCK_MANIFEST_LIST,
     },
 ]
 
@@ -61,22 +83,30 @@ MOCK_MAVEN_ARTIFACTS = [
     },
 ]
 
-MOCK_MANIFEST_LIST = [
+# Transformed manifest data for the my-app image (matches MOCK_DOCKER_IMAGES[0])
+MOCK_PLATFORM_IMAGES = [
     {
+        "id": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123@sha256:def456",
         "digest": "sha256:def456",
-        "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "platform": {
-            "architecture": "amd64",
-            "os": "linux",
-        },
+        "architecture": "amd64",
+        "os": "linux",
+        "os_version": None,
+        "os_features": None,
+        "variant": None,
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "parent_artifact_id": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123",
+        "project_id": "test-project",
     },
     {
+        "id": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123@sha256:ghi789",
         "digest": "sha256:ghi789",
-        "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "platform": {
-            "architecture": "arm64",
-            "os": "linux",
-            "variant": "v8",
-        },
+        "architecture": "arm64",
+        "os": "linux",
+        "os_version": None,
+        "os_features": None,
+        "variant": "v8",
+        "media_type": "application/vnd.oci.image.manifest.v1+json",
+        "parent_artifact_id": "projects/test-project/locations/us-central1/repositories/docker-repo/dockerImages/my-app@sha256:abc123",
+        "project_id": "test-project",
     },
 ]

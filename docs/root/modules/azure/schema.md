@@ -260,6 +260,8 @@ Representation of the permissions within an Azure Role Definition. Each permissi
 
 Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines).
 
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute instances across different systems (e.g., EC2Instance, GCPInstance, DODroplet).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -1479,6 +1481,8 @@ Representation of an [AzureCosmosDBMongoDBCollection](https://docs.microsoft.com
 
 Representation of an [Azure Function App](https://learn.microsoft.com/en-us/rest/api/appservice/web-apps/get).
 
+> **Ontology Mapping**: This node has the extra label `Function` and normalized `_ont_*` properties for cross-platform serverless function queries. See [Function](../../ontology/schema.md#function).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -1895,6 +1899,8 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 ### AzureLoadBalancer
 
 Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/load-balancers/get).
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, LoadBalancer, GCPForwardingRule).
 
 | Field      | Description                                                 |
 | ---------- | ----------------------------------------------------------- |

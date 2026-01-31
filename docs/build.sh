@@ -16,4 +16,5 @@ rsync -av "${SCRIPT_DIR}"/root/ "${SCRIPT_DIR}"/conf.py "${GENERATED_RST_DIR}"
 
 export EXIT_ON_BAD_CONFIG='false'
 set -x
+
 sphinx-build -j auto --keep-going -b html "${GENERATED_RST_DIR}" "${DOCS_OUTPUT_DIR}"

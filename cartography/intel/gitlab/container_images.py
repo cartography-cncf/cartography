@@ -115,11 +115,12 @@ def get_container_images(
         project_id = repo.get("project_id")
         repository_id = repo.get("id")
 
-        if not all([location, project_id, repository_id]):
-            logger.debug(f"Repository missing required fields: {repo}")
+        if not location or not project_id or not repository_id:
+            logger.warning(f"Repository missing required fields: {repo}")
             continue
 
-        # Type narrowing after the guard check
+        # Parse location into registry URL and repository name
+        # e.g., "registry.gitlab.com/group/project" -> ("https://registry.gitlab.com", "group/project")
         location = str(location)
         registry_url, repository_name = _parse_repository_location(location)
 
@@ -138,6 +139,7 @@ def get_container_images(
             tag_name = tag.get("name")
             if not tag_name:
                 continue
+
             manifest = _get_manifest(
                 gitlab_url, registry_url, repository_name, tag_name, token
             )  # can return an image or a manifest list
@@ -163,6 +165,9 @@ def get_container_images(
 
                 # For manifest lists, fetch child manifests (but skip attestation entries)
                 child_manifests = manifest.get("manifests", [])
+                expected_children = 0
+                ingested_children = 0
+
                 for child in child_manifests:
                     # Skip buildx attestation entries stored in child manifests - they'll be handled by attestations module
                     annotations = child.get("annotations", {})
@@ -172,8 +177,11 @@ def get_container_images(
                     ):
                         continue
 
+                    expected_children += 1
                     child_digest = child.get("digest")
+
                     if child_digest in seen_digests[repository_name]:
+                        ingested_children += 1  # Already ingested
                         continue
                     seen_digests[repository_name].add(child_digest)
 
@@ -181,22 +189,46 @@ def get_container_images(
                         gitlab_url, registry_url, repository_name, child_digest, token
                     )
 
-                    # Skip if child manifest not found
+                    # Skip if child manifest not found (tag deleted between list and fetch)
                     if child_manifest is None:
+                        logger.warning(
+                            f"Failed to fetch child manifest {child_digest[:16]}... for manifest list "
+                            f"{digest[:16]}... in {repository_name}. Child will be missing from graph."
+                        )
                         continue
 
                     # Fetch config blob for child image
                     child_config = child_manifest.get("config")
                     if child_config and child_config.get("digest"):
-                        child_manifest["_config"] = fetch_registry_blob(
-                            gitlab_url,
-                            registry_url,
-                            repository_name,
-                            child_config["digest"],
-                            token,
-                        )
+                        try:
+                            child_manifest["_config"] = fetch_registry_blob(
+                                gitlab_url,
+                                registry_url,
+                                repository_name,
+                                child_config["digest"],
+                                token,
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to fetch config blob for child {child_digest[:16]}...: {e}. "
+                                f"Architecture metadata may be incomplete."
+                            )
 
                     all_manifests.append(child_manifest)
+                    ingested_children += 1
+
+                # Log summary for this manifest list
+                if expected_children > 0:
+                    logger.info(
+                        f"Manifest list {digest[:16]}... in {repository_name}: "
+                        f"ingested {ingested_children}/{expected_children} platform images"
+                    )
+                    if ingested_children < expected_children:
+                        logger.warning(
+                            f"Manifest list {digest[:16]}... is missing "
+                            f"{expected_children - ingested_children} child image(s). "
+                            f"Trivy scans of missing platforms will not link to graph."
+                        )
             else:
                 # Fetch config blob for regular images to get architecture/os/variant properties
                 config = manifest.get("config")
@@ -245,9 +277,21 @@ def transform_container_images(
         # Extract architecture, os, variant from config blob (for regular images)
         config = manifest.get("_config", {})
 
+        # Build URI from registry URL and repository name (e.g., registry.gitlab.com/group/project)
+        registry_url = manifest.get("_registry_url", "")
+        repository_name = manifest.get("_repository_name", "")
+        # Strip https:// prefix from registry URL to get the host
+        registry_host = urlparse(registry_url).netloc if registry_url else ""
+        uri = (
+            f"{registry_host}/{repository_name}"
+            if registry_host and repository_name
+            else None
+        )
+
         transformed.append(
             {
                 "digest": manifest.get("_digest"),
+                "uri": uri,
                 "media_type": media_type,
                 "schema_version": manifest.get("schemaVersion"),
                 "type": "manifest_list" if is_manifest_list else "image",
@@ -270,9 +314,8 @@ def load_container_images(
     update_tag: int,
 ) -> None:
     """
-    Load GitLab container images into the graph.
+    Load container images into the graph.
     """
-    logger.info(f"Loading {len(images)} container images for {org_url}")
     load(
         neo4j_session,
         GitLabContainerImageSchema(),
@@ -288,13 +331,11 @@ def cleanup_container_images(
     common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Remove stale GitLab container images from the graph.
+    Clean up stale container images using the GraphJob framework.
     """
-    logger.info("Running GitLab container images cleanup")
-    GraphJob.from_node_schema(
-        GitLabContainerImageSchema(),
-        common_job_parameters,
-    ).run(neo4j_session)
+    GraphJob.from_node_schema(GitLabContainerImageSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
 
 @timeit
@@ -309,15 +350,13 @@ def sync_container_images(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Sync GitLab container images for an organization.
-    """
-    logger.info(f"Syncing container images for organization {org_url}")
 
+    Returns (manifests, manifest_lists) for use by attestations module.
+    """
     raw_manifests, manifest_lists = get_container_images(
         gitlab_url, token, repositories
     )
-
-    transformed = transform_container_images(raw_manifests)
-    load_container_images(neo4j_session, transformed, org_url, update_tag)
+    images = transform_container_images(raw_manifests)
+    load_container_images(neo4j_session, images, org_url, update_tag)
     cleanup_container_images(neo4j_session, common_job_parameters)
-
     return raw_manifests, manifest_lists

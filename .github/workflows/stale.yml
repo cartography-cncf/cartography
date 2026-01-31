@@ -1,0 +1,31 @@
+name: 'Close stale issues and PRs'
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 1 * * *'
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@997185467fa4f803885201cee163a9f38240193d # v10.1.1
+        with:
+          days-before-stale: 90
+          # General configuration
+          remove-stale-when-updated: true
+          # Issue configuration
+          stale-issue-message: 'This issue has been automatically marked as stale because it has not had recent activity. It will be closed if no further activity occurs'
+          close-issue-message: 'This issue has been automatically closed for inactivity. If you still wish to make these changes, please open a new change or reopen this one.'
+          stale-issue-label: 'stale'
+          days-before-issue-close: -1 # never close issue automatically
+          # PR configuration
+          stale-pr-message: 'This PR has been automatically marked as stale because it has not had recent activity. It will be closed if no further activity occurs'
+          close-pr-message: 'This PR has been automatically closed for inactivity. If you still wish to make these changes, please open a new change or reopen this one.'
+          stale-pr-label: 'stale'
+          days-before-pr-close: 30 # close PR automatically after 30 days of being stale
+          exempt-issue-labels: 'keep fresh'
+          exempt-pr-labels: 'keep fresh'
