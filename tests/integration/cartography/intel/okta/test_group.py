@@ -1,27 +1,42 @@
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.okta.groups
-from cartography.intel.okta.sync_state import OktaSyncState
+from cartography.graph.job import GraphJob
+from cartography.models.okta.group import OktaGroupSchema
 from tests.data.okta.groups import create_test_group
-from tests.data.okta.groups import GROUP_MEMBERS_SAMPLE_DATA
+from tests.data.okta.groups import create_test_group_member
+from tests.data.okta.groups import create_test_group_role
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_ORG_ID = "test-okta-org-id"
 TEST_UPDATE_TAG = 123456789
-TEST_API_KEY = "test-api-key"
 
 
-@patch.object(cartography.intel.okta.groups, "_get_okta_groups")
-@patch.object(cartography.intel.okta.groups, "get_okta_group_members")
-@patch.object(cartography.intel.okta.groups, "create_api_client")
+def _create_common_job_parameters():
+    return {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "OKTA_ORG_ID": TEST_ORG_ID,
+    }
+
+
+@patch.object(cartography.intel.okta.groups, "_get_okta_groups", new_callable=AsyncMock)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_members", new_callable=AsyncMock
+)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_roles", new_callable=AsyncMock
+)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_rules", new_callable=AsyncMock
+)
 def test_sync_okta_groups(
-    mock_api_client, mock_get_members, mock_get_groups, neo4j_session
+    mock_get_rules, mock_get_roles, mock_get_members, mock_get_groups, neo4j_session
 ):
     """
     Test that Okta groups and their members are synced correctly to the graph.
-    This follows the recommended pattern: mock get() functions, call sync(), verify outcomes.
     """
     # Arrange - Create test data
     test_group_1 = create_test_group()
@@ -34,31 +49,41 @@ def test_sync_okta_groups(
     test_group_2.profile.name = "Product"
     test_group_2.profile.description = "Product team"
 
-    # Mock the API calls
-    mock_get_groups.return_value = [test_group_1, test_group_2]
-    mock_get_members.return_value = GROUP_MEMBERS_SAMPLE_DATA
-    mock_api_client.return_value = MagicMock()
-
-    # Create the OktaOrganization node first (normally done by organization.create_okta_organization)
+    # Create test users in the graph first
     neo4j_session.run(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
         ON CREATE SET o.firstseen = timestamp()
-        SET o.lastupdated = $UPDATE_TAG, o :Tenant
+        SET o.lastupdated = $UPDATE_TAG
+        MERGE (o)-[:RESOURCE]->(u1:OktaUser{id: 'user-001'})
+        SET u1.lastupdated = $UPDATE_TAG
+        MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: 'user-002'})
+        SET u2.lastupdated = $UPDATE_TAG
         """,
         ORG_ID=TEST_ORG_ID,
         UPDATE_TAG=TEST_UPDATE_TAG,
     )
 
-    sync_state = OktaSyncState()
+    # Create test members
+    member1 = create_test_group_member()
+    member1.id = "user-001"
+    member2 = create_test_group_member()
+    member2.id = "user-002"
+
+    # Mock the API calls
+    mock_get_groups.return_value = [test_group_1, test_group_2]
+    mock_get_members.return_value = [member1, member2]
+    mock_get_roles.return_value = []
+    mock_get_rules.return_value = []
+
+    okta_client = MagicMock()
+    common_job_parameters = _create_common_job_parameters()
 
     # Act - Call the main sync function
     cartography.intel.okta.groups.sync_okta_groups(
+        okta_client,
         neo4j_session,
-        TEST_ORG_ID,
-        TEST_UPDATE_TAG,
-        TEST_API_KEY,
-        sync_state,
+        common_job_parameters,
     )
 
     # Assert - Verify groups were created with correct properties
@@ -66,7 +91,10 @@ def test_sync_okta_groups(
         ("group-001", "Engineering"),
         ("group-002", "Product"),
     }
-    assert check_nodes(neo4j_session, "OktaGroup", ["id", "name"]) == expected_groups
+    assert (
+        check_nodes(neo4j_session, "OktaGroup", ["id", "profile_name"])
+        == expected_groups
+    )
 
     # Assert - Verify groups are connected to organization
     expected_org_rels = {
@@ -86,39 +114,106 @@ def test_sync_okta_groups(
         == expected_org_rels
     )
 
-    # Assert - Verify users were created from group members
-    expected_users = {
-        ("OKTA_USER_ID_1", "Jeremy", "Clarkson"),
-        ("OKTA_USER_ID_2", "James", "May"),
-        ("OKTA_USER_ID_3", "Richard", "Hammond"),
-    }
-    assert (
-        check_nodes(neo4j_session, "OktaUser", ["id", "first_name", "last_name"])
-        == expected_users
-    )
-
     # Assert - Verify users are members of groups
-    # Note: Each group got the same members (because mock returns same data for both groups)
     result = neo4j_session.run(
         """
-        MATCH (u:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(g:OktaGroup)
-        RETURN u.id as user_id, g.id as group_id
+        MATCH (g:OktaGroup)-[:MEMBER_OF_OKTA_GROUP]->(u:OktaUser)
+        RETURN g.id as group_id, u.id as user_id
         """,
     )
-    user_group_pairs = {(r["user_id"], r["group_id"]) for r in result}
+    user_group_pairs = {(r["group_id"], r["user_id"]) for r in result}
 
-    # Each of the 3 users should be in both groups (6 relationships total)
-    assert len(user_group_pairs) == 6
-    for user_id in ["OKTA_USER_ID_1", "OKTA_USER_ID_2", "OKTA_USER_ID_3"]:
-        assert (user_id, "group-001") in user_group_pairs
-        assert (user_id, "group-002") in user_group_pairs
+    # Each of the 2 users should be in both groups (4 relationships total)
+    assert len(user_group_pairs) == 4
+    for user_id in ["user-001", "user-002"]:
+        assert ("group-001", user_id) in user_group_pairs
+        assert ("group-002", user_id) in user_group_pairs
 
 
-@patch.object(cartography.intel.okta.groups, "_get_okta_groups")
-@patch.object(cartography.intel.okta.groups, "get_okta_group_members")
-@patch.object(cartography.intel.okta.groups, "create_api_client")
+@patch.object(cartography.intel.okta.groups, "_get_okta_groups", new_callable=AsyncMock)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_members", new_callable=AsyncMock
+)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_roles", new_callable=AsyncMock
+)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_rules", new_callable=AsyncMock
+)
+def test_sync_okta_groups_with_roles(
+    mock_get_rules, mock_get_roles, mock_get_members, mock_get_groups, neo4j_session
+):
+    """
+    Test that Okta group roles are synced correctly.
+    """
+    # Arrange - Create test data
+    test_group = create_test_group()
+    test_group.id = "group-with-role"
+    test_group.profile.name = "Admin Group"
+
+    # Create test role
+    test_role = create_test_group_role()
+    test_role.id = "role-001"
+    test_role.label = "App Admin"
+    test_role.type.value = "APP_ADMIN"
+    test_role.assignee = "group-with-role"
+
+    neo4j_session.run(
+        """
+        MERGE (o:OktaOrganization{id: $ORG_ID})
+        SET o.lastupdated = $UPDATE_TAG
+        """,
+        ORG_ID=TEST_ORG_ID,
+        UPDATE_TAG=TEST_UPDATE_TAG,
+    )
+
+    # Mock the API calls
+    mock_get_groups.return_value = [test_group]
+    mock_get_members.return_value = []
+    mock_get_roles.return_value = [test_role]
+    mock_get_rules.return_value = []
+
+    okta_client = MagicMock()
+    common_job_parameters = _create_common_job_parameters()
+
+    # Act
+    cartography.intel.okta.groups.sync_okta_groups(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
+
+    # Assert - Verify role was created
+    expected_roles = {("role-001", "App Admin")}
+    actual_roles = check_nodes(neo4j_session, "OktaGroupRole", ["id", "label"])
+    assert actual_roles == expected_roles
+
+    # Assert - Verify group has role relationship
+    expected_role_rels = {("group-with-role", "role-001")}
+    actual_role_rels = check_rels(
+        neo4j_session,
+        "OktaGroup",
+        "id",
+        "OktaGroupRole",
+        "id",
+        "HAS_ROLE",
+        rel_direction_right=True,
+    )
+    assert actual_role_rels == expected_role_rels
+
+
+@patch.object(cartography.intel.okta.groups, "_get_okta_groups", new_callable=AsyncMock)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_members", new_callable=AsyncMock
+)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_roles", new_callable=AsyncMock
+)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_rules", new_callable=AsyncMock
+)
 def test_cleanup_okta_groups(
-    mock_api_client, mock_get_members, mock_get_groups, neo4j_session
+    mock_get_rules, mock_get_roles, mock_get_members, mock_get_groups, neo4j_session
 ):
     """
     Test that cleanup removes stale groups correctly.
@@ -131,7 +226,7 @@ def test_cleanup_okta_groups(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
         ON CREATE SET o.firstseen = timestamp()
-        SET o.lastupdated = $NEW_UPDATE_TAG, o :Tenant
+        SET o.lastupdated = $NEW_UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(g:OktaGroup{id: 'stale-group', lastupdated: $OLD_UPDATE_TAG})
         """,
         ORG_ID=TEST_ORG_ID,
@@ -146,38 +241,39 @@ def test_cleanup_okta_groups(
 
     mock_get_groups.return_value = [test_group]
     mock_get_members.return_value = []
-    mock_api_client.return_value = MagicMock()
+    mock_get_roles.return_value = []
+    mock_get_rules.return_value = []
 
-    sync_state = OktaSyncState()
-
-    # Act - Run sync which should update the fresh group and then cleanup should remove the stale one
-    cartography.intel.okta.groups.sync_okta_groups(
-        neo4j_session,
-        TEST_ORG_ID,
-        NEW_UPDATE_TAG,
-        TEST_API_KEY,
-        sync_state,
-    )
-
-    # Now run cleanup
-    from cartography.intel.okta import cleanup_okta_groups
-
+    okta_client = MagicMock()
     common_job_parameters = {
         "UPDATE_TAG": NEW_UPDATE_TAG,
         "OKTA_ORG_ID": TEST_ORG_ID,
     }
-    cleanup_okta_groups(neo4j_session, common_job_parameters)
+
+    # Act - Run sync which will load fresh group then cleanup removes stale
+    cartography.intel.okta.groups.sync_okta_groups(
+        okta_client,
+        neo4j_session,
+        common_job_parameters,
+    )
 
     # Assert - Only the fresh group should exist
     expected_groups = {("fresh-group",)}
     assert check_nodes(neo4j_session, "OktaGroup", ["id"]) == expected_groups
 
 
-@patch.object(cartography.intel.okta.groups, "_get_okta_groups")
-@patch.object(cartography.intel.okta.groups, "get_okta_group_members")
-@patch.object(cartography.intel.okta.groups, "create_api_client")
+@patch.object(cartography.intel.okta.groups, "_get_okta_groups", new_callable=AsyncMock)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_members", new_callable=AsyncMock
+)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_roles", new_callable=AsyncMock
+)
+@patch.object(
+    cartography.intel.okta.groups, "_get_okta_group_rules", new_callable=AsyncMock
+)
 def test_cleanup_okta_group_memberships(
-    mock_api_client, mock_get_members, mock_get_groups, neo4j_session
+    mock_get_rules, mock_get_roles, mock_get_members, mock_get_groups, neo4j_session
 ):
     """
     Test that cleanup removes stale group memberships correctly.
@@ -190,10 +286,12 @@ def test_cleanup_okta_group_memberships(
         """
         MERGE (o:OktaOrganization{id: $ORG_ID})
         ON CREATE SET o.firstseen = timestamp()
-        SET o.lastupdated = $NEW_UPDATE_TAG, o :Tenant
+        SET o.lastupdated = $NEW_UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(g:OktaGroup{id: 'test-group', lastupdated: $NEW_UPDATE_TAG})
-        MERGE (g)<-[r1:MEMBER_OF_OKTA_GROUP]-(u1:OktaUser{id: 'stale-user', lastupdated: $OLD_UPDATE_TAG})
-        MERGE (g)<-[r2:MEMBER_OF_OKTA_GROUP]-(u2:OktaUser{id: 'fresh-user', lastupdated: $NEW_UPDATE_TAG})
+        MERGE (o)-[:RESOURCE]->(u1:OktaUser{id: 'stale-user', lastupdated: $NEW_UPDATE_TAG})
+        MERGE (o)-[:RESOURCE]->(u2:OktaUser{id: 'fresh-user', lastupdated: $NEW_UPDATE_TAG})
+        MERGE (g)-[r1:MEMBER_OF_OKTA_GROUP]->(u1)
+        MERGE (g)-[r2:MEMBER_OF_OKTA_GROUP]->(u2)
         SET r1.lastupdated = $OLD_UPDATE_TAG,
             r2.lastupdated = $NEW_UPDATE_TAG
         """,
@@ -202,19 +300,19 @@ def test_cleanup_okta_group_memberships(
         NEW_UPDATE_TAG=NEW_UPDATE_TAG,
     )
 
-    # Don't sync any new data, just run cleanup
-    from cartography.intel.okta import cleanup_okta_groups
-
+    # Don't sync any new data, just run cleanup using GraphJob
     common_job_parameters = {
         "UPDATE_TAG": NEW_UPDATE_TAG,
         "OKTA_ORG_ID": TEST_ORG_ID,
     }
-    cleanup_okta_groups(neo4j_session, common_job_parameters)
+    GraphJob.from_node_schema(OktaGroupSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
     # Assert - Only the fresh-user relationship should remain
     result = neo4j_session.run(
         """
-        MATCH (u:OktaUser)-[:MEMBER_OF_OKTA_GROUP]->(g:OktaGroup{id: 'test-group'})
+        MATCH (g:OktaGroup{id: 'test-group'})-[:MEMBER_OF_OKTA_GROUP]->(u:OktaUser)
         RETURN u.id as user_id
         """,
     )
