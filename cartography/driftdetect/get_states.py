@@ -8,6 +8,7 @@ from typing import List
 import neo4j.exceptions
 from marshmallow import ValidationError
 from neo4j import GraphDatabase
+from neo4j import basic_auth
 
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.driftdetect.add_shortcut import add_shortcut
@@ -34,7 +35,7 @@ def run_get_states(config: UpdateConfig) -> None:
         return
     neo4j_auth = None
     if config.neo4j_user or config.neo4j_password:
-        neo4j_auth = (config.neo4j_user, config.neo4j_password)
+        neo4j_auth = basic_auth(config.neo4j_user, config.neo4j_password)
     try:
         neo4j_driver = GraphDatabase.driver(
             config.neo4j_uri,
