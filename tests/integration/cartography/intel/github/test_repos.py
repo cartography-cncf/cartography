@@ -13,6 +13,7 @@ from tests.integration.util import check_rels
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://fake.github.net/graphql/"
+TEST_ORG_URL = "https://github.com/simpsoncorp"
 
 
 def _ensure_local_neo4j_has_test_data(neo4j_session):
@@ -25,6 +26,7 @@ def _ensure_local_neo4j_has_test_data(neo4j_session):
         neo4j_session,
         TEST_JOB_PARAMS,
         repo_data,
+        TEST_ORG_URL,
     )
 
 
@@ -735,4 +737,114 @@ def test_sync_github_branch_protection_rules(neo4j_session):
     assert actual_repo_branch_protection_rule_relationships is not None
     assert expected_repo_branch_protection_rule_relationships.issubset(
         actual_repo_branch_protection_rule_relationships
+    )
+
+
+def test_sync_github_rulesets(neo4j_session):
+    """
+    Test that GitHub repository rulesets are correctly synced to Neo4j.
+    """
+    # Arrange - Set up test data (calls transform and load pipeline)
+    _ensure_local_neo4j_has_test_data(neo4j_session)
+
+    # Expected data from GET_REPOS[2] which has RULESET_PRODUCTION
+    repo_url = "https://github.com/cartography-cncf/cartography"
+    ruleset_id = "RRS_lACkVXNlcs4AXenizgBRqVA"
+    rule_deletion_id = "RRU_kwDORule001"
+    rule_pr_id = "RRU_kwDORule002"
+    rule_status_id = "RRU_kwDORule003"
+    bypass_team_id = "RBA_kwDOBypass001"
+    bypass_app_id = "RBA_kwDOBypass002"
+
+    # Assert - Test that ruleset nodes were created
+    expected_ruleset_nodes = {
+        (ruleset_id, "production-ruleset", "BRANCH", "ACTIVE"),
+    }
+    actual_ruleset_nodes = check_nodes(
+        neo4j_session,
+        "GitHubRuleset",
+        ["id", "name", "target", "enforcement"],
+    )
+    assert actual_ruleset_nodes is not None
+    assert expected_ruleset_nodes.issubset(actual_ruleset_nodes)
+
+    # Assert - Test that repositories are connected to rulesets
+    expected_repo_ruleset_relationships = {
+        (repo_url, ruleset_id),
+    }
+    actual_repo_ruleset_relationships = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "GitHubRuleset",
+        "id",
+        "HAS_RULESET",
+    )
+    assert actual_repo_ruleset_relationships is not None
+    assert expected_repo_ruleset_relationships.issubset(
+        actual_repo_ruleset_relationships
+    )
+
+    # Assert - Test that ruleset rule nodes were created
+    expected_rule_nodes = {
+        (rule_deletion_id, "DELETION"),
+        (rule_pr_id, "PULL_REQUEST"),
+        (rule_status_id, "REQUIRED_STATUS_CHECKS"),
+    }
+    actual_rule_nodes = check_nodes(
+        neo4j_session,
+        "GitHubRulesetRule",
+        ["id", "type"],
+    )
+    assert actual_rule_nodes is not None
+    assert expected_rule_nodes.issubset(actual_rule_nodes)
+
+    # Assert - Test that rulesets are connected to rules
+    expected_ruleset_rule_relationships = {
+        (ruleset_id, rule_deletion_id),
+        (ruleset_id, rule_pr_id),
+        (ruleset_id, rule_status_id),
+    }
+    actual_ruleset_rule_relationships = check_rels(
+        neo4j_session,
+        "GitHubRuleset",
+        "id",
+        "GitHubRulesetRule",
+        "id",
+        "CONTAINS_RULE",
+    )
+    assert actual_ruleset_rule_relationships is not None
+    assert expected_ruleset_rule_relationships.issubset(
+        actual_ruleset_rule_relationships
+    )
+
+    # Assert - Test that bypass actor nodes were created
+    expected_bypass_actor_nodes = {
+        (bypass_team_id, "Team", "ALWAYS", "maintainers"),
+        (bypass_app_id, "App", "PULL_REQUEST", "Dependabot"),
+    }
+    actual_bypass_actor_nodes = check_nodes(
+        neo4j_session,
+        "GitHubRulesetBypassActor",
+        ["id", "actor_type", "bypass_mode", "actor_name"],
+    )
+    assert actual_bypass_actor_nodes is not None
+    assert expected_bypass_actor_nodes.issubset(actual_bypass_actor_nodes)
+
+    # Assert - Test that rulesets are connected to bypass actors
+    expected_ruleset_bypass_relationships = {
+        (ruleset_id, bypass_team_id),
+        (ruleset_id, bypass_app_id),
+    }
+    actual_ruleset_bypass_relationships = check_rels(
+        neo4j_session,
+        "GitHubRuleset",
+        "id",
+        "GitHubRulesetBypassActor",
+        "id",
+        "ALLOWS_BYPASS",
+    )
+    assert actual_ruleset_bypass_relationships is not None
+    assert expected_ruleset_bypass_relationships.issubset(
+        actual_ruleset_bypass_relationships
     )
