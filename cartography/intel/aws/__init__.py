@@ -87,6 +87,7 @@ def _sync_one_account(
         "ec2:load_balancer": ["ec2:subnet", "ec2:instance"],
         "ec2:load_balancer_v2": ["ec2:subnet", "ec2:instance"],
         "ec2:route_table": ["ec2:vpc_endpoint"],
+        "dynamodb": ["kms"],
     }
     for module, dependencies in module_dependencies.items():
         if module in requested_syncs_set:
@@ -338,6 +339,14 @@ def _perform_aws_analysis(
     run_analysis_and_ensure_deps(
         "aws_foreign_accounts.json",
         set(),  # This job has no requirements
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
+    run_analysis_and_ensure_deps(
+        "aws_ecs_asset_exposure.json",
+        {"ecs", "ec2:load_balancer_v2"},
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,

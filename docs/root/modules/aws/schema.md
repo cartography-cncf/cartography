@@ -130,6 +130,11 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 |name | The friendly name that identifies the group|
 | createdate| ISO 8601 date-time string when the group was created|
 |**arn** | The AWS-global identifier for this group|
+| last_accessed_service_name | The name of the most recently accessed AWS service |
+| last_accessed_service_namespace | The namespace of the most recently accessed service (e.g., "s3") |
+| last_authenticated | ISO 8601 date-time when the service was last accessed |
+| last_authenticated_entity | The ARN of the entity that last accessed the service |
+| last_authenticated_region | The region where the service was last accessed |
 
 #### Relationships
 - Objects part of an AWSGroup may assume AWSRoles.
@@ -400,6 +405,8 @@ Representation of an AWS [IAM Instance Profile](https://docs.aws.amazon.com/IAM/
 ### AWSLambda
 
 Representation of an AWS [Lambda Function](https://docs.aws.amazon.com/lambda/latest/dg/API_FunctionConfiguration.html).
+
+> **Ontology Mapping**: This node has the extra label `Function` and normalized `_ont_*` properties for cross-platform serverless function queries. See [Function](../../ontology/schema.md#function).
 
 | Field | Description |
 |-------|-------------|
@@ -763,6 +770,11 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
 | **arn** | AWS-unique identifier for this object |
 | userid | The stable and unique string identifying the user.  |
 | passwordlastused | Datetime when this user's password was last used
+| last_accessed_service_name | The name of the most recently accessed AWS service |
+| last_accessed_service_namespace | The namespace of the most recently accessed service (e.g., "s3") |
+| last_authenticated | ISO 8601 date-time when the service was last accessed |
+| last_authenticated_entity | The ARN of the entity that last accessed the service |
+| last_authenticated_region | The region where the service was last accessed |
 
 #### Relationships
 - AWS Users can be members of AWS Groups.
@@ -795,6 +807,12 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (:AWSUser)-[:POLICY]->(:AWSPolicy)
     ```
 
+- AWS Users can have MFA Devices.
+
+    ```cypher
+    (AWSUser)-[:MFA_DEVICE]->(AWSMfaDevice)
+    ```
+
 
 ### AWSPrincipal::AWSRole
 
@@ -810,6 +828,11 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 | path | The path to the role. |
 | createdate| The date and time, in ISO 8601 date-time format, when the role was created. |
 | **arn** | AWS-unique identifier for this object |
+| last_accessed_service_name | The name of the most recently accessed AWS service |
+| last_accessed_service_namespace | The namespace of the most recently accessed service (e.g., "s3") |
+| last_authenticated | ISO 8601 date-time when the service was last accessed |
+| last_authenticated_entity | The ARN of the entity that last accessed the service |
+| last_authenticated_region | The region where the service was last accessed |
 
 
 #### Relationships
@@ -1110,6 +1133,34 @@ Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/API
 - Account Access Keys are a resource under the AWS Account.
     ```
     (:AWSAccount)-[:RESOURCE]->(:AccountAccessKey)
+    ```
+
+### AWSMfaDevice
+
+Representation of an AWS [MFA Device](https://docs.aws.amazon.com/IAM/latest/APIReference/API_MFADevice.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The serial number of the MFA device (same as serialnumber) |
+| **serialnumber** | The serial number that uniquely identifies the MFA device |
+| username | The username of the IAM user associated with the MFA device |
+| user_arn | The ARN of the IAM user associated with the MFA device |
+| enabledate | ISO 8601 date-time string when the MFA device was enabled |
+| enabledate_dt | DateTime object representing when the MFA device was enabled |
+
+#### Relationships
+- MFA Devices are associated with AWS Users.
+
+    ```cypher
+    (AWSUser)-[:MFA_DEVICE]->(AWSMfaDevice)
+    ```
+
+- MFA Devices are resources under the AWS Account.
+
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(AWSMfaDevice)
     ```
 
 ### CloudTrailTrail
@@ -1569,25 +1620,262 @@ Representation of a DNS name server associated with an AWS Route53 hosted zone.
     ```
 
 
-### DynamoDBTable
+### DynamoDBTable::Database
 
-Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ListTables.html).
+Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TableDescription.html).
 
 > **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| name | The name of the table |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | **id** | The ARN of the table |
+| **arn** | The AWS-unique identifier (ARN) |
+| name | The name of the table |
 | region | The AWS region of the table |
-| **arn** | The AWS-unique identifier
+| rows | The number of items in the table |
+| size | The size of the table in bytes |
+| table_status | The current state of the table (e.g., ACTIVE, CREATING, DELETING) |
+| creation_date_time | The date and time when the table was created |
+| provisioned_throughput_read_capacity_units | The maximum number of reads consumed per second |
+| provisioned_throughput_write_capacity_units | The maximum number of writes consumed per second |
 
 #### Relationships
 - DynamoDBTables belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBTable)
     ```
-    (AWSAccount)-[RESOURCE]->(DynamoDBTable)
+
+- DynamoDBTables have Global Secondary Indexes.
+    ```cypher
+    (DynamoDBTable)-[:GLOBAL_SECONDARY_INDEX]->(DynamoDBGlobalSecondaryIndex)
+    ```
+
+- DynamoDBTables have SSE (Server-Side Encryption) descriptions.
+    ```cypher
+    (DynamoDBTable)-[:HAS_SSE]->(DynamoDBSSEDescription)
+    ```
+
+- DynamoDBTables have billing mode summaries.
+    ```cypher
+    (DynamoDBTable)-[:HAS_BILLING]->(DynamoDBBillingModeSummary)
+    ```
+
+- DynamoDBTables have streams.
+    ```cypher
+    (DynamoDBTable)-[:LATEST_STREAM]->(DynamoDBStream)
+    ```
+
+- DynamoDBTables have archival summaries (for archived tables).
+    ```cypher
+    (DynamoDBTable)-[:HAS_ARCHIVAL]->(DynamoDBArchivalSummary)
+    ```
+
+- DynamoDBTables have restore summaries (for restored tables).
+    ```cypher
+    (DynamoDBTable)-[:HAS_RESTORE]->(DynamoDBRestoreSummary)
+    ```
+
+
+### DynamoDBGlobalSecondaryIndex
+
+Representation of a DynamoDB [Global Secondary Index](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GlobalSecondaryIndexDescription.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the GSI |
+| arn | The ARN of the GSI |
+| name | The name of the GSI |
+| region | The AWS region of the GSI |
+| provisioned_throughput_read_capacity_units | The maximum number of reads consumed per second |
+| provisioned_throughput_write_capacity_units | The maximum number of writes consumed per second |
+
+#### Relationships
+- DynamoDBGlobalSecondaryIndexes belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBGlobalSecondaryIndex)
+    ```
+
+- DynamoDBGlobalSecondaryIndexes belong to DynamoDBTables.
+    ```cypher
+    (DynamoDBTable)-[:GLOBAL_SECONDARY_INDEX]->(DynamoDBGlobalSecondaryIndex)
+    ```
+
+
+### DynamoDBSSEDescription
+
+Representation of DynamoDB [Server-Side Encryption description](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_SSEDescription.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (table ARN + "/sse") |
+| sse_status | The current state of SSE (e.g., ENABLED, DISABLED) |
+| sse_type | The server-side encryption type (AES256 or KMS) |
+| kms_master_key_arn | The ARN of the KMS key used for encryption (if SSE type is KMS) |
+
+#### Relationships
+- DynamoDBSSEDescriptions belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBSSEDescription)
+    ```
+
+- DynamoDBSSEDescriptions belong to DynamoDBTables.
+    ```cypher
+    (DynamoDBTable)-[:HAS_SSE]->(DynamoDBSSEDescription)
+    ```
+
+- DynamoDBSSEDescriptions may use KMS keys for encryption.
+    ```cypher
+    (DynamoDBSSEDescription)-[:USES_KMS_KEY]->(KMSKey)
+    ```
+
+
+### DynamoDBBillingModeSummary
+
+Representation of DynamoDB [Billing Mode Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BillingModeSummary.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (table ARN + "/billing") |
+| billing_mode | The billing mode (PROVISIONED or PAY_PER_REQUEST) |
+| last_update_to_pay_per_request_date_time | When the table was last switched to PAY_PER_REQUEST mode |
+
+#### Relationships
+- DynamoDBBillingModeSummaries belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBBillingModeSummary)
+    ```
+
+- DynamoDBBillingModeSummaries belong to DynamoDBTables.
+    ```cypher
+    (DynamoDBTable)-[:HAS_BILLING]->(DynamoDBBillingModeSummary)
+    ```
+
+
+### DynamoDBStream
+
+Representation of a DynamoDB [Stream](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_StreamSpecification.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the stream |
+| arn | The ARN of the stream |
+| stream_label | A timestamp used as the stream label |
+| stream_enabled | Whether the stream is enabled |
+| stream_view_type | What information is written to the stream (KEYS_ONLY, NEW_IMAGE, OLD_IMAGE, NEW_AND_OLD_IMAGES) |
+
+#### Relationships
+- DynamoDBStreams belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBStream)
+    ```
+
+- DynamoDBStreams belong to DynamoDBTables.
+    ```cypher
+    (DynamoDBTable)-[:LATEST_STREAM]->(DynamoDBStream)
+    ```
+
+
+### DynamoDBArchivalSummary
+
+Representation of DynamoDB [Archival Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ArchivalSummary.html) for archived tables.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (table ARN + "/archival") |
+| archival_date_time | The date and time when table archival was initiated |
+| archival_reason | The reason for archiving the table |
+| archival_backup_arn | The ARN of the backup created when the table was archived |
+
+#### Relationships
+- DynamoDBArchivalSummaries belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBArchivalSummary)
+    ```
+
+- DynamoDBArchivalSummaries belong to DynamoDBTables.
+    ```cypher
+    (DynamoDBTable)-[:HAS_ARCHIVAL]->(DynamoDBArchivalSummary)
+    ```
+
+- DynamoDBArchivalSummaries reference the backup created during archival.
+    ```cypher
+    (DynamoDBArchivalSummary)-[:ARCHIVED_TO_BACKUP]->(DynamoDBBackup)
+    ```
+
+
+### DynamoDBRestoreSummary
+
+Representation of DynamoDB [Restore Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_RestoreSummary.html) for restored tables.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (table ARN + "/restore") |
+| restore_date_time | Point in time or source backup time for the restore |
+| restore_in_progress | Indicates whether a restore is currently in progress |
+| source_backup_arn | The ARN of the backup from which the table was restored |
+| source_table_arn | The ARN of the source table from which the table was restored |
+
+#### Relationships
+- DynamoDBRestoreSummaries belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBRestoreSummary)
+    ```
+
+- DynamoDBRestoreSummaries belong to DynamoDBTables (the restored table).
+    ```cypher
+    (DynamoDBTable)-[:HAS_RESTORE]->(DynamoDBRestoreSummary)
+    ```
+
+- DynamoDBRestoreSummaries reference the source backup.
+    ```cypher
+    (DynamoDBRestoreSummary)-[:RESTORED_FROM_BACKUP]->(DynamoDBBackup)
+    ```
+
+- DynamoDBRestoreSummaries reference the source table.
+    ```cypher
+    (DynamoDBRestoreSummary)-[:RESTORED_FROM_TABLE]->(DynamoDBTable)
+    ```
+
+
+### DynamoDBBackup
+
+Representation of a DynamoDB [Backup](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BackupDetails.html). Currently a stub entity referenced by archival and restore summaries.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the backup |
+| arn | The ARN of the backup |
+
+#### Relationships
+- DynamoDBBackups belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBBackup)
+    ```
+
+- DynamoDBBackups are referenced by archival summaries.
+    ```cypher
+    (DynamoDBArchivalSummary)-[:ARCHIVED_TO_BACKUP]->(DynamoDBBackup)
+    ```
+
+- DynamoDBBackups are referenced by restore summaries.
+    ```cypher
+    (DynamoDBRestoreSummary)-[:RESTORED_FROM_BACKUP]->(DynamoDBBackup)
     ```
 
 - AWSPrincipals with appropriate permissions can query DynamoDB tables. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
@@ -1688,7 +1976,7 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | launchtimeunix | The time the instance was launched in unix time |
 | region | The AWS region this Instance is running in|
 | exposed\_internet |  The `exposed_internet` flag on an EC2 instance is set to `True` when (1) the instance is part of an EC2 security group or is connected to a network interface connected to an EC2 security group that allows connectivity from the 0.0.0.0/0 subnet or (2) the instance is connected to an Elastic Load Balancer that has its own `exposed_internet` flag set to `True`. |
-| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Possible values are `direct` (directly exposed via security group), `elb` (exposed via classic LoadBalancer), or `elbv2` (exposed via LoadBalancerV2). Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
+| exposed\_internet\_type | A list indicating the type(s) of internet exposure. Possible values are `direct` (directly exposed via security group), `elb` (exposed via classic LoadBalancer), or `elbv2` (exposed via AWSLoadBalancerV2). Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
 | availabilityzone | The Availability Zone of the instance.|
 | tenancy | The tenancy of the instance.|
 | hostresourcegrouparn | The ARN of the host resource group in which to launch the instances.|
@@ -1956,9 +2244,9 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
     (LoadBalancer)-[PART_OF_SUBNET]->(EC2Subnet)
     ```
 
-- A LoadBalancerV2 can be part of an EC2 Subnet.
+- A AWSLoadBalancerV2 can be part of an EC2 Subnet.
     ```
-    (LoadBalancerV2)-[PART_OF_SUBNET]->(EC2Subnet)
+    (AWSLoadBalancerV2)-[PART_OF_SUBNET]->(EC2Subnet)
     ```
 
 
@@ -2031,6 +2319,8 @@ Representation of an AWS EC2 [Subnet](https://docs.aws.amazon.com/AWSEC2/latest/
 ### ECRRepository
 
 Representation of an AWS Elastic Container Registry [Repository](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_Repository.html).
+
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., ECRRepository, GCPArtifactRegistryRepository, GitLabContainerRepository).
 
 | Field | Description |
 |--------|-----------|
@@ -2216,6 +2506,11 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 - ECSContainers have images.
     ```
     (:ECSContainer)-[:HAS_IMAGE]->(:ECRImage)
+    ```
+
+- KubernetesContainers have images. The relationship matches containers to images by digest (`status_image_sha`).
+    ```
+    (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
     ```
 
 - An ECRImage may be built from a parent ECRImage (derived from provenance attestations).
@@ -2575,9 +2870,9 @@ Representation of an AWS Elastic Load Balancer V2 [Listener](https://docs.aws.am
 
 #### Relationships
 
-- LoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
+- AWSLoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
     ```
-    (:LoadBalancerV2)-[:ELBV2_LISTENER]->(:ELBV2Listener)
+    (:AWSLoadBalancerV2)-[:ELBV2_LISTENER]->(:ELBV2Listener)
     ```
 - ACM Certificates may be used by ELBV2Listeners.
     ```
@@ -2722,9 +3017,19 @@ Represents an IP address range (CIDR block) associated with an EC2 Security Grou
     ```
 
 
-### LoadBalancer
+### AWSLoadBalancer
+
+```{important}
+**Label Rename:** In previous versions, Classic ELB nodes used the label `:LoadBalancer`. This has been renamed to `:AWSLoadBalancer` for consistency with other AWS resources.
+
+**Semantic Label:** All load balancers (AWS, GCP, Azure) now also have the `:LoadBalancer` label for cross-platform queries.
+
+**Migration:** Existing nodes are automatically relabeled on upgrade.
+```
 
 Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).  See [spec for details](https://docs.aws.amazon.com/elasticloadbalancing/2012-06-01/APIReference/API_LoadBalancerDescription.html).
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancerV2, GCPForwardingRule, AzureLoadBalancer).
 
 | Field | Description |
 |-------|-------------|
@@ -2784,8 +3089,19 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
     (AWSDNSRecord, DNSRecord)-[DNS_POINTS_TO]->(LoadBalancer)
     ```
 
-### LoadBalancerV2
+### AWSLoadBalancerV2
+
+```{important}
+**Label Rename:** In previous versions, ALB/NLB nodes used the label `:LoadBalancerV2`. This has been renamed to `:AWSLoadBalancerV2` for consistency with other AWS resources.
+
+**Semantic Label:** All load balancers (AWS, GCP, Azure) now also have the `:LoadBalancer` label for cross-platform queries.
+
+**Migration:** Existing nodes are automatically relabeled on upgrade.
+```
+
 Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html) or [Network Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html).) API reference [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_LoadBalancer.html).
+
+> **Ontology Mapping**: This node has the extra label `LoadBalancer` to enable cross-platform queries for load balancers across different systems (e.g., AWSLoadBalancer, GCPForwardingRule, AzureLoadBalancer).
 
 | Field | Description |
 |-------|-------------|
@@ -2807,46 +3123,46 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 #### Relationships
 
 
-- LoadBalancerV2's can be connected to EC2Instances and therefore expose them.
+- AWSLoadBalancerV2's can be connected to EC2Instances and therefore expose them.
     ```
-    (LoadBalancerV2)-[EXPOSE]->(EC2Instance)
-    ```
-
-- LoadBalancerV2's can expose IP addresses when using `ip` target type.
-    ```
-    (LoadBalancerV2)-[EXPOSE]->(EC2PrivateIp)
+    (AWSLoadBalancerV2)-[EXPOSE]->(EC2Instance)
     ```
 
-- LoadBalancerV2's can expose Lambda functions when using `lambda` target type.
+- AWSLoadBalancerV2's can expose IP addresses when using `ip` target type.
     ```
-    (LoadBalancerV2)-[EXPOSE]->(AWSLambda)
+    (AWSLoadBalancerV2)-[EXPOSE]->(EC2PrivateIp)
     ```
 
-- LoadBalancerV2's can chain to other LoadBalancerV2's when using `alb` target type (ALB-to-ALB chaining).
+- AWSLoadBalancerV2's can expose Lambda functions when using `lambda` target type.
     ```
-    (LoadBalancerV2)-[EXPOSE]->(LoadBalancerV2)
+    (AWSLoadBalancerV2)-[EXPOSE]->(AWSLambda)
+    ```
+
+- AWSLoadBalancerV2's can chain to other AWSLoadBalancerV2's when using `alb` target type (ALB-to-ALB chaining).
+    ```
+    (AWSLoadBalancerV2)-[EXPOSE]->(AWSLoadBalancerV2)
     ```
 
 The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load balancer points to.
 
-- LoadBalancerV2's can be part of EC2SecurityGroups but only if their `type` = "application". NLBs don't have SGs.
+- AWSLoadBalancerV2's can be part of EC2SecurityGroups but only if their `type` = "application". NLBs don't have SGs.
     ```
-    (LoadBalancerV2)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
-    ```
-
-- LoadBalancerV2's can be part of EC2 Subnets
-    ```
-    (LoadBalancerV2)-[SUBNET]->(EC2Subnet)
+    (AWSLoadBalancerV2)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
-- LoadBalancerV2's can be part of EC2 Subnets
+- AWSLoadBalancerV2's can be part of EC2 Subnets
     ```
-    (LoadBalancerV2)-[PART_OF_SUBNET]->(EC2Subnet)
+    (AWSLoadBalancerV2)-[SUBNET]->(EC2Subnet)
     ```
 
-- LoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
+- AWSLoadBalancerV2's can be part of EC2 Subnets
     ```
-    (LoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
+    (AWSLoadBalancerV2)-[PART_OF_SUBNET]->(EC2Subnet)
+    ```
+
+- AWSLoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
+    ```
+    (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
     ```
 
 ### Nameserver
@@ -2934,9 +3250,9 @@ RETURN i.instanceid, i.launchtime as last_launch, ni.attach_time as first_launch
     (LoadBalancer)-[NETWORK_INTERFACE]->(NetworkInterface)
     ```
 
-- LoadBalancerV2s can have NetworkInterfaces connected to them.
+- AWSLoadBalancerV2s can have NetworkInterfaces connected to them.
     ```
-    (LoadBalancerV2)-[NETWORK_INTERFACE]->(NetworkInterface)
+    (AWSLoadBalancerV2)-[NETWORK_INTERFACE]->(NetworkInterface)
     ```
 
 - EC2PrivateIps are connected to a NetworkInterface.
@@ -3036,8 +3352,6 @@ Representation of an AWS [RedshiftCluster](https://docs.aws.amazon.com/redshift/
 ### RDSCluster
 
 Representation of an AWS Relational Database Service [DBCluster](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/API_DBCluster.html)
-
-> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
@@ -3950,6 +4264,10 @@ Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/se
 - AWS Secrets Manager Secrets are a resource under the AWS Account.
     ```
     (AWSAccount)-[RESOURCE]->(SecretsManagerSecret)
+    ```
+- If the secret is encrypted with a KMS key, it has a relationship to that key.
+    ```
+    (SecretsManagerSecret)-[ENCRYPTED_BY]->(KMSKey)
     ```
 
 ### EBSVolume
@@ -5213,7 +5531,7 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
 | version_id | The unique identifier of this version of the secret. |
 | version_stages | A list of staging labels that are currently attached to this version of the secret. |
 | created_date | The date and time that this version of the secret was created. |
-| kms_key_id | The ID of the AWS KMS key used to encrypt the secret version. |
+| kms_key_ids | A list of IDs of the AWS KMS keys used to encrypt the secret version. |
 | tags | A list of tags attached to this secret version. |
 | region | The AWS region where the secret version exists. |
 
@@ -5229,7 +5547,7 @@ Representation of an AWS [Secrets Manager Secret Version](https://docs.aws.amazo
     ```
 - If the secret version is encrypted with a KMS key, it has a relationship to that key.
     ```
-    (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(AWSKMSKey)
+    (SecretsManagerSecretVersion)-[ENCRYPTED_BY]->(KMSKey)
     ```
 
 ### AWSBedrockFoundationModel

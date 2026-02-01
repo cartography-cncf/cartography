@@ -27,15 +27,23 @@ Fine-grained PATs offer better security through minimal permissions and organiza
 
    | Permission | Access | Required | Why |
    |------------|--------|----------|-----|
-   | **Metadata** | Read | Yes | Auto-added. Repository discovery and basic info. |
-   | **Contents** | Read | Yes | Repository files, commit history, dependency manifests. |
+   | **Actions** | Read | Optional | GitHub Actions workflows, runs, and artifacts. |
    | **Administration** | Read | Recommended | Collaborators, branch protection rules. Without this, Cartography logs warnings and skips this data. |
+   | **Contents** | Read | Yes | Repository files, commit history, dependency manifests. |
+   | **Environments** | Read | Optional | Deployment environments configuration. |
+   | **Metadata** | Read | Yes | Auto-added. Repository discovery and basic info. |
+   | **Secrets** | Read | Optional | Repository secrets metadata (names, creation dates). |
+   | **Variables** | Read | Optional | Repository variables for Actions workflows. |
 
    **Organization permissions:**
 
    | Permission | Access | Required | Why |
    |------------|--------|----------|-----|
    | **Members** | Read | Yes | Organization members, teams, team membership, user profiles/emails. |
+   | **Secrets** | Read | Optional | Organization secrets metadata (names, creation dates). |
+   | **Variables** | Read | Optional | Organization variables for Actions workflows. |
+
+   > **Note:** The Secrets permission only provides access to secret **metadata** (name, creation date, update date). GitHub never exposes the actual secret values through its API—they are encrypted and cannot be retrieved.
 
 5. Click **Generate token** and copy it immediately.
 

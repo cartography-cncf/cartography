@@ -54,6 +54,20 @@ def transform_scan_results(
         # Sometimes a scan class will have no vulns and Trivy will leave the key undefined instead of showing [].
         if "Vulnerabilities" in scan_class and scan_class["Vulnerabilities"]:
             for result in scan_class["Vulnerabilities"]:
+                # Extract layer info if available
+                layer_digest = None
+                layer_diff_id = None
+                if "Layer" in result:
+                    layer_digest = result["Layer"].get("Digest")
+                    layer_diff_id = result["Layer"].get("DiffID")
+
+                # Extract data source info if available
+                data_source_id = None
+                data_source_name = None
+                if "DataSource" in result:
+                    data_source_id = result["DataSource"].get("ID")
+                    data_source_name = result["DataSource"].get("Name")
+
                 # Transform finding data
                 finding = {
                     "id": f'TIF|{result["VulnerabilityID"]}',
@@ -77,6 +91,14 @@ def transform_scan_results(
                     "Class": scan_class["Class"],
                     "Type": scan_class["Type"],
                     "ImageDigest": image_digest,  # For AFFECTS relationship
+                    # Additional fields
+                    "CweIDs": result.get("CweIDs"),
+                    "Status": result.get("Status"),
+                    "References": result.get("References"),
+                    "DataSourceID": data_source_id,
+                    "DataSourceName": data_source_name,
+                    "LayerDigest": layer_digest,
+                    "LayerDiffID": layer_diff_id,
                 }
 
                 # Add CVSS scores if available
@@ -98,6 +120,11 @@ def transform_scan_results(
 
                 findings_list.append(finding)
 
+                # Extract PURL if available
+                purl = None
+                if "PkgIdentifier" in result:
+                    purl = result["PkgIdentifier"].get("PURL")
+
                 # Transform package data
                 package_id = f"{result['InstalledVersion']}|{result['PkgName']}"
                 packages_list.append(
@@ -109,6 +136,9 @@ def transform_scan_results(
                         "Type": scan_class["Type"],
                         "ImageDigest": image_digest,  # For DEPLOYED relationship
                         "FindingId": finding["id"],  # For AFFECTS relationship
+                        # Additional fields
+                        "PURL": purl,
+                        "PkgID": result.get("PkgID"),
                     }
                 )
 
@@ -144,13 +174,7 @@ def _parse_trivy_data(
     # Extract artifact name if present (only for file-based)
     artifact_name = trivy_data.get("ArtifactName")
 
-    if "Results" not in trivy_data:
-        logger.error(
-            f"Scan data did not contain a `Results` key for {source}. This indicates a malformed scan result."
-        )
-        raise ValueError(f"Missing 'Results' key in scan data for {source}")
-
-    results = trivy_data["Results"]
+    results = trivy_data.get("Results", [])
     if not results:
         stat_handler.incr("image_scan_no_results_count")
         logger.info(f"No vulnerabilities found for {source}")

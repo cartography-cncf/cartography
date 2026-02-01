@@ -146,6 +146,86 @@ Index creation is idempotent (we only create them if they don't exist).
 See [below](#indexescypher) for more information on indexes.
 
 
+#### Extra node labels
+
+You can add additional Neo4j labels to your nodes using `ExtraNodeLabels`:
+
+```python
+from cartography.models.core.nodes import ExtraNodeLabels
+
+@dataclass(frozen=True)
+class EMRClusterSchema(CartographyNodeSchema):
+    label: str = 'EMRCluster'
+    properties: EMRClusterNodeProperties = EMRClusterNodeProperties()
+    sub_resource_relationship: EMRClusterToAWSAccountRel = EMRClusterToAWSAccountRel()
+
+    # Add extra labels to the node
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(['Resource', 'AWSResource'])
+```
+
+This creates nodes with multiple labels: `(:EMRCluster:Resource:AWSResource)`. Extra labels are useful for:
+- Creating taxonomies (e.g., all AWS resources share an `AWSResource` label)
+- Enabling cross-module queries (e.g., find all `Resource` nodes regardless of specific type)
+- Ontology mapping
+
+#### Conditional node labels
+
+```{warning}
+Conditional labels are a specialized feature primarily used for ontology mapping scenarios where a single data source produces records that map to different semantic types. Most intel modules do not need this feature.
+```
+
+Sometimes you want to apply labels only when certain conditions are met. Use `ConditionalNodeLabel` for this:
+
+```python
+from cartography.models.core.nodes import ConditionalNodeLabel, ExtraNodeLabels
+
+@dataclass(frozen=True)
+class ECRImageSchema(CartographyNodeSchema):
+    label: str = "ECRImage"
+    properties: ECRImageNodeProperties = ECRImageNodeProperties()
+    sub_resource_relationship: ECRImageToAccountRel = ECRImageToAccountRel()
+
+    # Apply different ontology labels based on the image type
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([
+        ConditionalNodeLabel(
+            label="Image",
+            conditions={"type": "IMAGE"}
+        ),
+        ConditionalNodeLabel(
+            label="ImageAttestation",
+            conditions={"type": "IMAGE_ATTESTATION"}
+        ),
+        ConditionalNodeLabel(
+            label="ImageManifestList",
+            conditions={"type": "IMAGE_MANIFEST_LIST"}
+        ),
+    ])
+```
+
+**Primary use case: Container Registry Images**
+
+ECR (and other container registries) store different types of artifacts that share the same base schema but have fundamentally different semantic meanings:
+
+| `type` field value | Ontology Label | Description |
+|-------------------|----------------|-------------|
+| `IMAGE` | `Image` | Standard container image |
+| `IMAGE_ATTESTATION` | `ImageAttestation` | SLSA/Sigstore attestation |
+| `IMAGE_MANIFEST_LIST` | `ImageManifestList` | Multi-arch manifest list |
+
+Without conditional labels, we cannot accurately map these to distinct ontology types. An `ECRImage` node with `type: "IMAGE_ATTESTATION"` should be labeled as `ImageAttestation` in the ontology, not just generic `Image`.
+
+**How it works:**
+- String labels are applied unconditionally to all nodes during ingestion
+- `ConditionalNodeLabel` labels are applied in a separate query after ingestion, only to nodes matching all specified conditions
+- Conditions use exact string equality and are combined with AND logic
+- When conditions change, labels are automatically added or removed on subsequent syncs
+
+**Important notes:**
+- Condition values must be strings (e.g., `"true"` not `True`)
+- All conditions must match for the label to be applied (AND logic)
+- Indexes are automatically created for conditional labels and their condition fields
+
+
 #### Defining relationships
 
 Relationships can be defined on `CartographyNodeSchema` on either their [sub_resource_relationship](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L216-L228) field or their [other_relationships](https://github.com/cartography-cncf/cartography/blob/e6ada9a1a741b83a34c1c3207515a1863debeeb9/cartography/graph/model.py#L230-L237) field (you can find an example of `other_relationships` [here in our test data](https://github.com/cartography-cncf/cartography/blob/4bfafe0e0c205909d119cc7f0bae84b9f6944bdd/tests/data/graph/querybuilder/sample_models/interesting_asset.py#L89-L94)).

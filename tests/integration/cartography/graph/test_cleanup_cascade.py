@@ -42,7 +42,8 @@ def _setup_parent_with_children(neo4j_session, lastupdated: int):
         sub_resource_id="sub-resource-id",
     )
 
-    # Create children with sub_resource relationship label toward parent: (Child)-[:RELATIONSHIP_LABEL]->(Parent)
+    # Create children with standard RESOURCE relationship pattern: (Parent)-[:RELATIONSHIP_LABEL]->(Child)
+    # This matches how real modules work - parent points to child with INWARD sub_resource relationship
     neo4j_session.run(
         """
         UNWIND ['child-1', 'child-2'] AS child_id
@@ -50,7 +51,7 @@ def _setup_parent_with_children(neo4j_session, lastupdated: int):
         SET c.lastupdated = $lastupdated
         WITH c
         MATCH (p:InterestingAsset{id: 'interesting-node-id'})
-        MERGE (c)-[:RELATIONSHIP_LABEL]->(p)
+        MERGE (p)-[:RELATIONSHIP_LABEL]->(c)
         """,
         lastupdated=lastupdated,
     )

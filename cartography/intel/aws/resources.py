@@ -78,6 +78,9 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "s3": s3.sync,
         "config": config.sync,
         "datapipeline": datapipeline.sync,
+        # `kms` must run before `dynamodb` since DynamoDB SSE KMS encryption creates
+        # relationships to existing KMSKey nodes using KMSMasterKeyArn.
+        "kms": kms.sync,
         "dynamodb": dynamodb.sync,
         "ec2:launch_templates": sync_ec2_launch_templates,
         "ec2:autoscalinggroup": sync_ec2_auto_scaling_groups,
@@ -113,7 +116,6 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "elastic_ip_addresses": sync_elastic_ip_addresses,
         "emr": emr.sync,
         "lambda_function": lambda_function.sync,
-        "kms": kms.sync,
         "rds": rds.sync,
         "redshift": redshift.sync,
         "route53": route53.sync,

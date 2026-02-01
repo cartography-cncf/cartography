@@ -1,11 +1,10 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
 import yaml
+from botocore.exceptions import ClientError
 from kubernetes.client.models import V1ConfigMap
 
 from cartography.client.core.tx import load
@@ -31,14 +30,14 @@ def get_aws_auth_configmap(client: K8sClient) -> V1ConfigMap:
     )
 
 
-def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]]:
+def parse_aws_auth_map(configmap: V1ConfigMap) -> dict[str, list[dict[str, Any]]]:
     """
     Parse mapRoles and mapUsers from aws-auth ConfigMap.
 
     :param configmap: V1ConfigMap containing aws-auth data
     :return: Dictionary with 'roles' and 'users' keys containing their respective mappings
     """
-    result: Dict[str, List[Dict[str, Any]]] = {"roles": [], "users": []}
+    result: dict[str, list[dict[str, Any]]] = {"roles": [], "users": []}
 
     # Parse mapRoles
     if "mapRoles" in configmap.data:
@@ -85,8 +84,8 @@ def parse_aws_auth_map(configmap: V1ConfigMap) -> Dict[str, List[Dict[str, Any]]
 
 
 def transform_aws_auth_mappings(
-    auth_mappings: Dict[str, List[Dict[str, Any]]], cluster_name: str
-) -> Dict[str, List[Dict[str, Any]]]:
+    auth_mappings: dict[str, list[dict[str, Any]]], cluster_name: str
+) -> dict[str, list[dict[str, Any]]]:
     """
     Transform both role and user mappings from aws-auth ConfigMap into combined user/group data.
     """
@@ -188,7 +187,7 @@ def get_oidc_provider(
     boto3_session: boto3.session.Session,
     region: str,
     cluster_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get external OIDC identity provider configurations for an EKS cluster.
 
@@ -218,10 +217,61 @@ def get_oidc_provider(
     return oidc_providers
 
 
-def transform_oidc_provider(
-    oidc_providers: List[Dict[str, Any]],
+@timeit
+@aws_handle_regions
+def get_access_entries(
+    boto3_session: boto3.session.Session,
+    region: str,
     cluster_name: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
+    """
+    Get EKS Access Entries for a cluster.
+
+    Access Entries are a newer way to grant IAM principals access to EKS clusters,
+    providing an alternative to the aws-auth ConfigMap.
+
+    Returns raw AWS API responses for each access entry.
+    """
+    client = boto3_session.client("eks", region_name=region)
+    access_entries = []
+
+    # Extract just the cluster name from ARN if needed
+    # ARN format: arn:aws:eks:region:account:cluster/cluster-name
+    if cluster_name.startswith("arn:aws:eks:"):
+        cluster_name = cluster_name.split("/")[-1]
+
+    paginator = client.get_paginator("list_access_entries")
+    page_iterator = paginator.paginate(clusterName=cluster_name)
+
+    # Get detailed information for each access entry
+    for page in page_iterator:
+        for principal_arn in page.get("accessEntries", []):
+            try:
+                detail_response = client.describe_access_entry(
+                    clusterName=cluster_name, principalArn=principal_arn
+                )
+                access_entries.append(detail_response["accessEntry"])
+            except ClientError as e:
+                # If the access entry is not found, we can safely skip it.
+                if e.response["Error"]["Code"] == "ResourceNotFoundException":
+                    logger.warning(
+                        f"Access entry lookup failed for principal {principal_arn}: {e}"
+                    )
+                    continue
+                # For other errors (e.g. AccessDenied, Throttling), we re-raise to avoid
+                # returning partial data which could cause destructive cleanup.
+                raise
+
+    logger.info(
+        f"Retrieved {len(access_entries)} access entries for cluster {cluster_name}"
+    )
+    return access_entries
+
+
+def transform_oidc_provider(
+    oidc_providers: list[dict[str, Any]],
+    cluster_name: str,
+) -> list[dict[str, Any]]:
     """
     Transform raw AWS OIDC provider data into standardized format.
 
@@ -254,9 +304,71 @@ def transform_oidc_provider(
     return transformed_providers
 
 
+def transform_access_entries(
+    access_entries: list[dict[str, Any]], cluster_name: str
+) -> dict[str, list[dict[str, Any]]]:
+    """
+    Transform EKS Access Entries into KubernetesUser and KubernetesGroup data.
+
+    Access Entries map IAM principals (users or roles) to Kubernetes users and groups.
+    Each access entry has:
+    - principalArn: The IAM principal (user or role) ARN
+    - username is populated by AWS. When no explicit username is configured, AWS sets it to the principal ARN.
+    - kubernetesGroups: List of Kubernetes groups the user belongs to
+
+    Returns a dictionary with 'users' and 'groups' keys containing transformed data.
+    """
+    all_users = []
+    all_groups = []
+
+    for entry in access_entries:
+        principal_arn = entry["principalArn"]
+        username = entry["username"]
+        group_names = entry.get("kubernetesGroups", [])
+
+        is_role = ":role/" in principal_arn
+        is_user = ":user/" in principal_arn
+
+        user_data = {
+            "id": f"{cluster_name}/{username}",
+            "name": username,
+            "cluster_name": cluster_name,
+        }
+
+        # Add AWS relationship based on principal type
+        if is_role:
+            user_data["aws_role_arn"] = principal_arn
+        elif is_user:
+            user_data["aws_user_arn"] = principal_arn
+
+        all_users.append(user_data)
+
+        # Create group data for each Kubernetes group
+        for group_name in group_names:
+            group_data = {
+                "id": f"{cluster_name}/{group_name}",
+                "name": group_name,
+                "cluster_name": cluster_name,
+            }
+
+            # Add AWS relationship based on principal type
+            if is_role:
+                group_data["aws_role_arn"] = principal_arn
+            elif is_user:
+                group_data["aws_user_arn"] = principal_arn
+
+            all_groups.append(group_data)
+
+    logger.info(
+        f"Transformed {len(all_users)} users and {len(all_groups)} groups from {len(access_entries)} access entries"
+    )
+
+    return {"users": all_users, "groups": all_groups}
+
+
 def load_oidc_provider(
     neo4j_session: neo4j.Session,
-    oidc_providers: List[Dict[str, Any]],
+    oidc_providers: list[dict[str, Any]],
     update_tag: int,
     cluster_id: str,
     cluster_name: str,
@@ -277,8 +389,8 @@ def load_oidc_provider(
 
 def load_aws_auth_mappings(
     neo4j_session: neo4j.Session,
-    users: List[Dict[str, Any]],
-    groups: List[Dict[str, Any]],
+    users: list[dict[str, Any]],
+    groups: list[dict[str, Any]],
     update_tag: int,
     cluster_id: str,
     cluster_name: str,
@@ -288,7 +400,6 @@ def load_aws_auth_mappings(
     """
     logger.info(f"Loading {len(users)} Kubernetes Users with AWS mappings")
 
-    # Load Kubernetes Users with AWS relationships
     if users:
         load(
             neo4j_session,
@@ -301,7 +412,6 @@ def load_aws_auth_mappings(
 
     logger.info(f"Loading {len(groups)} Kubernetes Groups with AWS mappings")
 
-    # Load Kubernetes Groups with AWS relationships
     if groups:
         load(
             neo4j_session,
@@ -314,7 +424,7 @@ def load_aws_auth_mappings(
 
 
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     logger.debug("Running cleanup job for EKS AWS Role and User relationships")
 
@@ -341,7 +451,8 @@ def sync(
     """
     Sync EKS identity providers:
     1. AWS IAM role and user mappings (aws-auth ConfigMap)
-    2. External OIDC providers (EKS API)
+    2. EKS Access Entries (EKS API)
+    3. External OIDC providers (EKS API)
     """
     logger.info(f"Starting EKS identity provider sync for cluster {cluster_name}")
 
@@ -368,7 +479,32 @@ def sync(
     else:
         logger.info("No role or user mappings found in aws-auth ConfigMap")
 
-    # 2. Sync External OIDC providers (EKS API)
+    # 2. Sync EKS Access Entries (EKS API)
+    logger.info("Syncing EKS Access Entries from EKS API")
+
+    # Get access entries from EKS API
+    access_entries = get_access_entries(boto3_session, region, cluster_name)
+
+    if access_entries:
+        # Transform access entries into users and groups
+        transformed_access_entries = transform_access_entries(
+            access_entries, cluster_name
+        )
+
+        # Load users and groups from access entries
+        load_aws_auth_mappings(
+            neo4j_session,
+            transformed_access_entries["users"],
+            transformed_access_entries["groups"],
+            update_tag,
+            cluster_id,
+            cluster_name,
+        )
+        logger.info(f"Successfully synced {len(access_entries)} EKS Access Entries")
+    else:
+        logger.info("No EKS Access Entries found for cluster")
+
+    # 3. Sync External OIDC providers (EKS API)
     logger.info("Syncing external OIDC providers from EKS API")
 
     # Get OIDC providers from EKS API

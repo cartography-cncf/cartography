@@ -48,10 +48,32 @@ def _run_fact(
         findings = rule.parse_results(fact, raw_findings)
         findings_count = len(findings)
 
-    if output_format == "text":
-        if findings_count > 0:
-            print(f"  \033[36m{'Results:':<12}\033[0m {findings_count} item(s) found")
+        # Execute count query to get total assets
+        total_assets = None
+        passing = None
+        # Count distinct assets if asset_id_field is set, otherwise count rows
+        if fact.asset_id_field and findings:
+            failing = len({getattr(f, fact.asset_id_field) for f in findings})
+        else:
+            failing = findings_count
+        if fact.cypher_count_query:
+            count_result = session.execute_read(
+                read_list_of_dicts_tx, fact.cypher_count_query
+            )
+            if count_result and "count" in count_result[0]:
+                total_assets = count_result[0]["count"]
+                passing = total_assets - failing
 
+    if output_format == "text":
+        # Display compliance metrics if available
+        if total_assets is not None:
+            print(f"  \033[36m{'Total:':<12}\033[0m {total_assets} asset(s)")
+            print(f"  \033[32m{'Passing:':<12}\033[0m {passing} asset(s)")
+            print(f"  \033[31m{'Failing:':<12}\033[0m {failing} asset(s)")
+        else:
+            print(f"  \033[36m{'Findings:':<12}\033[0m {findings_count} item(s) found")
+
+        if findings_count > 0:
             # Show sample findings
             print("    Sample results:")
             for idx, finding in enumerate(findings[:3]):  # Show first 3
@@ -72,11 +94,15 @@ def _run_fact(
                 print(
                     f"      ... and {findings_count - 3} more (use --output json to see all)"
                 )
-        else:
-            print(f"  \033[36m{'Results:':<12}\033[0m No items found")
 
     # Create and return fact result
     counter.total_findings += findings_count
+
+    # Update aggregate counters if we have asset metrics
+    if total_assets is not None and passing is not None:
+        counter.total_assets += total_assets
+        counter.total_failing += failing
+        counter.total_passing += passing
 
     return FactResult(
         fact_id=fact.id,
@@ -84,6 +110,9 @@ def _run_fact(
         fact_description=fact.description,
         fact_provider=fact.module.value,
         findings=findings,
+        total_assets=total_assets,
+        failing=failing,
+        passing=passing,
     )
 
 
@@ -185,6 +214,9 @@ def run_rules(
         all_results = []
         total_facts = 0
         total_findings = 0
+        total_assets = 0
+        total_passing = 0
+        total_failing = 0
 
         for i, rule_name in enumerate(rule_names):
             if output_format == "text" and len(rule_names) > 1:
@@ -204,10 +236,20 @@ def run_rules(
             all_results.append(rule_result)
             total_facts += rule_result.counter.total_facts
             total_findings += rule_result.counter.total_findings
+            total_assets += rule_result.counter.total_assets
+            total_passing += rule_result.counter.total_passing
+            total_failing += rule_result.counter.total_failing
 
         # Output results
         _format_and_output_results(
-            all_results, rule_names, output_format, total_facts, total_findings
+            all_results,
+            rule_names,
+            output_format,
+            total_facts,
+            total_findings,
+            total_assets,
+            total_passing,
+            total_failing,
         )
 
         return 0

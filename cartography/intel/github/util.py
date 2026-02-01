@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
+_REST_RATE_LIMIT_REMAINING_THRESHOLD = 100
 
 
 class PaginatedGraphqlData(NamedTuple):
@@ -48,7 +49,7 @@ def handle_rate_limit_sleep(token: str) -> None:
         f"Github graphql ratelimit has {remaining} remaining and is under threshold {threshold},"
         f" sleeping until reset at {reset_at} for {sleep_duration}",
     )
-    time.sleep(sleep_duration.seconds)
+    time.sleep(sleep_duration.total_seconds())
 
 
 def call_github_api(query: str, variables: str, token: str, api_url: str) -> Dict:
@@ -216,3 +217,144 @@ def fetch_all(
             f"Didn't get any organization data for organization: {organization} and resource_type: {resource_type}",
         )
     return data, org_data
+
+
+def _get_rest_api_base_url(graphql_url: str) -> str:
+    """
+    Convert a GitHub GraphQL API URL to a REST API base URL.
+
+    For github.com: https://api.github.com/graphql -> https://api.github.com
+    For GitHub Enterprise: https://github.example.com/api/graphql -> https://github.example.com/api/v3
+
+    :param graphql_url: The GitHub GraphQL API URL
+    :return: The REST API base URL
+    """
+    if "api.github.com" in graphql_url:
+        return "https://api.github.com"
+    # GitHub Enterprise URL format
+    # e.g., https://github.example.com/api/graphql -> https://github.example.com/api/v3
+    base = graphql_url.replace("/graphql", "").rstrip("/")
+    if not base.endswith("/v3"):
+        base = f"{base}/v3"
+    return base
+
+
+def handle_rest_rate_limit_sleep(token: str, base_url: str) -> None:
+    """
+    Check the remaining REST API rate limit and sleep if remaining is below threshold.
+
+    :param token: The GitHub API token as string.
+    :param base_url: The REST API base URL.
+    """
+    rate_limit_url = f"{base_url}/rate_limit"
+    response = requests.get(
+        rate_limit_url,
+        headers={"Authorization": f"token {token}"},
+        timeout=_TIMEOUT,
+    )
+    response.raise_for_status()
+    response_json = response.json()
+    rate_limit_obj = response_json["resources"]["core"]
+    remaining = rate_limit_obj["remaining"]
+    threshold = _REST_RATE_LIMIT_REMAINING_THRESHOLD
+    if remaining > threshold:
+        return
+    reset_at = datetime.fromtimestamp(rate_limit_obj["reset"], tz=tz.utc)
+    now = datetime.now(tz.utc)
+    sleep_duration = reset_at - now + timedelta(minutes=1)
+    logger.warning(
+        f"GitHub REST API rate limit has {remaining} remaining and is under threshold {threshold}, "
+        f"sleeping until reset at {reset_at} for {sleep_duration}",
+    )
+    time.sleep(sleep_duration.total_seconds())
+
+
+def fetch_all_rest_api_pages(
+    token: str,
+    base_url: str,
+    endpoint: str,
+    result_key: str,
+    retries: int = 5,
+) -> list[dict[str, Any]]:
+    """
+    Fetch all pages from a GitHub REST API endpoint using Link header pagination.
+
+    :param token: The GitHub API token as string.
+    :param base_url: The REST API base URL (e.g., https://api.github.com).
+    :param endpoint: The API endpoint path (e.g., /repos/{owner}/{repo}/actions/workflows).
+    :param result_key: The key in the response JSON that contains the list of results
+                       (e.g., 'workflows', 'secrets', 'variables').
+    :param retries: Number of retries to perform on transient errors.
+    :return: A list of all items from all pages.
+    """
+    results: list[dict[str, Any]] = []
+    url: str | None = f"{base_url}{endpoint}"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    retry = 0
+
+    while url:
+        exc: Any = None
+        try:
+            handle_rest_rate_limit_sleep(token, base_url)
+            response = requests.get(url, headers=headers, timeout=_TIMEOUT)
+            response.raise_for_status()
+            retry = 0
+        except requests.exceptions.Timeout as err:
+            retry += 1
+            exc = err
+        except requests.exceptions.HTTPError as err:
+            # Handle 404 gracefully - resource may not exist (e.g., no environments)
+            if err.response is not None and err.response.status_code == 404:
+                logger.debug(f"GitHub REST API: 404 for {url}, returning empty list")
+                return []
+            # Handle 403 gracefully
+            if err.response is not None and err.response.status_code == 403:
+                logger.warning(
+                    f"GitHub REST API: 403 Forbidden for {url}. "
+                    "This is likely due to insufficient permissions. "
+                    "Skipping this resource and continuing.",
+                )
+                return []
+            retry += 1
+            exc = err
+        except requests.exceptions.ChunkedEncodingError as err:
+            retry += 1
+            exc = err
+
+        if retry >= retries:
+            logger.error(
+                f"GitHub REST API: Could not retrieve {url} after {retry} retries. Raising exception.",
+                exc_info=True,
+            )
+            raise exc
+        elif retry > 0:
+            time.sleep(2**retry)
+            continue
+
+        response_json = response.json()
+
+        # Some endpoints return a list directly, others wrap in an object
+        if isinstance(response_json, list):
+            results.extend(response_json)
+        elif result_key in response_json:
+            results.extend(response_json[result_key])
+        else:
+            logger.warning(
+                f"GitHub REST API: Expected key '{result_key}' not found in response from {url}",
+            )
+
+        # Parse Link header for pagination
+        url = None
+        link_header = response.headers.get("Link", "")
+        if link_header:
+            for link in link_header.split(","):
+                if 'rel="next"' in link:
+                    # Extract URL from <url>; rel="next"
+                    url = link.split(";")[0].strip().strip("<>")
+                    break
+
+    return results
