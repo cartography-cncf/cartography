@@ -7,6 +7,7 @@ import neo4j
 
 import cartography.intel.github.actions
 import cartography.intel.github.commits
+import cartography.intel.github.container_packages
 import cartography.intel.github.repos
 import cartography.intel.github.teams
 import cartography.intel.github.users
@@ -90,6 +91,18 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             auth_data["token"],
             auth_data["url"],
             auth_data["name"],
+        )
+
+        # Sync GitHub Container Registry packages (GHCR)
+        org_url = f"https://github.com/{auth_data['name']}"
+        cartography.intel.github.container_packages.sync_container_packages(
+            neo4j_session,
+            auth_data["token"],
+            auth_data["url"],
+            auth_data["name"],
+            org_url,
+            common_job_parameters["UPDATE_TAG"],
+            common_job_parameters,
         )
 
         # Sync commit relationships for the configured lookback period
