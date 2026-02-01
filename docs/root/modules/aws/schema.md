@@ -1619,25 +1619,262 @@ Representation of a DNS name server associated with an AWS Route53 hosted zone.
     ```
 
 
-### DynamoDBTable
+### DynamoDBTable::Database
 
-Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ListTables.html).
+Representation of an AWS [DynamoDBTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TableDescription.html).
 
 > **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database instances across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
 
 | Field | Description |
 |-------|-------------|
-| firstseen| Timestamp of when a sync job first discovered this node  |
-| lastupdated |  Timestamp of the last time the node was updated |
-| name | The name of the table |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
 | **id** | The ARN of the table |
+| **arn** | The AWS-unique identifier (ARN) |
+| name | The name of the table |
 | region | The AWS region of the table |
-| **arn** | The AWS-unique identifier
+| rows | The number of items in the table |
+| size | The size of the table in bytes |
+| table_status | The current state of the table (e.g., ACTIVE, CREATING, DELETING) |
+| creation_date_time | The date and time when the table was created |
+| provisioned_throughput_read_capacity_units | The maximum number of reads consumed per second |
+| provisioned_throughput_write_capacity_units | The maximum number of writes consumed per second |
 
 #### Relationships
 - DynamoDBTables belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBTable)
     ```
-    (AWSAccount)-[RESOURCE]->(DynamoDBTable)
+
+- DynamoDBTables have Global Secondary Indexes.
+    ```cypher
+    (DynamoDBTable)-[:GLOBAL_SECONDARY_INDEX]->(DynamoDBGlobalSecondaryIndex)
+    ```
+
+- DynamoDBTables have SSE (Server-Side Encryption) descriptions.
+    ```cypher
+    (DynamoDBTable)-[:HAS_SSE]->(DynamoDBSSEDescription)
+    ```
+
+- DynamoDBTables have billing mode summaries.
+    ```cypher
+    (DynamoDBTable)-[:HAS_BILLING]->(DynamoDBBillingModeSummary)
+    ```
+
+- DynamoDBTables have streams.
+    ```cypher
+    (DynamoDBTable)-[:LATEST_STREAM]->(DynamoDBStream)
+    ```
+
+- DynamoDBTables have archival summaries (for archived tables).
+    ```cypher
+    (DynamoDBTable)-[:HAS_ARCHIVAL]->(DynamoDBArchivalSummary)
+    ```
+
+- DynamoDBTables have restore summaries (for restored tables).
+    ```cypher
+    (DynamoDBTable)-[:HAS_RESTORE]->(DynamoDBRestoreSummary)
+    ```
+
+
+### DynamoDBGlobalSecondaryIndex
+
+Representation of a DynamoDB [Global Secondary Index](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GlobalSecondaryIndexDescription.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the GSI |
+| arn | The ARN of the GSI |
+| name | The name of the GSI |
+| region | The AWS region of the GSI |
+| provisioned_throughput_read_capacity_units | The maximum number of reads consumed per second |
+| provisioned_throughput_write_capacity_units | The maximum number of writes consumed per second |
+
+#### Relationships
+- DynamoDBGlobalSecondaryIndexes belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBGlobalSecondaryIndex)
+    ```
+
+- DynamoDBGlobalSecondaryIndexes belong to DynamoDBTables.
+    ```cypher
+    (DynamoDBTable)-[:GLOBAL_SECONDARY_INDEX]->(DynamoDBGlobalSecondaryIndex)
+    ```
+
+
+### DynamoDBSSEDescription
+
+Representation of DynamoDB [Server-Side Encryption description](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_SSEDescription.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (table ARN + "/sse") |
+| sse_status | The current state of SSE (e.g., ENABLED, DISABLED) |
+| sse_type | The server-side encryption type (AES256 or KMS) |
+| kms_master_key_arn | The ARN of the KMS key used for encryption (if SSE type is KMS) |
+
+#### Relationships
+- DynamoDBSSEDescriptions belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBSSEDescription)
+    ```
+
+- DynamoDBSSEDescriptions belong to DynamoDBTables.
+    ```cypher
+    (DynamoDBTable)-[:HAS_SSE]->(DynamoDBSSEDescription)
+    ```
+
+- DynamoDBSSEDescriptions may use KMS keys for encryption.
+    ```cypher
+    (DynamoDBSSEDescription)-[:USES_KMS_KEY]->(KMSKey)
+    ```
+
+
+### DynamoDBBillingModeSummary
+
+Representation of DynamoDB [Billing Mode Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BillingModeSummary.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (table ARN + "/billing") |
+| billing_mode | The billing mode (PROVISIONED or PAY_PER_REQUEST) |
+| last_update_to_pay_per_request_date_time | When the table was last switched to PAY_PER_REQUEST mode |
+
+#### Relationships
+- DynamoDBBillingModeSummaries belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBBillingModeSummary)
+    ```
+
+- DynamoDBBillingModeSummaries belong to DynamoDBTables.
+    ```cypher
+    (DynamoDBTable)-[:HAS_BILLING]->(DynamoDBBillingModeSummary)
+    ```
+
+
+### DynamoDBStream
+
+Representation of a DynamoDB [Stream](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_StreamSpecification.html).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the stream |
+| arn | The ARN of the stream |
+| stream_label | A timestamp used as the stream label |
+| stream_enabled | Whether the stream is enabled |
+| stream_view_type | What information is written to the stream (KEYS_ONLY, NEW_IMAGE, OLD_IMAGE, NEW_AND_OLD_IMAGES) |
+
+#### Relationships
+- DynamoDBStreams belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBStream)
+    ```
+
+- DynamoDBStreams belong to DynamoDBTables.
+    ```cypher
+    (DynamoDBTable)-[:LATEST_STREAM]->(DynamoDBStream)
+    ```
+
+
+### DynamoDBArchivalSummary
+
+Representation of DynamoDB [Archival Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ArchivalSummary.html) for archived tables.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (table ARN + "/archival") |
+| archival_date_time | The date and time when table archival was initiated |
+| archival_reason | The reason for archiving the table |
+| archival_backup_arn | The ARN of the backup created when the table was archived |
+
+#### Relationships
+- DynamoDBArchivalSummaries belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBArchivalSummary)
+    ```
+
+- DynamoDBArchivalSummaries belong to DynamoDBTables.
+    ```cypher
+    (DynamoDBTable)-[:HAS_ARCHIVAL]->(DynamoDBArchivalSummary)
+    ```
+
+- DynamoDBArchivalSummaries reference the backup created during archival.
+    ```cypher
+    (DynamoDBArchivalSummary)-[:ARCHIVED_TO_BACKUP]->(DynamoDBBackup)
+    ```
+
+
+### DynamoDBRestoreSummary
+
+Representation of DynamoDB [Restore Summary](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_RestoreSummary.html) for restored tables.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (table ARN + "/restore") |
+| restore_date_time | Point in time or source backup time for the restore |
+| restore_in_progress | Indicates whether a restore is currently in progress |
+| source_backup_arn | The ARN of the backup from which the table was restored |
+| source_table_arn | The ARN of the source table from which the table was restored |
+
+#### Relationships
+- DynamoDBRestoreSummaries belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBRestoreSummary)
+    ```
+
+- DynamoDBRestoreSummaries belong to DynamoDBTables (the restored table).
+    ```cypher
+    (DynamoDBTable)-[:HAS_RESTORE]->(DynamoDBRestoreSummary)
+    ```
+
+- DynamoDBRestoreSummaries reference the source backup.
+    ```cypher
+    (DynamoDBRestoreSummary)-[:RESTORED_FROM_BACKUP]->(DynamoDBBackup)
+    ```
+
+- DynamoDBRestoreSummaries reference the source table.
+    ```cypher
+    (DynamoDBRestoreSummary)-[:RESTORED_FROM_TABLE]->(DynamoDBTable)
+    ```
+
+
+### DynamoDBBackup
+
+Representation of a DynamoDB [Backup](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BackupDetails.html). Currently a stub entity referenced by archival and restore summaries.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ARN of the backup |
+| arn | The ARN of the backup |
+
+#### Relationships
+- DynamoDBBackups belong to AWS Accounts.
+    ```cypher
+    (AWSAccount)-[:RESOURCE]->(DynamoDBBackup)
+    ```
+
+- DynamoDBBackups are referenced by archival summaries.
+    ```cypher
+    (DynamoDBArchivalSummary)-[:ARCHIVED_TO_BACKUP]->(DynamoDBBackup)
+    ```
+
+- DynamoDBBackups are referenced by restore summaries.
+    ```cypher
+    (DynamoDBRestoreSummary)-[:RESTORED_FROM_BACKUP]->(DynamoDBBackup)
     ```
 
 - AWSPrincipals with appropriate permissions can query DynamoDB tables. Created from [permission_relationships.yaml](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/permission_relationships.yaml).
