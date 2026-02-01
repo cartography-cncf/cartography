@@ -23,12 +23,26 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     :return: None
     """
 
-    if not config.tailscale_token or not config.tailscale_org:
+    if not config.tailscale_token:
         logger.info(
             "Tailscale import is not configured - skipping this module. "
             "See docs to configure.",
         )
         return
+
+    org = config.tailscale_org
+    if not org:
+        if config.tailscale_token.startswith("tskey-client-"):
+            org = "-"
+            logger.debug(
+                "Using OAuth token - tailnet will be auto-detected via '-' placeholder",
+            )
+        else:
+            logger.info(
+                "Tailscale organization not provided - skipping this module. "
+                "See docs to configure.",
+            )
+            return
 
     # Create requests sessions
     api_session = requests.session()
@@ -37,41 +51,41 @@ def start_tailscale_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "BASE_URL": config.tailscale_base_url,
-        "org": config.tailscale_org,
+        "org": org,
     }
 
     cartography.intel.tailscale.tailnets.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
-        org=config.tailscale_org,
+        org=org,
     )
 
     users = cartography.intel.tailscale.users.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
-        org=config.tailscale_org,
+        org=org,
     )
 
     cartography.intel.tailscale.devices.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
-        org=config.tailscale_org,
+        org=org,
     )
 
     cartography.intel.tailscale.postureintegrations.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
-        org=config.tailscale_org,
+        org=org,
     )
 
     cartography.intel.tailscale.acls.sync(
         neo4j_session,
         api_session,
         common_job_parameters,
-        org=config.tailscale_org,
+        org=org,
         users=users,
     )
