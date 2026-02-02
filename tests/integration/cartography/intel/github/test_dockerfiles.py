@@ -103,15 +103,18 @@ def test_search_dockerfiles_in_org_with_pagination(mock_rest_api):
     Test that search_dockerfiles_in_org handles pagination correctly.
     """
     # Arrange - simulate 2 pages of results
+    # Page 1 must have exactly 100 items to trigger pagination
+    page1_items = [SEARCH_DOCKERFILES_ORG_RESPONSE["items"][0]] * 100
     page1_response = {
         "total_count": 150,
         "incomplete_results": False,
-        "items": SEARCH_DOCKERFILES_ORG_RESPONSE["items"],  # 3 items, simulate 100
+        "items": page1_items,
     }
+    # Page 2 has fewer than 100 items, so pagination stops
     page2_response = {
         "total_count": 150,
         "incomplete_results": False,
-        "items": [SEARCH_DOCKERFILES_ORG_RESPONSE["items"][0]],  # 1 more item
+        "items": [SEARCH_DOCKERFILES_ORG_RESPONSE["items"][0]] * 50,
     }
     mock_rest_api.side_effect = [page1_response, page2_response]
 
@@ -124,7 +127,7 @@ def test_search_dockerfiles_in_org_with_pagination(mock_rest_api):
 
     # Assert - should have made 2 API calls (pages stop when items < 100)
     assert mock_rest_api.call_count == 2
-    assert len(results) == 4  # 3 + 1 items
+    assert len(results) == 150  # 100 + 50 items
 
 
 @patch("cartography.intel.github.dockerfiles.call_github_rest_api")

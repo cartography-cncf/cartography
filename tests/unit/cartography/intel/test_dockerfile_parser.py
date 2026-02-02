@@ -12,7 +12,6 @@ from cartography.intel.dockerfile_parser import normalize_command
 from cartography.intel.dockerfile_parser import parse
 from cartography.intel.dockerfile_parser import parse_file
 
-
 # =============================================================================
 # normalize_command tests
 # =============================================================================
@@ -139,9 +138,7 @@ def test_parse_to_dict():
 
 
 def test_parse_file_basic():
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".dockerfile", delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".dockerfile", delete=False) as f:
         f.write("FROM python:3.11\nRUN pip install flask")
         f.flush()
 
@@ -155,9 +152,7 @@ def test_parse_file_basic():
 
 
 def test_parse_file_with_path_object():
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".dockerfile", delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".dockerfile", delete=False) as f:
         f.write("FROM alpine:latest")
         f.flush()
 
