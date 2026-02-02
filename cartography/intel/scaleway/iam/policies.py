@@ -32,11 +32,12 @@ def sync(
     formatted_policies = transform_policies(policies)
     load_policies(neo4j_session, formatted_policies, org_id, update_tag)
 
-    # Get and load rules for each policy
+    # Get and load rules for all policies
+    all_formatted_rules: list[dict[str, Any]] = []
     for policy in policies:
         rules = get_rules(api, policy.id)
-        formatted_rules = transform_rules(rules, policy.id)
-        load_rules(neo4j_session, formatted_rules, org_id, update_tag)
+        all_formatted_rules.extend(transform_rules(rules, policy.id))
+    load_rules(neo4j_session, all_formatted_rules, org_id, update_tag)
 
     cleanup(neo4j_session, common_job_parameters)
 
@@ -70,11 +71,6 @@ def transform_rules(rules: list[Rule], policy_id: str) -> list[dict[str, Any]]:
     for rule in rules:
         formatted_rule = scaleway_obj_to_dict(rule)
         formatted_rule["policy_id"] = policy_id
-        # Convert permission_sets_scope_type enum to string
-        if formatted_rule.get("permission_sets_scope_type"):
-            formatted_rule["permission_sets_scope_type"] = str(
-                formatted_rule["permission_sets_scope_type"]
-            )
         formatted_rules.append(formatted_rule)
     return formatted_rules
 

@@ -44,11 +44,6 @@ def transform_permission_sets(
     formatted_permission_sets = []
     for permission_set in permission_sets:
         formatted_permission_set = scaleway_obj_to_dict(permission_set)
-        # Convert scope_type enum to string
-        if formatted_permission_set.get("scope_type"):
-            formatted_permission_set["scope_type"] = str(
-                formatted_permission_set["scope_type"]
-            )
         formatted_permission_sets.append(formatted_permission_set)
     return formatted_permission_sets
 
