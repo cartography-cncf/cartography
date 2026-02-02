@@ -3626,16 +3626,16 @@ wheels = [
 
 [[package]]
 name = "shibuya"
-version = "2025.12.17"
+version = "2026.1.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pygments-styles" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "8.2.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/31/c3/59dd0d0a8848ac06ba7a026d661dcee6fecd503c0d09b67060e6cf6a50e7/shibuya-2025.12.17.tar.gz", hash = "sha256:24116c03f9f8f232b8a109f0508b24b9d045fbd148790d77d1b406cf63e8fbf1", size = 85824, upload-time = "2025-12-17T03:25:33.611Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1d/b2/b94cb04adbb984973fe83fd670dd066514610241d829723f678366e691d2/shibuya-2026.1.9.tar.gz", hash = "sha256:b389f10fd9c07b048e940f32d1e1ac096a2d49736389173ac771b37a10b51fdf", size = 86002, upload-time = "2026-01-09T02:19:14.365Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/13/189c52177185b552caa9b7c73c846a761f90044b08c0b2f8f2687bc3ae3e/shibuya-2025.12.17-py3-none-any.whl", hash = "sha256:f25ff0f08c481bb130f92adc3c047d3fc5ac3b3ef6244936f91a927fff4ce8b7", size = 103016, upload-time = "2025-12-17T03:25:32.375Z" },
+    { url = "https://files.pythonhosted.org/packages/37/ae/06d7dfc5633c7250fefc61fd624990aa2c37e3495c08a2f23968b1acb23e/shibuya-2026.1.9-py3-none-any.whl", hash = "sha256:b58a3cc6e5619c71d00fcf0be4a3060c87040c2a62a1b3f1a93a6a41ca8eaf45", size = 103389, upload-time = "2026-01-09T02:19:12.798Z" },
 ]
 
 [[package]]
