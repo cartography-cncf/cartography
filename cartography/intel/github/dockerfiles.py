@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import tempfile
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -153,7 +154,9 @@ def get_ecr_images_with_history(
             )
         )
 
-    logger.info(f"Found {len(images)} ECR images with layer history (one per repository)")
+    logger.info(
+        f"Found {len(images)} ECR images with layer history (one per repository)"
+    )
     return images
 
 
@@ -433,9 +436,7 @@ def search_dockerfiles_in_repo(
         return items
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code in (403, 404, 422):
-            logger.debug(
-                f"Search failed for {owner}/{repo}: {e.response.status_code}"
-            )
+            logger.debug(f"Search failed for {owner}/{repo}: {e.response.status_code}")
             return []
         raise
     except Exception as e:
@@ -491,7 +492,9 @@ def get_file_content(
         return None
 
 
-def _extract_repo_info(repo: dict[str, Any]) -> tuple[str | None, str | None, str | None]:
+def _extract_repo_info(
+    repo: dict[str, Any],
+) -> tuple[str | None, str | None, str | None]:
     """Extract owner, repo_name, and repo_url from a repository dict."""
     owner = None
     repo_name = None
@@ -578,7 +581,9 @@ def get_dockerfiles_for_repos(
         return []
 
     # Build lookup maps for repos
-    repo_info_map: dict[str, tuple[str, str, str | None]] = {}  # full_name -> (owner, name, url)
+    repo_info_map: dict[str, tuple[str, str, str | None]] = (
+        {}
+    )  # full_name -> (owner, name, url)
     orgs_found: set[str] = set()
 
     for repo in repos:
@@ -618,22 +623,32 @@ def get_dockerfiles_for_repos(
                 path = item.get("path")
                 if not path:
                     continue
-                content = get_file_content(token, owner, repo_name, path, base_url=base_url)
+                content = get_file_content(
+                    token, owner, repo_name, path, base_url=base_url
+                )
                 if content:
-                    dockerfile_info = _build_dockerfile_info(item, content, repo_url, full_name)
+                    dockerfile_info = _build_dockerfile_info(
+                        item, content, repo_url, full_name
+                    )
                     all_dockerfiles.append(dockerfile_info)
     else:
         # Multiple orgs or org not specified: fall back to per-repo search
         logger.info(f"Using per-repo search for {len(repo_info_map)} repositories")
         for full_name, (owner, repo_name, repo_url) in repo_info_map.items():
-            dockerfile_items = search_dockerfiles_in_repo(token, owner, repo_name, base_url)
+            dockerfile_items = search_dockerfiles_in_repo(
+                token, owner, repo_name, base_url
+            )
             for item in dockerfile_items:
                 path = item.get("path")
                 if not path:
                     continue
-                content = get_file_content(token, owner, repo_name, path, base_url=base_url)
+                content = get_file_content(
+                    token, owner, repo_name, path, base_url=base_url
+                )
                 if content:
-                    dockerfile_info = _build_dockerfile_info(item, content, repo_url, full_name)
+                    dockerfile_info = _build_dockerfile_info(
+                        item, content, repo_url, full_name
+                    )
                     all_dockerfiles.append(dockerfile_info)
 
     logger.info(
@@ -716,7 +731,7 @@ class DockerfileSyncResult:
         return output
 
     @contextmanager
-    def to_tempfile(self):
+    def to_tempfile(self) -> Iterator[Path]:
         """
         Context manager that writes results to a temporary JSON file.
         The file is automatically deleted when the context exits.
