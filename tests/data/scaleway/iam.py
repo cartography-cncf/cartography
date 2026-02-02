@@ -4,6 +4,10 @@ from dateutil.tz import tzutc
 from scaleway.iam.v1alpha1 import APIKey
 from scaleway.iam.v1alpha1 import Application
 from scaleway.iam.v1alpha1 import Group
+from scaleway.iam.v1alpha1 import PermissionSet
+from scaleway.iam.v1alpha1 import PermissionSetScopeType
+from scaleway.iam.v1alpha1 import Policy
+from scaleway.iam.v1alpha1 import Rule
 from scaleway.iam.v1alpha1 import User
 
 SCALEWAY_USERS = [
@@ -127,5 +131,83 @@ SCALEWAY_APIKEYS = [
         expires_at=datetime(2026, 3, 23, 20, 52, 20, tzinfo=tzutc()),
         application_id=None,
         user_id="b49932b2-2faa-4c56-905e-ffac52f063dc",
+    ),
+]
+
+SCALEWAY_PERMISSION_SETS = [
+    PermissionSet(
+        id="a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        name="InstancesFullAccess",
+        scope_type=PermissionSetScopeType.PROJECTS,
+        description="Full access to Instances",
+        categories=["compute"],
+    ),
+    PermissionSet(
+        id="b2c3d4e5-f6a7-8901-bcde-f12345678901",
+        name="ObjectStorageReadOnly",
+        scope_type=PermissionSetScopeType.PROJECTS,
+        description="Read-only access to Object Storage",
+        categories=["storage"],
+    ),
+]
+
+SCALEWAY_POLICIES = [
+    Policy(
+        id="pol-11111111-1111-1111-1111-111111111111",
+        name="Admin Policy",
+        description="Full admin access",
+        organization_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        editable=True,
+        deletable=True,
+        managed=False,
+        nb_rules=1,
+        nb_scopes=1,
+        nb_permission_sets=1,
+        tags=[],
+        created_at=datetime(2025, 4, 1, 10, 0, 0, tzinfo=tzutc()),
+        updated_at=datetime(2025, 4, 1, 10, 0, 0, tzinfo=tzutc()),
+        user_id="998cbe72-913f-4f55-8620-4b0f7655d343",
+        group_id=None,
+        application_id=None,
+        no_principal=False,
+    ),
+    Policy(
+        id="pol-22222222-2222-2222-2222-222222222222",
+        name="Group Policy",
+        description="Policy applied to a group",
+        organization_id="0681c477-fbb9-4820-b8d6-0eef10cfcd6d",
+        editable=True,
+        deletable=True,
+        managed=False,
+        nb_rules=1,
+        nb_scopes=1,
+        nb_permission_sets=1,
+        tags=[],
+        created_at=datetime(2025, 4, 2, 10, 0, 0, tzinfo=tzutc()),
+        updated_at=datetime(2025, 4, 2, 10, 0, 0, tzinfo=tzutc()),
+        user_id=None,
+        group_id="1f767996-f6f6-4b0e-a7b1-6a255e809ed6",
+        application_id=None,
+        no_principal=False,
+    ),
+]
+
+SCALEWAY_RULES_POLICY_1 = [
+    Rule(
+        id="rule-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        permission_sets_scope_type=PermissionSetScopeType.PROJECTS,
+        condition="",
+        permission_set_names=["InstancesFullAccess"],
+        project_ids=["0681c477-fbb9-4820-b8d6-0eef10cfcd6d"],
+    ),
+]
+
+SCALEWAY_RULES_POLICY_2 = [
+    Rule(
+        id="rule-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        permission_sets_scope_type=PermissionSetScopeType.PROJECTS,
+        condition="",
+        permission_set_names=["ObjectStorageReadOnly"],
+        project_ids=["0681c477-fbb9-4820-b8d6-0eef10cfcd6d"],
     ),
 ]
