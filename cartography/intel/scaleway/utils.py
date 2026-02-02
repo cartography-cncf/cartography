@@ -1,4 +1,5 @@
 import dataclasses
+from enum import Enum
 from typing import Any
 
 # Zone does not really matter for readonly access, but we need to set it
@@ -34,4 +35,6 @@ def _scaleway_element_sanitize(element: Any) -> Any:
         }
     elif dataclasses.is_dataclass(element):
         return scaleway_obj_to_dict(element)
+    elif isinstance(element, Enum):
+        return element.value
     return element
