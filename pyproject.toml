@@ -107,7 +107,7 @@ dev = [
     "pytest-rerunfailures",
     "pytest-asyncio",
     "types-PyYAML",
-    "black==25.12.0",
+    "black==26.1.0",
     "types-requests<2.32.4.20260108",
     "azure-mgmt-web>=7.0.0",
     "azure-mgmt-eventgrid>=10.0.0",
