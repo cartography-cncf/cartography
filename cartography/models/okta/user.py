@@ -142,7 +142,7 @@ class OktaUserNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class OktaUserToOktaOrganizationRelProperties(CartographyRelProperties):
+class OktaUserToOrgRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -155,9 +155,7 @@ class OktaUserToOktaOrganizationRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: OktaUserToOktaOrganizationRelProperties = (
-        OktaUserToOktaOrganizationRelProperties()
-    )
+    properties: OktaUserToOrgRelProperties = OktaUserToOrgRelProperties()
 
 
 @dataclass(frozen=True)

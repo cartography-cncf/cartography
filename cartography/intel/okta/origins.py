@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 # Okta intel module - Origins
 import asyncio
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from okta.client import Client as OktaClient
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 def sync_okta_origins(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync Okta origins
@@ -38,7 +38,7 @@ def sync_okta_origins(
 
 
 @timeit
-async def _get_okta_origins(okta_client: OktaClient) -> List[OktaTrustedOrigin]:
+async def _get_okta_origins(okta_client: OktaClient) -> list[OktaTrustedOrigin]:
     """
     Get Okta origins list from Okta
     :param okta_client: An Okta client object
@@ -62,17 +62,17 @@ async def _get_okta_origins(okta_client: OktaClient) -> List[OktaTrustedOrigin]:
 
 @timeit
 def _transform_okta_origins(
-    okta_origins: List[OktaTrustedOrigin],
-) -> List[Dict[str, Any]]:
+    okta_origins: list[OktaTrustedOrigin],
+) -> list[dict[str, Any]]:
     """
     Convert a list of Okta origins into a format for Neo4j
     :param okta_origins: List of Okta origins
     :return: List of origin dicts
     """
-    transformed_origins: List[Dict] = []
+    transformed_origins: list[dict] = []
     logger.info("Transforming %s Okta origins", len(okta_origins))
     for okta_origin in okta_origins:
-        origin_props: Dict[str, Any] = {}
+        origin_props: dict[str, Any] = {}
         origin_props["id"] = okta_origin.id
         origin_props["created"] = okta_origin.created
         origin_props["created_by"] = okta_origin.created_by
@@ -103,8 +103,8 @@ def _transform_okta_origins(
 @timeit
 def _load_okta_origins(
     neo4j_session: neo4j.Session,
-    origin_list: List[Dict],
-    common_job_parameters: Dict[str, Any],
+    origin_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta origins information into the graph
@@ -128,7 +128,7 @@ def _load_okta_origins(
 @timeit
 def _cleanup_okta_origins(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Cleanup origin nodes and relationships

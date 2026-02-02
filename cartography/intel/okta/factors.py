@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 # Okta intel module - User Factors
 import asyncio
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from okta.client import Client as OktaClient
@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 def sync_okta_user_factors(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
-    user_ids: List[str],
+    common_job_parameters: dict[str, Any],
+    user_ids: list[str],
 ) -> None:
     """
     Sync Okta user factors (MFA methods)
@@ -34,7 +34,7 @@ def sync_okta_user_factors(
     """
     logger.info("Syncing Okta user factors")
 
-    all_factors: List[Dict[str, Any]] = []
+    all_factors: list[dict[str, Any]] = []
     for user_id in user_ids:
         user_factors = asyncio.run(_get_okta_user_factors(okta_client, user_id))
         transformed = _transform_okta_user_factors(user_factors, user_id)
@@ -49,7 +49,7 @@ def sync_okta_user_factors(
 async def _get_okta_user_factors(
     okta_client: OktaClient,
     user_id: str,
-) -> List[UserFactor]:
+) -> list[UserFactor]:
     """
     Get Okta factors for a specific user
     :param okta_client: An Okta client object
@@ -64,19 +64,19 @@ async def _get_okta_user_factors(
 
 @timeit
 def _transform_okta_user_factors(
-    okta_factors: List[UserFactor],
+    okta_factors: list[UserFactor],
     user_id: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Convert a list of Okta user factors into a format for Neo4j
     :param okta_factors: List of Okta user factors
     :param user_id: The user ID these factors belong to
     :return: List of factor dicts
     """
-    transformed: List[Dict[str, Any]] = []
+    transformed: list[dict[str, Any]] = []
 
     for factor in okta_factors:
-        factor_props: Dict[str, Any] = {
+        factor_props: dict[str, Any] = {
             "id": factor.id,
             "user_id": user_id,
             "factor_type": factor.factor_type,
@@ -95,8 +95,8 @@ def _transform_okta_user_factors(
 @timeit
 def _load_okta_user_factors(
     neo4j_session: neo4j.Session,
-    factor_list: List[Dict[str, Any]],
-    common_job_parameters: Dict[str, Any],
+    factor_list: list[dict[str, Any]],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta user factors into Neo4j
@@ -118,7 +118,7 @@ def _load_okta_user_factors(
 @timeit
 def _cleanup_okta_user_factors(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Remove stale Okta user factors

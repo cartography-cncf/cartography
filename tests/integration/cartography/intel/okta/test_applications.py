@@ -82,6 +82,8 @@ def _create_mock_application(app_id: str, name: str, label: str) -> MagicMock:
     app.settings.notes = MagicMock()
     app.settings.notes.admin = None
     app.settings.notes.enduser = None
+    # sign_on is optional (uses hasattr + None check for SAML apps)
+    app.settings.sign_on = None
     # oauth_client is optional (uses hasattr + None check)
     app.settings.oauth_client = None
 

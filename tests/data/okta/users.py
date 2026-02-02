@@ -3,6 +3,16 @@ from unittest.mock import MagicMock
 from okta.models.user import User
 
 
+class MockUserProfile:
+    """A mock profile object that properly supports __dict__ access."""
+
+    def __init__(self):
+        self.login = "test@lyft.com"
+        self.email = "test@lyft.com"
+        self.lastName = "LastName"
+        self.firstName = "firstName"
+
+
 def create_test_user():
     """Create a mock OktaUser object for testing."""
     user = MagicMock(spec=User)
@@ -24,17 +34,7 @@ def create_test_user():
     user.type = MagicMock()
     user.type.id = "default_user_type"
 
-    # Profile - using a mock with attribute access
-    user.profile = MagicMock()
-    user.profile.login = "test@lyft.com"
-    user.profile.email = "test@lyft.com"
-    user.profile.lastName = "LastName"
-    user.profile.firstName = "firstName"
-    user.profile.__dict__ = {
-        "login": "test@lyft.com",
-        "email": "test@lyft.com",
-        "lastName": "LastName",
-        "firstName": "firstName",
-    }
+    # Profile - using a real object for proper __dict__ support
+    user.profile = MockUserProfile()
 
     return user

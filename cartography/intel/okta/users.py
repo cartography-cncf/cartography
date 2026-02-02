@@ -1,10 +1,10 @@
 # Okta intel module - Users
+from __future__ import annotations
+
 import asyncio
 import dataclasses
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from okta.client import Client as OktaClient
@@ -15,7 +15,6 @@ from okta.models.user_type import UserType as OktaUserType
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.core.common import PropertyRef
-from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.okta.user import OktaUserRoleSchema
 from cartography.models.okta.user import OktaUserSchema
 from cartography.models.okta.user import OktaUserTypeSchema
@@ -32,7 +31,7 @@ logger = logging.getLogger(__name__)
 def sync_okta_user_types(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync Okta users types
@@ -50,7 +49,7 @@ def sync_okta_user_types(
 
 
 @timeit
-async def _get_okta_user_types(okta_client: OktaClient) -> List[OktaUserType]:
+async def _get_okta_user_types(okta_client: OktaClient) -> list[OktaUserType]:
     """
     Get Okta user types list from Okta
     :param okta_client: An Okta client object
@@ -66,15 +65,15 @@ async def _get_okta_user_types(okta_client: OktaClient) -> List[OktaUserType]:
 
 @timeit
 def _transform_okta_user_types(
-    okta_user_types: List[OktaUserType],
-) -> List[Dict[str, Any]]:
+    okta_user_types: list[OktaUserType],
+) -> list[dict[str, Any]]:
     """
     Convert a list of Okta user types into a format for Neo4j
     :param okta_user_types: List of Okta user types
     :return: List of user type dicts
     """
 
-    transformed_users: List[Dict] = []
+    transformed_users: list[dict] = []
     logger.info("Transforming %s Okta user types", len(okta_user_types))
     for okta_user_type in okta_user_types:
         user_type_props = {}
@@ -94,8 +93,8 @@ def _transform_okta_user_types(
 @timeit
 def _load_okta_user_types(
     neo4j_session: neo4j.Session,
-    user_type_list: List[Dict],
-    common_job_parameters: Dict[str, Any],
+    user_type_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta user type information into the graph
@@ -117,7 +116,7 @@ def _load_okta_user_types(
 @timeit
 def _cleanup_okta_user_types(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Cleanup user types nodes and relationships
@@ -139,8 +138,8 @@ def _cleanup_okta_user_types(
 def sync_okta_users(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
-) -> List[str]:
+    common_job_parameters: dict[str, Any],
+) -> list[str]:
     """
     Sync Okta users
     :param okta_client: An Okta client object
@@ -160,7 +159,7 @@ def sync_okta_users(
     # However, this endpoint is not currently supported in the Okta Python SDK.
     # When SDK support is added, this can be enabled using a single bulk API call.
     # The _get_okta_user_roles function below is ready to use when SDK support is available.
-    user_roles: List[OktaUserRole] = []
+    user_roles: list[OktaUserRole] = []
     transformed_user_roles = _transform_okta_user_roles(user_roles)
     _load_okta_user_roles(neo4j_session, transformed_user_roles, common_job_parameters)
     _cleanup_okta_user_roles(neo4j_session, common_job_parameters)
@@ -174,7 +173,7 @@ def sync_okta_users(
 
 
 @timeit
-async def _get_okta_users(okta_client: OktaClient) -> List[OktaUser]:
+async def _get_okta_users(okta_client: OktaClient) -> list[OktaUser]:
     """
     Get Okta users list from Okta
     :param okta_client: An Okta client object
@@ -185,7 +184,7 @@ async def _get_okta_users(okta_client: OktaClient) -> List[OktaUser]:
     # We'll have to call deprovisioned users sep
     statuses = [None, "DEPROVISIONED"]
     for status in statuses:
-        query_parameters = {"limit": 200}
+        query_parameters: dict[str, Any] = {"limit": 200}
         if status:
             query_parameters["filter"] = f'(status eq "{status}" )'
         else:
@@ -201,19 +200,19 @@ async def _get_okta_users(okta_client: OktaClient) -> List[OktaUser]:
 
 @timeit
 def _transform_okta_users(
-    okta_users: List[OktaUser],
-    okta_user_roles: List[OktaUserRole],
-) -> List[Dict[str, Any]]:
+    okta_users: list[OktaUser],
+    okta_user_roles: list[OktaUserRole],
+) -> list[dict[str, Any]]:
     """
     Convert a list of Okta users into a format for Neo4j
     :param okta_users: List of Okta users
     :param okta_user_roles: List of Okta user roles
     :return: List of users dicts
     """
-    transformed_users: List[Dict] = []
+    transformed_users: list[dict] = []
     logger.info("Transforming %s Okta users", len(okta_users))
     for okta_user in okta_users:
-        user_props: Dict[str, Any] = {}
+        user_props: dict[str, Any] = {}
         # Dynamic properties added that change based on tenant
         user_props.update(okta_user.profile.__dict__)
         user_props["id"] = okta_user.id
@@ -236,13 +235,11 @@ def _transform_okta_users(
     return transformed_users
 
 
-
-
 @timeit
 def _load_okta_users(
     neo4j_session: neo4j.Session,
-    user_list: List[Dict],
-    common_job_parameters: Dict[str, Any],
+    user_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta user information into the graph
@@ -255,7 +252,7 @@ def _load_okta_users(
     logger.info("Loading %s Okta users", len(user_list))
     # We want to allow for dynamic properties on this element
     # Iterate through all the users and pick out all valid profile attribute names
-    valid_keys = set()
+    valid_keys: set[str] = set()
     for user in user_list:
         valid_keys.update(user.keys())
 
@@ -285,15 +282,16 @@ def _load_okta_users(
         frozen=True,
     )
     custom_node_prop_class = custom_node_prop_class_def(**prop_value_dict)
-    # Assign our custom class to our normal OktaUserSchema
-    customOktaUserSchema = OktaUserSchema
-    customOktaUserSchema.properties = custom_node_prop_class
-    # Our CustomProperties class doesn't come with extra labels,
-    # we must indicate that
-    customOktaUserSchema.extra_node_labels = None
+    # Create a new schema instance with the custom properties
+    # We use dataclasses.replace to create a modified copy of the frozen dataclass
+    base_schema = OktaUserSchema()
+    custom_okta_user_schema = dataclasses.replace(
+        base_schema,
+        properties=custom_node_prop_class,
+    )
     load(
         neo4j_session,
-        customOktaUserSchema,
+        custom_okta_user_schema,
         user_list,
         OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
         lastupdated=common_job_parameters["UPDATE_TAG"],
@@ -303,7 +301,7 @@ def _load_okta_users(
 @timeit
 def _cleanup_okta_users(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Cleanup user nodes and relationships
@@ -325,7 +323,7 @@ def _cleanup_okta_users(
 async def _get_okta_user_roles(
     okta_client: OktaClient,
     user_id: str,
-) -> List[OktaUserRole]:
+) -> list[OktaUserRole]:
     """
     Get Okta user roles list from Okta
     :param okta_client: An Okta client object
@@ -343,17 +341,17 @@ async def _get_okta_user_roles(
 
 @timeit
 def _transform_okta_user_roles(
-    okta_user_roles: List[OktaUserRole],
-) -> List[Dict[str, Any]]:
+    okta_user_roles: list[OktaUserRole],
+) -> list[dict[str, Any]]:
     """
     Convert a list of Okta user roles into a format for Neo4j
     :param okta_user_roles: List of Okta user roles
     :return: List of user roles dicts
     """
-    transformed_user_roles: List[Dict] = []
+    transformed_user_roles: list[dict] = []
     logger.info("Transforming %s Okta user roles", len(okta_user_roles))
     for okta_user_role in okta_user_roles:
-        role_props: Dict[str, Any] = {}
+        role_props: dict[str, Any] = {}
         role_props["id"] = okta_user_role.id
         role_props["assignment_type"] = (
             okta_user_role.assignment_type.value
@@ -377,8 +375,8 @@ def _transform_okta_user_roles(
 @timeit
 def _load_okta_user_roles(
     neo4j_session: neo4j.Session,
-    user_roles_list: List[Dict],
-    common_job_parameters: Dict[str, Any],
+    user_roles_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta user role information into the graph
@@ -402,7 +400,7 @@ def _load_okta_user_roles(
 @timeit
 def _cleanup_okta_user_roles(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Cleanup user role nodes and relationships

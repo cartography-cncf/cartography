@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import logging
-from typing import Dict
 
 import neo4j
 from okta.client import Client as OktaClient
@@ -25,7 +26,7 @@ stat_handler = get_stats_client(__name__)
 @timeit
 def _cleanup_okta_organizations(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     """
     Remove stale Okta organization
@@ -39,7 +40,7 @@ def _cleanup_okta_organizations(
 
 def cleanup_okta_groups(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     run_cleanup_job("okta_groups_cleanup.json", neo4j_session, common_job_parameters)
 
@@ -107,6 +108,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         neo4j_session,
         config.okta_saml_role_regex,
         config.update_tag,
+        config.okta_org_id,
     )
 
     _cleanup_okta_organizations(neo4j_session, common_job_parameters)

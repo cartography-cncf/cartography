@@ -1,14 +1,14 @@
+from __future__ import annotations
+
 # Okta intel module - Authenticators
 import asyncio
 import json
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from okta.client import Client as OktaClient
-from okta.models.authenticator import Authenticator as OktaAuthenticator
+from okta.models.authenticator_base import AuthenticatorBase as OktaAuthenticator
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def sync_okta_authenticators(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync Okta authenticators
@@ -42,7 +42,7 @@ def sync_okta_authenticators(
 
 
 @timeit
-async def _get_okta_authenticators(okta_client: OktaClient) -> List[OktaAuthenticator]:
+async def _get_okta_authenticators(okta_client: OktaClient) -> list[OktaAuthenticator]:
     """
     Get Okta authenticators list from Okta
     :param okta_client: An Okta client object
@@ -55,14 +55,14 @@ async def _get_okta_authenticators(okta_client: OktaClient) -> List[OktaAuthenti
 
 @timeit
 def _transform_okta_authenticators(
-    okta_authenticators: List[OktaAuthenticator],
-) -> List[Dict[str, Any]]:
+    okta_authenticators: list[OktaAuthenticator],
+) -> list[dict[str, Any]]:
     """
     Convert a list of Okta authenticators into a format for Neo4j
     :param okta_authenticators: List of Okta authenticators
     :return: List of authenticators dicts
     """
-    transformed_authenticators: List[Dict] = []
+    transformed_authenticators: list[dict] = []
     logger.info(f"Transforming {len(okta_authenticators)} Okta Authenticators")
     for okta_authenticator in okta_authenticators:
         authenticator_props = {}
@@ -128,8 +128,8 @@ def _transform_okta_authenticators(
 @timeit
 def _load_okta_authenticators(
     neo4j_session: neo4j.Session,
-    authenticator_list: List[Dict],
-    common_job_parameters: Dict[str, Any],
+    authenticator_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta authenticator information into the graph
@@ -152,7 +152,7 @@ def _load_okta_authenticators(
 
 @timeit
 def _cleanup_okta_authenticators(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
     Cleanup authenticator nodes and relationships

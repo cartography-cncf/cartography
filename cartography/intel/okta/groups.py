@@ -1,10 +1,10 @@
+from __future__ import annotations
+
 # Okta intel module - Groups
 import asyncio
 import json
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from okta.client import Client as OktaClient
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 def sync_okta_groups(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync Okta groups and group roles
@@ -75,7 +75,7 @@ def sync_okta_groups(
 
 
 @timeit
-async def _get_okta_groups(okta_client: OktaClient) -> List[OktaGroup]:
+async def _get_okta_groups(okta_client: OktaClient) -> list[OktaGroup]:
     """
     Get Okta groups list from Okta
     :param okta_client: An Okta client object
@@ -95,9 +95,9 @@ async def _get_okta_groups(okta_client: OktaClient) -> List[OktaGroup]:
 @timeit
 def _transform_okta_groups(
     okta_client: OktaClient,
-    okta_groups: List[OktaGroup],
-    okta_group_roles: List[OktaGroupRole],
-) -> List[Dict[str, Any]]:
+    okta_groups: list[OktaGroup],
+    okta_group_roles: list[OktaGroupRole],
+) -> list[dict[str, Any]]:
     """
     Convert a list of Okta groups into a format for Neo4j
     :param okta_client: An Okta client object
@@ -105,18 +105,18 @@ def _transform_okta_groups(
     :param okta_group_roles: List of Okta group roles
     :return: List of group dicts
     """
-    transformed_groups: List[Dict] = []
+    transformed_groups: list[dict] = []
     logger.info("Transforming %s Okta groups", len(okta_groups))
 
     # Build a hashmap of group roles keyed by group_id for O(1) lookup
-    roles_by_group: Dict[str, List[OktaGroupRole]] = {}
+    roles_by_group: dict[str, list[OktaGroupRole]] = {}
     for role in okta_group_roles:
         if role.assignee not in roles_by_group:
             roles_by_group[role.assignee] = []
         roles_by_group[role.assignee].append(role)
 
     for okta_group in okta_groups:
-        group_props: Dict[str, Any] = {}
+        group_props: dict[str, Any] = {}
         group_props["id"] = okta_group.id
         group_props["created"] = okta_group.created
         group_props["last_membership_updated"] = okta_group.last_membership_updated
@@ -126,7 +126,7 @@ def _transform_okta_groups(
         group_props["profile_name"] = okta_group.profile.name
         group_props["group_type"] = okta_group.type.value
         # For each group, grab what users might assigned
-        group_members: List[OktaUser] = asyncio.run(
+        group_members: list[OktaUser] = asyncio.run(
             _get_okta_group_members(okta_client, okta_group.id),
         )
         for group_member in group_members:
@@ -143,8 +143,8 @@ def _transform_okta_groups(
 @timeit
 def _load_okta_groups(
     neo4j_session: neo4j.Session,
-    group_list: List[Dict],
-    common_job_parameters: Dict[str, Any],
+    group_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta group information into the graph
@@ -166,7 +166,7 @@ def _load_okta_groups(
 
 @timeit
 def _cleanup_okta_groups(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
     Cleanup group nodes and relationships
@@ -185,14 +185,14 @@ def _cleanup_okta_groups(
 
 
 @timeit
-async def _get_okta_group_rules(okta_client: OktaClient) -> List[OktaGroupRule]:
+async def _get_okta_group_rules(okta_client: OktaClient) -> list[OktaGroupRule]:
     """
     Get Okta group rules list from Okta
     :param okta_client: An Okta client object
     :return: List of Okta group rules
     """
 
-    output_group_rules: List[Dict] = []
+    output_group_rules: list[dict] = []
     # Note: The pagination limit for group rules is not officially documented by Okta.
     # Based on testing, the API accepts up to 200 per page (similar to other endpoints).
     # We use 200 here as a safe default that aligns with other Okta API pagination limits.
@@ -207,14 +207,14 @@ async def _get_okta_group_rules(okta_client: OktaClient) -> List[OktaGroupRule]:
 
 @timeit
 def _transform_okta_group_rules(
-    okta_group_rules: List[OktaGroupRule],
-) -> List[Dict[str, Any]]:
+    okta_group_rules: list[OktaGroupRule],
+) -> list[dict[str, Any]]:
     """
     Convert a list of Okta group rules into a format for Neo4j
     :param okta_group_rules: List of Okta group rules
     :return: List of group rule dicts
     """
-    transformed_group_rules: List[Dict] = []
+    transformed_group_rules: list[dict] = []
     logger.info("Transforming %s Okta group rules", len(okta_group_rules))
     for okta_group_rule in okta_group_rules:
         group_rule_props = {}
@@ -302,8 +302,8 @@ def _transform_okta_group_rules(
 @timeit
 def _load_okta_group_rules(
     neo4j_session: neo4j.Session,
-    group_rule_list: List[Dict],
-    common_job_parameters: Dict[str, Any],
+    group_rule_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta group rule information into the graph
@@ -326,7 +326,7 @@ def _load_okta_group_rules(
 
 @timeit
 def _cleanup_okta_group_rules(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
     Cleanup group rule nodes and relationships
@@ -347,7 +347,7 @@ def _cleanup_okta_group_rules(
 @timeit
 async def _get_okta_group_roles(
     okta_client: OktaClient, group_id: str
-) -> List[OktaGroupRole]:
+) -> list[OktaGroupRole]:
     """
     Get Okta group roles list from Okta
     :param okta_client: An Okta client object
@@ -365,14 +365,14 @@ async def _get_okta_group_roles(
 
 @timeit
 def _transform_okta_group_roles(
-    okta_group_roles: List[OktaGroupRole],
-) -> List[Dict[str, Any]]:
+    okta_group_roles: list[OktaGroupRole],
+) -> list[dict[str, Any]]:
     """
     Convert a list of Okta group roles into a format for Neo4j
     :param okta_group_roles: List of Okta group roles
     :return: List of group role dicts
     """
-    transformed_group_roles: List[Dict] = []
+    transformed_group_roles: list[dict] = []
     logger.info("Transforming %s Okta group roles", len(okta_group_roles))
     for okta_group_role in okta_group_roles:
         role_props = {}
@@ -391,8 +391,8 @@ def _transform_okta_group_roles(
 @timeit
 def _load_okta_group_roles(
     neo4j_session: neo4j.Session,
-    group_roles_list: List[Dict],
-    common_job_parameters: Dict[str, Any],
+    group_roles_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta group roles information into the graph
@@ -415,7 +415,7 @@ def _load_okta_group_roles(
 
 @timeit
 def _cleanup_okta_group_roles(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
     Cleanup group roles nodes and relationships
@@ -431,14 +431,14 @@ def _cleanup_okta_group_roles(
 @timeit
 async def _get_okta_group_members(
     okta_client: OktaClient, group_id: str
-) -> List[OktaUser]:
+) -> list[OktaUser]:
     """
     Get Okta group members list from Okta
     :param okta_client: An Okta client object
     :param group_id: The id of the group to look up membership for
     :return: List of Okta Users who are members of a group
     """
-    member_list: List[OktaUser] = []
+    member_list: list[OktaUser] = []
     query_parameters = {"limit": 1000}
     group_users, resp, _ = await okta_client.list_group_users(
         group_id, query_parameters

@@ -6,7 +6,7 @@ from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.okta.groups import _load_okta_groups
-from cartography.intel.okta.organization import create_okta_organization
+from cartography.intel.okta.organization import sync_okta_organization
 from cartography.intel.okta.users import _load_okta_users
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
@@ -86,11 +86,13 @@ def test_sync_rbac_end_to_end(
     )
 
     # Load Okta users and groups for identity mapping tests
-    create_okta_organization(neo4j_session, TEST_OKTA_ORG_ID, TEST_UPDATE_TAG)
-    _load_okta_users(neo4j_session, TEST_OKTA_ORG_ID, MOCK_OKTA_USERS, TEST_UPDATE_TAG)
-    _load_okta_groups(
-        neo4j_session, TEST_OKTA_ORG_ID, MOCK_OKTA_GROUPS, TEST_UPDATE_TAG
-    )
+    okta_common_job_params = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "OKTA_ORG_ID": TEST_OKTA_ORG_ID,
+    }
+    sync_okta_organization(neo4j_session, okta_common_job_params)
+    _load_okta_users(neo4j_session, MOCK_OKTA_USERS, okta_common_job_params)
+    _load_okta_groups(neo4j_session, MOCK_OKTA_GROUPS, okta_common_job_params)
 
     # Act: Run the complete sync
     sync_kubernetes_rbac(

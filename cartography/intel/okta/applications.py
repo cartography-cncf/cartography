@@ -1,10 +1,10 @@
+from __future__ import annotations
+
 # Okta intel module - Applications
 import asyncio
 import json
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 from okta.client import Client as OktaClient
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 def sync_okta_applications(
     okta_client: OktaClient,
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Sync Okta applications
@@ -45,7 +45,7 @@ def sync_okta_applications(
 
 
 @timeit
-async def _get_okta_applications(okta_client: OktaClient) -> List[OktaApplication]:
+async def _get_okta_applications(okta_client: OktaClient) -> list[OktaApplication]:
     """
     Get Okta applications list from Okta
     :param okta_client: An Okta client object
@@ -65,15 +65,15 @@ async def _get_okta_applications(okta_client: OktaClient) -> List[OktaApplicatio
 @timeit
 def _transform_okta_applications(
     okta_client: OktaClient,
-    okta_applications: List[OktaApplication],
-) -> List[Dict[str, Any]]:
+    okta_applications: list[OktaApplication],
+) -> list[dict[str, Any]]:
     """
     :param okta_client: An Okta client object
     Convert a list of Okta applications into a format for Neo4j
     :param okta_applications: List of Okta applications
     :return: List of application dicts
     """
-    transformed_applications: List[OktaApplication] = []
+    transformed_applications: list[OktaApplication] = []
     logger.info("Transforming %s Okta applications", len(okta_applications))
     for okta_application in okta_applications:
         application_props = {}
@@ -307,7 +307,9 @@ def _transform_okta_applications(
             application_props["sign_on_mode"] = okta_application.sign_on_mode.value
         else:
             application_props["sign_on_mode"] = okta_application.sign_on_mode
-        application_props["status"] = okta_application.status
+        application_props["status"] = (
+            okta_application.status.value if okta_application.status else None
+        )
         # This returns a dict of somewhat poorly defined value
         # best to treat it as a json blob
         application_props["visibility_app_links"] = json.dumps(
@@ -346,8 +348,8 @@ def _transform_okta_applications(
 @timeit
 def _load_okta_applications(
     neo4j_session: neo4j.Session,
-    application_list: List[Dict],
-    common_job_parameters: Dict[str, Any],
+    application_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta application information into the graph
@@ -370,7 +372,7 @@ def _load_okta_applications(
 
 @timeit
 def _cleanup_okta_applications(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     """
     Cleanup application nodes and relationships
@@ -391,7 +393,7 @@ def _cleanup_okta_applications(
 @timeit
 async def _get_application_assigned_users(
     okta_client: OktaClient, app_id: str
-) -> List[str]:
+) -> list[str]:
     """
     Get Okta application users list from Okta
     :param okta_client: An Okta client object
@@ -432,7 +434,7 @@ async def _get_application_assigned_users(
 @timeit
 async def _get_application_assigned_groups(
     okta_client: OktaClient, app_id: str
-) -> List[str]:
+) -> list[str]:
     """
     Get Okta application groups list from Okta
     :param okta_client: An Okta client object
@@ -441,8 +443,8 @@ async def _get_application_assigned_groups(
     """
     output_application_groups = []
     query_parameters = {"limit": 200}
-    application_groups, resp, err = await okta_client.list_application_group_assignments(
-        app_id, query_parameters
+    application_groups, resp, err = (
+        await okta_client.list_application_group_assignments(app_id, query_parameters)
     )
     if err:
         logger.warning(

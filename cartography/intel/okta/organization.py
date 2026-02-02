@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 # Okta intel module - Organization
 import logging
 from typing import Any
-from typing import Dict
 
 import neo4j
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 @timeit
 def sync_okta_organization(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Add the OktaOrganization subresource
@@ -26,7 +27,7 @@ def sync_okta_organization(
 @timeit
 def _load_organization(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load the host node into the graph
