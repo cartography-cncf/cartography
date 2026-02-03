@@ -73,4 +73,6 @@ class GitHubRepoBuiltFromMatchLink(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "BUILT_FROM"
-    properties: GitHubRepoBuiltFromMatchLinkProperties = GitHubRepoBuiltFromMatchLinkProperties()
+    properties: GitHubRepoBuiltFromMatchLinkProperties = (
+        GitHubRepoBuiltFromMatchLinkProperties()
+    )

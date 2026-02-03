@@ -401,7 +401,6 @@ def search_dockerfiles_in_org(
                 )
                 break
             raise
-            break
 
     logger.info(f"Found {len(all_items)} dockerfile(s) in org {org}")
     return all_items
