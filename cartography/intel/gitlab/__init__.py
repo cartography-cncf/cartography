@@ -11,6 +11,7 @@ import cartography.intel.gitlab.container_repositories
 import cartography.intel.gitlab.container_repository_tags
 import cartography.intel.gitlab.dependencies
 import cartography.intel.gitlab.dependency_files
+import cartography.intel.gitlab.dockerfiles
 import cartography.intel.gitlab.groups
 import cartography.intel.gitlab.organizations
 import cartography.intel.gitlab.projects
@@ -162,6 +163,18 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         manifest_lists,
         config.update_tag,
         common_job_parameters,
+    )
+
+    # Sync dockerfiles and match to container images (code-to-cloud traceability)
+    # Must happen after container images and tags are synced
+    cartography.intel.gitlab.dockerfiles.sync(
+        neo4j_session,
+        gitlab_url,
+        token,
+        org_url,
+        config.update_tag,
+        common_job_parameters,
+        all_projects,
     )
 
     # Sync branches - pass projects to avoid re-fetching
