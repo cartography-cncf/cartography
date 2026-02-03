@@ -48,10 +48,14 @@ def transform_instances(
         project_id = instance.project
         formatted_instance = scaleway_obj_to_dict(instance)
         formatted_instance["public_ips"] = [
-            ip["id"] for ip in formatted_instance.get("public_ips", [])
+            ip["id"] for ip in (formatted_instance.get("public_ips") or [])
         ]
         formatted_instance["volumes_id"] = [
-            volume["id"] for volume in formatted_instance.get("volumes", {}).values()
+            volume["id"]
+            for volume in (formatted_instance.get("volumes") or {}).values()
+        ]
+        formatted_instance["private_nics"] = [
+            nic["id"] for nic in (formatted_instance.get("private_nics") or [])
         ]
         result.setdefault(project_id, []).append(formatted_instance)
     return result

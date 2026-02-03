@@ -6,6 +6,8 @@ import scaleway
 import cartography.intel.scaleway.iam.apikeys
 import cartography.intel.scaleway.iam.applications
 import cartography.intel.scaleway.iam.groups
+import cartography.intel.scaleway.iam.permissionsets
+import cartography.intel.scaleway.iam.policies
 import cartography.intel.scaleway.iam.users
 import cartography.intel.scaleway.instances.flexibleips
 import cartography.intel.scaleway.instances.instances
@@ -80,6 +82,20 @@ def start_scaleway_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
         update_tag=config.update_tag,
     )
     cartography.intel.scaleway.iam.apikeys.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.iam.permissionsets.sync(
+        neo4j_session,
+        client,
+        common_job_parameters,
+        org_id=config.scaleway_org,
+        update_tag=config.update_tag,
+    )
+    cartography.intel.scaleway.iam.policies.sync(
         neo4j_session,
         client,
         common_job_parameters,
