@@ -265,6 +265,7 @@ def transform_matches_for_matchlink(
         {
             "repo_url": m.dockerfile_repo_url,
             "registry_repo_uri": m.registry_repo_uri,
+            "match_method": "dockerfile_analysis",
             "dockerfile_path": m.dockerfile_path,
             "confidence": m.confidence,
             "matched_commands": m.matched_commands,
@@ -388,6 +389,7 @@ def get_provenance_matches_for_org(
             {
                 "registry_repo_uri": record["registry_repo_uri"],
                 "repo_url": record["repo_url"],
+                "match_method": "provenance",
                 "dockerfile_path": None,  # Provenance doesn't include dockerfile path
                 "confidence": 1.0,  # 100% confident from provenance
                 "matched_commands": 0,
