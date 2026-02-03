@@ -9,6 +9,13 @@ from cartography.models.ontology.mapping.data.computeinstance import (
 from cartography.models.ontology.mapping.data.containerregistries import (
     CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.images import (
+    IMAGE_ONTOLOGY_MAPPING,
+    IMAGEATTESTATION_ONTOLOGY_MAPPING,
+    IMAGELAYER_ONTOLOGY_MAPPING,
+    IMAGEMANIFESTLIST_ONTOLOGY_MAPPING,
+    IMAGETAG_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.containers import (
     CONTAINER_ONTOLOGY_MAPPING,
 )
