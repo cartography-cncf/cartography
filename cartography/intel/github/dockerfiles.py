@@ -480,8 +480,14 @@ def get_file_content(
         return response.get("content")
 
     except requests.exceptions.HTTPError as e:
-        if e.response is not None and e.response.status_code == 404:
-            logger.debug(f"File not found: {owner}/{repo}/{path}")
+        if e.response is not None and e.response.status_code in (403, 404, 422, 429):
+            logger.debug(
+                "Cannot fetch file %s/%s/%s: %d",
+                owner,
+                repo,
+                path,
+                e.response.status_code,
+            )
             return None
         raise
 

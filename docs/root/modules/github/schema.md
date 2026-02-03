@@ -30,7 +30,7 @@ T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTAINER --> T
-ECR(ECRRepositoryImage) -- BUILT_FROM --> R
+IT(ImageTag) -- BUILT_FROM --> R
 ```
 
 ### GitHubRepository

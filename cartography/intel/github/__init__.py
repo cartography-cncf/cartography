@@ -128,5 +128,6 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             )
             if dockerfile_result:
                 logger.info(
-                    f"Dockerfile sync complete: {dockerfile_result.match_count} matches"
+                    "Dockerfile sync complete: %d matches",
+                    dockerfile_result.match_count,
                 )
