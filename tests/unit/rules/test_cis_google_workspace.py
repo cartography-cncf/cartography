@@ -1,8 +1,8 @@
 from cartography.rules.data.rules.cis_google_workspace import (
-    cis_4_1_1_1_admin_2sv_not_enforced,
+    cis_gw_4_1_1_1_admin_2sv_not_enforced,
 )
 from cartography.rules.data.rules.cis_google_workspace import (
-    cis_4_1_1_3_user_2sv_not_enforced,
+    cis_gw_4_1_1_3_user_2sv_not_enforced,
 )
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
@@ -11,8 +11,8 @@ from cartography.rules.spec.model import Module
 def test_rules_registered_and_metadata():
     """Verify all rules have correct metadata."""
     rules = [
-        cis_4_1_1_3_user_2sv_not_enforced,
-        cis_4_1_1_1_admin_2sv_not_enforced,
+        cis_gw_4_1_1_3_user_2sv_not_enforced,
+        cis_gw_4_1_1_1_admin_2sv_not_enforced,
     ]
 
     for rule in rules:
@@ -27,8 +27,8 @@ def test_rules_registered_and_metadata():
 def test_rule_names_follow_cis_convention():
     """Verify rule names follow CIS naming convention."""
     rules = [
-        cis_4_1_1_3_user_2sv_not_enforced,
-        cis_4_1_1_1_admin_2sv_not_enforced,
+        cis_gw_4_1_1_3_user_2sv_not_enforced,
+        cis_gw_4_1_1_1_admin_2sv_not_enforced,
     ]
 
     for rule in rules:
@@ -45,8 +45,8 @@ def test_facts_have_expected_structure():
     }
 
     for rule in (
-        cis_4_1_1_3_user_2sv_not_enforced,
-        cis_4_1_1_1_admin_2sv_not_enforced,
+        cis_gw_4_1_1_3_user_2sv_not_enforced,
+        cis_gw_4_1_1_1_admin_2sv_not_enforced,
     ):
         assert len(rule.facts) == 1
         fact = rule.facts[0]
@@ -62,8 +62,8 @@ def test_facts_have_expected_structure():
 def test_output_models_are_distinct():
     """Verify each rule has its own output model (not shared)."""
     rules = [
-        cis_4_1_1_3_user_2sv_not_enforced,
-        cis_4_1_1_1_admin_2sv_not_enforced,
+        cis_gw_4_1_1_3_user_2sv_not_enforced,
+        cis_gw_4_1_1_1_admin_2sv_not_enforced,
     ]
 
     output_models = [rule.output_model for rule in rules]

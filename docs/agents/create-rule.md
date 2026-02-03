@@ -466,8 +466,8 @@ tags=(
 Use lowercase with underscores, prefixed with `cis_`:
 
 ```python
-id="cis_1_14_access_key_not_rotated"
-id="cis_2_1_1_s3_versioning"
+id="cis_aws_1_14_access_key_not_rotated"
+id="cis_aws_2_1_1_s3_versioning"
 ```
 
 ### CIS References
@@ -504,7 +504,7 @@ from cartography.rules.spec.model import Fact, Finding, Maturity, Module, Rule, 
 # Main node: AccountAccessKey
 # =============================================================================
 
-_cis_1_14_fact = Fact(
+_cis_aws_1_14_fact = Fact(
     id="cis-aws-1-14-access-key-not-rotated",
     name="CIS AWS 1.14: Access Keys Not Rotated",
     description="Identifies IAM access keys that have not been rotated in the past 90 days",
@@ -529,8 +529,8 @@ class CIS114Output(Finding):
     create_date: str | None = None
 
 
-cis_1_14_access_key_not_rotated = Rule(
-    id="cis_1_14_access_key_not_rotated",
+cis_aws_1_14_access_key_not_rotated = Rule(
+    id="cis_aws_1_14_access_key_not_rotated",
     name="CIS AWS 1.14: Access Keys Not Rotated",
     description="IAM access keys should be rotated every 90 days or less",
     output_model=CIS114Output,
@@ -541,7 +541,7 @@ cis_1_14_access_key_not_rotated = Rule(
         "credentials",
         "stride:spoofing",
     ),
-    facts=(_cis_1_14_fact,),
+    facts=(_cis_aws_1_14_fact,),
     references=[
         RuleReference(
             text="CIS AWS Foundations Benchmark v5.0",

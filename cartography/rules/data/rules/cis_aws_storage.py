@@ -73,8 +73,8 @@ _aws_s3_versioning_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_1_1_s3_versioning = Rule(
-    id="cis_2_1_1_s3_versioning",
+cis_aws_2_1_1_s3_versioning = Rule(
+    id="cis_aws_2_1_1_s3_versioning",
     name="CIS AWS 2.1.1: S3 Bucket Versioning",
     description=(
         "S3 buckets should have versioning enabled to protect against accidental "
@@ -135,8 +135,8 @@ _aws_s3_mfa_delete_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_1_2_s3_mfa_delete = Rule(
-    id="cis_2_1_2_s3_mfa_delete",
+cis_aws_2_1_2_s3_mfa_delete = Rule(
+    id="cis_aws_2_1_2_s3_mfa_delete",
     name="CIS AWS 2.1.2: S3 Bucket MFA Delete",
     description=(
         "S3 buckets should have MFA Delete enabled to require MFA authentication "
@@ -208,8 +208,8 @@ _aws_s3_block_public_access_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_1_4_s3_block_public_access = Rule(
-    id="cis_2_1_4_s3_block_public_access",
+cis_aws_2_1_4_s3_block_public_access = Rule(
+    id="cis_aws_2_1_4_s3_block_public_access",
     name="CIS AWS 2.1.4: S3 Block Public Access",
     description=(
         "S3 buckets should have all Block Public Access settings enabled to prevent "
@@ -269,8 +269,8 @@ _aws_s3_access_logging_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_1_5_s3_access_logging = Rule(
-    id="cis_2_1_5_s3_access_logging",
+cis_aws_2_1_5_s3_access_logging = Rule(
+    id="cis_aws_2_1_5_s3_access_logging",
     name="CIS AWS 2.1.5: S3 Bucket Access Logging",
     description=(
         "S3 buckets should have server access logging enabled to provide detailed "
@@ -332,8 +332,8 @@ _aws_s3_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_1_6_s3_encryption = Rule(
-    id="cis_2_1_6_s3_encryption",
+cis_aws_2_1_6_s3_encryption = Rule(
+    id="cis_aws_2_1_6_s3_encryption",
     name="CIS AWS 2.1.6: S3 Default Encryption",
     description=(
         "S3 buckets should have default encryption enabled to ensure all objects "
@@ -407,8 +407,8 @@ _aws_rds_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_2_1_rds_encryption = Rule(
-    id="cis_2_2_1_rds_encryption",
+cis_aws_2_2_1_rds_encryption = Rule(
+    id="cis_aws_2_2_1_rds_encryption",
     name="CIS AWS 2.2.1: RDS Encryption at Rest",
     description=(
         "RDS instances should have storage encryption enabled to protect data at rest "
@@ -479,8 +479,8 @@ _aws_ebs_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_3_1_ebs_encryption = Rule(
-    id="cis_2_3_1_ebs_encryption",
+cis_aws_2_3_1_ebs_encryption = Rule(
+    id="cis_aws_2_3_1_ebs_encryption",
     name="CIS AWS 2.3.1: EBS Volume Encryption",
     description=(
         "EBS volumes should be encrypted to protect data at rest and in transit "

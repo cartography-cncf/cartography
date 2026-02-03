@@ -93,8 +93,8 @@ _aws_unrestricted_ssh = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_5_1_unrestricted_ssh = Rule(
-    id="cis_5_1_unrestricted_ssh",
+cis_aws_5_1_unrestricted_ssh = Rule(
+    id="cis_aws_5_1_unrestricted_ssh",
     name="CIS AWS 5.1: Unrestricted SSH Access",
     description=(
         "Security groups should not allow SSH access (port 22) from any IP address. "
@@ -182,8 +182,8 @@ _aws_unrestricted_rdp = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_5_2_unrestricted_rdp = Rule(
-    id="cis_5_2_unrestricted_rdp",
+cis_aws_5_2_unrestricted_rdp = Rule(
+    id="cis_aws_5_2_unrestricted_rdp",
     name="CIS AWS 5.2: Unrestricted RDP Access",
     description=(
         "Security groups should not allow RDP access (port 3389) from any IP address. "
@@ -275,8 +275,8 @@ _aws_default_sg_allows_traffic = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_5_4_default_sg_traffic = Rule(
-    id="cis_5_4_default_sg_traffic",
+cis_aws_5_4_default_sg_traffic = Rule(
+    id="cis_aws_5_4_default_sg_traffic",
     name="CIS AWS 5.4: Default Security Group Restricts Traffic",
     description=(
         "The default security group of every VPC should restrict all traffic to "
