@@ -25,7 +25,6 @@ from cartography.rules.data.rules.cis_aws_networking import cis_aws_5_2_unrestri
 from cartography.rules.data.rules.cis_aws_networking import (
     cis_aws_5_4_default_sg_traffic,
 )
-from cartography.rules.data.rules.cis_aws_networking import unrestricted_all_ports
 from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_1_s3_versioning
 from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_2_s3_mfa_delete
 from cartography.rules.data.rules.cis_aws_storage import (
@@ -97,7 +96,6 @@ RULES = {
     cis_aws_5_1_unrestricted_ssh.id: cis_aws_5_1_unrestricted_ssh,
     cis_aws_5_2_unrestricted_rdp.id: cis_aws_5_2_unrestricted_rdp,
     cis_aws_5_4_default_sg_traffic.id: cis_aws_5_4_default_sg_traffic,
-    unrestricted_all_ports.id: unrestricted_all_ports,
     # Security Rules
     compute_instance_exposed.id: compute_instance_exposed,
     database_instance_exposed.id: database_instance_exposed,
