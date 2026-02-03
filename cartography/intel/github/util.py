@@ -5,11 +5,7 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone as tz
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import NamedTuple
-from typing import Optional
-from typing import Tuple
 
 import requests
 
@@ -23,8 +19,8 @@ _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD = 5
 
 
 class PaginatedGraphqlData(NamedTuple):
-    nodes: List[Dict[str, Any]]
-    edges: List[Dict[str, Any]]
+    nodes: list[dict[str, Any]]
+    edges: list[dict[str, Any]]
 
 
 def handle_rate_limit_sleep(token: str) -> None:
@@ -54,7 +50,7 @@ def handle_rate_limit_sleep(token: str) -> None:
     time.sleep(sleep_duration.total_seconds())
 
 
-def call_github_api(query: str, variables: str, token: str, api_url: str) -> Dict:
+def call_github_api(query: str, variables: str, token: str, api_url: str) -> dict:
     """
     Calls the GitHub v4 API and executes a query
     :param query: the GraphQL query to run
@@ -90,9 +86,9 @@ def fetch_page(
     api_url: str,
     organization: str,
     query: str,
-    cursor: Optional[str] = None,
+    cursor: str | None = None,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Return a single page of max size 100 elements from the Github api_url using the given `query` and `cursor` params.
     :param token: The API token as string. Must have permission for the object being paginated.
@@ -121,9 +117,9 @@ def fetch_all(
     query: str,
     resource_type: str,
     retries: int = 5,
-    resource_inner_type: Optional[str] = None,
+    resource_inner_type: str | None = None,
     **kwargs: Any,
-) -> Tuple[PaginatedGraphqlData, Dict[str, Any]]:
+) -> tuple[PaginatedGraphqlData, dict[str, Any]]:
     """
     Fetch and return all data items of the given `resource_type` and `field_name` from Github's paginated GraphQL API as
     a list, along with information on the organization that they belong to.
@@ -144,7 +140,7 @@ def fetch_all(
     """
     cursor = None
     has_next_page = True
-    org_data: Dict[str, Any] = {}
+    org_data: dict[str, Any] = {}
     data: PaginatedGraphqlData = PaginatedGraphqlData(nodes=[], edges=[])
     retry = 0
 
@@ -366,8 +362,8 @@ def call_github_rest_api(
     endpoint: str,
     token: str,
     api_url: str = "https://api.github.com",
-    params: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Calls the GitHub REST API and returns the JSON response.
 
@@ -416,7 +412,7 @@ def call_github_rest_api(
                     time.sleep(sleep_duration.total_seconds())
 
     response.raise_for_status()
-    result: Dict[str, Any] = response.json()
+    result: dict[str, Any] = response.json()
     return result
 
 
