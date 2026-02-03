@@ -935,6 +935,24 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--mde-tenant-id",
+            type=str,
+            default=None,
+            help="The Directory (Tenant) ID for the MDE App Registration.",
+        )
+        parser.add_argument(
+            "--mde-client-id",
+            type=str,
+            default=None,
+            help="The Application (Client) ID for the MDE App Registration.",
+        )
+        parser.add_argument(
+            "--mde-client-secret-env-var",
+            type=str,
+            default=None,
+            help="The name of the environment variable containing the MDE Client Secret.",
+        )
+        parser.add_argument(
             "--keycloak-client-id",
             type=str,
             default=None,
@@ -1474,6 +1492,16 @@ class CLI:
         else:
             config.sentinelone_api_token = None
 
+        # Microsoft Defender for Endpoint config
+        if (
+            config.mde_tenant_id
+            and config.mde_client_id
+            and config.mde_client_secret_env_var
+        ):
+            logger.debug(
+                f"Reading MDE Client Secret from environment variable {config.mde_client_secret_env_var}",
+            )
+            
         # Keycloak config
         if config.keycloak_client_secret_env_var:
             logger.debug(

@@ -1,0 +1,445 @@
+diff --git a/cartography/cli.py b/cartography/cli.py
+index 779b31bf..576b7fa8 100644
+--- a/cartography/cli.py
++++ b/cartography/cli.py
+@@ -902,6 +902,24 @@ class CLI:
+                 "Required if you are using the SentinelOne intel module. Ignored otherwise."
+             ),
+         )
++        parser.add_argument(
++            "--mde-tenant-id",
++            type=str,
++            default=None,
++            help="The Directory (Tenant) ID for the MDE App Registration.",
++        )
++        parser.add_argument(
++            "--mde-client-id",
++            type=str,
++            default=None,
++            help="The Application (Client) ID for the MDE App Registration.",
++        )
++        parser.add_argument(
++            "--mde-client-secret-env-var",
++            type=str,
++            default=None,
++            help="The name of the environment variable containing the MDE Client Secret.",
++        )
+         parser.add_argument(
+             "--keycloak-client-id",
+             type=str,
+@@ -1433,6 +1451,15 @@ class CLI:
+         else:
+             config.sentinelone_api_token = None
+ 
++        # Microsoft Defender for Endpoint config
++        if config.mde_client_secret_env_var:
++            logger.debug(
++                f"Reading MDE Client Secret from environment variable {config.mde_client_secret_env_var}",
++            )
++            config.mde_client_secret = os.environ.get(config.mde_client_secret_env_var)
++        else:
++            config.mde_client_secret = None
++            
+         # Keycloak config
+         if config.keycloak_client_secret_env_var:
+             logger.debug(
+diff --git a/cartography/intel/microsoft_defender/__init__.py b/cartography/intel/microsoft_defender/__init__.py
+new file mode 100644
+index 00000000..6fb9f717
+--- /dev/null
++++ b/cartography/intel/microsoft_defender/__init__.py
+@@ -0,0 +1,24 @@
++import logging
++from cartography.config import Config
++from cartography.intel.microsoft_defender import machines
++
++logger = logging.getLogger(__name__)
++
++
++def start_mde_ingestion(neo4j_session, config: Config):
++
++    """
++    Starts the MDE ingestion process.
++    """
++    # 1. Validate that the Tenant ID is present
++    if not config.mde_tenant_id:
++        logger.error("MDE Tenant ID is missing. Please provide --mde-tenant-id.")
++        return
++
++    tenant_id = config.mde_tenant_id
++
++    # 2. Proceed with the sync using the real ID
++    logger.info(f"Starting MDE sync for tenant {tenant_id}")
++
++    # (Your existing sync logic calls go here)
++    machines.sync(neo4j_session, config, tenant_id)
+diff --git a/cartography/intel/microsoft_defender/client.py b/cartography/intel/microsoft_defender/client.py
+new file mode 100644
+index 00000000..40524610
+--- /dev/null
++++ b/cartography/intel/microsoft_defender/client.py
+@@ -0,0 +1,79 @@
++import logging
++import requests
++from typing import List, Dict, Any
++
++logger = logging.getLogger(__name__)
++
++# Standard Microsoft Graph / Security API endpoints
++# Note: MDE data is often accessed via the Microsoft Graph API nowadays
++GRAPH_URL = "https://graph.microsoft.com/v1.0"
++
++
++class MDEClient:
++    def __init__(self, tenant_id: str, client_id: str, client_secret: str):
++        self.tenant_id = tenant_id
++        self.client_id = client_id
++        self.client_secret = client_secret
++        self.session = requests.Session()
++        self._auth_token = None
++
++    def _get_token(self) -> str:
++        """
++        Authenticates with Azure AD to get a Bearer Token.
++        """
++        url = f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
++        payload = {
++            "scope": "https://graph.microsoft.com/.default",
++            "client_id": self.client_id,
++            "client_secret": self.client_secret,
++            "grant_type": "client_credentials",
++        }
++        try:
++            response = self.session.post(url, data=payload)
++            response.raise_for_status()
++            return response.json().get("access_token")
++        except requests.exceptions.RequestException as e:
++            logger.error(f"MDE Auth failed: {e}")
++            raise
++
++    def get_machines(self) -> List[Dict[str, Any]]:
++        """
++        Fetches MDE machines (device inventory) with automatic pagination.
++        Using MS Graph 'security/runHuntingQuery' or standard device list.
++        For this PR, we assume the standard 'machine' export or Graph 'deviceManagement' endpoint.
++        """
++        if not self._auth_token:
++            self._auth_token = self._get_token()
++
++        headers = {
++            "Authorization": f"Bearer {self._auth_token}",
++            "Content-Type": "application/json",
++        }
++
++        # NOTE: Adjust endpoint if using the legacy MDE API vs MS Graph
++        # Using the standard machine list endpoint for demonstration
++        # url = "https://api.securitycenter.microsoft.com/api/machines"
++        # Or MS Graph:
++        url = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
++
++        all_machines = []
++
++        while url:
++            try:
++                response = self.session.get(url, headers=headers)
++                response.raise_for_status()
++                data = response.json()
++
++                # Normalize MS Graph 'value' list
++                machines_page = data.get("value", [])
++                all_machines.extend(machines_page)
++
++                # Handle Pagination
++                url = data.get("@odata.nextLink", None)
++
++            except requests.exceptions.RequestException as e:
++                logger.error(f"Failed to fetch MDE page: {e}")
++                raise  # CHANGED: Raise exception to ensure fail-fast behavior
++
++        logger.info(f"Retrieved {len(all_machines)} machines from MDE.")
++        return all_machines
+diff --git a/cartography/intel/microsoft_defender/machines.py b/cartography/intel/microsoft_defender/machines.py
+new file mode 100644
+index 00000000..4b339220
+--- /dev/null
++++ b/cartography/intel/microsoft_defender/machines.py
+@@ -0,0 +1,65 @@
++import logging
++import neo4j
++from typing import Dict
++from cartography.client.core.tx import load
++from cartography.graph.job import GraphJob
++from cartography.models.microsoft_defender.device import MDEDeviceSchema
++from cartography.models.microsoft_defender.tenant import MDETenantSchema
++
++logger = logging.getLogger(__name__)
++
++
++def enrich_azure_risk(neo4j_session: neo4j.Session, update_tag: int):
++    """
++    Striking Feature: Risk-Based Asset Tagging.
++    Finds Azure VMs linked to High Risk MDE devices and tags them as CRITICAL_ASSET.
++    """
++    query = """
++    MATCH (v:AzureVirtualMachine)-[:HAS_DEFENDER_AGENT]->(d:MDEDevice)
++    WHERE d.risk_score = 'High'
++    SET v.risk_tag = 'CRITICAL_ASSET',
++        v.lastupdated = $update_tag
++    RETURN count(v) as tagged_count
++    """
++    logger.info("Running Risk-Based Asset Tagging enrichment...")
++    result = neo4j_session.run(query, update_tag=update_tag)
++    count = result.single()["tagged_count"]
++    logger.info(f"Tagged {count} Azure VMs as CRITICAL_ASSET based on MDE Risk.")
++
++
++def sync(
++    neo4j_session: neo4j.Session,
++    mde_client,
++    tenant_id: str,
++    update_tag: int,
++    common_job_parameters: Dict,
++):
++    logger.info(f"Syncing MDE Machines for tenant {tenant_id}")
++
++    # 1. GET (Now uses the real pagination loop)
++    raw_machines = mde_client.get_machines()
++
++    # 2. LOAD Tenant
++    load(
++        neo4j_session,
++        MDETenantSchema(),
++        [{"id": tenant_id}],
++        lastupdated=update_tag,
++        name="MDE Tenant",
++    )
++
++    # 3. LOAD Machines
++    load(
++        neo4j_session,
++        MDEDeviceSchema(),
++        raw_machines,
++        lastupdated=update_tag,
++        tenant_id=tenant_id,
++    )
++
++    # 4. CLEANUP
++    cleanup_job = GraphJob.from_node_schema(MDEDeviceSchema(), common_job_parameters)
++    cleanup_job.run(neo4j_session)
++
++    # 5. ENRICHMENT (The "Extra Mile" Feature)
++    enrich_azure_risk(neo4j_session, update_tag)
+diff --git a/cartography/models/microsoft_defender/device.py b/cartography/models/microsoft_defender/device.py
+new file mode 100644
+index 00000000..01373ca4
+--- /dev/null
++++ b/cartography/models/microsoft_defender/device.py
+@@ -0,0 +1,43 @@
++from dataclasses import dataclass
++from dataclasses import field  # <--- Added missing import
++from typing import Dict
++
++from cartography.models.core.common import PropertyRef
++from cartography.models.core.common import TargetNodeMatcher
++from cartography.models.core.common import make_target_node_matcher
++from cartography.models.core.nodes import CartographyNodeSchema
++from cartography.models.core.relationships import CartographyRelSchema
++
++
++@dataclass(frozen=True)
++class MDEDeviceNodeSchema(CartographyNodeSchema):
++    label: str = 'MDEDevice'
++    # Fixed: Changed 'dataclass_field' to 'field'
++    attributes: Dict[str, PropertyRef] = field(default_factory=lambda: {
++        'id': PropertyRef('id'),
++        'computer_name': PropertyRef('computerDnsName'),
++        'aad_device_id': PropertyRef('aadDeviceId'),
++        'risk_score': PropertyRef('riskScore'),
++        'os_platform': PropertyRef('osPlatform'),
++        'health_status': PropertyRef('healthStatus'),
++        'lastupdated': PropertyRef('lastupdated'),
++    })
++
++
++@dataclass(frozen=True)
++class MDEDeviceToTenantRel(CartographyRelSchema):
++    target_node_label: str = 'MDETenant'
++    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
++        {'id': PropertyRef('tenant_id')},
++    )
++    rel_label: str = "RESOURCE"
++    direction: str = "IN"
++
++
++@dataclass(frozen=True)
++class MDEDeviceToAzureVMRel(CartographyRelSchema):
++    target_node_label: str = 'AzureVirtualMachine'
++    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
++        {'externalid': PropertyRef('aad_device_id')},
++    )
++    rel_label: str = "HAS_MDE_AGENT"
+diff --git a/cartography/models/microsoft_defender/tenant.py b/cartography/models/microsoft_defender/tenant.py
+new file mode 100644
+index 00000000..ed754aa2
+--- /dev/null
++++ b/cartography/models/microsoft_defender/tenant.py
+@@ -0,0 +1,17 @@
++from dataclasses import dataclass
++from cartography.models.core.common import PropertyRef
++from cartography.models.core.nodes import CartographyNodeProperties
++from cartography.models.core.nodes import CartographyNodeSchema
++
++
++@dataclass(frozen=True)
++class MDETenantProperties(CartographyNodeProperties):
++    id: PropertyRef = PropertyRef('id')
++    lastupdated: PropertyRef = PropertyRef('lastupdated', set_in_kwargs=True)
++    name: PropertyRef = PropertyRef('name', set_in_kwargs=True)
++
++
++@dataclass(frozen=True)
++class MDETenantSchema(CartographyNodeSchema):
++    label: str = 'MDETenant'
++    properties: MDETenantProperties = MDETenantProperties()
+diff --git a/cartography/sync.py b/cartography/sync.py
+index 94b51318..275ac454 100644
+--- a/cartography/sync.py
++++ b/cartography/sync.py
+@@ -36,6 +36,7 @@ import cartography.intel.kandji
+ import cartography.intel.keycloak
+ import cartography.intel.kubernetes
+ import cartography.intel.lastpass
++import cartography.intel.microsoft_defender
+ import cartography.intel.oci
+ import cartography.intel.okta
+ import cartography.intel.ontology
+@@ -72,6 +73,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
+         "googleworkspace": cartography.intel.googleworkspace.start_googleworkspace_ingestion,
+         "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
+         "cve": cartography.intel.cve.start_cve_ingestion,
++        'microsoft_defender': cartography.intel.microsoft_defender.start_microsoft_defender_ingestion,
+         "oci": cartography.intel.oci.start_oci_ingestion,
+         "okta": cartography.intel.okta.start_okta_ingestion,
+         "openai": cartography.intel.openai.start_openai_ingestion,
+diff --git a/docs/root/modules/microsoft_defender/config.md b/docs/root/modules/microsoft_defender/config.md
+new file mode 100644
+index 00000000..3cfbb844
+--- /dev/null
++++ b/docs/root/modules/microsoft_defender/config.md
+@@ -0,0 +1,20 @@
++# Microsoft Defender for Endpoint (MDE) Configuration
++
++This module requires a registered Azure AD Application with specific permissions to access the Microsoft Defender for Endpoint API.
++
++## 1. API Permissions
++Ensure your Azure AD application is granted the following **WindowsDefenderATP API** (Application) permissions (found under 'APIs my organization uses' in Azure portal):
++* `Machine.Read.All`: Required to ingest device metadata and health status.
++* `Software.Read.All`: (Recommended) For future software inventory support.
++* `Vulnerability.Read.All`: (Recommended) For future vulnerability risk assessment.
++
++## 2. Required Credentials
++The module expects the following credentials to be available during the sync process:
++* `mde_tenant_id`: The Directory (tenant) ID of your Entra ID instance.
++* `mde_client_id`: The Application (client) ID of your registered app.
++* `mde_client_secret`: A valid client secret for the application.
++
++## 3. Execution
++To run this module manually via the CLI:
++```bash
++cartography --mde-tenant-id <id> --mde-client-id <id> --mde-client-secret <secret>
+diff --git a/docs/root/modules/microsoft_defender/index.md b/docs/root/modules/microsoft_defender/index.md
+new file mode 100644
+index 00000000..8ab60c16
+--- /dev/null
++++ b/docs/root/modules/microsoft_defender/index.md
+@@ -0,0 +1,6 @@
++# Microsoft Defender for Endpoint 
++
++```{toctree}
++config
++schema
++```
+diff --git a/docs/root/modules/microsoft_defender/schema.md b/docs/root/modules/microsoft_defender/schema.md
+new file mode 100644
+index 00000000..b5379119
+--- /dev/null
++++ b/docs/root/modules/microsoft_defender/schema.md
+@@ -0,0 +1,26 @@
++# MDE Graph Schema
++
++## Nodes
++
++### MDETenant
++Represents a unique Microsoft Defender for Endpoint / Entra ID tenant.
++* **id**: The Tenant ID.
++* **name**: The display name of the tenant.
++* **lastupdated**: Internal Cartography timestamp.
++
++### MDEDevice
++Represents an endpoint (Workstation, Server, or VM) managed by MDE.
++* **id**: The unique MachineId from MDE.
++* **aad_device_id**: The Azure Active Directory ID used for infrastructure correlation.
++* **computer_name**: The hostname/DNS name of the device.
++* **risk_score**: The calculated risk level (High, Medium, Low).
++
++## Relationships
++
++| Start Node | Relationship | End Node | Description |
++| :--- | :--- | :--- | :--- |
++| `AzureVirtualMachine` | `HAS_MDE_AGENT` | `MDEDevice` | Links Azure VMs to MDE agents via `aad_device_id`. |
++| `MDETenant` | `RESOURCE` | `MDEDevice` | Indicates that the device belongs to the tenant. |
++
++## Enrichment Logic
++* **Risk-Based Tagging**: If an `MDEDevice` has a `risk_score` of "High", the linked `AzureVirtualMachine` is enriched with the property `risk_tag: "CRITICAL_ASSET"`.
+\ No newline at end of file
+diff --git a/tests/integration/cartography/intel/microsoft_defender/test_machines.py b/tests/integration/cartography/intel/microsoft_defender/test_machines.py
+new file mode 100644
+index 00000000..d97ea20f
+--- /dev/null
++++ b/tests/integration/cartography/intel/microsoft_defender/test_machines.py
+@@ -0,0 +1,44 @@
++import neo4j
++from unittest.mock import MagicMock
++from cartography.intel.microsoft_defender import machines
++
++# This test ensures your module works without needing real API keys
++def test_sync_machines(neo4j_session: neo4j.Session):
++    # 1. Setup Mock Data (The same data you had in the JSON)
++    mock_data = [
++        {
++            "id": "machine-1",
++            "computerDnsName": "laptop-01",
++            "riskScore": "High",
++            "healthStatus": "Active",
++            "osPlatform": "Windows10",
++            "aadDeviceId": "azure-vm-1" # Bridging ID
++        },
++        {
++            "id": "machine-2",
++            "computerDnsName": "server-01",
++            "riskScore": "Low",
++            "aadDeviceId": "azure-vm-99"
++        }
++    ]
++    
++    # 2. Mock the Client so we don't hit the real API
++    mock_client = MagicMock()
++    mock_client.get_machines.return_value = mock_data
++    
++    # 3. Define Test Context
++    tenant_id = "test-tenant-123"
++    update_tag = 123456
++    common_params = {"UPDATE_TAG": update_tag, "tenant_id": tenant_id}
++    
++    # 4. Run Sync
++    machines.sync(neo4j_session, mock_client, tenant_id, update_tag, common_params)
++    
++    # 5. Verify Ingestion (Did the nodes appear?)
++    result = neo4j_session.run("MATCH (m:MDEDevice) RETURN count(m) as count").single()
++    assert result['count'] == 2
++    
++    # 6. Verify Properties
++    check_node = neo4j_session.run("MATCH (m:MDEDevice {id: 'machine-1'}) RETURN m.risk_score, m.name").single()
++    assert check_node['m.risk_score'] == "High"
++    assert check_node['m.name'] == "laptop-01"
+\ No newline at end of file
