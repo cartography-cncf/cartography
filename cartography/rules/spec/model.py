@@ -151,6 +151,65 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
 
 
 @dataclass(frozen=True)
+class Framework:
+    """
+    A reference to a compliance framework requirement.
+
+    All fields are case-insensitive and normalized to lowercase on creation.
+
+    Attributes:
+        name: Full name of the framework (e.g., "cis aws foundations benchmark").
+        short_name: Abbreviated name for filtering (e.g., "cis").
+        requirement: The specific requirement identifier (e.g., "1.14").
+        scope: Optional platform or domain the framework applies to (e.g., "aws", "gcp").
+        revision: Optional version/revision of the framework (e.g., "5.0").
+    """
+
+    name: str
+    short_name: str
+    requirement: str
+    scope: str | None = None
+    revision: str | None = None
+
+    def __post_init__(self) -> None:
+        # Normalize all fields to lowercase for case-insensitive comparison
+        object.__setattr__(self, "name", self.name.lower())
+        object.__setattr__(self, "short_name", self.short_name.lower())
+        object.__setattr__(self, "requirement", self.requirement.lower())
+        if self.scope is not None:
+            object.__setattr__(self, "scope", self.scope.lower())
+        if self.revision is not None:
+            object.__setattr__(self, "revision", self.revision.lower())
+
+    def matches(
+        self,
+        short_name: str | None = None,
+        scope: str | None = None,
+        revision: str | None = None,
+    ) -> bool:
+        """
+        Check if this framework matches the given filter criteria.
+
+        Args:
+            short_name: Filter by short name (case-insensitive).
+            scope: Filter by scope (case-insensitive).
+            revision: Filter by revision (case-insensitive).
+
+        Returns:
+            True if all provided criteria match, False otherwise.
+        """
+        if short_name and self.short_name != short_name.lower():
+            return False
+        if scope:
+            if self.scope is None or self.scope != scope.lower():
+                return False
+        if revision:
+            if self.revision is None or self.revision != revision.lower():
+                return False
+        return True
+
+
+@dataclass(frozen=True)
 class RuleReference:
     """A reference document for a Rule."""
 
@@ -249,11 +308,32 @@ class Rule:
     """The output model class for the Rule."""
     references: list[RuleReference] = field(default_factory=list)
     """References or links to external resources related to the Rule."""
+    frameworks: tuple[Framework, ...] = ()
+    """Compliance frameworks this rule maps to (e.g., CIS benchmarks)."""
 
     @property
     def modules(self) -> set[Module]:
         """Returns the set of modules associated with this rule."""
         return {fact.module for fact in self.facts}
+
+    def has_framework(
+        self,
+        short_name: str | None = None,
+        scope: str | None = None,
+        revision: str | None = None,
+    ) -> bool:
+        """
+        Check if this rule has a framework matching the given criteria.
+
+        Args:
+            short_name: Filter by framework short name (case-insensitive).
+            scope: Filter by framework scope (case-insensitive).
+            revision: Filter by framework revision (case-insensitive).
+
+        Returns:
+            True if any framework matches all provided criteria.
+        """
+        return any(fw.matches(short_name, scope, revision) for fw in self.frameworks)
 
     def get_fact_by_id(self, fact_id: str) -> Fact | None:
         """

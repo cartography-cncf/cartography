@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -84,9 +85,18 @@ cis_aws_3_1_cloudtrail_multi_region = Rule(
     ),
     output_model=CloudTrailMultiRegionOutput,
     facts=(_aws_cloudtrail_not_multi_region,),
-    tags=("cis:3.1", "cis:aws-5.0", "logging", "cloudtrail", "stride:repudiation"),
+    tags=("logging", "cloudtrail", "stride:repudiation"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="3.1",
+        ),
+    ),
 )
 
 
@@ -147,16 +157,18 @@ cis_aws_3_4_cloudtrail_log_validation = Rule(
     ),
     output_model=CloudTrailLogValidationOutput,
     facts=(_aws_cloudtrail_log_validation_disabled,),
-    tags=(
-        "cis:3.4",
-        "cis:aws-5.0",
-        "logging",
-        "cloudtrail",
-        "stride:repudiation",
-        "stride:tampering",
-    ),
+    tags=("logging", "cloudtrail", "stride:repudiation", "stride:tampering"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="3.4",
+        ),
+    ),
 )
 
 
@@ -217,16 +229,18 @@ cis_aws_3_5_cloudtrail_cloudwatch = Rule(
     ),
     output_model=CloudTrailCloudWatchOutput,
     facts=(_aws_cloudtrail_no_cloudwatch,),
-    tags=(
-        "cis:3.5",
-        "cis:aws-5.0",
-        "logging",
-        "cloudtrail",
-        "cloudwatch",
-        "stride:repudiation",
-    ),
+    tags=("logging", "cloudtrail", "cloudwatch", "stride:repudiation"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="3.5",
+        ),
+    ),
 )
 
 
@@ -287,14 +301,16 @@ cis_aws_3_7_cloudtrail_encryption = Rule(
     ),
     output_model=CloudTrailEncryptionOutput,
     facts=(_aws_cloudtrail_not_encrypted,),
-    tags=(
-        "cis:3.7",
-        "cis:aws-5.0",
-        "logging",
-        "cloudtrail",
-        "encryption",
-        "stride:information_disclosure",
-    ),
+    tags=("logging", "cloudtrail", "encryption", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="3.7",
+        ),
+    ),
 )

@@ -42,6 +42,8 @@ def test_run_single_rule_aggregates_facts_correctly(mock_run_fact):
     mock_rule.name = "Test Rule"
     mock_rule.description = "Test Description"
     mock_rule.facts = (mock_fact1, mock_fact2, mock_fact3)
+    mock_rule.tags = ("test",)
+    mock_rule.frameworks = ()
 
     # Add to RULES dict
     from cartography.rules.runners import RULES
@@ -114,6 +116,8 @@ def test_run_single_rule_with_zero_findings(mock_run_fact):
     mock_rule.name = "Empty Rule"
     mock_rule.description = "No results"
     mock_rule.facts = (mock_fact,)
+    mock_rule.tags = ("test",)
+    mock_rule.frameworks = ()
 
     # Add to RULES dict
     from cartography.rules.runners import RULES
@@ -162,6 +166,8 @@ def test_run_single_rule_with_fact_filter(mock_run_fact):
     mock_rule.name = "Rule 1"
     mock_rule.description = "Desc"
     mock_rule.facts = (mock_fact1, mock_fact2)
+    mock_rule.tags = ("test",)
+    mock_rule.frameworks = ()
 
     # Add to RULES dict
     from cartography.rules.runners import RULES

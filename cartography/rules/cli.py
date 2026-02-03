@@ -14,6 +14,7 @@ import typer
 from typing_extensions import Annotated
 
 from cartography.rules.data.rules import RULES
+from cartography.rules.runners import get_all_frameworks
 from cartography.rules.runners import run_rules
 
 app = typer.Typer(
@@ -86,9 +87,97 @@ def complete_facts(
             yield (fact.id, fact.name)
 
 
+def complete_frameworks(incomplete: str) -> Generator[str, None, None]:
+    """
+    Autocomplete framework filters for CLI tab completion.
+
+    Supports formats: "CIS", "CIS:aws", "CIS:aws:5.0"
+
+    Args:
+        incomplete (str): The partial framework filter typed by the user.
+
+    Yields:
+        str: Framework filter strings that start with the incomplete string.
+    """
+    frameworks = get_all_frameworks()
+    incomplete_lower = incomplete.lower()
+
+    # Generate completion options
+    for short_name, fws in frameworks.items():
+        # Short name only (e.g., "cis")
+        if short_name.startswith(incomplete_lower):
+            yield short_name
+
+        # Short name + scope (e.g., "cis:aws") - only for frameworks with scope
+        scopes = sorted({fw.scope for fw in fws if fw.scope is not None})
+        for scope in scopes:
+            option = f"{short_name}:{scope}"
+            if option.startswith(incomplete_lower):
+                yield option
+
+            # Short name + scope + revision (e.g., "cis:aws:5.0")
+            revisions = sorted(
+                {
+                    fw.revision
+                    for fw in fws
+                    if fw.scope == scope and fw.revision is not None
+                }
+            )
+            for revision in revisions:
+                full_option = f"{short_name}:{scope}:{revision}"
+                if full_option.startswith(incomplete_lower):
+                    yield full_option
+
+
 # ----------------------------
 # CLI Commands
 # ----------------------------
+
+
+@app.command(name="frameworks")  # type: ignore[misc]
+def frameworks_cmd() -> None:
+    """
+    List all compliance frameworks referenced by rules.
+
+    \b
+    Examples:
+        cartography-rules frameworks
+    """
+    frameworks = get_all_frameworks()
+
+    if not frameworks:
+        typer.echo("No frameworks found in rules.")
+        return
+
+    typer.secho("\nCompliance Frameworks\n", bold=True)
+
+    for short_name, fws in frameworks.items():
+        # Get unique scopes and their revisions
+        scopes: dict[str | None, set[str | None]] = {}
+        for fw in fws:
+            if fw.scope not in scopes:
+                scopes[fw.scope] = set()
+            scopes[fw.scope].add(fw.revision)
+
+        typer.secho(f"{short_name.upper()}", fg=typer.colors.CYAN)
+        if fws:
+            typer.echo(f"  Name: {fws[0].name}")
+        for scope, revisions in sorted(scopes.items(), key=lambda x: x[0] or ""):
+            rev_list = [r for r in revisions if r is not None]
+            if scope is not None:
+                if rev_list:
+                    rev_str = ", ".join(sorted(rev_list))
+                    typer.echo(f"  Scope: {scope} (revisions: {rev_str})")
+                else:
+                    typer.echo(f"  Scope: {scope}")
+            elif rev_list:
+                rev_str = ", ".join(sorted(rev_list))
+                typer.echo(f"  Revisions: {rev_str}")
+
+        # Count rules using this framework
+        rule_count = sum(1 for rule in RULES.values() if rule.has_framework(short_name))
+        typer.echo(f"  Rules: {rule_count}")
+        typer.echo()
 
 
 @app.command(name="list")  # type: ignore[misc]
@@ -100,6 +189,15 @@ def list_cmd(
             autocompletion=complete_rules,
         ),
     ] = None,
+    framework: Annotated[
+        str | None,
+        typer.Option(
+            "--framework",
+            "-f",
+            help="Filter by framework (e.g., CIS, CIS:aws, CIS:aws:5.0)",
+            autocompletion=complete_frameworks,
+        ),
+    ] = None,
 ) -> None:
     """
     List available rules and facts.
@@ -107,22 +205,59 @@ def list_cmd(
     \b
     Examples:
         cartography-rules list
+        cartography-rules list --framework CIS
+        cartography-rules list --framework CIS:aws
         cartography-rules list mfa-missing
-        cartography-rules list mfa-missing missing-mfa-cloudflare
     """
-    # List all frameworks
+    # List all rules (optionally filtered by framework)
     if not rule:
-        typer.secho("\nAvailable Rules\n", bold=True)
+        # Parse framework filter
+        fw_short_name = None
+        fw_scope = None
+        fw_revision = None
+        if framework:
+            parts = framework.split(":")
+            fw_short_name = parts[0] if len(parts) >= 1 else None
+            fw_scope = parts[1] if len(parts) >= 2 else None
+            fw_revision = parts[2] if len(parts) >= 3 else None
+
+        if framework:
+            typer.secho(f"\nRules matching framework: {framework}\n", bold=True)
+        else:
+            typer.secho("\nAvailable Rules\n", bold=True)
+
+        found_rules = False
         for rule_name, rule_obj in RULES.items():
+            # Apply framework filter
+            if framework and not rule_obj.has_framework(
+                fw_short_name, fw_scope, fw_revision
+            ):
+                continue
+
+            found_rules = True
             typer.secho(f"{rule_name}", fg=typer.colors.CYAN)
             typer.echo(f"  Name:         {rule_obj.name}")
             typer.echo(f"  Version:      {rule_obj.version}")
             typer.echo(f"  Facts:        {len(rule_obj.facts)}")
+            if rule_obj.frameworks:
+                typer.echo("  Frameworks:")
+                for fw in rule_obj.frameworks:
+                    # Build framework string with optional parts
+                    fw_parts = [fw.short_name]
+                    if fw.scope:
+                        fw_parts.append(fw.scope)
+                    if fw.revision:
+                        fw_parts.append(fw.revision)
+                    fw_str = ":".join(fw_parts)
+                    typer.echo(f"    - {fw_str} ({fw.requirement})")
             if rule_obj.references:
                 typer.echo("  References:")
                 for ref in rule_obj.references:
                     typer.echo(f"    - [{ref.text}]({ref.url})")
             typer.echo()
+
+        if not found_rules:
+            typer.echo("No rules found matching the filter.", err=True)
         return
 
     # Validate rule
@@ -191,6 +326,15 @@ def run_cmd(
         "--experimental/--no-experimental",
         help="Enable or disable experimental facts.",
     ),
+    framework: Annotated[
+        str | None,
+        typer.Option(
+            "--framework",
+            "-f",
+            help="Filter by framework (e.g., CIS, CIS:aws, CIS:aws:5.0)",
+            autocompletion=complete_frameworks,
+        ),
+    ] = None,
 ) -> None:
     """
     Execute a security framework.
@@ -198,9 +342,15 @@ def run_cmd(
     \b
     Examples:
         cartography-rules run all
+        cartography-rules run all --framework CIS
+        cartography-rules run all --framework CIS:aws:5.0
         cartography-rules run mfa-missing
         cartography-rules run mfa-missing missing-mfa-cloudflare
     """
+    # If no rule specified but framework filter provided, run all rules
+    if rule is None and framework:
+        rule = "all"
+
     # Validate rule
     valid_rules = builtins.list(RULES.keys()) + ["all"]
     if rule not in valid_rules:
@@ -269,6 +419,7 @@ def run_cmd(
             output.value,
             fact_filter=fact,
             exclude_experimental=not experimental,
+            framework_filter=framework,
         )
         raise typer.Exit(exit_code)
     except KeyboardInterrupt:
