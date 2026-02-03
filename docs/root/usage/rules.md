@@ -60,6 +60,9 @@ Current rules include:
 - **unmanaged_accounts** - Unmanaged cloud accounts
 - **workload_identity_admin_capabilities** - Workload identity escalation surface
 - **cis_gcp_3_1_default_network**, **cis_gcp_3_6_unrestricted_ssh**, **cis_gcp_3_7_unrestricted_rdp**, **cis_gcp_4_9_public_ip**, **cis_gcp_5_2_bucket_uniform_access** - CIS Google Cloud Platform Foundation Benchmark v4.0.0 controls (network exposure, VM public IPs, and bucket access controls)
+- **google_workspace_cis_1_1_enforce_2sv** - Google Workspace CIS control 1.1 (enforce 2-Step Verification)
+- **google_workspace_cis_1_2_admins_enrolled_2sv** - Google Workspace CIS control 1.2 (super admins enrolled in 2-Step Verification)
+- **google_workspace_cis_2_1_high_risk_oauth** - Google Workspace CIS control 2.1 (review high-risk OAuth access)
 
 You can list all available rules and their details from the CLI, see [below](#list).
 
