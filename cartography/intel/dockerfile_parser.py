@@ -27,16 +27,9 @@ from dataclasses import field
 from pathlib import Path
 from typing import Any
 
+import dockerfile as dockerfile_pkg
+
 logger = logging.getLogger(__name__)
-
-# Try to import optional dockerfile parser package for better parsing
-try:
-    import dockerfile as dockerfile_pkg
-
-    _HAS_DOCKERFILE_PARSER = True
-except ImportError:
-    _HAS_DOCKERFILE_PARSER = False
-    logger.debug("dockerfile package not installed. Using basic parser.")
 
 
 # =============================================================================
@@ -412,10 +405,7 @@ def _parse_base_image_reference(from_value: str) -> tuple[str, str | None, str |
 
 def _parse_instructions(content: str) -> list[DockerfileInstruction]:
     """Parse Dockerfile content into a list of instructions."""
-    if _HAS_DOCKERFILE_PARSER:
-        return _parse_with_dockerfile_package(content)
-    else:
-        return _parse_basic(content)
+    return _parse_with_dockerfile_package(content)
 
 
 def _parse_with_dockerfile_package(content: str) -> list[DockerfileInstruction]:
