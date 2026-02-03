@@ -79,3 +79,52 @@ class GitHubRepoBuiltFromMatchLink(CartographyRelSchema):
     properties: GitHubRepoBuiltFromMatchLinkProperties = (
         GitHubRepoBuiltFromMatchLinkProperties()
     )
+
+
+@dataclass(frozen=True)
+class ImageBuiltByWorkflowMatchLinkProperties(CartographyRelProperties):
+    """
+    Properties for the BUILT_BY relationship between Image and GitHubWorkflow.
+    """
+
+    # Required for all MatchLinks
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label", set_in_kwargs=True
+    )
+    _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
+
+    # Workflow run information from SLSA provenance
+    run_number: PropertyRef = PropertyRef("run_number")
+
+
+@dataclass(frozen=True)
+class ImageBuiltByWorkflowMatchLink(CartographyRelSchema):
+    """
+    MatchLink schema for connecting Image nodes to GitHubWorkflow nodes
+    based on SLSA provenance attestations.
+
+    Direction: (Image)-[:BUILT_BY]->(GitHubWorkflow)
+
+    This relationship is created when SLSA provenance attestations specify
+    the GitHub Actions workflow that built the container image. The run_number
+    property indicates which specific workflow run produced the image.
+    """
+
+    target_node_label: str = "GitHubWorkflow"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("workflow_id"),
+        }
+    )
+    source_node_label: str = "Image"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "digest": PropertyRef("image_digest"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "BUILT_BY"
+    properties: ImageBuiltByWorkflowMatchLinkProperties = (
+        ImageBuiltByWorkflowMatchLinkProperties()
+    )
