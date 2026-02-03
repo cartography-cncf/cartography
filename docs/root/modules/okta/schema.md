@@ -132,7 +132,7 @@ Representation of an [Okta Group](https://developer.okta.com/docs/reference/api/
 | Field | Description |
 |-------|--------------|
 | id | application id  |
-| name | group name |
+| **name** | group name |
 | description | group description |
 | sam_account_name | windows SAM account name mapped
 | dn | group dn |

@@ -1,36 +1,45 @@
+from __future__ import annotations
+
 # Okta intel module - Organization
 import logging
+from typing import Any
 
 import neo4j
 
-from cartography.client.core.tx import run_write_query
+from cartography.client.core.tx import load
+from cartography.models.okta.organization import OktaOrganizationSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-def create_okta_organization(
+def sync_okta_organization(
     neo4j_session: neo4j.Session,
-    organization: str,
-    okta_update_tag: int,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Create Okta organization in the graph
-    :param neo4_session: session with the Neo4j server
-    :param organization: okta organization id
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
-    :return: Nothing
+    Add the OktaOrganization subresource
     """
-    ingest = """
-    MERGE (org:OktaOrganization{id: $ORG_NAME})
-    ON CREATE SET org.name = org.id, org.firstseen = timestamp(), org._ont_name = org.id
-    SET org.lastupdated = $okta_update_tag, org :Tenant
-    """
+    _load_organization(neo4j_session, common_job_parameters)
 
-    run_write_query(
+
+@timeit
+def _load_organization(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Load the host node into the graph
+    """
+    data = [
+        {
+            "id": common_job_parameters["OKTA_ORG_ID"],
+        },
+    ]
+    load(
         neo4j_session,
-        ingest,
-        ORG_NAME=organization,
-        okta_update_tag=okta_update_tag,
+        OktaOrganizationSchema(),
+        data,
+        lastupdated=common_job_parameters["UPDATE_TAG"],
     )

@@ -1,27 +1,40 @@
-import datetime
+from unittest.mock import MagicMock
 
-from okta.models.user.User import User
-from okta.models.user.UserProfile import UserProfile
+from okta.models.user import User
+
+
+class MockUserProfile:
+    """A mock profile object that properly supports __dict__ access."""
+
+    def __init__(self):
+        self.login = "test@lyft.com"
+        self.email = "test@lyft.com"
+        self.lastName = "LastName"
+        self.firstName = "firstName"
 
 
 def create_test_user():
-    user = User()
+    """Create a mock OktaUser object for testing."""
+    user = MagicMock(spec=User)
 
     user.id = "userid"
-    user.activated = datetime.datetime(2019, 1, 1, 0, 0, 1)
-    user.created = datetime.datetime(2019, 1, 1, 0, 0, 1)
-    user.activated = datetime.datetime(2019, 1, 1, 0, 0, 1)
-    user.statusChanged = datetime.datetime(2019, 1, 1, 0, 0, 1)
-    user.lastLogin = datetime.datetime(2019, 1, 1, 0, 0, 1)
-    user.lastUpdated = datetime.datetime(2019, 1, 1, 0, 0, 1)
-    user.passwordChanged = datetime.datetime(2019, 1, 1, 0, 0, 1)
-    user.transitioningToStatus = "transition"
+    user.activated = "2019-01-01T00:00:01.000Z"
+    user.created = "2019-01-01T00:00:01.000Z"
+    user.status_changed = "2019-01-01T00:00:01.000Z"
+    user.last_login = "2019-01-01T00:00:01.000Z"
+    user.last_updated = "2019-01-01T00:00:01.000Z"
+    user.password_changed = "2019-01-01T00:00:01.000Z"
+    user.transitioning_to_status = "transition"
 
-    # profile
-    user.profile = UserProfile()
-    user.profile.login = "test@lyft.com"
-    user.profile.email = "test@lyft.com"
-    user.profile.lastName = "LastName"
-    user.profile.firstName = "firstName"
+    # Status enum
+    user.status = MagicMock()
+    user.status.value = "ACTIVE"
+
+    # Type
+    user.type = MagicMock()
+    user.type.id = "default_user_type"
+
+    # Profile - using a real object for proper __dict__ support
+    user.profile = MockUserProfile()
 
     return user

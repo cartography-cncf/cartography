@@ -460,18 +460,18 @@ MOCK_OKTA_GROUPS = [
         "id": "okta-group-1",
         "name": "developers",  # Maps to existing K8s group "developers"
         "description": "Development team",
-        "type": "OKTA_GROUP",
+        "group_type": "OKTA_GROUP",
     },
     {
         "id": "okta-group-2",
         "name": "admins",  # Maps to existing K8s group "admins"
         "description": "System administrators",
-        "type": "OKTA_GROUP",
+        "group_type": "OKTA_GROUP",
     },
     {
         "id": "okta-group-3",
         "name": "viewers",  # Maps to existing K8s group "viewers" (cluster 2)
         "description": "Viewer access group",
-        "type": "OKTA_GROUP",
+        "group_type": "OKTA_GROUP",
     },
 ]

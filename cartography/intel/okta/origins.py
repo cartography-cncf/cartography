@@ -1,132 +1,136 @@
-# Okta intel module - Origin
-import json
+from __future__ import annotations
+
+# Okta intel module - Origins
+import asyncio
 import logging
-from typing import Dict
-from typing import List
+from typing import Any
 
 import neo4j
-from okta.framework.ApiClient import ApiClient
+from okta.client import Client as OktaClient
+from okta.models.trusted_origin import TrustedOrigin as OktaTrustedOrigin
 
-from cartography.client.core.tx import run_write_query
-from cartography.intel.okta.utils import create_api_client
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.okta.origin import OktaTrustedOriginSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
 @timeit
-def _get_trusted_origins(api_client: ApiClient) -> str:
-    """
-    Get trusted origins from Okta
-    :param api_client: api client
-    :return: api response data
-    """
-
-    response = api_client.get_path("/")
-
-    return response.text
-
-
-@timeit
-def transform_trusted_origins(data: str) -> List[Dict]:
-    """
-    Transform trusted origin data returned by Okta Server
-    :param data: json response
-    :return: Array of dictionary containing trusted origins properties
-    """
-    ret_list: List[Dict] = []
-
-    json_data = json.loads(data)
-    for origin_data in json_data:
-        props = {}
-        props["id"] = origin_data["id"]
-        props["name"] = origin_data["name"]
-        props["origin"] = origin_data["origin"]
-
-        # https://developer.okta.com/docs/reference/api/trusted-origins/#scope-object
-        scope_types = []
-        for scope in origin_data.get("scopes", []):
-            scope_types.append(scope["type"])
-
-        props["scopes"] = scope_types
-        props["status"] = origin_data["status"]
-        props["created"] = origin_data.get("created", None)
-        props["created_by"] = origin_data.get("createdBy", None)
-        props["okta_last_updated"] = origin_data.get("lastUpdated", None)
-        props["okta_last_updated_by"] = origin_data.get("lastUpdatedBy", None)
-
-        ret_list.append(props)
-
-    return ret_list
-
-
-@timeit
-def _load_trusted_origins(
+def sync_okta_origins(
+    okta_client: OktaClient,
     neo4j_session: neo4j.Session,
-    okta_org_id: str,
-    trusted_list: List[Dict],
-    okta_update_tag: int,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Add trusted origins to the graph
-    :param neo4j_session: session with the Neo4j server
-    :param okta_org_id: okta organization id
-    :param trusted_list: list of trusted origins
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
+    Sync Okta origins
+    :param okta_client: An Okta client object
+    :param neo4j_session: Session with Neo4j server
+    :param common_job_parameters: Settings used by all Okta modules
+    :return: Nothing
+    """
+    logger.info("Syncing Okta origins")
+    origins = asyncio.run(_get_okta_origins(okta_client))
+    transformed_origins = _transform_okta_origins(origins)
+    _load_okta_origins(neo4j_session, transformed_origins, common_job_parameters)
+    _cleanup_okta_origins(neo4j_session, common_job_parameters)
+
+
+@timeit
+async def _get_okta_origins(okta_client: OktaClient) -> list[OktaTrustedOrigin]:
+    """
+    Get Okta origins list from Okta
+    :param okta_client: An Okta client object
+    :return: List of Okta origins
+    """
+    output_origins = []
+    query_parameters = {"limit": 200}
+    origins, resp = await okta_client.list_origins(**query_parameters)
+    output_origins += origins
+    while resp.has_next():
+        origins = await resp.next()
+        output_origins += origins
+        logger.debug("Fetched %s origins", len(origins))
+    return output_origins
+
+
+@timeit
+def _transform_okta_origins(
+    okta_origins: list[OktaTrustedOrigin],
+) -> list[dict[str, Any]]:
+    """
+    Convert a list of Okta origins into a format for Neo4j
+    :param okta_origins: List of Okta origins
+    :return: List of origin dicts
+    """
+    transformed_origins: list[dict] = []
+    logger.info("Transforming %s Okta origins", len(okta_origins))
+    for okta_origin in okta_origins:
+        origin_props: dict[str, Any] = {}
+        origin_props["id"] = okta_origin.id
+        origin_props["created"] = okta_origin.created
+        origin_props["created_by"] = okta_origin.created_by
+        origin_props["last_updated"] = okta_origin.last_updated
+        origin_props["last_updated_by"] = okta_origin.last_updated_by
+        origin_props["name"] = okta_origin.name
+        origin_props["origin"] = okta_origin.origin
+        # Scopes have a specific type
+        # currently supported are CORS, Redirect, and IFrame
+        for scope in okta_origin.scopes:
+            apps = []
+            for app in scope.allowed_okta_apps:
+                apps.append(app.value)
+            if scope.type.value == "CORS":
+                origin_props["cors_allowed_okta_apps"] = apps
+                origin_props["cors_allowed"] = True
+            elif scope.type.value == "REDIRECT":
+                origin_props["redirect_allowed_okta_apps"] = apps
+                origin_props["redirect_allowed"] = True
+            elif scope.type.value == "IFRAME_EMBED":
+                origin_props["iframe_allowed_okta_apps"] = apps
+                origin_props["iframe_allowed"] = True
+        origin_props["status"] = okta_origin.status
+        transformed_origins.append(origin_props)
+    return transformed_origins
+
+
+@timeit
+def _load_okta_origins(
+    neo4j_session: neo4j.Session,
+    origin_list: list[dict],
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Load Okta origins information into the graph
+    :param neo4j_session: session with neo4j server
+    :param origin_list: list of origins
+    :param common_job_parameters: Settings used by all Okta modules
     :return: Nothing
     """
 
-    ingest = """
-    MATCH (org:OktaOrganization{id: $ORG_ID})
-    WITH org
-    UNWIND $TRUSTED_LIST as data
-    MERGE (new:OktaTrustedOrigin{id: data.id})
-    ON CREATE SET new.firstseen = timestamp()
-    SET new.name = data.name,
-    new.origin = data.origin,
-    new.scopes = data.scoped,
-    new.status = data.status,
-    new.created = data.created,
-    new.created_by = data.created_by,
-    new.okta_last_updated = data.okta_last_updated,
-    new.okta_last_updated_by = data.okta_last_updated_by,
-    new.lastupdated = $okta_update_tag
-    WITH org, new
-    MERGE (org)-[r:RESOURCE]->(new)
-    ON CREATE SET r.firstseen = timestamp()
-    SET r.lastupdated = $okta_update_tag
-    """
+    logger.info("Loading %s Okta origins", len(origin_list))
 
-    run_write_query(
+    load(
         neo4j_session,
-        ingest,
-        ORG_ID=okta_org_id,
-        TRUSTED_LIST=trusted_list,
-        okta_update_tag=okta_update_tag,
+        OktaTrustedOriginSchema(),
+        origin_list,
+        OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
+        lastupdated=common_job_parameters["UPDATE_TAG"],
     )
 
 
 @timeit
-def sync_trusted_origins(
+def _cleanup_okta_origins(
     neo4j_session: neo4j.Session,
-    okta_org_id: str,
-    okta_update_tag: int,
-    okta_api_key: str,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Sync trusted origins
-    :param neo4j_session: session with the Neo4j server
-    :param okta_org_id: okta organization id
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
-    :param okta_api_key: okta api key
+    Cleanup origin nodes and relationships
+    :param neo4j_session: session with neo4j server
+    :param common_job_parameters: Settings used by all Okta modules
     :return: Nothing
     """
-
-    logger.info("Syncing Okta Trusted Origins")
-
-    api_client = create_api_client(okta_org_id, "/api/v1/trustedOrigins", okta_api_key)
-
-    trusted_data = _get_trusted_origins(api_client)
-    trusted_list = transform_trusted_origins(trusted_data)
-
-    _load_trusted_origins(neo4j_session, okta_org_id, trusted_list, okta_update_tag)
+    GraphJob.from_node_schema(OktaTrustedOriginSchema(), common_job_parameters).run(
+        neo4j_session,
+    )

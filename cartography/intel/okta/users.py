@@ -1,219 +1,443 @@
 # Okta intel module - Users
+from __future__ import annotations
+
+import asyncio
+import dataclasses
 import logging
-from typing import Dict
-from typing import List
-from typing import Tuple
+from typing import Any
 
 import neo4j
-from okta import UsersClient
-from okta.models.user import User
+from okta.client import Client as OktaClient
+from okta.models.role import Role as OktaUserRole
+from okta.models.user import User as OktaUser
+from okta.models.user_type import UserType as OktaUserType
 
-from cartography.client.core.tx import run_write_query
-from cartography.intel.okta.sync_state import OktaSyncState
-from cartography.intel.okta.utils import check_rate_limit
+from cartography.client.core.tx import load
+from cartography.graph.job import GraphJob
+from cartography.models.core.common import PropertyRef
+from cartography.models.okta.user import OktaUserRoleSchema
+from cartography.models.okta.user import OktaUserSchema
+from cartography.models.okta.user import OktaUserTypeSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+####
+# Okta User Types
+####
 
-def _create_user_client(okta_org: str, okta_api_key: str) -> UsersClient:
+
+@timeit
+def sync_okta_user_types(
+    okta_client: OktaClient,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
     """
-    Create Okta User Client
-    :param okta_org: Okta organization name
-    :param okta_api_key: Okta API key
-    :return: Instance of UsersClient
+    Sync Okta users types
+    :param okta_client: An Okta client object
+    :param neo4j_session: Session with Neo4j server
+    :param common_job_parameters: Settings used by all Okta modules
+    :return: Nothing
     """
-    # https://github.com/okta/okta-sdk-python/blob/master/okta/models/user/User.py
-    user_client = UsersClient(
-        base_url=f"https://{okta_org}.okta.com/",
-        api_token=okta_api_key,
+
+    logger.info("Syncing Okta user types")
+    user_types = asyncio.run(_get_okta_user_types(okta_client))
+    transformed_user_types = _transform_okta_user_types(user_types)
+    _load_okta_user_types(neo4j_session, transformed_user_types, common_job_parameters)
+    _cleanup_okta_user_types(neo4j_session, common_job_parameters)
+
+
+@timeit
+async def _get_okta_user_types(okta_client: OktaClient) -> list[OktaUserType]:
+    """
+    Get Okta user types list from Okta
+    :param okta_client: An Okta client object
+    :return: List of Okta authenticators
+    """
+    output_user_types = []
+    # This won't ever be paginated
+    user_types, _ = await okta_client.list_user_types()
+    output_user_types += user_types
+    logger.debug("Fetched %s user types", len(user_types))
+    return output_user_types
+
+
+@timeit
+def _transform_okta_user_types(
+    okta_user_types: list[OktaUserType],
+) -> list[dict[str, Any]]:
+    """
+    Convert a list of Okta user types into a format for Neo4j
+    :param okta_user_types: List of Okta user types
+    :return: List of user type dicts
+    """
+
+    transformed_users: list[dict] = []
+    logger.info("Transforming %s Okta user types", len(okta_user_types))
+    for okta_user_type in okta_user_types:
+        user_type_props = {}
+        user_type_props["id"] = okta_user_type.id
+        user_type_props["created"] = okta_user_type.created
+        user_type_props["created_by"] = okta_user_type.created_by
+        user_type_props["default"] = okta_user_type.default
+        user_type_props["description"] = okta_user_type.description
+        user_type_props["display_name"] = okta_user_type.display_name
+        user_type_props["last_updated"] = okta_user_type.last_updated
+        user_type_props["last_updated_by"] = okta_user_type.last_updated_by
+        user_type_props["name"] = okta_user_type.name
+        transformed_users.append(user_type_props)
+    return transformed_users
+
+
+@timeit
+def _load_okta_user_types(
+    neo4j_session: neo4j.Session,
+    user_type_list: list[dict],
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Load Okta user type information into the graph
+    :param neo4j_session: session with neo4j server
+    :param user_type_list: list of user types
+    :param common_job_parameters: Settings used by all Okta modules
+    :return: Nothing
+    """
+    logger.info("Loading %s Okta user types", len(user_type_list))
+    load(
+        neo4j_session,
+        OktaUserTypeSchema(),
+        user_type_list,
+        OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
+        lastupdated=common_job_parameters["UPDATE_TAG"],
     )
 
-    return user_client
+
+@timeit
+def _cleanup_okta_user_types(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Cleanup user types nodes and relationships
+    :param neo4j_session: session with neo4j server
+    :param common_job_parameters: Settings used by all Okta modules
+    :return: Nothing
+    """
+    GraphJob.from_node_schema(OktaUserTypeSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+
+
+##############
+# Okta Users
+##############
 
 
 @timeit
-def _get_okta_users(user_client: UsersClient) -> List[Dict]:
+def sync_okta_users(
+    okta_client: OktaClient,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> list[str]:
     """
-    Get Okta users from Okta server
-    :param user_client: user client
-    :return: Array of user data
+    Sync Okta users
+    :param okta_client: An Okta client object
+    :param neo4j_session: Session with Neo4j server
+    :param common_job_parameters: Settings used by all Okta modules
+    :return: List of user IDs that were synced
     """
-    user_list: List[Dict] = []
-    paged_users = user_client.get_paged_users()
 
-    # TODO: Fix bug, we miss last page :(
-    while True:
-        user_list.extend(paged_users.result)
-        check_rate_limit(paged_users.response)
-        if not paged_users.is_last_page():
-            # Keep on fetching pages of users until the last page
-            paged_users = user_client.get_paged_users(url=paged_users.next_url)
+    logger.info("Syncing Okta users")
+    users = asyncio.run(_get_okta_users(okta_client))
+
+    # Gather user roles using the bulk API to minimize API calls
+    # First get all users who have role assignments, then fetch their roles
+    user_roles = asyncio.run(_get_all_user_roles(okta_client))
+    transformed_user_roles = _transform_okta_user_roles(user_roles)
+    _load_okta_user_roles(neo4j_session, transformed_user_roles, common_job_parameters)
+    _cleanup_okta_user_roles(neo4j_session, common_job_parameters)
+
+    transformed_users = _transform_okta_users(users, user_roles)
+    _load_okta_users(neo4j_session, transformed_users, common_job_parameters)
+    _cleanup_okta_users(neo4j_session, common_job_parameters)
+
+    # Return user IDs for factors sync
+    return [user.id for user in users]
+
+
+@timeit
+async def _get_okta_users(okta_client: OktaClient) -> list[OktaUser]:
+    """
+    Get Okta users list from Okta
+    :param okta_client: An Okta client object
+    :return: List of Okta users
+    """
+    output_users = []
+    # All users except deprovisioned users are returned
+    # We'll have to call deprovisioned users sep
+    statuses = [None, "DEPROVISIONED"]
+    for status in statuses:
+        query_parameters: dict[str, Any] = {"limit": 200}
+        if status:
+            query_parameters["filter"] = f'(status eq "{status}" )'
         else:
-            break
-
-    return user_list
-
-
-@timeit
-def transform_okta_user_list(
-    okta_user_list: List[User],
-) -> Tuple[List[Dict], List[str]]:
-    users: List[Dict] = []
-    user_ids: List[str] = []
-
-    for current in okta_user_list:
-        users.append(transform_okta_user(current))
-        user_ids.append(current.id)
-
-    return users, user_ids
+            status = "NON-DEPROVISIONED"
+        users, resp = await okta_client.list_users(**query_parameters)
+        output_users += users
+        while resp.has_next():
+            users = await resp.next()
+            output_users += users
+            logger.debug("Fetched %s %s users", len(users), status)
+    return output_users
 
 
 @timeit
-def transform_okta_user(okta_user: User) -> Dict:
+def _transform_okta_users(
+    okta_users: list[OktaUser],
+    okta_user_roles: list[OktaUserRole],
+) -> list[dict[str, Any]]:
     """
-    Transform okta user data
-    :param okta_user: okta user object
-    :return: Dictionary container user properties for ingestion
+    Convert a list of Okta users into a format for Neo4j
+    :param okta_users: List of Okta users
+    :param okta_user_roles: List of Okta user roles
+    :return: List of users dicts
     """
-
-    # https://github.com/okta/okta-sdk-python/blob/master/okta/models/user/User.py
-    user_props = {}
-    user_props["first_name"] = okta_user.profile.firstName
-    user_props["last_name"] = okta_user.profile.lastName
-    user_props["login"] = okta_user.profile.login
-    user_props["email"] = okta_user.profile.email
-
-    # https://github.com/okta/okta-sdk-python/blob/master/okta/models/user/User.py
-    user_props["id"] = okta_user.id
-    user_props["created"] = okta_user.created.strftime("%m/%d/%Y, %H:%M:%S")
-    if okta_user.activated:
-        user_props["activated"] = okta_user.activated.strftime("%m/%d/%Y, %H:%M:%S")
-    else:
-        user_props["activated"] = None
-
-    if okta_user.statusChanged:
-        user_props["status_changed"] = okta_user.statusChanged.strftime(
-            "%m/%d/%Y, %H:%M:%S",
-        )
-    else:
-        user_props["status_changed"] = None
-
-    if okta_user.lastLogin:
-        user_props["last_login"] = okta_user.lastLogin.strftime("%m/%d/%Y, %H:%M:%S")
-    else:
-        user_props["last_login"] = None
-
-    if okta_user.lastUpdated:
-        user_props["okta_last_updated"] = okta_user.lastUpdated.strftime(
-            "%m/%d/%Y, %H:%M:%S",
-        )
-    else:
-        user_props["okta_last_updated"] = None
-
-    if okta_user.passwordChanged:
-        user_props["password_changed"] = okta_user.passwordChanged.strftime(
-            "%m/%d/%Y, %H:%M:%S",
-        )
-    else:
-        user_props["password_changed"] = None
-
-    if okta_user.transitioningToStatus:
-        user_props["transition_to_status"] = okta_user.transitioningToStatus
-    else:
-        user_props["transition_to_status"] = None
-
-    return user_props
+    transformed_users: list[dict] = []
+    logger.info("Transforming %s Okta users", len(okta_users))
+    for okta_user in okta_users:
+        user_props: dict[str, Any] = {}
+        # Dynamic properties added that change based on tenant
+        user_props.update(okta_user.profile.__dict__)
+        user_props["id"] = okta_user.id
+        user_props["created"] = okta_user.created
+        user_props["status"] = okta_user.status.value if okta_user.status else None
+        user_props["transition_to_status"] = okta_user.transitioning_to_status
+        user_props["activated"] = okta_user.activated
+        user_props["status_changed"] = okta_user.status_changed
+        user_props["last_login"] = okta_user.last_login
+        user_props["okta_last_updated"] = okta_user.last_updated
+        user_props["password_changed"] = okta_user.password_changed
+        user_props["type"] = okta_user.type.id if okta_user.type else None
+        # Add role information on a per user basis
+        for user_role in okta_user_roles:
+            if user_role.assignee != okta_user.id:
+                continue
+            match_role = {**user_props, "role_id": user_role.id}
+            transformed_users.append(match_role)
+        transformed_users.append(user_props)
+    return transformed_users
 
 
 @timeit
 def _load_okta_users(
     neo4j_session: neo4j.Session,
-    okta_org_id: str,
-    user_list: List[Dict],
-    okta_update_tag: int,
+    user_list: list[dict],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
     Load Okta user information into the graph
     :param neo4j_session: session with neo4j server
-    :param okta_org_id: oktat organization id
     :param user_list: list of users
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
+    :param common_job_parameters: Settings used by all Okta modules
     :return: Nothing
     """
 
-    ingest_statement = """
-    MATCH (org:OktaOrganization{id: $ORG_ID})
-    WITH org
-    UNWIND $USER_LIST as user_data
-    MERGE (new_user:OktaUser{id: user_data.id})
-    ON CREATE SET new_user.firstseen = timestamp()
-    SET new_user.first_name = user_data.first_name,
-    new_user.last_name = user_data.last_name,
-    new_user.login = user_data.login,
-    new_user.email = user_data.email,
-    new_user.second_email = user_data.second_email,
-    new_user.created = user_data.created,
-    new_user.activated = user_data.activated,
-    new_user.status_changed = user_data.status_changed,
-    new_user.last_login = user_data.last_login,
-    new_user.okta_last_updated = user_data.okta_last_updated,
-    new_user.password_changed = user_data.password_changed,
-    new_user.transition_to_status = user_data.transition_to_status,
-    new_user.lastupdated = $okta_update_tag,
-    new_user:UserAccount,
-    new_user._module_name = "cartography:okta",
-    new_user._ont_email = user_data.email,
-    new_user._ont_firstname = user_data.first_name,
-    new_user._ont_lastname = user_data.last_name,
-    new_user._ont_lastactivity = user_data.last_login,
-    new_user._ont_source = "okta"
-    WITH new_user, org
-    MERGE (org)-[org_r:RESOURCE]->(new_user)
-    ON CREATE SET org_r.firstseen = timestamp()
-    SET org_r.lastupdated = $okta_update_tag
-    WITH new_user
-    MERGE (h:Human{email: new_user.email})
-    ON CREATE SET new_user.firstseen = timestamp()
-    SET h.lastupdated = $okta_update_tag
-    MERGE (h)-[r:IDENTITY_OKTA]->(new_user)
-    ON CREATE SET new_user.firstseen = timestamp()
-    SET h.lastupdated = $okta_update_tag
-    """
+    logger.info("Loading %s Okta users", len(user_list))
+    # We want to allow for dynamic properties on this element
+    # Iterate through all the users and pick out all valid profile attribute names
+    valid_keys: set[str] = set()
+    for user in user_list:
+        valid_keys.update(user.keys())
 
-    run_write_query(
+    # Ensure mandatory properties are included
+    valid_keys.add("id")
+    valid_keys.add("lastupdated")
+
+    # Make sure each user has a value set for every parameter, even if None
+    for user in user_list:
+        for key in valid_keys:
+            if key not in user:
+                user[key] = None
+
+    # Next we need to dynamically construct an equivalent to a NodeProperties Dataclass
+    properties = []
+    prop_value_dict = {}
+    for key in valid_keys:
+        properties.append((key, PropertyRef))
+        if key == "lastupdated":
+            prop_value_dict[key] = PropertyRef(key, set_in_kwargs=True)
+        else:
+            prop_value_dict[key] = PropertyRef(key)
+
+    custom_node_prop_class_def = dataclasses.make_dataclass(
+        "OktaUserNodeProperties",
+        properties,
+        frozen=True,
+    )
+    custom_node_prop_class = custom_node_prop_class_def(**prop_value_dict)
+    # Create a new schema instance with the custom properties
+    # We use dataclasses.replace to create a modified copy of the frozen dataclass
+    base_schema = OktaUserSchema()
+    custom_okta_user_schema = dataclasses.replace(
+        base_schema,
+        properties=custom_node_prop_class,
+    )
+    load(
         neo4j_session,
-        ingest_statement,
-        ORG_ID=okta_org_id,
-        USER_LIST=user_list,
-        okta_update_tag=okta_update_tag,
+        custom_okta_user_schema,
+        user_list,
+        OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
+        lastupdated=common_job_parameters["UPDATE_TAG"],
     )
 
 
 @timeit
-def sync_okta_users(
+def _cleanup_okta_users(
     neo4j_session: neo4j.Session,
-    okta_org_id: str,
-    okta_update_tag: int,
-    okta_api_key: str,
-    sync_state: OktaSyncState,
+    common_job_parameters: dict[str, Any],
 ) -> None:
     """
-    Sync okta users
-    :param neo4j_session: Session with Neo4j server
-    :param okta_org_id: Okta organization id to sync
-    :param okta_update_tag: The timestamp value to set our new Neo4j resources with
-    :param okta_api_key: Okta API key
-    :param sync_state: Okta sync state
+    Cleanup user nodes and relationships
+    :param neo4j_session: session with neo4j server
+    :param common_job_parameters: Settings used by all Okta modules
+    :return: Nothing
+    """
+    GraphJob.from_node_schema(OktaUserSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+
+
+####
+# User Roles
+####
+
+
+@timeit
+async def _get_all_user_roles(okta_client: OktaClient) -> list[OktaUserRole]:
+    """
+    Get all user roles using the bulk API for efficiency.
+
+    Uses list_users_with_role_assignments to first get users who have roles,
+    then fetches roles only for those users. This is O(m) where m is the number
+    of users with roles, rather than O(n) for all users.
+
+    :param okta_client: An Okta client object
+    :return: List of all user roles across all users
+    """
+    all_user_roles: list[OktaUserRole] = []
+
+    # Step 1: Get all users who have role assignments (bulk API)
+    users_with_roles, resp = await okta_client.list_users_with_role_assignments()
+
+    user_ids_with_roles: list[str] = []
+    if users_with_roles and users_with_roles.value:
+        user_ids_with_roles = [u.id for u in users_with_roles.value if u.id]
+
+    # Handle pagination for users with roles
+    while resp and resp.has_next():
+        more_users = await resp.next()
+        if more_users and more_users.value:
+            user_ids_with_roles.extend([u.id for u in more_users.value if u.id])
+
+    logger.info("Found %d users with role assignments", len(user_ids_with_roles))
+
+    # Step 2: For each user with roles, fetch their actual roles
+    for user_id in user_ids_with_roles:
+        user_roles = await _get_okta_user_roles(okta_client, user_id)
+        all_user_roles.extend(user_roles)
+
+    return all_user_roles
+
+
+@timeit
+async def _get_okta_user_roles(
+    okta_client: OktaClient,
+    user_id: str,
+) -> list[OktaUserRole]:
+    """
+    Get Okta user roles list from Okta for a specific user.
+    :param okta_client: An Okta client object
+    :param user_id: The user ID to fetch roles for
+    :return: List of Okta user roles
+    """
+    output_user_roles, _ = await okta_client.list_assigned_roles_for_user(user_id)
+    # The user role object doesn't include an easily parsable user_id
+    # for which it applies. So we manually add it
+    for output_user_role in output_user_roles:
+        output_user_role.assignee = user_id
+    return output_user_roles
+
+
+@timeit
+def _transform_okta_user_roles(
+    okta_user_roles: list[OktaUserRole],
+) -> list[dict[str, Any]]:
+    """
+    Convert a list of Okta user roles into a format for Neo4j
+    :param okta_user_roles: List of Okta user roles
+    :return: List of user roles dicts
+    """
+    transformed_user_roles: list[dict] = []
+    logger.info("Transforming %s Okta user roles", len(okta_user_roles))
+    for okta_user_role in okta_user_roles:
+        role_props: dict[str, Any] = {}
+        role_props["id"] = okta_user_role.id
+        role_props["assignment_type"] = (
+            okta_user_role.assignment_type.value
+            if okta_user_role.assignment_type
+            else None
+        )
+        role_props["created"] = okta_user_role.created
+        role_props["description"] = okta_user_role.description
+        role_props["label"] = okta_user_role.label
+        role_props["last_updated"] = okta_user_role.last_updated
+        role_props["status"] = (
+            okta_user_role.status.value if okta_user_role.status else None
+        )
+        role_props["role_type"] = (
+            okta_user_role.type.value if okta_user_role.type else None
+        )
+        transformed_user_roles.append(role_props)
+    return transformed_user_roles
+
+
+@timeit
+def _load_okta_user_roles(
+    neo4j_session: neo4j.Session,
+    user_roles_list: list[dict],
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Load Okta user role information into the graph
+    :param neo4j_session: session with neo4j server
+    :param user_roles_list: list of user roles
+    :param common_job_parameters: Settings used by all Okta modules
     :return: Nothing
     """
 
-    logger.info("Syncing Okta users")
-    user_client = _create_user_client(okta_org_id, okta_api_key)
-    data = _get_okta_users(user_client)
-    users_data, user_ids = transform_okta_user_list(data)
+    logger.info("Loading %s Okta user roles", len(user_roles_list))
 
-    _load_okta_users(neo4j_session, okta_org_id, users_data, okta_update_tag)
+    load(
+        neo4j_session,
+        OktaUserRoleSchema(),
+        user_roles_list,
+        OKTA_ORG_ID=common_job_parameters["OKTA_ORG_ID"],
+        lastupdated=common_job_parameters["UPDATE_TAG"],
+    )
 
-    # store result for later use
-    sync_state.users = user_ids
+
+@timeit
+def _cleanup_okta_user_roles(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Cleanup user role nodes and relationships
+    :param neo4j_session: session with neo4j server
+    :param common_job_parameters: Settings used by all Okta modules
+    :return: Nothing
+    """
+    GraphJob.from_node_schema(OktaUserRoleSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
