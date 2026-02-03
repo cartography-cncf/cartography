@@ -191,7 +191,8 @@ def search_dockerfiles_in_project(
 
         # Filter for dockerfile-related files (case-insensitive)
         dockerfiles = [
-            f for f in files
+            f
+            for f in files
             if f.get("type") == "blob" and "dockerfile" in f.get("name", "").lower()
         ]
 
@@ -200,7 +201,9 @@ def search_dockerfiles_in_project(
 
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code in (403, 404):
-            logger.debug(f"Cannot access project {project_id}: {e.response.status_code}")
+            logger.debug(
+                f"Cannot access project {project_id}: {e.response.status_code}"
+            )
             return []
         raise
 
@@ -224,6 +227,7 @@ def get_file_content(
     """
     # URL-encode the file path for the API
     import urllib.parse
+
     encoded_path = urllib.parse.quote(file_path, safe="")
     endpoint = f"/api/v4/projects/{project_id}/repository/files/{encoded_path}"
 
@@ -242,12 +246,8 @@ def get_file_content(
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code == 404:
             logger.debug(f"File not found: project {project_id}/{file_path}")
-        else:
-            logger.warning(f"Failed to get content for project {project_id}/{file_path}: {e}")
-        return None
-    except Exception as e:
-        logger.warning(f"Failed to get content for project {project_id}/{file_path}: {e}")
-        return None
+            return None
+        raise
 
 
 def _build_dockerfile_info(
@@ -379,7 +379,9 @@ def match_images_to_dockerfiles(
     for image in images:
         # Use pre-loaded layer history from the image
         if not image.layer_history:
-            logger.debug(f"No layer history for image {image.repository_location}:{image.tag}")
+            logger.debug(
+                f"No layer history for image {image.repository_location}:{image.tag}"
+            )
             continue
 
         # Extract commands from history
@@ -415,7 +417,9 @@ def match_images_to_dockerfiles(
                 f"(confidence: {best_match.confidence:.2f})"
             )
         else:
-            logger.debug(f"No match found for image {image.repository_location}:{image.tag}")
+            logger.debug(
+                f"No match found for image {image.repository_location}:{image.tag}"
+            )
 
     logger.info(
         f"Matched {len(matches)} images to Dockerfiles "
