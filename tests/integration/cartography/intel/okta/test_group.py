@@ -91,10 +91,7 @@ def test_sync_okta_groups(
         ("group-001", "Engineering"),
         ("group-002", "Product"),
     }
-    assert (
-        check_nodes(neo4j_session, "OktaGroup", ["id", "profile_name"])
-        == expected_groups
-    )
+    assert check_nodes(neo4j_session, "OktaGroup", ["id", "name"]) == expected_groups
 
     # Assert - Verify groups are connected to organization
     expected_org_rels = {

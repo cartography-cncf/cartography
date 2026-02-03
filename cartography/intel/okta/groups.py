@@ -122,8 +122,8 @@ def _transform_okta_groups(
         group_props["last_membership_updated"] = okta_group.last_membership_updated
         group_props["last_updated"] = okta_group.last_updated
         group_props["object_class"] = json.dumps(okta_group.object_class)
-        group_props["profile_description"] = okta_group.profile.description
-        group_props["profile_name"] = okta_group.profile.name
+        group_props["description"] = okta_group.profile.description
+        group_props["name"] = okta_group.profile.name
         group_props["group_type"] = okta_group.type.value
         # For each group, grab what users might assigned
         group_members: list[OktaUser] = asyncio.run(

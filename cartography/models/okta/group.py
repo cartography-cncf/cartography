@@ -64,12 +64,14 @@ class OktaGroupRoleSchema(CartographyNodeSchema):
 class OktaGroupNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    # Legacy fields for backward compatibility
+    name: PropertyRef = PropertyRef("name", extra_index=True)
+    description: PropertyRef = PropertyRef("description")
+    # New fields from SDK v3.x
     created: PropertyRef = PropertyRef("created")
     last_membership_updated: PropertyRef = PropertyRef("last_membership_updated")
     last_updated: PropertyRef = PropertyRef("last_updated")
     object_class: PropertyRef = PropertyRef("object_class")
-    profile_description: PropertyRef = PropertyRef("profile_description")
-    profile_name: PropertyRef = PropertyRef("profile_name", extra_index=True)
     group_type: PropertyRef = PropertyRef("group_type")
 
 

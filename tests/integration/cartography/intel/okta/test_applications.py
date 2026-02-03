@@ -284,9 +284,9 @@ def test_sync_okta_applications_with_groups(
         MERGE (o:OktaOrganization{id: $ORG_ID})
         SET o.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(g1:OktaGroup{id: 'group-001'})
-        SET g1.profile_name = 'Engineering', g1.lastupdated = $UPDATE_TAG
+        SET g1.name = 'Engineering', g1.lastupdated = $UPDATE_TAG
         MERGE (o)-[:RESOURCE]->(g2:OktaGroup{id: 'group-002'})
-        SET g2.profile_name = 'Product', g2.lastupdated = $UPDATE_TAG
+        SET g2.name = 'Product', g2.lastupdated = $UPDATE_TAG
         """,
         ORG_ID=TEST_ORG_ID,
         UPDATE_TAG=TEST_UPDATE_TAG,
