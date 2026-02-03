@@ -4,7 +4,7 @@ from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_6_unrestricted_ss
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_7_unrestricted_rdp
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_9_public_ip
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_5_2_bucket_uniform_access
-from cartography.rules.data.rules.cis_4_0_gcp import GCPCISFinding
+from cartography.rules.data.rules.cis_4_0_gcp import DefaultNetworkExistsOutput
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 
@@ -21,13 +21,14 @@ def test_cis_rules_registered_and_fact_ids():
     for rule_id, rule_obj in expected_rules.items():
         assert rule_id in RULES
         assert RULES[rule_id] is rule_obj
-        # Each rule is a single fact for now
+        # Each rule has a single fact
         assert len(rule_obj.facts) == 1
         fact = rule_obj.facts[0]
-        assert fact.id.startswith(rule_id)
+        # Fact IDs now use gcp_ prefix (not cis_gcp_)
+        assert fact.id.startswith("gcp_")
 
 
-def test_cis_facts_are_gcp_and_experimental():
+def test_cis_facts_are_gcp_and_stable():
     for rule in (
         cis_gcp_3_1_default_network,
         cis_gcp_3_6_unrestricted_ssh,
@@ -37,20 +38,15 @@ def test_cis_facts_are_gcp_and_experimental():
     ):
         for fact in rule.facts:
             assert fact.module == Module.GCP
-            assert fact.maturity == Maturity.EXPERIMENTAL
+            assert fact.maturity == Maturity.STABLE
 
 
 def test_cis_parse_results_preserves_extra_fields():
-    fact = cis_gcp_3_1_default_network.get_fact_by_id("cis_gcp_3_1_default_network")
+    fact = cis_gcp_3_1_default_network.get_fact_by_id("gcp_default_network_exists")
     sample_results = [
         {
-            "control_id": "3.1",
-            "control_title": "Ensure That the Default Network Does Not Exist in a Project",
-            "profile": "Level 2",
-            "severity": "high",
-            "resource_id": "projects/demo/global/networks/default",
-            "resource_name": "default",
-            "resource_type": "VPC Network",
+            "vpc_id": "projects/demo/global/networks/default",
+            "vpc_name": "default",
             "project_id": "demo",
             "project_name": "Demo Project",
             "notes": "extra context",
@@ -61,9 +57,9 @@ def test_cis_parse_results_preserves_extra_fields():
 
     assert len(findings) == 1
     finding = findings[0]
-    assert isinstance(finding, GCPCISFinding)
-    assert finding.control_id == "3.1"
-    assert finding.control_title.startswith("Ensure That the Default Network")
-    assert finding.resource_name == "default"
+    assert isinstance(finding, DefaultNetworkExistsOutput)
+    assert finding.vpc_name == "default"
+    assert finding.vpc_id == "projects/demo/global/networks/default"
+    assert finding.project_id == "demo"
     assert finding.extra["notes"] == "extra context"
     assert finding.source == Module.GCP.value
