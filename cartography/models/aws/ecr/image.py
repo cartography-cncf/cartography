@@ -29,6 +29,15 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     media_type: PropertyRef = PropertyRef("media_type")
     artifact_media_type: PropertyRef = PropertyRef("artifact_media_type")
     child_image_digests: PropertyRef = PropertyRef("child_image_digests")
+    # SLSA Provenance: Source repository info from VCS metadata
+    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
+    source_revision: PropertyRef = PropertyRef("source_revision")
+    # SLSA Provenance: Build invocation info from GitHub Actions
+    invocation_uri: PropertyRef = PropertyRef("invocation_uri", extra_index=True)
+    invocation_workflow: PropertyRef = PropertyRef(
+        "invocation_workflow", extra_index=True
+    )
+    invocation_run_number: PropertyRef = PropertyRef("invocation_run_number")
 
 
 @dataclass(frozen=True)
