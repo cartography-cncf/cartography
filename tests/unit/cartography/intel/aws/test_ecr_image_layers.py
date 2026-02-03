@@ -1,5 +1,6 @@
 import pytest
 
+from cartography.intel.aws.ecr_image_layers import _extract_workflow_path_from_ref
 from cartography.intel.aws.ecr_image_layers import extract_repo_uri_from_image_uri
 from cartography.intel.aws.ecr_image_layers import transform_ecr_image_layers
 
@@ -358,3 +359,42 @@ def test_transform_ecr_image_layers_with_partial_history():
 
     # Second layer should NOT have history field (not in map)
     assert "history" not in layer2
+
+
+@pytest.mark.parametrize(
+    "workflow_ref,expected_path",
+    [
+        # Standard GitHub workflow ref
+        (
+            "subimagesec/subimage/.github/workflows/docker-push-subimage.yaml@refs/pull/1042/merge",
+            ".github/workflows/docker-push-subimage.yaml",
+        ),
+        # Workflow ref with refs/heads/main
+        (
+            "owner/repo/.github/workflows/build.yaml@refs/heads/main",
+            ".github/workflows/build.yaml",
+        ),
+        # Workflow ref with tag
+        (
+            "myorg/myrepo/.github/workflows/release.yml@refs/tags/v1.0.0",
+            ".github/workflows/release.yml",
+        ),
+        # Nested workflow path
+        (
+            "org/repo/ci/workflows/test.yaml@refs/heads/develop",
+            "ci/workflows/test.yaml",
+        ),
+        # Empty string
+        ("", None),
+        # None value
+        (None, None),
+        # No @ suffix (edge case)
+        (
+            "owner/repo/.github/workflows/build.yaml",
+            ".github/workflows/build.yaml",
+        ),
+    ],
+)
+def test_extract_workflow_path_from_ref(workflow_ref, expected_path):
+    """Test extracting workflow path from GitHub workflow ref."""
+    assert _extract_workflow_path_from_ref(workflow_ref) == expected_path

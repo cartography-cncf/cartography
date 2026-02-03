@@ -172,23 +172,52 @@ async def get_blob_json_via_presigned(
     return response.json()
 
 
-async def _extract_parent_image_from_attestation(
+def _extract_workflow_path_from_ref(workflow_ref: str) -> Optional[str]:
+    """
+    Extract the workflow file path from a GitHub workflow ref.
+
+    The workflow ref format is: {owner}/{repo}/{path}@{ref}
+    Example: "subimagesec/subimage/.github/workflows/docker-push.yaml@refs/pull/1042/merge"
+    Returns: ".github/workflows/docker-push.yaml"
+
+    :param workflow_ref: The full workflow reference string
+    :return: The workflow file path, or None if parsing fails
+    """
+    if not workflow_ref:
+        return None
+
+    # Split off the @ref suffix
+    path_part = workflow_ref.split("@")[0]
+
+    # The path is everything after {owner}/{repo}/
+    # Find the second slash to skip owner/repo
+    parts = path_part.split("/", 2)
+    if len(parts) >= 3:
+        return parts[2]  # The path after owner/repo/
+
+    return None
+
+
+async def _extract_provenance_from_attestation(
     ecr_client: ECRClient,
     repo_name: str,
     attestation_manifest_digest: str,
     http_client: httpx.AsyncClient,
-) -> Optional[dict[str, str]]:
+) -> Optional[dict[str, Any]]:
     """
-    Extract parent image information from an in-toto provenance attestation.
+    Extract provenance information from an in-toto SLSA attestation.
 
     This function fetches an attestation manifest, downloads its in-toto layer,
-    and extracts the parent image reference from the SLSA provenance materials.
+    and extracts:
+    - Parent image reference from materials
+    - Source repository info from VCS metadata
+    - Build invocation info from environment
 
     :param ecr_client: ECR client for fetching manifests and layers
     :param repo_name: ECR repository name
     :param attestation_manifest_digest: Digest of the attestation manifest
     :param http_client: HTTP client for downloading blobs
-    :return: Dict with parent_image_uri and parent_image_digest, or None if no parent image found
+    :return: Dict with provenance data, or None if extraction fails
     """
     try:
         attestation_manifest, _ = await batch_get_manifest(
@@ -241,8 +270,11 @@ async def _extract_parent_image_from_attestation(
             logger.debug("Failed to download attestation blob")
             return None
 
+        predicate = attestation_blob.get("predicate", {})
+        result: dict[str, Any] = {}
+
         # Extract parent image from SLSA provenance materials
-        materials = attestation_blob.get("predicate", {}).get("materials", [])
+        materials = predicate.get("materials", [])
         for material in materials:
             uri = material.get("uri", "")
             uri_l = uri.lower()
@@ -256,20 +288,51 @@ async def _extract_parent_image_from_attestation(
                 digest_obj = material.get("digest", {})
                 sha256_digest = digest_obj.get("sha256")
                 if sha256_digest:
-                    return {
-                        "parent_image_uri": uri,
-                        "parent_image_digest": f"sha256:{sha256_digest}",
-                    }
+                    result["parent_image_uri"] = uri
+                    result["parent_image_digest"] = f"sha256:{sha256_digest}"
+                    break
 
-        logger.debug(
-            "No parent image found in attestation materials for %s",
-            attestation_manifest_digest,
+        # Extract source info from BuildKit metadata VCS section
+        # Path: metadata["https://mobyproject.org/buildkit@v1#metadata"].vcs
+        metadata = predicate.get("metadata", {})
+        buildkit_metadata = metadata.get(
+            "https://mobyproject.org/buildkit@v1#metadata", {}
         )
-        return None
+        vcs = buildkit_metadata.get("vcs", {})
+
+        if vcs.get("source"):
+            result["source_uri"] = vcs["source"]
+        if vcs.get("revision"):
+            result["source_revision"] = vcs["revision"]
+
+        # Extract invocation info from environment
+        # Path: invocation.environment
+        invocation = predicate.get("invocation", {})
+        environment = invocation.get("environment", {})
+
+        if environment.get("github_repository"):
+            result["invocation_uri"] = environment["github_repository"]
+        if environment.get("github_workflow_ref"):
+            workflow_path = _extract_workflow_path_from_ref(
+                environment["github_workflow_ref"]
+            )
+            if workflow_path:
+                result["invocation_workflow"] = workflow_path
+        if environment.get("github_run_number"):
+            result["invocation_run_number"] = environment["github_run_number"]
+
+        if not result:
+            logger.debug(
+                "No provenance data found in attestation %s",
+                attestation_manifest_digest,
+            )
+            return None
+
+        return result
 
     except Exception as e:
         logger.warning(
-            "Error extracting parent image from attestation %s in repo %s: %s",
+            "Error extracting provenance from attestation %s in repo %s: %s",
             attestation_manifest_digest,
             repo_name,
             e,
@@ -436,11 +499,32 @@ def transform_ecr_image_layers(
             if image_digest in existing_properties_map:
                 membership.update(existing_properties_map[image_digest])
 
-            # Add attestation data if available for this image
+            # Add provenance data if available for this image
             if image_uri in image_attestation_map:
-                attestation = image_attestation_map[image_uri]
-                membership["parent_image_uri"] = attestation["parent_image_uri"]
-                membership["parent_image_digest"] = attestation["parent_image_digest"]
+                provenance = image_attestation_map[image_uri]
+                # Parent image info
+                if provenance.get("parent_image_uri"):
+                    membership["parent_image_uri"] = provenance["parent_image_uri"]
+                if provenance.get("parent_image_digest"):
+                    membership["parent_image_digest"] = provenance[
+                        "parent_image_digest"
+                    ]
+                # Source repository info from VCS metadata
+                if provenance.get("source_uri"):
+                    membership["source_uri"] = provenance["source_uri"]
+                if provenance.get("source_revision"):
+                    membership["source_revision"] = provenance["source_revision"]
+                # Build invocation info from GitHub Actions
+                if provenance.get("invocation_uri"):
+                    membership["invocation_uri"] = provenance["invocation_uri"]
+                if provenance.get("invocation_workflow"):
+                    membership["invocation_workflow"] = provenance[
+                        "invocation_workflow"
+                    ]
+                if provenance.get("invocation_run_number"):
+                    membership["invocation_run_number"] = provenance[
+                        "invocation_run_number"
+                    ]
                 membership["from_attestation"] = True
                 membership["confidence"] = "explicit"
 
@@ -665,20 +749,20 @@ async def fetch_image_layers_async(
                         if not attests_child_digest:
                             return {}, {}, None
 
-                        # Extract base image from attestation
+                        # Extract provenance from attestation (includes parent image and source info)
                         attestation_digest = manifest_ref.get("digest")
                         if attestation_digest:
-                            attestation_info = (
-                                await _extract_parent_image_from_attestation(
+                            provenance_info = (
+                                await _extract_provenance_from_attestation(
                                     ecr_client,
                                     repo_name,
                                     attestation_digest,
                                     http_client,
                                 )
                             )
-                            if attestation_info:
-                                # Return (attests_child_digest, parent_info) tuple
-                                return {}, {}, (attests_child_digest, attestation_info)
+                            if provenance_info:
+                                # Return (attests_child_digest, provenance_info) tuple
+                                return {}, {}, (attests_child_digest, provenance_info)
                         return {}, {}, None
 
                     child_digest = manifest_ref.get("digest")
