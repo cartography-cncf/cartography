@@ -577,11 +577,8 @@ def start_your_service_ingestion(neo4j_session: neo4j.Session, config: Config) -
         logger.info("Your Service tenant ID not configured - skipping module")
         return
 
-    # Get API key from environment
-    api_key = os.getenv(config.your_service_api_key)
-    if not api_key:
-        logger.error(f"Environment variable {config.your_service_api_key} not set")
-        return
+    # Use the API key from config (already resolved from environment by CLI)
+    api_key = config.your_service_api_key
 ```
 
 ## Testing Your Module
