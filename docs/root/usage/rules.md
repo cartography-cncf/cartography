@@ -59,9 +59,32 @@ Current rules include:
 - **policy_administration_privileges** - Policy administration capabilities
 - **unmanaged_accounts** - Unmanaged cloud accounts
 - **workload_identity_admin_capabilities** - Workload identity escalation surface
-- **cis_aws_1_12_unused_credentials**, **cis_aws_1_13_multiple_access_keys**, **cis_aws_1_14_access_key_not_rotated**, **cis_aws_1_15_user_direct_policies**, **cis_aws_1_18_expired_certificates**, **cis_aws_2_1_1_s3_versioning**, **cis_aws_2_1_2_s3_mfa_delete**, **cis_aws_2_1_4_s3_block_public_access**, **cis_aws_2_1_5_s3_access_logging**, **cis_aws_2_1_6_s3_encryption**, **cis_aws_2_2_1_rds_encryption**, **cis_aws_2_3_1_ebs_encryption**, **cis_aws_3_1_cloudtrail_multi_region**, **cis_aws_3_4_cloudtrail_log_validation**, **cis_aws_3_5_cloudtrail_cloudwatch**, **cis_aws_3_7_cloudtrail_encryption**, **cis_aws_5_1_unrestricted_ssh**, **cis_aws_5_2_unrestricted_rdp**, **cis_aws_5_4_default_sg_traffic** - CIS AWS Foundations Benchmark v5.0 controls (IAM, storage, logging, and networking)
-- **cis_gcp_3_1_default_network**, **cis_gcp_3_6_unrestricted_ssh**, **cis_gcp_3_7_unrestricted_rdp**, **cis_gcp_4_9_public_ip**, **cis_gcp_5_2_bucket_uniform_access** - CIS Google Cloud Platform Foundation Benchmark v4.0.0 controls (network exposure, VM public IPs, and bucket access controls)
-- **cis_gw_4_1_1_1_admin_2sv_not_enforced**, **cis_gw_4_1_1_3_user_2sv_not_enforced** - CIS Google Workspace Foundations Benchmark v1.4.0 controls (2-Step Verification enforcement)
+- **cis_aws_1_12_unused_credentials** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_1_13_multiple_access_keys** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_1_14_access_key_not_rotated** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_1_15_user_direct_policies** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_1_18_expired_certificates** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_2_1_1_s3_versioning** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_2_1_2_s3_mfa_delete** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_2_1_4_s3_block_public_access** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_2_1_5_s3_access_logging** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_2_1_6_s3_encryption** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_2_2_1_rds_encryption** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_2_3_1_ebs_encryption** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_3_1_cloudtrail_multi_region** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_3_4_cloudtrail_log_validation** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_3_5_cloudtrail_cloudwatch** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_3_7_cloudtrail_encryption** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_5_1_unrestricted_ssh** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_5_2_unrestricted_rdp** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_aws_5_4_default_sg_traffic** - CIS AWS Foundations Benchmark v5.0 control
+- **cis_gcp_3_1_default_network** - CIS Google Cloud Platform Foundation Benchmark v4.0.0 control
+- **cis_gcp_3_6_unrestricted_ssh** - CIS Google Cloud Platform Foundation Benchmark v4.0.0 control
+- **cis_gcp_3_7_unrestricted_rdp** - CIS Google Cloud Platform Foundation Benchmark v4.0.0 control
+- **cis_gcp_4_9_public_ip** - CIS Google Cloud Platform Foundation Benchmark v4.0.0 control
+- **cis_gcp_5_2_bucket_uniform_access** - CIS Google Cloud Platform Foundation Benchmark v4.0.0 control
+- **cis_gw_4_1_1_1_admin_2sv_not_enforced** - CIS Google Workspace Foundations Benchmark v1.4.0 control (2-Step Verification enforcement)
+- **cis_gw_4_1_1_3_user_2sv_not_enforced** - CIS Google Workspace Foundations Benchmark v1.4.0 control (2-Step Verification enforcement)
 - **google_workspace_cis_1_1_enforce_2sv** - Google Workspace CIS control 1.1 (enforce 2-Step Verification)
 - **google_workspace_cis_1_2_admins_enrolled_2sv** - Google Workspace CIS control 1.2 (super admins enrolled in 2-Step Verification)
 - **google_workspace_cis_2_1_high_risk_oauth** - Google Workspace CIS control 2.1 (review high-risk OAuth access)
