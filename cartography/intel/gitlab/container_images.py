@@ -274,8 +274,14 @@ def transform_container_images(
                 != "attestation-manifest"
             ]
 
-        # Extract architecture, os, variant from config blob (for regular images)
+        # Extract architecture, os, variant and layer diff IDs from config blob (for regular images)
         config = manifest.get("_config", {})
+
+        # Extract layer diff IDs from rootfs (used for Dockerfile matching)
+        layer_diff_ids = None
+        if not is_manifest_list:
+            rootfs = config.get("rootfs", {})
+            layer_diff_ids = rootfs.get("diff_ids")
 
         # Build URI from registry URL and repository name (e.g., registry.gitlab.com/group/project)
         registry_url = manifest.get("_registry_url", "")
@@ -299,6 +305,7 @@ def transform_container_images(
                 "os": config.get("os"),
                 "variant": config.get("variant"),
                 "child_image_digests": child_image_digests,
+                "layer_diff_ids": layer_diff_ids,
             }
         )
 
