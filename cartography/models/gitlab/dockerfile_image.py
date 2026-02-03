@@ -22,7 +22,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class GitLabProjectBuiltFromRelProperties(CartographyRelProperties):
+class GitLabProjectBuiltFromMatchLinkProperties(CartographyRelProperties):
     """
     Properties for the BUILT_FROM relationship between ImageTag and GitLabProject.
     """
@@ -43,7 +43,7 @@ class GitLabProjectBuiltFromRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class GitLabProjectBuiltFromRel(CartographyRelSchema):
+class GitLabProjectBuiltFromMatchLink(CartographyRelSchema):
     """
     MatchLink schema for connecting ImageTag nodes to GitLabProject nodes
     based on Dockerfile command matching.
@@ -73,6 +73,6 @@ class GitLabProjectBuiltFromRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "BUILT_FROM"
-    properties: GitLabProjectBuiltFromRelProperties = (
-        GitLabProjectBuiltFromRelProperties()
+    properties: GitLabProjectBuiltFromMatchLinkProperties = (
+        GitLabProjectBuiltFromMatchLinkProperties()
     )

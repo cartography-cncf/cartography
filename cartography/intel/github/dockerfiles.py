@@ -18,7 +18,7 @@ from cartography.intel.dockerfile_parser import find_best_dockerfile_matches
 from cartography.intel.dockerfile_parser import parse as parse_dockerfile
 from cartography.intel.dockerfile_parser import ParsedDockerfile
 from cartography.intel.github.util import call_github_rest_api
-from cartography.models.github.dockerfile_image import GitHubRepoBuiltFromRel
+from cartography.models.github.dockerfile_image import GitHubRepoBuiltFromMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -309,7 +309,7 @@ def load_dockerfile_image_relationships(
 
     load_matchlinks(
         neo4j_session,
-        GitHubRepoBuiltFromRel(),
+        GitHubRepoBuiltFromMatchLink(),
         matchlink_data,
         lastupdated=update_tag,
         _sub_resource_label="GitHubOrganization",
@@ -335,7 +335,7 @@ def cleanup_dockerfile_image_relationships(
     logger.info("Cleaning up stale BUILT_FROM relationships...")
 
     cleanup_job = GraphJob.from_matchlink(
-        GitHubRepoBuiltFromRel(),
+        GitHubRepoBuiltFromMatchLink(),
         "GitHubOrganization",
         organization,
         update_tag,
