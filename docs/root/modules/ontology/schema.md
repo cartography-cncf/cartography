@@ -15,6 +15,13 @@ LB -- EXPOSE --> CT{{Container}}
 DB{{Database}}
 TN{{Tenant}}
 FN{{Function}}
+PIP(PublicIP) -- POINTS_TO --> LB
+PIP -- POINTS_TO --> CI
+CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
+IT -- IMAGE --> IM{{Image}}
+IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
+IA{{ImageAttestation}} -- ATTESTS --> IM
+IM -- HAS_LAYER --> IL{{ImageLayer}}
 ```
 
 :::{note}
@@ -67,7 +74,7 @@ If field `active` is null, it should not be considered as `true` or `false`, onl
 
 | Field | Description |
 |-------|-------------|
-| id | The unique identifier for the user. |
+| **id** | The unique identifier for the user. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | email | User's primary email. |
@@ -124,7 +131,7 @@ A client computer is a host that accesses a service made available by a server o
 
 | Field | Description |
 |-------|-------------|
-| id | The unique identifier for the user. |
+| **id** | The unique identifier for the user. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | hostname | Hostname of the device. |
@@ -335,6 +342,43 @@ It generalizes concepts like AWS Application/Network Load Balancers (ALB/NLB), A
     ```
 
 
+### PublicIP
+
+```{note}
+PublicIP is an abstract ontology node.
+```
+
+A public IP address represents a unique numerical identifier assigned to a device that is routable on the internet.
+Public IP addresses can be either IPv4 or IPv6.
+
+```{important}
+If field `ip_version` is null, it should not be considered as `4` or `6`, only as unknown.
+```
+
+| Field | Description |
+|-------|-------------|
+| **id** | The unique identifier for the IP address (the IP address value itself). |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| ip_address | The IP address value (e.g., "203.0.113.1" or "2001:db8::1"). |
+| ip_version | Integer indicating the IP version: `4` for IPv4, `6` for IPv6, or `null` if unknown. |
+
+#### Relationships
+
+- `PublicIP` is linked to one or many nodes that represent the IP in a module:
+    ```
+    (:PublicIP)-[:RESERVED_BY]->(:*)
+    ```
+- `PublicIP` can point to one or many `LoadBalancer` (semantic label) that use this IP:
+    ```
+    (:PublicIP)-[:POINTS_TO]->(:LoadBalancer)
+    ```
+- `PublicIP` can point to one or many `ComputeInstance` (semantic label) that have this IP:
+    ```
+    (:PublicIP)-[:POINTS_TO]->(:ComputeInstance)
+    ```
+
+
 ### ContainerRegistry
 
 ```{note}
@@ -351,3 +395,114 @@ It generalizes concepts like AWS ECR repositories, GCP Artifact Registry reposit
 | _ont_location | The region/location where the registry is hosted. |
 | _ont_created_at | Timestamp when the registry was created. |
 | _ont_size_bytes | Storage size in bytes. |
+
+
+### ImageTag
+
+```{note}
+ImageTag is a semantic label.
+```
+
+An image tag represents a human-readable reference to a container image within a registry.
+It generalizes concepts like AWS ECRRepositoryImage, GCP Artifact Registry image tags, and GitLab Container Registry tags.
+
+| Field | Description |
+|-------|-------------|
+| tag | The tag name (e.g., "latest", "v1.0.0"). |
+| uri | The full URI to the tagged image. |
+
+#### Relationships
+
+- `ImageTag` points to one or many `Image`:
+    ```
+    (:ImageTag)-[:IMAGE]->(:Image)
+    ```
+
+
+### Image
+
+```{note}
+Image is a conditional semantic label applied to container image nodes when `type="image"`.
+```
+
+An image represents a runnable container image (single-architecture or platform-specific).
+It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, and GitLab Container Images.
+
+| Field | Description |
+|-------|-------------|
+| digest | The content-addressable digest (SHA256) of the image. |
+| architecture | CPU architecture (e.g., "amd64", "arm64"). |
+| os | Operating system (e.g., "linux", "windows"). |
+| variant | Architecture variant (e.g., "v8" for ARM). |
+
+
+### ImageAttestation
+
+```{note}
+ImageAttestation is a conditional semantic label applied to container image nodes when `type="attestation"`.
+```
+
+An image attestation represents cryptographic metadata that validates or provides provenance information about a container image.
+It generalizes concepts like AWS ECRImage attestations and OCI attestation manifests.
+
+| Field | Description |
+|-------|-------------|
+| digest | The content-addressable digest (SHA256) of the attestation. |
+| attestation_type | The type of attestation (e.g., "attestation-manifest"). |
+| attests_digest | The digest of the image this attestation validates. |
+
+#### Relationships
+
+- `ImageAttestation` attests an `Image`:
+    ```
+    (:ImageAttestation)-[:ATTESTS]->(:Image)
+    ```
+
+
+### ImageManifestList
+
+```{note}
+ImageManifestList is a conditional semantic label applied to container image nodes when `type="manifest_list"`.
+```
+
+An image manifest list (also known as an image index) represents a multi-architecture container image that contains references to platform-specific images.
+It generalizes concepts like AWS ECRImage manifest lists and OCI image indexes.
+
+| Field | Description |
+|-------|-------------|
+| digest | The content-addressable digest (SHA256) of the manifest list. |
+| child_image_digests | List of platform-specific image digests contained in this manifest list. |
+
+#### Relationships
+
+- `ImageManifestList` contains platform-specific `Image` nodes:
+    ```
+    (:ImageManifestList)-[:CONTAINS_IMAGE]->(:Image)
+    ```
+
+
+### ImageLayer
+
+```{note}
+ImageLayer is a semantic label.
+```
+
+An image layer represents an individual filesystem layer within a container image.
+Layers are de-duplicated by their content-addressable digest, so multiple images may reference the same layer node.
+It generalizes concepts like AWS ECRImageLayer and OCI image layers.
+
+| Field | Description |
+|-------|-------------|
+| diff_id | The uncompressed (DiffID) SHA-256 digest of the layer. |
+| is_empty | Boolean flag identifying Docker's canonical empty layer. |
+
+#### Relationships
+
+- `Image` has layers:
+    ```
+    (:Image)-[:HAS_LAYER]->(:ImageLayer)
+    ```
+- Layers point to the next layer in sequence:
+    ```
+    (:ImageLayer)-[:NEXT]->(:ImageLayer)
+    ```
