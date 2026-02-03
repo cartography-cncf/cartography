@@ -77,7 +77,7 @@ dependencies = [
     "azure-identity>=1.5.0",
     "msgraph-sdk",
     "kubernetes>=22.6.0",
-    "pdpyras>=4.3.0",
+    "pagerduty>=4.0.1",
     "crowdstrike-falconpy>=0.5.1",
     "python-dateutil",
     "xmltodict",
