@@ -1,3 +1,8 @@
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_1_default_network
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_6_unrestricted_ssh
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_7_unrestricted_rdp
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_9_public_ip
+from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_5_2_bucket_uniform_access
 from cartography.rules.data.rules.cis_aws_iam import cis_1_12_unused_credentials
 from cartography.rules.data.rules.cis_aws_iam import cis_1_13_multiple_access_keys
 from cartography.rules.data.rules.cis_aws_iam import cis_1_14_access_key_not_rotated
@@ -22,6 +27,12 @@ from cartography.rules.data.rules.cis_aws_storage import cis_2_1_5_s3_access_log
 from cartography.rules.data.rules.cis_aws_storage import cis_2_1_6_s3_encryption
 from cartography.rules.data.rules.cis_aws_storage import cis_2_2_1_rds_encryption
 from cartography.rules.data.rules.cis_aws_storage import cis_2_3_1_ebs_encryption
+from cartography.rules.data.rules.cis_google_workspace import (
+    cis_4_1_1_1_admin_2sv_not_enforced,
+)
+from cartography.rules.data.rules.cis_google_workspace import (
+    cis_4_1_1_3_user_2sv_not_enforced,
+)
 from cartography.rules.data.rules.cloud_security_product_deactivated import (
     cloud_security_product_deactivated,
 )
@@ -92,4 +103,13 @@ RULES = {
     workload_identity_admin_capabilities.id: workload_identity_admin_capabilities,
     cloud_security_product_deactivated.id: cloud_security_product_deactivated,
     malicious_npm_dependencies_shai_hulud.id: malicious_npm_dependencies_shai_hulud,
+    # CIS GCP 4.0 Rules
+    cis_gcp_3_1_default_network.id: cis_gcp_3_1_default_network,
+    cis_gcp_3_6_unrestricted_ssh.id: cis_gcp_3_6_unrestricted_ssh,
+    cis_gcp_3_7_unrestricted_rdp.id: cis_gcp_3_7_unrestricted_rdp,
+    cis_gcp_4_9_public_ip.id: cis_gcp_4_9_public_ip,
+    cis_gcp_5_2_bucket_uniform_access.id: cis_gcp_5_2_bucket_uniform_access,
+    # CIS Google Workspace Rules
+    cis_4_1_1_3_user_2sv_not_enforced.id: cis_4_1_1_3_user_2sv_not_enforced,
+    cis_4_1_1_1_admin_2sv_not_enforced.id: cis_4_1_1_1_admin_2sv_not_enforced,
 }
