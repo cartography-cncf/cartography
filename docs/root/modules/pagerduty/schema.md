@@ -217,6 +217,8 @@ Representation of a [PagerDuty Team](https://developer.pagerduty.com/api-referen
 
 Representation of a [PagerDuty User](https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMTU-user)
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, LastpassUser).
+
 | Field | Description |
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
