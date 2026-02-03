@@ -35,14 +35,30 @@ class OutputFormat(str, Enum):
 
 
 def complete_rules(incomplete: str) -> Generator[str, None, None]:
-    """Autocomplete rules names."""
+    """
+    Autocomplete rule names for CLI tab completion.
+
+    Args:
+        incomplete (str): The partial rule name typed by the user.
+
+    Yields:
+        str: Rule names that start with the incomplete string.
+    """
     for name in RULES.keys():
         if name.startswith(incomplete):
             yield name
 
 
 def complete_rules_with_all(incomplete: str) -> Generator[str, None, None]:
-    """Autocomplete rules names plus 'all'."""
+    """
+    Autocomplete rule names plus 'all' for CLI tab completion.
+
+    Args:
+        incomplete (str): The partial rule name typed by the user.
+
+    Yields:
+        str: Rule names (plus 'all') that start with the incomplete string.
+    """
     for name in builtins.list(RULES.keys()) + ["all"]:
         if name.startswith(incomplete):
             yield name
@@ -51,7 +67,16 @@ def complete_rules_with_all(incomplete: str) -> Generator[str, None, None]:
 def complete_facts(
     ctx: typer.Context, incomplete: str
 ) -> Generator[tuple[str, str], None, None]:
-    """Autocomplete facts IDs with descriptions based on selected rule."""
+    """
+    Autocomplete fact IDs with descriptions based on the selected rule.
+
+    Args:
+        ctx (typer.Context): The Typer context containing parsed parameters.
+        incomplete (str): The partial fact ID typed by the user.
+
+    Yields:
+        tuple[str, str]: A tuple of (fact_id, fact_name) for matching facts.
+    """
     rule = ctx.params.get("rule")
     if not rule or rule not in RULES:
         return
@@ -251,7 +276,12 @@ def run_cmd(
 
 
 def main():
-    """Entrypoint for cartography-rules CLI."""
+    """
+    Entrypoint for the cartography-rules CLI.
+
+    This function initializes logging and launches the Typer application.
+    It is the main entry point when running ``cartography-rules`` from the command line.
+    """
     logging.basicConfig(level=logging.INFO)
     logging.getLogger("neo4j").setLevel(logging.ERROR)
     app()

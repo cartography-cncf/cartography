@@ -151,8 +151,8 @@ def transform_secret_versions(
             "CreatedDate": dict_date_to_epoch(version, "CreatedDate"),
         }
 
-        if "KmsKeyId" in version and version["KmsKeyId"]:
-            transformed["KmsKeyId"] = version["KmsKeyId"]
+        if "KmsKeyIds" in version and version["KmsKeyIds"]:
+            transformed["kms_key_ids"] = version["KmsKeyIds"]
 
         if "Tags" in version and version["Tags"]:
             transformed["Tags"] = version["Tags"]

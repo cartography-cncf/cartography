@@ -74,12 +74,12 @@ class SecretsManagerSecretToAWSAccountRel(CartographyRelSchema):
 class SecretsManagerSecretToKMSKeyRel(CartographyRelSchema):
     """
     Relationship between Secret and its KMS key
-    Only created when KmsKeyId is present
+    Only created when kms_key_id is present
     """
 
-    target_node_label: str = "AWSKMSKey"
+    target_node_label: str = "KMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("KmsKeyId")},
+        {"arn": PropertyRef("KmsKeyId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ENCRYPTED_BY"
