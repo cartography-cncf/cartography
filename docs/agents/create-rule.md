@@ -438,6 +438,11 @@ cis_gcp_iam.py        # CIS GCP IAM controls
 cis_azure_iam.py      # CIS Azure IAM controls
 ```
 
+### Documentation Format
+
+When updating the rules list in `docs/root/usage/rules.md`, keep **one rule per bullet**.
+Avoid grouping multiple rule IDs in a single bullet so lists stay scannable and consistent over time.
+
 ### Comment Headers
 
 ```python
