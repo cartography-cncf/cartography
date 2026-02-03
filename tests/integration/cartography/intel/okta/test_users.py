@@ -18,11 +18,16 @@ def _create_common_job_parameters():
     }
 
 
+@patch.object(
+    cartography.intel.okta.users, "_get_all_user_roles", new_callable=AsyncMock
+)
 @patch.object(cartography.intel.okta.users, "_get_okta_users", new_callable=AsyncMock)
-def test_sync_okta_users(mock_get_users, neo4j_session):
+def test_sync_okta_users(mock_get_users, mock_get_roles, neo4j_session):
     """
     Test that Okta users are synced correctly to the graph.
     """
+    # Mock user roles to return empty list
+    mock_get_roles.return_value = []
     # Arrange - Create test users
     test_user_1 = create_test_user()
     test_user_1.id = "user-001"
@@ -105,11 +110,18 @@ def test_sync_okta_users(mock_get_users, neo4j_session):
     # identity sources). The OktaUserToHumanRel uses OPTIONAL MATCH.
 
 
+@patch.object(
+    cartography.intel.okta.users, "_get_all_user_roles", new_callable=AsyncMock
+)
 @patch.object(cartography.intel.okta.users, "_get_okta_users", new_callable=AsyncMock)
-def test_sync_okta_users_with_optional_fields(mock_get_users, neo4j_session):
+def test_sync_okta_users_with_optional_fields(
+    mock_get_users, mock_get_roles, neo4j_session
+):
     """
     Test that users with missing optional fields are handled correctly.
     """
+    # Mock user roles to return empty list
+    mock_get_roles.return_value = []
     # Arrange - Create a user with some optional fields missing
     test_user = create_test_user()
     test_user.id = "user-minimal"
@@ -159,11 +171,18 @@ def test_sync_okta_users_with_optional_fields(mock_get_users, neo4j_session):
     assert user_data["transition_to_status"] is None
 
 
+@patch.object(
+    cartography.intel.okta.users, "_get_all_user_roles", new_callable=AsyncMock
+)
 @patch.object(cartography.intel.okta.users, "_get_okta_users", new_callable=AsyncMock)
-def test_sync_okta_users_updates_existing(mock_get_users, neo4j_session):
+def test_sync_okta_users_updates_existing(
+    mock_get_users, mock_get_roles, neo4j_session
+):
     """
     Test that syncing updates existing users rather than creating duplicates.
     """
+    # Mock user roles to return empty list
+    mock_get_roles.return_value = []
     # Arrange - Create an existing user in the graph
     neo4j_session.run(
         """
@@ -216,11 +235,18 @@ def test_sync_okta_users_updates_existing(mock_get_users, neo4j_session):
     assert user_data["lastupdated"] == TEST_UPDATE_TAG
 
 
+@patch.object(
+    cartography.intel.okta.users, "_get_all_user_roles", new_callable=AsyncMock
+)
 @patch.object(cartography.intel.okta.users, "_get_okta_users", new_callable=AsyncMock)
-def test_sync_okta_users_returns_user_ids(mock_get_users, neo4j_session):
+def test_sync_okta_users_returns_user_ids(
+    mock_get_users, mock_get_roles, neo4j_session
+):
     """
     Test that sync returns user IDs for use by other modules (e.g., factors).
     """
+    # Mock user roles to return empty list
+    mock_get_roles.return_value = []
     # Arrange
     test_user_1 = create_test_user()
     test_user_1.id = "user-state-1"
