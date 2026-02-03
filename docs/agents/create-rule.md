@@ -416,6 +416,22 @@ name="CIS GCP 3.9: SSL Policies With Weak Cipher Suites"
 name="CIS 1.14: Access Keys Not Rotated"
 ```
 
+### Rule IDs
+
+Use provider-prefixed rule IDs for CIS controls to avoid collisions across benchmarks.
+
+Format: **`cis_<provider>_<control_number>_<short_slug>`**
+
+```python
+# Correct
+id="cis_aws_1_14_access_key_not_rotated"
+id="cis_gcp_3_1_default_network"
+id="cis_gw_4_1_1_3_user_2sv_not_enforced"
+
+# Incorrect - missing provider
+id="cis_1_14_access_key_not_rotated"
+```
+
 ### Why Include the Provider?
 
 CIS control numbers don't map 1:1 across cloud providers. For example:
@@ -437,11 +453,6 @@ cis_aws_networking.py # CIS AWS Section 5 (Networking)
 cis_gcp_iam.py        # CIS GCP IAM controls
 cis_azure_iam.py      # CIS Azure IAM controls
 ```
-
-### Documentation Format
-
-When updating the rules list in `docs/root/usage/rules.md`, keep **one rule per bullet**.
-Avoid grouping multiple rule IDs in a single bullet so lists stay scannable and consistent over time.
 
 ### Comment Headers
 
