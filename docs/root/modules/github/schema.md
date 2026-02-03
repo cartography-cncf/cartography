@@ -31,6 +31,7 @@ T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTAINER --> T
 IT(ImageTag) -- BUILT_FROM --> R
+I(Image) -- BUILT_BY --> W
 ```
 
 ### GitHubRepository
@@ -438,11 +439,12 @@ Container images (ImageTag nodes from any registry: ECR, GitLab, GCR, etc.) can 
     ```
 
     Relationship properties:
-    - **dockerfile_path**: Path to the Dockerfile in the repository (e.g., `"subimage-backend/Dockerfile"`)
-    - **confidence**: Confidence score of the match (0.0 to 1.0)
-    - **matched_commands**: Number of commands that matched between Dockerfile and image history
-    - **total_commands**: Total number of commands compared
-    - **command_similarity**: Average similarity score of matched commands
+    - **match_method**: How the match was determined: `"provenance"` (from SLSA attestation) or `"dockerfile_analysis"` (from command matching)
+    - **dockerfile_path**: Path to the Dockerfile in the repository (only for `dockerfile_analysis` method)
+    - **confidence**: Confidence score of the match (0.0 to 1.0, only for `dockerfile_analysis` method)
+    - **matched_commands**: Number of commands that matched between Dockerfile and image history (only for `dockerfile_analysis` method)
+    - **total_commands**: Total number of commands compared (only for `dockerfile_analysis` method)
+    - **command_similarity**: Average similarity score of matched commands (only for `dockerfile_analysis` method)
 
     Note: This relationship uses the generic `ImageTag` semantic label, enabling cross-registry querying (ECR, GitLab, GCR, etc.).
 
@@ -498,6 +500,17 @@ Represents a GitHub Actions workflow definition file in a repository.
     ```
     (GitHubRepository)-[:HAS_WORKFLOW]->(GitHubWorkflow)
     ```
+
+- Container images may be built by a GitHubWorkflow (derived from SLSA provenance attestations).
+
+    ```
+    (:Image)-[:BUILT_BY]->(:GitHubWorkflow)
+    ```
+
+    Relationship properties:
+    - **run_number**: The workflow run number that produced the image
+
+    Note: This relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. The `Image` label is a semantic label applied to container images across registries (ECR, GitLab, etc.).
 
 
 ### GitHubEnvironment

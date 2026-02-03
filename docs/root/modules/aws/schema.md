@@ -2511,6 +2511,16 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:ECRImage {type: "attestation"})-[:ATTESTS]->(:ECRImage)
     ```
 
+- An ECRImage may be built by a GitHubWorkflow (derived from SLSA provenance attestations). Only applies to `type="image"` nodes with the `Image` semantic label.
+    ```
+    (:ECRImage:Image)-[:BUILT_BY]->(:GitHubWorkflow)
+    ```
+
+    Relationship properties:
+    - **run_number**: The workflow run number that produced the image
+
+    Note: This cross-module relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. See the [GitHub schema](../github/schema.md#githubworkflow) for more details on GitHubWorkflow nodes.
+
 
 ### ECRImageLayer
 
