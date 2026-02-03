@@ -183,6 +183,7 @@ class OktaApplicationNodeProperties(CartographyNodeProperties):
     )
     sign_on_mode: PropertyRef = PropertyRef("sign_on_mode")
     status: PropertyRef = PropertyRef("status")
+    activated: PropertyRef = PropertyRef("activated")
     visibility_app_links: PropertyRef = PropertyRef("visibility_app_links")
     visibility_auto_launch: PropertyRef = PropertyRef("visibility_auto_launch")
     visibility_auto_submit_toolbar: PropertyRef = PropertyRef(

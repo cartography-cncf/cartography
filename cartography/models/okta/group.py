@@ -67,6 +67,12 @@ class OktaGroupNodeProperties(CartographyNodeProperties):
     # Legacy fields for backward compatibility
     name: PropertyRef = PropertyRef("name", extra_index=True)
     description: PropertyRef = PropertyRef("description")
+    sam_account_name: PropertyRef = PropertyRef("sam_account_name")
+    dn: PropertyRef = PropertyRef("dn")
+    windows_domain_qualified_name: PropertyRef = PropertyRef(
+        "windows_domain_qualified_name"
+    )
+    external_id: PropertyRef = PropertyRef("external_id")
     # New fields from SDK v3.x
     created: PropertyRef = PropertyRef("created")
     last_membership_updated: PropertyRef = PropertyRef("last_membership_updated")

@@ -20,6 +20,11 @@ def create_test_group():
     group.profile = MagicMock()
     group.profile.name = "group_profile_name_value"
     group.profile.description = "group_profile_description_value"
+    # Legacy AD-synced group fields (None for non-AD groups)
+    group.profile.sam_account_name = None
+    group.profile.dn = None
+    group.profile.windows_domain_qualified_name = None
+    group.profile.external_id = None
 
     return group
 

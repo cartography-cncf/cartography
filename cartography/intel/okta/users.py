@@ -216,7 +216,7 @@ def _transform_okta_users(
         user_props["activated"] = okta_user.activated
         user_props["status_changed"] = okta_user.status_changed
         user_props["last_login"] = okta_user.last_login
-        user_props["last_updated"] = okta_user.last_updated
+        user_props["okta_last_updated"] = okta_user.last_updated
         user_props["password_changed"] = okta_user.password_changed
         user_props["type"] = okta_user.type.id if okta_user.type else None
         # Add role information on a per user basis

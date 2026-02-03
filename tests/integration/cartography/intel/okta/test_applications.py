@@ -31,6 +31,9 @@ def _create_mock_application(app_id: str, name: str, label: str) -> MagicMock:
     app.status = MagicMock()
     app.status.value = "ACTIVE"
 
+    # Activated timestamp
+    app.activated = "2019-01-01T00:00:01.000Z"
+
     # Sign on mode
     app.sign_on_mode = MagicMock()
     app.sign_on_mode.value = "SAML_2_0"

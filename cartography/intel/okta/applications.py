@@ -310,6 +310,7 @@ def _transform_okta_applications(
         application_props["status"] = (
             okta_application.status.value if okta_application.status else None
         )
+        application_props["activated"] = okta_application.activated
         # This returns a dict of somewhat poorly defined value
         # best to treat it as a json blob
         application_props["visibility_app_links"] = json.dumps(

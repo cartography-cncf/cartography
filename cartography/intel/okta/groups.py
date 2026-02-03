@@ -125,6 +125,15 @@ def _transform_okta_groups(
         group_props["description"] = okta_group.profile.description
         group_props["name"] = okta_group.profile.name
         group_props["group_type"] = okta_group.type.value
+        # Legacy AD-synced group fields for backward compatibility
+        group_props["sam_account_name"] = getattr(
+            okta_group.profile, "sam_account_name", None
+        )
+        group_props["dn"] = getattr(okta_group.profile, "dn", None)
+        group_props["windows_domain_qualified_name"] = getattr(
+            okta_group.profile, "windows_domain_qualified_name", None
+        )
+        group_props["external_id"] = getattr(okta_group.profile, "external_id", None)
         # For each group, grab what users might assigned
         group_members: list[OktaUser] = asyncio.run(
             _get_okta_group_members(okta_client, okta_group.id),
