@@ -330,8 +330,7 @@ async def _get_all_user_roles(okta_client: OktaClient) -> list[OktaUserRole]:
     # Step 1: Get all users who have role assignments (bulk API)
     users_with_roles, resp, err = await okta_client.list_users_with_role_assignments()
     if err:
-        logger.warning("Failed to fetch users with role assignments: %s", err)
-        return []
+        raise err
 
     user_ids_with_roles: list[str] = []
     if users_with_roles and users_with_roles.value:
@@ -369,8 +368,7 @@ async def _get_okta_user_roles(
     """
     output_user_roles, _, err = await okta_client.list_assigned_roles_for_user(user_id)
     if err:
-        logger.warning("Failed to fetch roles for user %s: %s", user_id, err)
-        return []
+        raise err
     # The user role object doesn't include an easily parsable user_id
     # for which it applies. So we manually add it
     for output_user_role in output_user_roles:
