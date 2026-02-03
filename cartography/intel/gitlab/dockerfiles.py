@@ -22,7 +22,7 @@ from cartography.intel.dockerfile_parser import parse as parse_dockerfile
 from cartography.intel.dockerfile_parser import ParsedDockerfile
 from cartography.intel.gitlab.util import get_paginated
 from cartography.intel.gitlab.util import get_single
-from cartography.models.gitlab.dockerfile_image import GitLabProjectBuiltFromRel
+from cartography.models.gitlab.dockerfile_image import GitLabProjectBuiltFromMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -483,7 +483,7 @@ def load_dockerfile_image_relationships(
 
     load_matchlinks(
         neo4j_session,
-        GitLabProjectBuiltFromRel(),
+        GitLabProjectBuiltFromMatchLink(),
         matchlink_data,
         lastupdated=update_tag,
         _sub_resource_label="GitLabOrganization",
@@ -509,7 +509,7 @@ def cleanup_dockerfile_image_relationships(
     logger.info("Cleaning up stale BUILT_FROM relationships...")
 
     cleanup_job = GraphJob.from_matchlink(
-        GitLabProjectBuiltFromRel(),
+        GitLabProjectBuiltFromMatchLink(),
         "GitLabOrganization",
         org_url,
         update_tag,
