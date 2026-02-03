@@ -34,7 +34,10 @@ class GitHubRepoBuiltFromMatchLinkProperties(CartographyRelProperties):
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
-    # Dockerfile matching properties
+    # Match method: "provenance" (from SLSA attestation) or "dockerfile_analysis" (from command matching)
+    match_method: PropertyRef = PropertyRef("match_method")
+
+    # Dockerfile matching properties (only populated for dockerfile_analysis method)
     dockerfile_path: PropertyRef = PropertyRef("dockerfile_path")
     confidence: PropertyRef = PropertyRef("confidence")
     matched_commands: PropertyRef = PropertyRef("matched_commands")
