@@ -203,9 +203,6 @@ def search_dockerfiles_in_project(
             logger.debug(f"Cannot access project {project_id}: {e.response.status_code}")
             return []
         raise
-    except Exception as e:
-        logger.warning(f"Failed to search dockerfiles in project {project_id}: {e}")
-        return []
 
 
 def get_file_content(
