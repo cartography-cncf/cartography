@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -58,6 +59,8 @@ class OktaGroupRoleSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[],
     )
+    # DEPRECATED: OktaAdministrationRole was the old shared label, kept for backward compatibility
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["OktaAdministrationRole"])
 
 
 @dataclass(frozen=True)
@@ -137,6 +140,21 @@ class OktaGroupToOktaGroupRoleRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class OktaGroupToOktaAdminRoleRel(CartographyRelSchema):
+    # DEPRECATED: Old relationship label, kept for backward compatibility
+    # (:OktaGroup)-[:MEMBER_OF_OKTA_ROLE]->(:OktaAdministrationRole)
+    target_node_label: str = "OktaAdministrationRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("role_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "MEMBER_OF_OKTA_ROLE"
+    properties: OktaGroupToOktaGroupRoleRelProperties = (
+        OktaGroupToOktaGroupRoleRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class OktaGroupSchema(CartographyNodeSchema):
     label: str = "OktaGroup"
     properties: OktaGroupNodeProperties = OktaGroupNodeProperties()
@@ -144,7 +162,11 @@ class OktaGroupSchema(CartographyNodeSchema):
         OktaGroupToOktaOrganizationRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        rels=[OktaGroupToOktaUserRel(), OktaGroupToOktaGroupRoleRel()],
+        rels=[
+            OktaGroupToOktaUserRel(),
+            OktaGroupToOktaGroupRoleRel(),
+            OktaGroupToOktaAdminRoleRel(),  # DEPRECATED: backward compatibility
+        ],
     )
 
 
