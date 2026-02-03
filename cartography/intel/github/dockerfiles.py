@@ -401,8 +401,6 @@ def search_dockerfiles_in_org(
                 )
                 break
             raise
-        except Exception as e:
-            logger.warning(f"Failed to search dockerfiles in org {org}: {e}")
             break
 
     logger.info(f"Found {len(all_items)} dockerfile(s) in org {org}")
@@ -443,9 +441,6 @@ def search_dockerfiles_in_repo(
             logger.debug(f"Search failed for {owner}/{repo}: {e.response.status_code}")
             return []
         raise
-    except Exception as e:
-        logger.warning(f"Failed to search dockerfiles in {owner}/{repo}: {e}")
-        return []
 
 
 def get_file_content(
@@ -488,12 +483,8 @@ def get_file_content(
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code == 404:
             logger.debug(f"File not found: {owner}/{repo}/{path}")
-        else:
-            logger.warning(f"Failed to get content for {owner}/{repo}/{path}: {e}")
-        return None
-    except Exception as e:
-        logger.warning(f"Failed to get content for {owner}/{repo}/{path}: {e}")
-        return None
+            return None
+        raise
 
 
 def _extract_repo_info(
@@ -862,12 +853,12 @@ def sync(
                     update_tag,
                 )
 
-                # Cleanup stale relationships
-                cleanup_dockerfile_image_relationships(
-                    neo4j_session,
-                    organization,
-                    update_tag,
-                )
+            # Always cleanup stale relationships (even if no matches found)
+            cleanup_dockerfile_image_relationships(
+                neo4j_session,
+                organization,
+                update_tag,
+            )
         else:
             logger.info("No container images found in Neo4j")
 

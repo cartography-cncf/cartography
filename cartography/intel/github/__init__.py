@@ -117,7 +117,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         # Filter out None entries
         valid_repos = [r for r in repos_json if r is not None]
         if valid_repos:
-            dockerfile_temp_path = cartography.intel.github.dockerfiles.sync(
+            dockerfile_result = cartography.intel.github.dockerfiles.sync(
                 neo4j_session,
                 auth_data["token"],
                 auth_data["url"],
@@ -126,5 +126,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 common_job_parameters,
                 valid_repos,
             )
-            if dockerfile_temp_path:
-                logger.info(f"Dockerfiles written to: {dockerfile_temp_path}")
+            if dockerfile_result:
+                logger.info(
+                    f"Dockerfile sync complete: {dockerfile_result.match_count} matches"
+                )
