@@ -59,6 +59,9 @@ Current rules include:
 - **policy_administration_privileges** - Policy administration capabilities
 - **unmanaged_accounts** - Unmanaged cloud accounts
 - **workload_identity_admin_capabilities** - Workload identity escalation surface
+- **google_workspace_cis_1_1_enforce_2sv** - Google Workspace CIS control 1.1 (enforce 2-Step Verification)
+- **google_workspace_cis_1_2_admins_enrolled_2sv** - Google Workspace CIS control 1.2 (super admins enrolled in 2-Step Verification)
+- **google_workspace_cis_2_1_high_risk_oauth** - Google Workspace CIS control 2.1 (review high-risk OAuth access)
 
 You can list all available rules and their details from the CLI, see [below](#list).
 
