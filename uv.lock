@@ -1010,7 +1010,7 @@ requires-dist = [
     { name = "msrestazure", specifier = ">=0.6.4" },
     { name = "neo4j", specifier = ">=5.28.2,<6.0.0" },
     { name = "oci", specifier = ">=2.71.0" },
-    { name = "okta", specifier = ">=2.0.0" },
+    { name = "okta", specifier = ">=3.0.0,<4.0.0" },
     { name = "packaging" },
     { name = "pdpyras", specifier = ">=4.3.0" },
     { name = "policyuniverse", specifier = ">=1.1.0.0" },

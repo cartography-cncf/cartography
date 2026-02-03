@@ -192,7 +192,7 @@ async def _get_okta_group_rules(okta_client: OktaClient) -> list[OktaGroupRule]:
     :return: List of Okta group rules
     """
 
-    output_group_rules: list[dict] = []
+    output_group_rules: list[OktaGroupRule] = []
     # Note: The pagination limit for group rules is not officially documented by Okta.
     # Based on testing, the API accepts up to 200 per page (similar to other endpoints).
     # We use 200 here as a safe default that aligns with other Okta API pagination limits.
