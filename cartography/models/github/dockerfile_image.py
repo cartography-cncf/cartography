@@ -1,9 +1,12 @@
 """
-Data model for linking GitHub repositories to ECR images via Dockerfile matching.
+Data model for linking GitHub repositories to container images via Dockerfile matching.
 
-This uses MatchLinks to connect existing GitHubRepository nodes to ECRRepositoryImage
+This uses MatchLinks to connect existing GitHubRepository nodes to ImageTag
 nodes based on Dockerfile command matching analysis. By matching on repo_uri, we link
-to ALL images in an ECR repository with a single relationship definition.
+to ALL images in a container registry repository with a single relationship definition.
+
+Works with any container registry that follows the cartography image ontology
+(ECR, GCR, etc.) by using the generic ImageTag label.
 """
 
 from dataclasses import dataclass
@@ -21,7 +24,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class GitHubRepoBuiltFromRelProperties(CartographyRelProperties):
     """
-    Properties for the BUILT_FROM relationship between ECRRepositoryImage and GitHubRepository.
+    Properties for the BUILT_FROM relationship between ImageTag and GitHubRepository.
     """
 
     # Required for all MatchLinks
@@ -42,13 +45,16 @@ class GitHubRepoBuiltFromRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class GitHubRepoBuiltFromRel(CartographyRelSchema):
     """
-    MatchLink schema for connecting ECRRepositoryImage nodes to GitHubRepository nodes
+    MatchLink schema for connecting ImageTag nodes to GitHubRepository nodes
     based on Dockerfile command matching.
 
-    Direction: (ECRRepositoryImage)-[:BUILT_FROM]->(GitHubRepository)
+    Direction: (ImageTag)-[:BUILT_FROM]->(GitHubRepository)
 
-    By matching on repo_uri, this creates relationships to ALL images in an ECR
-    repository that were built from the Dockerfile in the GitHub repository.
+    Uses the generic ImageTag label from the cartography image ontology, which works
+    across different container registries (ECR, GCR, etc.).
+
+    By matching on repo_uri, this creates relationships to ALL images in a
+    registry repository that were built from the Dockerfile in the GitHub repository.
     The confidence score is based on command similarity analysis.
     """
 
@@ -58,10 +64,11 @@ class GitHubRepoBuiltFromRel(CartographyRelSchema):
             "id": PropertyRef("repo_url"),
         }
     )
-    source_node_label: str = "ECRRepositoryImage"
+    # Use generic ImageTag label instead of ECRRepositoryImage for cross-registry support
+    source_node_label: str = "ImageTag"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {
-            "repo_uri": PropertyRef("ecr_repo_uri"),
+            "repo_uri": PropertyRef("registry_repo_uri"),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD

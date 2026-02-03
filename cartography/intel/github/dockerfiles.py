@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ECRImage:
-    """Represents an ECR container image from the graph."""
+class ContainerImage:
+    """Represents a container image from the graph (ECR, GCR, etc.)."""
 
     digest: str
     uri: str
@@ -47,10 +47,10 @@ class ECRImage:
 
 @dataclass
 class ImageDockerfileMatch:
-    """Represents a match between an ECR repository and a Dockerfile."""
+    """Represents a match between a container registry repository and a Dockerfile."""
 
-    ecr_repo_uri: str
-    ecr_repo_name: str
+    registry_repo_uri: str
+    registry_repo_name: str
     dockerfile_repo_url: str | None
     dockerfile_path: str | None
     confidence: float
@@ -64,24 +64,28 @@ class ImageDockerfileMatch:
 # =============================================================================
 
 
-def get_ecr_images_with_history(
+def get_container_images_with_history(
     neo4j_session: neo4j.Session,
     limit: int | None = None,
-) -> list[ECRImage]:
+) -> list[ContainerImage]:
     """
-    Query the graph to get ECR images with their metadata AND layer history in a single query.
-    Returns one image per repository (preferring 'latest' tag, then most recently pushed).
+    Query the graph to get container images with their metadata AND layer history.
+
+    Uses the generic ontology labels (Image, ImageTag, ImageLayer, ContainerRegistry)
+    which work across different registries (ECR, GCR, etc.).
+
+    Returns one image per registry repository (preferring 'latest' tag, then most recently pushed).
 
     :param neo4j_session: Neo4j session
     :param limit: Optional limit on number of images to return
-    :return: List of ECRImage objects with layer history populated
+    :return: List of ContainerImage objects with layer history populated
     """
     # Single query that gets images AND their layer history
+    # Uses generic ontology labels: Image, ImageTag, ImageLayer, ContainerRegistry
     query = """
-        MATCH (img:ECRImage)<-[:IMAGE]-(repo_img:ECRRepositoryImage)<-[:REPO_IMAGE]-(repo:ECRRepository)
+        MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
-          AND img.type = 'image'
         WITH repo, img, repo_img
         ORDER BY
             CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
@@ -101,7 +105,7 @@ def get_ecr_images_with_history(
         WITH best
         UNWIND range(0, size(best.layer_diff_ids) - 1) AS idx
         WITH best, best.layer_diff_ids[idx] AS diff_id, idx
-        OPTIONAL MATCH (layer:ECRImageLayer {diff_id: diff_id})
+        OPTIONAL MATCH (layer:ImageLayer {diff_id: diff_id})
         WITH best, idx, {
             diff_id: diff_id,
             history: layer.history,
@@ -140,7 +144,7 @@ def get_ecr_images_with_history(
         ]
 
         images.append(
-            ECRImage(
+            ContainerImage(
                 digest=record["digest"],
                 uri=record["uri"] or "",
                 repo_uri=record["repo_uri"] or "",
@@ -155,7 +159,7 @@ def get_ecr_images_with_history(
         )
 
     logger.info(
-        f"Found {len(images)} ECR images with layer history (one per repository)"
+        f"Found {len(images)} container images with layer history (one per repository)"
     )
     return images
 
@@ -166,14 +170,14 @@ def get_ecr_images_with_history(
 
 
 def match_images_to_dockerfiles(
-    images: list[ECRImage],
+    images: list[ContainerImage],
     dockerfiles: list[dict[str, Any]],
     min_confidence: float = 0.5,
 ) -> list[ImageDockerfileMatch]:
     """
-    Match ECR images to Dockerfiles based on layer history commands.
+    Match container images to Dockerfiles based on layer history commands.
 
-    :param images: List of ECR images to match (with layer_history already populated)
+    :param images: List of container images to match (with layer_history already populated)
     :param dockerfiles: List of dockerfile dictionaries (from get_dockerfiles_for_repos)
     :param min_confidence: Minimum confidence threshold for matches
     :return: List of ImageDockerfileMatch objects
@@ -224,8 +228,8 @@ def match_images_to_dockerfiles(
 
             matches.append(
                 ImageDockerfileMatch(
-                    ecr_repo_uri=image.repo_uri,
-                    ecr_repo_name=image.repo_name,
+                    registry_repo_uri=image.repo_uri,
+                    registry_repo_name=image.repo_name,
                     dockerfile_repo_url=df_info.get("repo_url"),
                     dockerfile_path=df_info.get("path"),
                     confidence=best_match.confidence,
@@ -260,7 +264,7 @@ def transform_matches_for_matchlink(
     return [
         {
             "repo_url": m.dockerfile_repo_url,
-            "ecr_repo_uri": m.ecr_repo_uri,
+            "registry_repo_uri": m.registry_repo_uri,
             "dockerfile_path": m.dockerfile_path,
             "confidence": m.confidence,
             "matched_commands": m.matched_commands,
@@ -662,7 +666,7 @@ class DockerfileSyncResult:
     """Results from dockerfile sync operation."""
 
     dockerfiles: list[dict[str, Any]]
-    images: list[ECRImage] | None = None
+    images: list[ContainerImage] | None = None
     matches: list[ImageDockerfileMatch] | None = None
 
     @property
@@ -709,8 +713,8 @@ class DockerfileSyncResult:
         if self.matches is not None:
             output["matches"] = [
                 {
-                    "ecr_repo_uri": m.ecr_repo_uri,
-                    "ecr_repo_name": m.ecr_repo_name,
+                    "registry_repo_uri": m.registry_repo_uri,
+                    "registry_repo_name": m.registry_repo_name,
                     "dockerfile_repo_url": m.dockerfile_repo_url,
                     "dockerfile_path": m.dockerfile_path,
                     "confidence": m.confidence,
@@ -770,29 +774,32 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     repos: list[dict[str, Any]],
-    match_ecr_images: bool = True,
+    match_container_images: bool = True,
     image_limit: int | None = None,
     min_match_confidence: float = 0.5,
 ) -> DockerfileSyncResult | None:
     """
-    Sync Dockerfiles from GitHub repositories, query ECR images, and identify matches.
+    Sync Dockerfiles from GitHub repositories, query container images, and identify matches.
 
     This function:
     1. Searches for Dockerfile-related files in each repository
     2. Downloads their content and parses them
-    3. Queries ALL ECR images from Neo4j (all tags)
+    3. Queries container images from Neo4j using the generic ontology labels
     4. Matches images to Dockerfiles based on layer history commands
-    5. Creates BUILT_FROM relationships between ECRRepositoryImage and GitHubRepository
+    5. Creates BUILT_FROM relationships between ImageTag and GitHubRepository
 
-    :param neo4j_session: Neo4j session for querying ECR images
+    Works with any container registry that follows the cartography image ontology
+    (ECR, GCR, etc.) by using the generic labels: Image, ImageTag, ImageLayer, ContainerRegistry.
+
+    :param neo4j_session: Neo4j session for querying container images
     :param token: The GitHub API token
     :param api_url: The GitHub API URL (typically the GraphQL endpoint)
     :param organization: The GitHub organization name
     :param update_tag: The update timestamp tag
     :param common_job_parameters: Common job parameters
     :param repos: List of repository dictionaries to search for Dockerfiles
-    :param match_ecr_images: Whether to query ECR images and perform matching (default: True)
-    :param image_limit: Optional limit on number of ECR images to process
+    :param match_container_images: Whether to query container images and perform matching (default: True)
+    :param image_limit: Optional limit on number of images to process
     :param min_match_confidence: Minimum confidence threshold for matches (default: 0.5)
     :return: DockerfileSyncResult with dockerfiles, images, and matches, or None if no Dockerfiles found
 
@@ -822,17 +829,17 @@ def sync(
         logger.info(f"No dockerfiles found in {organization}")
         return None
 
-    images: list[ECRImage] | None = None
+    images: list[ContainerImage] | None = None
     matches: list[ImageDockerfileMatch] | None = None
 
-    # Query ECR images and perform matching if requested
-    if match_ecr_images:
-        logger.info("Querying ECR images with layer history from Neo4j...")
-        # Single query gets images AND their layer history
-        images = get_ecr_images_with_history(neo4j_session, limit=image_limit)
+    # Query container images and perform matching if requested
+    if match_container_images:
+        logger.info("Querying container images with layer history from Neo4j...")
+        # Single query gets images AND their layer history using generic ontology labels
+        images = get_container_images_with_history(neo4j_session, limit=image_limit)
 
         if images:
-            logger.info(f"Found {len(images)} ECR images, performing matching...")
+            logger.info(f"Found {len(images)} container images, performing matching...")
             matches = match_images_to_dockerfiles(
                 images,
                 dockerfiles,
@@ -862,7 +869,7 @@ def sync(
                     update_tag,
                 )
         else:
-            logger.info("No ECR images found in Neo4j")
+            logger.info("No container images found in Neo4j")
 
     result = DockerfileSyncResult(
         dockerfiles=dockerfiles,
