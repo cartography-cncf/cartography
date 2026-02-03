@@ -358,10 +358,10 @@ def test_dockerfile_sync_result_to_tempfile():
 
 
 @patch("cartography.intel.github.dockerfiles.get_dockerfiles_for_repos")
-@patch("cartography.intel.github.dockerfiles.get_ecr_images_with_history")
+@patch("cartography.intel.github.dockerfiles.get_container_images_with_history")
 @patch("cartography.intel.github.dockerfiles.match_images_to_dockerfiles")
 def test_sync_with_dockerfiles(
-    mock_match, mock_get_ecr_images_with_history, mock_get_dockerfiles, neo4j_session
+    mock_match, mock_get_container_images, mock_get_dockerfiles, neo4j_session
 ):
     """
     Test the full sync function when Dockerfiles are found.
@@ -376,7 +376,7 @@ def test_sync_with_dockerfiles(
         }
     ]
     mock_get_dockerfiles.return_value = mock_dockerfiles
-    mock_get_ecr_images_with_history.return_value = []  # No ECR images
+    mock_get_container_images.return_value = []  # No container images
     mock_match.return_value = []  # No matches
 
     # Act
@@ -397,7 +397,7 @@ def test_sync_with_dockerfiles(
         "https://api.github.com",
         org="testorg",
     )
-    mock_get_ecr_images_with_history.assert_called_once()
+    mock_get_container_images.assert_called_once()
     assert result is not None
     assert result.dockerfile_count == 1
     assert result.dockerfiles == mock_dockerfiles
