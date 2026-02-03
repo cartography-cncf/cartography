@@ -39,3 +39,6 @@ def test_load_user_data(mock_get, neo4j_session):
     assert (
         check_nodes(neo4j_session, "PagerDutyUser", ["id", "email"]) == expected_nodes
     )
+
+    # Assert UserAccount ontology label is applied
+    assert check_nodes(neo4j_session, "UserAccount", ["id", "email"]) >= expected_nodes

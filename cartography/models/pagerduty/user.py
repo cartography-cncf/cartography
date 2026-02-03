@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 
 
@@ -32,5 +33,6 @@ class PagerDutyUserToOrganizationRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class PagerDutyUserSchema(CartographyNodeSchema):
     label: str = "PagerDutyUser"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
     properties: PagerDutyUserProperties = PagerDutyUserProperties()
     scoped_cleanup: bool = False
