@@ -2390,6 +2390,8 @@ store the image tag on an `ECRRepositoryImage` node and the image digest hash on
 
 This way, more than one `ECRRepositoryImage` can reference/be connected to the same `ECRImage`.
 
+> **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for image tags across different container registries.
+
 | Field | Description |
 |--------|-----------|
 | tag | The tag applied to the repository image, e.g. "latest" |
@@ -2421,6 +2423,8 @@ Representation of an ECR image identified by its digest (e.g. a SHA hash). Speci
 ECRRepositoryImage.
 
 For multi-architecture images, Cartography creates ECRImage nodes for the manifest list, each platform-specific image, and any attestations.
+
+> **Ontology Mapping**: This node has conditional extra labels based on the `type` field: `Image` (when type="image"), `ImageAttestation` (when type="attestation"), or `ImageManifestList` (when type="manifest_list"). This enables cross-platform queries for container images across different registries.
 
 | Field | Description |
 |--------|-----------|
@@ -2496,7 +2500,9 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 
 ### ECRImageLayer
 
-Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `ECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker’s canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)
+Representation of an individual Docker image layer discovered while processing ECR manifests. Layers are de-duplicated by `diff_id`, so multiple images (or multiple points within the same image) may reference the same `ECRImageLayer` node. Note that `diff_id` is the **uncompressed** (DiffID) SHA-256 of the layer tar stream. Docker's canonical empty layer therefore always appears as `sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef` and is marked with `is_empty = true`. (If you inspect registry manifests you may see the compressed blob digest `sha256:a3ed95ca...`, both refer to the same empty layer.)
+
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-platform queries for image layers across different container registries.
 
 | Field | Description |
 |-------|-------------|

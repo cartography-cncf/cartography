@@ -672,3 +672,148 @@ def test_buffer_error_with_none_wait_time(mock_logger, mock_sleep):
     assert len(error_logs) == 1
     # Should still sleep (with fallback 1.0 second)
     mock_sleep.assert_called_once_with(1.0)
+
+
+# Tests for metrics in load() and load_matchlinks()
+
+
+@patch("cartography.client.core.tx.load_graph_data")
+@patch("cartography.client.core.tx.ensure_indexes")
+@patch("cartography.client.core.tx.build_ingestion_query")
+@patch("cartography.client.core.tx.build_conditional_label_queries")
+@patch("cartography.client.core.tx.stat_handler")
+@patch("cartography.client.core.tx.logger")
+def test_load_emits_metrics_and_logs(
+    mock_logger,
+    mock_stat_handler,
+    mock_build_cond_labels,
+    mock_build_query,
+    mock_ensure_indexes,
+    mock_load_graph_data,
+):
+    """load() should emit a metric and log the count of loaded nodes."""
+    from cartography.client.core.tx import load
+
+    # Setup mocks
+    mock_session = MagicMock()
+    mock_node_schema = MagicMock()
+    mock_node_schema.label = "TestNode"
+    mock_build_query.return_value = "UNWIND ..."
+    mock_build_cond_labels.return_value = []
+
+    test_data = [{"id": "1"}, {"id": "2"}, {"id": "3"}]
+
+    load(mock_session, mock_node_schema, test_data, lastupdated=12345)
+
+    # Verify metric was emitted with correct count
+    mock_stat_handler.incr.assert_called_once_with("node.testnode.loaded", 3)
+
+    # Verify info log was emitted
+    mock_logger.info.assert_called_once_with("Loaded %d %s nodes", 3, "TestNode")
+
+
+@patch("cartography.client.core.tx.load_graph_data")
+@patch("cartography.client.core.tx.ensure_indexes")
+@patch("cartography.client.core.tx.build_ingestion_query")
+@patch("cartography.client.core.tx.build_conditional_label_queries")
+@patch("cartography.client.core.tx.stat_handler")
+@patch("cartography.client.core.tx.logger")
+def test_load_no_metrics_for_empty_data(
+    mock_logger,
+    mock_stat_handler,
+    mock_build_cond_labels,
+    mock_build_query,
+    mock_ensure_indexes,
+    mock_load_graph_data,
+):
+    """load() should not emit metrics when there's no data to load."""
+    from cartography.client.core.tx import load
+
+    mock_session = MagicMock()
+    mock_node_schema = MagicMock()
+    mock_node_schema.label = "TestNode"
+
+    load(mock_session, mock_node_schema, [], lastupdated=12345)
+
+    # Verify no metric was emitted (function returns early for empty data)
+    mock_stat_handler.incr.assert_not_called()
+    mock_logger.info.assert_not_called()
+
+
+@patch("cartography.client.core.tx.load_graph_data")
+@patch("cartography.client.core.tx.ensure_indexes_for_matchlinks")
+@patch("cartography.client.core.tx.build_matchlink_query")
+@patch("cartography.client.core.tx.stat_handler")
+@patch("cartography.client.core.tx.logger")
+def test_load_matchlinks_emits_metrics_and_logs(
+    mock_logger,
+    mock_stat_handler,
+    mock_build_query,
+    mock_ensure_indexes,
+    mock_load_graph_data,
+):
+    """load_matchlinks() should emit a metric and log the count of loaded relationships."""
+    from cartography.client.core.tx import load_matchlinks
+
+    # Setup mocks
+    mock_session = MagicMock()
+    mock_rel_schema = MagicMock()
+    mock_rel_schema.rel_label = "CONNECTED_TO"
+    mock_build_query.return_value = "UNWIND ..."
+
+    test_data = [
+        {"source_id": "1", "target_id": "a"},
+        {"source_id": "2", "target_id": "b"},
+    ]
+
+    load_matchlinks(
+        mock_session,
+        mock_rel_schema,
+        test_data,
+        lastupdated=12345,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id="123456",
+    )
+
+    # Verify metric was emitted with correct count
+    mock_stat_handler.incr.assert_called_once_with(
+        "relationship.connected_to.loaded", 2
+    )
+
+    # Verify info log was emitted
+    mock_logger.info.assert_called_once_with(
+        "Loaded %d %s relationships", 2, "CONNECTED_TO"
+    )
+
+
+@patch("cartography.client.core.tx.load_graph_data")
+@patch("cartography.client.core.tx.ensure_indexes_for_matchlinks")
+@patch("cartography.client.core.tx.build_matchlink_query")
+@patch("cartography.client.core.tx.stat_handler")
+@patch("cartography.client.core.tx.logger")
+def test_load_matchlinks_no_metrics_for_empty_data(
+    mock_logger,
+    mock_stat_handler,
+    mock_build_query,
+    mock_ensure_indexes,
+    mock_load_graph_data,
+):
+    """load_matchlinks() should not emit metrics when there's no data to load."""
+    from cartography.client.core.tx import load_matchlinks
+
+    mock_session = MagicMock()
+    mock_rel_schema = MagicMock()
+    mock_rel_schema.rel_label = "CONNECTED_TO"
+
+    load_matchlinks(
+        mock_session,
+        mock_rel_schema,
+        [],
+        lastupdated=12345,
+        _sub_resource_label="AWSAccount",
+        _sub_resource_id="123456",
+    )
+
+    # Verify no metric was emitted (function returns early for empty data)
+    mock_stat_handler.incr.assert_not_called()
+    mock_logger.info.assert_not_called()
