@@ -458,6 +458,7 @@ def transform_matches_for_matchlink(
 # =============================================================================
 
 
+@timeit
 def get_provenance_matches_for_org(
     neo4j_session: neo4j.Session,
     org_url: str,

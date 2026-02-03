@@ -495,7 +495,7 @@ It generalizes concepts like AWS ECRImageLayer and OCI image layers.
 |-------|-------------|
 | _ont_diff_id | The uncompressed (DiffID) SHA-256 digest of the layer. |
 | _ont_is_empty | Boolean flag identifying Docker's canonical empty layer. |
-| _ont_history | The shell command that created this layer (for Dockerfile matching).
+| _ont_history | The shell command that created this layer (for Dockerfile matching). |
 
 #### Relationships
 

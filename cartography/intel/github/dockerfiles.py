@@ -352,6 +352,7 @@ def cleanup_dockerfile_image_relationships(
 # =============================================================================
 
 
+@timeit
 def get_provenance_matches_for_org(
     neo4j_session: neo4j.Session,
     organization: str,
@@ -445,6 +446,7 @@ def load_provenance_relationships(
     return len(matches)
 
 
+@timeit
 def get_workflow_matches_for_org(
     neo4j_session: neo4j.Session,
     organization: str,
@@ -693,7 +695,9 @@ def get_file_content(
         return response.get("content")
 
     except requests.exceptions.HTTPError as e:
-        if e.response is not None and e.response.status_code in (403, 404, 422, 429):
+        # 404: File not found, 403: No access, 422: Validation error
+        # Note: 429 (rate limit) should propagate to trigger retry/failure
+        if e.response is not None and e.response.status_code in (403, 404, 422):
             logger.debug(
                 "Cannot fetch file %s/%s/%s: %d",
                 owner,
@@ -1068,6 +1072,11 @@ def sync(
             # Cleanup any stale relationships
             if match_container_images:
                 cleanup_dockerfile_image_relationships(
+                    neo4j_session,
+                    organization,
+                    update_tag,
+                )
+                cleanup_workflow_relationships(
                     neo4j_session,
                     organization,
                     update_tag,
