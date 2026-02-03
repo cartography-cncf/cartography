@@ -19,6 +19,7 @@ from cartography.intel.dockerfile_parser import parse as parse_dockerfile
 from cartography.intel.dockerfile_parser import ParsedDockerfile
 from cartography.intel.github.util import call_github_rest_api
 from cartography.models.github.dockerfile_image import GitHubRepoBuiltFromMatchLink
+from cartography.models.github.dockerfile_image import ImageBuiltByWorkflowMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -442,6 +443,119 @@ def load_provenance_relationships(
 
     logger.info("Loaded %d provenance-based BUILT_FROM relationships", len(matches))
     return len(matches)
+
+
+def get_workflow_matches_for_org(
+    neo4j_session: neo4j.Session,
+    organization: str,
+) -> list[dict[str, Any]]:
+    """
+    Query images with SLSA provenance workflow info and resolve to GitHubWorkflow nodes.
+
+    This joins images that have invocation_workflow to GitHubWorkflow nodes via the
+    source repository. The workflow is identified by matching the path within the repo.
+
+    Returns data formatted for load_matchlinks with ImageBuiltByWorkflowMatchLink schema.
+
+    :param neo4j_session: Neo4j session
+    :param organization: The GitHub organization name to match against
+    :return: List of dicts ready for load_matchlinks
+    """
+    # Query images that have invocation_workflow and resolve to workflow via repo
+    # Join: Image.source_uri -> GitHubRepository.id -> HAS_WORKFLOW -> GitHubWorkflow.path
+    query = """
+        MATCH (img:Image)
+        WHERE img.source_uri IS NOT NULL
+          AND img.invocation_workflow IS NOT NULL
+        MATCH (gh_repo:GitHubRepository {id: img.source_uri})
+              -[:HAS_WORKFLOW]->(wf:GitHubWorkflow {path: img.invocation_workflow})
+        MATCH (gh_repo)<-[:OWNER]-(gh_org:GitHubOrganization {login: $organization})
+        RETURN DISTINCT
+            img.digest AS image_digest,
+            wf.id AS workflow_id,
+            img.invocation_run_number AS run_number
+    """
+
+    result = neo4j_session.run(query, organization=organization)
+    matches = []
+
+    for record in result:
+        matches.append(
+            {
+                "image_digest": record["image_digest"],
+                "workflow_id": record["workflow_id"],
+                "run_number": record["run_number"],
+            }
+        )
+
+    logger.info(
+        "Found %d workflow matches for organization %s",
+        len(matches),
+        organization,
+    )
+    return matches
+
+
+@timeit
+def load_workflow_relationships(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    update_tag: int,
+) -> int:
+    """
+    Load BUILT_BY relationships between Image and GitHubWorkflow based on SLSA provenance.
+
+    This creates relationships from container images to the GitHub Actions workflows
+    that built them, with the run_number as a property.
+
+    :param neo4j_session: Neo4j session
+    :param organization: The GitHub organization name
+    :param update_tag: The update timestamp tag
+    :return: Number of relationships created
+    """
+    matches = get_workflow_matches_for_org(neo4j_session, organization)
+
+    if not matches:
+        logger.info("No workflow matches found for %s", organization)
+        return 0
+
+    logger.info("Loading %d BUILT_BY workflow relationships...", len(matches))
+
+    load_matchlinks(
+        neo4j_session,
+        ImageBuiltByWorkflowMatchLink(),
+        matches,
+        lastupdated=update_tag,
+        _sub_resource_label="GitHubOrganization",
+        _sub_resource_id=organization,
+    )
+
+    logger.info("Loaded %d BUILT_BY workflow relationships", len(matches))
+    return len(matches)
+
+
+@timeit
+def cleanup_workflow_relationships(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    update_tag: int,
+) -> None:
+    """
+    Clean up stale BUILT_BY workflow relationships.
+
+    :param neo4j_session: Neo4j session
+    :param organization: The GitHub organization name (used as sub_resource_id)
+    :param update_tag: The update timestamp tag
+    """
+    logger.debug("Cleaning up stale BUILT_BY workflow relationships...")
+
+    cleanup_job = GraphJob.from_matchlink(
+        ImageBuiltByWorkflowMatchLink(),
+        "GitHubOrganization",
+        organization,
+        update_tag,
+    )
+    cleanup_job.run(neo4j_session)
 
 
 @timeit
@@ -922,8 +1036,15 @@ def sync(
     # Try provenance-based matching first - this provides 100% confidence from
     # cryptographically signed attestations without needing Dockerfile content.
     provenance_match_count = 0
+    workflow_match_count = 0
     if match_container_images:
         provenance_match_count = load_provenance_relationships(
+            neo4j_session,
+            organization,
+            update_tag,
+        )
+        # Also create BUILT_BY relationships to workflows for images with provenance
+        workflow_match_count = load_workflow_relationships(
             neo4j_session,
             organization,
             update_tag,
@@ -999,6 +1120,11 @@ def sync(
             organization,
             update_tag,
         )
+        cleanup_workflow_relationships(
+            neo4j_session,
+            organization,
+            update_tag,
+        )
 
     result = DockerfileSyncResult(
         dockerfiles=dockerfiles or [],
@@ -1007,9 +1133,10 @@ def sync(
     )
 
     logger.info(
-        "Completed dockerfile sync: %d provenance matches, %d dockerfile(s), "
-        "%d image(s), %d dockerfile matches",
+        "Completed dockerfile sync: %d provenance matches, %d workflow matches, "
+        "%d dockerfile(s), %d image(s), %d dockerfile matches",
         provenance_match_count,
+        workflow_match_count,
         result.dockerfile_count,
         result.image_count,
         result.match_count,
