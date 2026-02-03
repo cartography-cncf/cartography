@@ -56,9 +56,7 @@ async def _get_okta_user_factors(
     :param user_id: The user ID to fetch factors for
     :return: List of Okta user factors
     """
-    factors, _, err = await okta_client.list_factors(user_id)
-    if err:
-        raise err
+    factors, _ = await okta_client.list_factors(user_id)
     return factors or []
 
 

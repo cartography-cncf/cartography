@@ -45,19 +45,6 @@ def cleanup_okta_groups(
     run_cleanup_job("okta_groups_cleanup.json", neo4j_session, common_job_parameters)
 
 
-def _create_okta_client(okta_domain: str, okta_api_key: str) -> OktaClient:
-    """
-    Create Okta User Client
-    :param okta_domain: Okta domain
-    :param okta_api_key: Okta API key
-    :return: Instance of UsersClient
-    """
-    config = {"orgUrl": f"https://{okta_domain}/", "token": okta_api_key}
-    okta_client = OktaClient(config)
-
-    return okta_client
-
-
 @timeit
 def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
     """
@@ -72,14 +59,17 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         )
         return
 
-    logger.debug(f"Starting Okta sync on {config.okta_org_id}")
+    logger.debug("Starting Okta sync on %s", config.okta_org_id)
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "OKTA_ORG_ID": config.okta_org_id,
     }
 
-    okta_client = _create_okta_client(config.okta_org_id, config.okta_api_key)
+    okta_client = OktaClient({
+        "orgUrl": f"https://{config.okta_org_id}.okta.com",
+        "token": config.okta_api_key,
+    })
 
     organization.sync_okta_organization(neo4j_session, common_job_parameters)
     user_ids = users.sync_okta_users(okta_client, neo4j_session, common_job_parameters)

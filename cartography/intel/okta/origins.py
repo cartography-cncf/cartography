@@ -46,15 +46,10 @@ async def _get_okta_origins(okta_client: OktaClient) -> list[OktaTrustedOrigin]:
     """
     output_origins = []
     query_parameters = {"limit": 200}
-    origins, resp, err = await okta_client.list_origins(query_parameters)
-    if err:
-        raise err
-
+    origins, resp = await okta_client.list_origins(**query_parameters)
     output_origins += origins
     while resp.has_next():
-        origins, err = await resp.next()
-        if err:
-            raise err
+        origins = await resp.next()
         output_origins += origins
         logger.debug("Fetched %s origins", len(origins))
     return output_origins

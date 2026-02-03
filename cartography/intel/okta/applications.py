@@ -53,10 +53,10 @@ async def _get_okta_applications(okta_client: OktaClient) -> list[OktaApplicatio
     """
     output_applications = []
     query_parameters = {"limit": 200}
-    applications, resp, _ = await okta_client.list_applications(query_parameters)
+    applications, resp = await okta_client.list_applications(**query_parameters)
     output_applications += applications
     while resp.has_next():
-        applications, _ = await resp.next()
+        applications = await resp.next()
         output_applications += applications
         logger.debug("Fetched %s applications", len(applications))
     return output_applications
@@ -403,26 +403,12 @@ async def _get_application_assigned_users(
     """
     output_application_users = []
     query_parameters = {"limit": 500}
-    application_users, resp, err = await okta_client.list_application_users(
-        app_id, query_parameters
+    application_users, resp = await okta_client.list_application_users(
+        app_id, **query_parameters
     )
-    if err:
-        logger.warning(
-            "Failed to fetch users for application %s: %s",
-            app_id,
-            err,
-        )
-        return []
     output_application_users += application_users
     while resp.has_next():
-        application_users, err = await resp.next()
-        if err:
-            logger.warning(
-                "Failed to fetch next page of users for application %s: %s",
-                app_id,
-                err,
-            )
-            break
+        application_users = await resp.next()
         output_application_users += application_users
         logger.debug("Fetched %s application users", len(application_users))
     output_application_users_ids = [user.id for user in output_application_users]
@@ -444,26 +430,12 @@ async def _get_application_assigned_groups(
     """
     output_application_groups = []
     query_parameters = {"limit": 200}
-    application_groups, resp, err = (
-        await okta_client.list_application_group_assignments(app_id, query_parameters)
+    application_groups, resp = (
+        await okta_client.list_application_group_assignments(app_id, **query_parameters)
     )
-    if err:
-        logger.warning(
-            "Failed to fetch groups for application %s: %s",
-            app_id,
-            err,
-        )
-        return []
     output_application_groups += application_groups
     while resp.has_next():
-        application_groups, err = await resp.next()
-        if err:
-            logger.warning(
-                "Failed to fetch next page of groups for application %s: %s",
-                app_id,
-                err,
-            )
-            break
+        application_groups = await resp.next()
         output_application_groups += application_groups
         logger.debug("Fetched %s application groups", len(application_groups))
     output_application_group_ids = [group.id for group in output_application_groups]

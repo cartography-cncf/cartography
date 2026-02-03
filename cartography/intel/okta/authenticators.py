@@ -49,7 +49,7 @@ async def _get_okta_authenticators(okta_client: OktaClient) -> list[OktaAuthenti
     :return: List of Okta authenticators
     """
 
-    authenticators, _, _ = await okta_client.list_authenticators()
+    authenticators, _ = await okta_client.list_authenticators()
     return authenticators
 
 
