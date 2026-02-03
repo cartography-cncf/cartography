@@ -108,6 +108,13 @@ reviews:
 
         Schema documentation format:
         In docs/root/modules/*/schema.md files: use ### (h3) for node names and #### (h4) for the "Relationships" subsection. Indexed fields (primary key id and fields with extra_index=True) must be bold in the table (e.g., |**id**| The unique identifier|). Each node must document all its fields with a description.
+    - name: CIS rule IDs include provider prefix
+      description: |-
+        CIS control IDs are scoped to their benchmark, so rule IDs must include the provider prefix to avoid collisions.
+        Format: cis_<provider>_<control_number>_<short_slug> (examples: cis_aws_1_14_access_key_not_rotated, cis_gcp_3_1_default_network, cis_gw_4_1_1_3_user_2sv_not_enforced).
+        Flag CIS rule IDs missing the provider prefix.
+      include:
+        - cartography/rules/data/rules/cis_*.py
 pr_descriptions:
   generate: false
   cubic_review_link: false

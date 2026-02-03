@@ -76,8 +76,8 @@ _gw_user_2sv_not_enforced = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_4_1_1_3_user_2sv_not_enforced = Rule(
-    id="cis_4_1_1_3_user_2sv_not_enforced",
+cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
+    id="cis_gw_4_1_1_3_user_2sv_not_enforced",
     name="CIS Google Workspace 4.1.1.3: Users Without Enforced 2-Step Verification",
     description=(
         "2-Step Verification should be enforced for all users to prevent unauthorized access. "
@@ -145,8 +145,8 @@ _gw_admin_2sv_not_enforced = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
-cis_4_1_1_1_admin_2sv_not_enforced = Rule(
-    id="cis_4_1_1_1_admin_2sv_not_enforced",
+cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
+    id="cis_gw_4_1_1_1_admin_2sv_not_enforced",
     name="CIS Google Workspace 4.1.1.1: Admins Without Enforced 2-Step Verification",
     description=(
         "Admin accounts should have 2-Step Verification enforced due to their elevated privileges. "
