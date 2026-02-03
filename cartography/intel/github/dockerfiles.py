@@ -345,6 +345,103 @@ def cleanup_dockerfile_image_relationships(
     logger.info("Cleanup complete")
 
 
+# =============================================================================
+# SLSA Provenance-based Matching (Primary Method)
+# =============================================================================
+
+
+def get_provenance_matches_for_org(
+    neo4j_session: neo4j.Session,
+    organization: str,
+) -> list[dict[str, Any]]:
+    """
+    Query images with SLSA provenance that match GitHub repositories in an organization.
+
+    This is the preferred matching method as it provides 100% confidence based on
+    cryptographically signed provenance attestations, without needing Dockerfile
+    content analysis.
+
+    Returns data formatted for load_matchlinks with GitHubRepoBuiltFromMatchLink schema.
+
+    :param neo4j_session: Neo4j session
+    :param organization: The GitHub organization name to match against
+    :return: List of dicts ready for load_matchlinks
+    """
+    # Query images that have source_uri and match it against GitHubRepository.id
+    # The source_uri from SLSA provenance is like "https://github.com/org/repo"
+    # which should match GitHubRepository.id
+    query = """
+        MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(registry:ContainerRegistry)
+        WHERE img.source_uri IS NOT NULL
+        MATCH (gh_repo:GitHubRepository)
+        WHERE gh_repo.id = img.source_uri
+        MATCH (gh_repo)<-[:OWNER]-(gh_org:GitHubOrganization {login: $organization})
+        WITH DISTINCT registry.uri AS registry_repo_uri, gh_repo.id AS repo_url
+        RETURN registry_repo_uri, repo_url
+    """
+
+    result = neo4j_session.run(query, organization=organization)
+    matches = []
+
+    for record in result:
+        matches.append(
+            {
+                "registry_repo_uri": record["registry_repo_uri"],
+                "repo_url": record["repo_url"],
+                "dockerfile_path": None,  # Provenance doesn't include dockerfile path
+                "confidence": 1.0,  # 100% confident from provenance
+                "matched_commands": 0,
+                "total_commands": 0,
+                "command_similarity": 1.0,
+            }
+        )
+
+    logger.info(
+        "Found %d provenance-based matches for organization %s",
+        len(matches),
+        organization,
+    )
+    return matches
+
+
+@timeit
+def load_provenance_relationships(
+    neo4j_session: neo4j.Session,
+    organization: str,
+    update_tag: int,
+) -> int:
+    """
+    Load BUILT_FROM relationships based on SLSA provenance data.
+
+    This is the primary matching method - uses provenance attestations to directly
+    link container images to their source repositories with 100% confidence.
+
+    :param neo4j_session: Neo4j session
+    :param organization: The GitHub organization name
+    :param update_tag: The update timestamp tag
+    :return: Number of relationships created
+    """
+    matches = get_provenance_matches_for_org(neo4j_session, organization)
+
+    if not matches:
+        logger.info("No provenance-based matches found for %s", organization)
+        return 0
+
+    logger.info("Loading %d provenance-based BUILT_FROM relationships...", len(matches))
+
+    load_matchlinks(
+        neo4j_session,
+        GitHubRepoBuiltFromMatchLink(),
+        matches,
+        lastupdated=update_tag,
+        _sub_resource_label="GitHubOrganization",
+        _sub_resource_id=organization,
+    )
+
+    logger.info("Loaded %d provenance-based BUILT_FROM relationships", len(matches))
+    return len(matches)
+
+
 @timeit
 def search_dockerfiles_in_org(
     token: str,
@@ -777,11 +874,15 @@ def sync(
     """
     Sync Dockerfiles from GitHub repositories, query container images, and identify matches.
 
-    This function:
-    1. Searches for Dockerfile-related files in each repository
-    2. Downloads their content and parses them
-    3. Queries container images from Neo4j using the generic ontology labels
-    4. Matches images to Dockerfiles based on layer history commands
+    This function uses a two-stage matching approach:
+    1. PRIMARY: SLSA provenance-based matching (100% confidence from cryptographic attestations)
+    2. FALLBACK: Dockerfile command matching (for images without provenance)
+
+    The sync process:
+    1. First tries provenance-based matching for images with source_uri from attestations
+    2. Searches for Dockerfile-related files in each repository
+    3. Downloads their content and parses them
+    4. Matches remaining images to Dockerfiles based on layer history commands
     5. Creates BUILT_FROM relationships between ImageTag and GitHubRepository
 
     Works with any container registry that follows the cartography image ontology
@@ -813,6 +914,22 @@ def sync(
         f"Starting dockerfile sync for {len(repos)} repositories in {organization}"
     )
 
+    # ==========================================================================
+    # Stage 1: SLSA Provenance-based matching (PRIMARY - highest confidence)
+    # ==========================================================================
+    # Try provenance-based matching first - this provides 100% confidence from
+    # cryptographically signed attestations without needing Dockerfile content.
+    provenance_match_count = 0
+    if match_container_images:
+        provenance_match_count = load_provenance_relationships(
+            neo4j_session,
+            organization,
+            update_tag,
+        )
+
+    # ==========================================================================
+    # Stage 2: Dockerfile command matching (FALLBACK)
+    # ==========================================================================
     # Extract base REST API URL from the GraphQL URL
     base_url = api_url
     if base_url.endswith("/graphql"):
@@ -822,20 +939,32 @@ def sync(
     dockerfiles = get_dockerfiles_for_repos(token, repos, base_url, org=organization)
 
     if not dockerfiles:
-        logger.info(f"No dockerfiles found in {organization}")
-        return None
+        logger.info("No dockerfiles found in %s", organization)
+        # Even with no dockerfiles, we may have provenance matches, so continue
+        if provenance_match_count == 0:
+            # Cleanup any stale relationships
+            if match_container_images:
+                cleanup_dockerfile_image_relationships(
+                    neo4j_session,
+                    organization,
+                    update_tag,
+                )
+            return None
 
     images: list[ContainerImage] | None = None
     matches: list[ImageDockerfileMatch] | None = None
 
-    # Query container images and perform matching if requested
-    if match_container_images:
+    # Query container images and perform dockerfile command matching if requested
+    if match_container_images and dockerfiles:
         logger.info("Querying container images with layer history from Neo4j...")
         # Single query gets images AND their layer history using generic ontology labels
         images = get_container_images_with_history(neo4j_session, limit=image_limit)
 
         if images:
-            logger.info(f"Found {len(images)} container images, performing matching...")
+            logger.info(
+                "Found %d container images, performing dockerfile matching...",
+                len(images),
+            )
             matches = match_images_to_dockerfiles(
                 images,
                 dockerfiles,
@@ -845,8 +974,9 @@ def sync(
             # Log summary
             high_confidence = sum(1 for m in matches if m.confidence >= 0.75)
             logger.info(
-                f"Matching complete: {len(matches)} matches found "
-                f"({high_confidence} high confidence)"
+                "Dockerfile matching complete: %d matches found (%d high confidence)",
+                len(matches),
+                high_confidence,
             )
 
             # Load BUILT_FROM relationships to Neo4j
@@ -857,24 +987,29 @@ def sync(
                     organization,
                     update_tag,
                 )
-
-            # Always cleanup stale relationships (even if no matches found)
-            cleanup_dockerfile_image_relationships(
-                neo4j_session,
-                organization,
-                update_tag,
-            )
         else:
             logger.info("No container images found in Neo4j")
 
+    # Always cleanup stale relationships (covers both provenance and dockerfile matches)
+    if match_container_images:
+        cleanup_dockerfile_image_relationships(
+            neo4j_session,
+            organization,
+            update_tag,
+        )
+
     result = DockerfileSyncResult(
-        dockerfiles=dockerfiles,
+        dockerfiles=dockerfiles or [],
         images=images,
         matches=matches,
     )
 
     logger.info(
-        f"Completed dockerfile sync: {result.dockerfile_count} dockerfile(s), "
-        f"{result.image_count} image(s), {result.match_count} match(es)"
+        "Completed dockerfile sync: %d provenance matches, %d dockerfile(s), "
+        "%d image(s), %d dockerfile matches",
+        provenance_match_count,
+        result.dockerfile_count,
+        result.image_count,
+        result.match_count,
     )
     return result
