@@ -19,7 +19,7 @@ def test_rules_registered_and_metadata():
         assert rule.version == "1.0.0"
         assert rule.modules == {Module.GOOGLEWORKSPACE}
         # Check that the rule has CIS framework reference
-        assert rule.has_framework("cis", "google_workspace", "1.4")
+        assert rule.has_framework("cis", "googleworkspace", "1.4")
         assert rule.references
         assert len(rule.references) >= 1
 

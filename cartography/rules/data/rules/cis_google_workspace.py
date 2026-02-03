@@ -93,7 +93,7 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
         Framework(
             name="CIS Google Workspace Foundations Benchmark",
             short_name="CIS",
-            scope="google_workspace",
+            scope="googleworkspace",
             revision="1.4",
             requirement="4.1.1.3",
         ),
@@ -165,7 +165,7 @@ cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
         Framework(
             name="CIS Google Workspace Foundations Benchmark",
             short_name="CIS",
-            scope="google_workspace",
+            scope="googleworkspace",
             revision="1.4",
             requirement="4.1.1.1",
         ),
