@@ -1058,6 +1058,34 @@ class CLI:
                 "Required for EC2 ownership sync (along with --spacelift-ec2-ownership-s3-bucket)."
             ),
         )
+        parser.add_argument(
+            "--syft-results-dir",
+            type=str,
+            default=None,
+            help=(
+                "Path to a directory containing Syft JSON results on disk. "
+                "Required if you are using the Syft module with local results. "
+                "Syft enriches TrivyPackage nodes with dependency relationships."
+            ),
+        )
+        parser.add_argument(
+            "--syft-s3-bucket",
+            type=str,
+            default=None,
+            help=(
+                "The S3 bucket name containing Syft scan results. "
+                "Required if you are using the Syft module with S3 storage."
+            ),
+        )
+        parser.add_argument(
+            "--syft-s3-prefix",
+            type=str,
+            default=None,
+            help=(
+                "The S3 prefix path containing Syft scan results. "
+                "Required if you are using the Syft module with S3 storage."
+            ),
+        )
 
         return parser
 
@@ -1441,6 +1469,16 @@ class CLI:
 
         if config.trivy_results_dir:
             logger.debug(f"Trivy results dir: {config.trivy_results_dir}")
+
+        # Syft config
+        if config.syft_s3_bucket:
+            logger.debug(f"Syft S3 bucket: {config.syft_s3_bucket}")
+
+        if config.syft_s3_prefix:
+            logger.debug(f"Syft S3 prefix: {config.syft_s3_prefix}")
+
+        if config.syft_results_dir:
+            logger.debug(f"Syft results dir: {config.syft_results_dir}")
 
         # Scaleway config
         if config.scaleway_secret_key_env_var:
