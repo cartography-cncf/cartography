@@ -65,6 +65,9 @@ def _setup_trivy_data_for_sbom_test(neo4j_session):
 
     This simulates what the Trivy module would create before SBOM enrichment.
     """
+    # Clear any existing data to ensure test isolation
+    _clear_test_data(neo4j_session)
+
     # Create TrivyPackage nodes with Trivy ID format: {version}|{name}
     packages = [
         {"id": "4.17.1|express", "name": "express", "version": "4.17.1"},

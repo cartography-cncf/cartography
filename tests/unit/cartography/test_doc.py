@@ -20,6 +20,7 @@ def test_schema_doc():
         if m in (
             "analysis",
             "create-indexes",
+            "sbom",  # Enriches TrivyPackage nodes; schema documented in trivy/schema.md
         ):
             continue
         existing_modules.append(m)
