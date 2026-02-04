@@ -490,7 +490,7 @@ Represents a GitHub Actions workflow definition file in a repository.
 | **state** | Workflow state: `active`, `disabled_manually`, `disabled_inactivity`, `disabled_fork`, or `deleted` |
 | **created_at** | Timestamp when the workflow was created |
 | **updated_at** | Timestamp when the workflow was last updated |
-| **html_url** | Web URL for viewing the workflow file |
+| **repo_url** | URL of the repository containing this workflow (e.g., `https://github.com/org/repo`) |
 
 #### Relationships
 

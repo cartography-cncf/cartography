@@ -172,7 +172,7 @@ async def get_blob_json_via_presigned(
     return response.json()
 
 
-def _extract_workflow_path_from_ref(workflow_ref: str) -> Optional[str]:
+def _extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
     """
     Extract the workflow file path from a GitHub workflow ref.
 
@@ -180,8 +180,14 @@ def _extract_workflow_path_from_ref(workflow_ref: str) -> Optional[str]:
     Example: "subimagesec/subimage/.github/workflows/docker-push.yaml@refs/pull/1042/merge"
     Returns: ".github/workflows/docker-push.yaml"
 
+    This extracts the path for matching against GitHubWorkflow.path to establish
+    the BUILT_BY relationship between images and workflows (combined with repo_url matching).
+
     :param workflow_ref: The full workflow reference string
     :return: The workflow file path, or None if parsing fails
+
+    # TODO: Move this function to the ontology module once CIWorkflow is modeled,
+    # as this logic will be shared across different CI systems (GitHub Actions, GitLab CI, etc.)
     """
     if not workflow_ref:
         return None
