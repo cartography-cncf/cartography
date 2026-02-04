@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -82,8 +83,6 @@ cis_gcp_3_1_default_network = Rule(
     output_model=DefaultNetworkExistsOutput,
     facts=(_gcp_default_network_exists,),
     tags=(
-        "cis:3.1",
-        "cis:gcp-4.0",
         "networking",
         "vpc",
         "stride:information_disclosure",
@@ -91,6 +90,15 @@ cis_gcp_3_1_default_network = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS GCP Foundations Benchmark",
+            short_name="CIS",
+            requirement="3.1",
+            scope="gcp",
+            revision="4.0",
+        ),
+    ),
 )
 
 
@@ -168,8 +176,6 @@ cis_gcp_3_6_unrestricted_ssh = Rule(
     output_model=UnrestrictedSshOutput,
     facts=(_gcp_unrestricted_ssh,),
     tags=(
-        "cis:3.6",
-        "cis:gcp-4.0",
         "networking",
         "firewall",
         "ssh",
@@ -178,6 +184,15 @@ cis_gcp_3_6_unrestricted_ssh = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS GCP Foundations Benchmark",
+            short_name="CIS",
+            requirement="3.6",
+            scope="gcp",
+            revision="4.0",
+        ),
+    ),
 )
 
 
@@ -255,8 +270,6 @@ cis_gcp_3_7_unrestricted_rdp = Rule(
     output_model=UnrestrictedRdpOutput,
     facts=(_gcp_unrestricted_rdp,),
     tags=(
-        "cis:3.7",
-        "cis:gcp-4.0",
         "networking",
         "firewall",
         "rdp",
@@ -265,6 +278,15 @@ cis_gcp_3_7_unrestricted_rdp = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS GCP Foundations Benchmark",
+            short_name="CIS",
+            requirement="3.7",
+            scope="gcp",
+            revision="4.0",
+        ),
+    ),
 )
 
 
@@ -328,8 +350,6 @@ cis_gcp_4_9_public_ip = Rule(
     output_model=InstancePublicIpOutput,
     facts=(_gcp_instance_public_ip,),
     tags=(
-        "cis:4.9",
-        "cis:gcp-4.0",
         "compute",
         "networking",
         "stride:information_disclosure",
@@ -337,6 +357,15 @@ cis_gcp_4_9_public_ip = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS GCP Foundations Benchmark",
+            short_name="CIS",
+            requirement="4.9",
+            scope="gcp",
+            revision="4.0",
+        ),
+    ),
 )
 
 
@@ -398,8 +427,6 @@ cis_gcp_5_2_bucket_uniform_access = Rule(
     output_model=BucketUniformAccessOutput,
     facts=(_gcp_bucket_uniform_access_disabled,),
     tags=(
-        "cis:5.2",
-        "cis:gcp-4.0",
         "storage",
         "gcs",
         "stride:information_disclosure",
@@ -407,4 +434,13 @@ cis_gcp_5_2_bucket_uniform_access = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS GCP Foundations Benchmark",
+            short_name="CIS",
+            requirement="5.2",
+            scope="gcp",
+            revision="4.0",
+        ),
+    ),
 )

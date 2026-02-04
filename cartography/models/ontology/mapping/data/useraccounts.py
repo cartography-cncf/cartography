@@ -409,6 +409,20 @@ spacelift_mapping = OntologyMapping(
         ),
     ],
 )
+pagerduty_mapping = OntologyMapping(
+    module_name="pagerduty",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="PagerDutyUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+            ],
+        ),
+    ],
+)
 
 # UserAccount fields:
 # has_mfa
@@ -434,4 +448,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "googleworkspace": googleworkspace_mapping,
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
+    "pagerduty": pagerduty_mapping,
 }

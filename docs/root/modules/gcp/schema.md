@@ -1504,6 +1504,8 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
 
 Representation of a [Docker Image](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages) in a GCP Artifact Registry repository.
 
+> **Ontology Mapping**: This node has conditional extra labels based on the image media type: `Image` for single-image manifests (Docker V2 manifest or OCI image manifest), or `ImageManifestList` for multi-architecture manifest lists (Docker V2 manifest list or OCI image index). These labels enable cross-platform queries for container images across different systems (e.g., ECRImage, GitLabContainerImage).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Full resource name of the Docker image |

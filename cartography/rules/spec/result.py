@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from dataclasses import field
 
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
 
 
 @dataclass
@@ -82,6 +83,8 @@ class RuleResult:
         rule_description (str): A description of the security issue or misconfiguration.
         counter (CounterResult): Execution counters and aggregate metrics.
         facts (list[FactResult]): Results from each Fact executed within this Rule.
+        rule_tags (tuple[str, ...]): Tags associated with the Rule.
+        rule_frameworks (tuple[Framework, ...]): Compliance frameworks this rule maps to.
     """
 
     rule_id: str
@@ -89,3 +92,5 @@ class RuleResult:
     rule_description: str
     counter: CounterResult
     facts: list[FactResult] = field(default_factory=list)
+    rule_tags: tuple[str, ...] = ()
+    rule_frameworks: tuple[Framework, ...] = ()

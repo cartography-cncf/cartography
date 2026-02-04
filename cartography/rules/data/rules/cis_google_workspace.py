@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -85,15 +86,18 @@ cis_gw_4_1_1_3_user_2sv_not_enforced = Rule(
     ),
     output_model=UserWithout2SVOutput,
     facts=(_gw_user_2sv_not_enforced,),
-    tags=(
-        "cis:4.1.1.3",
-        "cis:googleworkspace-1.4",
-        "iam",
-        "authentication",
-        "stride:spoofing",
-    ),
+    tags=("iam", "authentication", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS Google Workspace Foundations Benchmark",
+            short_name="CIS",
+            scope="googleworkspace",
+            revision="1.4",
+            requirement="4.1.1.3",
+        ),
+    ),
 )
 
 
@@ -154,14 +158,16 @@ cis_gw_4_1_1_1_admin_2sv_not_enforced = Rule(
     ),
     output_model=AdminWithout2SVOutput,
     facts=(_gw_admin_2sv_not_enforced,),
-    tags=(
-        "cis:4.1.1.1",
-        "cis:googleworkspace-1.4",
-        "iam",
-        "authentication",
-        "privileged_access",
-        "stride:spoofing",
-    ),
+    tags=("iam", "authentication", "privileged_access", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS Google Workspace Foundations Benchmark",
+            short_name="CIS",
+            scope="googleworkspace",
+            revision="1.4",
+            requirement="4.1.1.1",
+        ),
+    ),
 )

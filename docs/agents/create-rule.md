@@ -18,7 +18,8 @@ This guide covers how to create security rules in Cartography to identify attack
 10. [Step-by-Step: Creating a New Rule](#step-by-step-creating-a-new-rule) - Complete walkthrough
 11. [Cross-Provider Rules](#cross-provider-rules) - Multi-cloud detection
 12. [Using Ontology in Rules](#using-ontology-in-rules) - Leverage semantic labels
-13. [CIS Benchmark Rules Conventions](#cis-benchmark-rules-conventions) - Compliance rules
+13. [Compliance Frameworks](#compliance-frameworks) - Framework object for structured metadata
+14. [CIS Benchmark Rules Conventions](#cis-benchmark-rules-conventions) - Compliance rules
 
 ## Overview
 
@@ -45,6 +46,7 @@ Rule (e.g., "database-exposed")
 from cartography.rules.spec.model import (
     Fact,
     Finding,
+    Framework,
     Maturity,
     Module,
     Rule,
@@ -398,6 +400,91 @@ _unmanaged_accounts = Fact(
 
 ---
 
+## Compliance Frameworks
+
+Rules can be linked to compliance frameworks (CIS, NIST, SOC2, etc.) using the `Framework` dataclass. This provides structured metadata for filtering and reporting.
+
+### The Framework Object
+
+```python
+from cartography.rules.spec.model import Framework
+
+Framework(
+    name="CIS AWS Foundations Benchmark",  # Full framework name
+    short_name="CIS",                       # Abbreviated name for filtering
+    requirement="1.14",                     # Specific requirement identifier
+    scope="aws",                            # Optional: platform/domain (aws, gcp, googleworkspace)
+    revision="5.0",                         # Optional: framework version
+)
+```
+
+**Key behaviors:**
+- All fields are **case-insensitive** and normalized to lowercase internally
+- `scope` should match the Cartography module identifier (e.g., `aws`, `gcp`, `googleworkspace`)
+- `requirement` is the specific control number from the framework
+
+### Adding Frameworks to Rules
+
+```python
+from cartography.rules.spec.model import Framework, Rule
+
+my_rule = Rule(
+    id="cis_aws_1_14_access_key_not_rotated",
+    name="CIS AWS 1.14: Access Keys Not Rotated",
+    # ... other fields ...
+    tags=("iam", "credentials", "stride:spoofing"),  # Category tags only
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="1.14",
+        ),
+    ),
+)
+```
+
+**Important:** Compliance-specific tags like `cis:1.14` and `cis:aws-5.0` should be **removed** from `tags` and replaced with a `Framework` object. Keep only category tags (`iam`, `credentials`, `stride:*`) in `tags`.
+
+### CLI Framework Filtering
+
+Users can filter rules by framework using the `--framework` option:
+
+```bash
+# List all CIS rules
+cartography-rules list --framework CIS
+
+# List CIS rules for AWS
+cartography-rules list --framework CIS:aws
+
+# List CIS AWS 5.0 rules specifically
+cartography-rules list --framework CIS:aws:5.0
+
+# Run all CIS rules
+cartography-rules run all --framework CIS
+
+# List all available frameworks
+cartography-rules frameworks
+```
+
+### Checking Framework Membership
+
+Use `Rule.has_framework()` to check if a rule matches a framework:
+
+```python
+# Check if rule has any CIS framework
+rule.has_framework("CIS")
+
+# Check if rule has CIS AWS framework
+rule.has_framework("CIS", "aws")
+
+# Check if rule has CIS AWS 5.0 specifically
+rule.has_framework("CIS", "aws", "5.0")
+```
+
+---
+
 ## CIS Benchmark Rules Conventions
 
 When creating CIS (Center for Internet Security) compliance rules, follow these additional conventions:
@@ -463,27 +550,30 @@ cis_azure_iam.py      # CIS Azure IAM controls
 # =============================================================================
 ```
 
-### Tags
+### Tags vs Frameworks
 
-Include control number and benchmark version:
-
+**Use `frameworks` for compliance references:**
 ```python
-tags=(
-    "cis:1.14",           # Control number
-    "cis:aws-5.0",        # Benchmark version
-    "iam",                # Category
-    "credentials",        # Specific area
-    "stride:spoofing",    # Threat model
+frameworks=(
+    Framework(
+        name="CIS AWS Foundations Benchmark",
+        short_name="CIS",
+        scope="aws",
+        revision="5.0",
+        requirement="1.14",
+    ),
 )
 ```
 
-### Rule IDs
-
-Use lowercase with underscores, prefixed with `cis_`:
-
+**Use `tags` for categories only:**
 ```python
-id="cis_aws_1_14_access_key_not_rotated"
-id="cis_aws_2_1_1_s3_versioning"
+tags=("iam", "credentials", "stride:spoofing")
+```
+
+**Do NOT mix compliance info in tags:**
+```python
+# Incorrect - compliance info belongs in frameworks
+tags=("cis:1.14", "cis:aws-5.0", "iam", "credentials")
 ```
 
 ### CIS References
@@ -513,7 +603,9 @@ CIS_REFERENCES = [
 ### Complete CIS Example
 
 ```python
-from cartography.rules.spec.model import Fact, Finding, Maturity, Module, Rule, RuleReference
+from cartography.rules.spec.model import (
+    Fact, Finding, Framework, Maturity, Module, Rule, RuleReference,
+)
 
 # =============================================================================
 # CIS AWS 1.14: Access keys not rotated in 90 days
@@ -550,13 +642,7 @@ cis_aws_1_14_access_key_not_rotated = Rule(
     name="CIS AWS 1.14: Access Keys Not Rotated",
     description="IAM access keys should be rotated every 90 days or less",
     output_model=CIS114Output,
-    tags=(
-        "cis:1.14",
-        "cis:aws-5.0",
-        "iam",
-        "credentials",
-        "stride:spoofing",
-    ),
+    tags=("iam", "credentials", "stride:spoofing"),
     facts=(_cis_aws_1_14_fact,),
     references=[
         RuleReference(
@@ -564,6 +650,15 @@ cis_aws_1_14_access_key_not_rotated = Rule(
             url="https://www.cisecurity.org/benchmark/amazon_web_services",
         ),
     ],
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="1.14",
+        ),
+    ),
     version="1.0.0",
 )
 ```

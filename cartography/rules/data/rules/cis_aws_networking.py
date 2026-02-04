@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -103,8 +104,6 @@ cis_aws_5_1_unrestricted_ssh = Rule(
     output_model=UnrestrictedSshOutput,
     facts=(_aws_unrestricted_ssh,),
     tags=(
-        "cis:5.1",
-        "cis:aws-5.0",
         "networking",
         "security-groups",
         "ssh",
@@ -113,6 +112,15 @@ cis_aws_5_1_unrestricted_ssh = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="5.1",
+        ),
+    ),
 )
 
 
@@ -192,8 +200,6 @@ cis_aws_5_2_unrestricted_rdp = Rule(
     output_model=UnrestrictedRdpOutput,
     facts=(_aws_unrestricted_rdp,),
     tags=(
-        "cis:5.2",
-        "cis:aws-5.0",
         "networking",
         "security-groups",
         "rdp",
@@ -202,6 +208,15 @@ cis_aws_5_2_unrestricted_rdp = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="5.2",
+        ),
+    ),
 )
 
 
@@ -285,8 +300,6 @@ cis_aws_5_4_default_sg_traffic = Rule(
     output_model=DefaultSgAllowsTrafficOutput,
     facts=(_aws_default_sg_allows_traffic,),
     tags=(
-        "cis:5.4",
-        "cis:aws-5.0",
         "networking",
         "security-groups",
         "stride:information_disclosure",
@@ -294,4 +307,13 @@ cis_aws_5_4_default_sg_traffic = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="5.4",
+        ),
+    ),
 )

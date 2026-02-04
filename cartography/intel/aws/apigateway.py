@@ -223,6 +223,16 @@ def transform_apigateway_rest_apis(
 ) -> List[Dict]:
     """
     Transform API Gateway REST API data for ingestion, including policy analysis
+    and endpoint configuration for internet exposure detection.
+
+    Two distinct security concepts are tracked:
+    - anonymous_access: Policy-level access (from PolicyUniverse analysis)
+    - exposed_internet: Network-level exposure (from endpoint configuration)
+
+    Endpoint types and their exposure:
+    - EDGE: Internet exposed (default, via CloudFront)
+    - REGIONAL: Internet exposed (direct regional access)
+    - PRIVATE: NOT internet exposed (VPC-only via VPC Endpoints)
     """
     # Create a mapping of api_id to policy data for easier lookup
     policy_map = {policy["api_id"]: policy for policy in resource_policies}
@@ -230,16 +240,30 @@ def transform_apigateway_rest_apis(
     transformed_apis = []
     for api in rest_apis:
         policy_data = policy_map.get(api["id"], {})
+
+        # Extract endpoint type from configuration
+        # The types field is a list for historical reasons but contains one element
+        endpoint_config = api.get("endpointConfiguration", {})
+        endpoint_types = endpoint_config.get("types", [])
+        endpoint_type = endpoint_types[0] if endpoint_types else None
+
+        # Network-level exposure: PRIVATE endpoints are VPC-only
+        exposed_internet = (
+            endpoint_type in ("EDGE", "REGIONAL") if endpoint_type else None
+        )
+
         transformed_api = {
             "id": api["id"],
             "createdDate": str(api["createdDate"]) if "createdDate" in api else None,
             "version": api.get("version"),
             "minimumCompressionSize": api.get("minimumCompressionSize"),
             "disableExecuteApiEndpoint": api.get("disableExecuteApiEndpoint"),
-            # Set defaults in the transform function
+            # Policy-level access: True if resource policy allows anonymous/public access
             "anonymous_access": policy_data.get("internet_accessible", False),
             "anonymous_actions": policy_data.get("accessible_actions", []),
-            # TODO Issue #1452: clarify internet exposure vs anonymous access
+            # Network-level exposure based on endpoint configuration
+            "endpoint_type": endpoint_type,
+            "exposed_internet": exposed_internet,
         }
         transformed_apis.append(transformed_api)
 
