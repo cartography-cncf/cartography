@@ -447,34 +447,31 @@ def load_provenance_relationships(
 
 
 @timeit
-def get_workflow_matches_for_org(
+def get_images_with_workflow_provenance(
     neo4j_session: neo4j.Session,
     organization: str,
 ) -> list[dict[str, Any]]:
     """
-    Query images with SLSA provenance workflow info and resolve to GitHubWorkflow nodes.
-
-    This joins images that have invocation_workflow to GitHubWorkflow nodes via the
-    source repository. The workflow is identified by matching the path within the repo.
+    Query images with SLSA provenance workflow info for a given organization.
 
     Returns data formatted for load_matchlinks with ImageBuiltByWorkflowMatchLink schema.
+    The MatchLink will handle joining to GitHubWorkflow via repo_url + path.
 
     :param neo4j_session: Neo4j session
-    :param organization: The GitHub organization name to match against
+    :param organization: The GitHub organization name to filter by
     :return: List of dicts ready for load_matchlinks
     """
-    # Query images that have invocation_workflow and resolve to workflow via repo
-    # Join: Image.source_uri -> GitHubRepository.id -> HAS_WORKFLOW -> GitHubWorkflow.path
+    # Query images that have workflow provenance and belong to repos in this org
     query = """
         MATCH (img:Image)
         WHERE img.source_uri IS NOT NULL
           AND img.invocation_workflow IS NOT NULL
         MATCH (gh_repo:GitHubRepository {id: img.source_uri})
-              -[:HAS_WORKFLOW]->(wf:GitHubWorkflow {path: img.invocation_workflow})
-        MATCH (gh_repo)<-[:OWNER]-(gh_org:GitHubOrganization {login: $organization})
+              <-[:OWNER]-(gh_org:GitHubOrganization {login: $organization})
         RETURN DISTINCT
             img.digest AS image_digest,
-            wf.id AS workflow_id,
+            img.source_uri AS workflow_repo_url,
+            img.invocation_workflow AS workflow_path,
             img.invocation_run_number AS run_number
     """
 
@@ -485,13 +482,14 @@ def get_workflow_matches_for_org(
         matches.append(
             {
                 "image_digest": record["image_digest"],
-                "workflow_id": record["workflow_id"],
+                "workflow_repo_url": record["workflow_repo_url"],
+                "workflow_path": record["workflow_path"],
                 "run_number": record["run_number"],
             }
         )
 
     logger.info(
-        "Found %d workflow matches for organization %s",
+        "Found %d images with workflow provenance for organization %s",
         len(matches),
         organization,
     )
@@ -515,7 +513,7 @@ def load_workflow_relationships(
     :param update_tag: The update timestamp tag
     :return: Number of relationships created
     """
-    matches = get_workflow_matches_for_org(neo4j_session, organization)
+    matches = get_images_with_workflow_provenance(neo4j_session, organization)
 
     if not matches:
         logger.info("No workflow matches found for %s", organization)

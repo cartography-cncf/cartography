@@ -107,14 +107,16 @@ class ImageBuiltByWorkflowMatchLink(CartographyRelSchema):
     Direction: (Image)-[:BUILT_BY]->(GitHubWorkflow)
 
     This relationship is created when SLSA provenance attestations specify
-    the GitHub Actions workflow that built the container image. The run_number
+    the GitHub Actions workflow that built the container image. The matching
+    uses repo_url + path to identify the correct workflow. The run_number
     property indicates which specific workflow run produced the image.
     """
 
     target_node_label: str = "GitHubWorkflow"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "id": PropertyRef("workflow_id"),
+            "repo_url": PropertyRef("workflow_repo_url"),
+            "path": PropertyRef("workflow_path"),
         }
     )
     source_node_label: str = "Image"
