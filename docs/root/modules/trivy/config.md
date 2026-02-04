@@ -83,3 +83,29 @@ Ensure that the machine running Trivy has the necessary permissions to scan your
 | Cartography Node label | Cloud permissions required to scan with Trivy |
 |---|---|
 | [ECRRepositoryImage](https://cartography-cncf.github.io/cartography/modules/aws/schema.html#ecrrepositoryimage) | `ecr:GetAuthorizationToken`, `ecr:BatchGetImage`, `ecr:GetDownloadUrlForLayer` |
+
+
+## Enriching with Dependency Graph (SBOM Module)
+
+Trivy provides excellent vulnerability detection but does not construct a dependency graph. To enable queries like "which direct dependency should I update to fix this CVE on a transitive dependency?", use the [SBOM module](../sbom/config.md) after Trivy ingestion.
+
+The SBOM module ingests CycloneDX SBOMs (typically from [Syft](https://github.com/anchore/syft)) and enriches existing TrivyPackage nodes with:
+
+- `is_direct` property - distinguishes direct vs transitive dependencies
+- `DEPENDS_ON` relationships - the dependency graph between packages
+
+**Example workflow:**
+
+```bash
+# Step 1: Scan with Trivy for vulnerabilities
+trivy image myimage:tag --format json --list-all-pkgs -o trivy-scan.json
+
+# Step 2: Generate SBOM with Syft for dependency graph
+syft myimage:tag -o cyclonedx-json=sbom.json
+
+# Step 3: Ingest both into Cartography
+cartography --selected-modules trivy --trivy-results-dir /path/to/trivy
+cartography --selected-modules sbom --sbom-results-dir /path/to/sbom
+```
+
+See the [SBOM module documentation](../sbom/config.md) for details on why we use Trivy + Syft together instead of a single tool.

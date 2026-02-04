@@ -41,6 +41,7 @@ import cartography.intel.okta
 import cartography.intel.ontology
 import cartography.intel.openai
 import cartography.intel.pagerduty
+import cartography.intel.sbom
 import cartography.intel.scaleway
 import cartography.intel.semgrep
 import cartography.intel.sentinelone
@@ -92,6 +93,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "jamf": cartography.intel.jamf.start_jamf_ingestion,
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
+        "sbom": cartography.intel.sbom.start_sbom_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "slack": cartography.intel.slack.start_slack_ingestion,
         "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,

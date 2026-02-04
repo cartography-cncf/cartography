@@ -54,19 +54,22 @@ Representation of a vulnerability finding in a container image.
     (TrivyImageFinding)-[AFFECTS]->(GitLabContainerImage)
     ```
 
-### Package
+### TrivyPackage (also labeled as Package)
 Representation of a package installed in a container image.
 
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Unique identifier for the package (format: version|name) |
+| **id** | Unique identifier for the package (format: version\|name) |
 | installed_version | Version of the installed package |
 | name | Name of the package |
 | version | Version of the package (same as installed_version) |
 | class_name | Class of the package (e.g. os, library) |
 | type | Type of the package |
+| purl | Package URL (PURL) identifier |
+| pkg_id | Package identifier from the package manager |
+| is_direct | Boolean indicating if this is a direct dependency (set by [SBOM module](../sbom/schema.md)) |
 
 #### Relationships
 
@@ -98,6 +101,12 @@ Representation of a package installed in a container image.
 
     ```
     (Package)<-[AFFECTS]-(TrivyImageFinding)
+    ```
+
+- A TrivyPackage depends on another TrivyPackage (created by [SBOM module](../sbom/schema.md)).
+
+    ```
+    (TrivyPackage)-[DEPENDS_ON]->(TrivyPackage)
     ```
 
 ### TrivyFix

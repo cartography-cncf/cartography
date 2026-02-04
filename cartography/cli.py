@@ -882,6 +882,33 @@ class CLI:
             ),
         )
         parser.add_argument(
+            "--sbom-s3-bucket",
+            type=str,
+            default=None,
+            help=(
+                "The S3 bucket name containing CycloneDX SBOM files. "
+                "Required if you are using the SBOM module with S3."
+            ),
+        )
+        parser.add_argument(
+            "--sbom-s3-prefix",
+            type=str,
+            default=None,
+            help=(
+                "The S3 prefix path containing CycloneDX SBOM files. "
+                "Required if you are using the SBOM module with S3."
+            ),
+        )
+        parser.add_argument(
+            "--sbom-results-dir",
+            type=str,
+            default=None,
+            help=(
+                "Path to a directory containing CycloneDX SBOM JSON files on disk. "
+                "Required if you are using the SBOM module with local results."
+            ),
+        )
+        parser.add_argument(
             "--scaleway-org",
             type=str,
             default=None,
@@ -1441,6 +1468,16 @@ class CLI:
 
         if config.trivy_results_dir:
             logger.debug(f"Trivy results dir: {config.trivy_results_dir}")
+
+        # SBOM config
+        if config.sbom_s3_bucket:
+            logger.debug(f"SBOM S3 bucket: {config.sbom_s3_bucket}")
+
+        if config.sbom_s3_prefix:
+            logger.debug(f"SBOM S3 prefix: {config.sbom_s3_prefix}")
+
+        if config.sbom_results_dir:
+            logger.debug(f"SBOM results dir: {config.sbom_results_dir}")
 
         # Scaleway config
         if config.scaleway_secret_key_env_var:

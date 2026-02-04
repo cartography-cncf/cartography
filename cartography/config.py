@@ -228,6 +228,12 @@ class Config:
     :param slack_teams: List of Slack team IDs to sync. Optional.
     :type slack_channels_memberships: bool
     :param slack_channels_memberships: If True, sync Slack channel membership data. Optional.
+    :type sbom_s3_bucket: str
+    :param sbom_s3_bucket: The S3 bucket name containing SBOM files. Optional.
+    :type sbom_s3_prefix: str
+    :param sbom_s3_prefix: The S3 prefix path containing SBOM files. Optional.
+    :type sbom_results_dir: str
+    :param sbom_results_dir: Local directory containing SBOM files. Optional.
     """
 
     def __init__(
@@ -344,6 +350,9 @@ class Config:
         slack_token=None,
         slack_teams=None,
         slack_channels_memberships=False,
+        sbom_s3_bucket=None,
+        sbom_s3_prefix=None,
+        sbom_results_dir=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -459,3 +468,6 @@ class Config:
         self.slack_token = slack_token
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships
+        self.sbom_s3_bucket = sbom_s3_bucket
+        self.sbom_s3_prefix = sbom_s3_prefix
+        self.sbom_results_dir = sbom_results_dir
