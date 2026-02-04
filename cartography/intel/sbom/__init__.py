@@ -25,7 +25,6 @@ from neo4j import Session
 from cartography.client.core.tx import load_matchlinks
 from cartography.config import Config
 from cartography.graph.job import GraphJob
-from cartography.intel.sbom.parser import extract_image_digest
 from cartography.intel.sbom.parser import transform_sbom_dependencies
 from cartography.intel.sbom.parser import transform_sbom_packages
 from cartography.intel.sbom.parser import validate_cyclonedx_sbom
@@ -149,7 +148,7 @@ def update_trivy_packages_is_direct(
 def load_sbom_dependencies(
     neo4j_session: Session,
     dependencies: list[dict[str, Any]],
-    image_digest: str,
+    source: str,
     update_tag: int,
 ) -> None:
     """
@@ -160,7 +159,7 @@ def load_sbom_dependencies(
     Args:
         neo4j_session: Neo4j session for database operations.
         dependencies: List of dependency relationships with Trivy-compatible IDs.
-        image_digest: Image digest for sub-resource tracking in cleanup.
+        source: Source identifier for sub-resource tracking in cleanup.
         update_tag: Update tag for tracking.
     """
     if not dependencies:
@@ -172,8 +171,8 @@ def load_sbom_dependencies(
         TrivyPackageDependsOnMatchLink(),
         dependencies,
         lastupdated=update_tag,
-        _sub_resource_label="ECRImage",
-        _sub_resource_id=image_digest,
+        _sub_resource_label="SBOMSource",
+        _sub_resource_id=source,
     )
 
 
@@ -183,7 +182,6 @@ def sync_single_sbom(
     sbom_data: dict[str, Any],
     source: str,
     update_tag: int,
-    image_digest: str | None = None,
 ) -> None:
     """
     Sync a single SBOM to Neo4j by enriching existing TrivyPackage nodes.
@@ -193,29 +191,23 @@ def sync_single_sbom(
     2. Updates existing TrivyPackage nodes with is_direct property
     3. Creates DEPENDS_ON relationships between TrivyPackage nodes
 
+    TrivyPackage IDs are global ({version}|{name}), not image-scoped.
+    The DEPLOYED relationship (from Trivy module) handles image association.
+
     Args:
         neo4j_session: Neo4j session for database operations.
         sbom_data: Raw CycloneDX SBOM data.
         source: Source identifier for logging (file path or S3 URI).
         update_tag: Update tag for tracking.
-        image_digest: Optional pre-extracted image digest.
     """
     if not validate_cyclonedx_sbom(sbom_data):
         logger.warning("Skipping invalid SBOM from %s", source)
         return
 
-    # Extract image digest if not provided
-    if not image_digest:
-        image_digest = extract_image_digest(sbom_data)
-
-    if not image_digest:
-        logger.warning("Could not determine image digest for SBOM from %s", source)
-        return
-
-    logger.info("Processing SBOM for image %s from %s", image_digest, source)
+    logger.info("Processing SBOM from %s", source)
 
     # Phase 1: Transform packages and update TrivyPackage nodes with is_direct
-    packages = transform_sbom_packages(sbom_data, image_digest)
+    packages = transform_sbom_packages(sbom_data)
     num_packages = len(packages)
     num_direct = sum(1 for p in packages if p.get("is_direct"))
     logger.debug(
@@ -236,15 +228,15 @@ def sync_single_sbom(
         )
 
     # Phase 2: Transform and load dependency relationships
-    dependencies = transform_sbom_dependencies(sbom_data, image_digest)
+    dependencies = transform_sbom_dependencies(sbom_data)
     logger.debug("Loading %d dependency relationships", len(dependencies))
-    load_sbom_dependencies(neo4j_session, dependencies, image_digest, update_tag)
+    load_sbom_dependencies(neo4j_session, dependencies, source, update_tag)
     stat_handler.incr("sbom_dependencies_loaded", len(dependencies))
 
-    stat_handler.incr("sbom_images_processed")
+    stat_handler.incr("sbom_files_processed")
     logger.info(
         "Completed SBOM sync for %s: %d packages enriched, %d deps",
-        image_digest,
+        source,
         updated_count,
         len(dependencies),
     )
@@ -253,14 +245,14 @@ def sync_single_sbom(
 @timeit
 def cleanup_sbom_dependencies(
     neo4j_session: Session,
-    image_digest: str,
+    source: str,
     update_tag: int,
 ) -> None:
-    """Run cleanup for DEPENDS_ON matchlinks for a specific image."""
+    """Run cleanup for DEPENDS_ON matchlinks for a specific SBOM source."""
     cleanup_job = GraphJob.from_matchlink(
         TrivyPackageDependsOnMatchLink(),
-        "ECRImage",
-        image_digest,
+        "SBOMSource",
+        source,
         update_tag,
     )
     cleanup_job.run(neo4j_session)
@@ -301,44 +293,29 @@ def sync_sbom_from_s3(
 
     logger.debug("Processing %d SBOM files from S3", len(json_files))
     s3_client = boto3_session.client("s3")
-    processed_images: set[str] = set()
+    processed_sources: list[str] = []
 
     for s3_object_key in json_files:
-        logger.debug("Reading SBOM from S3: s3://%s/%s", sbom_s3_bucket, s3_object_key)
+        source = f"s3://{sbom_s3_bucket}/{s3_object_key}"
+        logger.debug("Reading SBOM from S3: %s", source)
 
         try:
             response = s3_client.get_object(Bucket=sbom_s3_bucket, Key=s3_object_key)
             sbom_json = response["Body"].read().decode("utf-8")
             sbom_data = json.loads(sbom_json)
         except json.JSONDecodeError as e:
-            logger.error(
-                "Failed to parse JSON from s3://%s/%s: %s",
-                sbom_s3_bucket,
-                s3_object_key,
-                e,
-            )
+            logger.error("Failed to parse JSON from %s: %s", source, e)
             continue
         except Exception as e:
-            logger.error(
-                "Failed to read s3://%s/%s: %s", sbom_s3_bucket, s3_object_key, e
-            )
+            logger.error("Failed to read %s: %s", source, e)
             continue
 
-        sync_single_sbom(
-            neo4j_session,
-            sbom_data,
-            f"s3://{sbom_s3_bucket}/{s3_object_key}",
-            update_tag,
-        )
+        sync_single_sbom(neo4j_session, sbom_data, source, update_tag)
+        processed_sources.append(source)
 
-        # Track processed images for dependency cleanup
-        image_digest = extract_image_digest(sbom_data)
-        if image_digest:
-            processed_images.add(image_digest)
-
-    # Cleanup dependency matchlinks per image
-    for image_digest in processed_images:
-        cleanup_sbom_dependencies(neo4j_session, image_digest, update_tag)
+    # Cleanup dependency matchlinks per source
+    for source in processed_sources:
+        cleanup_sbom_dependencies(neo4j_session, source, update_tag)
 
 
 @timeit
@@ -369,7 +346,7 @@ def sync_sbom_from_dir(
         raise ValueError("No SBOM JSON files found on disk.")
 
     logger.debug("Processing %d local SBOM files", len(json_files))
-    processed_images: set[str] = set()
+    processed_sources: list[str] = []
 
     for file_path in json_files:
         try:
@@ -383,15 +360,11 @@ def sync_sbom_from_dir(
             continue
 
         sync_single_sbom(neo4j_session, sbom_data, file_path, update_tag)
+        processed_sources.append(file_path)
 
-        # Track processed images for dependency cleanup
-        image_digest = extract_image_digest(sbom_data)
-        if image_digest:
-            processed_images.add(image_digest)
-
-    # Cleanup dependency matchlinks per image
-    for image_digest in processed_images:
-        cleanup_sbom_dependencies(neo4j_session, image_digest, update_tag)
+    # Cleanup dependency matchlinks per source
+    for source in processed_sources:
+        cleanup_sbom_dependencies(neo4j_session, source, update_tag)
 
 
 @timeit

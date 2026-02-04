@@ -278,12 +278,12 @@ class TestTransformSbomPackages:
 
     def test_transforms_all_packages(self):
         """Test that all packages are transformed."""
-        packages = transform_sbom_packages(CYCLONEDX_SBOM_SAMPLE, TEST_IMAGE_DIGEST)
+        packages = transform_sbom_packages(CYCLONEDX_SBOM_SAMPLE)
         assert len(packages) == 5
 
     def test_package_id_format_trivy(self):
         """Test that package IDs are in Trivy format: {version}|{name}."""
-        packages = transform_sbom_packages(CYCLONEDX_SBOM_SAMPLE, TEST_IMAGE_DIGEST)
+        packages = transform_sbom_packages(CYCLONEDX_SBOM_SAMPLE)
         package_ids = {p["id"] for p in packages}
 
         # IDs should be in Trivy format: version|name
@@ -291,7 +291,7 @@ class TestTransformSbomPackages:
 
     def test_is_direct_flag(self):
         """Test that is_direct flag is correctly set."""
-        packages = transform_sbom_packages(CYCLONEDX_SBOM_SAMPLE, TEST_IMAGE_DIGEST)
+        packages = transform_sbom_packages(CYCLONEDX_SBOM_SAMPLE)
         pkg_map = {p["name"]: p for p in packages}
 
         # Direct dependencies
@@ -305,7 +305,7 @@ class TestTransformSbomPackages:
 
     def test_ecosystem_extracted(self):
         """Test that ecosystem is extracted from purl."""
-        packages = transform_sbom_packages(CYCLONEDX_SBOM_SAMPLE, TEST_IMAGE_DIGEST)
+        packages = transform_sbom_packages(CYCLONEDX_SBOM_SAMPLE)
         for pkg in packages:
             assert pkg["ecosystem"] == "npm"
 
@@ -323,14 +323,14 @@ class TestTransformSbomPackages:
                 },
             ],
         }
-        packages = transform_sbom_packages(sbom, TEST_IMAGE_DIGEST)
+        packages = transform_sbom_packages(sbom)
         assert len(packages) == 1
         # ID should use Trivy format: version|name
         assert packages[0]["id"] == "1.0.0|no-purl"
 
     def test_trivy_compatible_fields(self):
         """Test that Trivy-compatible fields are included."""
-        packages = transform_sbom_packages(CYCLONEDX_SBOM_SAMPLE, TEST_IMAGE_DIGEST)
+        packages = transform_sbom_packages(CYCLONEDX_SBOM_SAMPLE)
         for pkg in packages:
             assert "PkgName" in pkg
             assert "InstalledVersion" in pkg
@@ -343,7 +343,7 @@ class TestTransformSbomDependencies:
 
     def test_transforms_dependency_relationships(self):
         """Test that dependency relationships are transformed."""
-        deps = transform_sbom_dependencies(CYCLONEDX_SBOM_SAMPLE, TEST_IMAGE_DIGEST)
+        deps = transform_sbom_dependencies(CYCLONEDX_SBOM_SAMPLE)
 
         # Should have 3 relationships:
         # express -> accepts, express -> body-parser, accepts -> mime-types
@@ -351,7 +351,7 @@ class TestTransformSbomDependencies:
 
     def test_dependency_format_trivy(self):
         """Test that dependencies have Trivy-compatible IDs."""
-        deps = transform_sbom_dependencies(CYCLONEDX_SBOM_SAMPLE, TEST_IMAGE_DIGEST)
+        deps = transform_sbom_dependencies(CYCLONEDX_SBOM_SAMPLE)
 
         # Convert to set for comparison
         dep_rels = {(d["source_id"], d["depends_on_id"]) for d in deps}
@@ -374,5 +374,5 @@ class TestTransformSbomDependencies:
             ],
             "dependencies": [],
         }
-        deps = transform_sbom_dependencies(sbom, TEST_IMAGE_DIGEST)
+        deps = transform_sbom_dependencies(sbom)
         assert deps == []

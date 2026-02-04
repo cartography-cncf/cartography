@@ -255,7 +255,6 @@ def extract_ecosystem_from_purl(purl: str | None) -> str | None:
 
 def transform_sbom_packages(
     sbom_data: dict[str, Any],
-    image_digest: str,
 ) -> list[dict[str, Any]]:
     """
     Transform SBOM components into package data for enriching TrivyPackage nodes.
@@ -265,7 +264,6 @@ def transform_sbom_packages(
 
     Args:
         sbom_data: CycloneDX SBOM data.
-        image_digest: The image digest this SBOM belongs to (for reference).
 
     Returns:
         List of dictionaries containing package data with Trivy-compatible IDs.
@@ -309,7 +307,6 @@ def transform_sbom_packages(
             "ecosystem": ecosystem,
             "type": component.get("type", ""),
             "is_direct": is_direct,
-            "image_digest": image_digest,
             # Fields for TrivyPackage compatibility
             "PkgName": name,
             "InstalledVersion": version,
@@ -326,7 +323,6 @@ def transform_sbom_packages(
 
 def transform_sbom_dependencies(
     sbom_data: dict[str, Any],
-    image_digest: str,
 ) -> list[dict[str, Any]]:
     """
     Transform SBOM dependency graph into relationship data for MatchLinks.
@@ -336,7 +332,6 @@ def transform_sbom_dependencies(
 
     Args:
         sbom_data: CycloneDX SBOM data.
-        image_digest: The image digest this SBOM belongs to (for reference).
 
     Returns:
         List of dictionaries for DEPENDS_ON relationships with Trivy-compatible IDs.
