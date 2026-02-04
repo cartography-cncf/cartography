@@ -2,7 +2,6 @@ import getpass
 import logging
 import os
 import sys
-from typing import Optional
 
 import typer
 from typing_extensions import Annotated
@@ -115,7 +114,7 @@ def _parse_selected_modules_from_argv(argv: list[str]) -> set[str]:
     # Why pre-parse? Typer generates help BEFORE parsing arguments, so we need to
     # know selected modules earlier. Hidden options still work (backward compat),
     # they just don't clutter --help.
-    selected_modules: Optional[str] = None
+    selected_modules: str | None = None
 
     for i, arg in enumerate(argv):
         if arg == "--selected-modules" and i + 1 < len(argv):
@@ -170,8 +169,8 @@ class CLI:
 
     def __init__(
         self,
-        sync: Optional[cartography.sync.Sync] = None,
-        prog: Optional[str] = None,
+        sync: cartography.sync.Sync | None = None,
+        prog: str | None = None,
     ):
         self.sync = sync if sync else cartography.sync.build_default_sync()
         self.prog = prog
@@ -267,7 +266,7 @@ class CLI:
                 ),
             ] = False,
             selected_modules: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--selected-modules",
                     help=(
@@ -280,7 +279,7 @@ class CLI:
                 ),
             ] = None,
             update_tag: Annotated[
-                Optional[int],
+                int | None,
                 typer.Option(
                     "--update-tag",
                     help=(
@@ -306,7 +305,7 @@ class CLI:
                 ),
             ] = "bolt://localhost:7687",
             neo4j_user: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--neo4j-user",
                     help="A username with which to authenticate to Neo4j.",
@@ -314,7 +313,7 @@ class CLI:
                 ),
             ] = None,
             neo4j_password_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--neo4j-password-env-var",
                     help="The name of an environment variable containing the Neo4j password.",
@@ -338,7 +337,7 @@ class CLI:
                 ),
             ] = 3600,
             neo4j_database: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--neo4j-database",
                     help="The name of the database in Neo4j to connect to. Uses Neo4j default if not specified.",
@@ -362,7 +361,7 @@ class CLI:
                 ),
             ] = False,
             aws_regions: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--aws-regions",
                     help=(
@@ -384,7 +383,7 @@ class CLI:
                 ),
             ] = False,
             aws_cloudtrail_management_events_lookback_hours: Annotated[
-                Optional[int],
+                int | None,
                 typer.Option(
                     "--aws-cloudtrail-management-events-lookback-hours",
                     help="Number of hours back to retrieve CloudTrail management events. Not retrieved if not specified.",
@@ -393,7 +392,7 @@ class CLI:
                 ),
             ] = None,
             aws_requested_syncs: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--aws-requested-syncs",
                     help=(
@@ -405,7 +404,7 @@ class CLI:
                 ),
             ] = None,
             aws_guardduty_severity_threshold: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--aws-guardduty-severity-threshold",
                     help="GuardDuty severity threshold. Valid values: LOW, MEDIUM, HIGH, CRITICAL.",
@@ -453,7 +452,7 @@ class CLI:
                 ),
             ] = False,
             azure_tenant_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--azure-tenant-id",
                     help="Azure Tenant ID for Service Principal Authentication.",
@@ -462,7 +461,7 @@ class CLI:
                 ),
             ] = None,
             azure_client_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--azure-client-id",
                     help="Azure Client ID for Service Principal Authentication.",
@@ -471,7 +470,7 @@ class CLI:
                 ),
             ] = None,
             azure_client_secret_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--azure-client-secret-env-var",
                     help="Environment variable name containing Azure Client Secret.",
@@ -480,7 +479,7 @@ class CLI:
                 ),
             ] = None,
             azure_subscription_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--azure-subscription-id",
                     help="The Azure Subscription ID to sync.",
@@ -501,7 +500,7 @@ class CLI:
             # Entra ID Options
             # =================================================================
             entra_tenant_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--entra-tenant-id",
                     help="Entra Tenant ID for Service Principal Authentication.",
@@ -510,7 +509,7 @@ class CLI:
                 ),
             ] = None,
             entra_client_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--entra-client-id",
                     help="Entra Client ID for Service Principal Authentication.",
@@ -519,7 +518,7 @@ class CLI:
                 ),
             ] = None,
             entra_client_secret_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--entra-client-secret-env-var",
                     help="Environment variable name containing Entra Client Secret.",
@@ -555,7 +554,7 @@ class CLI:
             # Okta Options
             # =================================================================
             okta_org_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--okta-org-id",
                     help="Okta organizational ID to sync. Required for Okta module.",
@@ -564,7 +563,7 @@ class CLI:
                 ),
             ] = None,
             okta_api_key_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--okta-api-key-env-var",
                     help="Environment variable name containing Okta API key.",
@@ -585,7 +584,7 @@ class CLI:
             # GitHub Options
             # =================================================================
             github_config_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--github-config-env-var",
                     help="Environment variable name containing Base64 encoded GitHub config.",
@@ -615,7 +614,7 @@ class CLI:
                 ),
             ] = "https://gitlab.com",
             gitlab_token_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--gitlab-token-env-var",
                     help="Environment variable name containing GitLab personal access token.",
@@ -624,7 +623,7 @@ class CLI:
                 ),
             ] = None,
             gitlab_organization_id: Annotated[
-                Optional[int],
+                int | None,
                 typer.Option(
                     "--gitlab-organization-id",
                     help="GitLab organization (top-level group) ID to sync.",
@@ -645,7 +644,7 @@ class CLI:
             # DigitalOcean Options
             # =================================================================
             digitalocean_token_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--digitalocean-token-env-var",
                     help="Environment variable name containing DigitalOcean access token.",
@@ -657,7 +656,7 @@ class CLI:
             # CrowdStrike Options
             # =================================================================
             crowdstrike_client_id_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--crowdstrike-client-id-env-var",
                     help="Environment variable name containing CrowdStrike client ID.",
@@ -666,7 +665,7 @@ class CLI:
                 ),
             ] = None,
             crowdstrike_client_secret_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--crowdstrike-client-secret-env-var",
                     help="Environment variable name containing CrowdStrike client secret.",
@@ -675,7 +674,7 @@ class CLI:
                 ),
             ] = None,
             crowdstrike_api_url: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--crowdstrike-api-url",
                     help="CrowdStrike API URL for self-hosted instances.",
@@ -687,7 +686,7 @@ class CLI:
             # Jamf Options
             # =================================================================
             jamf_base_uri: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--jamf-base-uri",
                     help="Jamf base URI, e.g. https://hostname.com/JSSResource.",
@@ -696,7 +695,7 @@ class CLI:
                 ),
             ] = None,
             jamf_user: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--jamf-user",
                     help="Username to authenticate to Jamf.",
@@ -705,7 +704,7 @@ class CLI:
                 ),
             ] = None,
             jamf_password_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--jamf-password-env-var",
                     help="Environment variable name containing Jamf password.",
@@ -717,7 +716,7 @@ class CLI:
             # Kandji Options
             # =================================================================
             kandji_base_uri: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--kandji-base-uri",
                     help="Kandji base URI, e.g. https://company.api.kandji.io.",
@@ -726,7 +725,7 @@ class CLI:
                 ),
             ] = None,
             kandji_tenant_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--kandji-tenant-id",
                     help="Kandji tenant ID.",
@@ -735,7 +734,7 @@ class CLI:
                 ),
             ] = None,
             kandji_token_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--kandji-token-env-var",
                     help="Environment variable name containing Kandji API token.",
@@ -747,7 +746,7 @@ class CLI:
             # Kubernetes Options
             # =================================================================
             k8s_kubeconfig: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--k8s-kubeconfig",
                     help="Path to kubeconfig file for K8s cluster(s).",
@@ -756,7 +755,7 @@ class CLI:
                 ),
             ] = None,
             managed_kubernetes: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--managed-kubernetes",
                     help="Type of managed Kubernetes service (e.g., 'eks').",
@@ -786,7 +785,7 @@ class CLI:
                 ),
             ] = False,
             cve_api_key_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--cve-api-key-env-var",
                     help="Environment variable name containing NIST NVD API v2.0 key.",
@@ -798,7 +797,7 @@ class CLI:
             # PagerDuty Options
             # =================================================================
             pagerduty_api_key_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--pagerduty-api-key-env-var",
                     help="Environment variable name containing PagerDuty API key.",
@@ -807,7 +806,7 @@ class CLI:
                 ),
             ] = None,
             pagerduty_request_timeout: Annotated[
-                Optional[int],
+                int | None,
                 typer.Option(
                     "--pagerduty-request-timeout",
                     help="Timeout in seconds for PagerDuty API requests.",
@@ -861,7 +860,7 @@ class CLI:
             # LastPass Options
             # =================================================================
             lastpass_cid_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--lastpass-cid-env-var",
                     help="Environment variable name containing LastPass CID.",
@@ -870,7 +869,7 @@ class CLI:
                 ),
             ] = None,
             lastpass_provhash_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--lastpass-provhash-env-var",
                     help="Environment variable name containing LastPass provhash.",
@@ -882,7 +881,7 @@ class CLI:
             # BigFix Options
             # =================================================================
             bigfix_username: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--bigfix-username",
                     help="BigFix username for authentication.",
@@ -891,7 +890,7 @@ class CLI:
                 ),
             ] = None,
             bigfix_password_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--bigfix-password-env-var",
                     help="Environment variable name containing BigFix password.",
@@ -900,7 +899,7 @@ class CLI:
                 ),
             ] = None,
             bigfix_root_url: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--bigfix-root-url",
                     help="BigFix API URL.",
@@ -912,7 +911,7 @@ class CLI:
             # Duo Options
             # =================================================================
             duo_api_key_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--duo-api-key-env-var",
                     help="Environment variable name containing Duo API key.",
@@ -921,7 +920,7 @@ class CLI:
                 ),
             ] = None,
             duo_api_secret_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--duo-api-secret-env-var",
                     help="Environment variable name containing Duo API secret.",
@@ -930,7 +929,7 @@ class CLI:
                 ),
             ] = None,
             duo_api_hostname: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--duo-api-hostname",
                     help="Duo API hostname.",
@@ -942,7 +941,7 @@ class CLI:
             # Workday Options
             # =================================================================
             workday_api_url: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--workday-api-url",
                     help="Workday API URL.",
@@ -951,7 +950,7 @@ class CLI:
                 ),
             ] = None,
             workday_api_login: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--workday-api-login",
                     help="Workday API login username.",
@@ -960,7 +959,7 @@ class CLI:
                 ),
             ] = None,
             workday_api_password_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--workday-api-password-env-var",
                     help="Environment variable name containing Workday API password.",
@@ -972,7 +971,7 @@ class CLI:
             # Semgrep Options
             # =================================================================
             semgrep_app_token_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--semgrep-app-token-env-var",
                     help="Environment variable name containing Semgrep app token.",
@@ -981,7 +980,7 @@ class CLI:
                 ),
             ] = None,
             semgrep_dependency_ecosystems: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--semgrep-dependency-ecosystems",
                     help='Comma-separated list of ecosystems for Semgrep dependencies. Example: "gomod,npm".',
@@ -993,7 +992,7 @@ class CLI:
             # SnipeIT Options
             # =================================================================
             snipeit_base_uri: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--snipeit-base-uri",
                     help="SnipeIT base URI.",
@@ -1002,7 +1001,7 @@ class CLI:
                 ),
             ] = None,
             snipeit_token_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--snipeit-token-env-var",
                     help="Environment variable name containing SnipeIT API token.",
@@ -1011,7 +1010,7 @@ class CLI:
                 ),
             ] = None,
             snipeit_tenant_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--snipeit-tenant-id",
                     help="SnipeIT tenant ID.",
@@ -1023,7 +1022,7 @@ class CLI:
             # Cloudflare Options
             # =================================================================
             cloudflare_token_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--cloudflare-token-env-var",
                     help="Environment variable name containing Cloudflare API key.",
@@ -1035,7 +1034,7 @@ class CLI:
             # Tailscale Options
             # =================================================================
             tailscale_token_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--tailscale-token-env-var",
                     help="Environment variable name containing Tailscale API token.",
@@ -1044,7 +1043,7 @@ class CLI:
                 ),
             ] = None,
             tailscale_org: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--tailscale-org",
                     help="Tailscale organization name to sync.",
@@ -1065,7 +1064,7 @@ class CLI:
             # OpenAI Options
             # =================================================================
             openai_apikey_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--openai-apikey-env-var",
                     help="Environment variable name containing OpenAI API key.",
@@ -1074,7 +1073,7 @@ class CLI:
                 ),
             ] = None,
             openai_org_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--openai-org-id",
                     help="OpenAI organization ID to sync.",
@@ -1086,7 +1085,7 @@ class CLI:
             # Anthropic Options
             # =================================================================
             anthropic_apikey_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--anthropic-apikey-env-var",
                     help="Environment variable name containing Anthropic API key.",
@@ -1098,7 +1097,7 @@ class CLI:
             # Airbyte Options
             # =================================================================
             airbyte_client_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--airbyte-client-id",
                     help="Airbyte client ID for authentication.",
@@ -1107,7 +1106,7 @@ class CLI:
                 ),
             ] = None,
             airbyte_client_secret_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--airbyte-client-secret-env-var",
                     help="Environment variable name containing Airbyte client secret.",
@@ -1128,7 +1127,7 @@ class CLI:
             # Trivy Options
             # =================================================================
             trivy_s3_bucket: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--trivy-s3-bucket",
                     help="S3 bucket name containing Trivy scan results.",
@@ -1137,7 +1136,7 @@ class CLI:
                 ),
             ] = None,
             trivy_s3_prefix: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--trivy-s3-prefix",
                     help="S3 prefix path for Trivy scan results.",
@@ -1146,7 +1145,7 @@ class CLI:
                 ),
             ] = None,
             trivy_results_dir: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--trivy-results-dir",
                     help="Local directory containing Trivy JSON results.",
@@ -1158,7 +1157,7 @@ class CLI:
             # Ontology Options
             # =================================================================
             ontology_users_source: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--ontology-users-source",
                     help="Comma-separated list of sources of truth for user data in the ontology.",
@@ -1167,7 +1166,7 @@ class CLI:
                 ),
             ] = None,
             ontology_devices_source: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--ontology-devices-source",
                     help="Comma-separated list of sources of truth for device data in the ontology.",
@@ -1179,7 +1178,7 @@ class CLI:
             # Scaleway Options
             # =================================================================
             scaleway_org: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--scaleway-org",
                     help="Scaleway organization ID to sync.",
@@ -1188,7 +1187,7 @@ class CLI:
                 ),
             ] = None,
             scaleway_access_key: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--scaleway-access-key",
                     help="Scaleway access key for authentication.",
@@ -1197,7 +1196,7 @@ class CLI:
                 ),
             ] = None,
             scaleway_secret_key_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--scaleway-secret-key-env-var",
                     help="Environment variable name containing Scaleway secret key.",
@@ -1209,7 +1208,7 @@ class CLI:
             # SentinelOne Options
             # =================================================================
             sentinelone_account_ids: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--sentinelone-account-ids",
                     help="Comma-separated list of SentinelOne account IDs to sync.",
@@ -1218,7 +1217,7 @@ class CLI:
                 ),
             ] = None,
             sentinelone_api_url: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--sentinelone-api-url",
                     help="SentinelOne API URL.",
@@ -1239,7 +1238,7 @@ class CLI:
             # Keycloak Options
             # =================================================================
             keycloak_client_id: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--keycloak-client-id",
                     help="Keycloak client ID to sync.",
@@ -1257,7 +1256,7 @@ class CLI:
                 ),
             ] = "KEYCLOAK_CLIENT_SECRET",
             keycloak_url: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--keycloak-url",
                     help="Keycloak base URL.",
@@ -1278,7 +1277,7 @@ class CLI:
             # Slack Options
             # =================================================================
             slack_token_env_var: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--slack-token-env-var",
                     help="Environment variable name containing Slack token.",
@@ -1287,7 +1286,7 @@ class CLI:
                 ),
             ] = None,
             slack_teams: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--slack-teams",
                     help="Comma-separated list of Slack Team IDs to sync.",
@@ -1308,7 +1307,7 @@ class CLI:
             # Spacelift Options
             # =================================================================
             spacelift_api_endpoint: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--spacelift-api-endpoint",
                     help="Spacelift GraphQL API endpoint.",
@@ -1344,7 +1343,7 @@ class CLI:
                 ),
             ] = "SPACELIFT_API_KEY_SECRET",
             spacelift_ec2_ownership_aws_profile: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--spacelift-ec2-ownership-aws-profile",
                     help="AWS profile for fetching EC2 ownership data from S3.",
@@ -1353,7 +1352,7 @@ class CLI:
                 ),
             ] = None,
             spacelift_ec2_ownership_s3_bucket: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--spacelift-ec2-ownership-s3-bucket",
                     help="S3 bucket for EC2 ownership CloudTrail data.",
@@ -1362,7 +1361,7 @@ class CLI:
                 ),
             ] = None,
             spacelift_ec2_ownership_s3_prefix: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--spacelift-ec2-ownership-s3-prefix",
                     help="S3 prefix for EC2 ownership CloudTrail data.",
@@ -1409,7 +1408,7 @@ class CLI:
             # Analysis Options
             # =================================================================
             analysis_job_directory: Annotated[
-                Optional[str],
+                str | None,
                 typer.Option(
                     "--analysis-job-directory",
                     help="Path to directory containing analysis jobs to run at sync conclusion.",

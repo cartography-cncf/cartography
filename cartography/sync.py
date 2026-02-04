@@ -1,13 +1,9 @@
-import argparse
 import logging
 import re
 import time
 from collections import OrderedDict
 from pkgutil import iter_modules
 from typing import Callable
-from typing import List
-from typing import Tuple
-from typing import Union
 
 import neo4j.exceptions
 from neo4j import GraphDatabase
@@ -169,7 +165,7 @@ class Sync:
         """
         self._stages[name] = func
 
-    def add_stages(self, stages: List[Tuple[str, Callable]]) -> None:
+    def add_stages(self, stages: list[tuple[str, Callable]]) -> None:
         """
         Add multiple stages to the sync task in batch.
 
@@ -193,7 +189,7 @@ class Sync:
     def run(
         self,
         neo4j_driver: neo4j.Driver,
-        config: Union[Config, argparse.Namespace],
+        config: Config,
     ) -> int:
         """
         Execute all configured stages in the sync task sequentially.
@@ -332,7 +328,7 @@ class Sync:
         return available_modules
 
 
-def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> int:
+def run_with_config(sync: Sync, config: Config) -> int:
     """
     Execute a sync task with comprehensive configuration and error handling.
 
@@ -472,7 +468,7 @@ def build_default_sync() -> Sync:
     return sync
 
 
-def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
+def parse_and_validate_selected_modules(selected_modules: str) -> list[str]:
     """
     Parse and validate user-selected modules from comma-separated string.
 
@@ -496,7 +492,7 @@ def parse_and_validate_selected_modules(selected_modules: str) -> List[str]:
         in TOP_LEVEL_MODULES. The function is tolerant of whitespace around
         commas but requires exact name matches for validation.
     """
-    validated_modules: List[str] = []
+    validated_modules: list[str] = []
     for module in selected_modules.split(","):
         module = module.strip()
 
