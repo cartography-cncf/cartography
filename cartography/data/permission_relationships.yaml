@@ -6,13 +6,11 @@
   permissions:
   - S3:GetObject
   relationship_name: CAN_READ
-# Map principals that can query Elasticsearch domains.
-- target_label: ESDomain
+# Map principals that can write items to an S3Bucket.
+- target_label: S3Bucket
   permissions:
-  - es:ESHttpGet
-  - es:ESHttpPost
-  - es:ESHttpPut
-  relationship_name: CAN_QUERY
+  - S3:PutObject
+  relationship_name: CAN_WRITE
 # Map principals that can retrieve data from DynamoDB.
 - target_label: DynamoDBTable
   permissions:
