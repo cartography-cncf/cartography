@@ -8,12 +8,12 @@ Representation of a [PagerDuty Escalation Policy](https://developer.pagerduty.co
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| id | The ID of the escalation policy |
+| **id** | The ID of the escalation policy |
 | html\_url | the API show URL at which the object is accessible |
 | type | The type of this pagerduty object (escalation\_policy) |
 | summary | A short-form, server-generated string that provides succinct, important information about an object suitable for primary labeling of an entity in a client. In many cases, this will be identical to name, though it is not intended to be an identifier. |
 | on\_call\_handoff\_notifications | Determines how on call handoff notifications will be sent for users on the escalation policy. Defaults to "if\_has\_services". |
-| name | The name of the escalation policy. |
+| **name** | The name of the escalation policy. |
 | num\_loops | The number of times the escalation policy will repeat after reaching the end of its escalation. |
 
 #### Relationships
@@ -48,6 +48,31 @@ Representation of a [PagerDuty Escalation Policy](https://developer.pagerduty.co
     (PagerDutyEscalationPolicy)-[ASSOCIATED\_WITH]->(PagerDutyTeam)
     ```
 
+### PagerDutyEscalationPolicyRule
+
+Representation of a rule within a PagerDuty Escalation Policy
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The ID of the escalation policy rule |
+| **escalation\_delay\_in\_minutes** | The number of minutes before an incident is escalated if not acknowledged |
+
+#### Relationships
+
+- A PagerDutyEscalationPolicyRule is associated with PagerDutyUsers
+
+    ```
+    (PagerDutyUser)-[ASSOCIATED\_WITH]->(PagerDutyEscalationPolicyRule)
+    ```
+
+- A PagerDutyEscalationPolicyRule is associated with PagerDutySchedules
+
+    ```
+    (PagerDutyEscalationPolicyRule)-[ASSOCIATED\_WITH]->(PagerDutySchedule)
+    ```
+
 ### PagerDutySchedule
 
 Representation of a [PagerDuty Schedule](https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMzU-schedule)
@@ -80,7 +105,8 @@ Representation of a layer in a [PagerDuty Schedule](https://developer.pagerduty.
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
-| id | The ID of the schedule layer |
+| **id** | The ID of the schedule layer |
+| name | The name of the schedule layer |
 | schedule\_id | The ID of the schedule this layer is attached to. |
 | start | The start time of this layer |
 | end | The end time of this layer. If null, the layer does not end. |
@@ -89,7 +115,17 @@ Representation of a layer in a [PagerDuty Schedule](https://developer.pagerduty.
 
 #### Relationships
 
-No relationships originating from PagerDutyScheduleLayer
+- A PagerDutyScheduleLayer belongs to a PagerDutySchedule
+
+    ```
+    (PagerDutySchedule)-[HAS\_LAYER]->(PagerDutyScheduleLayer)
+    ```
+
+- A PagerDutyScheduleLayer has PagerDutyUsers as members
+
+    ```
+    (PagerDutyUser)-[MEMBER\_OF]->(PagerDutyScheduleLayer)
+    ```
 
 ### PagerDutyService
 
@@ -181,6 +217,8 @@ Representation of a [PagerDuty Team](https://developer.pagerduty.com/api-referen
 
 Representation of a [PagerDuty User](https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMTU-user)
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, LastpassUser).
+
 | Field | Description |
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -217,4 +255,30 @@ Representation of a [PagerDuty User](https://developer.pagerduty.com/api-referen
 
     ```
     (PagerDutyUser)-[MEMBER\_OF]->(PagerDutyTeam)
+    ```
+
+### PagerDutyVendor
+
+Representation of a [PagerDuty Vendor](https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMzM-vendor)
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first discovered this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| **id** | The ID of the vendor |
+| type | The type of this pagerduty object (vendor) |
+| summary | A short-form, server-generated string that provides succinct, important information about an object suitable for primary labeling of an entity in a client. |
+| **name** | The name of the vendor |
+| website\_url | URL of the vendor's website |
+| logo\_url | URL of the vendor's logo |
+| thumbnail\_url | URL of the vendor's thumbnail |
+| description | A description of the vendor |
+| integration\_guide\_url | URL of the vendor's integration guide |
+
+#### Relationships
+
+- A PagerDutyIntegration has a PagerDutyVendor
+
+    ```
+    (PagerDutyIntegration)-[HAS\_VENDOR]->(PagerDutyVendor)
     ```
