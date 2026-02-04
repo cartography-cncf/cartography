@@ -89,8 +89,8 @@ _aws_access_key_not_rotated = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_1_14_access_key_not_rotated = Rule(
-    id="cis_1_14_access_key_not_rotated",
+cis_aws_1_14_access_key_not_rotated = Rule(
+    id="cis_aws_1_14_access_key_not_rotated",
     name="CIS AWS 1.14: Access Keys Not Rotated",
     description=(
         "Access keys should be rotated every 90 days or less to reduce the window "
@@ -160,8 +160,8 @@ _aws_unused_credentials = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_1_12_unused_credentials = Rule(
-    id="cis_1_12_unused_credentials",
+cis_aws_1_12_unused_credentials = Rule(
+    id="cis_aws_1_12_unused_credentials",
     name="CIS AWS 1.12: Unused Credentials",
     description=(
         "Credentials unused for 45 days or greater should be disabled to reduce "
@@ -221,8 +221,8 @@ _aws_user_direct_policies = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_1_15_user_direct_policies = Rule(
-    id="cis_1_15_user_direct_policies",
+cis_aws_1_15_user_direct_policies = Rule(
+    id="cis_aws_1_15_user_direct_policies",
     name="CIS AWS 1.15: Users With Direct Policy Attachments",
     description=(
         "IAM users should receive permissions only through groups. Direct policy "
@@ -293,8 +293,8 @@ _aws_multiple_access_keys = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_1_13_multiple_access_keys = Rule(
-    id="cis_1_13_multiple_access_keys",
+cis_aws_1_13_multiple_access_keys = Rule(
+    id="cis_aws_1_13_multiple_access_keys",
     name="CIS AWS 1.13: Users With Multiple Active Access Keys",
     description=(
         "Each IAM user should have only one active access key. Multiple active keys "
@@ -359,8 +359,8 @@ _aws_expired_certificates = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_1_18_expired_certificates = Rule(
-    id="cis_1_18_expired_certificates",
+cis_aws_1_18_expired_certificates = Rule(
+    id="cis_aws_1_18_expired_certificates",
     name="CIS AWS 1.18: Expired SSL/TLS Certificates",
     description=(
         "Expired SSL/TLS certificates should be removed from ACM to maintain "
