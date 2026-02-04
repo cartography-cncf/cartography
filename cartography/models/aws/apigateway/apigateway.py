@@ -24,8 +24,8 @@ class APIGatewayRestAPINodeProperties(CartographyNodeProperties):
     anonymous_actions: PropertyRef = PropertyRef("anonymous_actions")
     # Network-level exposure: Based on endpoint configuration type
     # EDGE/REGIONAL = internet exposed, PRIVATE = VPC only
-    endpoint_type: PropertyRef = PropertyRef("endpoint_type")
-    exposed_internet: PropertyRef = PropertyRef("exposed_internet")
+    endpoint_type: PropertyRef = PropertyRef("endpoint_type", extra_index=True)
+    exposed_internet: PropertyRef = PropertyRef("exposed_internet", extra_index=True)
 
 
 @dataclass(frozen=True)

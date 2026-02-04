@@ -3845,8 +3845,8 @@ Representation of an AWS [API Gateway REST API](https://docs.aws.amazon.com/apig
 | region | The region where the REST API is created |
 | anonymous\_actions |  List of anonymous internet accessible actions that may be run on the API (policy-level). |
 | anonymous\_access | True if this API has a resource policy that allows anonymous/public access (policy-level analysis via PolicyUniverse). |
-| endpoint\_type | The endpoint configuration type: `EDGE` (CloudFront), `REGIONAL` (direct), or `PRIVATE` (VPC-only). |
-| exposed\_internet | True if the API is network-reachable from the internet (`EDGE` or `REGIONAL`), false for `PRIVATE` endpoints. |
+| **endpoint\_type** | The endpoint configuration type: `EDGE` (CloudFront), `REGIONAL` (direct), or `PRIVATE` (VPC-only). |
+| **exposed\_internet** | True if the API is network-reachable from the internet (`EDGE` or `REGIONAL`), false for `PRIVATE` endpoints. |
 
 #### Relationships
 
