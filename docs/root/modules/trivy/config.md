@@ -89,10 +89,7 @@ Ensure that the machine running Trivy has the necessary permissions to scan your
 
 Trivy provides excellent vulnerability detection but does not construct a dependency graph. To enable queries like "which direct dependency should I update to fix this CVE on a transitive dependency?", use the [SBOM module](../sbom/config.md) after Trivy ingestion.
 
-The SBOM module ingests CycloneDX SBOMs (typically from [Syft](https://github.com/anchore/syft)) and enriches existing TrivyPackage nodes with:
-
-- `is_direct` property - distinguishes direct vs transitive dependencies
-- `DEPENDS_ON` relationships - the dependency graph between packages
+The SBOM module ingests CycloneDX SBOMs (typically from [Syft](https://github.com/anchore/syft)) and creates `DEPENDS_ON` relationships between existing TrivyPackage nodes, representing the dependency graph.
 
 **Example workflow:**
 

@@ -1,20 +1,10 @@
 ## SBOM Schema
 
-The SBOM module does not create new node types. Instead, it enriches existing TrivyPackage nodes (created by the [Trivy module](../trivy/schema.md)) with dependency graph information.
-
-### Enrichments to TrivyPackage
-
-The SBOM module adds the following to TrivyPackage nodes:
-
-| Field | Description |
-|-------|-------------|
-| is_direct | Boolean indicating if this package is a direct dependency (`true`) or transitive dependency (`false`) |
-
-**Note:** Direct dependencies are packages explicitly declared in your project's manifest (e.g., `package.json`, `requirements.txt`). Transitive dependencies are packages pulled in by your direct dependencies.
+The SBOM module does not create new node types. Instead, it creates `DEPENDS_ON` relationships between existing TrivyPackage nodes (created by the [Trivy module](../trivy/schema.md)).
 
 ### DEPENDS_ON Relationship
 
-The SBOM module creates `DEPENDS_ON` relationships between TrivyPackage nodes to represent the dependency graph.
+The SBOM module creates `DEPENDS_ON` relationships between TrivyPackage nodes to represent the dependency graph from CycloneDX SBOMs (e.g., from Syft).
 
 ```
 (TrivyPackage)-[DEPENDS_ON]->(TrivyPackage)
@@ -32,7 +22,7 @@ The SBOM module creates `DEPENDS_ON` relationships between TrivyPackage nodes to
 
 ### Graph Structure After SBOM Enrichment
 
-After both Trivy and SBOM modules have run, the graph supports queries like:
+After both Trivy and SBOM modules have run, the graph supports dependency chain traversal:
 
 ```
                     ┌─────────────────┐
@@ -44,15 +34,30 @@ After both Trivy and SBOM modules have run, the graph supports queries like:
 ┌─────────────────┐    ┌─────────────────┐
 │  TrivyPackage   │───▶│  TrivyPackage   │
 │  express        │    │  accepts        │
-│  is_direct=true │    │  is_direct=false│
 └─────────────────┘    └────────┬────────┘
      DEPENDS_ON                 │ DEPENDS_ON
                                 ▼
                          ┌─────────────────┐
                          │  TrivyPackage   │
                          │  mime-types     │
-                         │  is_direct=false│
                          └─────────────────┘
 ```
 
-This structure enables the key query: "A CVE affects `accepts` (transitive). Which direct dependency should I update?" Answer: `express`.
+### Example Queries
+
+**Find packages that nothing depends on (potential direct dependencies):**
+
+```cypher
+MATCH (p:TrivyPackage)
+WHERE NOT ()-[:DEPENDS_ON]->(p)
+RETURN p.name, p.version
+```
+
+**Trace from CVE to upstream packages:**
+
+```cypher
+MATCH (cve:TrivyImageFinding)-[:AFFECTS]->(vuln:TrivyPackage)
+MATCH (upstream:TrivyPackage)-[:DEPENDS_ON*1..5]->(vuln)
+RETURN cve.cve_id, vuln.name AS vulnerable_package,
+       upstream.name AS upstream_package
+```

@@ -1,15 +1,14 @@
 """
 Cartography SBOM Intel Module.
 
-This module ingests CycloneDX SBOMs (from Syft) and enriches existing TrivyPackage nodes with:
-- is_direct property (direct vs transitive dependencies)
-- DEPENDS_ON relationships between packages (dependency graph)
+This module ingests CycloneDX SBOMs (from Syft) and creates DEPENDS_ON relationships
+between existing TrivyPackage nodes, enabling dependency graph traversal.
 
 This enables tracing from CVE → transitive dep → direct dep → actionable fix.
 
 Architecture:
 1. Trivy module runs first, creating TrivyPackage nodes with CVEs (TrivyImageFinding)
-2. SBOM module runs after, enriching TrivyPackage nodes with dependency graph from Syft
+2. SBOM module runs after, adding DEPENDS_ON relationships from Syft dependency graph
 
 Package ID format: {version}|{name} (matches Trivy's format)
 """
@@ -26,7 +25,6 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.sbom.parser import transform_sbom_dependencies
-from cartography.intel.sbom.parser import transform_sbom_packages
 from cartography.intel.sbom.parser import validate_cyclonedx_sbom
 from cartography.models.sbom.dependency import TrivyPackageDependsOnMatchLink
 from cartography.stats import get_stats_client
@@ -101,50 +99,6 @@ def get_json_files_in_dir(results_dir: str) -> set[str]:
 
 
 @timeit
-def update_trivy_packages_is_direct(
-    neo4j_session: Session,
-    packages: list[dict[str, Any]],
-    update_tag: int,
-) -> int:
-    """
-    Update existing TrivyPackage nodes with is_direct property.
-
-    This uses MERGE to update nodes that exist (created by Trivy module)
-    and skips nodes that don't exist (packages not found by Trivy).
-
-    Args:
-        neo4j_session: Neo4j session for database operations.
-        packages: List of package data with Trivy-compatible IDs.
-        update_tag: Update tag for tracking.
-
-    Returns:
-        Number of TrivyPackage nodes updated.
-    """
-    if not packages:
-        return 0
-
-    # Update existing TrivyPackage nodes with is_direct property
-    query = """
-    UNWIND $packages AS pkg
-    MATCH (p:TrivyPackage {id: pkg.id})
-    SET p.is_direct = pkg.is_direct,
-        p.lastupdated = $update_tag
-    RETURN count(p) AS updated_count
-    """
-
-    result = neo4j_session.run(
-        query,
-        packages=packages,
-        update_tag=update_tag,
-    )
-    record = result.single()
-    updated_count = record["updated_count"] if record else 0
-
-    logger.debug("Updated %d TrivyPackage nodes with is_direct property", updated_count)
-    return updated_count
-
-
-@timeit
 def load_sbom_dependencies(
     neo4j_session: Session,
     dependencies: list[dict[str, Any]],
@@ -184,12 +138,10 @@ def sync_single_sbom(
     update_tag: int,
 ) -> None:
     """
-    Sync a single SBOM to Neo4j by enriching existing TrivyPackage nodes.
+    Sync a single SBOM to Neo4j by creating DEPENDS_ON relationships.
 
-    This function:
-    1. Extracts package data with is_direct property from SBOM
-    2. Updates existing TrivyPackage nodes with is_direct property
-    3. Creates DEPENDS_ON relationships between TrivyPackage nodes
+    Creates DEPENDS_ON relationships between existing TrivyPackage nodes
+    based on the dependency graph in the CycloneDX SBOM.
 
     TrivyPackage IDs are global ({version}|{name}), not image-scoped.
     The DEPLOYED relationship (from Trivy module) handles image association.
@@ -206,28 +158,7 @@ def sync_single_sbom(
 
     logger.info("Processing SBOM from %s", source)
 
-    # Phase 1: Transform packages and update TrivyPackage nodes with is_direct
-    packages = transform_sbom_packages(sbom_data)
-    num_packages = len(packages)
-    num_direct = sum(1 for p in packages if p.get("is_direct"))
-    logger.debug(
-        "Found %d packages (%d direct, %d transitive)",
-        num_packages,
-        num_direct,
-        num_packages - num_direct,
-    )
-
-    updated_count = update_trivy_packages_is_direct(neo4j_session, packages, update_tag)
-    stat_handler.incr("sbom_packages_enriched", updated_count)
-
-    if updated_count == 0:
-        logger.warning(
-            "No TrivyPackage nodes were updated from SBOM %s. "
-            "Ensure Trivy ingestion runs before SBOM ingestion.",
-            source,
-        )
-
-    # Phase 2: Transform and load dependency relationships
+    # Transform and load dependency relationships
     dependencies = transform_sbom_dependencies(sbom_data)
     logger.debug("Loading %d dependency relationships", len(dependencies))
     load_sbom_dependencies(neo4j_session, dependencies, source, update_tag)
@@ -235,9 +166,8 @@ def sync_single_sbom(
 
     stat_handler.incr("sbom_files_processed")
     logger.info(
-        "Completed SBOM sync for %s: %d packages enriched, %d deps",
+        "Completed SBOM sync for %s: %d dependency relationships",
         source,
-        updated_count,
         len(dependencies),
     )
 

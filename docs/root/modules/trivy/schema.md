@@ -69,7 +69,6 @@ Representation of a package installed in a container image.
 | type | Type of the package |
 | purl | Package URL (PURL) identifier |
 | pkg_id | Package identifier from the package manager |
-| is_direct | Boolean indicating if this is a direct dependency (set by [SBOM module](../sbom/schema.md)) |
 
 #### Relationships
 

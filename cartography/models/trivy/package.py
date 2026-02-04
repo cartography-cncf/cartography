@@ -23,8 +23,6 @@ class TrivyPackageNodeProperties(CartographyNodeProperties):
     # Additional fields from Trivy scan results
     purl: PropertyRef = PropertyRef("PURL")
     pkg_id: PropertyRef = PropertyRef("PkgID")
-    # Dependency graph property - set by SBOM module after Trivy scan
-    is_direct: PropertyRef = PropertyRef("is_direct", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

@@ -1,10 +1,8 @@
 """
 Integration tests for SBOM module.
 
-The SBOM module enriches existing TrivyPackage nodes (created by Trivy module)
-with dependency graph information from Syft CycloneDX SBOMs:
-- is_direct property (direct vs transitive dependency)
-- DEPENDS_ON relationships between packages
+The SBOM module creates DEPENDS_ON relationships between existing TrivyPackage nodes
+(created by Trivy module) based on dependency graph from Syft CycloneDX SBOMs.
 
 This enables tracing from CVE → transitive dep → direct dep → actionable fix.
 """
@@ -14,7 +12,6 @@ from unittest.mock import mock_open
 from unittest.mock import patch
 
 from cartography.intel.sbom import sync_sbom_from_dir
-from cartography.intel.sbom import update_trivy_packages_is_direct
 from tests.data.sbom.cyclonedx_sample import CYCLONEDX_SBOM_SAMPLE
 from tests.integration.util import check_rels
 
@@ -87,12 +84,6 @@ def _setup_trivy_data_for_sbom_test(neo4j_session):
             "package_id": "4.17.20|lodash",
         },
         {
-            "id": "CVE-2020-28500",
-            "cve_id": "CVE-2020-28500",
-            "severity": "MEDIUM",
-            "package_id": "4.17.20|lodash",
-        },
-        {
             "id": "CVE-2022-24999",
             "cve_id": "CVE-2022-24999",
             "severity": "HIGH",
@@ -100,56 +91,6 @@ def _setup_trivy_data_for_sbom_test(neo4j_session):
         },
     ]
     _create_trivy_findings(neo4j_session, findings)
-
-
-@patch(
-    "builtins.open",
-    new_callable=mock_open,
-    read_data=json.dumps(CYCLONEDX_SBOM_SAMPLE),
-)
-@patch(
-    "cartography.intel.sbom.get_json_files_in_dir",
-    return_value={"/tmp/sbom.json"},
-)
-def test_sync_sbom_enriches_trivy_packages_with_is_direct(
-    mock_list_dir,
-    mock_file_open,
-    neo4j_session,
-):
-    """Test that SBOM sync updates TrivyPackage nodes with is_direct property."""
-    # Setup: Create TrivyPackage nodes (simulating Trivy ingestion)
-    _setup_trivy_data_for_sbom_test(neo4j_session)
-
-    # Act: Run SBOM sync to enrich packages
-    sync_sbom_from_dir(
-        neo4j_session,
-        "/tmp",
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
-
-    # Assert: Check that TrivyPackage nodes have is_direct property
-    result = neo4j_session.run(
-        """
-        MATCH (p:TrivyPackage)
-        RETURN p.id AS id, p.name AS name, p.is_direct AS is_direct
-        ORDER BY p.name
-        """
-    ).data()
-
-    # Check we have the expected packages
-    assert len(result) == 5
-
-    pkg_map = {r["name"]: r for r in result}
-
-    # Direct dependencies (express, lodash)
-    assert pkg_map["express"]["is_direct"] is True
-    assert pkg_map["lodash"]["is_direct"] is True
-
-    # Transitive dependencies (accepts, mime-types, body-parser)
-    assert pkg_map["accepts"]["is_direct"] is False
-    assert pkg_map["mime-types"]["is_direct"] is False
-    assert pkg_map["body-parser"]["is_direct"] is False
 
 
 @patch(
@@ -209,64 +150,16 @@ def test_sync_sbom_creates_depends_on_relationships(
     "cartography.intel.sbom.get_json_files_in_dir",
     return_value={"/tmp/sbom.json"},
 )
-def test_trace_cve_to_direct_dependency(
+def test_trace_cve_through_dependency_chain(
     mock_list_dir,
     mock_file_open,
     neo4j_session,
 ):
     """
-    Test the key query: finding which package to update for a CVE.
-
-    This validates that after SBOM enrichment, we can trace from
-    CVE → affected package → is_direct property.
-    """
-    # Setup: Create TrivyPackage nodes and findings
-    _setup_trivy_data_for_sbom_test(neo4j_session)
-
-    # Act: Run SBOM sync
-    sync_sbom_from_dir(
-        neo4j_session,
-        "/tmp",
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
-
-    # Query: Find CVEs affecting direct dependencies
-    result = neo4j_session.run(
-        """
-        MATCH (cve:TrivyImageFinding)-[:AFFECTS]->(vuln:TrivyPackage)
-        WHERE vuln.is_direct = true
-        RETURN cve.cve_id AS cve_id, vuln.name AS package_name
-        ORDER BY cve_id
-        """
-    ).data()
-
-    # Should find CVEs affecting direct dependencies (lodash and express)
-    cve_to_package = {r["cve_id"]: r["package_name"] for r in result}
-    assert cve_to_package.get("CVE-2021-23337") == "lodash"
-    assert cve_to_package.get("CVE-2020-28500") == "lodash"
-    assert cve_to_package.get("CVE-2022-24999") == "express"
-
-
-@patch(
-    "builtins.open",
-    new_callable=mock_open,
-    read_data=json.dumps(CYCLONEDX_SBOM_SAMPLE),
-)
-@patch(
-    "cartography.intel.sbom.get_json_files_in_dir",
-    return_value={"/tmp/sbom.json"},
-)
-def test_trace_transitive_cve_through_dependency_chain(
-    mock_list_dir,
-    mock_file_open,
-    neo4j_session,
-):
-    """
-    Test tracing a CVE on a transitive dependency back to the direct dependency.
+    Test tracing a CVE through the dependency chain.
 
     This is the primary use case for the SBOM module: given a CVE on a transitive
-    dependency, find which direct dependency to update.
+    dependency, find which upstream packages depend on it.
     """
     # Setup: Create TrivyPackage nodes
     _setup_trivy_data_for_sbom_test(neo4j_session)
@@ -293,26 +186,23 @@ def test_trace_transitive_cve_through_dependency_chain(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Query: Find direct dependency to update for CVE on transitive dep
+    # Query: Find upstream package that depends on the vulnerable package
     result = neo4j_session.run(
         """
         MATCH (cve:TrivyImageFinding)-[:AFFECTS]->(vuln:TrivyPackage)
-        WHERE cve.cve_id = 'CVE-TRANSITIVE-001' AND vuln.is_direct = false
-        MATCH path = (direct:TrivyPackage)-[:DEPENDS_ON*1..5]->(vuln)
-        WHERE direct.is_direct = true
+        WHERE cve.cve_id = 'CVE-TRANSITIVE-001'
+        MATCH (upstream:TrivyPackage)-[:DEPENDS_ON]->(vuln)
         RETURN cve.cve_id AS cve_id,
                vuln.name AS vulnerable_package,
-               direct.name AS update_this,
-               [n in nodes(path) | n.name] AS dependency_chain
+               upstream.name AS upstream_package
         """
     ).data()
 
-    # Should find path: express -> accepts
+    # Should find that express depends on accepts
     assert len(result) == 1
     assert result[0]["cve_id"] == "CVE-TRANSITIVE-001"
     assert result[0]["vulnerable_package"] == "accepts"
-    assert result[0]["update_this"] == "express"
-    assert result[0]["dependency_chain"] == ["express", "accepts"]
+    assert result[0]["upstream_package"] == "express"
 
 
 @patch(
@@ -324,12 +214,12 @@ def test_trace_transitive_cve_through_dependency_chain(
     "cartography.intel.sbom.get_json_files_in_dir",
     return_value={"/tmp/sbom.json"},
 )
-def test_sbom_only_updates_existing_trivy_packages(
+def test_sbom_only_creates_relationships_for_existing_packages(
     mock_list_dir,
     mock_file_open,
     neo4j_session,
 ):
-    """Test that SBOM sync only updates packages that exist from Trivy scan."""
+    """Test that SBOM sync only creates relationships for packages that exist."""
     # Clear data from previous tests to ensure isolation
     _clear_test_data(neo4j_session)
 
@@ -349,88 +239,18 @@ def test_sbom_only_updates_existing_trivy_packages(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Assert: Only the existing packages should have is_direct set
+    # Assert: No DEPENDS_ON relationships should be created
+    # (because accepts, body-parser don't exist as TrivyPackage nodes)
     result = neo4j_session.run(
-        """
-        MATCH (p:TrivyPackage)
-        WHERE p.is_direct IS NOT NULL
-        RETURN p.name AS name, p.is_direct AS is_direct
-        ORDER BY p.name
-        """
-    ).data()
-
-    # Should only have 2 packages updated
-    assert len(result) == 2
-    names = {r["name"] for r in result}
-    assert names == {"express", "lodash"}
+        "MATCH (:TrivyPackage)-[r:DEPENDS_ON]->(:TrivyPackage) RETURN count(r) as count"
+    ).single()
+    assert result["count"] == 0
 
     # No new Package nodes should be created
     total_packages = neo4j_session.run(
         "MATCH (p:TrivyPackage) RETURN count(p) AS count"
     ).single()["count"]
     assert total_packages == 2
-
-
-def test_update_trivy_packages_is_direct_function(neo4j_session):
-    """Test the update_trivy_packages_is_direct function directly."""
-    # Clear data from previous tests to ensure isolation
-    _clear_test_data(neo4j_session)
-
-    # Setup: Create TrivyPackage nodes
-    packages = [
-        {"id": "1.0.0|pkg-a", "name": "pkg-a", "version": "1.0.0"},
-        {"id": "2.0.0|pkg-b", "name": "pkg-b", "version": "2.0.0"},
-    ]
-    _create_trivy_packages(neo4j_session, packages)
-
-    # Act: Update with is_direct property
-    update_data = [
-        {"id": "1.0.0|pkg-a", "is_direct": True},
-        {"id": "2.0.0|pkg-b", "is_direct": False},
-    ]
-    updated_count = update_trivy_packages_is_direct(
-        neo4j_session, update_data, TEST_UPDATE_TAG
-    )
-
-    # Assert
-    assert updated_count == 2
-
-    result = neo4j_session.run(
-        """
-        MATCH (p:TrivyPackage)
-        RETURN p.id AS id, p.is_direct AS is_direct
-        ORDER BY p.id
-        """
-    ).data()
-
-    assert len(result) == 2
-    pkg_map = {r["id"]: r["is_direct"] for r in result}
-    assert pkg_map["1.0.0|pkg-a"] is True
-    assert pkg_map["2.0.0|pkg-b"] is False
-
-
-def test_update_trivy_packages_is_direct_skips_nonexistent(neo4j_session):
-    """Test that update_trivy_packages_is_direct skips packages that don't exist."""
-    # Clear data from previous tests to ensure isolation
-    _clear_test_data(neo4j_session)
-
-    # Setup: Create only one TrivyPackage
-    packages = [
-        {"id": "1.0.0|pkg-a", "name": "pkg-a", "version": "1.0.0"},
-    ]
-    _create_trivy_packages(neo4j_session, packages)
-
-    # Act: Try to update existing and non-existing packages
-    update_data = [
-        {"id": "1.0.0|pkg-a", "is_direct": True},
-        {"id": "2.0.0|pkg-nonexistent", "is_direct": False},  # Doesn't exist
-    ]
-    updated_count = update_trivy_packages_is_direct(
-        neo4j_session, update_data, TEST_UPDATE_TAG
-    )
-
-    # Assert: Only 1 package should be updated
-    assert updated_count == 1
 
 
 @patch(
