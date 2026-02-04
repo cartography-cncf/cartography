@@ -1933,6 +1933,7 @@ class CLI:
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,
                 spacelift_api_key_secret=spacelift_api_key_secret,
+                spacelift_ec2_ownership_aws_profile=spacelift_ec2_ownership_aws_profile,
                 spacelift_ec2_ownership_s3_bucket=spacelift_ec2_ownership_s3_bucket,
                 spacelift_ec2_ownership_s3_prefix=spacelift_ec2_ownership_s3_prefix,
                 keycloak_client_id=keycloak_client_id,
