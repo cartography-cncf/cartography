@@ -4,7 +4,6 @@ from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.nodes import ExtraNodeLabels
-from cartography.models.core.relationships import CartographyRelProperties
 
 
 @dataclass(frozen=True)
@@ -23,11 +22,6 @@ class PagerDutyUserProperties(CartographyNodeProperties):
     description: PropertyRef = PropertyRef("description")
     invitation_sent: PropertyRef = PropertyRef("invitation_sent")
     job_title: PropertyRef = PropertyRef("job_title")
-
-
-@dataclass(frozen=True)
-class PagerDutyUserToOrganizationRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
