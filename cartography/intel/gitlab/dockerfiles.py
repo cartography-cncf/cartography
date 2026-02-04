@@ -200,10 +200,10 @@ def search_dockerfiles_in_project(
         return dockerfiles
 
     except requests.exceptions.HTTPError as e:
-        if e.response is not None and e.response.status_code in (403, 404):
-            logger.debug(
-                f"Cannot access project {project_id}: {e.response.status_code}"
-            )
+        # Only 404 (project not found) is acceptable for skipping
+        # 403 (forbidden) should propagate as it may indicate auth issues
+        if e.response is not None and e.response.status_code == 404:
+            logger.debug("Project not found: %d", project_id)
             return []
         raise
 
@@ -692,76 +692,87 @@ def sync(
     logger.info("Starting GitLab dockerfile sync for %d projects", len(projects))
 
     # ==========================================================================
-    # Stage 1: SLSA Provenance-based matching (PRIMARY - highest confidence)
+    # GET Stage: Collect all data
     # ==========================================================================
-    # Try provenance-based matching first - this provides 100% confidence from
-    # cryptographically signed attestations without needing Dockerfile content.
-    provenance_match_count = 0
-    if match_container_images:
-        provenance_match_count = load_provenance_relationships(
-            neo4j_session,
-            org_url,
-            update_tag,
-        )
 
-    # ==========================================================================
-    # Stage 2: Dockerfile command matching (FALLBACK)
-    # ==========================================================================
-    # Search and download Dockerfiles
+    # GET: Provenance matches (from images already in graph)
+    provenance_matches: list[dict[str, Any]] = []
+    if match_container_images:
+        provenance_matches = get_provenance_matches_for_org(neo4j_session, org_url)
+
+    # GET: Search and download Dockerfiles
     dockerfiles = get_dockerfiles_for_projects(gitlab_url, token, projects)
 
-    if not dockerfiles:
-        logger.info("No dockerfiles found in GitLab projects")
-        # Even with no dockerfiles, we may have provenance matches, so continue
-        if provenance_match_count == 0:
-            # Cleanup any stale relationships
-            if match_container_images:
-                cleanup_dockerfile_image_relationships(
-                    neo4j_session,
-                    org_url,
-                    update_tag,
-                )
-            return None
-
+    # GET: Container images for dockerfile matching
     images: list[GitLabContainerImage] | None = None
-    matches: list[ImageDockerfileMatch] | None = None
-
-    # Query container images and perform dockerfile command matching if requested
     if match_container_images and dockerfiles:
         logger.info("Querying GitLab container images with layer history from Neo4j...")
         images = get_gitlab_container_images_with_history(
             neo4j_session, org_url, limit=image_limit
         )
 
-        if images:
+    # ==========================================================================
+    # TRANSFORM Stage: Match images to dockerfiles
+    # ==========================================================================
+    matches: list[ImageDockerfileMatch] | None = None
+
+    if images and dockerfiles:
+        logger.info(
+            "Found %d container images, performing dockerfile matching...",
+            len(images),
+        )
+        matches = match_images_to_dockerfiles(
+            images,
+            dockerfiles,
+            min_confidence=min_match_confidence,
+        )
+
+        # Log summary
+        high_confidence = sum(1 for m in matches if m.confidence >= 0.75)
+        logger.info(
+            "Dockerfile matching complete: %d matches found (%d high confidence)",
+            len(matches),
+            high_confidence,
+        )
+    elif match_container_images and dockerfiles:
+        logger.info("No GitLab container images found in Neo4j")
+
+    # ==========================================================================
+    # LOAD Stage: Create relationships in Neo4j
+    # ==========================================================================
+    if match_container_images:
+        # Load provenance-based BUILT_FROM relationships
+        if provenance_matches:
             logger.info(
-                "Found %d container images, performing dockerfile matching...",
-                len(images),
+                "Loading %d provenance-based BUILT_FROM relationships...",
+                len(provenance_matches),
             )
-            matches = match_images_to_dockerfiles(
-                images,
-                dockerfiles,
-                min_confidence=min_match_confidence,
+            load_matchlinks(
+                neo4j_session,
+                GitLabProjectBuiltFromMatchLink(),
+                provenance_matches,
+                lastupdated=update_tag,
+                _sub_resource_label="GitLabOrganization",
+                _sub_resource_id=org_url,
             )
 
-            # Log summary
-            high_confidence = sum(1 for m in matches if m.confidence >= 0.75)
-            logger.info(
-                "Dockerfile matching complete: %d matches found (%d high confidence)",
-                len(matches),
-                high_confidence,
+        # Load dockerfile-based BUILT_FROM relationships
+        if matches:
+            load_dockerfile_image_relationships(
+                neo4j_session,
+                matches,
+                org_url,
+                update_tag,
             )
 
-            # Load BUILT_FROM relationships to Neo4j
-            if matches:
-                load_dockerfile_image_relationships(
-                    neo4j_session,
-                    matches,
-                    org_url,
-                    update_tag,
-                )
-        else:
-            logger.info("No GitLab container images found in Neo4j")
+    # ==========================================================================
+    # CLEANUP Stage: Remove stale relationships
+    # ==========================================================================
+    # Check if we have any data to justify cleanup
+    has_data = bool(dockerfiles or provenance_matches)
+    if not has_data:
+        logger.info("No dockerfiles or provenance matches found in GitLab projects")
+        return None
 
     # Always cleanup stale relationships (covers both provenance and dockerfile matches)
     if match_container_images:
@@ -780,7 +791,7 @@ def sync(
     logger.info(
         "Completed GitLab dockerfile sync: %d provenance matches, %d dockerfile(s), "
         "%d image(s), %d dockerfile matches",
-        provenance_match_count,
+        len(provenance_matches),
         result.dockerfile_count,
         result.image_count,
         result.match_count,

@@ -223,127 +223,114 @@ async def _extract_provenance_from_attestation(
     :param repo_name: ECR repository name
     :param attestation_manifest_digest: Digest of the attestation manifest
     :param http_client: HTTP client for downloading blobs
-    :return: Dict with provenance data, or None if extraction fails
+    :return: Dict with provenance data, or None if no provenance found
+
+    Raises:
+        Exception: If there's an error fetching or parsing the attestation
     """
-    try:
-        attestation_manifest, _ = await batch_get_manifest(
-            ecr_client,
-            repo_name,
-            attestation_manifest_digest,
-            [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
-        )
+    attestation_manifest, _ = await batch_get_manifest(
+        ecr_client,
+        repo_name,
+        attestation_manifest_digest,
+        [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
+    )
 
-        if not attestation_manifest:
-            logger.debug(
-                "No attestation manifest found for digest %s in repo %s",
-                attestation_manifest_digest,
-                repo_name,
-            )
-            return None
-
-        # Get the in-toto layer from the attestation manifest
-        layers = attestation_manifest.get("layers", [])
-        intoto_layer = next(
-            (
-                layer
-                for layer in layers
-                if "in-toto" in layer.get("mediaType", "").lower()
-            ),
-            None,
-        )
-
-        if not intoto_layer:
-            logger.debug(
-                "No in-toto layer found in attestation manifest %s",
-                attestation_manifest_digest,
-            )
-            return None
-
-        # Download the in-toto attestation blob
-        intoto_digest = intoto_layer.get("digest")
-        if not intoto_digest:
-            logger.debug("No digest found for in-toto layer")
-            return None
-
-        attestation_blob = await get_blob_json_via_presigned(
-            ecr_client,
-            repo_name,
-            intoto_digest,
-            http_client,
-        )
-
-        if not attestation_blob:
-            logger.debug("Failed to download attestation blob")
-            return None
-
-        predicate = attestation_blob.get("predicate", {})
-        result: dict[str, Any] = {}
-
-        # Extract parent image from SLSA provenance materials
-        materials = predicate.get("materials", [])
-        for material in materials:
-            uri = material.get("uri", "")
-            uri_l = uri.lower()
-            # Look for container image URIs that are NOT the dockerfile itself
-            is_container_ref = (
-                uri_l.startswith("pkg:docker/")
-                or uri_l.startswith("pkg:oci/")
-                or uri_l.startswith("oci://")
-            )
-            if is_container_ref and "dockerfile" not in uri_l:
-                digest_obj = material.get("digest", {})
-                sha256_digest = digest_obj.get("sha256")
-                if sha256_digest:
-                    result["parent_image_uri"] = uri
-                    result["parent_image_digest"] = f"sha256:{sha256_digest}"
-                    break
-
-        # Extract source info from BuildKit metadata VCS section
-        # Path: metadata["https://mobyproject.org/buildkit@v1#metadata"].vcs
-        metadata = predicate.get("metadata", {})
-        buildkit_metadata = metadata.get(
-            "https://mobyproject.org/buildkit@v1#metadata", {}
-        )
-        vcs = buildkit_metadata.get("vcs", {})
-
-        if vcs.get("source"):
-            result["source_uri"] = vcs["source"]
-        if vcs.get("revision"):
-            result["source_revision"] = vcs["revision"]
-
-        # Extract invocation info from environment
-        # Path: invocation.environment
-        invocation = predicate.get("invocation", {})
-        environment = invocation.get("environment", {})
-
-        if environment.get("github_repository"):
-            result["invocation_uri"] = environment["github_repository"]
-        if environment.get("github_workflow_ref"):
-            workflow_path = _extract_workflow_path_from_ref(
-                environment["github_workflow_ref"]
-            )
-            if workflow_path:
-                result["invocation_workflow"] = workflow_path
-        if environment.get("github_run_number"):
-            result["invocation_run_number"] = environment["github_run_number"]
-
-        if not result:
-            logger.debug(
-                "No provenance data found in attestation %s",
-                attestation_manifest_digest,
-            )
-            return None
-
-        return result
-
-    except Exception as e:
-        logger.warning(
-            "Error extracting provenance from attestation %s in repo %s: %s",
+    if not attestation_manifest:
+        logger.debug(
+            "No attestation manifest found for digest %s in repo %s",
             attestation_manifest_digest,
             repo_name,
-            e,
         )
         return None
+
+    # Get the in-toto layer from the attestation manifest
+    layers = attestation_manifest.get("layers", [])
+    intoto_layer = next(
+        (layer for layer in layers if "in-toto" in layer.get("mediaType", "").lower()),
+        None,
+    )
+
+    if not intoto_layer:
+        logger.debug(
+            "No in-toto layer found in attestation manifest %s",
+            attestation_manifest_digest,
+        )
+        return None
+
+    # Download the in-toto attestation blob
+    intoto_digest = intoto_layer.get("digest")
+    if not intoto_digest:
+        logger.debug("No digest found for in-toto layer")
+        return None
+
+    attestation_blob = await get_blob_json_via_presigned(
+        ecr_client,
+        repo_name,
+        intoto_digest,
+        http_client,
+    )
+
+    if not attestation_blob:
+        logger.debug("Failed to download attestation blob")
+        return None
+
+    predicate = attestation_blob.get("predicate", {})
+    result: dict[str, Any] = {}
+
+    # Extract parent image from SLSA provenance materials
+    materials = predicate.get("materials", [])
+    for material in materials:
+        uri = material.get("uri", "")
+        uri_l = uri.lower()
+        # Look for container image URIs that are NOT the dockerfile itself
+        is_container_ref = (
+            uri_l.startswith("pkg:docker/")
+            or uri_l.startswith("pkg:oci/")
+            or uri_l.startswith("oci://")
+        )
+        if is_container_ref and "dockerfile" not in uri_l:
+            digest_obj = material.get("digest", {})
+            sha256_digest = digest_obj.get("sha256")
+            if sha256_digest:
+                result["parent_image_uri"] = uri
+                result["parent_image_digest"] = f"sha256:{sha256_digest}"
+                break
+
+    # Extract source info from BuildKit metadata VCS section
+    # Path: metadata["https://mobyproject.org/buildkit@v1#metadata"].vcs
+    metadata = predicate.get("metadata", {})
+    buildkit_metadata = metadata.get("https://mobyproject.org/buildkit@v1#metadata", {})
+    vcs = buildkit_metadata.get("vcs", {})
+
+    if vcs.get("source"):
+        result["source_uri"] = vcs["source"]
+    if vcs.get("revision"):
+        result["source_revision"] = vcs["revision"]
+
+    # Extract invocation info from environment
+    # Path: invocation.environment
+    invocation = predicate.get("invocation", {})
+    environment = invocation.get("environment", {})
+
+    if environment.get("github_repository"):
+        result["invocation_uri"] = environment["github_repository"]
+    if environment.get("github_workflow_ref"):
+        workflow_path = _extract_workflow_path_from_ref(
+            environment["github_workflow_ref"]
+        )
+        if workflow_path:
+            result["invocation_workflow"] = workflow_path
+    if environment.get("github_run_number"):
+        result["invocation_run_number"] = environment["github_run_number"]
+
+    if not result:
+        logger.debug(
+            "No provenance data found in attestation %s",
+            attestation_manifest_digest,
+        )
+        return None
+
+    return result
 
 
 async def _diff_ids_for_manifest(
