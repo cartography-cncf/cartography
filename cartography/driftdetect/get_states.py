@@ -150,7 +150,7 @@ def get_state(session: neo4j.Session, state: State) -> None:
     :return:
     """
 
-    new_results: List[Dict[str, Any]] = session.read_transaction(
+    new_results: List[Dict[str, Any]] = session.execute_read(
         read_list_of_dicts_tx,
         state.validation_query,
     )
