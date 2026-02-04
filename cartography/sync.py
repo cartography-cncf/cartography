@@ -387,10 +387,14 @@ def run_with_config(sync: Sync, config: Union[Config, argparse.Namespace]) -> in
     if config.neo4j_user or config.neo4j_password:
         neo4j_auth = (config.neo4j_user, config.neo4j_password)
     try:
+        args = {}
+        if config.neo4j_max_connection_idle_time:
+            args["max_connection_lifetime"] = config.neo4j_max_connection_idle_time
+
         neo4j_driver = GraphDatabase.driver(
             config.neo4j_uri,
             auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+            **args,
         )
     except neo4j.exceptions.ServiceUnavailable as e:
         logger.debug("Error occurred during Neo4j connect.", exc_info=True)
