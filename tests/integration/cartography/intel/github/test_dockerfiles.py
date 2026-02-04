@@ -131,10 +131,14 @@ def test_search_dockerfiles_in_org_with_pagination(mock_rest_api):
 
 
 @patch("cartography.intel.github.dockerfiles.call_github_rest_api")
-def test_search_dockerfiles_in_org_handles_error(mock_rest_api):
+def test_search_dockerfiles_in_org_propagates_http_error(mock_rest_api):
     """
-    Test that search_dockerfiles_in_org handles HTTP errors gracefully.
+    Test that search_dockerfiles_in_org propagates HTTP errors (fail-fast).
+
+    403 errors (rate limit, forbidden) should propagate to the caller so
+    the sync can fail loudly rather than silently returning empty results.
     """
+    import pytest
     import requests
 
     # Arrange - simulate a 403 rate limit error
@@ -143,15 +147,13 @@ def test_search_dockerfiles_in_org_handles_error(mock_rest_api):
     mock_response.reason = "Forbidden"
     mock_rest_api.side_effect = requests.exceptions.HTTPError(response=mock_response)
 
-    # Act
-    results = cartography.intel.github.dockerfiles.search_dockerfiles_in_org(
-        token="test_token",
-        org="testorg",
-        base_url="https://api.github.com",
-    )
-
-    # Assert - should return empty list, not raise exception
-    assert results == []
+    # Act & Assert - should raise exception, not swallow it
+    with pytest.raises(requests.exceptions.HTTPError):
+        cartography.intel.github.dockerfiles.search_dockerfiles_in_org(
+            token="test_token",
+            org="testorg",
+            base_url="https://api.github.com",
+        )
 
 
 @patch("cartography.intel.github.dockerfiles.call_github_rest_api")
@@ -427,10 +429,14 @@ def test_sync_no_dockerfiles(mock_get_dockerfiles, neo4j_session):
 
 
 @patch("cartography.intel.github.dockerfiles.call_github_rest_api")
-def test_search_handles_http_error_gracefully(mock_rest_api):
+def test_search_propagates_http_error(mock_rest_api):
     """
-    Test that search_dockerfiles_in_repo handles HTTP errors gracefully.
+    Test that search_dockerfiles_in_repo propagates HTTP errors (fail-fast).
+
+    403 errors (rate limit, forbidden) should propagate to the caller so
+    the sync can fail loudly rather than silently returning empty results.
     """
+    import pytest
     import requests
 
     # Arrange - simulate a 403 rate limit error
@@ -439,16 +445,14 @@ def test_search_handles_http_error_gracefully(mock_rest_api):
     mock_response.reason = "Forbidden"
     mock_rest_api.side_effect = requests.exceptions.HTTPError(response=mock_response)
 
-    # Act
-    results = cartography.intel.github.dockerfiles.search_dockerfiles_in_repo(
-        token="test_token",
-        owner="testorg",
-        repo="testrepo",
-        base_url="https://api.github.com",
-    )
-
-    # Assert - should return empty list, not raise exception
-    assert results == []
+    # Act & Assert - should raise exception, not swallow it
+    with pytest.raises(requests.exceptions.HTTPError):
+        cartography.intel.github.dockerfiles.search_dockerfiles_in_repo(
+            token="test_token",
+            owner="testorg",
+            repo="testrepo",
+            base_url="https://api.github.com",
+        )
 
 
 @patch("cartography.intel.github.dockerfiles.call_github_rest_api")

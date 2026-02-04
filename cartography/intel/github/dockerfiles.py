@@ -606,11 +606,13 @@ def search_dockerfiles_in_org(
             page += 1
 
         except requests.exceptions.HTTPError as e:
-            # Handle 403 (rate limit) and 422 (validation error) gracefully
-            if e.response is not None and e.response.status_code in (403, 422):
-                logger.warning(
-                    f"Failed to search dockerfiles in org {org}: "
-                    f"{e.response.status_code} - {e.response.reason}"
+            # Only 422 (validation error for empty search results) is acceptable
+            # Other errors (403 rate limit, 429 too many requests) should propagate
+            if e.response is not None and e.response.status_code == 422:
+                logger.debug(
+                    "Search validation error for org %s (may have no results): %s",
+                    org,
+                    e.response.status_code,
                 )
                 break
             raise
@@ -649,8 +651,12 @@ def search_dockerfiles_in_repo(
         logger.debug(f"Found {len(items)} dockerfile(s) in {owner}/{repo}")
         return items
     except requests.exceptions.HTTPError as e:
-        if e.response is not None and e.response.status_code in (403, 404, 422):
-            logger.debug(f"Search failed for {owner}/{repo}: {e.response.status_code}")
+        # Only 404 (repo not found) and 422 (validation error) are acceptable
+        # 403 (forbidden/rate limit) and 429 (too many requests) should propagate
+        if e.response is not None and e.response.status_code in (404, 422):
+            logger.debug(
+                "Search failed for %s/%s: %d", owner, repo, e.response.status_code
+            )
             return []
         raise
 
@@ -1033,92 +1039,108 @@ def sync(
     )
 
     # ==========================================================================
-    # Stage 1: SLSA Provenance-based matching (PRIMARY - highest confidence)
+    # GET Stage: Collect all data
     # ==========================================================================
-    # Try provenance-based matching first - this provides 100% confidence from
-    # cryptographically signed attestations without needing Dockerfile content.
-    provenance_match_count = 0
-    workflow_match_count = 0
-    if match_container_images:
-        provenance_match_count = load_provenance_relationships(
-            neo4j_session,
-            organization,
-            update_tag,
-        )
-        # Also create BUILT_BY relationships to workflows for images with provenance
-        workflow_match_count = load_workflow_relationships(
-            neo4j_session,
-            organization,
-            update_tag,
-        )
 
-    # ==========================================================================
-    # Stage 2: Dockerfile command matching (FALLBACK)
-    # ==========================================================================
     # Extract base REST API URL from the GraphQL URL
     base_url = api_url
     if base_url.endswith("/graphql"):
         base_url = base_url[:-8]
 
-    # Search and download Dockerfiles (uses org-wide search for efficiency)
+    # GET: Provenance matches (from images already in graph)
+    provenance_matches: list[dict[str, Any]] = []
+    workflow_matches: list[dict[str, Any]] = []
+    if match_container_images:
+        provenance_matches = get_provenance_matches_for_org(neo4j_session, organization)
+        workflow_matches = get_images_with_workflow_provenance(
+            neo4j_session, organization
+        )
+
+    # GET: Search and download Dockerfiles (uses org-wide search for efficiency)
     dockerfiles = get_dockerfiles_for_repos(token, repos, base_url, org=organization)
 
-    if not dockerfiles:
-        logger.info("No dockerfiles found in %s", organization)
-        # Even with no dockerfiles, we may have provenance matches, so continue
-        if provenance_match_count == 0:
-            # Cleanup any stale relationships
-            if match_container_images:
-                cleanup_dockerfile_image_relationships(
-                    neo4j_session,
-                    organization,
-                    update_tag,
-                )
-                cleanup_workflow_relationships(
-                    neo4j_session,
-                    organization,
-                    update_tag,
-                )
-            return None
-
+    # GET: Container images for dockerfile matching
     images: list[ContainerImage] | None = None
-    matches: list[ImageDockerfileMatch] | None = None
-
-    # Query container images and perform dockerfile command matching if requested
     if match_container_images and dockerfiles:
         logger.info("Querying container images with layer history from Neo4j...")
-        # Single query gets images AND their layer history using generic ontology labels
         images = get_container_images_with_history(neo4j_session, limit=image_limit)
 
-        if images:
+    # ==========================================================================
+    # TRANSFORM Stage: Match images to dockerfiles
+    # ==========================================================================
+    matches: list[ImageDockerfileMatch] | None = None
+
+    if images and dockerfiles:
+        logger.info(
+            "Found %d container images, performing dockerfile matching...",
+            len(images),
+        )
+        matches = match_images_to_dockerfiles(
+            images,
+            dockerfiles,
+            min_confidence=min_match_confidence,
+        )
+
+        # Log summary
+        high_confidence = sum(1 for m in matches if m.confidence >= 0.75)
+        logger.info(
+            "Dockerfile matching complete: %d matches found (%d high confidence)",
+            len(matches),
+            high_confidence,
+        )
+    elif match_container_images and dockerfiles:
+        logger.info("No container images found in Neo4j")
+
+    # ==========================================================================
+    # LOAD Stage: Create relationships in Neo4j
+    # ==========================================================================
+    if match_container_images:
+        # Load provenance-based BUILT_FROM relationships
+        if provenance_matches:
             logger.info(
-                "Found %d container images, performing dockerfile matching...",
-                len(images),
+                "Loading %d provenance-based BUILT_FROM relationships...",
+                len(provenance_matches),
             )
-            matches = match_images_to_dockerfiles(
-                images,
-                dockerfiles,
-                min_confidence=min_match_confidence,
+            load_matchlinks(
+                neo4j_session,
+                GitHubRepoBuiltFromMatchLink(),
+                provenance_matches,
+                lastupdated=update_tag,
+                _sub_resource_label="GitHubOrganization",
+                _sub_resource_id=organization,
             )
 
-            # Log summary
-            high_confidence = sum(1 for m in matches if m.confidence >= 0.75)
+        # Load workflow BUILT_BY relationships
+        if workflow_matches:
             logger.info(
-                "Dockerfile matching complete: %d matches found (%d high confidence)",
-                len(matches),
-                high_confidence,
+                "Loading %d BUILT_BY workflow relationships...", len(workflow_matches)
+            )
+            load_matchlinks(
+                neo4j_session,
+                ImageBuiltByWorkflowMatchLink(),
+                workflow_matches,
+                lastupdated=update_tag,
+                _sub_resource_label="GitHubOrganization",
+                _sub_resource_id=organization,
             )
 
-            # Load BUILT_FROM relationships to Neo4j
-            if matches:
-                load_dockerfile_image_relationships(
-                    neo4j_session,
-                    matches,
-                    organization,
-                    update_tag,
-                )
-        else:
-            logger.info("No container images found in Neo4j")
+        # Load dockerfile-based BUILT_FROM relationships
+        if matches:
+            load_dockerfile_image_relationships(
+                neo4j_session,
+                matches,
+                organization,
+                update_tag,
+            )
+
+    # ==========================================================================
+    # CLEANUP Stage: Remove stale relationships
+    # ==========================================================================
+    # Check if we have any data to justify cleanup
+    has_data = bool(dockerfiles or provenance_matches or workflow_matches)
+    if not has_data:
+        logger.info("No dockerfiles or provenance matches found in %s", organization)
+        return None
 
     # Always cleanup stale relationships (covers both provenance and dockerfile matches)
     if match_container_images:
@@ -1142,8 +1164,8 @@ def sync(
     logger.info(
         "Completed dockerfile sync: %d provenance matches, %d workflow matches, "
         "%d dockerfile(s), %d image(s), %d dockerfile matches",
-        provenance_match_count,
-        workflow_match_count,
+        len(provenance_matches),
+        len(workflow_matches),
         result.dockerfile_count,
         result.image_count,
         result.match_count,

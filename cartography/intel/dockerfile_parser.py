@@ -409,71 +409,22 @@ def _parse_instructions(content: str) -> list[DockerfileInstruction]:
 
 
 def _parse_with_dockerfile_package(content: str) -> list[DockerfileInstruction]:
-    """Parse using the dockerfile package for more accurate parsing."""
+    """Parse using the dockerfile package for accurate parsing.
+
+    Raises:
+        Exception: If parsing fails (e.g., invalid Dockerfile syntax)
+    """
     instructions = []
-    try:
-        parsed = dockerfile_pkg.parse_string(content)
-        for cmd in parsed:
-            value = " ".join(cmd.value) if cmd.value else ""
-            instructions.append(
-                DockerfileInstruction(
-                    cmd=cmd.cmd,
-                    value=value,
-                    line_number=cmd.start_line,
-                )
-            )
-    except Exception as e:
-        logger.warning(f"Failed to parse Dockerfile with dockerfile package: {e}")
-        return _parse_basic(content)
-    return instructions
-
-
-def _parse_basic(content: str) -> list[DockerfileInstruction]:
-    """Basic Dockerfile parser as fallback."""
-    instructions = []
-    current_cmd = None
-    current_value_lines: list[str] = []
-    current_line_num = 0
-
-    for line_num, line in enumerate(content.split("\n"), 1):
-        stripped = line.strip()
-
-        if not stripped or stripped.startswith("#"):
-            continue
-
-        if current_cmd and current_value_lines:
-            if current_value_lines[-1].endswith("\\"):
-                current_value_lines[-1] = current_value_lines[-1][:-1]
-                current_value_lines.append(stripped)
-                continue
-            else:
-                value = " ".join(current_value_lines)
-                instructions.append(
-                    DockerfileInstruction(
-                        cmd=current_cmd,
-                        value=value,
-                        line_number=current_line_num,
-                    )
-                )
-                current_cmd = None
-                current_value_lines = []
-
-        match = re.match(r"^(\w+)\s*(.*)", stripped)
-        if match:
-            current_cmd = match.group(1).upper()
-            current_value_lines = [match.group(2)] if match.group(2) else []
-            current_line_num = line_num
-
-    if current_cmd and current_value_lines:
-        value = " ".join(current_value_lines)
+    parsed = dockerfile_pkg.parse_string(content)
+    for cmd in parsed:
+        value = " ".join(cmd.value) if cmd.value else ""
         instructions.append(
             DockerfileInstruction(
-                cmd=current_cmd,
+                cmd=cmd.cmd,
                 value=value,
-                line_number=current_line_num,
+                line_number=cmd.start_line,
             )
         )
-
     return instructions
 
 
