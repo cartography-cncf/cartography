@@ -16,11 +16,10 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class TrivyPackageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     installed_version: PropertyRef = PropertyRef("InstalledVersion")
-    name: PropertyRef = PropertyRef("PkgName")
+    name: PropertyRef = PropertyRef("PkgName", extra_index=True)
     version: PropertyRef = PropertyRef("InstalledVersion")
     class_name: PropertyRef = PropertyRef("Class")
-    type: PropertyRef = PropertyRef("Type")
-    # Additional fields from Trivy scan results
+    type: PropertyRef = PropertyRef("Type", extra_index=True)
     purl: PropertyRef = PropertyRef("PURL")
     pkg_id: PropertyRef = PropertyRef("PkgID")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

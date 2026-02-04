@@ -121,6 +121,27 @@ class ECSTaskToNetworkInterfaceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECSTaskToServiceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ECSTaskToServiceRel(CartographyRelSchema):
+    """
+    Relationship from ECSTask to ECSService.
+    Eliminates need for split(task.group, ':')[1] in queries.
+    """
+
+    target_node_label: str = "ECSService"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("serviceName")}  # Already extracted in task properties
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "BELONGS_TO_SERVICE"
+    properties: ECSTaskToServiceRelProperties = ECSTaskToServiceRelProperties()
+
+
+@dataclass(frozen=True)
 class ECSTaskSchema(CartographyNodeSchema):
     label: str = "ECSTask"
     properties: ECSTaskNodeProperties = ECSTaskNodeProperties()
@@ -130,5 +151,6 @@ class ECSTaskSchema(CartographyNodeSchema):
             ECSTaskToContainerInstanceRel(),
             ECSTaskToECSClusterRel(),
             ECSTaskToNetworkInterfaceRel(),
+            ECSTaskToServiceRel(),  # NEW: Direct task → service link
         ]
     )
