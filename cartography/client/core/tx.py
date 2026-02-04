@@ -425,7 +425,7 @@ def read_single_value_tx(
 
     Examples:
         >>> query = '''MATCH (a:TestNode{name: "Lisa"}) RETURN a.age'''
-        >>> value = neo4j_session.read_transaction(read_single_value_tx, query)
+        >>> value = neo4j_session.execute_read(read_single_value_tx, query)
         >>> print(value)
         8
 
@@ -469,7 +469,7 @@ def read_list_of_dicts_tx(
 
     Examples:
         >>> query = "MATCH (a:TestNode) RETURN a.name AS name, a.age AS age ORDER BY age"
-        >>> data = neo4j_session.read_transaction(read_list_of_dicts_tx, query)
+        >>> data = neo4j_session.execute_read(read_list_of_dicts_tx, query)
         >>> print(data)
         [{'name': 'Lisa', 'age': 8}, {'name': 'Homer', 'age': 39}]
 
@@ -509,7 +509,7 @@ def read_list_of_tuples_tx(
 
     Examples:
         >>> query = "MATCH (a:TestNode) RETURN a.name AS name, a.age AS age ORDER BY age"
-        >>> data = neo4j_session.read_transaction(read_list_of_tuples_tx, query)
+        >>> data = neo4j_session.execute_read(read_list_of_tuples_tx, query)
         >>> print(data)
         [('Lisa', 8), ('Homer', 39)]
 
@@ -550,7 +550,7 @@ def read_single_dict_tx(tx: neo4j.Transaction, query: str, **kwargs) -> Any:
 
     Examples:
         >>> query = '''MATCH (a:TestNode{name: "Homer"}) RETURN a.name AS name, a.age AS age'''
-        >>> result = neo4j_session.read_transaction(read_single_dict_tx, query)
+        >>> result = neo4j_session.execute_read(read_single_dict_tx, query)
         >>> print(result)
         {'name': 'Homer', 'age': 39}
 
