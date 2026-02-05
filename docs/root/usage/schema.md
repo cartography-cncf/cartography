@@ -120,6 +120,9 @@
 ```{include} ../modules/snipeit/schema.md
 ```
 
+```{include} ../modules/syft/schema.md
+```
+
 ```{include} ../modules/spacelift/schema.md
 ```
 
