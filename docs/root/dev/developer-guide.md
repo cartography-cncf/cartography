@@ -11,7 +11,7 @@ If you prefer docker instead, skip this and scroll down to [these instructions](
 
     Follow the [Install Steps](../install) so that you get Neo4j running locally. It's up to you if you want to use Docker or a native install.
 
-1. **Install Python 3.10**
+1. **Install Python 3.13**
 
 1. **Clone the source code**
 
