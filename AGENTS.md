@@ -38,7 +38,7 @@ Detailed procedures are available in separate documents:
 
 **Critical Files to Know:**
 - `cartography/config.py` - Configuration object definitions
-- `cartography/cli.py` - Command-line argument definitions
+- `cartography/cli.py` - Typer-based CLI with organized help panels
 - `cartography/client/core/tx.py` - Core `load()` function
 - `cartography/graph/job.py` - Cleanup job utilities
 - `cartography/models/core/` - Base data model classes

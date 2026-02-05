@@ -3644,6 +3644,8 @@ Representation of an AWS S3 [Access Control List](https://docs.aws.amazon.com/Am
 
 Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html).
 
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., GCPBucket, AzureStorageBlobContainer).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -3843,8 +3845,10 @@ Representation of an AWS [API Gateway REST API](https://docs.aws.amazon.com/apig
 | minimumcompressionsize | A nullable integer that is used to enable or disable the compression of the REST API |
 | disableexecuteapiendpoint | Specifies whether clients can invoke your API by using the default `execute-api` endpoint |
 | region | The region where the REST API is created |
-| anonymous\_actions |  List of anonymous internet accessible actions that may be run on the API. |
-| anonymous\_access | True if this API has a policy applied to it that allows anonymous access or if it is open to the internet. |
+| anonymous\_actions |  List of anonymous internet accessible actions that may be run on the API (policy-level). |
+| anonymous\_access | True if this API has a resource policy that allows anonymous/public access (policy-level analysis via PolicyUniverse). |
+| **endpoint\_type** | The endpoint configuration type: `EDGE` (CloudFront), `REGIONAL` (direct), or `PRIVATE` (VPC-only). |
+| **exposed\_internet** | True if the API is network-reachable from the internet (`EDGE` or `REGIONAL`), false for `PRIVATE` endpoints. |
 
 #### Relationships
 
@@ -4205,6 +4209,8 @@ Representation of an AWS [EC2 Reserved Instance](https://docs.aws.amazon.com/AWS
 ### SecretsManagerSecret
 
 Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_SecretListEntry.html)
+
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
 
 | Field | Description |
 |-------|-------------|

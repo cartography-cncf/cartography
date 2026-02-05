@@ -11,10 +11,13 @@ U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
-LB -- EXPOSE --> CT{{Container}}
+LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
 DB{{Database}}
+OS{{ObjectStorage}}
 TN{{Tenant}}
 FN{{Function}}
+REPO{{CodeRepository}}
+SC{{Secret}}
 PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
@@ -179,6 +182,23 @@ API keys are used across different cloud providers and SaaS platforms for authen
     ```
 
 
+### Secret
+
+```{note}
+Secret is a semantic label.
+```
+
+A secret represents sensitive data stored in a secrets management service across different cloud providers and platforms.
+Secrets can include database credentials, API keys, certificates, and other sensitive configuration data.
+They are managed by dedicated services like AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, GitHub Actions Secrets, and Kubernetes Secrets.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name or identifier of the secret (REQUIRED). |
+| _ont_created_at | Timestamp when the secret was created. |
+| _ont_updated_at | Timestamp when the secret was last updated. |
+| _ont_rotation_enabled | Whether automatic rotation is enabled for the secret. |
+
 
 ### ComputeInstance
 
@@ -271,6 +291,24 @@ It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure 
 | _ont_db_location | The physical location/region of the database. |
 
 
+### ObjectStorage
+
+```{note}
+ObjectStorage is a semantic label.
+```
+
+An object storage represents a managed blob/object storage system across different cloud providers.
+It generalizes concepts like AWS S3 buckets, GCP Cloud Storage buckets, and Azure Blob Containers.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the storage bucket/container (REQUIRED). |
+| _ont_location | The region/location of the storage. |
+| _ont_encrypted | Whether the storage is encrypted. |
+| _ont_versioning | Whether versioning is enabled. |
+| _ont_public | Whether the storage has public access (not available for all providers). |
+
+
 ### Tenant
 
 ```{note}
@@ -310,6 +348,27 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Clou
 | _ont_memory | Memory allocated to the function (in MB). |
 | _ont_timeout | Timeout for function execution (in seconds). |
 | _ont_deployment_type | The deployment type: `code` for source code functions (Lambda, Cloud Functions, Azure Functions), `container` for container-based functions (Cloud Run). |
+
+
+### CodeRepository
+
+```{note}
+CodeRepository is a semantic label.
+```
+
+A code repository represents a source code repository containing software projects and their version history.
+Code repositories are critical assets for supply chain security as they contain intellectual property and often secrets.
+It generalizes concepts like GitHub Repositories and GitLab Projects.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the repository (REQUIRED). |
+| _ont_fullname | The full path including namespace (e.g., "org/repo", "group/subgroup/project"). |
+| _ont_description | Description of the repository. |
+| _ont_url | Web URL to access the repository. |
+| _ont_default_branch | The default branch name (e.g., "main", "master"). |
+| _ont_public | Whether the repository is publicly accessible. |
+| _ont_archived | Whether the repository is archived (read-only). |
 
 
 ### LoadBalancer

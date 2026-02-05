@@ -705,7 +705,7 @@ Representation of an [AzureReplicationLink](https://docs.microsoft.com/en-us/res
 
 ### AzureDatabaseThreatDetectionPolicy
 
-Representation of an [AzureDatabaseThreatDetectionPolicy](https://docs.microsoft.com/en-us/rest/api/sql/databasethreatdetectionpolicies).
+Representation of an [AzureDatabaseThreatDetectionPolicy](https://learn.microsoft.com/en-us/rest/api/sql/database-security-alert-policies).
 
 | Field | Description |
 |-------|-------------|
@@ -713,15 +713,13 @@ Representation of an [AzureDatabaseThreatDetectionPolicy](https://docs.microsoft
 |lastupdated| Timestamp of the last time the node was updated|
 |**id**| The resource ID|
 |name | The name of the resource.|
-|location | The geo-location where the resource lives.|
-|kind | The kind of the resource.|
 |emailadmins | Specifies that the alert is sent to the account administrators.|
-|emailaddresses | Specifies the semicolon-separated list of e-mail addresses to which the alert is sent.|
+|emailaddresses | List of e-mail addresses to which the alert is sent.|
 |retentiondays | Specifies the number of days to keep in the Threat Detection audit logs.|
 |state | Specifies the state of the policy.|
 |storageendpoint | Specifies the blob storage endpoint.|
-|useserverdefault | Specifies whether to use the default server policy.|
-|disabledalerts | Specifies the semicolon-separated list of alerts that are disabled, or empty string to disable no alerts.|
+|disabledalerts | List of alerts that are disabled.|
+|creationtime | Specifies the UTC creation time of the policy.|
 
 #### Relationships
 
@@ -1028,6 +1026,8 @@ Representation of an [AzureStorageFileShare](https://docs.microsoft.com/en-us/re
 ### AzureStorageBlobContainer
 
 Representation of an [AzureStorageBlobContainer](https://docs.microsoft.com/en-us/rest/api/storagerp/blobcontainers).
+
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, GCPBucket).
 
 | Field | Description |
 |-------|-------------|
@@ -1746,6 +1746,8 @@ Representation of an [Azure Key Vault](https://learn.microsoft.com/en-us/rest/ap
 ### AzureKeyVaultSecret
 
 Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/secrets/get-secrets/get-secrets).
+
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
 
 | Field | Description |
 |---|---|

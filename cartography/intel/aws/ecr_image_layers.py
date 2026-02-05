@@ -812,7 +812,7 @@ def sync(
         """
         from cartography.client.core.tx import read_list_of_dicts_tx
 
-        ecr_images = neo4j_session.read_transaction(
+        ecr_images = neo4j_session.execute_read(
             read_list_of_dicts_tx, query, AWS_ID=current_aws_account_id, Region=region
         )
 

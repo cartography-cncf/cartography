@@ -6,8 +6,6 @@ from tests.data.github.teams import GH_TEAM_CHILD_TEAM
 from tests.data.github.teams import GH_TEAM_DATA
 from tests.data.github.teams import GH_TEAM_REPOS
 from tests.data.github.teams import GH_TEAM_USERS
-from tests.integration.cartography.intel.github import test_repos
-from tests.integration.cartography.intel.github import test_users
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -15,6 +13,48 @@ TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://fake.github.net/graphql/"
 FAKE_API_KEY = "asdf"
+
+
+def _ensure_prerequisite_data_exists(neo4j_session):
+    """
+    Create prerequisite GitHubOrganization, GitHubRepository, and GitHubUser nodes
+    needed for teams test.
+    """
+    # Create organization
+    neo4j_session.run(
+        """
+        MERGE (org:GitHubOrganization{id: "https://github.com/simpsoncorp"})
+        SET org.username = "simpsoncorp"
+        """,
+    )
+
+    # Create repositories
+    neo4j_session.run(
+        """
+        MERGE (repo1:GitHubRepository{id: "https://github.com/simpsoncorp/sample_repo"})
+        SET repo1.name = "sample_repo"
+
+        MERGE (repo2:GitHubRepository{id: "https://github.com/simpsoncorp/SampleRepo2"})
+        SET repo2.name = "SampleRepo2"
+
+        MERGE (repo3:GitHubRepository{id: "https://github.com/cartography-cncf/cartography"})
+        SET repo3.name = "cartography"
+        """,
+    )
+
+    # Create users
+    neo4j_session.run(
+        """
+        MERGE (u1:GitHubUser{id: "https://github.com/hjsimpson"})
+        SET u1.username = "hjsimpson"
+
+        MERGE (u2:GitHubUser{id: "https://github.com/lmsimpson"})
+        SET u2.username = "lmsimpson"
+
+        MERGE (u3:GitHubUser{id: "https://github.com/mbsimpson"})
+        SET u3.username = "mbsimpson"
+        """,
+    )
 
 
 @patch.object(
@@ -40,10 +80,12 @@ def test_sync_github_teams(
     mock_child_teams,
     neo4j_session,
 ):
-    # Arrange
-    test_repos._ensure_local_neo4j_has_test_data(neo4j_session)
-    test_users._ensure_local_neo4j_has_test_data(neo4j_session)
-    # Arrange: Add another org to make sure we don't attach a node to the wrong org
+    """
+    Test that GitHub teams sync correctly with proper nodes and relationships.
+    """
+    # Arrange - Create prerequisite data
+    _ensure_prerequisite_data_exists(neo4j_session)
+    # Add another org to make sure we don't attach a node to the wrong org
     neo4j_session.run(
         """
         MERGE (g:GitHubOrganization{id: "this should have no attachments"})
@@ -59,7 +101,7 @@ def test_sync_github_teams(
         "SimpsonCorp",
     )
 
-    # Assert
+    # Assert - Verify GitHubTeam nodes were created
     assert check_nodes(neo4j_session, "GitHubTeam", ["id", "url", "name"]) == {
         (
             "https://github.com/orgs/simpsoncorp/teams/team-a",
@@ -87,6 +129,8 @@ def test_sync_github_teams(
             "team-e",
         ),
     }
+
+    # Assert - Verify RESOURCE relationships to organization
     assert check_rels(
         neo4j_session,
         "GitHubTeam",
@@ -117,6 +161,8 @@ def test_sync_github_teams(
             "https://github.com/simpsoncorp",
         ),
     }
+
+    # Assert - Verify ADMIN relationships to repositories
     assert check_rels(
         neo4j_session,
         "GitHubTeam",
@@ -131,6 +177,8 @@ def test_sync_github_teams(
             "https://github.com/simpsoncorp/sample_repo",
         ),
     }
+
+    # Assert - Verify WRITE relationships to repositories
     assert check_rels(
         neo4j_session,
         "GitHubTeam",
@@ -145,6 +193,8 @@ def test_sync_github_teams(
             "https://github.com/simpsoncorp/SampleRepo2",
         ),
     }
+
+    # Assert - Verify READ relationships to repositories
     assert check_rels(
         neo4j_session,
         "GitHubTeam",
@@ -159,6 +209,8 @@ def test_sync_github_teams(
             "https://github.com/cartography-cncf/cartography",
         ),
     }
+
+    # Assert - Verify MEMBER relationships to users
     assert check_rels(
         neo4j_session,
         "GitHubTeam",
@@ -173,6 +225,8 @@ def test_sync_github_teams(
             "https://github.com/hjsimpson",
         ),
     }
+
+    # Assert - Verify MAINTAINER relationships to users
     assert check_rels(
         neo4j_session,
         "GitHubTeam",
@@ -191,6 +245,8 @@ def test_sync_github_teams(
             "https://github.com/mbsimpson",
         ),
     }
+
+    # Assert - Verify MEMBER_OF_TEAM relationships between teams
     assert check_rels(
         neo4j_session,
         "GitHubTeam",

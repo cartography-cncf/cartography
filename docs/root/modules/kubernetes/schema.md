@@ -164,6 +164,8 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 ### KubernetesSecret
 Representation of a [Kubernetes Secret.](https://kubernetes.io/docs/concepts/configuration/secret/)
 
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
+
 | Field | Description |
 |-------|-------------|
 | id | UID of the kubernetes secret |
