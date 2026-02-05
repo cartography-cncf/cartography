@@ -190,6 +190,8 @@ googleworkspace_mapping = OntologyMapping(
 
 # GSuite (legacy): No field to map in GSuiteTenant (minimal properties)
 
+# Jamf: No field to map in JamfTenant (minimal properties)
+
 # Kandji: No field to map in KandjiTenant (minimal properties)
 
 

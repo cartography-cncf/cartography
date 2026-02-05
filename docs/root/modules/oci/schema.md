@@ -28,6 +28,8 @@ Representation of an OCI Tenancy (the root resource).
 
 Representation of an [OCI User](https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/User).
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, GitHubUser, EntraUser).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |

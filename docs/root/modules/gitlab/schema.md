@@ -216,6 +216,8 @@ Representation of a GitLab user. Users belong to an organization and can be memb
 
 **Note:** Only current members of the organization and its groups are synced. Former members and external contributors who are not current members are not tracked.
 
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, GitHubUser, EntraUser).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |
