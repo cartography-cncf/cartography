@@ -114,6 +114,8 @@ Representation of a GitLab nested subgroup. Groups can contain other groups (cre
 
 Representation of a GitLab project (repository). Projects are GitLab's equivalent of repositories and can belong to organizations or groups. The `GitLabRepository` label is included for backwards compatibility with existing queries.
 
+> **Ontology Mapping**: This node has the extra label `CodeRepository` to enable cross-platform queries for source code repositories across different systems (e.g., GitHubRepository).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |

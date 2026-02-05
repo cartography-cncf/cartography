@@ -36,6 +36,7 @@ U -- MAINTAINER --> T
 
 Representation of a single GitHubRepository (repo) [repository object](https://developer.github.com/v4/object/repository/). This node contains all data unique to the repo.
 
+> **Ontology Mapping**: This node has the extra label `CodeRepository` to enable cross-platform queries for source code repositories across different systems (e.g., GitLabProject).
 
 | Field | Description |
 |-------|--------------|

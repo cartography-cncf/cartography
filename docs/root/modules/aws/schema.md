@@ -3644,6 +3644,8 @@ Representation of an AWS S3 [Access Control List](https://docs.aws.amazon.com/Am
 
 Representation of an AWS S3 [Bucket](https://docs.aws.amazon.com/AmazonS3/latest/API/API_Bucket.html).
 
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., GCPBucket, AzureStorageBlobContainer).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
