@@ -13,6 +13,7 @@ U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB -- EXPOSE --> CT{{Container}}
 DB{{Database}}
+OS{{ObjectStorage}}
 TN{{Tenant}}
 FN{{Function}}
 PIP(PublicIP) -- POINTS_TO --> LB
@@ -269,6 +270,24 @@ It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure 
 | _ont_db_port | The port number the database listens on. |
 | _ont_db_encrypted | Whether the database storage is encrypted. |
 | _ont_db_location | The physical location/region of the database. |
+
+
+### ObjectStorage
+
+```{note}
+ObjectStorage is a semantic label.
+```
+
+An object storage represents a managed blob/object storage system across different cloud providers.
+It generalizes concepts like AWS S3 buckets, GCP Cloud Storage buckets, and Azure Blob Containers.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the storage bucket/container (REQUIRED). |
+| _ont_location | The region/location of the storage. |
+| _ont_encrypted | Whether the storage is encrypted. |
+| _ont_versioning | Whether versioning is enabled. |
+| _ont_public | Whether the storage has public access (not available for all providers). |
 
 
 ### Tenant

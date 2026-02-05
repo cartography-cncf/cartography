@@ -124,6 +124,8 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
 ### GCPBucket
 Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/json_api/v1/buckets).
 
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, AzureStorageBlobContainer).
+
 | Field                         | Description                                                                                                                                                                                                                                         |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | firstseen                     | Timestamp of when a sync job first discovered this node |
