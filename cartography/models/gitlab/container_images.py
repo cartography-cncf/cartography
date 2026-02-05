@@ -83,6 +83,31 @@ class GitLabContainerImageContainsImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class GitLabContainerImageToLayerRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    position: PropertyRef = PropertyRef("position")
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageToLayerRel(CartographyRelSchema):
+    """
+    Relationship from an image to its constituent layers.
+    Only applies to images with type="image" (not manifest lists).
+    The position property indicates layer order (0 = base layer).
+    """
+
+    target_node_label: str = "GitLabContainerImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("layer_digests", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_LAYER"
+    properties: GitLabContainerImageToLayerRelProperties = (
+        GitLabContainerImageToLayerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GitLabContainerImageSchema(CartographyNodeSchema):
     """
     Schema for GitLab Container Image nodes.
@@ -90,6 +115,7 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
     Relationships:
     - RESOURCE: Sub-resource to GitLabOrganization for cleanup
     - CONTAINS_IMAGE: From manifest lists to platform-specific images
+    - HAS_LAYER: From images to their constituent layers
     """
 
     label: str = "GitLabContainerImage"
@@ -102,5 +128,6 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitLabContainerImageContainsImageRel(),
+            GitLabContainerImageToLayerRel(),
         ],
     )

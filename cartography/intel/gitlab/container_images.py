@@ -16,6 +16,9 @@ from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.gitlab.util import get_paginated
+from cartography.models.gitlab.container_image_layers import (
+    GitLabContainerImageLayerSchema,
+)
 from cartography.models.gitlab.container_images import GitLabContainerImageSchema
 from cartography.util import timeit
 
@@ -274,6 +277,14 @@ def transform_container_images(
                 != "attestation-manifest"
             ]
 
+        # Extract layer digests for regular images (for HAS_LAYER relationship)
+        layer_digests = None
+        if not is_manifest_list:
+            layers = manifest.get("layers", [])
+            layer_digests = [
+                layer.get("digest") for layer in layers if layer.get("digest")
+            ]
+
         # Extract architecture, os, variant from config blob (for regular images)
         config = manifest.get("_config", {})
 
@@ -299,11 +310,54 @@ def transform_container_images(
                 "os": config.get("os"),
                 "variant": config.get("variant"),
                 "child_image_digests": child_image_digests,
+                "layer_digests": layer_digests,
             }
         )
 
     logger.info(f"Transformed {len(transformed)} container images")
     return transformed
+
+
+def transform_container_image_layers(
+    raw_manifests: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Transform raw manifest data into layer nodes.
+    Extracts layers from regular images (not manifest lists).
+    Each layer includes position for ordering and image_digest for relationship matching.
+    """
+    all_layers = []
+
+    for manifest in raw_manifests:
+        media_type = manifest.get("mediaType")
+        is_manifest_list = media_type in MANIFEST_LIST_MEDIA_TYPES
+
+        # Skip manifest lists - they don't have layers
+        if is_manifest_list:
+            continue
+
+        image_digest = manifest.get("_digest")
+        layers = manifest.get("layers", [])
+        config = manifest.get("_config", {})
+        diff_ids = config.get("rootfs", {}).get("diff_ids", [])
+
+        for position, layer in enumerate(layers):
+            # Match diff_id by position (arrays are ordered the same)
+            diff_id = diff_ids[position] if position < len(diff_ids) else None
+
+            all_layers.append(
+                {
+                    "digest": layer.get("digest"),
+                    "diff_id": diff_id,
+                    "media_type": layer.get("mediaType"),
+                    "size": layer.get("size"),
+                    "image_digest": image_digest,  # For HAS_LAYER relationship
+                    "position": position,  # 0 = base layer
+                }
+            )
+
+    logger.info(f"Transformed {len(all_layers)} container image layers")
+    return all_layers
 
 
 @timeit
@@ -339,6 +393,38 @@ def cleanup_container_images(
 
 
 @timeit
+def load_container_image_layers(
+    neo4j_session: neo4j.Session,
+    layers: list[dict[str, Any]],
+    org_url: str,
+    update_tag: int,
+) -> None:
+    """
+    Load container image layers into the graph.
+    """
+    load(
+        neo4j_session,
+        GitLabContainerImageLayerSchema(),
+        layers,
+        lastupdated=update_tag,
+        org_url=org_url,
+    )
+
+
+@timeit
+def cleanup_container_image_layers(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Clean up stale container image layers using the GraphJob framework.
+    """
+    GraphJob.from_node_schema(
+        GitLabContainerImageLayerSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
 def sync_container_images(
     neo4j_session: neo4j.Session,
     gitlab_url: str,
@@ -356,7 +442,17 @@ def sync_container_images(
     raw_manifests, manifest_lists = get_container_images(
         gitlab_url, token, repositories
     )
+
+    # Transform images and layers
     images = transform_container_images(raw_manifests)
+    layers = transform_container_image_layers(raw_manifests)
+
+    # Load layers FIRST so they exist when image relationships are created
+    load_container_image_layers(neo4j_session, layers, org_url, update_tag)
+    cleanup_container_image_layers(neo4j_session, common_job_parameters)
+
+    # Load images (creates HAS_LAYER relationships to existing layer nodes)
     load_container_images(neo4j_session, images, org_url, update_tag)
     cleanup_container_images(neo4j_session, common_job_parameters)
+
     return raw_manifests, manifest_lists

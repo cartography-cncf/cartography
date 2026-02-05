@@ -381,3 +381,52 @@ def test_sync_container_registry(
         )
         == expected_attests_rels
     )
+
+    # Verify container image layer nodes
+    # Note: Only 1 layer in mock data (first image has 1 layer, others have empty arrays)
+    expected_layers = {
+        ("sha256:layer1111222333444555666777888999000aaabbbcccdddeeefff00011122",),
+    }
+    assert (
+        check_nodes(neo4j_session, "GitLabContainerImageLayer", ["digest"])
+        == expected_layers
+    )
+
+    # Verify layer RESOURCE relationships
+    expected_layer_rels = {
+        (
+            TEST_ORG_URL,
+            "sha256:layer1111222333444555666777888999000aaabbbcccdddeeefff00011122",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitLabOrganization",
+            "id",
+            "GitLabContainerImageLayer",
+            "digest",
+            "RESOURCE",
+        )
+        == expected_layer_rels
+    )
+
+    # Verify HAS_LAYER relationships (image -> layer)
+    # Only the first image has a layer in the mock data
+    expected_has_layer_rels = {
+        (
+            "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+            "sha256:layer1111222333444555666777888999000aaabbbcccdddeeefff00011122",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitLabContainerImage",
+            "id",
+            "GitLabContainerImageLayer",
+            "digest",
+            "HAS_LAYER",
+        )
+        == expected_has_layer_rels
+    )
