@@ -334,7 +334,7 @@ def test_dockerfile_sync_result_to_tempfile():
             "content": "FROM python:3.11",
         }
     ]
-    result = cartography.intel.github.supply_chain.SupplyChainSyncResult(
+    result = cartography.intel.github.supply_chain.GitHubSupplyChainSyncResult(
         dockerfiles=test_dockerfiles,
     )
 

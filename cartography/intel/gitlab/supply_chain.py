@@ -1,19 +1,22 @@
 import base64
 import logging
-from dataclasses import dataclass
 from typing import Any
 
 import neo4j
 import requests
 
 from cartography.client.core.tx import load_matchlinks
-from cartography.graph.job import GraphJob
-from cartography.intel.dockerfile_parser import extract_layer_commands_from_history
-from cartography.intel.dockerfile_parser import find_best_dockerfile_matches
-from cartography.intel.dockerfile_parser import parse as parse_dockerfile
-from cartography.intel.dockerfile_parser import ParsedDockerfile
 from cartography.intel.gitlab.util import get_paginated
 from cartography.intel.gitlab.util import get_single
+from cartography.intel.supply_chain import cleanup_packaging_relationships
+from cartography.intel.supply_chain import ContainerImage
+from cartography.intel.supply_chain import convert_layer_history_records
+from cartography.intel.supply_chain import ImageDockerfileMatch
+from cartography.intel.supply_chain import load_packaging_relationships
+from cartography.intel.supply_chain import match_images_to_dockerfiles
+from cartography.intel.supply_chain import PackagingConfig
+from cartography.intel.supply_chain import parse_dockerfile_info
+from cartography.intel.supply_chain import SupplyChainSyncResult
 from cartography.models.gitlab.packaged_matchlink import (
     GitLabProjectPackagedFromMatchLink,
 )
@@ -23,36 +26,15 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# Container Image Data Classes
+# GitLab-specific configuration
 # =============================================================================
 
-
-@dataclass
-class GitLabContainerImage:
-    """Represents a GitLab container image from the graph."""
-
-    digest: str
-    uri: str
-    repository_location: str
-    tag: str | None
-    layer_diff_ids: list[str]
-    image_type: str | None
-    architecture: str | None
-    os: str | None
-    layer_history: list[dict[str, Any]]
-
-
-@dataclass
-class ImageDockerfileMatch:
-    """Represents a match between a container repository and a Dockerfile."""
-
-    registry_repo_location: str
-    project_url: str
-    dockerfile_path: str | None
-    confidence: float
-    matched_commands: int
-    total_commands: int
-    command_similarity: float
+GITLAB_PACKAGING_CONFIG = PackagingConfig(
+    matchlink_schema=GitLabProjectPackagedFromMatchLink(),
+    sub_resource_label="GitLabOrganization",
+    source_repo_field="project_url",
+    registry_id_field="registry_repo_location",
+)
 
 
 # =============================================================================
@@ -64,7 +46,7 @@ def get_gitlab_container_images_with_history(
     neo4j_session: neo4j.Session,
     org_url: str,
     limit: int | None = None,
-) -> list[GitLabContainerImage]:
+) -> list[ContainerImage]:
     """
     Query the graph to get GitLab container images with their layer history.
 
@@ -73,9 +55,8 @@ def get_gitlab_container_images_with_history(
     :param neo4j_session: Neo4j session
     :param org_url: The GitLab organization URL to scope the query
     :param limit: Optional limit on number of images to return
-    :return: List of GitLabContainerImage objects with layer history populated
+    :return: List of ContainerImage objects with layer history populated
     """
-    # Query GitLab-specific nodes with layer info
     query = """
         MATCH (img:GitLabContainerImage)<-[:REFERENCES]-(tag:GitLabContainerRepositoryTag)
               <-[:HAS_TAG]-(repo:GitLabContainerRepository)
@@ -126,21 +107,14 @@ def get_gitlab_container_images_with_history(
     images = []
 
     for record in result:
-        # Convert layer_history from query result to expected format
-        layer_history = [
-            {
-                "created_by": layer.get("history") or "",
-                "empty_layer": layer.get("is_empty") or False,
-                "diff_id": layer.get("diff_id"),
-            }
-            for layer in (record["layer_history"] or [])
-        ]
+        layer_history = convert_layer_history_records(record["layer_history"])
 
         images.append(
-            GitLabContainerImage(
+            ContainerImage(
                 digest=record["digest"],
                 uri=record["uri"] or "",
-                repository_location=record["repository_location"] or "",
+                registry_id=record["repository_location"] or "",
+                display_name=record["repository_location"] or "",
                 tag=record["tag"],
                 layer_diff_ids=record["layer_diff_ids"] or [],
                 image_type=record["type"],
@@ -219,7 +193,6 @@ def get_file_content(
     :param ref: The git reference (branch, tag, or commit SHA)
     :return: The file content as a string, or None if retrieval fails
     """
-    # URL-encode the file path for the API
     import urllib.parse
 
     encoded_path = urllib.parse.quote(file_path, safe="")
@@ -254,37 +227,12 @@ def _build_dockerfile_info(
     project_url = project.get("web_url", "")
     project_name = project.get("path_with_namespace", "")
 
-    try:
-        parsed = parse_dockerfile(content)
-        return {
-            "project_url": project_url,
-            "project_name": project_name,
-            "path": path,
-            "content": content,
-            "is_multistage": parsed.is_multistage,
-            "stage_count": parsed.stage_count,
-            "final_base_image": parsed.final_base_image,
-            "all_base_images": parsed.all_base_images,
-            "layer_count": parsed.layer_creating_instruction_count,
-            "stages": [
-                {
-                    "name": stage.name,
-                    "base_image": stage.base_image,
-                    "base_image_tag": stage.base_image_tag,
-                    "layer_count": stage.layer_count,
-                }
-                for stage in parsed.stages
-            ],
-        }
-    except Exception as e:
-        logger.warning(f"Failed to parse Dockerfile {project_name}/{path}: {e}")
-        return {
-            "project_url": project_url,
-            "project_name": project_name,
-            "path": path,
-            "content": content,
-            "parse_error": str(e),
-        }
+    info = parse_dockerfile_info(content, path, project_name)
+    info["project_url"] = project_url
+    info["project_name"] = project_name
+    # Used by the shared matching algorithm
+    info["source_repo_id"] = project_url
+    return info
 
 
 @timeit
@@ -332,122 +280,6 @@ def get_dockerfiles_for_projects(
 
 
 # =============================================================================
-# Dockerfile Matching
-# =============================================================================
-
-
-def match_images_to_dockerfiles(
-    images: list[GitLabContainerImage],
-    dockerfiles: list[dict[str, Any]],
-    min_confidence: float = 0.5,
-) -> list[ImageDockerfileMatch]:
-    """
-    Match container images to Dockerfiles based on layer history commands.
-
-    :param images: List of container images to match (with layer_history already populated)
-    :param dockerfiles: List of dockerfile dictionaries (from get_dockerfiles_for_projects)
-    :param min_confidence: Minimum confidence threshold for matches
-    :return: List of ImageDockerfileMatch objects
-    """
-    # Parse all dockerfiles into ParsedDockerfile objects
-    parsed_dockerfiles: list[ParsedDockerfile] = []
-    dockerfile_info_map: dict[str, dict[str, Any]] = {}
-
-    for df_info in dockerfiles:
-        if "parse_error" in df_info:
-            continue
-        try:
-            parsed = parse_dockerfile(df_info["content"])
-            # Store mapping from content_hash to original info
-            dockerfile_info_map[parsed.content_hash] = df_info
-            parsed_dockerfiles.append(parsed)
-        except Exception as e:
-            logger.warning(f"Failed to parse dockerfile {df_info.get('path')}: {e}")
-
-    if not parsed_dockerfiles:
-        logger.warning("No valid Dockerfiles to match against")
-        return []
-
-    matches: list[ImageDockerfileMatch] = []
-
-    for image in images:
-        # Use pre-loaded layer history from the image
-        if not image.layer_history:
-            logger.debug(
-                f"No layer history for image {image.repository_location}:{image.tag}"
-            )
-            continue
-
-        # Extract commands from history
-        image_commands = extract_layer_commands_from_history(image.layer_history)
-        if not image_commands:
-            logger.debug(
-                f"No commands extracted for image {image.repository_location}:{image.tag}"
-            )
-            continue
-
-        # Find best matching Dockerfiles
-        df_matches = find_best_dockerfile_matches(
-            image_commands, parsed_dockerfiles, min_confidence
-        )
-
-        if df_matches:
-            best_match = df_matches[0]
-            df_info = dockerfile_info_map.get(best_match.dockerfile.content_hash, {})
-
-            matches.append(
-                ImageDockerfileMatch(
-                    registry_repo_location=image.repository_location,
-                    project_url=df_info.get("project_url", ""),
-                    dockerfile_path=df_info.get("path"),
-                    confidence=best_match.confidence,
-                    matched_commands=best_match.matched_commands,
-                    total_commands=best_match.total_commands,
-                    command_similarity=best_match.command_similarity,
-                )
-            )
-            logger.debug(
-                f"Matched {image.repository_location}:{image.tag} -> {df_info.get('path')} "
-                f"(confidence: {best_match.confidence:.2f})"
-            )
-        else:
-            logger.debug(
-                f"No match found for image {image.repository_location}:{image.tag}"
-            )
-
-    logger.info(
-        f"Matched {len(matches)} images to Dockerfiles "
-        f"(out of {len(images)} images, {len(parsed_dockerfiles)} Dockerfiles)"
-    )
-    return matches
-
-
-def transform_matches_for_matchlink(
-    matches: list[ImageDockerfileMatch],
-) -> list[dict[str, Any]]:
-    """
-    Transform ImageDockerfileMatch objects into dictionaries for load_matchlinks.
-
-    :param matches: List of ImageDockerfileMatch objects
-    :return: List of dictionaries with fields matching the MatchLink schema
-    """
-    return [
-        {
-            "project_url": m.project_url,
-            "registry_repo_location": m.registry_repo_location,
-            "match_method": "dockerfile_analysis",
-            "dockerfile_path": m.dockerfile_path,
-            "confidence": m.confidence,
-            "matched_commands": m.matched_commands,
-            "total_commands": m.total_commands,
-            "command_similarity": m.command_similarity,
-        }
-        for m in matches
-        if m.project_url
-    ]
-
-
-# =============================================================================
 # SLSA Provenance-based Matching (Primary Method)
 # =============================================================================
 
@@ -470,9 +302,6 @@ def get_provenance_matches_for_org(
     :param org_url: The GitLab organization URL to match against
     :return: List of dicts ready for load_matchlinks
     """
-    # Query images that have source_uri and match it against GitLabProject.id
-    # The source_uri from SLSA provenance is like "https://gitlab.com/org/repo"
-    # which should match GitLabProject.id (web_url)
     query = """
         MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)
         WHERE img.source_uri IS NOT NULL
@@ -493,8 +322,8 @@ def get_provenance_matches_for_org(
                 "registry_repo_location": record["registry_repo_location"],
                 "project_url": record["project_url"],
                 "match_method": "provenance",
-                "dockerfile_path": None,  # Provenance doesn't include dockerfile path
-                "confidence": 1.0,  # 100% confident from provenance
+                "dockerfile_path": None,
+                "confidence": 1.0,
                 "matched_commands": 0,
                 "total_commands": 0,
                 "command_similarity": 1.0,
@@ -550,100 +379,8 @@ def load_provenance_relationships(
 
 
 # =============================================================================
-# Load and Cleanup
-# =============================================================================
-
-
-@timeit
-def load_packaging_relationships(
-    neo4j_session: neo4j.Session,
-    matches: list[ImageDockerfileMatch],
-    org_url: str,
-    update_tag: int,
-) -> None:
-    """
-    Load PACKAGED_FROM relationships between ImageTag and GitLabProject.
-
-    :param neo4j_session: Neo4j session
-    :param matches: List of ImageDockerfileMatch objects
-    :param org_url: The GitLab organization URL (used as sub_resource_id)
-    :param update_tag: The update timestamp tag
-    """
-    if not matches:
-        logger.info("No matches to load")
-        return
-
-    # Transform matches for MatchLink loading
-    matchlink_data = transform_matches_for_matchlink(matches)
-
-    if not matchlink_data:
-        logger.info("No valid matches with project URLs to load")
-        return
-
-    logger.info(f"Loading {len(matchlink_data)} PACKAGED_FROM relationships...")
-
-    load_matchlinks(
-        neo4j_session,
-        GitLabProjectPackagedFromMatchLink(),
-        matchlink_data,
-        lastupdated=update_tag,
-        _sub_resource_label="GitLabOrganization",
-        _sub_resource_id=org_url,
-    )
-
-    logger.info(f"Loaded {len(matchlink_data)} PACKAGED_FROM relationships")
-
-
-@timeit
-def cleanup_packaging_relationships(
-    neo4j_session: neo4j.Session,
-    org_url: str,
-    update_tag: int,
-) -> None:
-    """
-    Clean up stale PACKAGED_FROM relationships.
-
-    :param neo4j_session: Neo4j session
-    :param org_url: The GitLab organization URL (used as sub_resource_id)
-    :param update_tag: The update timestamp tag
-    """
-    logger.info("Cleaning up stale PACKAGED_FROM relationships...")
-
-    cleanup_job = GraphJob.from_matchlink(
-        GitLabProjectPackagedFromMatchLink(),
-        "GitLabOrganization",
-        org_url,
-        update_tag,
-    )
-    cleanup_job.run(neo4j_session)
-
-    logger.info("Cleanup complete")
-
-
-# =============================================================================
 # Main Sync Entry Point
 # =============================================================================
-
-
-@dataclass
-class SupplyChainSyncResult:
-    """Results from dockerfile sync operation."""
-
-    dockerfiles: list[dict[str, Any]]
-    images: list[GitLabContainerImage] | None = None
-    matches: list[ImageDockerfileMatch] | None = None
-
-    @property
-    def dockerfile_count(self) -> int:
-        return len(self.dockerfiles)
-
-    @property
-    def image_count(self) -> int:
-        return len(self.images) if self.images else 0
-
-    @property
-    def match_count(self) -> int:
-        return len(self.matches) if self.matches else 0
 
 
 @timeit
@@ -687,6 +424,8 @@ def sync(
     """
     logger.info("Starting GitLab dockerfile sync for %d projects", len(projects))
 
+    config = GITLAB_PACKAGING_CONFIG
+
     # ==========================================================================
     # GET Stage: Collect all data
     # ==========================================================================
@@ -700,7 +439,7 @@ def sync(
     dockerfiles = get_dockerfiles_for_projects(gitlab_url, token, projects)
 
     # GET: Container images for dockerfile matching
-    images: list[GitLabContainerImage] | None = None
+    images: list[ContainerImage] | None = None
     if match_container_images and dockerfiles:
         logger.info("Querying GitLab container images with layer history from Neo4j...")
         images = get_gitlab_container_images_with_history(
@@ -759,6 +498,7 @@ def sync(
                 matches,
                 org_url,
                 update_tag,
+                config,
             )
 
     # ==========================================================================
@@ -776,6 +516,7 @@ def sync(
             neo4j_session,
             org_url,
             update_tag,
+            config,
         )
 
     result = SupplyChainSyncResult(
