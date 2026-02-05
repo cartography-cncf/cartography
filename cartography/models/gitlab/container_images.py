@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -102,5 +104,17 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitLabContainerImageContainsImageRel(),
+        ],
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            ConditionalNodeLabel(
+                label="Image",
+                conditions={"type": "image"},
+            ),
+            ConditionalNodeLabel(
+                label="ImageManifestList",
+                conditions={"type": "manifest_list"},
+            ),
         ],
     )

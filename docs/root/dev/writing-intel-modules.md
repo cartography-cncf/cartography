@@ -15,7 +15,7 @@ To get started coding without reading this doc, just copy the structure of our [
 
 ### Supplying credentials and arguments to your module
 
-If you need to supply an API key or other credential to your Cartography module, we recommend adding a CLI argument. An example of this can be seen [in our Okta module](https://github.com/cartography-cncf/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/cli.py#L136) where we require the user to specify the name of an environment variable containing their Okta API key. This credential will then be bound to Cartography's [Config object](https://github.com/cartography-cncf/cartography/blob/811990606c22a42791d213c7ca845b15f87e47f1/cartography/config.py#L3) which is present in all modules. You can specify different arguments from the commandline for your module via the Config object.
+If you need to supply an API key or other credential to your Cartography module, we recommend adding a CLI argument. The CLI uses [Typer](https://typer.tiangolo.com/) with options organized into help panels per module. Add your options in `cartography/cli.py` following the existing patterns (e.g., Okta options). Credentials are typically read from environment variables and bound to Cartography's [Config object](https://github.com/cartography-cncf/cartography/blob/master/cartography/config.py) which is available in all modules.
 
 ### An important note on validating your commandline args
 
@@ -359,9 +359,7 @@ This section explains cartography general patterns, conventions, and design deci
 
 #### cartography's `update_tag`:
 
-`cartography`'s global [config object carries around an update_tag property](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/cli.py#L91-L98)
-which is a tag/label associated with the current sync.
-Cartography's CLI code [sets this to a Unix timestamp of when the CLI was run](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/sync.py#L131-L134).
+`cartography`'s global config object carries around an `update_tag` property which is a tag/label associated with the current sync. Cartography's sync code [sets this to a Unix timestamp of when the sync was started](https://github.com/cartography-cncf/cartography/blob/master/cartography/sync.py).
 
 All `cartography` intel modules set the `lastupdated` property on all nodes and all relationships to this `update_tag`.
 

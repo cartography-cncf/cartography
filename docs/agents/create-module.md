@@ -483,20 +483,65 @@ def start_your_module_ingestion(neo4j_session: neo4j.Session, config: Config) ->
 
 ### Adding CLI Arguments
 
-Add your configuration options in `cartography/cli.py`:
+Add your configuration options in `cartography/cli.py`. The CLI uses [Typer](https://typer.tiangolo.com/) with options organized into help panels.
+
+1. **Add a panel constant** at the top of the file:
 
 ```python
-# In add_auth_args function
-parser.add_argument(
-    '--your-service-api-key-env-var',
-    type=str,
-    help='Name of environment variable containing Your Service API key',
-)
+PANEL_YOUR_SERVICE = "Your Service Options"
+```
 
-parser.add_argument(
-    '--your-service-tenant-id',
-    type=str,
-    help='Your Service tenant ID',
+2. **Add the panel to MODULE_PANELS** mapping:
+
+```python
+MODULE_PANELS = {
+    # ... existing modules ...
+    "yourservice": PANEL_YOUR_SERVICE,
+}
+```
+
+3. **Add options** in the `run()` function inside `_build_app()`:
+
+```python
+# =================================================================
+# Your Service Options
+# =================================================================
+your_service_api_key_env_var: Annotated[
+    Optional[str],
+    typer.Option(
+        "--your-service-api-key-env-var",
+        help="Environment variable name containing Your Service API key.",
+        rich_help_panel=PANEL_YOUR_SERVICE,
+        hidden=PANEL_YOUR_SERVICE not in visible_panels,
+    ),
+] = None,
+your_service_tenant_id: Annotated[
+    Optional[str],
+    typer.Option(
+        "--your-service-tenant-id",
+        help="Your Service tenant ID.",
+        rich_help_panel=PANEL_YOUR_SERVICE,
+        hidden=PANEL_YOUR_SERVICE not in visible_panels,
+    ),
+] = None,
+```
+
+4. **Read secrets from environment** and pass to Config (in the `run()` function body):
+
+```python
+# Read Your Service API key
+your_service_api_key = None
+if your_service_api_key_env_var:
+    your_service_api_key = os.environ.get(your_service_api_key_env_var)
+```
+
+5. **Add to Config constructor call**:
+
+```python
+config = cartography.config.Config(
+    # ... existing fields ...
+    your_service_api_key=your_service_api_key,
+    your_service_tenant_id=your_service_tenant_id,
 )
 ```
 
@@ -505,11 +550,16 @@ parser.add_argument(
 Add fields to `cartography/config.py`:
 
 ```python
-@dataclass
 class Config:
-    # ... existing fields ...
-    your_service_api_key: str | None = None
-    your_service_tenant_id: str | None = None
+    def __init__(
+        self,
+        # ... existing fields ...
+        your_service_api_key=None,
+        your_service_tenant_id=None,
+    ):
+        # ... existing assignments ...
+        self.your_service_api_key = your_service_api_key
+        self.your_service_tenant_id = your_service_tenant_id
 ```
 
 ### Validation in Module
@@ -527,11 +577,8 @@ def start_your_service_ingestion(neo4j_session: neo4j.Session, config: Config) -
         logger.info("Your Service tenant ID not configured - skipping module")
         return
 
-    # Get API key from environment
-    api_key = os.getenv(config.your_service_api_key)
-    if not api_key:
-        logger.error(f"Environment variable {config.your_service_api_key} not set")
-        return
+    # Use the API key from config (already resolved from environment by CLI)
+    api_key = config.your_service_api_key
 ```
 
 ## Testing Your Module

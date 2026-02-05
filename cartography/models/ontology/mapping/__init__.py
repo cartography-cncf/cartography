@@ -19,6 +19,7 @@ from cartography.models.ontology.mapping.data.devices import DEVICES_ONTOLOGY_MA
 from cartography.models.ontology.mapping.data.functions import (
     FUNCTIONS_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.images import IMAGES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.loadbalancers import (
     LOADBALANCERS_ONTOLOGY_MAPPING,
 )
@@ -59,6 +60,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "containerregistries": CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
     "databases": DATABASES_ONTOLOGY_MAPPING,
     "functions": FUNCTIONS_ONTOLOGY_MAPPING,
+    "images": IMAGES_ONTOLOGY_MAPPING,
     "loadbalancers": LOADBALANCERS_ONTOLOGY_MAPPING,
     "thirdpartyapps": THIRDPARTYAPPS_ONTOLOGY_MAPPING,
     "tenants": TENANTS_ONTOLOGY_MAPPING,

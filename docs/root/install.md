@@ -253,6 +253,10 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
     You can view a full list of Cartography's CLI arguments by running `cartography --help`.
 
+    ```{tip}
+    Use `--selected-modules` with `--help` to see only relevant options: `cartography --selected-modules aws --help` shows only AWS-related options. See [CLI documentation](usage/cli) for shell autocompletion setup.
+    ```
+
     If everything worked, the sync will pull data from your configured accounts and ingest data to Neo4j! This process might take a long time if your account has a lot of assets.
     ![nativeinstall-run.png](images/nativeinstall-run.png)
 
