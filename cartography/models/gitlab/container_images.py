@@ -85,7 +85,6 @@ class GitLabContainerImageContainsImageRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GitLabContainerImageToLayerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    position: PropertyRef = PropertyRef("position")
 
 
 @dataclass(frozen=True)

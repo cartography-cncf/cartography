@@ -18,11 +18,13 @@ DF -- HAS_DEP --> D
 %% Container Registry
 O -- RESOURCE --> CR(GitLabContainerRepository)
 O -- RESOURCE --> CI(GitLabContainerImage)
+O -- RESOURCE --> CIL(GitLabContainerImageLayer)
 O -- RESOURCE --> CT(GitLabContainerRepositoryTag)
 O -- RESOURCE --> CA(GitLabContainerImageAttestation)
 CR -- HAS_TAG --> CT
 CT -- REFERENCES --> CI
 CI -- CONTAINS_IMAGE --> CI
+CI -- HAS_LAYER --> CIL
 CA -- ATTESTS --> CI
 
 %% Trivy Vulnerability Scanning
@@ -461,6 +463,40 @@ Representation of a container image identified by its digest. Images are content
 
     ```
     (KubernetesContainer)-[HAS_IMAGE]->(GitLabContainerImage)
+    ```
+
+- GitLabContainerImages are composed of GitLabContainerImageLayers.
+
+    ```
+    (GitLabContainerImage)-[HAS_LAYER]->(GitLabContainerImageLayer)
+    ```
+
+### GitLabContainerImageLayer
+
+Representation of a container image layer. Layers are the building blocks of container images, identified by their digest (content hash). Multiple images can share the same layers through Docker's layer deduplication mechanism.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The layer digest (e.g., `sha256:abc123...`) |
+| digest | Same as id, the layer digest (content hash) |
+| diff_id | Uncompressed layer digest from the image config |
+| media_type | OCI/Docker media type (e.g., `application/vnd.docker.image.rootfs.diff.tar.gzip`) |
+| size | Size of the layer in bytes (compressed) |
+
+#### Relationships
+
+- GitLabContainerImageLayers belong to GitLabOrganizations (for cleanup and cross-image deduplication).
+
+    ```
+    (GitLabOrganization)-[RESOURCE]->(GitLabContainerImageLayer)
+    ```
+
+- GitLabContainerImages are composed of GitLabContainerImageLayers.
+
+    ```
+    (GitLabContainerImage)-[HAS_LAYER]->(GitLabContainerImageLayer)
     ```
 
 ### GitLabContainerImageAttestation
