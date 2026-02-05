@@ -7,6 +7,7 @@ import neo4j
 
 import cartography.intel.github.actions
 import cartography.intel.github.commits
+import cartography.intel.github.dockerfiles
 import cartography.intel.github.repos
 import cartography.intel.github.teams
 import cartography.intel.github.users
@@ -105,3 +106,28 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             common_job_parameters["UPDATE_TAG"],
             config.github_commit_lookback_days,
         )
+
+        # Sync Dockerfiles from all repositories
+        # We need to get the raw repo data again since repos.sync() doesn't return it
+        repos_json = cartography.intel.github.repos.get(
+            auth_data["token"],
+            auth_data["url"],
+            auth_data["name"],
+        )
+        # Filter out None entries
+        valid_repos = [r for r in repos_json if r is not None]
+        if valid_repos:
+            dockerfile_result = cartography.intel.github.dockerfiles.sync(
+                neo4j_session,
+                auth_data["token"],
+                auth_data["url"],
+                auth_data["name"],
+                common_job_parameters["UPDATE_TAG"],
+                common_job_parameters,
+                valid_repos,
+            )
+            if dockerfile_result:
+                logger.info(
+                    "Dockerfile sync complete: %d matches",
+                    dockerfile_result.match_count,
+                )
