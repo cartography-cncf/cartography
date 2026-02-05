@@ -2,7 +2,7 @@ import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import cartography.intel.github.dockerfiles
+import cartography.intel.github.supply_chain
 from tests.data.github.dockerfiles import DOCKERFILE_CONTENT
 from tests.data.github.dockerfiles import DOCKERFILE_DEV_CONTENT
 from tests.data.github.dockerfiles import DOCKERFILE_PROD_CONTENT
@@ -19,7 +19,7 @@ TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://api.github.com/graphql"
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_search_dockerfiles_in_repo(mock_rest_api):
     """
     Test that search_dockerfiles_in_repo correctly calls the GitHub Code Search API
@@ -29,7 +29,7 @@ def test_search_dockerfiles_in_repo(mock_rest_api):
     mock_rest_api.return_value = SEARCH_DOCKERFILES_RESPONSE
 
     # Act
-    results = cartography.intel.github.dockerfiles.search_dockerfiles_in_repo(
+    results = cartography.intel.github.supply_chain.search_dockerfiles_in_repo(
         token="test_token",
         owner="testorg",
         repo="testrepo",
@@ -49,7 +49,7 @@ def test_search_dockerfiles_in_repo(mock_rest_api):
     assert results[2]["path"] == "deploy/production.dockerfile"
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_search_dockerfiles_in_repo_empty(mock_rest_api):
     """
     Test that search_dockerfiles_in_repo returns empty list when no Dockerfiles found.
@@ -58,7 +58,7 @@ def test_search_dockerfiles_in_repo_empty(mock_rest_api):
     mock_rest_api.return_value = SEARCH_DOCKERFILES_EMPTY_RESPONSE
 
     # Act
-    results = cartography.intel.github.dockerfiles.search_dockerfiles_in_repo(
+    results = cartography.intel.github.supply_chain.search_dockerfiles_in_repo(
         token="test_token",
         owner="testorg",
         repo="empty-repo",
@@ -69,7 +69,7 @@ def test_search_dockerfiles_in_repo_empty(mock_rest_api):
     assert results == []
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_search_dockerfiles_in_org(mock_rest_api):
     """
     Test that search_dockerfiles_in_org correctly calls the GitHub Code Search API
@@ -79,7 +79,7 @@ def test_search_dockerfiles_in_org(mock_rest_api):
     mock_rest_api.return_value = SEARCH_DOCKERFILES_ORG_RESPONSE
 
     # Act
-    results = cartography.intel.github.dockerfiles.search_dockerfiles_in_org(
+    results = cartography.intel.github.supply_chain.search_dockerfiles_in_org(
         token="test_token",
         org="testorg",
         base_url="https://api.github.com",
@@ -97,7 +97,7 @@ def test_search_dockerfiles_in_org(mock_rest_api):
     assert results[0]["repository"]["full_name"] == "testorg/testrepo"
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_search_dockerfiles_in_org_with_pagination(mock_rest_api):
     """
     Test that search_dockerfiles_in_org handles pagination correctly.
@@ -119,7 +119,7 @@ def test_search_dockerfiles_in_org_with_pagination(mock_rest_api):
     mock_rest_api.side_effect = [page1_response, page2_response]
 
     # Act
-    results = cartography.intel.github.dockerfiles.search_dockerfiles_in_org(
+    results = cartography.intel.github.supply_chain.search_dockerfiles_in_org(
         token="test_token",
         org="testorg",
         base_url="https://api.github.com",
@@ -130,7 +130,7 @@ def test_search_dockerfiles_in_org_with_pagination(mock_rest_api):
     assert len(results) == 150  # 100 + 50 items
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_search_dockerfiles_in_org_propagates_http_error(mock_rest_api):
     """
     Test that search_dockerfiles_in_org propagates HTTP errors (fail-fast).
@@ -149,14 +149,14 @@ def test_search_dockerfiles_in_org_propagates_http_error(mock_rest_api):
 
     # Act & Assert - should raise exception, not swallow it
     with pytest.raises(requests.exceptions.HTTPError):
-        cartography.intel.github.dockerfiles.search_dockerfiles_in_org(
+        cartography.intel.github.supply_chain.search_dockerfiles_in_org(
             token="test_token",
             org="testorg",
             base_url="https://api.github.com",
         )
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_get_file_content(mock_rest_api):
     """
     Test that get_file_content correctly downloads and decodes file content.
@@ -165,7 +165,7 @@ def test_get_file_content(mock_rest_api):
     mock_rest_api.return_value = FILE_CONTENT_DOCKERFILE
 
     # Act
-    content = cartography.intel.github.dockerfiles.get_file_content(
+    content = cartography.intel.github.supply_chain.get_file_content(
         token="test_token",
         owner="testorg",
         repo="testrepo",
@@ -183,7 +183,7 @@ def test_get_file_content(mock_rest_api):
     assert content == DOCKERFILE_CONTENT
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_get_dockerfiles_for_repos_with_org_search(mock_rest_api):
     """
     Test that get_dockerfiles_for_repos uses org-wide search when org is specified.
@@ -207,7 +207,7 @@ def test_get_dockerfiles_for_repos_with_org_search(mock_rest_api):
     mock_rest_api.side_effect = mock_api_response
 
     # Act
-    results = cartography.intel.github.dockerfiles.get_dockerfiles_for_repos(
+    results = cartography.intel.github.supply_chain.get_dockerfiles_for_repos(
         token="test_token",
         repos=TEST_REPOS,
         base_url="https://api.github.com",
@@ -234,7 +234,7 @@ def test_get_dockerfiles_for_repos_with_org_search(mock_rest_api):
     assert dockerfile_prod["content"] == DOCKERFILE_PROD_CONTENT
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_get_dockerfiles_for_repos_infers_org(mock_rest_api):
     """
     Test that get_dockerfiles_for_repos infers org from repos when all are from same org.
@@ -258,7 +258,7 @@ def test_get_dockerfiles_for_repos_infers_org(mock_rest_api):
     mock_rest_api.side_effect = mock_api_response
 
     # Act - no org specified, should be inferred
-    results = cartography.intel.github.dockerfiles.get_dockerfiles_for_repos(
+    results = cartography.intel.github.supply_chain.get_dockerfiles_for_repos(
         token="test_token",
         repos=TEST_REPOS,
         base_url="https://api.github.com",
@@ -268,7 +268,7 @@ def test_get_dockerfiles_for_repos_infers_org(mock_rest_api):
     assert len(results) == 3
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_get_dockerfiles_for_repos_fallback_to_per_repo(mock_rest_api):
     """
     Test that get_dockerfiles_for_repos falls back to per-repo search
@@ -309,7 +309,7 @@ def test_get_dockerfiles_for_repos_fallback_to_per_repo(mock_rest_api):
     mock_rest_api.side_effect = mock_api_response
 
     # Act
-    results = cartography.intel.github.dockerfiles.get_dockerfiles_for_repos(
+    results = cartography.intel.github.supply_chain.get_dockerfiles_for_repos(
         token="test_token",
         repos=mixed_repos,
         base_url="https://api.github.com",
@@ -322,7 +322,7 @@ def test_get_dockerfiles_for_repos_fallback_to_per_repo(mock_rest_api):
 
 def test_dockerfile_sync_result_to_tempfile():
     """
-    Test that DockerfileSyncResult.to_tempfile() context manager creates
+    Test that SupplyChainSyncResult.to_tempfile() context manager creates
     a valid JSON file and cleans it up on exit.
     """
     # Arrange
@@ -334,7 +334,7 @@ def test_dockerfile_sync_result_to_tempfile():
             "content": "FROM python:3.11",
         }
     ]
-    result = cartography.intel.github.dockerfiles.DockerfileSyncResult(
+    result = cartography.intel.github.supply_chain.SupplyChainSyncResult(
         dockerfiles=test_dockerfiles,
     )
 
@@ -359,9 +359,9 @@ def test_dockerfile_sync_result_to_tempfile():
     assert not saved_path.exists()
 
 
-@patch("cartography.intel.github.dockerfiles.get_dockerfiles_for_repos")
-@patch("cartography.intel.github.dockerfiles.get_container_images_with_history")
-@patch("cartography.intel.github.dockerfiles.match_images_to_dockerfiles")
+@patch("cartography.intel.github.supply_chain.get_dockerfiles_for_repos")
+@patch("cartography.intel.github.supply_chain.get_container_images_with_history")
+@patch("cartography.intel.github.supply_chain.match_images_to_dockerfiles")
 def test_sync_with_dockerfiles(
     mock_match, mock_get_container_images, mock_get_dockerfiles, neo4j_session
 ):
@@ -382,7 +382,7 @@ def test_sync_with_dockerfiles(
     mock_match.return_value = []  # No matches
 
     # Act
-    result = cartography.intel.github.dockerfiles.sync(
+    result = cartography.intel.github.supply_chain.sync(
         neo4j_session=neo4j_session,
         token="test_token",
         api_url=TEST_GITHUB_URL,
@@ -405,7 +405,7 @@ def test_sync_with_dockerfiles(
     assert result.dockerfiles == mock_dockerfiles
 
 
-@patch("cartography.intel.github.dockerfiles.get_dockerfiles_for_repos")
+@patch("cartography.intel.github.supply_chain.get_dockerfiles_for_repos")
 def test_sync_no_dockerfiles(mock_get_dockerfiles, neo4j_session):
     """
     Test that sync returns None when no Dockerfiles are found.
@@ -414,7 +414,7 @@ def test_sync_no_dockerfiles(mock_get_dockerfiles, neo4j_session):
     mock_get_dockerfiles.return_value = []
 
     # Act
-    result = cartography.intel.github.dockerfiles.sync(
+    result = cartography.intel.github.supply_chain.sync(
         neo4j_session=neo4j_session,
         token="test_token",
         api_url=TEST_GITHUB_URL,
@@ -428,7 +428,7 @@ def test_sync_no_dockerfiles(mock_get_dockerfiles, neo4j_session):
     assert result is None
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_search_propagates_http_error(mock_rest_api):
     """
     Test that search_dockerfiles_in_repo propagates HTTP errors (fail-fast).
@@ -447,7 +447,7 @@ def test_search_propagates_http_error(mock_rest_api):
 
     # Act & Assert - should raise exception, not swallow it
     with pytest.raises(requests.exceptions.HTTPError):
-        cartography.intel.github.dockerfiles.search_dockerfiles_in_repo(
+        cartography.intel.github.supply_chain.search_dockerfiles_in_repo(
             token="test_token",
             owner="testorg",
             repo="testrepo",
@@ -455,7 +455,7 @@ def test_search_propagates_http_error(mock_rest_api):
         )
 
 
-@patch("cartography.intel.github.dockerfiles.call_github_rest_api")
+@patch("cartography.intel.github.supply_chain.call_github_rest_api")
 def test_get_file_content_handles_not_found(mock_rest_api):
     """
     Test that get_file_content returns None when file is not found.
@@ -468,7 +468,7 @@ def test_get_file_content_handles_not_found(mock_rest_api):
     mock_rest_api.side_effect = requests.exceptions.HTTPError(response=mock_response)
 
     # Act
-    content = cartography.intel.github.dockerfiles.get_file_content(
+    content = cartography.intel.github.supply_chain.get_file_content(
         token="test_token",
         owner="testorg",
         repo="testrepo",

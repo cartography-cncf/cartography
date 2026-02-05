@@ -1,14 +1,3 @@
-"""
-Data model for linking GitLab projects to container images via Dockerfile matching.
-
-This uses MatchLinks to connect existing GitLabProject nodes to ImageTag
-nodes based on Dockerfile command matching analysis. By matching on repository_location,
-we link to ALL images in a container repository with a single relationship definition.
-
-Works with GitLab container registries by using the generic ImageTag label
-(applied to GitLabContainerRepositoryTag nodes).
-"""
-
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef

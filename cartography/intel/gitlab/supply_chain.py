@@ -1,11 +1,3 @@
-"""
-GitLab Dockerfiles Intelligence Module
-
-Syncs Dockerfiles from GitLab projects and matches them to container images
-based on layer history command analysis. Creates PACKAGED_FROM relationships
-between ImageTag and GitLabProject nodes.
-"""
-
 import base64
 import logging
 from dataclasses import dataclass
@@ -22,7 +14,7 @@ from cartography.intel.dockerfile_parser import parse as parse_dockerfile
 from cartography.intel.dockerfile_parser import ParsedDockerfile
 from cartography.intel.gitlab.util import get_paginated
 from cartography.intel.gitlab.util import get_single
-from cartography.models.gitlab.dockerfile_image import (
+from cartography.models.gitlab.packaged_matchlink import (
     GitLabProjectPackagedFromMatchLink,
 )
 from cartography.util import timeit
@@ -563,7 +555,7 @@ def load_provenance_relationships(
 
 
 @timeit
-def load_dockerfile_image_relationships(
+def load_packaging_relationships(
     neo4j_session: neo4j.Session,
     matches: list[ImageDockerfileMatch],
     org_url: str,
@@ -603,7 +595,7 @@ def load_dockerfile_image_relationships(
 
 
 @timeit
-def cleanup_dockerfile_image_relationships(
+def cleanup_packaging_relationships(
     neo4j_session: neo4j.Session,
     org_url: str,
     update_tag: int,
@@ -634,7 +626,7 @@ def cleanup_dockerfile_image_relationships(
 
 
 @dataclass
-class DockerfileSyncResult:
+class SupplyChainSyncResult:
     """Results from dockerfile sync operation."""
 
     dockerfiles: list[dict[str, Any]]
@@ -666,7 +658,7 @@ def sync(
     match_container_images: bool = True,
     image_limit: int | None = None,
     min_match_confidence: float = 0.5,
-) -> DockerfileSyncResult | None:
+) -> SupplyChainSyncResult | None:
     """
     Sync Dockerfiles from GitLab projects, query container images, and identify matches.
 
@@ -691,7 +683,7 @@ def sync(
     :param match_container_images: Whether to query container images and perform matching
     :param image_limit: Optional limit on number of images to process
     :param min_match_confidence: Minimum confidence threshold for matches
-    :return: DockerfileSyncResult with dockerfiles, images, and matches, or None if no Dockerfiles found
+    :return: SupplyChainSyncResult with dockerfiles, images, and matches, or None if no Dockerfiles found
     """
     logger.info("Starting GitLab dockerfile sync for %d projects", len(projects))
 
@@ -762,7 +754,7 @@ def sync(
 
         # Load dockerfile-based PACKAGED_FROM relationships
         if matches:
-            load_dockerfile_image_relationships(
+            load_packaging_relationships(
                 neo4j_session,
                 matches,
                 org_url,
@@ -780,13 +772,13 @@ def sync(
 
     # Always cleanup stale relationships (covers both provenance and dockerfile matches)
     if match_container_images:
-        cleanup_dockerfile_image_relationships(
+        cleanup_packaging_relationships(
             neo4j_session,
             org_url,
             update_tag,
         )
 
-    result = DockerfileSyncResult(
+    result = SupplyChainSyncResult(
         dockerfiles=dockerfiles or [],
         images=images,
         matches=matches,

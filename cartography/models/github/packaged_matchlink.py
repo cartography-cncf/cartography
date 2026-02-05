@@ -1,14 +1,3 @@
-"""
-Data model for linking GitHub repositories to container images via Dockerfile matching.
-
-This uses MatchLinks to connect existing GitHubRepository nodes to ImageTag
-nodes based on Dockerfile command matching analysis. By matching on repo_uri, we link
-to ALL images in a container registry repository with a single relationship definition.
-
-Works with any container registry that follows the cartography image ontology
-(ECR, GCR, etc.) by using the generic ImageTag label.
-"""
-
 from dataclasses import dataclass
 
 from cartography.models.core.common import PropertyRef

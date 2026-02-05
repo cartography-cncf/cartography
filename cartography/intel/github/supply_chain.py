@@ -18,8 +18,10 @@ from cartography.intel.dockerfile_parser import find_best_dockerfile_matches
 from cartography.intel.dockerfile_parser import parse as parse_dockerfile
 from cartography.intel.dockerfile_parser import ParsedDockerfile
 from cartography.intel.github.util import call_github_rest_api
-from cartography.models.github.dockerfile_image import GitHubRepoPackagedFromMatchLink
-from cartography.models.github.dockerfile_image import ImagePackagedByWorkflowMatchLink
+from cartography.models.github.packaged_matchlink import GitHubRepoPackagedFromMatchLink
+from cartography.models.github.packaged_matchlink import (
+    ImagePackagedByWorkflowMatchLink,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -279,7 +281,7 @@ def transform_matches_for_matchlink(
 
 
 @timeit
-def load_dockerfile_image_relationships(
+def load_packaging_relationships(
     neo4j_session: neo4j.Session,
     matches: list[ImageDockerfileMatch],
     organization: str,
@@ -322,7 +324,7 @@ def load_dockerfile_image_relationships(
 
 
 @timeit
-def cleanup_dockerfile_image_relationships(
+def cleanup_packaging_relationships(
     neo4j_session: neo4j.Session,
     organization: str,
     update_tag: int,
@@ -881,7 +883,7 @@ def get_dockerfiles_for_repos(
 
 
 @dataclass
-class DockerfileSyncResult:
+class SupplyChainSyncResult:
     """Results from dockerfile sync operation."""
 
     dockerfiles: list[dict[str, Any]]
@@ -996,7 +998,7 @@ def sync(
     match_container_images: bool = True,
     image_limit: int | None = None,
     min_match_confidence: float = 0.5,
-) -> DockerfileSyncResult | None:
+) -> SupplyChainSyncResult | None:
     """
     Sync Dockerfiles from GitHub repositories, query container images, and identify matches.
 
@@ -1024,7 +1026,7 @@ def sync(
     :param match_container_images: Whether to query container images and perform matching (default: True)
     :param image_limit: Optional limit on number of images to process
     :param min_match_confidence: Minimum confidence threshold for matches (default: 0.5)
-    :return: DockerfileSyncResult with dockerfiles, images, and matches, or None if no Dockerfiles found
+    :return: SupplyChainSyncResult with dockerfiles, images, and matches, or None if no Dockerfiles found
 
     Example usage:
         result = sync(neo4j_session, token, api_url, org, update_tag, params, repos)
@@ -1129,7 +1131,7 @@ def sync(
 
         # Load dockerfile-based PACKAGED_FROM relationships
         if matches:
-            load_dockerfile_image_relationships(
+            load_packaging_relationships(
                 neo4j_session,
                 matches,
                 organization,
@@ -1147,7 +1149,7 @@ def sync(
 
     # Always cleanup stale relationships (covers both provenance and dockerfile matches)
     if match_container_images:
-        cleanup_dockerfile_image_relationships(
+        cleanup_packaging_relationships(
             neo4j_session,
             organization,
             update_tag,
@@ -1158,7 +1160,7 @@ def sync(
             update_tag,
         )
 
-    result = DockerfileSyncResult(
+    result = SupplyChainSyncResult(
         dockerfiles=dockerfiles or [],
         images=images,
         matches=matches,
