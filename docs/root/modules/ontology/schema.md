@@ -17,6 +17,7 @@ OS{{ObjectStorage}}
 TN{{Tenant}}
 FN{{Function}}
 REPO{{CodeRepository}}
+SC{{Secret}}
 PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
@@ -180,6 +181,23 @@ API keys are used across different cloud providers and SaaS platforms for authen
     (:User)-[:OWNS]->(:APIKey)
     ```
 
+
+### Secret
+
+```{note}
+Secret is a semantic label.
+```
+
+A secret represents sensitive data stored in a secrets management service across different cloud providers and platforms.
+Secrets can include database credentials, API keys, certificates, and other sensitive configuration data.
+They are managed by dedicated services like AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, GitHub Actions Secrets, and Kubernetes Secrets.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name or identifier of the secret (REQUIRED). |
+| _ont_created_at | Timestamp when the secret was created. |
+| _ont_updated_at | Timestamp when the secret was last updated. |
+| _ont_rotation_enabled | Whether automatic rotation is enabled for the secret. |
 
 
 ### ComputeInstance

@@ -1747,6 +1747,8 @@ Representation of an [Azure Key Vault](https://learn.microsoft.com/en-us/rest/ap
 
 Representation of a [Secret within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/secrets/get-secrets/get-secrets).
 
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
+
 | Field | Description |
 |---|---|
 |firstseen| Timestamp of when a sync job discovered this node|

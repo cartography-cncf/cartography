@@ -519,6 +519,8 @@ Represents a GitHub deployment environment for a repository.
 Represents a GitHub Actions secret. Secrets can exist at three levels: organization, repository, or environment.
 Note that secret **values are never exposed** by the GitHub API - only metadata is stored.
 
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |

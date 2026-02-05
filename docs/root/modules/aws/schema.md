@@ -4210,6 +4210,8 @@ Representation of an AWS [EC2 Reserved Instance](https://docs.aws.amazon.com/AWS
 
 Representation of an AWS [Secrets Manager Secret](https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_SecretListEntry.html)
 
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |

@@ -32,6 +32,7 @@ from cartography.models.ontology.mapping.data.object_storage import (
 from cartography.models.ontology.mapping.data.publicips import (
     PUBLIC_IPS_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.secrets import SECRETS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.thirdpartyapps import (
     THIRDPARTYAPPS_ONTOLOGY_MAPPING,
@@ -70,6 +71,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "images": IMAGES_ONTOLOGY_MAPPING,
     "loadbalancers": LOADBALANCERS_ONTOLOGY_MAPPING,
     "objectstorage": OBJECT_STORAGE_ONTOLOGY_MAPPING,
+    "secrets": SECRETS_ONTOLOGY_MAPPING,
     "thirdpartyapps": THIRDPARTYAPPS_ONTOLOGY_MAPPING,
     "tenants": TENANTS_ONTOLOGY_MAPPING,
 }

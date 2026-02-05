@@ -1376,6 +1376,8 @@ Representation of a Google [Cloud Function](https://cloud.google.com/functions/d
 
 Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets). A Secret is a logical container for secret data that can have multiple versions.
 
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Full resource name of the secret (e.g., `projects/{project}/secrets/{secret_id}`) |
