@@ -11,10 +11,11 @@ U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
-LB -- EXPOSE --> CT{{Container}}
+LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
 DB{{Database}}
 TN{{Tenant}}
 FN{{Function}}
+REPO{{CodeRepository}}
 PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
@@ -310,6 +311,27 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Clou
 | _ont_memory | Memory allocated to the function (in MB). |
 | _ont_timeout | Timeout for function execution (in seconds). |
 | _ont_deployment_type | The deployment type: `code` for source code functions (Lambda, Cloud Functions, Azure Functions), `container` for container-based functions (Cloud Run). |
+
+
+### CodeRepository
+
+```{note}
+CodeRepository is a semantic label.
+```
+
+A code repository represents a source code repository containing software projects and their version history.
+Code repositories are critical assets for supply chain security as they contain intellectual property and often secrets.
+It generalizes concepts like GitHub Repositories and GitLab Projects.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the repository (REQUIRED). |
+| _ont_fullname | The full path including namespace (e.g., "org/repo", "group/subgroup/project"). |
+| _ont_description | Description of the repository. |
+| _ont_url | Web URL to access the repository. |
+| _ont_default_branch | The default branch name (e.g., "main", "master"). |
+| _ont_public | Whether the repository is publicly accessible. |
+| _ont_archived | Whether the repository is archived (read-only). |
 
 
 ### LoadBalancer
