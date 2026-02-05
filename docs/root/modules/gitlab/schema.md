@@ -370,6 +370,8 @@ Representation of a GitLab container registry repository. Each project can have 
 
 Representation of a tag within a GitLab container repository. Tags are human-readable pointers to container images.
 
+> **Ontology Mapping**: This node has the extra label `ImageTag` to enable cross-platform queries for container image tags across different registries (e.g., ECRRepositoryImage).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |

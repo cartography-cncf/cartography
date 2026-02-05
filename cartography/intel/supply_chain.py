@@ -41,8 +41,8 @@ class ContainerImage:
 
     digest: str
     uri: str
-    registry_id: str
-    display_name: str
+    registry_id: str | None
+    display_name: str | None
     tag: str | None
     layer_diff_ids: list[str]
     image_type: str | None
@@ -124,7 +124,7 @@ def match_images_to_dockerfiles(
             dockerfile_info_map[parsed.content_hash] = df_info
             parsed_dockerfiles.append(parsed)
         except Exception as e:
-            logger.warning(f"Failed to parse dockerfile {df_info.get('path')}: {e}")
+            logger.warning("Failed to parse dockerfile %s: %s", df_info.get("path"), e)
 
     if not parsed_dockerfiles:
         logger.warning("No valid Dockerfiles to match against")
@@ -133,14 +133,25 @@ def match_images_to_dockerfiles(
     matches: list[ImageDockerfileMatch] = []
 
     for image in images:
+        if not image.registry_id:
+            logger.debug(
+                "No registry_id for image %s:%s, skipping",
+                image.display_name,
+                image.tag,
+            )
+            continue
         if not image.layer_history:
-            logger.debug(f"No layer history for image {image.display_name}:{image.tag}")
+            logger.debug(
+                "No layer history for image %s:%s", image.display_name, image.tag
+            )
             continue
 
         image_commands = extract_layer_commands_from_history(image.layer_history)
         if not image_commands:
             logger.debug(
-                f"No commands extracted for image {image.display_name}:{image.tag}"
+                "No commands extracted for image %s:%s",
+                image.display_name,
+                image.tag,
             )
             continue
 
@@ -164,15 +175,22 @@ def match_images_to_dockerfiles(
                 )
             )
             logger.debug(
-                f"Matched {image.display_name}:{image.tag} -> {df_info.get('path')} "
-                f"(confidence: {best_match.confidence:.2f})"
+                "Matched %s:%s -> %s (confidence: %.2f)",
+                image.display_name,
+                image.tag,
+                df_info.get("path"),
+                best_match.confidence,
             )
         else:
-            logger.debug(f"No match found for image {image.display_name}:{image.tag}")
+            logger.debug(
+                "No match found for image %s:%s", image.display_name, image.tag
+            )
 
     logger.info(
-        f"Matched {len(matches)} images to Dockerfiles "
-        f"(out of {len(images)} images, {len(parsed_dockerfiles)} Dockerfiles)"
+        "Matched %d images to Dockerfiles (out of %d images, %d Dockerfiles)",
+        len(matches),
+        len(images),
+        len(parsed_dockerfiles),
     )
     return matches
 
@@ -239,7 +257,7 @@ def load_packaging_relationships(
         logger.info("No valid matches with source repo IDs to load")
         return
 
-    logger.info(f"Loading {len(matchlink_data)} PACKAGED_FROM relationships...")
+    logger.info("Loading %d PACKAGED_FROM relationships...", len(matchlink_data))
 
     load_matchlinks(
         neo4j_session,
@@ -250,7 +268,7 @@ def load_packaging_relationships(
         _sub_resource_id=sub_resource_id,
     )
 
-    logger.info(f"Loaded {len(matchlink_data)} PACKAGED_FROM relationships")
+    logger.info("Loaded %d PACKAGED_FROM relationships", len(matchlink_data))
 
 
 @timeit
@@ -323,7 +341,10 @@ def parse_dockerfile_info(
             ],
         }
     except Exception as e:
-        logger.warning(f"Failed to parse Dockerfile {display_name}/{path}: {e}")
+        logger.warning("Failed to parse Dockerfile %s/%s: %s", display_name, path, e)
+        # Intentionally return an error dict instead of raising: this allows the caller
+        # to skip unparseable Dockerfiles while still tracking them in results.
+        # match_images_to_dockerfiles() filters these out via the 'parse_error' key.
         return {
             "path": path,
             "content": content,

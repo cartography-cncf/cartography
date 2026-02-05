@@ -42,6 +42,7 @@ GITLAB_PACKAGING_CONFIG = PackagingConfig(
 # =============================================================================
 
 
+@timeit
 def get_gitlab_container_images_with_history(
     neo4j_session: neo4j.Session,
     org_url: str,
@@ -113,8 +114,8 @@ def get_gitlab_container_images_with_history(
             ContainerImage(
                 digest=record["digest"],
                 uri=record["uri"] or "",
-                registry_id=record["repository_location"] or "",
-                display_name=record["repository_location"] or "",
+                registry_id=record["repository_location"] or None,
+                display_name=record["repository_location"] or None,
                 tag=record["tag"],
                 layer_diff_ids=record["layer_diff_ids"] or [],
                 image_type=record["type"],

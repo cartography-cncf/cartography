@@ -122,8 +122,8 @@ def get_container_images_with_history(
             ContainerImage(
                 digest=record["digest"],
                 uri=record["uri"] or "",
-                registry_id=record["repo_uri"] or "",
-                display_name=record["repo_name"] or "",
+                registry_id=record["repo_uri"] or None,
+                display_name=record["repo_name"] or None,
                 tag=record["tag"],
                 layer_diff_ids=record["layer_diff_ids"] or [],
                 image_type=record["type"],
