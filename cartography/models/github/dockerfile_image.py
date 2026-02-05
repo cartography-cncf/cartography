@@ -22,9 +22,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
-class GitHubRepoBuiltFromMatchLinkProperties(CartographyRelProperties):
+class GitHubRepoPackagedFromMatchLinkProperties(CartographyRelProperties):
     """
-    Properties for the BUILT_FROM relationship between ImageTag and GitHubRepository.
+    Properties for the PACKAGED_FROM relationship between ImageTag and GitHubRepository.
     """
 
     # Required for all MatchLinks
@@ -46,12 +46,12 @@ class GitHubRepoBuiltFromMatchLinkProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class GitHubRepoBuiltFromMatchLink(CartographyRelSchema):
+class GitHubRepoPackagedFromMatchLink(CartographyRelSchema):
     """
     MatchLink schema for connecting ImageTag nodes to GitHubRepository nodes
     based on Dockerfile command matching.
 
-    Direction: (ImageTag)-[:BUILT_FROM]->(GitHubRepository)
+    Direction: (ImageTag)-[:PACKAGED_FROM]->(GitHubRepository)
 
     Uses the generic ImageTag label from the cartography image ontology, which works
     across different container registries (ECR, GCR, etc.).
@@ -75,16 +75,16 @@ class GitHubRepoBuiltFromMatchLink(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "BUILT_FROM"
-    properties: GitHubRepoBuiltFromMatchLinkProperties = (
-        GitHubRepoBuiltFromMatchLinkProperties()
+    rel_label: str = "PACKAGED_FROM"
+    properties: GitHubRepoPackagedFromMatchLinkProperties = (
+        GitHubRepoPackagedFromMatchLinkProperties()
     )
 
 
 @dataclass(frozen=True)
-class ImageBuiltByWorkflowMatchLinkProperties(CartographyRelProperties):
+class ImagePackagedByWorkflowMatchLinkProperties(CartographyRelProperties):
     """
-    Properties for the BUILT_BY relationship between Image and GitHubWorkflow.
+    Properties for the PACKAGED_BY relationship between Image and GitHubWorkflow.
     """
 
     # Required for all MatchLinks
@@ -99,12 +99,12 @@ class ImageBuiltByWorkflowMatchLinkProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class ImageBuiltByWorkflowMatchLink(CartographyRelSchema):
+class ImagePackagedByWorkflowMatchLink(CartographyRelSchema):
     """
     MatchLink schema for connecting Image nodes to GitHubWorkflow nodes
     based on SLSA provenance attestations.
 
-    Direction: (Image)-[:BUILT_BY]->(GitHubWorkflow)
+    Direction: (Image)-[:PACKAGED_BY]->(GitHubWorkflow)
 
     This relationship is created when SLSA provenance attestations specify
     the GitHub Actions workflow that built the container image. The matching
@@ -126,7 +126,7 @@ class ImageBuiltByWorkflowMatchLink(CartographyRelSchema):
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "BUILT_BY"
-    properties: ImageBuiltByWorkflowMatchLinkProperties = (
-        ImageBuiltByWorkflowMatchLinkProperties()
+    rel_label: str = "PACKAGED_BY"
+    properties: ImagePackagedByWorkflowMatchLinkProperties = (
+        ImagePackagedByWorkflowMatchLinkProperties()
     )

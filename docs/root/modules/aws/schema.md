@@ -2415,9 +2415,9 @@ This way, more than one `ECRRepositoryImage` can reference/be connected to the s
     (:ECRRepositoryImage)-[:IMAGE]->(:ECRImage)
     ```
 
-- ECRRepositoryImages may be built from a GitHubRepository (cross-module relationship via Dockerfile matching)
+- ECRRepositoryImages may be packaged from a GitHubRepository (cross-module relationship via Dockerfile matching)
     ```
-    (:ECRRepositoryImage)-[:BUILT_FROM]->(:GitHubRepository)
+    (:ECRRepositoryImage)-[:PACKAGED_FROM]->(:GitHubRepository)
     ```
 
     Relationship properties:
@@ -2511,9 +2511,9 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:ECRImage {type: "attestation"})-[:ATTESTS]->(:ECRImage)
     ```
 
-- An ECRImage may be built by a GitHubWorkflow (derived from SLSA provenance attestations). Only applies to `type="image"` nodes with the `Image` semantic label.
+- An ECRImage may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations). Only applies to `type="image"` nodes with the `Image` semantic label.
     ```
-    (:ECRImage:Image)-[:BUILT_BY]->(:GitHubWorkflow)
+    (:ECRImage:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)
     ```
 
     Relationship properties:

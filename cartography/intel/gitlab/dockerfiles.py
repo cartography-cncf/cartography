@@ -2,7 +2,7 @@
 GitLab Dockerfiles Intelligence Module
 
 Syncs Dockerfiles from GitLab projects and matches them to container images
-based on layer history command analysis. Creates BUILT_FROM relationships
+based on layer history command analysis. Creates PACKAGED_FROM relationships
 between ImageTag and GitLabProject nodes.
 """
 
@@ -22,7 +22,9 @@ from cartography.intel.dockerfile_parser import parse as parse_dockerfile
 from cartography.intel.dockerfile_parser import ParsedDockerfile
 from cartography.intel.gitlab.util import get_paginated
 from cartography.intel.gitlab.util import get_single
-from cartography.models.gitlab.dockerfile_image import GitLabProjectBuiltFromMatchLink
+from cartography.models.gitlab.dockerfile_image import (
+    GitLabProjectPackagedFromMatchLink,
+)
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -470,7 +472,7 @@ def get_provenance_matches_for_org(
     cryptographically signed provenance attestations, without needing Dockerfile
     content analysis.
 
-    Returns data formatted for load_matchlinks with GitLabProjectBuiltFromMatchLink schema.
+    Returns data formatted for load_matchlinks with GitLabProjectPackagedFromMatchLink schema.
 
     :param neo4j_session: Neo4j session
     :param org_url: The GitLab organization URL to match against
@@ -522,7 +524,7 @@ def load_provenance_relationships(
     update_tag: int,
 ) -> int:
     """
-    Load BUILT_FROM relationships based on SLSA provenance data.
+    Load PACKAGED_FROM relationships based on SLSA provenance data.
 
     This is the primary matching method - uses provenance attestations to directly
     link container images to their source projects with 100% confidence.
@@ -538,18 +540,20 @@ def load_provenance_relationships(
         logger.info("No provenance-based matches found for %s", org_url)
         return 0
 
-    logger.info("Loading %d provenance-based BUILT_FROM relationships...", len(matches))
+    logger.info(
+        "Loading %d provenance-based PACKAGED_FROM relationships...", len(matches)
+    )
 
     load_matchlinks(
         neo4j_session,
-        GitLabProjectBuiltFromMatchLink(),
+        GitLabProjectPackagedFromMatchLink(),
         matches,
         lastupdated=update_tag,
         _sub_resource_label="GitLabOrganization",
         _sub_resource_id=org_url,
     )
 
-    logger.info("Loaded %d provenance-based BUILT_FROM relationships", len(matches))
+    logger.info("Loaded %d provenance-based PACKAGED_FROM relationships", len(matches))
     return len(matches)
 
 
@@ -566,7 +570,7 @@ def load_dockerfile_image_relationships(
     update_tag: int,
 ) -> None:
     """
-    Load BUILT_FROM relationships between ImageTag and GitLabProject.
+    Load PACKAGED_FROM relationships between ImageTag and GitLabProject.
 
     :param neo4j_session: Neo4j session
     :param matches: List of ImageDockerfileMatch objects
@@ -584,18 +588,18 @@ def load_dockerfile_image_relationships(
         logger.info("No valid matches with project URLs to load")
         return
 
-    logger.info(f"Loading {len(matchlink_data)} BUILT_FROM relationships...")
+    logger.info(f"Loading {len(matchlink_data)} PACKAGED_FROM relationships...")
 
     load_matchlinks(
         neo4j_session,
-        GitLabProjectBuiltFromMatchLink(),
+        GitLabProjectPackagedFromMatchLink(),
         matchlink_data,
         lastupdated=update_tag,
         _sub_resource_label="GitLabOrganization",
         _sub_resource_id=org_url,
     )
 
-    logger.info(f"Loaded {len(matchlink_data)} BUILT_FROM relationships")
+    logger.info(f"Loaded {len(matchlink_data)} PACKAGED_FROM relationships")
 
 
 @timeit
@@ -605,16 +609,16 @@ def cleanup_dockerfile_image_relationships(
     update_tag: int,
 ) -> None:
     """
-    Clean up stale BUILT_FROM relationships.
+    Clean up stale PACKAGED_FROM relationships.
 
     :param neo4j_session: Neo4j session
     :param org_url: The GitLab organization URL (used as sub_resource_id)
     :param update_tag: The update timestamp tag
     """
-    logger.info("Cleaning up stale BUILT_FROM relationships...")
+    logger.info("Cleaning up stale PACKAGED_FROM relationships...")
 
     cleanup_job = GraphJob.from_matchlink(
-        GitLabProjectBuiltFromMatchLink(),
+        GitLabProjectPackagedFromMatchLink(),
         "GitLabOrganization",
         org_url,
         update_tag,
@@ -675,7 +679,7 @@ def sync(
     2. Searches for Dockerfile-related files in each project
     3. Downloads their content and parses them
     4. Matches remaining images to Dockerfiles based on layer history commands
-    5. Creates BUILT_FROM relationships between ImageTag and GitLabProject
+    5. Creates PACKAGED_FROM relationships between ImageTag and GitLabProject
 
     :param neo4j_session: Neo4j session for querying container images
     :param gitlab_url: The GitLab instance URL
@@ -741,22 +745,22 @@ def sync(
     # LOAD Stage: Create relationships in Neo4j
     # ==========================================================================
     if match_container_images:
-        # Load provenance-based BUILT_FROM relationships
+        # Load provenance-based PACKAGED_FROM relationships
         if provenance_matches:
             logger.info(
-                "Loading %d provenance-based BUILT_FROM relationships...",
+                "Loading %d provenance-based PACKAGED_FROM relationships...",
                 len(provenance_matches),
             )
             load_matchlinks(
                 neo4j_session,
-                GitLabProjectBuiltFromMatchLink(),
+                GitLabProjectPackagedFromMatchLink(),
                 provenance_matches,
                 lastupdated=update_tag,
                 _sub_resource_label="GitLabOrganization",
                 _sub_resource_id=org_url,
             )
 
-        # Load dockerfile-based BUILT_FROM relationships
+        # Load dockerfile-based PACKAGED_FROM relationships
         if matches:
             load_dockerfile_image_relationships(
                 neo4j_session,

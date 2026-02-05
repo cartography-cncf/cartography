@@ -30,8 +30,8 @@ T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTAINER --> T
-IT(ImageTag) -- BUILT_FROM --> R
-I(Image) -- BUILT_BY --> W
+IT(ImageTag) -- PACKAGED_FROM --> R
+I(Image) -- PACKAGED_BY --> W
 ```
 
 ### GitHubRepository
@@ -433,9 +433,9 @@ Container images (ImageTag nodes from any registry: ECR, GitLab, GCR, etc.) can 
 
 #### Relationships
 
-- ImageTag nodes may be built from a GitHubRepository (via Dockerfile matching)
+- ImageTag nodes may be packaged from a GitHubRepository (via Dockerfile matching)
     ```
-    (:ImageTag)-[:BUILT_FROM]->(:GitHubRepository)
+    (:ImageTag)-[:PACKAGED_FROM]->(:GitHubRepository)
     ```
 
     Relationship properties:
@@ -501,10 +501,10 @@ Represents a GitHub Actions workflow definition file in a repository.
     (GitHubRepository)-[:HAS_WORKFLOW]->(GitHubWorkflow)
     ```
 
-- Container images may be built by a GitHubWorkflow (derived from SLSA provenance attestations).
+- Container images may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations).
 
     ```
-    (:Image)-[:BUILT_BY]->(:GitHubWorkflow)
+    (:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)
     ```
 
     Relationship properties:

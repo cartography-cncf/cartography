@@ -181,7 +181,7 @@ def _extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
     Returns: ".github/workflows/docker-push.yaml"
 
     This extracts the path for matching against GitHubWorkflow.path to establish
-    the BUILT_BY relationship between images and workflows (combined with repo_url matching).
+    the PACKAGED_BY relationship between images and workflows (combined with repo_url matching).
 
     :param workflow_ref: The full workflow reference string
     :return: The workflow file path, or None if parsing fails

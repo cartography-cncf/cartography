@@ -18,8 +18,8 @@ from cartography.intel.dockerfile_parser import find_best_dockerfile_matches
 from cartography.intel.dockerfile_parser import parse as parse_dockerfile
 from cartography.intel.dockerfile_parser import ParsedDockerfile
 from cartography.intel.github.util import call_github_rest_api
-from cartography.models.github.dockerfile_image import GitHubRepoBuiltFromMatchLink
-from cartography.models.github.dockerfile_image import ImageBuiltByWorkflowMatchLink
+from cartography.models.github.dockerfile_image import GitHubRepoPackagedFromMatchLink
+from cartography.models.github.dockerfile_image import ImagePackagedByWorkflowMatchLink
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -286,7 +286,7 @@ def load_dockerfile_image_relationships(
     update_tag: int,
 ) -> None:
     """
-    Load BUILT_FROM relationships between ECRRepositoryImage and GitHubRepository.
+    Load PACKAGED_FROM relationships between ECRRepositoryImage and GitHubRepository.
 
     By matching on repo_uri, this creates relationships to ALL images in each
     ECR repository that was built from a Dockerfile in a GitHub repository.
@@ -307,18 +307,18 @@ def load_dockerfile_image_relationships(
         logger.info("No valid matches with repo URLs to load")
         return
 
-    logger.info(f"Loading {len(matchlink_data)} BUILT_FROM relationships...")
+    logger.info(f"Loading {len(matchlink_data)} PACKAGED_FROM relationships...")
 
     load_matchlinks(
         neo4j_session,
-        GitHubRepoBuiltFromMatchLink(),
+        GitHubRepoPackagedFromMatchLink(),
         matchlink_data,
         lastupdated=update_tag,
         _sub_resource_label="GitHubOrganization",
         _sub_resource_id=organization,
     )
 
-    logger.info(f"Loaded {len(matchlink_data)} BUILT_FROM relationships")
+    logger.info(f"Loaded {len(matchlink_data)} PACKAGED_FROM relationships")
 
 
 @timeit
@@ -328,16 +328,16 @@ def cleanup_dockerfile_image_relationships(
     update_tag: int,
 ) -> None:
     """
-    Clean up stale BUILT_FROM relationships.
+    Clean up stale PACKAGED_FROM relationships.
 
     :param neo4j_session: Neo4j session
     :param organization: The GitHub organization name (used as sub_resource_id)
     :param update_tag: The update timestamp tag
     """
-    logger.info("Cleaning up stale BUILT_FROM relationships...")
+    logger.info("Cleaning up stale PACKAGED_FROM relationships...")
 
     cleanup_job = GraphJob.from_matchlink(
-        GitHubRepoBuiltFromMatchLink(),
+        GitHubRepoPackagedFromMatchLink(),
         "GitHubOrganization",
         organization,
         update_tag,
@@ -364,7 +364,7 @@ def get_provenance_matches_for_org(
     cryptographically signed provenance attestations, without needing Dockerfile
     content analysis.
 
-    Returns data formatted for load_matchlinks with GitHubRepoBuiltFromMatchLink schema.
+    Returns data formatted for load_matchlinks with GitHubRepoPackagedFromMatchLink schema.
 
     :param neo4j_session: Neo4j session
     :param organization: The GitHub organization name to match against
@@ -415,7 +415,7 @@ def load_provenance_relationships(
     update_tag: int,
 ) -> int:
     """
-    Load BUILT_FROM relationships based on SLSA provenance data.
+    Load PACKAGED_FROM relationships based on SLSA provenance data.
 
     This is the primary matching method - uses provenance attestations to directly
     link container images to their source repositories with 100% confidence.
@@ -431,18 +431,20 @@ def load_provenance_relationships(
         logger.info("No provenance-based matches found for %s", organization)
         return 0
 
-    logger.info("Loading %d provenance-based BUILT_FROM relationships...", len(matches))
+    logger.info(
+        "Loading %d provenance-based PACKAGED_FROM relationships...", len(matches)
+    )
 
     load_matchlinks(
         neo4j_session,
-        GitHubRepoBuiltFromMatchLink(),
+        GitHubRepoPackagedFromMatchLink(),
         matches,
         lastupdated=update_tag,
         _sub_resource_label="GitHubOrganization",
         _sub_resource_id=organization,
     )
 
-    logger.info("Loaded %d provenance-based BUILT_FROM relationships", len(matches))
+    logger.info("Loaded %d provenance-based PACKAGED_FROM relationships", len(matches))
     return len(matches)
 
 
@@ -454,7 +456,7 @@ def get_images_with_workflow_provenance(
     """
     Query images with SLSA provenance workflow info for a given organization.
 
-    Returns data formatted for load_matchlinks with ImageBuiltByWorkflowMatchLink schema.
+    Returns data formatted for load_matchlinks with ImagePackagedByWorkflowMatchLink schema.
     The MatchLink will handle joining to GitHubWorkflow via repo_url + path.
 
     :param neo4j_session: Neo4j session
@@ -503,7 +505,7 @@ def load_workflow_relationships(
     update_tag: int,
 ) -> int:
     """
-    Load BUILT_BY relationships between Image and GitHubWorkflow based on SLSA provenance.
+    Load PACKAGED_BY relationships between Image and GitHubWorkflow based on SLSA provenance.
 
     This creates relationships from container images to the GitHub Actions workflows
     that built them, with the run_number as a property.
@@ -519,18 +521,18 @@ def load_workflow_relationships(
         logger.info("No workflow matches found for %s", organization)
         return 0
 
-    logger.info("Loading %d BUILT_BY workflow relationships...", len(matches))
+    logger.info("Loading %d PACKAGED_BY workflow relationships...", len(matches))
 
     load_matchlinks(
         neo4j_session,
-        ImageBuiltByWorkflowMatchLink(),
+        ImagePackagedByWorkflowMatchLink(),
         matches,
         lastupdated=update_tag,
         _sub_resource_label="GitHubOrganization",
         _sub_resource_id=organization,
     )
 
-    logger.info("Loaded %d BUILT_BY workflow relationships", len(matches))
+    logger.info("Loaded %d PACKAGED_BY workflow relationships", len(matches))
     return len(matches)
 
 
@@ -541,16 +543,16 @@ def cleanup_workflow_relationships(
     update_tag: int,
 ) -> None:
     """
-    Clean up stale BUILT_BY workflow relationships.
+    Clean up stale PACKAGED_BY workflow relationships.
 
     :param neo4j_session: Neo4j session
     :param organization: The GitHub organization name (used as sub_resource_id)
     :param update_tag: The update timestamp tag
     """
-    logger.debug("Cleaning up stale BUILT_BY workflow relationships...")
+    logger.debug("Cleaning up stale PACKAGED_BY workflow relationships...")
 
     cleanup_job = GraphJob.from_matchlink(
-        ImageBuiltByWorkflowMatchLink(),
+        ImagePackagedByWorkflowMatchLink(),
         "GitHubOrganization",
         organization,
         update_tag,
@@ -1007,7 +1009,7 @@ def sync(
     2. Searches for Dockerfile-related files in each repository
     3. Downloads their content and parses them
     4. Matches remaining images to Dockerfiles based on layer history commands
-    5. Creates BUILT_FROM relationships between ImageTag and GitHubRepository
+    5. Creates PACKAGED_FROM relationships between ImageTag and GitHubRepository
 
     Works with any container registry that follows the cartography image ontology
     (ECR, GCR, etc.) by using the generic labels: Image, ImageTag, ImageLayer, ContainerRegistry.
@@ -1095,36 +1097,37 @@ def sync(
     # LOAD Stage: Create relationships in Neo4j
     # ==========================================================================
     if match_container_images:
-        # Load provenance-based BUILT_FROM relationships
+        # Load provenance-based PACKAGED_FROM relationships
         if provenance_matches:
             logger.info(
-                "Loading %d provenance-based BUILT_FROM relationships...",
+                "Loading %d provenance-based PACKAGED_FROM relationships...",
                 len(provenance_matches),
             )
             load_matchlinks(
                 neo4j_session,
-                GitHubRepoBuiltFromMatchLink(),
+                GitHubRepoPackagedFromMatchLink(),
                 provenance_matches,
                 lastupdated=update_tag,
                 _sub_resource_label="GitHubOrganization",
                 _sub_resource_id=organization,
             )
 
-        # Load workflow BUILT_BY relationships
+        # Load workflow PACKAGED_BY relationships
         if workflow_matches:
             logger.info(
-                "Loading %d BUILT_BY workflow relationships...", len(workflow_matches)
+                "Loading %d PACKAGED_BY workflow relationships...",
+                len(workflow_matches),
             )
             load_matchlinks(
                 neo4j_session,
-                ImageBuiltByWorkflowMatchLink(),
+                ImagePackagedByWorkflowMatchLink(),
                 workflow_matches,
                 lastupdated=update_tag,
                 _sub_resource_label="GitHubOrganization",
                 _sub_resource_id=organization,
             )
 
-        # Load dockerfile-based BUILT_FROM relationships
+        # Load dockerfile-based PACKAGED_FROM relationships
         if matches:
             load_dockerfile_image_relationships(
                 neo4j_session,
