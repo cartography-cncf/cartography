@@ -10,56 +10,11 @@ from tests.data.github.dockerfiles import FILE_CONTENT_DOCKERFILE_DEV
 from tests.data.github.dockerfiles import FILE_CONTENT_DOCKERFILE_PROD
 from tests.data.github.dockerfiles import SEARCH_DOCKERFILES_EMPTY_RESPONSE
 from tests.data.github.dockerfiles import SEARCH_DOCKERFILES_ORG_RESPONSE
-from tests.data.github.dockerfiles import SEARCH_DOCKERFILES_RESPONSE
 from tests.data.github.dockerfiles import TEST_REPOS
 
 TEST_UPDATE_TAG = 123456789
 TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://api.github.com/graphql"
-
-
-@patch("cartography.intel.github.supply_chain.call_github_rest_api")
-def test_search_dockerfiles_in_repo(mock_rest_api):
-    """
-    Test that search_dockerfiles_in_repo correctly calls the GitHub Code Search API
-    and returns the expected results.
-    """
-    # Arrange
-    mock_rest_api.return_value = SEARCH_DOCKERFILES_RESPONSE
-
-    # Act
-    results = cartography.intel.github.supply_chain.search_dockerfiles_in_repo(
-        token="test_token",
-        owner="testorg",
-        repo="testrepo",
-        base_url="https://api.github.com",
-    )
-
-    # Assert
-    assert len(results) == 3
-    assert results[0]["path"] == "Dockerfile"
-    assert results[1]["path"] == "docker/Dockerfile.dev"
-    assert results[2]["path"] == "deploy/production.dockerfile"
-
-
-@patch("cartography.intel.github.supply_chain.call_github_rest_api")
-def test_search_dockerfiles_in_repo_empty(mock_rest_api):
-    """
-    Test that search_dockerfiles_in_repo returns empty list when no Dockerfiles found.
-    """
-    # Arrange
-    mock_rest_api.return_value = SEARCH_DOCKERFILES_EMPTY_RESPONSE
-
-    # Act
-    results = cartography.intel.github.supply_chain.search_dockerfiles_in_repo(
-        token="test_token",
-        owner="testorg",
-        repo="empty-repo",
-        base_url="https://api.github.com",
-    )
-
-    # Assert
-    assert results == []
 
 
 @patch("cartography.intel.github.supply_chain.call_github_rest_api")
@@ -190,8 +145,8 @@ def test_get_dockerfiles_for_repos_with_org_search(mock_rest_api):
     results = cartography.intel.github.supply_chain.get_dockerfiles_for_repos(
         token="test_token",
         repos=TEST_REPOS,
-        base_url="https://api.github.com",
         org="testorg",
+        base_url="https://api.github.com",
     )
 
     # Assert
@@ -212,92 +167,6 @@ def test_get_dockerfiles_for_repos_with_org_search(mock_rest_api):
         r for r in results if r["path"] == "deploy/production.dockerfile"
     )
     assert dockerfile_prod["content"] == DOCKERFILE_PROD_CONTENT
-
-
-@patch("cartography.intel.github.supply_chain.call_github_rest_api")
-def test_get_dockerfiles_for_repos_infers_org(mock_rest_api):
-    """
-    Test that get_dockerfiles_for_repos infers org from repos when all are from same org.
-    """
-
-    # Arrange
-    def mock_api_response(endpoint, token, base_url, params=None):
-        if "/search/code" in endpoint:
-            # Should use org-wide search since all repos are from testorg
-            if "org:testorg" in params.get("q", ""):
-                return SEARCH_DOCKERFILES_ORG_RESPONSE
-            return SEARCH_DOCKERFILES_EMPTY_RESPONSE
-        elif "/contents/Dockerfile" in endpoint and "Dockerfile.dev" not in endpoint:
-            return FILE_CONTENT_DOCKERFILE
-        elif "/contents/docker/Dockerfile.dev" in endpoint:
-            return FILE_CONTENT_DOCKERFILE_DEV
-        elif "/contents/deploy/production.dockerfile" in endpoint:
-            return FILE_CONTENT_DOCKERFILE_PROD
-        return {}
-
-    mock_rest_api.side_effect = mock_api_response
-
-    # Act - no org specified, should be inferred
-    results = cartography.intel.github.supply_chain.get_dockerfiles_for_repos(
-        token="test_token",
-        repos=TEST_REPOS,
-        base_url="https://api.github.com",
-    )
-
-    # Assert - should still work using inferred org
-    assert len(results) == 3
-
-
-@patch("cartography.intel.github.supply_chain.call_github_rest_api")
-def test_get_dockerfiles_for_repos_fallback_to_per_repo(mock_rest_api):
-    """
-    Test that get_dockerfiles_for_repos falls back to per-repo search
-    when repos are from multiple orgs.
-    """
-
-    # Arrange - repos from two different orgs
-    mixed_repos = [
-        {
-            "name": "testrepo",
-            "nameWithOwner": "testorg/testrepo",
-            "url": "https://github.com/testorg/testrepo",
-            "owner": {"login": "testorg"},
-        },
-        {
-            "name": "otherrepo",
-            "nameWithOwner": "otherorg/otherrepo",
-            "url": "https://github.com/otherorg/otherrepo",
-            "owner": {"login": "otherorg"},
-        },
-    ]
-
-    def mock_api_response(endpoint, token, base_url, params=None):
-        if "/search/code" in endpoint:
-            # Per-repo searches
-            if "repo:testorg/testrepo" in params.get("q", ""):
-                return {
-                    "total_count": 1,
-                    "items": [SEARCH_DOCKERFILES_RESPONSE["items"][0]],
-                }
-            if "repo:otherorg/otherrepo" in params.get("q", ""):
-                return SEARCH_DOCKERFILES_EMPTY_RESPONSE
-            return SEARCH_DOCKERFILES_EMPTY_RESPONSE
-        elif "/contents/Dockerfile" in endpoint:
-            return FILE_CONTENT_DOCKERFILE
-        return {}
-
-    mock_rest_api.side_effect = mock_api_response
-
-    # Act
-    results = cartography.intel.github.supply_chain.get_dockerfiles_for_repos(
-        token="test_token",
-        repos=mixed_repos,
-        base_url="https://api.github.com",
-    )
-
-    # Assert - should have used per-repo search and found 1 Dockerfile
-    assert len(results) == 1
-    assert results[0]["repo_name"] == "testorg/testrepo"
 
 
 @patch("cartography.intel.github.supply_chain.get_dockerfiles_for_repos")
@@ -362,33 +231,6 @@ def test_sync_no_unmatched_images(mock_get_unmatched_images, neo4j_session):
         common_job_parameters=TEST_JOB_PARAMS,
         repos=TEST_REPOS,
     )
-
-
-@patch("cartography.intel.github.supply_chain.call_github_rest_api")
-def test_search_propagates_http_error(mock_rest_api):
-    """
-    Test that search_dockerfiles_in_repo propagates HTTP errors (fail-fast).
-
-    403 errors (rate limit, forbidden) should propagate to the caller so
-    the sync can fail loudly rather than silently returning empty results.
-    """
-    import pytest
-    import requests
-
-    # Arrange - simulate a 403 rate limit error
-    mock_response = MagicMock()
-    mock_response.status_code = 403
-    mock_response.reason = "Forbidden"
-    mock_rest_api.side_effect = requests.exceptions.HTTPError(response=mock_response)
-
-    # Act & Assert - should raise exception, not swallow it
-    with pytest.raises(requests.exceptions.HTTPError):
-        cartography.intel.github.supply_chain.search_dockerfiles_in_repo(
-            token="test_token",
-            owner="testorg",
-            repo="testrepo",
-            base_url="https://api.github.com",
-        )
 
 
 @patch("cartography.intel.github.supply_chain.call_github_rest_api")

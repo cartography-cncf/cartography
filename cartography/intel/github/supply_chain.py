@@ -26,6 +26,9 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_IMAGE_LIMIT: int | None = None
+_DEFAULT_MIN_MATCH_CONFIDENCE: float = 0.5
+
 
 def get_unmatched_container_images_with_history(
     neo4j_session: neo4j.Session,
@@ -114,7 +117,8 @@ def get_unmatched_container_images_with_history(
         )
 
     logger.info(
-        f"Found {len(images)} container images with layer history (one per repository)"
+        "Found %d container images with layer history (one per repository)",
+        len(images),
     )
     return images
 
@@ -176,48 +180,8 @@ def search_dockerfiles_in_org(
                 break
             raise
 
-    logger.info(f"Found {len(all_items)} dockerfile(s) in org {org}")
+    logger.info("Found %d dockerfile(s) in org %s", len(all_items), org)
     return all_items
-
-
-def search_dockerfiles_in_repo(
-    token: str,
-    owner: str,
-    repo: str,
-    base_url: str = "https://api.github.com",
-) -> list[dict[str, Any]]:
-    """
-    Search for all Dockerfile-related files in a repository using GitHub Code Search API.
-
-    Note: For multiple repos in the same org, prefer search_dockerfiles_in_org() for efficiency.
-
-    :param token: The GitHub API token
-    :param owner: The repository owner (user or organization)
-    :param repo: The repository name
-    :param base_url: The base URL for the GitHub API
-    :return: List of file items from the search results
-    """
-    query = f"filename:dockerfile repo:{owner}/{repo}"
-
-    params = {
-        "q": query,
-        "per_page": 100,
-    }
-
-    try:
-        response = call_github_rest_api("/search/code", token, base_url, params)
-        items: list[dict[str, Any]] = response.get("items", [])
-        logger.debug(f"Found {len(items)} dockerfile(s) in {owner}/{repo}")
-        return items
-    except requests.exceptions.HTTPError as e:
-        # Only 404 (repo not found) and 422 (validation error) are acceptable
-        # 403 (forbidden/rate limit) and 429 (too many requests) should propagate
-        if e.response is not None and e.response.status_code in (404, 422):
-            logger.debug(
-                "Search failed for %s/%s: %d", owner, repo, e.response.status_code
-            )
-            return []
-        raise
 
 
 def get_file_content(
@@ -317,28 +281,22 @@ def _build_dockerfile_info(
 def get_dockerfiles_for_repos(
     token: str,
     repos: list[dict[str, Any]],
+    org: str,
     base_url: str = "https://api.github.com",
-    org: str | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Search and download Dockerfiles for a list of repositories.
-
-    Uses org-wide search when possible (single API call) instead of per-repo queries.
+    Search and download Dockerfiles for a list of repositories using org-wide search.
 
     :param token: The GitHub API token
     :param repos: List of repository dictionaries (from GitHub API or transformed data)
+    :param org: Organization name for org-wide search
     :param base_url: The base URL for the GitHub API
-    :param org: Organization name for org-wide search. If None, extracted from repos.
     :return: List of dictionaries containing repo info, file path, and content
     """
     if not repos:
         return []
 
-    # Build lookup maps for repos
-    repo_info_map: dict[str, tuple[str, str, str | None]] = (
-        {}
-    )  # full_name -> (owner, name, url)
-    orgs_found: set[str] = set()
+    repo_info_map: dict[str, tuple[str, str, str | None]] = {}
 
     for repo in repos:
         owner, repo_name, repo_url = _extract_repo_info(repo)
@@ -346,69 +304,39 @@ def get_dockerfiles_for_repos(
             continue
         full_name = f"{owner}/{repo_name}"
         repo_info_map[full_name] = (owner, repo_name, repo_url)
-        orgs_found.add(owner)
 
     if not repo_info_map:
         logger.warning("No valid repositories found")
         return []
 
-    # Determine search strategy
-    search_org = org or (orgs_found.pop() if len(orgs_found) == 1 else None)
+    dockerfile_items = search_dockerfiles_in_org(token, org, base_url)
+
+    items_by_repo: dict[str, list[dict[str, Any]]] = {}
+    for item in dockerfile_items:
+        repo_info = item.get("repository", {})
+        full_name = repo_info.get("full_name", "")
+        if full_name in repo_info_map:
+            items_by_repo.setdefault(full_name, []).append(item)
 
     all_dockerfiles: list[dict[str, Any]] = []
-
-    if search_org and len(orgs_found) <= 1:
-        # Single org: use efficient org-wide search
-        logger.info(f"Using org-wide search for {search_org}")
-        dockerfile_items = search_dockerfiles_in_org(token, search_org, base_url)
-
-        # Group items by repo
-        items_by_repo: dict[str, list[dict[str, Any]]] = {}
-        for item in dockerfile_items:
-            repo_info = item.get("repository", {})
-            full_name = repo_info.get("full_name", "")
-            if full_name in repo_info_map:
-                items_by_repo.setdefault(full_name, []).append(item)
-
-        # Download content for matching repos
-        for full_name, items in items_by_repo.items():
-            owner, repo_name, repo_url = repo_info_map[full_name]
-            for item in items:
-                path = item.get("path")
-                if not path:
-                    continue
-                content = get_file_content(
-                    token, owner, repo_name, path, base_url=base_url
+    for full_name, items in items_by_repo.items():
+        owner, repo_name, repo_url = repo_info_map[full_name]
+        for item in items:
+            path = item.get("path")
+            if not path:
+                continue
+            content = get_file_content(token, owner, repo_name, path, base_url=base_url)
+            if content:
+                dockerfile_info = _build_dockerfile_info(
+                    item, content, repo_url, full_name
                 )
-                if content:
-                    dockerfile_info = _build_dockerfile_info(
-                        item, content, repo_url, full_name
-                    )
-                    if dockerfile_info is not None:
-                        all_dockerfiles.append(dockerfile_info)
-    else:
-        # Multiple orgs or org not specified: fall back to per-repo search
-        logger.info(f"Using per-repo search for {len(repo_info_map)} repositories")
-        for full_name, (owner, repo_name, repo_url) in repo_info_map.items():
-            dockerfile_items = search_dockerfiles_in_repo(
-                token, owner, repo_name, base_url
-            )
-            for item in dockerfile_items:
-                path = item.get("path")
-                if not path:
-                    continue
-                content = get_file_content(
-                    token, owner, repo_name, path, base_url=base_url
-                )
-                if content:
-                    dockerfile_info = _build_dockerfile_info(
-                        item, content, repo_url, full_name
-                    )
-                    if dockerfile_info is not None:
-                        all_dockerfiles.append(dockerfile_info)
+                if dockerfile_info is not None:
+                    all_dockerfiles.append(dockerfile_info)
 
     logger.info(
-        f"Retrieved {len(all_dockerfiles)} dockerfile(s) from {len(repo_info_map)} repositories"
+        "Retrieved %d dockerfile(s) from %d repositories",
+        len(all_dockerfiles),
+        len(repo_info_map),
     )
     return all_dockerfiles
 
@@ -423,8 +351,8 @@ def sync(
     common_job_parameters: dict[str, Any],
     repos: list[dict[str, Any]],
     workflows: list[dict[str, Any]] | None = None,
-    image_limit: int | None = None,
-    min_match_confidence: float = 0.5,
+    image_limit: int | None = _DEFAULT_IMAGE_LIMIT,
+    min_match_confidence: float = _DEFAULT_MIN_MATCH_CONFIDENCE,
 ) -> None:
     """
     Sync supply chain relationships for a GitHub organization.
@@ -508,9 +436,7 @@ def sync(
 
     # 4. Dockerfile analysis (only for unmatched images)
     if unmatched:
-        dockerfiles = get_dockerfiles_for_repos(
-            token, repos, base_url, org=organization
-        )
+        dockerfiles = get_dockerfiles_for_repos(token, repos, organization, base_url)
         if dockerfiles:
             matches = match_images_to_dockerfiles(
                 unmatched,
