@@ -35,7 +35,9 @@ class GitLabContainerImageNodeProperties(CartographyNodeProperties):
     os: PropertyRef = PropertyRef("os")
     variant: PropertyRef = PropertyRef("variant")
     child_image_digests: PropertyRef = PropertyRef("child_image_digests")
-    layer_digests: PropertyRef = PropertyRef("layer_digests")
+    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
+    head_layer_diff_id: PropertyRef = PropertyRef("head_layer_diff_id")
+    tail_layer_diff_id: PropertyRef = PropertyRef("tail_layer_diff_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -95,17 +97,63 @@ class GitLabContainerImageToLayerRel(CartographyRelSchema):
     """
     Relationship from an image to its constituent layers.
     Only applies to images with type="image" (not manifest lists).
-    Layers are ordered using NEXT relationships and layer_digests array on the image.
+    Layers are ordered using NEXT relationships and layer_diff_ids array on the image.
     """
 
     target_node_label: str = "GitLabContainerImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("layer_digests", one_to_many=True)},
+        {"diff_id": PropertyRef("layer_diff_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_LAYER"
     properties: GitLabContainerImageToLayerRelProperties = (
         GitLabContainerImageToLayerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageToHeadLayerRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageToHeadLayerRel(CartographyRelSchema):
+    """
+    Relationship from an image to its first (base) layer.
+    Direction: (GitLabContainerImage)-[:HEAD]->(GitLabContainerImageLayer)
+    """
+
+    target_node_label: str = "GitLabContainerImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("head_layer_diff_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HEAD"
+    properties: GitLabContainerImageToHeadLayerRelProperties = (
+        GitLabContainerImageToHeadLayerRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageToTailLayerRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GitLabContainerImageToTailLayerRel(CartographyRelSchema):
+    """
+    Relationship from an image to its last (topmost) layer.
+    Direction: (GitLabContainerImage)-[:TAIL]->(GitLabContainerImageLayer)
+    """
+
+    target_node_label: str = "GitLabContainerImageLayer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"diff_id": PropertyRef("tail_layer_diff_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "TAIL"
+    properties: GitLabContainerImageToTailLayerRelProperties = (
+        GitLabContainerImageToTailLayerRelProperties()
     )
 
 
@@ -131,6 +179,8 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
         [
             GitLabContainerImageContainsImageRel(),
             GitLabContainerImageToLayerRel(),
+            GitLabContainerImageToHeadLayerRel(),
+            GitLabContainerImageToTailLayerRel(),
         ],
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

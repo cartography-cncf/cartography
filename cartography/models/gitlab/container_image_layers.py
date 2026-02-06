@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -26,9 +27,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class GitLabContainerImageLayerNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("digest")
+    id: PropertyRef = PropertyRef("diff_id")
+    diff_id: PropertyRef = PropertyRef("diff_id", extra_index=True)
     digest: PropertyRef = PropertyRef("digest", extra_index=True)
-    diff_id: PropertyRef = PropertyRef("diff_id")
     media_type: PropertyRef = PropertyRef("media_type")
     size: PropertyRef = PropertyRef("size")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
@@ -71,60 +72,12 @@ class GitLabContainerImageLayerToNextRel(CartographyRelSchema):
 
     target_node_label: str = "GitLabContainerImageLayer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("next_digests", one_to_many=True)}
+        {"diff_id": PropertyRef("next_diff_ids", one_to_many=True)}
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "NEXT"
     properties: GitLabContainerImageLayerToNextRelProperties = (
         GitLabContainerImageLayerToNextRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class GitLabContainerImageLayerHeadOfImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class GitLabContainerImageLayerHeadOfImageRel(CartographyRelSchema):
-    """
-    Relationship from images to their first layer (base layer).
-    Direction: (GitLabContainerImage)-[:HEAD]->(GitLabContainerImageLayer)
-    Allows finding the base layer of an image.
-    """
-
-    target_node_label: str = "GitLabContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("head_image_digests", one_to_many=True)}
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HEAD"
-    properties: GitLabContainerImageLayerHeadOfImageRelProperties = (
-        GitLabContainerImageLayerHeadOfImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class GitLabContainerImageLayerTailOfImageRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class GitLabContainerImageLayerTailOfImageRel(CartographyRelSchema):
-    """
-    Relationship from images to their last layer (topmost layer).
-    Direction: (GitLabContainerImage)-[:TAIL]->(GitLabContainerImageLayer)
-    Allows finding the final layer of an image.
-    """
-
-    target_node_label: str = "GitLabContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("tail_image_digests", one_to_many=True)}
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "TAIL"
-    properties: GitLabContainerImageLayerTailOfImageRelProperties = (
-        GitLabContainerImageLayerTailOfImageRelProperties()
     )
 
 
@@ -137,8 +90,8 @@ class GitLabContainerImageLayerSchema(CartographyNodeSchema):
     - RESOURCE: Sub-resource to GitLabOrganization for cleanup
     - HAS_LAYER: Inward relationship from GitLabContainerImage (defined in image schema)
     - NEXT: Outward relationship to the next layer in the stack (linked list)
-    - HEAD: Inward relationship from images where this is the base layer
-    - TAIL: Inward relationship from images where this is the final layer
+    - HEAD: Inward relationship from images to their first layer (defined in image schema)
+    - TAIL: Inward relationship from images to their last layer (defined in image schema)
     """
 
     label: str = "GitLabContainerImageLayer"
@@ -151,7 +104,6 @@ class GitLabContainerImageLayerSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitLabContainerImageLayerToNextRel(),
-            GitLabContainerImageLayerHeadOfImageRel(),
-            GitLabContainerImageLayerTailOfImageRel(),
         ]
     )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageLayer"])

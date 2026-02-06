@@ -383,12 +383,14 @@ def test_sync_container_registry(
     )
 
     # Verify container image layer nodes
-    # Note: Only 1 layer in mock data (first image has 1 layer, others have empty arrays)
+    # Note: First image has 3 layers forming a chain, others have empty arrays
     expected_layers = {
-        ("sha256:layer1111222333444555666777888999000aaabbbcccdddeeefff00011122",),
+        ("sha256:diff1111222333444555666777888999000aaabbbcccdddeeefff000111222",),
+        ("sha256:diff2222333444555666777888999000aaabbbcccdddeeefff000111222333",),
+        ("sha256:diff3333444555666777888999000aaabbbcccdddeeefff000111222333444",),
     }
     assert (
-        check_nodes(neo4j_session, "GitLabContainerImageLayer", ["digest"])
+        check_nodes(neo4j_session, "GitLabContainerImageLayer", ["id"])
         == expected_layers
     )
 
@@ -396,7 +398,15 @@ def test_sync_container_registry(
     expected_layer_rels = {
         (
             TEST_ORG_URL,
-            "sha256:layer1111222333444555666777888999000aaabbbcccdddeeefff00011122",
+            "sha256:diff1111222333444555666777888999000aaabbbcccdddeeefff000111222",
+        ),
+        (
+            TEST_ORG_URL,
+            "sha256:diff2222333444555666777888999000aaabbbcccdddeeefff000111222333",
+        ),
+        (
+            TEST_ORG_URL,
+            "sha256:diff3333444555666777888999000aaabbbcccdddeeefff000111222333444",
         ),
     }
     assert (
@@ -405,18 +415,26 @@ def test_sync_container_registry(
             "GitLabOrganization",
             "id",
             "GitLabContainerImageLayer",
-            "digest",
+            "id",
             "RESOURCE",
         )
         == expected_layer_rels
     )
 
     # Verify HAS_LAYER relationships (image -> layer)
-    # Only the first image has a layer in the mock data
+    # Only the first image has layers in the mock data (3 layers)
     expected_has_layer_rels = {
         (
             "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
-            "sha256:layer1111222333444555666777888999000aaabbbcccdddeeefff00011122",
+            "sha256:diff1111222333444555666777888999000aaabbbcccdddeeefff000111222",
+        ),
+        (
+            "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+            "sha256:diff2222333444555666777888999000aaabbbcccdddeeefff000111222333",
+        ),
+        (
+            "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+            "sha256:diff3333444555666777888999000aaabbbcccdddeeefff000111222333444",
         ),
     }
     assert (
@@ -425,11 +443,69 @@ def test_sync_container_registry(
             "GitLabContainerImage",
             "id",
             "GitLabContainerImageLayer",
-            "digest",
+            "id",
             "HAS_LAYER",
         )
         == expected_has_layer_rels
     )
 
-    # Note: HEAD/TAIL/NEXT relationships verified in production sync
-    # Mock data has limited layer chains for testing
+    # Verify NEXT relationships (layer chain: layer1 -> layer2 -> layer3)
+    expected_next_rels = {
+        (
+            "sha256:diff1111222333444555666777888999000aaabbbcccdddeeefff000111222",
+            "sha256:diff2222333444555666777888999000aaabbbcccdddeeefff000111222333",
+        ),
+        (
+            "sha256:diff2222333444555666777888999000aaabbbcccdddeeefff000111222333",
+            "sha256:diff3333444555666777888999000aaabbbcccdddeeefff000111222333444",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitLabContainerImageLayer",
+            "id",
+            "GitLabContainerImageLayer",
+            "id",
+            "NEXT",
+        )
+        == expected_next_rels
+    )
+
+    # Verify HEAD relationship (image -> first layer)
+    expected_head_rels = {
+        (
+            "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+            "sha256:diff1111222333444555666777888999000aaabbbcccdddeeefff000111222",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitLabContainerImage",
+            "id",
+            "GitLabContainerImageLayer",
+            "id",
+            "HEAD",
+        )
+        == expected_head_rels
+    )
+
+    # Verify TAIL relationship (image -> last layer)
+    expected_tail_rels = {
+        (
+            "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+            "sha256:diff3333444555666777888999000aaabbbcccdddeeefff000111222333444",
+        ),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "GitLabContainerImage",
+            "id",
+            "GitLabContainerImageLayer",
+            "id",
+            "TAIL",
+        )
+        == expected_tail_rels
+    )

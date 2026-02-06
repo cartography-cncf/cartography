@@ -277,15 +277,18 @@ def transform_container_images(
                 != "attestation-manifest"
             ]
 
-        # Extract layer digests for regular images (for HAS_LAYER relationship)
-        layer_digests = None
+        # Extract layer diff_ids for regular images (for HAS_LAYER relationship)
+        layer_diff_ids = None
+        head_layer_diff_id = None
+        tail_layer_diff_id = None
         if not is_manifest_list:
-            layers = manifest.get("layers", [])
-            layer_digest_list = [
-                layer.get("digest") for layer in layers if layer.get("digest")
-            ]
+            config = manifest.get("_config", {})
+            diff_ids = config.get("rootfs", {}).get("diff_ids", [])
             # Only set if there are actual layers, otherwise keep as None to skip relationship matching
-            layer_digests = layer_digest_list if layer_digest_list else None
+            if diff_ids and isinstance(diff_ids, list) and len(diff_ids) > 0:
+                layer_diff_ids = diff_ids
+                head_layer_diff_id = diff_ids[0]  # First layer
+                tail_layer_diff_id = diff_ids[-1]  # Last layer
 
         # Extract architecture, os, variant from config blob (for regular images)
         config = manifest.get("_config", {})
@@ -312,7 +315,9 @@ def transform_container_images(
                 "os": config.get("os"),
                 "variant": config.get("variant"),
                 "child_image_digests": child_image_digests,
-                "layer_digests": layer_digests,
+                "layer_diff_ids": layer_diff_ids,
+                "head_layer_diff_id": head_layer_diff_id,
+                "tail_layer_diff_id": tail_layer_diff_id,
             }
         )
 
@@ -331,8 +336,10 @@ def transform_container_image_layers(
     - TAIL relationships from last layer to images
 
     This follows the ECR pattern for queryable layer ordering.
+    Layers are keyed by diff_id (uncompressed) for cross-provider deduplication.
     """
-    layers_by_digest: dict[str, dict[str, Any]] = {}
+    layers_by_diff_id: dict[str, dict[str, Any]] = {}
+    skipped_layers_count = 0
 
     for manifest in raw_manifests:
         media_type = manifest.get("mediaType")
@@ -345,61 +352,76 @@ def transform_container_image_layers(
         image_digest = manifest.get("_digest")
         layers = manifest.get("layers", [])
         config = manifest.get("_config", {})
-        diff_ids = config.get("rootfs", {}).get("diff_ids", [])
+        diff_ids_raw = config.get("rootfs", {}).get("diff_ids", [])
+
+        # Ensure diff_ids is a list for type checking
+        diff_ids: list[Any] = diff_ids_raw if isinstance(diff_ids_raw, list) else []
 
         # Process each layer in the chain
         for i, layer in enumerate(layers):
             layer_digest = layer.get("digest")
             if not layer_digest:
+                logger.warning(
+                    f"Skipping layer at index {i} in image {image_digest}: missing compressed digest"
+                )
+                skipped_layers_count += 1
                 continue
 
-            # Get or create layer entry
-            if layer_digest not in layers_by_digest:
-                diff_id = diff_ids[i] if i < len(diff_ids) else None
-                layers_by_digest[layer_digest] = {
-                    "digest": layer_digest,
+            # Get diff_id from config (uncompressed layer ID)
+            # diff_id is required for cross-provider deduplication
+            diff_id = diff_ids[i] if i < len(diff_ids) else None
+            if not diff_id:
+                # Type narrowing for mypy
+                layer_digest_str = str(layer_digest) if layer_digest else "unknown"
+                image_digest_str = str(image_digest) if image_digest else "unknown"
+                logger.warning(
+                    f"Skipping layer {layer_digest_str[:16]}... at index {i} in image {image_digest_str[:16]}...: "
+                    f"missing diff_id (config has {len(diff_ids)} diff_ids but manifest has {len(layers)} layers)"
+                )
+                skipped_layers_count += 1
+                continue
+
+            # Get or create layer entry keyed by diff_id for cross-provider deduplication
+            if diff_id not in layers_by_diff_id:
+                layers_by_diff_id[diff_id] = {
                     "diff_id": diff_id,
+                    "digest": layer_digest,
                     "media_type": layer.get("mediaType"),
                     "size": layer.get("size"),
-                    "next_digests": set(),
-                    "head_image_digests": set(),
-                    "tail_image_digests": set(),
+                    "next_diff_ids": set(),
                 }
 
-            layer_entry = layers_by_digest[layer_digest]
+            layer_entry = layers_by_diff_id[diff_id]
 
             # Add NEXT relationship if not the last layer
             if i < len(layers) - 1:
-                next_layer_digest = layers[i + 1].get("digest")
-                if next_layer_digest:
-                    layer_entry["next_digests"].add(next_layer_digest)
-
-            # Track which images this layer is HEAD or TAIL of
-            if i == 0:
-                layer_entry["head_image_digests"].add(image_digest)
-            if i == len(layers) - 1:
-                layer_entry["tail_image_digests"].add(image_digest)
+                next_diff_id = diff_ids[i + 1] if i + 1 < len(diff_ids) else None
+                if next_diff_id:
+                    layer_entry["next_diff_ids"].add(next_diff_id)
 
     # Convert sets to lists for Neo4j ingestion
     all_layers = []
-    for layer in layers_by_digest.values():
+    for layer in layers_by_diff_id.values():
         layer_dict: dict[str, Any] = {
-            "digest": layer["digest"],
             "diff_id": layer["diff_id"],
+            "digest": layer["digest"],
             "media_type": layer["media_type"],
             "size": layer["size"],
         }
-        if layer["next_digests"]:
-            layer_dict["next_digests"] = list(layer["next_digests"])
-        if layer["head_image_digests"]:
-            layer_dict["head_image_digests"] = list(layer["head_image_digests"])
-        if layer["tail_image_digests"]:
-            layer_dict["tail_image_digests"] = list(layer["tail_image_digests"])
+        if layer["next_diff_ids"]:
+            layer_dict["next_diff_ids"] = list(layer["next_diff_ids"])
         all_layers.append(layer_dict)
 
     logger.info(
         f"Transformed {len(all_layers)} container image layers with linked list structure"
     )
+
+    if skipped_layers_count > 0:
+        logger.warning(
+            f"Skipped {skipped_layers_count} layer(s) due to missing digest or diff_id. "
+            f"These layers will not appear in the graph. Check config blob availability."
+        )
+
     return all_layers
 
 
