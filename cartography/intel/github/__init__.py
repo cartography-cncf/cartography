@@ -85,7 +85,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
 
         # Sync GitHub Actions (workflows, secrets, variables, environments)
-        cartography.intel.github.actions.sync(
+        all_workflows = cartography.intel.github.actions.sync(
             neo4j_session,
             common_job_parameters,
             auth_data["token"],
@@ -123,4 +123,5 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 common_job_parameters["UPDATE_TAG"],
                 common_job_parameters,
                 valid_repos,
+                workflows=all_workflows,
             )

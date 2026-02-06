@@ -102,9 +102,6 @@ class ImagePackagedByWorkflowMatchLinkProperties(CartographyRelProperties):
     )
     _sub_resource_id: PropertyRef = PropertyRef("_sub_resource_id", set_in_kwargs=True)
 
-    # Workflow run information from SLSA provenance
-    run_number: PropertyRef = PropertyRef("run_number")
-
 
 @dataclass(frozen=True)
 class ImagePackagedByWorkflowMatchLink(CartographyRelSchema):
@@ -114,23 +111,23 @@ class ImagePackagedByWorkflowMatchLink(CartographyRelSchema):
 
     Direction: (Image)-[:PACKAGED_BY]->(GitHubWorkflow)
 
-    This relationship is created when SLSA provenance attestations specify
-    the GitHub Actions workflow that built the container image. The matching
-    uses repo_url + path to identify the correct workflow. The run_number
-    property indicates which specific workflow run produced the image.
+    Matches Image.invocation_uri + Image.invocation_workflow to
+    GitHubWorkflow.repo_url + GitHubWorkflow.path using the same
+    (repo_url, workflow_path) values from the input data.
     """
 
     target_node_label: str = "GitHubWorkflow"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
-            "repo_url": PropertyRef("workflow_repo_url"),
+            "repo_url": PropertyRef("repo_url"),
             "path": PropertyRef("workflow_path"),
         }
     )
     source_node_label: str = "Image"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {
-            "digest": PropertyRef("image_digest"),
+            "invocation_uri": PropertyRef("repo_url"),
+            "invocation_workflow": PropertyRef("workflow_path"),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD

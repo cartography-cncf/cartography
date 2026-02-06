@@ -568,7 +568,7 @@ async def test_extract_provenance_from_attestation_with_source_info():
         assert result["source_uri"] == "https://github.com/subimagesec/subimage"
         assert result["source_revision"] == "abc123def456"
         # Build invocation info
-        assert result["invocation_uri"] == "subimagesec/subimage"
+        assert result["invocation_uri"] == "https://github.com/subimagesec/subimage"
         assert result["invocation_workflow"] == ".github/workflows/build.yaml"
         assert result["invocation_run_number"] == "1470"
     finally:

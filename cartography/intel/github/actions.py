@@ -600,7 +600,7 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
-) -> None:
+) -> list[dict[str, Any]]:
     """
     Sync GitHub Actions data (workflows, secrets, variables, environments) for an organization.
 
@@ -609,9 +609,12 @@ def sync(
     2. For each repo: workflows, environments, repo secrets/variables
     3. For each environment: env secrets/variables
     4. Cleanup stale nodes
+
+    :return: List of all transformed workflows (with repo_url and path) for supply chain sync.
     """
     org_url = f"https://github.com/{organization}"
     update_tag = common_job_parameters["UPDATE_TAG"]
+    all_workflows: list[dict[str, Any]] = []
 
     # 1. Sync organization-level secrets and variables
     logger.info(f"Syncing GitHub Actions for organization: {organization}")
@@ -644,6 +647,7 @@ def sync(
                 workflows, organization, repo_name
             )
             load_workflows(neo4j_session, transformed_workflows, update_tag, org_url)
+            all_workflows.extend(transformed_workflows)
 
         # Sync environments (must come before env secrets/variables)
         environments = get_repo_environments(
@@ -722,3 +726,5 @@ def sync(
     # 4. Cleanup org-level stale nodes
     org_cleanup_params = {**common_job_parameters, "org_url": org_url}
     cleanup_org_level(neo4j_session, org_cleanup_params)
+
+    return all_workflows

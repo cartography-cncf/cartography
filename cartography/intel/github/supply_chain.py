@@ -120,55 +120,6 @@ def get_unmatched_container_images_with_history(
 
 
 @timeit
-def get_images_with_workflow_provenance(
-    neo4j_session: neo4j.Session,
-    organization: str,
-) -> list[dict[str, Any]]:
-    """
-    Query images with SLSA provenance workflow info for a given organization.
-
-    Returns data formatted for load_matchlinks with ImagePackagedByWorkflowMatchLink schema.
-    The MatchLink will handle joining to GitHubWorkflow via repo_url + path.
-
-    :param neo4j_session: Neo4j session
-    :param organization: The GitHub organization name to filter by
-    :return: List of dicts ready for load_matchlinks
-    """
-    query = """
-        MATCH (img:Image)
-        WHERE img.source_uri IS NOT NULL
-          AND img.invocation_workflow IS NOT NULL
-        MATCH (gh_repo:GitHubRepository {id: img.source_uri})
-              -[:OWNER]->(gh_org:GitHubOrganization {username: $organization})
-        RETURN DISTINCT
-            img.digest AS image_digest,
-            img.source_uri AS workflow_repo_url,
-            img.invocation_workflow AS workflow_path,
-            img.invocation_run_number AS run_number
-    """
-
-    result = neo4j_session.run(query, organization=organization)
-    matches = []
-
-    for record in result:
-        matches.append(
-            {
-                "image_digest": record["image_digest"],
-                "workflow_repo_url": record["workflow_repo_url"],
-                "workflow_path": record["workflow_path"],
-                "run_number": record["run_number"],
-            }
-        )
-
-    logger.info(
-        "Found %d images with workflow provenance for organization %s",
-        len(matches),
-        organization,
-    )
-    return matches
-
-
-@timeit
 def search_dockerfiles_in_org(
     token: str,
     org: str,
@@ -471,6 +422,7 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     repos: list[dict[str, Any]],
+    workflows: list[dict[str, Any]] | None = None,
     image_limit: int | None = None,
     min_match_confidence: float = 0.5,
 ) -> None:
@@ -492,6 +444,7 @@ def sync(
     :param update_tag: The update timestamp tag
     :param common_job_parameters: Common job parameters
     :param repos: List of repository dictionaries to search for Dockerfiles
+    :param workflows: List of workflow dicts (with repo_url and path) from actions sync
     :param image_limit: Optional limit on number of images to process
     :param min_match_confidence: Minimum confidence threshold for matches (default: 0.5)
     """
@@ -502,10 +455,14 @@ def sync(
     if base_url.endswith("/graphql"):
         base_url = base_url[:-8]
 
-    # 1. PACKAGED_BY matchlinks (workflow provenance)
-    workflow_data = get_images_with_workflow_provenance(neo4j_session, organization)
+    # 1. PACKAGED_BY matchlinks (workflow provenance — no pre-query needed)
+    workflow_data = [
+        {"repo_url": wf["repo_url"], "workflow_path": wf["path"]}
+        for wf in (workflows or [])
+        if wf.get("repo_url") and wf.get("path")
+    ]
     if workflow_data:
-        logger.info("Loading %d PACKAGED_BY workflow relationships", len(workflow_data))
+        logger.info("Loading PACKAGED_BY for %d workflows", len(workflow_data))
         load_matchlinks(
             neo4j_session,
             ImagePackagedByWorkflowMatchLink(),
@@ -516,9 +473,10 @@ def sync(
         )
 
     # 2. PACKAGED_FROM matchlinks (SLSA provenance — no pre-query needed)
+    repo_urls = [repo["url"] for repo in repos if repo.get("url")]
     provenance_data = [
         {
-            "repo_url": repo["url"],
+            "repo_url": url,
             "match_method": "provenance",
             "dockerfile_path": None,
             "confidence": 1.0,
@@ -526,8 +484,7 @@ def sync(
             "total_commands": 0,
             "command_similarity": 1.0,
         }
-        for repo in repos
-        if repo.get("url")
+        for url in repo_urls
     ]
     if provenance_data:
         logger.info(

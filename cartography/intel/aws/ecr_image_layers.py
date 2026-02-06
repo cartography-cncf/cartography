@@ -283,7 +283,10 @@ async def _extract_provenance_from_attestation(
     environment = invocation.get("environment", {})
 
     if environment.get("github_repository"):
-        result["invocation_uri"] = environment["github_repository"]
+        server_url = environment.get("github_server_url", "https://github.com").rstrip(
+            "/"
+        )
+        result["invocation_uri"] = f"{server_url}/{environment['github_repository']}"
     if environment.get("github_workflow_ref"):
         workflow_path = extract_workflow_path_from_ref(
             environment["github_workflow_ref"]
