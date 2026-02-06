@@ -158,6 +158,9 @@ def test_santa_sync_cleanup_removes_stale_records(neo4j_session) -> None:
 
     assert check_nodes(neo4j_session, "SantaMachine", ["id"]) == {("C02DEF456",)}
     assert check_nodes(neo4j_session, "SantaUser", ["id"]) == {("lisa@simpson.corp",)}
+    assert check_nodes(neo4j_session, "SantaObservedApplication", ["id"]) == {
+        ("com.google.chrome",)
+    }
     assert check_nodes(
         neo4j_session,
         "SantaObservedApplicationVersion",

@@ -126,20 +126,6 @@ def _extract_application_version(event: dict[str, Any]) -> str:
 
 
 def _extract_user_id(event: dict[str, Any]) -> str | None:
-    user_id = _first_value(
-        event,
-        [
-            "user.id",
-            "user.unique_id",
-            "principal_user.unique_id",
-            "executing_user.id",
-            "user_id",
-            "principal_user_id",
-        ],
-    )
-    if user_id:
-        return user_id
-
     principal_name = _first_value(
         event,
         [
@@ -157,7 +143,17 @@ def _extract_user_id(event: dict[str, Any]) -> str | None:
             else principal_name
         )
 
-    return None
+    return _first_value(
+        event,
+        [
+            "user.id",
+            "user.unique_id",
+            "principal_user.unique_id",
+            "executing_user.id",
+            "user_id",
+            "principal_user_id",
+        ],
+    )
 
 
 def _parse_event_timestamp(value: Any) -> datetime | None:
@@ -337,6 +333,21 @@ def cleanup(
     ).run(
         neo4j_session,
     )
+    # SantaObservedApplication currently has no schema-owned relationships,
+    # so GraphJob cleanup is a no-op.
+    while True:
+        result = neo4j_session.run(
+            """
+            MATCH (n:SantaObservedApplication)
+            WHERE n.lastupdated <> $UPDATE_TAG
+            WITH n LIMIT $LIMIT_SIZE
+            DETACH DELETE n
+            """,
+            UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+            LIMIT_SIZE=100,
+        )
+        if result.consume().counters.nodes_deleted == 0:
+            break
     logger.debug("Running SantaObservedApplicationVersion cleanup")
     GraphJob.from_node_schema(
         SantaObservedApplicationVersionSchema(),
