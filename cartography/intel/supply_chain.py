@@ -41,9 +41,9 @@ class ContainerImage:
 
 @dataclass
 class ImageDockerfileMatch:
-    """Represents a match between a container registry repository and a Dockerfile."""
+    """Represents a match between a container image and a Dockerfile."""
 
-    registry_id: str
+    image_digest: str
     source_repo_id: str
     dockerfile_path: str | None
     confidence: float
@@ -83,9 +83,9 @@ def match_images_to_dockerfiles(
     matches: list[ImageDockerfileMatch] = []
 
     for image in images:
-        if not image.registry_id:
+        if not image.digest:
             logger.debug(
-                "No registry_id for image %s:%s, skipping",
+                "No digest for image %s:%s, skipping",
                 image.display_name,
                 image.tag,
             )
@@ -115,7 +115,7 @@ def match_images_to_dockerfiles(
 
             matches.append(
                 ImageDockerfileMatch(
-                    registry_id=image.registry_id,
+                    image_digest=image.digest,
                     source_repo_id=df_info.get("source_repo_id", ""),
                     dockerfile_path=df_info.get("path"),
                     confidence=best_match.confidence,
@@ -148,20 +148,18 @@ def match_images_to_dockerfiles(
 def transform_matches_for_matchlink(
     matches: list[ImageDockerfileMatch],
     source_repo_field: str,
-    registry_id_field: str,
 ) -> list[dict[str, Any]]:
     """
     Transform ImageDockerfileMatch objects into dictionaries for load_matchlinks.
 
     :param matches: List of ImageDockerfileMatch objects
     :param source_repo_field: Field name for the source repo ID (e.g. "repo_url" or "project_url")
-    :param registry_id_field: Field name for the registry ID (e.g. "registry_repo_uri" or "registry_repo_location")
     :return: List of dictionaries with fields matching the MatchLink schema
     """
     return [
         {
+            "image_digest": m.image_digest,
             source_repo_field: m.source_repo_id,
-            registry_id_field: m.registry_id,
             "match_method": "dockerfile_analysis",
             "dockerfile_path": m.dockerfile_path,
             "confidence": m.confidence,

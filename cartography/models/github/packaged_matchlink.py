@@ -13,7 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class GitHubRepoPackagedFromMatchLinkProperties(CartographyRelProperties):
     """
-    Properties for the PACKAGED_FROM relationship between ImageTag and GitHubRepository.
+    Properties for the PACKAGED_FROM relationship between Image and GitHubRepository.
     """
 
     # Required for all MatchLinks
@@ -35,19 +35,12 @@ class GitHubRepoPackagedFromMatchLinkProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class GitHubRepoPackagedFromMatchLink(CartographyRelSchema):
+class GitHubRepoProvenancePackagedFromMatchLink(CartographyRelSchema):
     """
-    MatchLink schema for connecting ImageTag nodes to GitHubRepository nodes
-    based on Dockerfile command matching.
+    MatchLink for SLSA provenance: (Image)-[:PACKAGED_FROM]->(GitHubRepository).
 
-    Direction: (ImageTag)-[:PACKAGED_FROM]->(GitHubRepository)
-
-    Uses the generic ImageTag label from the cartography image ontology, which works
-    across different container registries (ECR, GCR, etc.).
-
-    By matching on repo_uri, this creates relationships to ALL images in a
-    registry repository that were built from the Dockerfile in the GitHub repository.
-    The confidence score is based on command similarity analysis.
+    Matches Image.source_uri to GitHubRepository.id using the same repo URL value.
+    No pre-query needed: just pass the repo URLs from the repos list.
     """
 
     target_node_label: str = "GitHubRepository"
@@ -56,11 +49,37 @@ class GitHubRepoPackagedFromMatchLink(CartographyRelSchema):
             "id": PropertyRef("repo_url"),
         }
     )
-    # Use generic ImageTag label instead of ECRRepositoryImage for cross-registry support
-    source_node_label: str = "ImageTag"
+    source_node_label: str = "Image"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {
-            "repo_uri": PropertyRef("registry_repo_uri"),
+            "source_uri": PropertyRef("repo_url"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "PACKAGED_FROM"
+    properties: GitHubRepoPackagedFromMatchLinkProperties = (
+        GitHubRepoPackagedFromMatchLinkProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GitHubRepoDockerfilePackagedFromMatchLink(CartographyRelSchema):
+    """
+    MatchLink for Dockerfile analysis: (Image)-[:PACKAGED_FROM]->(GitHubRepository).
+
+    Matches Image.digest to the specific image analyzed by the matching algorithm.
+    """
+
+    target_node_label: str = "GitHubRepository"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("repo_url"),
+        }
+    )
+    source_node_label: str = "Image"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "digest": PropertyRef("image_digest"),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD

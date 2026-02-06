@@ -15,7 +15,10 @@ from cartography.intel.supply_chain import match_images_to_dockerfiles
 from cartography.intel.supply_chain import parse_dockerfile_info
 from cartography.intel.supply_chain import transform_matches_for_matchlink
 from cartography.models.gitlab.packaged_matchlink import (
-    GitLabProjectPackagedFromMatchLink,
+    GitLabProjectDockerfilePackagedFromMatchLink,
+)
+from cartography.models.gitlab.packaged_matchlink import (
+    GitLabProjectProvenancePackagedFromMatchLink,
 )
 from cartography.util import timeit
 
@@ -44,7 +47,7 @@ def get_unmatched_gitlab_container_images_with_history(
               <-[:HAS_TAG]-(repo:GitLabContainerRepository)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
-          AND NOT exists((tag)-[:PACKAGED_FROM]->())
+          AND NOT exists((img)-[:PACKAGED_FROM]->())
         WITH repo, img, tag
         ORDER BY
             CASE WHEN tag.name = 'latest' THEN 0 ELSE 1 END,
@@ -261,60 +264,6 @@ def get_dockerfiles_for_projects(
 
 
 @timeit
-def get_provenance_matches_for_org(
-    neo4j_session: neo4j.Session,
-    org_url: str,
-) -> list[dict[str, Any]]:
-    """
-    Query images with SLSA provenance that match GitLab projects in an organization.
-
-    This is the preferred matching method as it provides 100% confidence based on
-    cryptographically signed provenance attestations, without needing Dockerfile
-    content analysis.
-
-    Returns data formatted for load_matchlinks with GitLabProjectPackagedFromMatchLink schema.
-
-    :param neo4j_session: Neo4j session
-    :param org_url: The GitLab organization URL to match against
-    :return: List of dicts ready for load_matchlinks
-    """
-    query = """
-        MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)
-        WHERE img.source_uri IS NOT NULL
-        MATCH (gl_project:GitLabProject)
-        WHERE gl_project.id = img.source_uri
-        MATCH (gl_project)-[:RESOURCE]->(gl_org:GitLabOrganization {id: $org_url})
-        WITH DISTINCT repo_img.repository_location AS registry_repo_location,
-                      gl_project.id AS project_url
-        RETURN registry_repo_location, project_url
-    """
-
-    result = neo4j_session.run(query, org_url=org_url)
-    matches = []
-
-    for record in result:
-        matches.append(
-            {
-                "registry_repo_location": record["registry_repo_location"],
-                "project_url": record["project_url"],
-                "match_method": "provenance",
-                "dockerfile_path": None,
-                "confidence": 1.0,
-                "matched_commands": 0,
-                "total_commands": 0,
-                "command_similarity": 1.0,
-            }
-        )
-
-    logger.info(
-        "Found %d provenance-based matches for organization %s",
-        len(matches),
-        org_url,
-    )
-    return matches
-
-
-@timeit
 def sync(
     neo4j_session: neo4j.Session,
     gitlab_url: str,
@@ -348,16 +297,28 @@ def sync(
     """
     logger.info("Starting supply chain sync for GitLab org %s", org_url)
 
-    # 1. PACKAGED_FROM matchlinks (SLSA provenance)
-    provenance_data = get_provenance_matches_for_org(neo4j_session, org_url)
+    # 1. PACKAGED_FROM matchlinks (SLSA provenance — no pre-query needed)
+    provenance_data = [
+        {
+            "project_url": p["web_url"],
+            "match_method": "provenance",
+            "dockerfile_path": None,
+            "confidence": 1.0,
+            "matched_commands": 0,
+            "total_commands": 0,
+            "command_similarity": 1.0,
+        }
+        for p in projects
+        if p.get("web_url")
+    ]
     if provenance_data:
         logger.info(
-            "Loading %d provenance-based PACKAGED_FROM relationships",
+            "Loading provenance PACKAGED_FROM for %d projects",
             len(provenance_data),
         )
         load_matchlinks(
             neo4j_session,
-            GitLabProjectPackagedFromMatchLink(),
+            GitLabProjectProvenancePackagedFromMatchLink(),
             provenance_data,
             lastupdated=update_tag,
             _sub_resource_label="GitLabOrganization",
@@ -384,7 +345,6 @@ def sync(
                 matchlink_data = transform_matches_for_matchlink(
                     matches,
                     "project_url",
-                    "registry_repo_location",
                 )
                 if matchlink_data:
                     logger.info(
@@ -393,7 +353,7 @@ def sync(
                     )
                     load_matchlinks(
                         neo4j_session,
-                        GitLabProjectPackagedFromMatchLink(),
+                        GitLabProjectDockerfilePackagedFromMatchLink(),
                         matchlink_data,
                         lastupdated=update_tag,
                         _sub_resource_label="GitLabOrganization",
@@ -402,7 +362,14 @@ def sync(
 
     # 4. Cleanup stale relationships
     GraphJob.from_matchlink(
-        GitLabProjectPackagedFromMatchLink(),
+        GitLabProjectProvenancePackagedFromMatchLink(),
+        "GitLabOrganization",
+        org_url,
+        update_tag,
+    ).run(neo4j_session)
+
+    GraphJob.from_matchlink(
+        GitLabProjectDockerfilePackagedFromMatchLink(),
         "GitLabOrganization",
         org_url,
         update_tag,

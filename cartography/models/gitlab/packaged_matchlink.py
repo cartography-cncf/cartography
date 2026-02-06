@@ -13,7 +13,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class GitLabProjectPackagedFromMatchLinkProperties(CartographyRelProperties):
     """
-    Properties for the PACKAGED_FROM relationship between ImageTag and GitLabProject.
+    Properties for the PACKAGED_FROM relationship between Image and GitLabProject.
     """
 
     # Required for all MatchLinks
@@ -35,19 +35,12 @@ class GitLabProjectPackagedFromMatchLinkProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class GitLabProjectPackagedFromMatchLink(CartographyRelSchema):
+class GitLabProjectProvenancePackagedFromMatchLink(CartographyRelSchema):
     """
-    MatchLink schema for connecting ImageTag nodes to GitLabProject nodes
-    based on Dockerfile command matching.
+    MatchLink for SLSA provenance: (Image)-[:PACKAGED_FROM]->(GitLabProject).
 
-    Direction: (ImageTag)-[:PACKAGED_FROM]->(GitLabProject)
-
-    Uses the generic ImageTag label from the cartography image ontology, which maps
-    to GitLabContainerRepositoryTag nodes.
-
-    By matching on repository_location, this creates relationships to ALL images in a
-    registry repository that were built from the Dockerfile in the GitLab project.
-    The confidence score is based on command similarity analysis.
+    Matches Image.source_uri to GitLabProject.id using the same project URL value.
+    No pre-query needed: just pass the project URLs from the projects list.
     """
 
     target_node_label: str = "GitLabProject"
@@ -56,11 +49,37 @@ class GitLabProjectPackagedFromMatchLink(CartographyRelSchema):
             "id": PropertyRef("project_url"),
         }
     )
-    # Use generic ImageTag label for cross-registry support
-    source_node_label: str = "ImageTag"
+    source_node_label: str = "Image"
     source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
         {
-            "repository_location": PropertyRef("registry_repo_location"),
+            "source_uri": PropertyRef("project_url"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "PACKAGED_FROM"
+    properties: GitLabProjectPackagedFromMatchLinkProperties = (
+        GitLabProjectPackagedFromMatchLinkProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GitLabProjectDockerfilePackagedFromMatchLink(CartographyRelSchema):
+    """
+    MatchLink for Dockerfile analysis: (Image)-[:PACKAGED_FROM]->(GitLabProject).
+
+    Matches Image.digest to the specific image analyzed by the matching algorithm.
+    """
+
+    target_node_label: str = "GitLabProject"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "id": PropertyRef("project_url"),
+        }
+    )
+    source_node_label: str = "Image"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {
+            "digest": PropertyRef("image_digest"),
         }
     )
     direction: LinkDirection = LinkDirection.OUTWARD

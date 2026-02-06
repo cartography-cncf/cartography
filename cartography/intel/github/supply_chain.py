@@ -13,7 +13,12 @@ from cartography.intel.supply_chain import convert_layer_history_records
 from cartography.intel.supply_chain import match_images_to_dockerfiles
 from cartography.intel.supply_chain import parse_dockerfile_info
 from cartography.intel.supply_chain import transform_matches_for_matchlink
-from cartography.models.github.packaged_matchlink import GitHubRepoPackagedFromMatchLink
+from cartography.models.github.packaged_matchlink import (
+    GitHubRepoDockerfilePackagedFromMatchLink,
+)
+from cartography.models.github.packaged_matchlink import (
+    GitHubRepoProvenancePackagedFromMatchLink,
+)
 from cartography.models.github.packaged_matchlink import (
     ImagePackagedByWorkflowMatchLink,
 )
@@ -43,7 +48,7 @@ def get_unmatched_container_images_with_history(
         MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
-          AND NOT exists((repo_img)-[:PACKAGED_FROM]->())
+          AND NOT exists((img)-[:PACKAGED_FROM]->())
         WITH repo, img, repo_img
         ORDER BY
             CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
@@ -112,59 +117,6 @@ def get_unmatched_container_images_with_history(
         f"Found {len(images)} container images with layer history (one per repository)"
     )
     return images
-
-
-@timeit
-def get_provenance_matches_for_org(
-    neo4j_session: neo4j.Session,
-    organization: str,
-) -> list[dict[str, Any]]:
-    """
-    Query images with SLSA provenance that match GitHub repositories in an organization.
-
-    This is the preferred matching method as it provides 100% confidence based on
-    cryptographically signed provenance attestations, without needing Dockerfile
-    content analysis.
-
-    Returns data formatted for load_matchlinks with GitHubRepoPackagedFromMatchLink schema.
-
-    :param neo4j_session: Neo4j session
-    :param organization: The GitHub organization name to match against
-    :return: List of dicts ready for load_matchlinks
-    """
-    query = """
-        MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(registry:ContainerRegistry)
-        WHERE img.source_uri IS NOT NULL
-        MATCH (gh_repo:GitHubRepository)
-        WHERE gh_repo.id = img.source_uri
-        MATCH (gh_repo)-[:OWNER]->(gh_org:GitHubOrganization {username: $organization})
-        WITH DISTINCT registry.uri AS registry_repo_uri, gh_repo.id AS repo_url
-        RETURN registry_repo_uri, repo_url
-    """
-
-    result = neo4j_session.run(query, organization=organization)
-    matches = []
-
-    for record in result:
-        matches.append(
-            {
-                "registry_repo_uri": record["registry_repo_uri"],
-                "repo_url": record["repo_url"],
-                "match_method": "provenance",
-                "dockerfile_path": None,
-                "confidence": 1.0,
-                "matched_commands": 0,
-                "total_commands": 0,
-                "command_similarity": 1.0,
-            }
-        )
-
-    logger.info(
-        "Found %d provenance-based matches for organization %s",
-        len(matches),
-        organization,
-    )
-    return matches
 
 
 @timeit
@@ -563,16 +515,28 @@ def sync(
             _sub_resource_id=organization,
         )
 
-    # 2. PACKAGED_FROM matchlinks (SLSA provenance)
-    provenance_data = get_provenance_matches_for_org(neo4j_session, organization)
+    # 2. PACKAGED_FROM matchlinks (SLSA provenance — no pre-query needed)
+    provenance_data = [
+        {
+            "repo_url": repo["url"],
+            "match_method": "provenance",
+            "dockerfile_path": None,
+            "confidence": 1.0,
+            "matched_commands": 0,
+            "total_commands": 0,
+            "command_similarity": 1.0,
+        }
+        for repo in repos
+        if repo.get("url")
+    ]
     if provenance_data:
         logger.info(
-            "Loading %d provenance-based PACKAGED_FROM relationships",
+            "Loading provenance PACKAGED_FROM for %d repos",
             len(provenance_data),
         )
         load_matchlinks(
             neo4j_session,
-            GitHubRepoPackagedFromMatchLink(),
+            GitHubRepoProvenancePackagedFromMatchLink(),
             provenance_data,
             lastupdated=update_tag,
             _sub_resource_label="GitHubOrganization",
@@ -600,7 +564,6 @@ def sync(
                 matchlink_data = transform_matches_for_matchlink(
                     matches,
                     "repo_url",
-                    "registry_repo_uri",
                 )
                 if matchlink_data:
                     logger.info(
@@ -609,7 +572,7 @@ def sync(
                     )
                     load_matchlinks(
                         neo4j_session,
-                        GitHubRepoPackagedFromMatchLink(),
+                        GitHubRepoDockerfilePackagedFromMatchLink(),
                         matchlink_data,
                         lastupdated=update_tag,
                         _sub_resource_label="GitHubOrganization",
@@ -625,7 +588,14 @@ def sync(
     ).run(neo4j_session)
 
     GraphJob.from_matchlink(
-        GitHubRepoPackagedFromMatchLink(),
+        GitHubRepoProvenancePackagedFromMatchLink(),
+        "GitHubOrganization",
+        organization,
+        update_tag,
+    ).run(neo4j_session)
+
+    GraphJob.from_matchlink(
+        GitHubRepoDockerfilePackagedFromMatchLink(),
         "GitHubOrganization",
         organization,
         update_tag,
