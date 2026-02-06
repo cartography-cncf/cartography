@@ -167,7 +167,7 @@ def get_provenance_matches_for_org(
         WHERE img.source_uri IS NOT NULL
         MATCH (gh_repo:GitHubRepository)
         WHERE gh_repo.id = img.source_uri
-        MATCH (gh_repo)<-[:OWNER]-(gh_org:GitHubOrganization {login: $organization})
+        MATCH (gh_repo)-[:OWNER]->(gh_org:GitHubOrganization {username: $organization})
         WITH DISTINCT registry.uri AS registry_repo_uri, gh_repo.id AS repo_url
         RETURN registry_repo_uri, repo_url
     """
@@ -257,7 +257,7 @@ def get_images_with_workflow_provenance(
         WHERE img.source_uri IS NOT NULL
           AND img.invocation_workflow IS NOT NULL
         MATCH (gh_repo:GitHubRepository {id: img.source_uri})
-              <-[:OWNER]-(gh_org:GitHubOrganization {login: $organization})
+              -[:OWNER]->(gh_org:GitHubOrganization {username: $organization})
         RETURN DISTINCT
             img.digest AS image_digest,
             img.source_uri AS workflow_repo_url,
