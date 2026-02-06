@@ -1,5 +1,5 @@
-from cartography.graph.querybuilder import _get_cartography_version
 from cartography.graph.querybuilder import _get_module_from_schema
+from cartography.version import get_version
 from cartography.graph.querybuilder import build_ingestion_query
 from tests.data.graph.querybuilder.sample_models.interesting_asset import (
     InterestingAssetSchema,
@@ -10,7 +10,7 @@ from tests.unit.cartography.graph.helpers import (
 
 
 def test_build_ingestion_query_complex():
-    module_version = _get_cartography_version()
+    module_version = get_version()
     module_name = _get_module_from_schema(InterestingAssetSchema())
 
     # Act

@@ -9,6 +9,7 @@ from typing_extensions import Annotated
 import cartography.config
 import cartography.sync
 import cartography.util
+import cartography.version
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
@@ -138,6 +139,13 @@ def _parse_selected_modules_from_argv(argv: list[str]) -> set[str]:
     return visible_panels
 
 
+def _version_callback(value: bool) -> None:
+    """Eager callback to print version info and exit."""
+    if value:
+        typer.echo(cartography.version.get_version_string())
+        raise typer.Exit()
+
+
 class CLI:
     """
     Command Line Interface for cartography using Typer.
@@ -247,6 +255,16 @@ class CLI:
             # =================================================================
             # Core Options
             # =================================================================
+            version: Annotated[
+                bool | None,
+                typer.Option(
+                    "--version",
+                    help="Show the cartography version and exit.",
+                    callback=_version_callback,
+                    is_eager=True,
+                    rich_help_panel=PANEL_CORE,
+                ),
+            ] = None,
             verbose: Annotated[
                 bool,
                 typer.Option(
