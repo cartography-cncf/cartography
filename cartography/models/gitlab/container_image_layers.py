@@ -88,8 +88,9 @@ class GitLabContainerImageLayerHeadOfImageRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 class GitLabContainerImageLayerHeadOfImageRel(CartographyRelSchema):
     """
-    Relationship from the first layer (base layer) to images that start with it.
-    Allows finding all images that use this layer as their base.
+    Relationship from images to their first layer (base layer).
+    Direction: (GitLabContainerImage)-[:HEAD]->(GitLabContainerImageLayer)
+    Allows finding the base layer of an image.
     """
 
     target_node_label: str = "GitLabContainerImage"
@@ -111,8 +112,9 @@ class GitLabContainerImageLayerTailOfImageRelProperties(CartographyRelProperties
 @dataclass(frozen=True)
 class GitLabContainerImageLayerTailOfImageRel(CartographyRelSchema):
     """
-    Relationship from the last layer (topmost layer) to images that end with it.
-    Allows finding all images that have this layer as their final layer.
+    Relationship from images to their last layer (topmost layer).
+    Direction: (GitLabContainerImage)-[:TAIL]->(GitLabContainerImageLayer)
+    Allows finding the final layer of an image.
     """
 
     target_node_label: str = "GitLabContainerImage"

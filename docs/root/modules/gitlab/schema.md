@@ -505,6 +505,26 @@ Representation of a container image layer. Layers are the building blocks of con
     (GitLabContainerImage)-[HAS_LAYER]->(GitLabContainerImageLayer)
     ```
 
+- GitLabContainerImageLayers form a linked list using NEXT relationships.
+
+    ```
+    (GitLabContainerImageLayer)-[NEXT]->(GitLabContainerImageLayer)
+    ```
+
+    This creates a chain from base layer to topmost layer, allowing traversal of the layer stack. A layer may have multiple NEXT pointers if different images branch from that layer.
+
+- GitLabContainerImages point to their first (base) layer.
+
+    ```
+    (GitLabContainerImage)-[HEAD]->(GitLabContainerImageLayer)
+    ```
+
+- GitLabContainerImages point to their last (topmost) layer.
+
+    ```
+    (GitLabContainerImage)-[TAIL]->(GitLabContainerImageLayer)
+    ```
+
 ### GitLabContainerImageAttestation
 
 Representation of a container image attestation (signature or provenance). Attestations can be discovered via two methods: cosign tag-based (`.sig`, `.att` suffixes) or buildx embedded (stored in manifest lists with `attestation-manifest` annotation).
