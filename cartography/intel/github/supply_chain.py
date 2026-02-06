@@ -1,11 +1,5 @@
 import base64
-import json
 import logging
-import tempfile
-from collections.abc import Iterator
-from contextlib import contextmanager
-from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import neo4j
@@ -14,15 +8,11 @@ import requests
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import call_github_rest_api
-from cartography.intel.supply_chain import cleanup_packaging_relationships
 from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import convert_layer_history_records
-from cartography.intel.supply_chain import ImageDockerfileMatch
-from cartography.intel.supply_chain import load_packaging_relationships
 from cartography.intel.supply_chain import match_images_to_dockerfiles
-from cartography.intel.supply_chain import PackagingConfig
 from cartography.intel.supply_chain import parse_dockerfile_info
-from cartography.intel.supply_chain import SupplyChainSyncResult
+from cartography.intel.supply_chain import transform_matches_for_matchlink
 from cartography.models.github.packaged_matchlink import GitHubRepoPackagedFromMatchLink
 from cartography.models.github.packaged_matchlink import (
     ImagePackagedByWorkflowMatchLink,
@@ -32,28 +22,18 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-# Maps GitHub-specific field names and schemas to the shared supply chain helpers,
-# so load_packaging_relationships() and cleanup_packaging_relationships() know
-# which matchlink schema, sub-resource label, and data-dict keys to use.
-GITHUB_PACKAGING_CONFIG = PackagingConfig(
-    matchlink_schema=GitHubRepoPackagedFromMatchLink(),
-    sub_resource_label="GitHubOrganization",
-    source_repo_field="repo_url",
-    registry_id_field="registry_repo_uri",
-)
-
-
-def get_container_images_with_history(
+def get_unmatched_container_images_with_history(
     neo4j_session: neo4j.Session,
     limit: int | None = None,
 ) -> list[ContainerImage]:
     """
-    Query the graph to get container images with their metadata AND layer history.
+    Query container images that don't yet have a PACKAGED_FROM relationship.
 
     Uses the generic ontology labels (Image, ImageTag, ImageLayer, ContainerRegistry)
     which work across different registries (ECR, GCR, etc.).
 
     Returns one image per registry repository (preferring 'latest' tag, then most recently pushed).
+    Excludes images that already have a PACKAGED_FROM relationship (e.g. from provenance matching).
 
     :param neo4j_session: Neo4j session
     :param limit: Optional limit on number of images to return
@@ -63,6 +43,7 @@ def get_container_images_with_history(
         MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
+          AND NOT exists((repo_img)-[:PACKAGED_FROM]->())
         WITH repo, img, repo_img
         ORDER BY
             CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
@@ -187,46 +168,6 @@ def get_provenance_matches_for_org(
 
 
 @timeit
-def load_provenance_relationships(
-    neo4j_session: neo4j.Session,
-    organization: str,
-    update_tag: int,
-) -> int:
-    """
-    Load PACKAGED_FROM relationships based on SLSA provenance data.
-
-    This is the primary matching method - uses provenance attestations to directly
-    link container images to their source repositories with 100% confidence.
-
-    :param neo4j_session: Neo4j session
-    :param organization: The GitHub organization name
-    :param update_tag: The update timestamp tag
-    :return: Number of relationships created
-    """
-    matches = get_provenance_matches_for_org(neo4j_session, organization)
-
-    if not matches:
-        logger.info("No provenance-based matches found for %s", organization)
-        return 0
-
-    logger.info(
-        "Loading %d provenance-based PACKAGED_FROM relationships...", len(matches)
-    )
-
-    load_matchlinks(
-        neo4j_session,
-        GitHubRepoPackagedFromMatchLink(),
-        matches,
-        lastupdated=update_tag,
-        _sub_resource_label="GitHubOrganization",
-        _sub_resource_id=organization,
-    )
-
-    logger.info("Loaded %d provenance-based PACKAGED_FROM relationships", len(matches))
-    return len(matches)
-
-
-@timeit
 def get_images_with_workflow_provenance(
     neo4j_session: neo4j.Session,
     organization: str,
@@ -273,68 +214,6 @@ def get_images_with_workflow_provenance(
         organization,
     )
     return matches
-
-
-@timeit
-def load_workflow_relationships(
-    neo4j_session: neo4j.Session,
-    organization: str,
-    update_tag: int,
-) -> int:
-    """
-    Load PACKAGED_BY relationships between Image and GitHubWorkflow based on SLSA provenance.
-
-    This creates relationships from container images to the GitHub Actions workflows
-    that built them, with the run_number as a property.
-
-    :param neo4j_session: Neo4j session
-    :param organization: The GitHub organization name
-    :param update_tag: The update timestamp tag
-    :return: Number of relationships created
-    """
-    matches = get_images_with_workflow_provenance(neo4j_session, organization)
-
-    if not matches:
-        logger.info("No workflow matches found for %s", organization)
-        return 0
-
-    logger.info("Loading %d PACKAGED_BY workflow relationships...", len(matches))
-
-    load_matchlinks(
-        neo4j_session,
-        ImagePackagedByWorkflowMatchLink(),
-        matches,
-        lastupdated=update_tag,
-        _sub_resource_label="GitHubOrganization",
-        _sub_resource_id=organization,
-    )
-
-    logger.info("Loaded %d PACKAGED_BY workflow relationships", len(matches))
-    return len(matches)
-
-
-@timeit
-def cleanup_workflow_relationships(
-    neo4j_session: neo4j.Session,
-    organization: str,
-    update_tag: int,
-) -> None:
-    """
-    Clean up stale PACKAGED_BY workflow relationships.
-
-    :param neo4j_session: Neo4j session
-    :param organization: The GitHub organization name (used as sub_resource_id)
-    :param update_tag: The update timestamp tag
-    """
-    logger.debug("Cleaning up stale PACKAGED_BY workflow relationships...")
-
-    cleanup_job = GraphJob.from_matchlink(
-        ImagePackagedByWorkflowMatchLink(),
-        "GitHubOrganization",
-        organization,
-        update_tag,
-    )
-    cleanup_job.run(neo4j_session)
 
 
 @timeit
@@ -631,93 +510,6 @@ def get_dockerfiles_for_repos(
     return all_dockerfiles
 
 
-@dataclass
-class GitHubSupplyChainSyncResult(SupplyChainSyncResult):
-    """GitHub-specific extension of SupplyChainSyncResult with serialization."""
-
-    @property
-    def high_confidence_match_count(self) -> int:
-        if not self.matches:
-            return 0
-        return sum(1 for m in self.matches if m.confidence >= 0.75)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert results to a dictionary for serialization."""
-        output: dict[str, Any] = {
-            "dockerfiles": self.dockerfiles,
-        }
-
-        if self.images is not None:
-            output["images"] = [
-                {
-                    "digest": img.digest,
-                    "uri": img.uri,
-                    "repo_uri": img.registry_id,
-                    "repo_name": img.display_name,
-                    "tag": img.tag,
-                    "layer_count": len(img.layer_diff_ids),
-                    "layer_diff_ids": img.layer_diff_ids,
-                    "type": img.image_type,
-                    "architecture": img.architecture,
-                    "os": img.os,
-                }
-                for img in self.images
-            ]
-
-        if self.matches is not None:
-            output["matches"] = [
-                {
-                    "registry_repo_uri": m.registry_id,
-                    "dockerfile_repo_url": m.source_repo_id,
-                    "dockerfile_path": m.dockerfile_path,
-                    "confidence": m.confidence,
-                    "matched_commands": m.matched_commands,
-                    "total_commands": m.total_commands,
-                    "command_similarity": m.command_similarity,
-                }
-                for m in self.matches
-            ]
-
-        output["summary"] = {
-            "dockerfile_count": self.dockerfile_count,
-            "image_count": self.image_count,
-            "match_count": self.match_count,
-            "high_confidence_matches": self.high_confidence_match_count,
-        }
-
-        return output
-
-    @contextmanager
-    def to_tempfile(self) -> Iterator[Path]:
-        """
-        Context manager that writes results to a temporary JSON file.
-        The file is automatically deleted when the context exits.
-
-        Usage:
-            with result.to_tempfile() as temp_path:
-                print(f"Results at: {temp_path}")
-                # Use the file...
-            # File is automatically deleted here
-        """
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".json",
-            prefix="github_dockerfiles_",
-            delete=False,
-            encoding="utf-8",
-        ) as f:
-            json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
-            temp_path = Path(f.name)
-
-        logger.info(f"Wrote analysis results to {temp_path}")
-        try:
-            yield temp_path
-        finally:
-            if temp_path.exists():
-                temp_path.unlink()
-                logger.debug(f"Cleaned up temp file {temp_path}")
-
-
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -727,26 +519,19 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     repos: list[dict[str, Any]],
-    match_container_images: bool = True,
     image_limit: int | None = None,
     min_match_confidence: float = 0.5,
-) -> GitHubSupplyChainSyncResult | None:
+) -> None:
     """
-    Sync Dockerfiles from GitHub repositories, query container images, and identify matches.
+    Sync supply chain relationships for a GitHub organization.
 
-    This function uses a two-stage matching approach:
-    1. PRIMARY: SLSA provenance-based matching (100% confidence from cryptographic attestations)
-    2. FALLBACK: Dockerfile command matching (for images without provenance)
+    Uses a three-stage matching approach:
+    1. PACKAGED_BY: Workflow provenance (Image -> GitHubWorkflow)
+    2. PACKAGED_FROM (provenance): SLSA provenance-based matching (100% confidence)
+    3. PACKAGED_FROM (dockerfile): Dockerfile command matching for unmatched images
 
-    The sync process:
-    1. First tries provenance-based matching for images with source_uri from attestations
-    2. Searches for Dockerfile-related files in each repository
-    3. Downloads their content and parses them
-    4. Matches remaining images to Dockerfiles based on layer history commands
-    5. Creates PACKAGED_FROM relationships between ImageTag and GitHubRepository
-
-    Works with any container registry that follows the cartography image ontology
-    (ECR, GCR, etc.) by using the generic labels: Image, ImageTag, ImageLayer, ContainerRegistry.
+    Only images without an existing PACKAGED_FROM relationship go through the
+    expensive Dockerfile analysis step.
 
     :param neo4j_session: Neo4j session for querying container images
     :param token: The GitHub API token
@@ -755,147 +540,95 @@ def sync(
     :param update_tag: The update timestamp tag
     :param common_job_parameters: Common job parameters
     :param repos: List of repository dictionaries to search for Dockerfiles
-    :param match_container_images: Whether to query container images and perform matching (default: True)
     :param image_limit: Optional limit on number of images to process
     :param min_match_confidence: Minimum confidence threshold for matches (default: 0.5)
-    :return: GitHubSupplyChainSyncResult with dockerfiles, images, and matches, or None if no Dockerfiles found
-
-    Example usage:
-        result = sync(neo4j_session, token, api_url, org, update_tag, params, repos)
-        if result:
-            # Access results directly
-            print(f"Found {result.dockerfile_count} dockerfiles")
-
-            # Or write to temp file for debugging (auto-cleaned up)
-            with result.to_tempfile() as temp_path:
-                print(f"Results written to {temp_path}")
     """
-    logger.info(
-        f"Starting dockerfile sync for {len(repos)} repositories in {organization}"
-    )
-
-    config = GITHUB_PACKAGING_CONFIG
+    logger.info("Starting supply chain sync for %s", organization)
 
     # Extract base REST API URL from the GraphQL URL
     base_url = api_url
     if base_url.endswith("/graphql"):
         base_url = base_url[:-8]
 
-    # Provenance matches (from images already in graph)
-    provenance_matches: list[dict[str, Any]] = []
-    workflow_matches: list[dict[str, Any]] = []
-    if match_container_images:
-        provenance_matches = get_provenance_matches_for_org(neo4j_session, organization)
-        workflow_matches = get_images_with_workflow_provenance(
-            neo4j_session, organization
-        )
-
-    # Search and download Dockerfiles (uses org-wide search for efficiency)
-    dockerfiles = get_dockerfiles_for_repos(token, repos, base_url, org=organization)
-
-    # Container images for dockerfile matching
-    images: list[ContainerImage] | None = None
-    if match_container_images and dockerfiles:
-        logger.info("Querying container images with layer history from Neo4j...")
-        images = get_container_images_with_history(neo4j_session, limit=image_limit)
-
-    matches: list[ImageDockerfileMatch] | None = None
-
-    if images and dockerfiles:
-        logger.info(
-            "Found %d container images, performing dockerfile matching...",
-            len(images),
-        )
-        matches = match_images_to_dockerfiles(
-            images,
-            dockerfiles,
-            min_confidence=min_match_confidence,
-        )
-
-        # Log summary
-        high_confidence = sum(1 for m in matches if m.confidence >= 0.75)
-        logger.info(
-            "Dockerfile matching complete: %d matches found (%d high confidence)",
-            len(matches),
-            high_confidence,
-        )
-    elif match_container_images and dockerfiles:
-        logger.info("No container images found in Neo4j")
-
-    if match_container_images:
-        # Load provenance-based PACKAGED_FROM relationships
-        if provenance_matches:
-            logger.info(
-                "Loading %d provenance-based PACKAGED_FROM relationships...",
-                len(provenance_matches),
-            )
-            load_matchlinks(
-                neo4j_session,
-                GitHubRepoPackagedFromMatchLink(),
-                provenance_matches,
-                lastupdated=update_tag,
-                _sub_resource_label="GitHubOrganization",
-                _sub_resource_id=organization,
-            )
-
-        # Load workflow PACKAGED_BY relationships
-        if workflow_matches:
-            logger.info(
-                "Loading %d PACKAGED_BY workflow relationships...",
-                len(workflow_matches),
-            )
-            load_matchlinks(
-                neo4j_session,
-                ImagePackagedByWorkflowMatchLink(),
-                workflow_matches,
-                lastupdated=update_tag,
-                _sub_resource_label="GitHubOrganization",
-                _sub_resource_id=organization,
-            )
-
-        # Load dockerfile-based PACKAGED_FROM relationships
-        if matches:
-            load_packaging_relationships(
-                neo4j_session,
-                matches,
-                organization,
-                update_tag,
-                config,
-            )
-
-    # Check if we have any data to justify cleanup
-    has_data = bool(dockerfiles or provenance_matches or workflow_matches)
-    if not has_data:
-        logger.info("No dockerfiles or provenance matches found in %s", organization)
-        return None
-
-    # Always cleanup stale relationships (covers both provenance and dockerfile matches)
-    if match_container_images:
-        cleanup_packaging_relationships(
+    # 1. PACKAGED_BY matchlinks (workflow provenance)
+    workflow_data = get_images_with_workflow_provenance(neo4j_session, organization)
+    if workflow_data:
+        logger.info("Loading %d PACKAGED_BY workflow relationships", len(workflow_data))
+        load_matchlinks(
             neo4j_session,
-            organization,
-            update_tag,
-            config,
-        )
-        cleanup_workflow_relationships(
-            neo4j_session,
-            organization,
-            update_tag,
+            ImagePackagedByWorkflowMatchLink(),
+            workflow_data,
+            lastupdated=update_tag,
+            _sub_resource_label="GitHubOrganization",
+            _sub_resource_id=organization,
         )
 
-    result = GitHubSupplyChainSyncResult(
-        dockerfiles=dockerfiles or [],
-        images=images,
-        matches=matches,
+    # 2. PACKAGED_FROM matchlinks (SLSA provenance)
+    provenance_data = get_provenance_matches_for_org(neo4j_session, organization)
+    if provenance_data:
+        logger.info(
+            "Loading %d provenance-based PACKAGED_FROM relationships",
+            len(provenance_data),
+        )
+        load_matchlinks(
+            neo4j_session,
+            GitHubRepoPackagedFromMatchLink(),
+            provenance_data,
+            lastupdated=update_tag,
+            _sub_resource_label="GitHubOrganization",
+            _sub_resource_id=organization,
+        )
+
+    # 3. Get images WITHOUT existing PACKAGED_FROM for dockerfile analysis
+    unmatched = get_unmatched_container_images_with_history(
+        neo4j_session,
+        limit=image_limit,
     )
 
-    logger.info(
-        "Completed dockerfile sync: %d provenance matches, %d workflow matches, "
-        "%d dockerfile(s), %d image(s), %d dockerfile matches",
-        len(provenance_matches),
-        len(workflow_matches),
-        result.dockerfile_count,
-        result.image_count,
-        result.match_count,
-    )
-    return result
+    # 4. Dockerfile analysis (only for unmatched images)
+    if unmatched:
+        dockerfiles = get_dockerfiles_for_repos(
+            token, repos, base_url, org=organization
+        )
+        if dockerfiles:
+            matches = match_images_to_dockerfiles(
+                unmatched,
+                dockerfiles,
+                min_confidence=min_match_confidence,
+            )
+            if matches:
+                matchlink_data = transform_matches_for_matchlink(
+                    matches,
+                    "repo_url",
+                    "registry_repo_uri",
+                )
+                if matchlink_data:
+                    logger.info(
+                        "Loading %d dockerfile-based PACKAGED_FROM relationships",
+                        len(matchlink_data),
+                    )
+                    load_matchlinks(
+                        neo4j_session,
+                        GitHubRepoPackagedFromMatchLink(),
+                        matchlink_data,
+                        lastupdated=update_tag,
+                        _sub_resource_label="GitHubOrganization",
+                        _sub_resource_id=organization,
+                    )
+
+    # 5. Cleanup stale relationships
+    GraphJob.from_matchlink(
+        ImagePackagedByWorkflowMatchLink(),
+        "GitHubOrganization",
+        organization,
+        update_tag,
+    ).run(neo4j_session)
+
+    GraphJob.from_matchlink(
+        GitHubRepoPackagedFromMatchLink(),
+        "GitHubOrganization",
+        organization,
+        update_tag,
+    ).run(neo4j_session)
+
+    logger.info("Completed supply chain sync for %s", organization)

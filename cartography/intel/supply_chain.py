@@ -2,10 +2,8 @@
 Shared supply chain logic for matching container images to Dockerfiles.
 
 This module contains the provider-agnostic core of the supply chain sync:
-- Unified data classes (ContainerImage, ImageDockerfileMatch, SupplyChainSyncResult)
-- PackagingConfig for parameterizing provider-specific load/cleanup
+- Unified data classes (ContainerImage, ImageDockerfileMatch)
 - The Dockerfile-to-image matching algorithm
-- Parameterized load/cleanup helpers
 - Common parsing helpers
 
 Provider modules (github/supply_chain.py, gitlab/supply_chain.py) import from here
@@ -17,16 +15,10 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-import neo4j
-
-from cartography.client.core.tx import load_matchlinks
-from cartography.graph.job import GraphJob
 from cartography.intel.dockerfile_parser import extract_layer_commands_from_history
 from cartography.intel.dockerfile_parser import find_best_dockerfile_matches
 from cartography.intel.dockerfile_parser import parse as parse_dockerfile
 from cartography.intel.dockerfile_parser import ParsedDockerfile
-from cartography.models.core.relationships import CartographyRelSchema
-from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
@@ -58,37 +50,6 @@ class ImageDockerfileMatch:
     matched_commands: int
     total_commands: int
     command_similarity: float
-
-
-@dataclass
-class PackagingConfig:
-    """Provider-specific parameters for load/cleanup/transform."""
-
-    matchlink_schema: CartographyRelSchema
-    sub_resource_label: str
-    source_repo_field: str
-    registry_id_field: str
-
-
-@dataclass
-class SupplyChainSyncResult:
-    """Results from a supply chain sync operation."""
-
-    dockerfiles: list[dict[str, Any]]
-    images: list[ContainerImage] | None = None
-    matches: list[ImageDockerfileMatch] | None = None
-
-    @property
-    def dockerfile_count(self) -> int:
-        return len(self.dockerfiles)
-
-    @property
-    def image_count(self) -> int:
-        return len(self.images) if self.images else 0
-
-    @property
-    def match_count(self) -> int:
-        return len(self.matches) if self.matches else 0
 
 
 def match_images_to_dockerfiles(
@@ -186,22 +147,21 @@ def match_images_to_dockerfiles(
 
 def transform_matches_for_matchlink(
     matches: list[ImageDockerfileMatch],
-    config: PackagingConfig,
+    source_repo_field: str,
+    registry_id_field: str,
 ) -> list[dict[str, Any]]:
     """
     Transform ImageDockerfileMatch objects into dictionaries for load_matchlinks.
 
-    Uses the PackagingConfig to map generic fields to provider-specific field names
-    expected by the matchlink schema.
-
     :param matches: List of ImageDockerfileMatch objects
-    :param config: Provider-specific configuration
+    :param source_repo_field: Field name for the source repo ID (e.g. "repo_url" or "project_url")
+    :param registry_id_field: Field name for the registry ID (e.g. "registry_repo_uri" or "registry_repo_location")
     :return: List of dictionaries with fields matching the MatchLink schema
     """
     return [
         {
-            config.source_repo_field: m.source_repo_id,
-            config.registry_id_field: m.registry_id,
+            source_repo_field: m.source_repo_id,
+            registry_id_field: m.registry_id,
             "match_method": "dockerfile_analysis",
             "dockerfile_path": m.dockerfile_path,
             "confidence": m.confidence,
@@ -212,75 +172,6 @@ def transform_matches_for_matchlink(
         for m in matches
         if m.source_repo_id
     ]
-
-
-@timeit
-def load_packaging_relationships(
-    neo4j_session: neo4j.Session,
-    matches: list[ImageDockerfileMatch],
-    sub_resource_id: str,
-    update_tag: int,
-    config: PackagingConfig,
-) -> None:
-    """
-    Load PACKAGED_FROM relationships using the provider's matchlink schema.
-
-    :param neo4j_session: Neo4j session
-    :param matches: List of ImageDockerfileMatch objects
-    :param sub_resource_id: The organization/group identifier (used as sub_resource_id)
-    :param update_tag: The update timestamp tag
-    :param config: Provider-specific configuration
-    """
-    if not matches:
-        logger.info("No matches to load")
-        return
-
-    matchlink_data = transform_matches_for_matchlink(matches, config)
-
-    if not matchlink_data:
-        logger.info("No valid matches with source repo IDs to load")
-        return
-
-    logger.info("Loading %d PACKAGED_FROM relationships...", len(matchlink_data))
-
-    load_matchlinks(
-        neo4j_session,
-        config.matchlink_schema,
-        matchlink_data,
-        lastupdated=update_tag,
-        _sub_resource_label=config.sub_resource_label,
-        _sub_resource_id=sub_resource_id,
-    )
-
-    logger.info("Loaded %d PACKAGED_FROM relationships", len(matchlink_data))
-
-
-@timeit
-def cleanup_packaging_relationships(
-    neo4j_session: neo4j.Session,
-    sub_resource_id: str,
-    update_tag: int,
-    config: PackagingConfig,
-) -> None:
-    """
-    Clean up stale PACKAGED_FROM relationships.
-
-    :param neo4j_session: Neo4j session
-    :param sub_resource_id: The organization/group identifier (used as sub_resource_id)
-    :param update_tag: The update timestamp tag
-    :param config: Provider-specific configuration
-    """
-    logger.info("Cleaning up stale PACKAGED_FROM relationships...")
-
-    cleanup_job = GraphJob.from_matchlink(
-        config.matchlink_schema,
-        config.sub_resource_label,
-        sub_resource_id,
-        update_tag,
-    )
-    cleanup_job.run(neo4j_session)
-
-    logger.info("Cleanup complete")
 
 
 def parse_dockerfile_info(

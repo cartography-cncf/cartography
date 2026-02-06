@@ -6,17 +6,14 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load_matchlinks
+from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import get_paginated
 from cartography.intel.gitlab.util import get_single
-from cartography.intel.supply_chain import cleanup_packaging_relationships
 from cartography.intel.supply_chain import ContainerImage
 from cartography.intel.supply_chain import convert_layer_history_records
-from cartography.intel.supply_chain import ImageDockerfileMatch
-from cartography.intel.supply_chain import load_packaging_relationships
 from cartography.intel.supply_chain import match_images_to_dockerfiles
-from cartography.intel.supply_chain import PackagingConfig
 from cartography.intel.supply_chain import parse_dockerfile_info
-from cartography.intel.supply_chain import SupplyChainSyncResult
+from cartography.intel.supply_chain import transform_matches_for_matchlink
 from cartography.models.gitlab.packaged_matchlink import (
     GitLabProjectPackagedFromMatchLink,
 )
@@ -25,24 +22,17 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-GITLAB_PACKAGING_CONFIG = PackagingConfig(
-    matchlink_schema=GitLabProjectPackagedFromMatchLink(),
-    sub_resource_label="GitLabOrganization",
-    source_repo_field="project_url",
-    registry_id_field="registry_repo_location",
-)
-
-
 @timeit
-def get_gitlab_container_images_with_history(
+def get_unmatched_gitlab_container_images_with_history(
     neo4j_session: neo4j.Session,
     org_url: str,
     limit: int | None = None,
 ) -> list[ContainerImage]:
     """
-    Query the graph to get GitLab container images with their layer history.
+    Query GitLab container images that don't yet have a PACKAGED_FROM relationship.
 
     Returns one image per container repository (preferring 'latest' tag, then most recent).
+    Excludes images that already have a PACKAGED_FROM relationship (e.g. from provenance matching).
 
     :param neo4j_session: Neo4j session
     :param org_url: The GitLab organization URL to scope the query
@@ -54,6 +44,7 @@ def get_gitlab_container_images_with_history(
               <-[:HAS_TAG]-(repo:GitLabContainerRepository)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
+          AND NOT exists((tag)-[:PACKAGED_FROM]->())
         WITH repo, img, tag
         ORDER BY
             CASE WHEN tag.name = 'latest' THEN 0 ELSE 1 END,
@@ -324,46 +315,6 @@ def get_provenance_matches_for_org(
 
 
 @timeit
-def load_provenance_relationships(
-    neo4j_session: neo4j.Session,
-    org_url: str,
-    update_tag: int,
-) -> int:
-    """
-    Load PACKAGED_FROM relationships based on SLSA provenance data.
-
-    This is the primary matching method - uses provenance attestations to directly
-    link container images to their source projects with 100% confidence.
-
-    :param neo4j_session: Neo4j session
-    :param org_url: The GitLab organization URL
-    :param update_tag: The update timestamp tag
-    :return: Number of relationships created
-    """
-    matches = get_provenance_matches_for_org(neo4j_session, org_url)
-
-    if not matches:
-        logger.info("No provenance-based matches found for %s", org_url)
-        return 0
-
-    logger.info(
-        "Loading %d provenance-based PACKAGED_FROM relationships...", len(matches)
-    )
-
-    load_matchlinks(
-        neo4j_session,
-        GitLabProjectPackagedFromMatchLink(),
-        matches,
-        lastupdated=update_tag,
-        _sub_resource_label="GitLabOrganization",
-        _sub_resource_id=org_url,
-    )
-
-    logger.info("Loaded %d provenance-based PACKAGED_FROM relationships", len(matches))
-    return len(matches)
-
-
-@timeit
 def sync(
     neo4j_session: neo4j.Session,
     gitlab_url: str,
@@ -372,23 +323,18 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
     projects: list[dict[str, Any]],
-    match_container_images: bool = True,
     image_limit: int | None = None,
     min_match_confidence: float = 0.5,
-) -> SupplyChainSyncResult | None:
+) -> None:
     """
-    Sync Dockerfiles from GitLab projects, query container images, and identify matches.
+    Sync supply chain relationships for a GitLab organization.
 
-    This function uses a two-stage matching approach:
-    1. PRIMARY: SLSA provenance-based matching (100% confidence from cryptographic attestations)
-    2. FALLBACK: Dockerfile command matching (for images without provenance)
+    Uses a two-stage matching approach:
+    1. PACKAGED_FROM (provenance): SLSA provenance-based matching (100% confidence)
+    2. PACKAGED_FROM (dockerfile): Dockerfile command matching for unmatched images
 
-    The sync process:
-    1. First tries provenance-based matching for images with source_uri from attestations
-    2. Searches for Dockerfile-related files in each project
-    3. Downloads their content and parses them
-    4. Matches remaining images to Dockerfiles based on layer history commands
-    5. Creates PACKAGED_FROM relationships between ImageTag and GitLabProject
+    Only images without an existing PACKAGED_FROM relationship go through the
+    expensive Dockerfile analysis step.
 
     :param neo4j_session: Neo4j session for querying container images
     :param gitlab_url: The GitLab instance URL
@@ -397,107 +343,69 @@ def sync(
     :param update_tag: The update timestamp tag
     :param common_job_parameters: Common job parameters
     :param projects: List of project dictionaries to search for Dockerfiles
-    :param match_container_images: Whether to query container images and perform matching
     :param image_limit: Optional limit on number of images to process
     :param min_match_confidence: Minimum confidence threshold for matches
-    :return: SupplyChainSyncResult with dockerfiles, images, and matches, or None if no Dockerfiles found
     """
-    logger.info("Starting GitLab dockerfile sync for %d projects", len(projects))
+    logger.info("Starting supply chain sync for GitLab org %s", org_url)
 
-    config = GITLAB_PACKAGING_CONFIG
-
-    # Provenance matches (from images already in graph)
-    provenance_matches: list[dict[str, Any]] = []
-    if match_container_images:
-        provenance_matches = get_provenance_matches_for_org(neo4j_session, org_url)
-
-    # Search and download Dockerfiles
-    dockerfiles = get_dockerfiles_for_projects(gitlab_url, token, projects)
-
-    # Container images for dockerfile matching
-    images: list[ContainerImage] | None = None
-    if match_container_images and dockerfiles:
-        logger.info("Querying GitLab container images with layer history from Neo4j...")
-        images = get_gitlab_container_images_with_history(
-            neo4j_session, org_url, limit=image_limit
-        )
-
-    matches: list[ImageDockerfileMatch] | None = None
-
-    if images and dockerfiles:
+    # 1. PACKAGED_FROM matchlinks (SLSA provenance)
+    provenance_data = get_provenance_matches_for_org(neo4j_session, org_url)
+    if provenance_data:
         logger.info(
-            "Found %d container images, performing dockerfile matching...",
-            len(images),
+            "Loading %d provenance-based PACKAGED_FROM relationships",
+            len(provenance_data),
         )
-        matches = match_images_to_dockerfiles(
-            images,
-            dockerfiles,
-            min_confidence=min_match_confidence,
-        )
-
-        # Log summary
-        high_confidence = sum(1 for m in matches if m.confidence >= 0.75)
-        logger.info(
-            "Dockerfile matching complete: %d matches found (%d high confidence)",
-            len(matches),
-            high_confidence,
-        )
-    elif match_container_images and dockerfiles:
-        logger.info("No GitLab container images found in Neo4j")
-
-    if match_container_images:
-        # Load provenance-based PACKAGED_FROM relationships
-        if provenance_matches:
-            logger.info(
-                "Loading %d provenance-based PACKAGED_FROM relationships...",
-                len(provenance_matches),
-            )
-            load_matchlinks(
-                neo4j_session,
-                GitLabProjectPackagedFromMatchLink(),
-                provenance_matches,
-                lastupdated=update_tag,
-                _sub_resource_label="GitLabOrganization",
-                _sub_resource_id=org_url,
-            )
-
-        # Load dockerfile-based PACKAGED_FROM relationships
-        if matches:
-            load_packaging_relationships(
-                neo4j_session,
-                matches,
-                org_url,
-                update_tag,
-                config,
-            )
-
-    # Check if we have any data to justify cleanup
-    has_data = bool(dockerfiles or provenance_matches)
-    if not has_data:
-        logger.info("No dockerfiles or provenance matches found in GitLab projects")
-        return None
-
-    # Always cleanup stale relationships (covers both provenance and dockerfile matches)
-    if match_container_images:
-        cleanup_packaging_relationships(
+        load_matchlinks(
             neo4j_session,
-            org_url,
-            update_tag,
-            config,
+            GitLabProjectPackagedFromMatchLink(),
+            provenance_data,
+            lastupdated=update_tag,
+            _sub_resource_label="GitLabOrganization",
+            _sub_resource_id=org_url,
         )
 
-    result = SupplyChainSyncResult(
-        dockerfiles=dockerfiles or [],
-        images=images,
-        matches=matches,
+    # 2. Get images WITHOUT existing PACKAGED_FROM for dockerfile analysis
+    unmatched = get_unmatched_gitlab_container_images_with_history(
+        neo4j_session,
+        org_url,
+        limit=image_limit,
     )
 
-    logger.info(
-        "Completed GitLab dockerfile sync: %d provenance matches, %d dockerfile(s), "
-        "%d image(s), %d dockerfile matches",
-        len(provenance_matches),
-        result.dockerfile_count,
-        result.image_count,
-        result.match_count,
-    )
-    return result
+    # 3. Dockerfile analysis (only for unmatched images)
+    if unmatched:
+        dockerfiles = get_dockerfiles_for_projects(gitlab_url, token, projects)
+        if dockerfiles:
+            matches = match_images_to_dockerfiles(
+                unmatched,
+                dockerfiles,
+                min_confidence=min_match_confidence,
+            )
+            if matches:
+                matchlink_data = transform_matches_for_matchlink(
+                    matches,
+                    "project_url",
+                    "registry_repo_location",
+                )
+                if matchlink_data:
+                    logger.info(
+                        "Loading %d dockerfile-based PACKAGED_FROM relationships",
+                        len(matchlink_data),
+                    )
+                    load_matchlinks(
+                        neo4j_session,
+                        GitLabProjectPackagedFromMatchLink(),
+                        matchlink_data,
+                        lastupdated=update_tag,
+                        _sub_resource_label="GitLabOrganization",
+                        _sub_resource_id=org_url,
+                    )
+
+    # 4. Cleanup stale relationships
+    GraphJob.from_matchlink(
+        GitLabProjectPackagedFromMatchLink(),
+        "GitLabOrganization",
+        org_url,
+        update_tag,
+    ).run(neo4j_session)
+
+    logger.info("Completed supply chain sync for GitLab org %s", org_url)

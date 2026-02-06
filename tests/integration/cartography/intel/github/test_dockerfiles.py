@@ -1,4 +1,3 @@
-import json
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -301,50 +300,16 @@ def test_get_dockerfiles_for_repos_fallback_to_per_repo(mock_rest_api):
     assert results[0]["repo_name"] == "testorg/testrepo"
 
 
-def test_dockerfile_sync_result_to_tempfile():
-    """
-    Test that SupplyChainSyncResult.to_tempfile() context manager creates
-    a valid JSON file and cleans it up on exit.
-    """
-    # Arrange
-    test_dockerfiles = [
-        {
-            "repo_url": "https://github.com/test/repo",
-            "repo_name": "test/repo",
-            "path": "Dockerfile",
-            "content": "FROM python:3.11",
-        }
-    ]
-    result = cartography.intel.github.supply_chain.GitHubSupplyChainSyncResult(
-        dockerfiles=test_dockerfiles,
-    )
-
-    # Act & Assert - file exists inside context manager
-    with result.to_tempfile() as temp_path:
-        assert temp_path.exists()
-        assert temp_path.suffix == ".json"
-        assert "github_dockerfiles_" in temp_path.name
-
-        with open(temp_path) as f:
-            loaded_data = json.load(f)
-
-        assert "dockerfiles" in loaded_data
-        assert loaded_data["dockerfiles"] == test_dockerfiles
-        assert "summary" in loaded_data
-        assert loaded_data["summary"]["dockerfile_count"] == 1
-
-        # Save path for checking after context exits
-        saved_path = temp_path
-
-    # Assert - file is cleaned up after context exits
-    assert not saved_path.exists()
-
-
 @patch("cartography.intel.github.supply_chain.get_dockerfiles_for_repos")
-@patch("cartography.intel.github.supply_chain.get_container_images_with_history")
+@patch(
+    "cartography.intel.github.supply_chain.get_unmatched_container_images_with_history"
+)
 @patch("cartography.intel.github.supply_chain.match_images_to_dockerfiles")
 def test_sync_with_dockerfiles(
-    mock_match, mock_get_container_images, mock_get_dockerfiles, neo4j_session
+    mock_match,
+    mock_get_unmatched_images,
+    mock_get_dockerfiles,
+    neo4j_session,
 ):
     """
     Test the full sync function when Dockerfiles are found.
@@ -359,11 +324,11 @@ def test_sync_with_dockerfiles(
         }
     ]
     mock_get_dockerfiles.return_value = mock_dockerfiles
-    mock_get_container_images.return_value = []  # No container images
+    mock_get_unmatched_images.return_value = []  # No unmatched container images
     mock_match.return_value = []  # No matches
 
-    # Act
-    result = cartography.intel.github.supply_chain.sync(
+    # Act - sync now returns None
+    cartography.intel.github.supply_chain.sync(
         neo4j_session=neo4j_session,
         token="test_token",
         api_url=TEST_GITHUB_URL,
@@ -373,22 +338,22 @@ def test_sync_with_dockerfiles(
         repos=TEST_REPOS,
     )
 
-    # Assert
-    assert result is not None
-    assert result.dockerfile_count == 1
-    assert result.dockerfiles == mock_dockerfiles
+    # Assert - dockerfiles were fetched (unmatched images empty, so no matching called)
+    mock_get_dockerfiles.assert_not_called()  # No unmatched images → no dockerfile search
 
 
-@patch("cartography.intel.github.supply_chain.get_dockerfiles_for_repos")
-def test_sync_no_dockerfiles(mock_get_dockerfiles, neo4j_session):
+@patch(
+    "cartography.intel.github.supply_chain.get_unmatched_container_images_with_history"
+)
+def test_sync_no_unmatched_images(mock_get_unmatched_images, neo4j_session):
     """
-    Test that sync returns None when no Dockerfiles are found.
+    Test that sync skips dockerfile search when there are no unmatched images.
     """
     # Arrange
-    mock_get_dockerfiles.return_value = []
+    mock_get_unmatched_images.return_value = []
 
-    # Act
-    result = cartography.intel.github.supply_chain.sync(
+    # Act - sync now returns None
+    cartography.intel.github.supply_chain.sync(
         neo4j_session=neo4j_session,
         token="test_token",
         api_url=TEST_GITHUB_URL,
@@ -397,9 +362,6 @@ def test_sync_no_dockerfiles(mock_get_dockerfiles, neo4j_session):
         common_job_parameters=TEST_JOB_PARAMS,
         repos=TEST_REPOS,
     )
-
-    # Assert
-    assert result is None
 
 
 @patch("cartography.intel.github.supply_chain.call_github_rest_api")
