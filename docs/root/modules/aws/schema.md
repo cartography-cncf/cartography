@@ -2462,6 +2462,7 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 | **invocation_uri** | CI/CD invocation URI from SLSA provenance (e.g., GitHub repository URL). Indexed for cross-module matching. |
 | **invocation_workflow** | CI/CD workflow path from SLSA provenance (e.g., `.github/workflows/build.yml`). Indexed for cross-module matching. |
 | invocation_run_number | CI/CD run number from SLSA provenance (e.g., the GitHub Actions run number). |
+| source_file | Dockerfile path from SLSA provenance (`configSource.entryPoint` prefixed with `vcs localdir:dockerfile` if present). |
 
 #### Relationships
 
