@@ -107,8 +107,6 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             config.github_commit_lookback_days,
         )
 
-        # Sync supply chain (dockerfiles, provenance) from all repositories
-        # We need to get the raw repo data again since repos.sync() doesn't return it
         repos_json = cartography.intel.github.repos.get(
             auth_data["token"],
             auth_data["url"],
@@ -117,7 +115,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         # Filter out None entries
         valid_repos = [r for r in repos_json if r is not None]
         if valid_repos:
-            supply_chain_result = cartography.intel.github.supply_chain.sync(
+            cartography.intel.github.supply_chain.sync(
                 neo4j_session,
                 auth_data["token"],
                 auth_data["url"],
@@ -126,8 +124,3 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 common_job_parameters,
                 valid_repos,
             )
-            if supply_chain_result:
-                logger.info(
-                    "Supply chain sync complete: %d matches",
-                    supply_chain_result.match_count,
-                )

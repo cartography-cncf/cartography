@@ -32,7 +32,7 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     # SLSA Provenance: Source repository info from VCS metadata
     source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
     source_revision: PropertyRef = PropertyRef("source_revision")
-    # SLSA Provenance: Build invocation info from GitHub Actions
+    # SLSA Provenance: Build invocation info from CI
     invocation_uri: PropertyRef = PropertyRef("invocation_uri", extra_index=True)
     invocation_workflow: PropertyRef = PropertyRef(
         "invocation_workflow", extra_index=True

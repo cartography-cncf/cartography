@@ -19,6 +19,8 @@ from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.supply_chain import extract_workflow_path_from_ref
+from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerSchema
 from cartography.util import timeit
@@ -172,70 +174,6 @@ async def get_blob_json_via_presigned(
     return response.json()
 
 
-def _normalize_vcs_url(url: str) -> str:
-    """
-    Normalize a VCS URL from BuildKit provenance to a canonical HTTPS repo URL.
-
-    BuildKit vcs.source can report URLs in various formats:
-    - https://github.com/org/repo.git
-    - git@github.com:org/repo.git
-    - https://github.com/org/repo
-
-    Downstream matching compares source_uri against GitHubRepository.id / GitLabProject.id,
-    which use the canonical HTTPS URL without .git suffix (e.g., https://github.com/org/repo).
-
-    :param url: The raw VCS URL from provenance
-    :return: Normalized HTTPS URL without .git suffix
-    """
-    import re
-
-    normalized = url.strip()
-
-    # Convert SSH format (git@host:org/repo.git) to HTTPS
-    ssh_match = re.match(r"git@([^:]+):(.+)", normalized)
-    if ssh_match:
-        host, path = ssh_match.groups()
-        normalized = f"https://{host}/{path}"
-
-    # Strip .git suffix
-    if normalized.endswith(".git"):
-        normalized = normalized[:-4]
-
-    return normalized
-
-
-def _extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
-    """
-    Extract the workflow file path from a GitHub workflow ref.
-
-    The workflow ref format is: {owner}/{repo}/{path}@{ref}
-    Example: "subimagesec/subimage/.github/workflows/docker-push.yaml@refs/pull/1042/merge"
-    Returns: ".github/workflows/docker-push.yaml"
-
-    This extracts the path for matching against GitHubWorkflow.path to establish
-    the PACKAGED_BY relationship between images and workflows (combined with repo_url matching).
-
-    :param workflow_ref: The full workflow reference string
-    :return: The workflow file path, or None if parsing fails
-
-    # TODO: Move this function to the ontology module once CIWorkflow is modeled,
-    # as this logic will be shared across different CI systems (GitHub Actions, GitLab CI, etc.)
-    """
-    if not workflow_ref:
-        return None
-
-    # Split off the @ref suffix
-    path_part = workflow_ref.split("@")[0]
-
-    # The path is everything after {owner}/{repo}/
-    # Find the second slash to skip owner/repo
-    parts = path_part.split("/", 2)
-    if len(parts) >= 3:
-        return parts[2]  # The path after owner/repo/
-
-    return None
-
-
 async def _extract_provenance_from_attestation(
     ecr_client: ECRClient,
     repo_name: str,
@@ -335,7 +273,7 @@ async def _extract_provenance_from_attestation(
     vcs = buildkit_metadata.get("vcs", {})
 
     if vcs.get("source"):
-        result["source_uri"] = _normalize_vcs_url(vcs["source"])
+        result["source_uri"] = normalize_vcs_url(vcs["source"])
     if vcs.get("revision"):
         result["source_revision"] = vcs["revision"]
 
@@ -347,7 +285,7 @@ async def _extract_provenance_from_attestation(
     if environment.get("github_repository"):
         result["invocation_uri"] = environment["github_repository"]
     if environment.get("github_workflow_ref"):
-        workflow_path = _extract_workflow_path_from_ref(
+        workflow_path = extract_workflow_path_from_ref(
             environment["github_workflow_ref"]
         )
         if workflow_path:

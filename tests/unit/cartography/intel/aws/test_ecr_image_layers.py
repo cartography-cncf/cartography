@@ -1,8 +1,8 @@
 import pytest
 
-from cartography.intel.aws.ecr_image_layers import _extract_workflow_path_from_ref
 from cartography.intel.aws.ecr_image_layers import extract_repo_uri_from_image_uri
 from cartography.intel.aws.ecr_image_layers import transform_ecr_image_layers
+from cartography.intel.supply_chain import extract_workflow_path_from_ref
 
 
 @pytest.mark.parametrize(
@@ -395,6 +395,6 @@ def test_transform_ecr_image_layers_with_partial_history():
         ),
     ],
 )
-def test_extract_workflow_path_from_ref(workflow_ref, expected_path):
+def testextract_workflow_path_from_ref(workflow_ref, expected_path):
     """Test extracting workflow path from GitHub workflow ref."""
-    assert _extract_workflow_path_from_ref(workflow_ref) == expected_path
+    assert extract_workflow_path_from_ref(workflow_ref) == expected_path

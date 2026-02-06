@@ -25,21 +25,12 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
-# GitLab-specific configuration
-# =============================================================================
-
 GITLAB_PACKAGING_CONFIG = PackagingConfig(
     matchlink_schema=GitLabProjectPackagedFromMatchLink(),
     sub_resource_label="GitLabOrganization",
     source_repo_field="project_url",
     registry_id_field="registry_repo_location",
 )
-
-
-# =============================================================================
-# Container Image Queries
-# =============================================================================
 
 
 @timeit
@@ -129,11 +120,6 @@ def get_gitlab_container_images_with_history(
         f"Found {len(images)} GitLab container images with layer history (one per repository)"
     )
     return images
-
-
-# =============================================================================
-# Dockerfile Search and Download
-# =============================================================================
 
 
 def search_dockerfiles_in_project(
@@ -283,11 +269,6 @@ def get_dockerfiles_for_projects(
     return all_dockerfiles
 
 
-# =============================================================================
-# SLSA Provenance-based Matching (Primary Method)
-# =============================================================================
-
-
 @timeit
 def get_provenance_matches_for_org(
     neo4j_session: neo4j.Session,
@@ -382,11 +363,6 @@ def load_provenance_relationships(
     return len(matches)
 
 
-# =============================================================================
-# Main Sync Entry Point
-# =============================================================================
-
-
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -430,19 +406,15 @@ def sync(
 
     config = GITLAB_PACKAGING_CONFIG
 
-    # ==========================================================================
-    # GET Stage: Collect all data
-    # ==========================================================================
-
-    # GET: Provenance matches (from images already in graph)
+    # Provenance matches (from images already in graph)
     provenance_matches: list[dict[str, Any]] = []
     if match_container_images:
         provenance_matches = get_provenance_matches_for_org(neo4j_session, org_url)
 
-    # GET: Search and download Dockerfiles
+    # Search and download Dockerfiles
     dockerfiles = get_dockerfiles_for_projects(gitlab_url, token, projects)
 
-    # GET: Container images for dockerfile matching
+    # Container images for dockerfile matching
     images: list[ContainerImage] | None = None
     if match_container_images and dockerfiles:
         logger.info("Querying GitLab container images with layer history from Neo4j...")
@@ -450,9 +422,6 @@ def sync(
             neo4j_session, org_url, limit=image_limit
         )
 
-    # ==========================================================================
-    # TRANSFORM Stage: Match images to dockerfiles
-    # ==========================================================================
     matches: list[ImageDockerfileMatch] | None = None
 
     if images and dockerfiles:
@@ -476,9 +445,6 @@ def sync(
     elif match_container_images and dockerfiles:
         logger.info("No GitLab container images found in Neo4j")
 
-    # ==========================================================================
-    # LOAD Stage: Create relationships in Neo4j
-    # ==========================================================================
     if match_container_images:
         # Load provenance-based PACKAGED_FROM relationships
         if provenance_matches:
@@ -505,9 +471,6 @@ def sync(
                 config,
             )
 
-    # ==========================================================================
-    # CLEANUP Stage: Remove stale relationships
-    # ==========================================================================
     # Check if we have any data to justify cleanup
     has_data = bool(dockerfiles or provenance_matches)
     if not has_data:

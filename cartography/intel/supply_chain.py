@@ -13,6 +13,7 @@ and supply platform-specific API calls, Cypher queries, and matchlink schemas.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -28,11 +29,6 @@ from cartography.models.core.relationships import CartographyRelSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-# =============================================================================
-# Data Classes
-# =============================================================================
 
 
 @dataclass
@@ -93,11 +89,6 @@ class SupplyChainSyncResult:
     @property
     def match_count(self) -> int:
         return len(self.matches) if self.matches else 0
-
-
-# =============================================================================
-# Matching Algorithm
-# =============================================================================
 
 
 def match_images_to_dockerfiles(
@@ -191,11 +182,6 @@ def match_images_to_dockerfiles(
         len(parsed_dockerfiles),
     )
     return matches
-
-
-# =============================================================================
-# Transform / Load / Cleanup
-# =============================================================================
 
 
 def transform_matches_for_matchlink(
@@ -297,11 +283,6 @@ def cleanup_packaging_relationships(
     logger.info("Cleanup complete")
 
 
-# =============================================================================
-# Parsing Helpers
-# =============================================================================
-
-
 def parse_dockerfile_info(
     content: str,
     path: str,
@@ -361,3 +342,62 @@ def convert_layer_history_records(
         }
         for layer in (raw_records or [])
     ]
+
+
+def normalize_vcs_url(url: str) -> str:
+    """
+    Normalize a VCS URL from BuildKit provenance to a canonical HTTPS repo URL.
+
+    BuildKit vcs.source can report URLs in various formats:
+    - https://github.com/org/repo.git
+    - git@github.com:org/repo.git
+    - https://github.com/org/repo
+
+    Downstream matching compares source_uri against GitHubRepository.id / GitLabProject.id,
+    which use the canonical HTTPS URL without .git suffix (e.g., https://github.com/org/repo).
+
+    :param url: The raw VCS URL from provenance
+    :return: Normalized HTTPS URL without .git suffix
+    """
+    normalized = url.strip()
+
+    # Convert SSH format (git@host:org/repo.git) to HTTPS
+    ssh_match = re.match(r"git@([^:]+):(.+)", normalized)
+    if ssh_match:
+        host, path = ssh_match.groups()
+        normalized = f"https://{host}/{path}"
+
+    # Strip .git suffix
+    if normalized.endswith(".git"):
+        normalized = normalized[:-4]
+
+    return normalized
+
+
+def extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
+    """
+    Extract the workflow file path from a GitHub workflow ref.
+
+    The workflow ref format is: {owner}/{repo}/{path}@{ref}
+    Example: "subimagesec/subimage/.github/workflows/docker-push.yaml@refs/pull/1042/merge"
+    Returns: ".github/workflows/docker-push.yaml"
+
+    This extracts the path for matching against GitHubWorkflow.path to establish
+    the PACKAGED_BY relationship between images and workflows (combined with repo_url matching).
+
+    :param workflow_ref: The full workflow reference string
+    :return: The workflow file path, or None if parsing fails
+    """
+    if not workflow_ref:
+        return None
+
+    # Split off the @ref suffix
+    path_part = workflow_ref.split("@")[0]
+
+    # The path is everything after {owner}/{repo}/
+    # Find the second slash to skip owner/repo
+    parts = path_part.split("/", 2)
+    if len(parts) >= 3:
+        return parts[2]  # The path after owner/repo/
+
+    return None

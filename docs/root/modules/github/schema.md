@@ -433,7 +433,7 @@ Container images (ImageTag nodes from any registry: ECR, GitLab, GCR, etc.) can 
 
 #### Relationships
 
-- ImageTag nodes may be packaged from a GitHubRepository (via Dockerfile matching)
+- ImageTag nodes may be packaged from a GitHubRepository
     ```
     (:ImageTag)-[:PACKAGED_FROM]->(:GitHubRepository)
     ```

@@ -2415,7 +2415,7 @@ This way, more than one `ECRRepositoryImage` can reference/be connected to the s
     (:ECRRepositoryImage)-[:IMAGE]->(:ECRImage)
     ```
 
-- ECRRepositoryImages may be packaged from a GitHubRepository (cross-module relationship via Dockerfile matching)
+- ECRRepositoryImages may be packaged from a source repository (cross-module relationship via VCS modules)
     ```
     (:ECRRepositoryImage)-[:PACKAGED_FROM]->(:GitHubRepository)
     ```
@@ -2427,7 +2427,7 @@ This way, more than one `ECRRepositoryImage` can reference/be connected to the s
     - **total_commands**: Total number of commands compared
     - **command_similarity**: Average similarity score
 
-    This relationship links all images in an ECR repository to the source GitHub repository via `repo_uri` matching.
+    This relationship links all images in an ECR repository to the source VCS repository via `repo_uri` matching.
 
 
 ### ECRImage

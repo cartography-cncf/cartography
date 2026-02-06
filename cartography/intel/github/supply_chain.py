@@ -32,21 +32,15 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
-# GitHub-specific configuration
-# =============================================================================
-
+# Maps GitHub-specific field names and schemas to the shared supply chain helpers,
+# so load_packaging_relationships() and cleanup_packaging_relationships() know
+# which matchlink schema, sub-resource label, and data-dict keys to use.
 GITHUB_PACKAGING_CONFIG = PackagingConfig(
     matchlink_schema=GitHubRepoPackagedFromMatchLink(),
     sub_resource_label="GitHubOrganization",
     source_repo_field="repo_url",
     registry_id_field="registry_repo_uri",
 )
-
-
-# =============================================================================
-# ECR Image Queries
-# =============================================================================
 
 
 def get_container_images_with_history(
@@ -137,11 +131,6 @@ def get_container_images_with_history(
         f"Found {len(images)} container images with layer history (one per repository)"
     )
     return images
-
-
-# =============================================================================
-# SLSA Provenance-based Matching (Primary Method)
-# =============================================================================
 
 
 @timeit
@@ -787,16 +776,12 @@ def sync(
 
     config = GITHUB_PACKAGING_CONFIG
 
-    # ==========================================================================
-    # GET Stage: Collect all data
-    # ==========================================================================
-
     # Extract base REST API URL from the GraphQL URL
     base_url = api_url
     if base_url.endswith("/graphql"):
         base_url = base_url[:-8]
 
-    # GET: Provenance matches (from images already in graph)
+    # Provenance matches (from images already in graph)
     provenance_matches: list[dict[str, Any]] = []
     workflow_matches: list[dict[str, Any]] = []
     if match_container_images:
@@ -805,18 +790,15 @@ def sync(
             neo4j_session, organization
         )
 
-    # GET: Search and download Dockerfiles (uses org-wide search for efficiency)
+    # Search and download Dockerfiles (uses org-wide search for efficiency)
     dockerfiles = get_dockerfiles_for_repos(token, repos, base_url, org=organization)
 
-    # GET: Container images for dockerfile matching
+    # Container images for dockerfile matching
     images: list[ContainerImage] | None = None
     if match_container_images and dockerfiles:
         logger.info("Querying container images with layer history from Neo4j...")
         images = get_container_images_with_history(neo4j_session, limit=image_limit)
 
-    # ==========================================================================
-    # TRANSFORM Stage: Match images to dockerfiles
-    # ==========================================================================
     matches: list[ImageDockerfileMatch] | None = None
 
     if images and dockerfiles:
@@ -840,9 +822,6 @@ def sync(
     elif match_container_images and dockerfiles:
         logger.info("No container images found in Neo4j")
 
-    # ==========================================================================
-    # LOAD Stage: Create relationships in Neo4j
-    # ==========================================================================
     if match_container_images:
         # Load provenance-based PACKAGED_FROM relationships
         if provenance_matches:
@@ -884,9 +863,6 @@ def sync(
                 config,
             )
 
-    # ==========================================================================
-    # CLEANUP Stage: Remove stale relationships
-    # ==========================================================================
     # Check if we have any data to justify cleanup
     has_data = bool(dockerfiles or provenance_matches or workflow_matches)
     if not has_data:

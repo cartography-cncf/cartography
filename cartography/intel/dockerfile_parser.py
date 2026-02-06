@@ -32,11 +32,6 @@ import dockerfile as dockerfile_pkg
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
-# Data Classes
-# =============================================================================
-
-
 @dataclass
 class DockerfileInstruction:
     """Represents a single Dockerfile instruction."""
@@ -146,11 +141,6 @@ class ParsedDockerfile:
         }
 
 
-# =============================================================================
-# Public API
-# =============================================================================
-
-
 def parse(content: str) -> ParsedDockerfile:
     """
     Parse Dockerfile content and return a structured representation.
@@ -208,11 +198,6 @@ def parse_file(path: str | Path) -> ParsedDockerfile:
         content_hash=content_hash,
         stages=stages,
     )
-
-
-# =============================================================================
-# Command Normalization
-# =============================================================================
 
 
 def normalize_command(cmd: str | None) -> str:
@@ -294,11 +279,6 @@ def extract_layer_commands_from_history(
     return commands
 
 
-# =============================================================================
-# Command Matching
-# =============================================================================
-
-
 @dataclass
 class DockerfileMatch:
     """Represents a match between container image commands and a Dockerfile."""
@@ -367,11 +347,6 @@ def find_best_dockerfile_matches(
 
     matches.sort(key=lambda m: -m.confidence)
     return matches
-
-
-# =============================================================================
-# Internal Functions
-# =============================================================================
 
 
 def _parse_base_image_reference(from_value: str) -> tuple[str, str | None, str | None]:
