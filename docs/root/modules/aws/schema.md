@@ -2457,10 +2457,10 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 | media_type | The OCI/Docker media type of this manifest (e.g., `"application/vnd.oci.image.manifest.v1+json"`) |
 | artifact_media_type | The artifact media type if this is an OCI artifact. Optional field. |
 | child_image_digests | For manifest lists only: list of platform-specific image digests contained in this manifest list. Excludes attestations. `null` for regular images and attestations. |
-| source_uri | Source repository URI extracted from SLSA provenance attestations (e.g., a GitLab project URL or GitHub repo URL). Indexed for cross-module matching. |
+| **source_uri** | Source repository URI extracted from SLSA provenance attestations (e.g., a GitLab project URL or GitHub repo URL). Indexed for cross-module matching. |
 | source_revision | Source commit revision from SLSA provenance attestations. |
-| invocation_uri | CI/CD invocation URI from SLSA provenance (e.g., GitHub repository URL). Indexed for cross-module matching. |
-| invocation_workflow | CI/CD workflow path from SLSA provenance (e.g., `.github/workflows/build.yml`). Indexed for cross-module matching. |
+| **invocation_uri** | CI/CD invocation URI from SLSA provenance (e.g., GitHub repository URL). Indexed for cross-module matching. |
+| **invocation_workflow** | CI/CD workflow path from SLSA provenance (e.g., `.github/workflows/build.yml`). Indexed for cross-module matching. |
 | invocation_run_number | CI/CD run number from SLSA provenance (e.g., the GitHub Actions run number). |
 
 #### Relationships

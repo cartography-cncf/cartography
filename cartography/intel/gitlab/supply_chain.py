@@ -222,13 +222,15 @@ def _build_dockerfile_info(
     file_item: dict[str, Any],
     content: str,
     project: dict[str, Any],
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """Build dockerfile info dict with parsed content."""
     path = file_item.get("path", "")
     project_url = project.get("web_url", "")
     project_name = project.get("path_with_namespace", "")
 
     info = parse_dockerfile_info(content, path, project_name)
+    if info is None:
+        return None
     info["project_url"] = project_url
     info["project_name"] = project_name
     # Used by the shared matching algorithm
@@ -272,7 +274,8 @@ def get_dockerfiles_for_projects(
             content = get_file_content(gitlab_url, token, project_id, file_path)
             if content:
                 dockerfile_info = _build_dockerfile_info(item, content, project)
-                all_dockerfiles.append(dockerfile_info)
+                if dockerfile_info is not None:
+                    all_dockerfiles.append(dockerfile_info)
 
     logger.info(
         f"Retrieved {len(all_dockerfiles)} dockerfile(s) from {len(projects)} projects"

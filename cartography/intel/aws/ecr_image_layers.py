@@ -172,6 +172,38 @@ async def get_blob_json_via_presigned(
     return response.json()
 
 
+def _normalize_vcs_url(url: str) -> str:
+    """
+    Normalize a VCS URL from BuildKit provenance to a canonical HTTPS repo URL.
+
+    BuildKit vcs.source can report URLs in various formats:
+    - https://github.com/org/repo.git
+    - git@github.com:org/repo.git
+    - https://github.com/org/repo
+
+    Downstream matching compares source_uri against GitHubRepository.id / GitLabProject.id,
+    which use the canonical HTTPS URL without .git suffix (e.g., https://github.com/org/repo).
+
+    :param url: The raw VCS URL from provenance
+    :return: Normalized HTTPS URL without .git suffix
+    """
+    import re
+
+    normalized = url.strip()
+
+    # Convert SSH format (git@host:org/repo.git) to HTTPS
+    ssh_match = re.match(r"git@([^:]+):(.+)", normalized)
+    if ssh_match:
+        host, path = ssh_match.groups()
+        normalized = f"https://{host}/{path}"
+
+    # Strip .git suffix
+    if normalized.endswith(".git"):
+        normalized = normalized[:-4]
+
+    return normalized
+
+
 def _extract_workflow_path_from_ref(workflow_ref: str | None) -> str | None:
     """
     Extract the workflow file path from a GitHub workflow ref.
@@ -303,7 +335,7 @@ async def _extract_provenance_from_attestation(
     vcs = buildkit_metadata.get("vcs", {})
 
     if vcs.get("source"):
-        result["source_uri"] = vcs["source"]
+        result["source_uri"] = _normalize_vcs_url(vcs["source"])
     if vcs.get("revision"):
         result["source_revision"] = vcs["revision"]
 

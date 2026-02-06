@@ -526,11 +526,13 @@ def _build_dockerfile_info(
     content: str,
     repo_url: str | None,
     full_name: str,
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """Build dockerfile info dict with parsed content."""
     path = item.get("path", "")
 
     info = parse_dockerfile_info(content, path, full_name)
+    if info is None:
+        return None
     info["repo_url"] = repo_url
     info["repo_name"] = full_name
     info["sha"] = item.get("sha")
@@ -611,7 +613,8 @@ def get_dockerfiles_for_repos(
                     dockerfile_info = _build_dockerfile_info(
                         item, content, repo_url, full_name
                     )
-                    all_dockerfiles.append(dockerfile_info)
+                    if dockerfile_info is not None:
+                        all_dockerfiles.append(dockerfile_info)
     else:
         # Multiple orgs or org not specified: fall back to per-repo search
         logger.info(f"Using per-repo search for {len(repo_info_map)} repositories")
@@ -630,7 +633,8 @@ def get_dockerfiles_for_repos(
                     dockerfile_info = _build_dockerfile_info(
                         item, content, repo_url, full_name
                     )
-                    all_dockerfiles.append(dockerfile_info)
+                    if dockerfile_info is not None:
+                        all_dockerfiles.append(dockerfile_info)
 
     logger.info(
         f"Retrieved {len(all_dockerfiles)} dockerfile(s) from {len(repo_info_map)} repositories"

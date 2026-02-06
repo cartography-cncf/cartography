@@ -117,8 +117,6 @@ def match_images_to_dockerfiles(
     dockerfile_info_map: dict[str, dict[str, Any]] = {}
 
     for df_info in dockerfiles:
-        if "parse_error" in df_info:
-            continue
         try:
             parsed = parse_dockerfile(df_info["content"])
             dockerfile_info_map[parsed.content_hash] = df_info
@@ -308,9 +306,9 @@ def parse_dockerfile_info(
     content: str,
     path: str,
     display_name: str,
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """
-    Parse a Dockerfile and return structured info, or an error dict on failure.
+    Parse a Dockerfile and return structured info, or None on failure.
 
     Provider modules call this and then add their own identifier fields
     (repo_url/project_url, repo_name/project_name, sha, html_url, etc.).
@@ -318,7 +316,7 @@ def parse_dockerfile_info(
     :param content: Raw Dockerfile content
     :param path: File path within the repository
     :param display_name: Human-readable repo/project name (for logging)
-    :return: Dict with parsed fields, or dict with 'parse_error' key on failure
+    :return: Dict with parsed fields, or None if parsing fails
     """
     try:
         parsed = parse_dockerfile(content)
@@ -342,14 +340,7 @@ def parse_dockerfile_info(
         }
     except Exception as e:
         logger.warning("Failed to parse Dockerfile %s/%s: %s", display_name, path, e)
-        # Intentionally return an error dict instead of raising: this allows the caller
-        # to skip unparseable Dockerfiles while still tracking them in results.
-        # match_images_to_dockerfiles() filters these out via the 'parse_error' key.
-        return {
-            "path": path,
-            "content": content,
-            "parse_error": str(e),
-        }
+        return None
 
 
 def convert_layer_history_records(
