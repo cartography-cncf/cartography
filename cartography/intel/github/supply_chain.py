@@ -22,6 +22,7 @@ from cartography.models.github.packaged_matchlink import (
 from cartography.models.github.packaged_matchlink import (
     ImagePackagedByWorkflowMatchLink,
 )
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -33,18 +34,22 @@ _DEFAULT_MIN_MATCH_CONFIDENCE: float = 0.5
 @timeit
 def get_unmatched_container_images_with_history(
     neo4j_session: neo4j.Session,
+    update_tag: int,
     limit: int | None = None,
 ) -> list[ContainerImage]:
     """
-    Query container images that don't yet have a PACKAGED_FROM relationship.
+    Query container images not yet matched by provenance in this sync iteration.
 
     Uses the generic ontology labels (Image, ImageTag, ImageLayer, ContainerRegistry)
     which work across different registries (ECR, GCR, etc.).
 
     Returns one image per registry repository (preferring 'latest' tag, then most recently pushed).
-    Excludes images that already have a PACKAGED_FROM relationship (e.g. from provenance matching).
+    Excludes images that already have a PACKAGED_FROM relationship created in the current
+    sync iteration (i.e. by provenance matching). Images with stale PACKAGED_FROM from
+    previous iterations are included so they can be re-matched before cleanup removes them.
 
     :param neo4j_session: Neo4j session
+    :param update_tag: The current sync update tag
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
     """
@@ -52,7 +57,7 @@ def get_unmatched_container_images_with_history(
         MATCH (img:Image)<-[:IMAGE]-(repo_img:ImageTag)<-[:REPO_IMAGE]-(repo:ContainerRegistry)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
-          AND NOT exists((img)-[:PACKAGED_FROM]->())
+          AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
         WITH repo, img, repo_img
         ORDER BY
             CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
@@ -96,7 +101,7 @@ def get_unmatched_container_images_with_history(
     if limit:
         query += f" LIMIT {limit}"
 
-    result = neo4j_session.run(query)
+    result = neo4j_session.run(query, update_tag=update_tag)
     images = []
 
     for record in result:
@@ -432,6 +437,7 @@ def sync(
     # 3. Get images WITHOUT existing PACKAGED_FROM for dockerfile analysis
     unmatched = get_unmatched_container_images_with_history(
         neo4j_session,
+        update_tag,
         limit=image_limit,
     )
 
@@ -484,5 +490,12 @@ def sync(
         organization,
         update_tag,
     ).run(neo4j_session)
+
+    # 6. Enrich PACKAGED_FROM with source_file from Image provenance
+    run_analysis_job(
+        "supply_chain_source_file.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
     logger.info("Completed supply chain sync for %s", organization)

@@ -20,6 +20,7 @@ from cartography.models.gitlab.packaged_matchlink import (
 from cartography.models.gitlab.packaged_matchlink import (
     GitLabProjectProvenancePackagedFromMatchLink,
 )
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -29,16 +30,20 @@ logger = logging.getLogger(__name__)
 def get_unmatched_gitlab_container_images_with_history(
     neo4j_session: neo4j.Session,
     org_url: str,
+    update_tag: int,
     limit: int | None = None,
 ) -> list[ContainerImage]:
     """
-    Query GitLab container images that don't yet have a PACKAGED_FROM relationship.
+    Query GitLab container images not yet matched by provenance in this sync iteration.
 
     Returns one image per container repository (preferring 'latest' tag, then most recent).
-    Excludes images that already have a PACKAGED_FROM relationship (e.g. from provenance matching).
+    Excludes images that already have a PACKAGED_FROM relationship created in the current
+    sync iteration (i.e. by provenance matching). Images with stale PACKAGED_FROM from
+    previous iterations are included so they can be re-matched before cleanup removes them.
 
     :param neo4j_session: Neo4j session
     :param org_url: The GitLab organization URL to scope the query
+    :param update_tag: The current sync update tag
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
     """
@@ -47,7 +52,7 @@ def get_unmatched_gitlab_container_images_with_history(
               <-[:HAS_TAG]-(repo:GitLabContainerRepository)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
-          AND NOT exists((img)-[:PACKAGED_FROM]->())
+          AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
         WITH repo, img, tag
         ORDER BY
             CASE WHEN tag.name = 'latest' THEN 0 ELSE 1 END,
@@ -89,7 +94,7 @@ def get_unmatched_gitlab_container_images_with_history(
     if limit:
         query += f" LIMIT {limit}"
 
-    result = neo4j_session.run(query)
+    result = neo4j_session.run(query, update_tag=update_tag)
     images = []
 
     for record in result:
@@ -329,6 +334,7 @@ def sync(
     unmatched = get_unmatched_gitlab_container_images_with_history(
         neo4j_session,
         org_url,
+        update_tag,
         limit=image_limit,
     )
 
@@ -374,5 +380,12 @@ def sync(
         org_url,
         update_tag,
     ).run(neo4j_session)
+
+    # 5. Enrich PACKAGED_FROM with source_file from Image provenance
+    run_analysis_job(
+        "supply_chain_source_file.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
     logger.info("Completed supply chain sync for GitLab org %s", org_url)

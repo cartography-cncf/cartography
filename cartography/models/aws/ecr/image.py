@@ -38,6 +38,8 @@ class ECRImageNodeProperties(CartographyNodeProperties):
         "invocation_workflow", extra_index=True
     )
     invocation_run_number: PropertyRef = PropertyRef("invocation_run_number")
+    # SLSA Provenance: Dockerfile path from configSource.entryPoint + vcs localdir
+    source_file: PropertyRef = PropertyRef("source_file")
 
 
 @dataclass(frozen=True)

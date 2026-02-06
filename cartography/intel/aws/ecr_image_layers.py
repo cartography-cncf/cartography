@@ -296,6 +296,18 @@ async def _extract_provenance_from_attestation(
     if environment.get("github_run_number"):
         result["invocation_run_number"] = environment["github_run_number"]
 
+    # Extract source file (Dockerfile path) from invocation configSource
+    # Only meaningful when we also have source repository info
+    if "source_uri" in result:
+        config_source = invocation.get("configSource", {})
+        entry_point = config_source.get("entryPoint", "Dockerfile")
+        dockerfile_dir = (
+            (vcs.get("localdir:dockerfile") or "").removeprefix("./").rstrip("/")
+        )
+        result["source_file"] = (
+            f"{dockerfile_dir}/{entry_point}" if dockerfile_dir else entry_point
+        )
+
     if not result:
         logger.debug(
             "No provenance data found in attestation %s",
@@ -491,6 +503,9 @@ def transform_ecr_image_layers(
                     membership["invocation_run_number"] = provenance[
                         "invocation_run_number"
                     ]
+                # Source file (Dockerfile path) from configSource
+                if provenance.get("source_file"):
+                    membership["source_file"] = provenance["source_file"]
                 membership["from_attestation"] = True
                 membership["confidence"] = "explicit"
 

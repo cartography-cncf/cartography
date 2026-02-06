@@ -571,6 +571,64 @@ async def test_extract_provenance_from_attestation_with_source_info():
         assert result["invocation_uri"] == "https://github.com/subimagesec/subimage"
         assert result["invocation_workflow"] == ".github/workflows/build.yaml"
         assert result["invocation_run_number"] == "1470"
+        # Source file defaults to "Dockerfile" when no configSource.entryPoint
+        assert result["source_file"] == "Dockerfile"
+    finally:
+        ecr_layers.batch_get_manifest = original_batch_get_manifest
+        ecr_layers.get_blob_json_via_presigned = original_get_blob
+
+
+@pytest.mark.asyncio
+async def test_extract_provenance_source_file_with_config_source():
+    """Test source_file extraction with configSource.entryPoint and vcs localdir:dockerfile."""
+    mock_ecr_client = MagicMock()
+    mock_http_client = AsyncMock()
+
+    attestation_manifest = (
+        {
+            "layers": [
+                {"mediaType": "application/vnd.in-toto+json", "digest": "sha256:def456"}
+            ]
+        },
+        "application/vnd.oci.image.manifest.v1+json",
+    )
+
+    attestation_blob = {
+        "predicate": {
+            "invocation": {
+                "configSource": {
+                    "entryPoint": "Dockerfile.prod",
+                },
+                "environment": {
+                    "github_repository": "myorg/myrepo",
+                    "github_workflow_ref": "myorg/myrepo/.github/workflows/build.yaml@refs/heads/main",
+                },
+            },
+            "metadata": {
+                "https://mobyproject.org/buildkit@v1#metadata": {
+                    "vcs": {
+                        "source": "https://github.com/myorg/myrepo",
+                        "localdir:dockerfile": "./deploy",
+                    }
+                }
+            },
+        }
+    }
+
+    original_batch_get_manifest = ecr_layers.batch_get_manifest
+    original_get_blob = ecr_layers.get_blob_json_via_presigned
+
+    ecr_layers.batch_get_manifest = AsyncMock(return_value=attestation_manifest)
+    ecr_layers.get_blob_json_via_presigned = AsyncMock(return_value=attestation_blob)
+
+    try:
+        result = await ecr_layers._extract_provenance_from_attestation(
+            mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
+        )
+
+        assert result is not None
+        assert result["source_uri"] == "https://github.com/myorg/myrepo"
+        assert result["source_file"] == "deploy/Dockerfile.prod"
     finally:
         ecr_layers.batch_get_manifest = original_batch_get_manifest
         ecr_layers.get_blob_json_via_presigned = original_get_blob
