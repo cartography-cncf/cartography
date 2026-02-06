@@ -7,6 +7,9 @@ O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
 O -- RESOURCE --> T(GitHubTeam)
 O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
+O -- RESOURCE --> CP(GitHubContainerPackage)
+O -- RESOURCE --> CI(GitHubContainerImage)
+O -- RESOURCE --> CT(GitHubContainerPackageTag)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
@@ -30,6 +33,9 @@ T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTAINER --> T
+CP -- HAS_TAG --> CT
+CT -- REFERENCES --> CI
+CI -- CONTAINS_IMAGE --> CI
 ```
 
 ### GitHubRepository
@@ -600,4 +606,120 @@ Unlike secrets, variable **values are stored in plaintext**.
 
     ```
     (GitHubOrganization)-[:RESOURCE]->(GitHubActionsVariable {level: "environment"})
+    ```
+
+
+### GitHubContainerPackage
+
+Represents a container package stored in GitHub Container Registry (GHCR). Container packages are OCI-compliant container images that can be associated with repositories or organizations.
+
+> **Ontology Mapping**: This node has the extra label `ContainerRegistry` to enable cross-platform queries for container registries across different systems (e.g., GitLabContainerRepository, ECRRepository).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The GitHub package ID |
+| **name** | Name of the container package (e.g., `my-app`, `backend-service`) |
+| **package_type** | Type of package (always `container` for GHCR packages) |
+| **visibility** | Visibility of the package: `public`, `private`, or `internal` |
+| **url** | API URL for the package |
+| **html_url** | Web URL for viewing the package in the GitHub UI |
+| **created_at** | Timestamp when the package was created |
+| **updated_at** | Timestamp when the package was last updated |
+| **owner_login** | Login name of the package owner (organization or user) |
+| **owner_type** | Type of owner: `Organization` or `User` |
+| **repository_id** | ID of the linked repository (if any) |
+| **repository_name** | Full name of the linked repository (e.g., `org/repo`) |
+
+#### Relationships
+
+- GitHubOrganizations have GitHubContainerPackages as resources.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerPackage)
+    ```
+
+    This relationship enables organization-scoped cleanup of container packages.
+
+- GitHubContainerPackages have GitHubContainerPackageTags.
+
+    ```
+    (GitHubContainerPackage)-[:HAS_TAG]->(GitHubContainerPackageTag)
+    ```
+
+### GitHubContainerPackageTag
+
+Represents a specific tag within a container package (e.g., `latest`, `v1.0.1`). Tags point to specific container images by digest.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier (composite: `{package_name}:{tag_name}`) |
+| **name** | Name of the tag (e.g., `latest`) |
+| **digest** | The image digest this tag currently references |
+| **package_id** | ID of the parent package |
+| **version_id** | GitHub internal ID for the package version |
+| **created_at** | Timestamp when this tag/version was created |
+| **updated_at** | Timestamp when this tag/version was updated |
+| **html_url** | Web URL for viewing the package version |
+
+#### Relationships
+
+- GitHubOrganizations have GitHubContainerPackageTags as resources.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerPackageTag)
+    ```
+
+- GitHubContainerPackages have GitHubContainerPackageTags.
+
+    ```
+    (GitHubContainerPackage)-[:HAS_TAG]->(GitHubContainerPackageTag)
+    ```
+
+- GitHubContainerPackageTags reference GitHubContainerImages.
+
+    ```
+    (GitHubContainerPackageTag)-[:REFERENCES]->(GitHubContainerImage)
+    ```
+
+### GitHubContainerImage
+
+Represents a physical container image or a manifest list (multi-architecture index) in GHCR. Images are uniquely identified by their content digest.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The image digest (e.g., `sha256:abc...`) |
+| **digest** | The image digest |
+| **uri** | Canonical URI for the image (e.g., `ghcr.io/org/package`) |
+| **media_type** | OCI or Docker media type of the manifest |
+| **schema_version** | Manifest schema version (e.g., 2) |
+| **type** | Either `image` or `manifest_list` |
+| **architecture** | CPU architecture (e.g., `amd64`, `arm64`) |
+| **os** | Operating system (e.g., `linux`, `windows`) |
+| **variant** | Architecture variant (e.g., `v8`) |
+| **child_image_digests** | List of digests for platform images (only for manifest lists) |
+
+#### Relationships
+
+- GitHubOrganizations have GitHubContainerImages as resources.
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubContainerImage)
+    ```
+
+- GitHubContainerPackageTags reference GitHubContainerImages.
+
+    ```
+    (GitHubContainerPackageTag)-[:REFERENCES]->(GitHubContainerImage)
+    ```
+
+- Manifest lists contain other manifest images.
+
+    ```
+    (GitHubContainerImage {type: "manifest_list"})-[:CONTAINS_IMAGE]->(GitHubContainerImage)
     ```
