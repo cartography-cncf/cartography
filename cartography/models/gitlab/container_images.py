@@ -35,6 +35,7 @@ class GitLabContainerImageNodeProperties(CartographyNodeProperties):
     os: PropertyRef = PropertyRef("os")
     variant: PropertyRef = PropertyRef("variant")
     child_image_digests: PropertyRef = PropertyRef("child_image_digests")
+    layer_digests: PropertyRef = PropertyRef("layer_digests")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -94,7 +95,7 @@ class GitLabContainerImageToLayerRel(CartographyRelSchema):
     """
     Relationship from an image to its constituent layers.
     Only applies to images with type="image" (not manifest lists).
-    The position property indicates layer order (0 = base layer).
+    Layers are ordered using NEXT relationships and layer_digests array on the image.
     """
 
     target_node_label: str = "GitLabContainerImageLayer"

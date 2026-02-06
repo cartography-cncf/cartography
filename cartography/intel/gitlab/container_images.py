@@ -281,9 +281,11 @@ def transform_container_images(
         layer_digests = None
         if not is_manifest_list:
             layers = manifest.get("layers", [])
-            layer_digests = [
+            layer_digest_list = [
                 layer.get("digest") for layer in layers if layer.get("digest")
             ]
+            # Only set if there are actual layers, otherwise keep as None to skip relationship matching
+            layer_digests = layer_digest_list if layer_digest_list else None
 
         # Extract architecture, os, variant from config blob (for regular images)
         config = manifest.get("_config", {})
@@ -322,11 +324,15 @@ def transform_container_image_layers(
     raw_manifests: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
-    Transform raw manifest data into layer nodes.
-    Extracts layers from regular images (not manifest lists).
-    Each layer includes position for ordering and image_digest for relationship matching.
+    Transform raw manifest data into layer nodes with linked list structure.
+    Extracts layers from regular images (not manifest lists) and creates:
+    - NEXT relationships between consecutive layers (linked list)
+    - HEAD relationships from first layer to images
+    - TAIL relationships from last layer to images
+
+    This follows the ECR pattern for queryable layer ordering.
     """
-    all_layers = []
+    layers_by_digest: dict[str, dict[str, Any]] = {}
 
     for manifest in raw_manifests:
         media_type = manifest.get("mediaType")
@@ -341,22 +347,59 @@ def transform_container_image_layers(
         config = manifest.get("_config", {})
         diff_ids = config.get("rootfs", {}).get("diff_ids", [])
 
-        for position, layer in enumerate(layers):
-            # Match diff_id by position (arrays are ordered the same)
-            diff_id = diff_ids[position] if position < len(diff_ids) else None
+        # Process each layer in the chain
+        for i, layer in enumerate(layers):
+            layer_digest = layer.get("digest")
+            if not layer_digest:
+                continue
 
-            all_layers.append(
-                {
-                    "digest": layer.get("digest"),
+            # Get or create layer entry
+            if layer_digest not in layers_by_digest:
+                diff_id = diff_ids[i] if i < len(diff_ids) else None
+                layers_by_digest[layer_digest] = {
+                    "digest": layer_digest,
                     "diff_id": diff_id,
                     "media_type": layer.get("mediaType"),
                     "size": layer.get("size"),
-                    "image_digest": image_digest,  # For HAS_LAYER relationship
-                    "position": position,  # 0 = base layer
+                    "next_digests": set(),
+                    "head_image_digests": set(),
+                    "tail_image_digests": set(),
                 }
-            )
 
-    logger.info(f"Transformed {len(all_layers)} container image layers")
+            layer_entry = layers_by_digest[layer_digest]
+
+            # Add NEXT relationship if not the last layer
+            if i < len(layers) - 1:
+                next_layer_digest = layers[i + 1].get("digest")
+                if next_layer_digest:
+                    layer_entry["next_digests"].add(next_layer_digest)
+
+            # Track which images this layer is HEAD or TAIL of
+            if i == 0:
+                layer_entry["head_image_digests"].add(image_digest)
+            if i == len(layers) - 1:
+                layer_entry["tail_image_digests"].add(image_digest)
+
+    # Convert sets to lists for Neo4j ingestion
+    all_layers = []
+    for layer in layers_by_digest.values():
+        layer_dict: dict[str, Any] = {
+            "digest": layer["digest"],
+            "diff_id": layer["diff_id"],
+            "media_type": layer["media_type"],
+            "size": layer["size"],
+        }
+        if layer["next_digests"]:
+            layer_dict["next_digests"] = list(layer["next_digests"])
+        if layer["head_image_digests"]:
+            layer_dict["head_image_digests"] = list(layer["head_image_digests"])
+        if layer["tail_image_digests"]:
+            layer_dict["tail_image_digests"] = list(layer["tail_image_digests"])
+        all_layers.append(layer_dict)
+
+    logger.info(
+        f"Transformed {len(all_layers)} container image layers with linked list structure"
+    )
     return all_layers
 
 
