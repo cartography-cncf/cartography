@@ -507,9 +507,6 @@ Represents a GitHub Actions workflow definition file in a repository.
     (:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)
     ```
 
-    Relationship properties:
-    - **run_number**: The workflow run number that produced the image
-
     Note: This relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. The `Image` label is a semantic label applied to container images across registries (ECR, GitLab, etc.).
 
 
