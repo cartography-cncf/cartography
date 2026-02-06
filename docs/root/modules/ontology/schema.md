@@ -11,10 +11,20 @@ U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
-LB -- EXPOSE --> CT{{Container}}
+LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
 DB{{Database}}
+OS{{ObjectStorage}}
 TN{{Tenant}}
 FN{{Function}}
+REPO{{CodeRepository}}
+SC{{Secret}}
+PIP(PublicIP) -- POINTS_TO --> LB
+PIP -- POINTS_TO --> CI
+CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
+IT -- IMAGE --> IM{{Image}}
+IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
+IA{{ImageAttestation}} -- ATTESTS --> IM
+IM -- HAS_LAYER --> IL{{ImageLayer}}
 ```
 
 :::{note}
@@ -67,7 +77,7 @@ If field `active` is null, it should not be considered as `true` or `false`, onl
 
 | Field | Description |
 |-------|-------------|
-| id | The unique identifier for the user. |
+| **id** | The unique identifier for the user. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | email | User's primary email. |
@@ -124,7 +134,7 @@ A client computer is a host that accesses a service made available by a server o
 
 | Field | Description |
 |-------|-------------|
-| id | The unique identifier for the user. |
+| **id** | The unique identifier for the user. |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
 | hostname | Hostname of the device. |
@@ -171,6 +181,23 @@ API keys are used across different cloud providers and SaaS platforms for authen
     (:User)-[:OWNS]->(:APIKey)
     ```
 
+
+### Secret
+
+```{note}
+Secret is a semantic label.
+```
+
+A secret represents sensitive data stored in a secrets management service across different cloud providers and platforms.
+Secrets can include database credentials, API keys, certificates, and other sensitive configuration data.
+They are managed by dedicated services like AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, GitHub Actions Secrets, and Kubernetes Secrets.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name or identifier of the secret (REQUIRED). |
+| _ont_created_at | Timestamp when the secret was created. |
+| _ont_updated_at | Timestamp when the secret was last updated. |
+| _ont_rotation_enabled | Whether automatic rotation is enabled for the secret. |
 
 
 ### ComputeInstance
@@ -264,6 +291,24 @@ It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure 
 | _ont_db_location | The physical location/region of the database. |
 
 
+### ObjectStorage
+
+```{note}
+ObjectStorage is a semantic label.
+```
+
+An object storage represents a managed blob/object storage system across different cloud providers.
+It generalizes concepts like AWS S3 buckets, GCP Cloud Storage buckets, and Azure Blob Containers.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name/identifier of the storage bucket/container (REQUIRED). |
+| _ont_location | The region/location of the storage. |
+| _ont_encrypted | Whether the storage is encrypted. |
+| _ont_versioning | Whether versioning is enabled. |
+| _ont_public | Whether the storage has public access (not available for all providers). |
+
+
 ### Tenant
 
 ```{note}
@@ -305,6 +350,27 @@ It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Clou
 | _ont_deployment_type | The deployment type: `code` for source code functions (Lambda, Cloud Functions, Azure Functions), `container` for container-based functions (Cloud Run). |
 
 
+### CodeRepository
+
+```{note}
+CodeRepository is a semantic label.
+```
+
+A code repository represents a source code repository containing software projects and their version history.
+Code repositories are critical assets for supply chain security as they contain intellectual property and often secrets.
+It generalizes concepts like GitHub Repositories and GitLab Projects.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the repository (REQUIRED). |
+| _ont_fullname | The full path including namespace (e.g., "org/repo", "group/subgroup/project"). |
+| _ont_description | Description of the repository. |
+| _ont_url | Web URL to access the repository. |
+| _ont_default_branch | The default branch name (e.g., "main", "master"). |
+| _ont_public | Whether the repository is publicly accessible. |
+| _ont_archived | Whether the repository is archived (read-only). |
+
+
 ### LoadBalancer
 
 ```{note}
@@ -335,6 +401,43 @@ It generalizes concepts like AWS Application/Network Load Balancers (ALB/NLB), A
     ```
 
 
+### PublicIP
+
+```{note}
+PublicIP is an abstract ontology node.
+```
+
+A public IP address represents a unique numerical identifier assigned to a device that is routable on the internet.
+Public IP addresses can be either IPv4 or IPv6.
+
+```{important}
+If field `ip_version` is null, it should not be considered as `4` or `6`, only as unknown.
+```
+
+| Field | Description |
+|-------|-------------|
+| **id** | The unique identifier for the IP address (the IP address value itself). |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| ip_address | The IP address value (e.g., "203.0.113.1" or "2001:db8::1"). |
+| ip_version | Integer indicating the IP version: `4` for IPv4, `6` for IPv6, or `null` if unknown. |
+
+#### Relationships
+
+- `PublicIP` is linked to one or many nodes that represent the IP in a module:
+    ```
+    (:PublicIP)-[:RESERVED_BY]->(:*)
+    ```
+- `PublicIP` can point to one or many `LoadBalancer` (semantic label) that use this IP:
+    ```
+    (:PublicIP)-[:POINTS_TO]->(:LoadBalancer)
+    ```
+- `PublicIP` can point to one or many `ComputeInstance` (semantic label) that have this IP:
+    ```
+    (:PublicIP)-[:POINTS_TO]->(:ComputeInstance)
+    ```
+
+
 ### ContainerRegistry
 
 ```{note}
@@ -351,3 +454,114 @@ It generalizes concepts like AWS ECR repositories, GCP Artifact Registry reposit
 | _ont_location | The region/location where the registry is hosted. |
 | _ont_created_at | Timestamp when the registry was created. |
 | _ont_size_bytes | Storage size in bytes. |
+
+
+### ImageTag
+
+```{note}
+ImageTag is a semantic label.
+```
+
+An image tag represents a human-readable reference to a container image within a registry.
+It generalizes concepts like AWS ECRRepositoryImage, GCP Artifact Registry image tags, and GitLab Container Registry tags.
+
+| Field | Description |
+|-------|-------------|
+| tag | The tag name (e.g., "latest", "v1.0.0"). |
+| uri | The full URI to the tagged image. |
+
+#### Relationships
+
+- `ImageTag` points to one or many `Image`:
+    ```
+    (:ImageTag)-[:IMAGE]->(:Image)
+    ```
+
+
+### Image
+
+```{note}
+Image is a conditional semantic label applied to container image nodes when `type="image"`.
+```
+
+An image represents a runnable container image (single-architecture or platform-specific).
+It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, and GitLab Container Images.
+
+| Field | Description |
+|-------|-------------|
+| digest | The content-addressable digest (SHA256) of the image. |
+| architecture | CPU architecture (e.g., "amd64", "arm64"). |
+| os | Operating system (e.g., "linux", "windows"). |
+| variant | Architecture variant (e.g., "v8" for ARM). |
+
+
+### ImageAttestation
+
+```{note}
+ImageAttestation is a conditional semantic label applied to container image nodes when `type="attestation"`.
+```
+
+An image attestation represents cryptographic metadata that validates or provides provenance information about a container image.
+It generalizes concepts like AWS ECRImage attestations and OCI attestation manifests.
+
+| Field | Description |
+|-------|-------------|
+| digest | The content-addressable digest (SHA256) of the attestation. |
+| attestation_type | The type of attestation (e.g., "attestation-manifest"). |
+| attests_digest | The digest of the image this attestation validates. |
+
+#### Relationships
+
+- `ImageAttestation` attests an `Image`:
+    ```
+    (:ImageAttestation)-[:ATTESTS]->(:Image)
+    ```
+
+
+### ImageManifestList
+
+```{note}
+ImageManifestList is a conditional semantic label applied to container image nodes when `type="manifest_list"`.
+```
+
+An image manifest list (also known as an image index) represents a multi-architecture container image that contains references to platform-specific images.
+It generalizes concepts like AWS ECRImage manifest lists and OCI image indexes.
+
+| Field | Description |
+|-------|-------------|
+| digest | The content-addressable digest (SHA256) of the manifest list. |
+| child_image_digests | List of platform-specific image digests contained in this manifest list. |
+
+#### Relationships
+
+- `ImageManifestList` contains platform-specific `Image` nodes:
+    ```
+    (:ImageManifestList)-[:CONTAINS_IMAGE]->(:Image)
+    ```
+
+
+### ImageLayer
+
+```{note}
+ImageLayer is a semantic label.
+```
+
+An image layer represents an individual filesystem layer within a container image.
+Layers are de-duplicated by their content-addressable digest, so multiple images may reference the same layer node.
+It generalizes concepts like AWS ECRImageLayer and OCI image layers.
+
+| Field | Description |
+|-------|-------------|
+| diff_id | The uncompressed (DiffID) SHA-256 digest of the layer. |
+| is_empty | Boolean flag identifying Docker's canonical empty layer. |
+
+#### Relationships
+
+- `Image` has layers:
+    ```
+    (:Image)-[:HAS_LAYER]->(:ImageLayer)
+    ```
+- Layers point to the next layer in sequence:
+    ```
+    (:ImageLayer)-[:NEXT]->(:ImageLayer)
+    ```

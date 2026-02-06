@@ -20,9 +20,7 @@ def test_permission_relationships_file_arguments():
     """
     Test that we correctly read arguments for --permission-relationships-file
     """
-    from cartography.cli import CLI
     from cartography.config import Config
-    from cartography.sync import build_default_sync
 
     # Test the correct field is set in the Cartography config object
     fname = "/some/test/file.yaml"
@@ -32,18 +30,40 @@ def test_permission_relationships_file_arguments():
     )
     assert config.permission_relationships_file == fname
 
-    # Test the correct field is set in the Cartography CLI object
-    argv = ["--permission-relationships-file", "/some/test/file.yaml"]
-    cli_object = CLI(build_default_sync(), prog="cartography")
-    cli_parsed_output = cli_object.parser.parse_args(argv)
-    assert cli_parsed_output.permission_relationships_file == "/some/test/file.yaml"
+    # Test the default value
+    config_default = Config(neo4j_uri="bolt://thisdoesnotmatter:1234")
+    assert config_default.permission_relationships_file is None
 
-    # Test that the default RPR file is set if --permission-relationships-file is not set in the CLI
-    argv = []
-    cli_object = CLI(build_default_sync(), prog="cartography")
-    cli_parsed_output = cli_object.parser.parse_args(argv)
+
+def test_permission_relationships_file_cli():
+    """
+    Test that CLI correctly passes --permission-relationships-file to Config
+    """
+    from cartography.cli import CLI
+
+    captured_config = None
+
+    def capture_run_with_config(sync, config):
+        nonlocal captured_config
+        captured_config = config
+
+    # Test custom file path
+    with mock.patch(
+        "cartography.sync.run_with_config", side_effect=capture_run_with_config
+    ):
+        cli = CLI(prog="cartography")
+        cli.main(["--permission-relationships-file", "/some/test/file.yaml"])
+    assert captured_config.permission_relationships_file == "/some/test/file.yaml"
+
+    # Test default value
+    captured_config = None
+    with mock.patch(
+        "cartography.sync.run_with_config", side_effect=capture_run_with_config
+    ):
+        cli = CLI(prog="cartography")
+        cli.main([])
     assert (
-        cli_parsed_output.permission_relationships_file
+        captured_config.permission_relationships_file
         == "cartography/data/permission_relationships.yaml"
     )
 
@@ -216,18 +236,14 @@ def test_load_roles_creates_trust_relationships(neo4j_session):
     assert actual == expected
 
 
-@mock.patch.object(cartography.intel.aws.iam, "get_saml_providers")
-def test_sync_saml_providers(mock_get_saml, neo4j_session):
+def test_sync_saml_providers(neo4j_session):
     _create_base_account(neo4j_session)
-    mock_get_saml.return_value = tests.data.aws.iam.LIST_SAML_PROVIDERS
 
-    cartography.intel.aws.iam.sync(
+    cartography.intel.aws.iam.load_saml_providers(
         neo4j_session,
-        mock.MagicMock(),
-        [TEST_REGION],
+        tests.data.aws.iam.LIST_SAML_PROVIDERS["SAMLProviderList"],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     nodes = check_nodes(neo4j_session, "AWSSAMLProvider", ["arn"])

@@ -124,6 +124,8 @@ Representation of a GCP [Organization](https://cloud.google.com/resource-manager
 ### GCPBucket
 Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/json_api/v1/buckets).
 
+> **Ontology Mapping**: This node has the extra label `ObjectStorage` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, AzureStorageBlobContainer).
+
 | Field                         | Description                                                                                                                                                                                                                                         |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | firstseen                     | Timestamp of when a sync job first discovered this node |
@@ -1374,6 +1376,8 @@ Representation of a Google [Cloud Function](https://cloud.google.com/functions/d
 
 Representation of a GCP [Secret Manager Secret](https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets). A Secret is a logical container for secret data that can have multiple versions.
 
+> **Ontology Mapping**: This node has the extra label `Secret` and normalized `_ont_*` properties for cross-platform secret queries. See [Secret](../../ontology/schema.md#secret).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Full resource name of the secret (e.g., `projects/{project}/secrets/{secret_id}`) |
@@ -1503,6 +1507,8 @@ Representation of a GCP [Artifact Registry Repository](https://cloud.google.com/
 #### GCPArtifactRegistryContainerImage
 
 Representation of a [Docker Image](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.dockerImages) in a GCP Artifact Registry repository.
+
+> **Ontology Mapping**: This node has conditional extra labels based on the image media type: `Image` for single-image manifests (Docker V2 manifest or OCI image manifest), or `ImageManifestList` for multi-architecture manifest lists (Docker V2 manifest list or OCI image index). These labels enable cross-platform queries for container images across different systems (e.g., ECRImage, GitLabContainerImage).
 
 | Field | Description |
 |-------|-------------|

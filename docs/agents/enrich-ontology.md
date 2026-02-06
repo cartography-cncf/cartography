@@ -426,6 +426,7 @@ Represents a user in Your Service.
 | `DeviceInstance` | `> **Ontology Mapping**: This node has the extra label \`DeviceInstance\` to enable cross-platform queries for device instances across different systems (e.g., CrowdStrikeDevice, KandjiDevice, JamfComputer).` |
 | `Tenant` | `> **Ontology Mapping**: This node has the extra label \`Tenant\` to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AzureTenant, GCPOrganization).` |
 | `Database` | `> **Ontology Mapping**: This node has the extra label \`Database\` to enable cross-platform queries for databases across different systems (e.g., RDSInstance, DynamoDBTable, BigQueryDataset).` |
+| `ObjectStorage` | `> **Ontology Mapping**: This node has the extra label \`ObjectStorage\` to enable cross-platform queries for object storage across different systems (e.g., S3Bucket, GCPBucket, AzureStorageBlobContainer).` |
 
 ### Example: AWSAccount with Tenant Label
 

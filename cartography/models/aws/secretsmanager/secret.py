@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -74,12 +75,12 @@ class SecretsManagerSecretToAWSAccountRel(CartographyRelSchema):
 class SecretsManagerSecretToKMSKeyRel(CartographyRelSchema):
     """
     Relationship between Secret and its KMS key
-    Only created when KmsKeyId is present
+    Only created when kms_key_id is present
     """
 
     target_node_label: str = "KMSKey"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("KmsKeyId")},
+        {"arn": PropertyRef("KmsKeyId")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ENCRYPTED_BY"
@@ -93,6 +94,9 @@ class SecretsManagerSecretSchema(CartographyNodeSchema):
     """
 
     label: str = "SecretsManagerSecret"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["Secret"]
+    )  # Secret label is used for ontology mapping
     properties: SecretsManagerSecretNodeProperties = (
         SecretsManagerSecretNodeProperties()
     )

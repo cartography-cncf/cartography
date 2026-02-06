@@ -15,6 +15,7 @@ from pydantic import BeforeValidator
 
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -89,8 +90,8 @@ _aws_access_key_not_rotated = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_1_14_access_key_not_rotated = Rule(
-    id="cis_1_14_access_key_not_rotated",
+cis_aws_1_14_access_key_not_rotated = Rule(
+    id="cis_aws_1_14_access_key_not_rotated",
     name="CIS AWS 1.14: Access Keys Not Rotated",
     description=(
         "Access keys should be rotated every 90 days or less to reduce the window "
@@ -98,9 +99,18 @@ cis_1_14_access_key_not_rotated = Rule(
     ),
     output_model=AccessKeyNotRotatedOutput,
     facts=(_aws_access_key_not_rotated,),
-    tags=("cis:1.14", "cis:aws-5.0", "iam", "credentials", "stride:spoofing"),
+    tags=("iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="1.14",
+        ),
+    ),
 )
 
 
@@ -160,8 +170,8 @@ _aws_unused_credentials = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_1_12_unused_credentials = Rule(
-    id="cis_1_12_unused_credentials",
+cis_aws_1_12_unused_credentials = Rule(
+    id="cis_aws_1_12_unused_credentials",
     name="CIS AWS 1.12: Unused Credentials",
     description=(
         "Credentials unused for 45 days or greater should be disabled to reduce "
@@ -169,9 +179,18 @@ cis_1_12_unused_credentials = Rule(
     ),
     output_model=UnusedCredentialsOutput,
     facts=(_aws_unused_credentials,),
-    tags=("cis:1.12", "cis:aws-5.0", "iam", "credentials", "stride:spoofing"),
+    tags=("iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="1.12",
+        ),
+    ),
 )
 
 
@@ -221,8 +240,8 @@ _aws_user_direct_policies = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_1_15_user_direct_policies = Rule(
-    id="cis_1_15_user_direct_policies",
+cis_aws_1_15_user_direct_policies = Rule(
+    id="cis_aws_1_15_user_direct_policies",
     name="CIS AWS 1.15: Users With Direct Policy Attachments",
     description=(
         "IAM users should receive permissions only through groups. Direct policy "
@@ -230,15 +249,18 @@ cis_1_15_user_direct_policies = Rule(
     ),
     output_model=UserDirectPoliciesOutput,
     facts=(_aws_user_direct_policies,),
-    tags=(
-        "cis:1.15",
-        "cis:aws-5.0",
-        "iam",
-        "policies",
-        "stride:elevation_of_privilege",
-    ),
+    tags=("iam", "policies", "stride:elevation_of_privilege"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="1.15",
+        ),
+    ),
 )
 
 
@@ -293,8 +315,8 @@ _aws_multiple_access_keys = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_1_13_multiple_access_keys = Rule(
-    id="cis_1_13_multiple_access_keys",
+cis_aws_1_13_multiple_access_keys = Rule(
+    id="cis_aws_1_13_multiple_access_keys",
     name="CIS AWS 1.13: Users With Multiple Active Access Keys",
     description=(
         "Each IAM user should have only one active access key. Multiple active keys "
@@ -302,9 +324,18 @@ cis_1_13_multiple_access_keys = Rule(
     ),
     output_model=MultipleAccessKeysOutput,
     facts=(_aws_multiple_access_keys,),
-    tags=("cis:1.13", "cis:aws-5.0", "iam", "credentials", "stride:spoofing"),
+    tags=("iam", "credentials", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="1.13",
+        ),
+    ),
 )
 
 
@@ -359,8 +390,8 @@ _aws_expired_certificates = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_1_18_expired_certificates = Rule(
-    id="cis_1_18_expired_certificates",
+cis_aws_1_18_expired_certificates = Rule(
+    id="cis_aws_1_18_expired_certificates",
     name="CIS AWS 1.18: Expired SSL/TLS Certificates",
     description=(
         "Expired SSL/TLS certificates should be removed from ACM to maintain "
@@ -368,7 +399,16 @@ cis_1_18_expired_certificates = Rule(
     ),
     output_model=ExpiredCertificatesOutput,
     facts=(_aws_expired_certificates,),
-    tags=("cis:1.18", "cis:aws-5.0", "certificates", "acm", "stride:spoofing"),
+    tags=("certificates", "acm", "stride:spoofing"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="1.18",
+        ),
+    ),
 )

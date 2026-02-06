@@ -4,4 +4,5 @@ orm
 sync
 aws_client
 driftdetect
+rules
 ```

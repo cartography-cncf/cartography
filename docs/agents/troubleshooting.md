@@ -191,7 +191,7 @@ Understanding these files helps diagnose issues:
 | `cartography/models/core/nodes.py` | `CartographyNodeSchema`, `CartographyNodeProperties` base classes |
 | `cartography/models/core/relationships.py` | `CartographyRelSchema`, `LinkDirection`, matchers |
 | `cartography/config.py` | Configuration object - check for missing fields |
-| `cartography/cli.py` | CLI argument definitions |
+| `cartography/cli.py` | Typer-based CLI with organized help panels |
 | `cartography/data/indexes.cypher` | Manual index definitions (legacy) |
 | `cartography/data/jobs/cleanup/` | Legacy cleanup job JSON files |
 

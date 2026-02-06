@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -93,8 +94,8 @@ _aws_unrestricted_ssh = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_5_1_unrestricted_ssh = Rule(
-    id="cis_5_1_unrestricted_ssh",
+cis_aws_5_1_unrestricted_ssh = Rule(
+    id="cis_aws_5_1_unrestricted_ssh",
     name="CIS AWS 5.1: Unrestricted SSH Access",
     description=(
         "Security groups should not allow SSH access (port 22) from any IP address. "
@@ -103,8 +104,6 @@ cis_5_1_unrestricted_ssh = Rule(
     output_model=UnrestrictedSshOutput,
     facts=(_aws_unrestricted_ssh,),
     tags=(
-        "cis:5.1",
-        "cis:aws-5.0",
         "networking",
         "security-groups",
         "ssh",
@@ -113,6 +112,15 @@ cis_5_1_unrestricted_ssh = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="5.1",
+        ),
+    ),
 )
 
 
@@ -182,8 +190,8 @@ _aws_unrestricted_rdp = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_5_2_unrestricted_rdp = Rule(
-    id="cis_5_2_unrestricted_rdp",
+cis_aws_5_2_unrestricted_rdp = Rule(
+    id="cis_aws_5_2_unrestricted_rdp",
     name="CIS AWS 5.2: Unrestricted RDP Access",
     description=(
         "Security groups should not allow RDP access (port 3389) from any IP address. "
@@ -192,8 +200,6 @@ cis_5_2_unrestricted_rdp = Rule(
     output_model=UnrestrictedRdpOutput,
     facts=(_aws_unrestricted_rdp,),
     tags=(
-        "cis:5.2",
-        "cis:aws-5.0",
         "networking",
         "security-groups",
         "rdp",
@@ -202,6 +208,15 @@ cis_5_2_unrestricted_rdp = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="5.2",
+        ),
+    ),
 )
 
 
@@ -275,8 +290,8 @@ _aws_default_sg_allows_traffic = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_5_4_default_sg_traffic = Rule(
-    id="cis_5_4_default_sg_traffic",
+cis_aws_5_4_default_sg_traffic = Rule(
+    id="cis_aws_5_4_default_sg_traffic",
     name="CIS AWS 5.4: Default Security Group Restricts Traffic",
     description=(
         "The default security group of every VPC should restrict all traffic to "
@@ -285,8 +300,6 @@ cis_5_4_default_sg_traffic = Rule(
     output_model=DefaultSgAllowsTrafficOutput,
     facts=(_aws_default_sg_allows_traffic,),
     tags=(
-        "cis:5.4",
-        "cis:aws-5.0",
         "networking",
         "security-groups",
         "stride:information_disclosure",
@@ -294,82 +307,13 @@ cis_5_4_default_sg_traffic = Rule(
     ),
     version="1.0.0",
     references=CIS_REFERENCES,
-)
-
-
-# =============================================================================
-# Additional: Unrestricted All Ports
-# Main node: EC2SecurityGroup
-# =============================================================================
-class UnrestrictedAllPortsOutput(Finding):
-    """Output model for unrestricted all ports check."""
-
-    security_group_id: str | None = None
-    security_group_name: str | None = None
-    region: str | None = None
-    protocol: str | None = None
-    cidr_range: str | None = None
-    account_id: str | None = None
-    account: str | None = None
-
-
-_aws_unrestricted_all_ports = Fact(
-    id="aws_unrestricted_all_ports",
-    name="AWS security groups with unrestricted access to all ports",
-    description=(
-        "Detects security groups that allow access to all ports from any IP address "
-        "(0.0.0.0/0 or ::/0). This is a severe misconfiguration that exposes all "
-        "services to the internet."
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="5.4",
+        ),
     ),
-    cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
-          <-[:MEMBER_OF_IP_RULE]-(range:IpRange)
-    WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')
-      AND rule.protocol = '-1'
-    RETURN
-        sg.groupid AS security_group_id,
-        sg.name AS security_group_name,
-        sg.region AS region,
-        rule.protocol AS protocol,
-        range.id AS cidr_range,
-        a.id AS account_id,
-        a.name AS account
-    """,
-    cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
-          <-[:MEMBER_OF_IP_RULE]-(range:IpRange)
-    WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')
-      AND rule.protocol = '-1'
-    RETURN *
-    """,
-    cypher_count_query="""
-    MATCH (sg:EC2SecurityGroup)
-    RETURN COUNT(sg) AS count
-    """,
-    asset_id_field="security_group_id",
-    module=Module.AWS,
-    maturity=Maturity.STABLE,
-)
-
-unrestricted_all_ports = Rule(
-    id="unrestricted_all_ports",
-    name="Unrestricted Access to All Ports",
-    description=(
-        "Security groups should not allow access to all ports from any IP address. "
-        "This is a severe misconfiguration that exposes all services."
-    ),
-    output_model=UnrestrictedAllPortsOutput,
-    facts=(_aws_unrestricted_all_ports,),
-    tags=(
-        "cis:aws-5.0",
-        "networking",
-        "security-groups",
-        "critical",
-        "stride:information_disclosure",
-        "stride:elevation_of_privilege",
-    ),
-    version="1.0.0",
-    references=CIS_REFERENCES,
 )

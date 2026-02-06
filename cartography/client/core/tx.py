@@ -14,16 +14,19 @@ import backoff
 import neo4j
 import neo4j.exceptions
 
+from cartography.graph.querybuilder import build_conditional_label_queries
 from cartography.graph.querybuilder import build_create_index_queries
 from cartography.graph.querybuilder import build_create_index_queries_for_matchlink
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.graph.querybuilder import build_matchlink_query
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.core.relationships import CartographyRelSchema
+from cartography.stats import get_stats_client
 from cartography.util import backoff_handler
 from cartography.util import batch
 
 logger = logging.getLogger(__name__)
+stat_handler = get_stats_client(__name__)
 
 T = TypeVar("T")
 
@@ -422,7 +425,7 @@ def read_single_value_tx(
 
     Examples:
         >>> query = '''MATCH (a:TestNode{name: "Lisa"}) RETURN a.age'''
-        >>> value = neo4j_session.read_transaction(read_single_value_tx, query)
+        >>> value = neo4j_session.execute_read(read_single_value_tx, query)
         >>> print(value)
         8
 
@@ -466,7 +469,7 @@ def read_list_of_dicts_tx(
 
     Examples:
         >>> query = "MATCH (a:TestNode) RETURN a.name AS name, a.age AS age ORDER BY age"
-        >>> data = neo4j_session.read_transaction(read_list_of_dicts_tx, query)
+        >>> data = neo4j_session.execute_read(read_list_of_dicts_tx, query)
         >>> print(data)
         [{'name': 'Lisa', 'age': 8}, {'name': 'Homer', 'age': 39}]
 
@@ -506,7 +509,7 @@ def read_list_of_tuples_tx(
 
     Examples:
         >>> query = "MATCH (a:TestNode) RETURN a.name AS name, a.age AS age ORDER BY age"
-        >>> data = neo4j_session.read_transaction(read_list_of_tuples_tx, query)
+        >>> data = neo4j_session.execute_read(read_list_of_tuples_tx, query)
         >>> print(data)
         [('Lisa', 8), ('Homer', 39)]
 
@@ -547,7 +550,7 @@ def read_single_dict_tx(tx: neo4j.Transaction, query: str, **kwargs) -> Any:
 
     Examples:
         >>> query = '''MATCH (a:TestNode{name: "Homer"}) RETURN a.name AS name, a.age AS age'''
-        >>> result = neo4j_session.read_transaction(read_single_dict_tx, query)
+        >>> result = neo4j_session.execute_read(read_single_dict_tx, query)
         >>> print(result)
         {'name': 'Homer', 'age': 39}
 
@@ -815,6 +818,17 @@ def load(
         neo4j_session, ingestion_query, dict_list, batch_size=batch_size, **kwargs
     )
 
+    # Apply conditional labels if any are defined
+    # Pass kwargs to provide sub-resource parameters (e.g., AWS_ID) for scoped queries
+    conditional_label_queries = build_conditional_label_queries(node_schema)
+    for query in conditional_label_queries:
+        run_write_query(neo4j_session, query, **kwargs)
+
+    # Emit metrics for loaded nodes
+    node_count = len(dict_list)
+    stat_handler.incr(f"node.{node_schema.label.lower()}.loaded", node_count)
+    logger.info("Loaded %d %s nodes", node_count, node_schema.label)
+
 
 def load_matchlinks(
     neo4j_session: neo4j.Session,
@@ -875,3 +889,8 @@ def load_matchlinks(
     load_graph_data(
         neo4j_session, matchlink_query, dict_list, batch_size=batch_size, **kwargs
     )
+
+    # Emit metrics for loaded relationships
+    rel_count = len(dict_list)
+    stat_handler.incr(f"relationship.{rel_schema.rel_label.lower()}.loaded", rel_count)
+    logger.info("Loaded %d %s relationships", rel_count, rel_schema.rel_label)

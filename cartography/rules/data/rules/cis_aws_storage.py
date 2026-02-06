@@ -10,6 +10,7 @@ Facts within a Rule are provider-specific implementations of the same concept.
 
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Finding
+from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
@@ -73,8 +74,8 @@ _aws_s3_versioning_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_1_1_s3_versioning = Rule(
-    id="cis_2_1_1_s3_versioning",
+cis_aws_2_1_1_s3_versioning = Rule(
+    id="cis_aws_2_1_1_s3_versioning",
     name="CIS AWS 2.1.1: S3 Bucket Versioning",
     description=(
         "S3 buckets should have versioning enabled to protect against accidental "
@@ -82,9 +83,18 @@ cis_2_1_1_s3_versioning = Rule(
     ),
     output_model=S3VersioningOutput,
     facts=(_aws_s3_versioning_disabled,),
-    tags=("cis:2.1.1", "cis:aws-5.0", "storage", "s3", "stride:tampering"),
+    tags=("storage", "s3", "stride:tampering"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="2.1.1",
+        ),
+    ),
 )
 
 
@@ -135,8 +145,8 @@ _aws_s3_mfa_delete_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_1_2_s3_mfa_delete = Rule(
-    id="cis_2_1_2_s3_mfa_delete",
+cis_aws_2_1_2_s3_mfa_delete = Rule(
+    id="cis_aws_2_1_2_s3_mfa_delete",
     name="CIS AWS 2.1.2: S3 Bucket MFA Delete",
     description=(
         "S3 buckets should have MFA Delete enabled to require MFA authentication "
@@ -144,9 +154,18 @@ cis_2_1_2_s3_mfa_delete = Rule(
     ),
     output_model=S3MfaDeleteOutput,
     facts=(_aws_s3_mfa_delete_disabled,),
-    tags=("cis:2.1.2", "cis:aws-5.0", "storage", "s3", "stride:tampering"),
+    tags=("storage", "s3", "stride:tampering"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="2.1.2",
+        ),
+    ),
 )
 
 
@@ -208,8 +227,8 @@ _aws_s3_block_public_access_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_1_4_s3_block_public_access = Rule(
-    id="cis_2_1_4_s3_block_public_access",
+cis_aws_2_1_4_s3_block_public_access = Rule(
+    id="cis_aws_2_1_4_s3_block_public_access",
     name="CIS AWS 2.1.4: S3 Block Public Access",
     description=(
         "S3 buckets should have all Block Public Access settings enabled to prevent "
@@ -217,9 +236,18 @@ cis_2_1_4_s3_block_public_access = Rule(
     ),
     output_model=S3BlockPublicAccessOutput,
     facts=(_aws_s3_block_public_access_disabled,),
-    tags=("cis:2.1.4", "cis:aws-5.0", "storage", "s3", "stride:information_disclosure"),
+    tags=("storage", "s3", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="2.1.4",
+        ),
+    ),
 )
 
 
@@ -269,8 +297,8 @@ _aws_s3_access_logging_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_1_5_s3_access_logging = Rule(
-    id="cis_2_1_5_s3_access_logging",
+cis_aws_2_1_5_s3_access_logging = Rule(
+    id="cis_aws_2_1_5_s3_access_logging",
     name="CIS AWS 2.1.5: S3 Bucket Access Logging",
     description=(
         "S3 buckets should have server access logging enabled to provide detailed "
@@ -278,9 +306,18 @@ cis_2_1_5_s3_access_logging = Rule(
     ),
     output_model=S3AccessLoggingOutput,
     facts=(_aws_s3_access_logging_disabled,),
-    tags=("cis:2.1.5", "cis:aws-5.0", "storage", "s3", "logging", "stride:repudiation"),
+    tags=("storage", "s3", "logging", "stride:repudiation"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="2.1.5",
+        ),
+    ),
 )
 
 
@@ -332,8 +369,8 @@ _aws_s3_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_1_6_s3_encryption = Rule(
-    id="cis_2_1_6_s3_encryption",
+cis_aws_2_1_6_s3_encryption = Rule(
+    id="cis_aws_2_1_6_s3_encryption",
     name="CIS AWS 2.1.6: S3 Default Encryption",
     description=(
         "S3 buckets should have default encryption enabled to ensure all objects "
@@ -341,16 +378,18 @@ cis_2_1_6_s3_encryption = Rule(
     ),
     output_model=S3EncryptionOutput,
     facts=(_aws_s3_encryption_disabled,),
-    tags=(
-        "cis:2.1.6",
-        "cis:aws-5.0",
-        "storage",
-        "s3",
-        "encryption",
-        "stride:information_disclosure",
-    ),
+    tags=("storage", "s3", "encryption", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="2.1.6",
+        ),
+    ),
 )
 
 
@@ -407,8 +446,8 @@ _aws_rds_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_2_1_rds_encryption = Rule(
-    id="cis_2_2_1_rds_encryption",
+cis_aws_2_2_1_rds_encryption = Rule(
+    id="cis_aws_2_2_1_rds_encryption",
     name="CIS AWS 2.2.1: RDS Encryption at Rest",
     description=(
         "RDS instances should have storage encryption enabled to protect data at rest "
@@ -416,16 +455,18 @@ cis_2_2_1_rds_encryption = Rule(
     ),
     output_model=RdsEncryptionOutput,
     facts=(_aws_rds_encryption_disabled,),
-    tags=(
-        "cis:2.2.1",
-        "cis:aws-5.0",
-        "storage",
-        "rds",
-        "encryption",
-        "stride:information_disclosure",
-    ),
+    tags=("storage", "rds", "encryption", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="2.2.1",
+        ),
+    ),
 )
 
 
@@ -479,8 +520,8 @@ _aws_ebs_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_2_3_1_ebs_encryption = Rule(
-    id="cis_2_3_1_ebs_encryption",
+cis_aws_2_3_1_ebs_encryption = Rule(
+    id="cis_aws_2_3_1_ebs_encryption",
     name="CIS AWS 2.3.1: EBS Volume Encryption",
     description=(
         "EBS volumes should be encrypted to protect data at rest and in transit "
@@ -488,14 +529,16 @@ cis_2_3_1_ebs_encryption = Rule(
     ),
     output_model=EbsEncryptionOutput,
     facts=(_aws_ebs_encryption_disabled,),
-    tags=(
-        "cis:2.3.1",
-        "cis:aws-5.0",
-        "storage",
-        "ebs",
-        "encryption",
-        "stride:information_disclosure",
-    ),
+    tags=("storage", "ebs", "encryption", "stride:information_disclosure"),
     version="1.0.0",
     references=CIS_REFERENCES,
+    frameworks=(
+        Framework(
+            name="CIS AWS Foundations Benchmark",
+            short_name="CIS",
+            scope="aws",
+            revision="5.0",
+            requirement="2.3.1",
+        ),
+    ),
 )

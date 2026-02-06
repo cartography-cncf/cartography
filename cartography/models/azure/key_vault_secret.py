@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -66,6 +67,9 @@ class AzureKeyVaultSecretToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureKeyVaultSecretSchema(CartographyNodeSchema):
     label: str = "AzureKeyVaultSecret"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["Secret"]
+    )  # Secret label is used for ontology mapping
     properties: AzureKeyVaultSecretProperties = AzureKeyVaultSecretProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
