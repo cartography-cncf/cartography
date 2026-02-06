@@ -58,7 +58,7 @@ class DockerfileStage:
 class ParsedDockerfile:
     """Represents a fully parsed Dockerfile."""
 
-    path: str
+    path: str | None
     content: str
     content_hash: str
     stages: list[DockerfileStage] = field(default_factory=list)
@@ -133,7 +133,7 @@ def parse(content: str) -> ParsedDockerfile:
     stages = _parse_stages(content)
 
     return ParsedDockerfile(
-        path="",
+        path=None,
         content=content,
         content_hash=content_hash,
         stages=stages,
@@ -151,15 +151,9 @@ def parse_file(path: str | Path) -> ParsedDockerfile:
     """
     path = Path(path)
     content = path.read_text(encoding="utf-8")
-    content_hash = hashlib.sha256(content.encode()).hexdigest()
-    stages = _parse_stages(content)
-
-    return ParsedDockerfile(
-        path=str(path),
-        content=content,
-        content_hash=content_hash,
-        stages=stages,
-    )
+    result = parse(content)
+    result.path = str(path)
+    return result
 
 
 def normalize_command(cmd: str | None) -> str:

@@ -30,6 +30,7 @@ _DEFAULT_IMAGE_LIMIT: int | None = None
 _DEFAULT_MIN_MATCH_CONFIDENCE: float = 0.5
 
 
+@timeit
 def get_unmatched_container_images_with_history(
     neo4j_session: neo4j.Session,
     limit: int | None = None,
