@@ -959,7 +959,7 @@ requires-dist = [
     { name = "azure-mgmt-logic", specifier = ">=10.0.0" },
     { name = "azure-mgmt-monitor", specifier = ">=3.0.0" },
     { name = "azure-mgmt-network", specifier = ">=25.0.0" },
-    { name = "azure-mgmt-resource", specifier = ">=10.2.0" },
+    { name = "azure-mgmt-resource", specifier = ">=10.2.0,<25.0.0" },
     { name = "azure-mgmt-security", specifier = ">=5.0.0" },
     { name = "azure-mgmt-sql", specifier = ">=3.0.1,<4" },
     { name = "azure-mgmt-storage", specifier = ">=16.0.0" },
@@ -1675,7 +1675,7 @@ grpc = [
 
 [[package]]
 name = "google-api-python-client"
-version = "2.188.0"
+version = "2.189.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "google-api-core" },
@@ -1684,9 +1684,9 @@ dependencies = [
     { name = "httplib2" },
     { name = "uritemplate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a8/d7/14613c7efbab5b428b400961f5dbac46ad9e019c44e1f3fd14d67c33111c/google_api_python_client-2.188.0.tar.gz", hash = "sha256:5c469db6614f071009e3e5bb8b6aeeccae3beb3647fa9c6cd97f0d551edde0b6", size = 14302906, upload-time = "2026-01-13T22:15:13.747Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/f8/0783aeca3410ee053d4dd1fccafd85197847b8f84dd038e036634605d083/google_api_python_client-2.189.0.tar.gz", hash = "sha256:45f2d8559b5c895dde6ad3fb33de025f5cb2c197fa5862f18df7f5295a172741", size = 13979470, upload-time = "2026-02-03T19:24:55.432Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/67/a99a7d79d7a37a67cb8008f1d7dcedc46d29c6df5063aeb446112afd4aa4/google_api_python_client-2.188.0-py3-none-any.whl", hash = "sha256:3cad1b68f9d48b82b93d77927e8370a6f43f33d97848242601f14a93a1c70ef5", size = 14870005, upload-time = "2026-01-13T22:15:11.345Z" },
+    { url = "https://files.pythonhosted.org/packages/04/44/3677ff27998214f2fa7957359da48da378a0ffff1bd0bdaba42e752bc13e/google_api_python_client-2.189.0-py3-none-any.whl", hash = "sha256:a258c09660a49c6159173f8bbece171278e917e104a11f0640b34751b79c8a1a", size = 14547633, upload-time = "2026-02-03T19:24:52.845Z" },
 ]
 
 [[package]]
@@ -2236,15 +2236,15 @@ wheels = [
 
 [[package]]
 name = "marshmallow"
-version = "4.2.1"
+version = "4.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "backports-datetime-fromisoformat", marker = "python_full_version < '3.11'" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d8/61/9540e1b120e9eff74b24def6060b79347f2b4083dddbd5a435f6e8d74b14/marshmallow-4.2.1.tar.gz", hash = "sha256:4d1d66189c8d279ca73a6b0599d74117e5f8a3830b5cd766b75c2bb08e3464e7", size = 221309, upload-time = "2026-01-23T13:00:24.841Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/03/261af5efb3d3ce0e2db3fd1e11dc5a96b74a4fb76e488da1c845a8f12345/marshmallow-4.2.2.tar.gz", hash = "sha256:ba40340683a2d1c15103647994ff2f6bc2c8c80da01904cbe5d96ee4baa78d9f", size = 221404, upload-time = "2026-02-04T15:47:03.401Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6c/41/e8cfdebc3a475c397e074ceaa12e86dca1b23e8e10c2ab4d4875f9a01418/marshmallow-4.2.1-py3-none-any.whl", hash = "sha256:d82b1a83cfbb4667d050850fbed4e9d4435576cb95f5ff37894f375dce201768", size = 48451, upload-time = "2026-01-23T13:00:23.009Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/70/bb89f807a6a6704bdc4d6f850d5d32954f6c1965e3248e31455defdf2f30/marshmallow-4.2.2-py3-none-any.whl", hash = "sha256:084a9466111b7ec7183ca3a65aed758739af919fedc5ebdab60fb39d6b4dc121", size = 48454, upload-time = "2026-02-04T15:47:02.013Z" },
 ]
 
 [[package]]
@@ -2439,7 +2439,7 @@ wheels = [
 
 [[package]]
 name = "msgraph-sdk"
-version = "1.53.0"
+version = "1.54.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-identity" },
@@ -2449,9 +2449,9 @@ dependencies = [
     { name = "microsoft-kiota-serialization-text" },
     { name = "msgraph-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/5a/04d0f6338b9c102187a2e84d6fde29778572ddbb1243c9c4ef8844802e20/msgraph_sdk-1.53.0.tar.gz", hash = "sha256:bc27e9aa2ebf0de1375b309ae7ae7116bfc39c24085ec20b372e3a23b72da672", size = 6266772, upload-time = "2026-01-22T20:30:05.604Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ac/56/0c2fba87b6eee19e4589bf21c3141de290afc51d654445fc3e2908244d7b/msgraph_sdk-1.54.0.tar.gz", hash = "sha256:4dc294fc7f8a173f5bee30ccfc396b81fa1a16d7dcc95debe76fdf706920e5b3", size = 6283861, upload-time = "2026-02-06T01:29:26.975Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/a0/56f76ca7ce632ded3cf4bb840c3499676036c42f551dc2db2e2e4b2ec55c/msgraph_sdk-1.53.0-py3-none-any.whl", hash = "sha256:15fbb35ce7df6b1b54896589059a85abf0aeb499ffe3361dfb6766cdaa7224bb", size = 25661692, upload-time = "2026-01-22T20:30:02.738Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/7a/d9eed36c7f309eb6c81c5b72b5b8bad40203487414ad2b9e371febc79885/msgraph_sdk-1.54.0-py3-none-any.whl", hash = "sha256:2b9894fd9f21ed9a71188e3d68bd1a9a58b2d1077e96ee4cb10a9f3d9d59a58e", size = 25707515, upload-time = "2026-02-06T01:29:23.344Z" },
 ]
 
 [[package]]
@@ -2686,7 +2686,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.166.0"
+version = "2.167.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -2696,9 +2696,9 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/db/27/a8d2500545a0e244b26cff7d5cee2eabdd4f6a1feb923a25029050143e78/oci-2.166.0.tar.gz", hash = "sha256:a039162e2ef1cde591a779d0476bd25f08abdc72e99f10d7bc3260670e133c5b", size = 16486524, upload-time = "2026-01-27T03:55:09.761Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/50/da8b5cdb94928436fc7dbdf35243d2abc03ddb84278b083c0e946ac2fdc2/oci-2.167.0.tar.gz", hash = "sha256:66136f0af4bfef3a7234d900dae877affade9a541d10c1c264e920a5db78b7f4", size = 16419275, upload-time = "2026-02-03T05:03:58.111Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/f9/3a0d243f428bfeb6799fdbdcb6bf9facdfb81e1188442b582b504dd32100/oci-2.166.0-py3-none-any.whl", hash = "sha256:ef050579f2941b24adb7c694ee6030c60fd9ab02a13a2491ca1690897c131cb3", size = 33503204, upload-time = "2026-01-27T03:55:02.007Z" },
+    { url = "https://files.pythonhosted.org/packages/72/5b/21b4b944b40fc0671aedd2bc0187d953fbaca09bb1b94cdc7947f01fb22c/oci-2.167.0-py3-none-any.whl", hash = "sha256:78f81d332a06b4ee5956d0e73c37e23e2f89183afc4ccafefe700f6d96320f6f", size = 33437581, upload-time = "2026-02-03T05:03:50.792Z" },
 ]
 
 [[package]]
@@ -2754,11 +2754,11 @@ wheels = [
 
 [[package]]
 name = "packaging"
-version = "26.0"
+version = "25.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d2cf530f3accf79c4fca01e96ffc950d8a52213bd8e4/packaging-26.0.tar.gz", hash = "sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4", size = 143416, upload-time = "2026-01-21T20:50:39.064Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a1/d4/1fc4078c65507b51b96ca8f8c3ba19e6a61c8253c72794544580a7b6c24d/packaging-25.0.tar.gz", hash = "sha256:d443872c98d677bf60f6a1f2f8c1cb748e8fe762d2bf9d3148b5599295b0fc4f", size = 165727, upload-time = "2025-04-19T11:48:59.673Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529", size = 74366, upload-time = "2026-01-21T20:50:37.788Z" },
+    { url = "https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl", hash = "sha256:29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484", size = 66469, upload-time = "2025-04-19T11:48:57.875Z" },
 ]
 
 [[package]]
@@ -3979,14 +3979,14 @@ wheels = [
 
 [[package]]
 name = "types-aiobotocore-ecr"
-version = "3.1.1"
+version = "3.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ab/27/fc82f9d7522d554cbf7df02a037aa9c2f4a7e978efb82f2f60e06494f8b1/types_aiobotocore_ecr-3.1.1.tar.gz", hash = "sha256:155edc63c612e1a7861fa746376a5143cc4f3ca05b60c27d68ced23e8567a344", size = 37025, upload-time = "2026-01-21T02:07:06.604Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/34/46/7979d9a18f89c4d25986037960156c05025c47ad61cf427c363b3df9a6da/types_aiobotocore_ecr-3.1.2.tar.gz", hash = "sha256:ebac5adfd531fa01e27820b59f01f5b480bca622e12f37bef1f29732e1cb5cb8", size = 37019, upload-time = "2026-02-06T02:23:10.771Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b5/34/8cf816860041845bcff546cefaa9f5f129391dae8c67580090bad47994b2/types_aiobotocore_ecr-3.1.1-py3-none-any.whl", hash = "sha256:e5c02e06ff057bbe7821fb40ac7de67d2335fdc7987ea31392051efe81ceb69c", size = 43575, upload-time = "2026-01-21T02:07:05.422Z" },
+    { url = "https://files.pythonhosted.org/packages/42/a6/7d34604a06e8a10e04ba78eea814269f6a4dc790e5882a285f04decfde45/types_aiobotocore_ecr-3.1.2-py3-none-any.whl", hash = "sha256:201231fd66a593d9d8bab9638ef0d089524b57153c74c2d1dc6aec9e652c2ed9", size = 43574, upload-time = "2026-02-06T02:23:09.386Z" },
 ]
 
 [[package]]
