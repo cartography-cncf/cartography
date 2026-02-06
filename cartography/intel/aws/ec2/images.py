@@ -40,8 +40,8 @@ def get_images_in_use(
     }
     RETURN DISTINCT image;
     """
-    result = read_list_of_values_tx(
-        neo4j_session,
+    result = neo4j_session.execute_read(
+        read_list_of_values_tx,
         get_images_query,
         AWS_ACCOUNT_ID=current_aws_account_id,
         Region=region,
