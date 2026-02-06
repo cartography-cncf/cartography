@@ -1,16 +1,15 @@
 import logging
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
 
 import neo4j
-from googleapiclient.discovery import HttpError
-from googleapiclient.discovery import Resource
+from google.api_core import exceptions
+from google.cloud import storage
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp import compute
-from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.storage.bucket import GCPBucketLabelSchema
 from cartography.models.gcp.storage.bucket import GCPBucketSchema
 from cartography.util import timeit
@@ -19,47 +18,113 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
+def get_gcp_buckets(
+    project_id: str, credentials: Any = None
+) -> Dict[str, Any]:
     """
-    Returns a list of storage objects within some given project
+    Returns a list of storage buckets within some given project using google-cloud-storage SDK.
 
-    :type storage: The GCP storage resource object
-    :param storage: The storage resource object created by googleapiclient.discovery.build()
+    The google-cloud-storage SDK provides automatic retry logic for transient errors (429, 5xx)
+    with exponential backoff, better type safety, and cleaner API interface.
 
     :type project_id: str
     :param project_id: The Google Project Id that you are retrieving buckets from
 
-    :rtype: Storage Object
-    :return: Storage response object
+    :type credentials: google.auth.credentials.Credentials
+    :param credentials: The GCP credentials object
+
+    :rtype: Dict[str, Any]
+    :return: Dictionary with 'items' key containing list of bucket dictionaries
     """
     try:
-        req = storage.buckets().list(project=project_id)
-        res = gcp_api_execute_with_retry(req)
-        return res
-    except HttpError as e:
-        reason = compute._get_error_reason(e)
-        if reason == "invalid":
-            logger.warning(
-                (
-                    "The project %s is invalid - returned a 400 invalid error."
-                    "Full details: %s"
-                ),
-                project_id,
-                e,
-            )
-            return {}
-        elif reason == "forbidden":
-            logger.warning(
-                (
-                    "You do not have storage.bucket.list access to the project %s. "
-                    "Full details: %s"
-                ),
-                project_id,
-                e,
-            )
-            return {}
-        else:
-            raise
+        # Initialize the Storage client with automatic retry handling
+        # The SDK handles pagination and retries automatically
+        client = storage.Client(project=project_id, credentials=credentials)
+
+        buckets_data = []
+        # list_buckets() returns an iterator that handles pagination automatically
+        for bucket in client.list_buckets():
+            # Convert Bucket object to dictionary format for compatibility with existing schema
+            bucket_dict = {
+                "id": bucket.name,
+                "kind": "storage#bucket",
+                "selfLink": f"https://www.googleapis.com/storage/v1/b/{bucket.name}",
+                "projectNumber": bucket.project_number,
+                "name": bucket.name,
+                "timeCreated": bucket.time_created.isoformat() if bucket.time_created else None,
+                "updated": bucket.updated.isoformat() if bucket.updated else None,
+                "metageneration": bucket.metageneration,
+                "location": bucket.location,
+                "locationType": bucket.location_type,
+                "storageClass": bucket.storage_class,
+                "labels": dict(bucket.labels) if bucket.labels else {},
+            }
+
+            # Add IAM configuration if available
+            if bucket.iam_configuration:
+                bucket_dict["iamConfiguration"] = {
+                    "bucketPolicyOnly": {
+                        "enabled": bucket.iam_configuration.bucket_policy_only_enabled,
+                    }
+                }
+
+            # Add owner information if available
+            if hasattr(bucket, "owner") and bucket.owner:
+                bucket_dict["owner"] = bucket.owner
+
+            # Add versioning configuration
+            if bucket.versioning_enabled is not None:
+                bucket_dict["versioning"] = {"enabled": bucket.versioning_enabled}
+
+            # Add retention policy if configured
+            if bucket.retention_policy_effective_time:
+                bucket_dict["retentionPolicy"] = {
+                    "retentionPeriod": bucket.retention_period,
+                    "effectiveTime": bucket.retention_policy_effective_time.isoformat(),
+                }
+
+            # Add encryption configuration if available
+            if bucket.default_kms_key_name:
+                bucket_dict["encryption"] = {
+                    "defaultKmsKeyName": bucket.default_kms_key_name,
+                }
+
+            # Add logging configuration if available
+            if hasattr(bucket, "log_bucket") and bucket.log_bucket:
+                bucket_dict["logging"] = {"logBucket": bucket.log_bucket}
+
+            # Add billing configuration
+            if bucket.requester_pays is not None:
+                bucket_dict["billing"] = {"requesterPays": bucket.requester_pays}
+
+            buckets_data.append(bucket_dict)
+
+        return {"items": buckets_data}
+
+    except exceptions.Forbidden as e:
+        logger.warning(
+            "You do not have storage.buckets.list permission for project %s. "
+            "Error: %s",
+            project_id,
+            e,
+        )
+        return {}
+    except exceptions.InvalidArgument as e:
+        logger.warning(
+            "The project %s is invalid - returned an invalid argument error. "
+            "Error: %s",
+            project_id,
+            e,
+        )
+        return {}
+    except Exception as e:
+        logger.error(
+            "Unexpected error retrieving buckets for project %s: %s",
+            project_id,
+            e,
+            exc_info=True,
+        )
+        raise  # Re-raise to prevent data loss via cleanup
 
 
 @timeit
@@ -163,24 +228,27 @@ def cleanup_gcp_buckets(
 @timeit
 def sync_gcp_buckets(
     neo4j_session: neo4j.Session,
-    storage: Resource,
+    credentials: Any,
     project_id: str,
     gcp_update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
     """
-    Get GCP instances using the Storage resource object, ingest to Neo4j, and clean up old data.
+    Get GCP Storage buckets using the google-cloud-storage SDK, ingest to Neo4j, and clean up old data.
 
-    :type neo4j_session: The Neo4j session object
+    The google-cloud-storage SDK provides automatic retry logic for transient errors,
+    eliminating the need for manual retry handling.
+
+    :type neo4j_session: neo4j.Session
     :param neo4j_session: The Neo4j session
 
-    :type storage: The storage resource object created by googleapiclient.discovery.build()
-    :param storage: The GCP Storage resource object
+    :type credentials: google.auth.credentials.Credentials
+    :param credentials: The GCP credentials object
 
     :type project_id: str
     :param project_id: The project ID of the corresponding project
 
-    :type gcp_update_tag: timestamp
+    :type gcp_update_tag: int
     :param gcp_update_tag: The timestamp value to set our new Neo4j nodes with
 
     :type common_job_parameters: dict
@@ -189,8 +257,8 @@ def sync_gcp_buckets(
     :rtype: NoneType
     :return: Nothing
     """
-    logger.info("Syncing Storage objects for project %s.", project_id)
-    storage_res = get_gcp_buckets(storage, project_id)
+    logger.info("Syncing Storage buckets for project %s.", project_id)
+    storage_res = get_gcp_buckets(project_id, credentials)
     buckets, bucket_labels = transform_gcp_buckets_and_labels(storage_res)
     load_gcp_buckets(neo4j_session, buckets, project_id, gcp_update_tag)
     load_gcp_bucket_labels(neo4j_session, bucket_labels, project_id, gcp_update_tag)
