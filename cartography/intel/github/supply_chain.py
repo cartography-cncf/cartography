@@ -34,6 +34,7 @@ _DEFAULT_MIN_MATCH_CONFIDENCE: float = 0.5
 @timeit
 def get_unmatched_container_images_with_history(
     neo4j_session: neo4j.Session,
+    organization: str,
     update_tag: int,
     limit: int | None = None,
 ) -> list[ContainerImage]:
@@ -44,11 +45,13 @@ def get_unmatched_container_images_with_history(
     which work across different registries (ECR, GCR, etc.).
 
     Returns one image per registry repository (preferring 'latest' tag, then most recently pushed).
-    Excludes images that already have a PACKAGED_FROM relationship created in the current
-    sync iteration (i.e. by provenance matching). Images with stale PACKAGED_FROM from
-    previous iterations are included so they can be re-matched before cleanup removes them.
+    Excludes images that:
+    - Already have a PACKAGED_FROM created in this sync iteration (by provenance matching)
+    - Already claimed by a different GitHub organization (prevents cross-org duplication
+      and cleanup issues when orgs don't run at the same time)
 
     :param neo4j_session: Neo4j session
+    :param organization: The GitHub organization name, used for cross-org scoping
     :param update_tag: The current sync update tag
     :param limit: Optional limit on number of images to return
     :return: List of ContainerImage objects with layer history populated
@@ -58,6 +61,10 @@ def get_unmatched_container_images_with_history(
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
+          AND (
+              NOT exists((img)-[:PACKAGED_FROM {_sub_resource_label: 'GitHubOrganization'}]->())
+              OR exists((img)-[:PACKAGED_FROM {_sub_resource_id: $organization}]->())
+          )
         WITH repo, img, repo_img
         ORDER BY
             CASE WHEN repo_img.tag = 'latest' THEN 0 ELSE 1 END,
@@ -101,7 +108,7 @@ def get_unmatched_container_images_with_history(
     if limit:
         query += f" LIMIT {limit}"
 
-    result = neo4j_session.run(query, update_tag=update_tag)
+    result = neo4j_session.run(query, update_tag=update_tag, organization=organization)
     images = []
 
     for record in result:
@@ -437,6 +444,7 @@ def sync(
     # 3. Get images WITHOUT existing PACKAGED_FROM for dockerfile analysis
     unmatched = get_unmatched_container_images_with_history(
         neo4j_session,
+        organization,
         update_tag,
         limit=image_limit,
     )

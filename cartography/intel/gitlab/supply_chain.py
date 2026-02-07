@@ -36,6 +36,9 @@ def get_unmatched_gitlab_container_images_with_history(
     """
     Query GitLab container images not yet matched by provenance in this sync iteration.
 
+    Scoped to the current GitLab organization via the graph path:
+    GitLabOrganization → RESOURCE → GitLabContainerRepository → HAS_TAG → Tag → REFERENCES → Image.
+
     Returns one image per container repository (preferring 'latest' tag, then most recent).
     Excludes images that already have a PACKAGED_FROM relationship created in the current
     sync iteration (i.e. by provenance matching). Images with stale PACKAGED_FROM from
@@ -48,8 +51,9 @@ def get_unmatched_gitlab_container_images_with_history(
     :return: List of ContainerImage objects with layer history populated
     """
     query = """
-        MATCH (img:GitLabContainerImage)<-[:REFERENCES]-(tag:GitLabContainerRepositoryTag)
-              <-[:HAS_TAG]-(repo:GitLabContainerRepository)
+        MATCH (org:GitLabOrganization {id: $org_url})-[:RESOURCE]->(repo:GitLabContainerRepository)
+              -[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)
+              -[:REFERENCES]->(img:GitLabContainerImage)
         WHERE img.layer_diff_ids IS NOT NULL
           AND size(img.layer_diff_ids) > 0
           AND NOT exists((img)-[:PACKAGED_FROM {lastupdated: $update_tag}]->())
@@ -94,7 +98,7 @@ def get_unmatched_gitlab_container_images_with_history(
     if limit:
         query += f" LIMIT {limit}"
 
-    result = neo4j_session.run(query, update_tag=update_tag)
+    result = neo4j_session.run(query, update_tag=update_tag, org_url=org_url)
     images = []
 
     for record in result:
