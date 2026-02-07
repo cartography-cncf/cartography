@@ -1,0 +1,6 @@
+# Santa
+
+```{toctree}
+config
+schema
+```
