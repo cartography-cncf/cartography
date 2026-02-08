@@ -252,6 +252,7 @@ class CLI:
             epilog="For more documentation please visit: https://github.com/cartography-cncf/cartography",
             no_args_is_help=False,
             add_completion=True,
+            context_settings={"help_option_names": ["-h", "--help"]},
         )
 
         # Store reference to self for use in the command function
