@@ -700,7 +700,7 @@ def _build_attach_sub_resource_statement(
         MatchClause=_build_match_clause(sub_resource_link.target_node_matcher),
         RelMergeClause=rel_merge_clause,
         module_name=_get_module_from_schema(sub_resource_link),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         SubResourceRelLabel=sub_resource_link.rel_label,
         set_rel_properties_statement=_build_rel_properties_statement(
             "r",
@@ -810,7 +810,7 @@ def _build_attach_additional_links_statement(
             rel_var=rel_var,
             RelMerge=rel_merge,
             module_name=_get_module_from_schema(link),
-            module_version=_get_cartography_version(),
+            module_version=get_cartography_version(),
             set_rel_properties_statement=_build_rel_properties_statement(
                 rel_var,
                 rel_props_as_dict,
@@ -1104,7 +1104,7 @@ def build_ingestion_query(
         node_label=node_schema.label,
         dict_id_field=node_props.id,
         module_name=_get_module_from_schema(node_schema),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         set_node_properties_statement=_build_node_properties_statement(
             node_props_as_dict,
             node_schema.extra_node_labels,
@@ -1590,19 +1590,12 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
         target_match=target_match,
         rel=rel,
         module_name=_get_module_from_schema(rel_schema),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         set_rel_properties_statement=_build_rel_properties_statement(
             "r",
             rel_props_as_dict,
         ),
     )
-
-
-def _get_cartography_version() -> str:
-    """
-    Backward-compatible wrapper around the shared version helper.
-    """
-    return get_cartography_version()
 
 
 def _get_module_from_schema(
