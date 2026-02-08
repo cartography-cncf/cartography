@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import getpass
 import logging
 import os
@@ -7,13 +9,14 @@ import typer
 from typing_extensions import Annotated
 
 import cartography.config
-import cartography.sync
-import cartography.util
-from cartography.intel.aws.util.common import parse_and_validate_aws_regions
-from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
-from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
 
 logger = logging.getLogger(__name__)
+
+# Exit code constants (duplicated from cartography.util to avoid importing
+# boto3/neo4j/botocore at CLI startup, which makes ``--help`` very slow).
+STATUS_SUCCESS = 0
+STATUS_FAILURE = 1
+STATUS_KEYBOARD_INTERRUPT = 130
 
 # Help Panel Names - Used to organize options in --help output
 PANEL_CORE = "Core Options"
@@ -172,7 +175,7 @@ class CLI:
         sync: cartography.sync.Sync | None = None,
         prog: str | None = None,
     ):
-        self.sync = sync if sync else cartography.sync.build_default_sync()
+        self.sync = sync
         self.prog = prog
 
     def main(self, argv: list[str]) -> int:
@@ -200,20 +203,20 @@ class CLI:
         # Typer doesn't return exit codes directly, so we catch SystemExit
         try:
             app(argv, standalone_mode=False)
-            return cartography.util.STATUS_SUCCESS
+            return STATUS_SUCCESS
         except SystemExit as e:
             if e.code is None:
-                return cartography.util.STATUS_SUCCESS
+                return STATUS_SUCCESS
             elif isinstance(e.code, int):
                 return e.code
             else:
                 # e.code can be a string message in some cases
-                return cartography.util.STATUS_FAILURE
+                return STATUS_FAILURE
         except KeyboardInterrupt:
-            return cartography.util.STATUS_KEYBOARD_INTERRUPT
+            return STATUS_KEYBOARD_INTERRUPT
         except Exception as e:
             logger.error("Cartography failed: %s", e)
-            return cartography.util.STATUS_FAILURE
+            return STATUS_FAILURE
 
     def _build_app(self, visible_panels: set[str]) -> typer.Typer:
         """
@@ -1453,15 +1456,24 @@ class CLI:
                         "Neo4j username was provided but a password could not be found.",
                     )
 
+            # Lazy-import cartography.sync to avoid loading all intel modules
+            # at CLI startup (keeps ``--help`` fast).
+            import cartography.sync
+
             # Update sync if selected_modules specified
-            sync = cli_instance.sync
             if selected_modules:
                 sync = cartography.sync.build_sync(selected_modules)
+            elif cli_instance.sync is not None:
+                sync = cli_instance.sync
+            else:
+                sync = cartography.sync.build_default_sync()
 
             # Validate AWS options
             if aws_requested_syncs:
+                from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
                 parse_and_validate_aws_requested_syncs(aws_requested_syncs)
             if aws_regions:
+                from cartography.intel.aws.util.common import parse_and_validate_aws_regions
                 parse_and_validate_aws_regions(aws_regions)
 
             # Read Azure client secret
@@ -1662,6 +1674,7 @@ class CLI:
                 semgrep_app_token = os.environ.get(semgrep_app_token_env_var)
 
             if semgrep_dependency_ecosystems:
+                from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
                 parse_and_validate_semgrep_ecosystems(semgrep_dependency_ecosystems)
 
             # Read CVE API key
