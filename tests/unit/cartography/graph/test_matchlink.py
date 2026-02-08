@@ -15,9 +15,7 @@ from tests.unit.cartography.graph.helpers import (
 )
 
 
-@patch(
-    "cartography.graph.querybuilder.get_cartography_version", return_value="3.14.16"
-)
+@patch("cartography.graph.querybuilder.get_cartography_version", return_value="3.14.16")
 def test_build_matchlink_query(_mock_get_cartography_version):
     """
     Test that build_matchlink_query() generates valid Cypher queries.

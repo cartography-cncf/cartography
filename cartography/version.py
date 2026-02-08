@@ -1,23 +1,13 @@
-import logging
-from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version
 
 from cartography import _version as cartography_version
-
-logger = logging.getLogger(__name__)
 
 
 def get_cartography_version() -> str:
     """
     Return the current cartography release version.
     """
-    try:
-        return version("cartography")
-    except PackageNotFoundError:
-        # This can occur in local/dev environments where package metadata
-        # is not discoverable.
-        logger.warning("cartography package not found. Returning 'dev' version.")
-        return "dev"
+    return version("cartography")
 
 
 def get_release_version_and_commit_revision() -> tuple[str, str]:

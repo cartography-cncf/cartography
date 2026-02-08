@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import typer
 from typing_extensions import Annotated
 
-import cartography.config
+from cartography.config import Config
 from cartography.version import get_release_version_and_commit_revision
 
 if TYPE_CHECKING:
@@ -221,6 +221,10 @@ class CLI:
         try:
             app(argv, standalone_mode=False)
             return STATUS_SUCCESS
+        except typer.Exit as e:
+            if e.exit_code is None:
+                return STATUS_SUCCESS
+            return e.exit_code
         except SystemExit as e:
             if e.code is None:
                 return STATUS_SUCCESS
@@ -1882,7 +1886,7 @@ class CLI:
                     )
 
             # Build the Config object
-            config = cartography.config.Config(
+            config = Config(
                 neo4j_uri=neo4j_uri,
                 neo4j_user=neo4j_user,
                 neo4j_password=neo4j_password,
