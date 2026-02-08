@@ -1,7 +1,5 @@
 import logging
 from dataclasses import asdict
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version
 from string import Template
 
 from cartography.models.core.common import PropertyRef
@@ -18,6 +16,7 @@ from cartography.models.ontology.mapping import (
     get_semantic_label_mapping_from_node_schema,
 )
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
+from cartography.version import get_cartography_version
 
 logger = logging.getLogger(__name__)
 
@@ -1601,22 +1600,9 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
 
 def _get_cartography_version() -> str:
     """
-    Get the current version of the cartography package.
-
-    This function attempts to retrieve the version of the installed cartography package
-    using importlib.metadata. If the package is not found (typically in development
-    or testing environments), it returns 'dev' as a fallback.
-
-    Returns:
-        The version string of the cartography package, or 'dev' if not found
+    Backward-compatible wrapper around the shared version helper.
     """
-    try:
-        return version("cartography")
-    except PackageNotFoundError:
-        # This can occured if the cartography package is not installed in the environment, typically in development or testing environments.
-        logger.warning("cartography package not found. Returning 'dev' version.")
-        # Fallback to reading the VERSION file if the package is not found
-        return "dev"
+    return get_cartography_version()
 
 
 def _get_module_from_schema(

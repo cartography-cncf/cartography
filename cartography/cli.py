@@ -12,6 +12,7 @@ import cartography.util
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
+from cartography.version import get_release_version_and_commit_revision
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,20 @@ MODULE_PANELS = {
 
 # Panels that should always be shown (not module-specific)
 ALWAYS_SHOW_PANELS = {PANEL_CORE, PANEL_NEO4J, PANEL_STATSD, PANEL_ANALYSIS}
+
+
+def _version_callback(value: bool) -> None:
+    """
+    Handle eager --version processing before command execution.
+    """
+    if not value:
+        return
+
+    release_version, commit_revision = get_release_version_and_commit_revision()
+    typer.echo(
+        f"cartography release {release_version}, commit revision {commit_revision}"
+    )
+    raise typer.Exit(code=0)
 
 
 def _parse_selected_modules_from_argv(argv: list[str]) -> set[str]:
@@ -247,12 +262,28 @@ class CLI:
             # =================================================================
             # Core Options
             # =================================================================
+            # DEPRECATED: `--verbose` will be removed in v1.0.0. Use `--debug` instead.
             verbose: Annotated[
                 bool,
                 typer.Option(
                     "--verbose",
                     "-v",
-                    help="Enable verbose logging for cartography.",
+                    "--debug",
+                    "-d",
+                    help=(
+                        "Enable verbose logging for cartography. "
+                        "DEPRECATED: --verbose will be removed in v1.0.0; use --debug instead."
+                    ),
+                    rich_help_panel=PANEL_CORE,
+                ),
+            ] = False,
+            show_version: Annotated[
+                bool,
+                typer.Option(
+                    "--version",
+                    callback=_version_callback,
+                    is_eager=True,
+                    help="Show cartography release version and commit revision, then exit.",
                     rich_help_panel=PANEL_CORE,
                 ),
             ] = False,
