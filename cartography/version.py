@@ -1,6 +1,6 @@
 from importlib.metadata import version
 
-from cartography import _version as cartography_version
+import cartography._version as cartography_version
 
 
 def get_cartography_version() -> str:
