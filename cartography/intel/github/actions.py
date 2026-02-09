@@ -479,9 +479,9 @@ def transform_actions(
         result.append(
             {
                 "id": action_id,
-                "owner": action.owner,
+                "owner": action.owner or None,
                 "name": action.name,
-                "version": action.version,
+                "version": action.version or None,
                 "is_pinned": action.is_pinned,
                 "is_local": action.is_local,
                 "full_name": action.full_name,

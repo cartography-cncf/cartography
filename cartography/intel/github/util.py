@@ -463,10 +463,6 @@ def get_file_content(
 
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code == 404:
-            logger.debug(f"File not found: {owner}/{repo}/{path}")
-        else:
-            logger.warning(f"Failed to get content for {owner}/{repo}/{path}: {e}")
-        return None
-    except Exception as e:
-        logger.warning(f"Failed to get content for {owner}/{repo}/{path}: {e}")
-        return None
+            logger.debug("File not found: %s/%s/%s", owner, repo, path)
+            return None
+        raise

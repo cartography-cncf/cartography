@@ -136,23 +136,6 @@ def extract_secrets_from_string(content: str) -> set[str]:
     return set(SECRET_PATTERN.findall(content))
 
 
-def extract_secrets_from_value(value: Any, found_secrets: set[str]) -> None:
-    """
-    Recursively extract secret references from a YAML value.
-
-    :param value: Any YAML value (string, dict, list, etc.)
-    :param found_secrets: Set to accumulate found secret names
-    """
-    if isinstance(value, str):
-        found_secrets.update(extract_secrets_from_string(value))
-    elif isinstance(value, dict):
-        for v in value.values():
-            extract_secrets_from_value(v, found_secrets)
-    elif isinstance(value, list):
-        for item in value:
-            extract_secrets_from_value(item, found_secrets)
-
-
 def parse_permissions(permissions: Any) -> dict[str, str]:
     """
     Parse workflow permissions block.
@@ -185,8 +168,8 @@ def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
     """
     try:
         workflow = yaml.safe_load(content)
-    except yaml.YAMLError as e:
-        logger.warning(f"Failed to parse workflow YAML: {e}")
+    except yaml.YAMLError:
+        logger.warning("Failed to parse workflow YAML", exc_info=True)
         return None
 
     if not isinstance(workflow, dict):
@@ -213,9 +196,10 @@ def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
     if isinstance(env, dict):
         result.env_vars = list(env.keys())
 
-    # Extract secrets from top-level env
-    all_secrets: set[str] = set()
-    extract_secrets_from_value(env, all_secrets)
+    # Extract all secret references from the raw YAML content.
+    # Using regex on the raw string is simpler and more complete than structured
+    # traversal, catching secrets in env, with, run, if, outputs, strategy, etc.
+    all_secrets = extract_secrets_from_string(content)
 
     # Process jobs
     jobs = workflow.get("jobs", {})
@@ -240,21 +224,6 @@ def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
                         result.reusable_workflow_calls.append(uses)
                     result.actions.append(action)
 
-            # Extract secrets from job-level with block
-            job_with = job.get("with", {})
-            extract_secrets_from_value(job_with, all_secrets)
-
-            # Extract secrets from job-level secrets block (for reusable workflows)
-            job_secrets = job.get("secrets", {})
-            if isinstance(job_secrets, str) and job_secrets == "inherit":
-                pass  # inherit doesn't expose specific secrets
-            elif isinstance(job_secrets, dict):
-                extract_secrets_from_value(job_secrets, all_secrets)
-
-            # Extract secrets from job-level env
-            job_env = job.get("env", {})
-            extract_secrets_from_value(job_env, all_secrets)
-
             # Merge job-level permissions (not stored separately, just for completeness)
             job_permissions = parse_permissions(job.get("permissions"))
             if job_permissions and not result.permissions:
@@ -273,19 +242,6 @@ def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
                         action = parse_action_reference(step_uses)
                         if action:
                             result.actions.append(action)
-
-                    # Extract secrets from step env
-                    step_env = step.get("env", {})
-                    extract_secrets_from_value(step_env, all_secrets)
-
-                    # Extract secrets from step with
-                    step_with = step.get("with", {})
-                    extract_secrets_from_value(step_with, all_secrets)
-
-                    # Extract secrets from run commands
-                    run = step.get("run")
-                    if run:
-                        extract_secrets_from_value(run, all_secrets)
 
     result.secret_refs = sorted(all_secrets)
 

@@ -85,7 +85,13 @@ def _ensure_repo_exists(neo4j_session):
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_org_secrets(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -221,7 +227,13 @@ def test_sync_github_actions_org_secrets(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_org_variables(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -314,7 +326,13 @@ def test_sync_github_actions_org_variables(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_workflows(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -426,7 +444,13 @@ def test_sync_github_actions_workflows(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_environments(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -533,7 +557,13 @@ def test_sync_github_actions_environments(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_repo_secrets(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -644,7 +674,13 @@ def test_sync_github_actions_repo_secrets(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_repo_variables(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -737,7 +773,13 @@ def test_sync_github_actions_repo_variables(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_env_secrets(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -848,7 +890,13 @@ def test_sync_github_actions_env_secrets(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_env_variables(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
