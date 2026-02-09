@@ -11,6 +11,7 @@ from tests.data.github.actions import GET_REPO_ENVIRONMENTS
 from tests.data.github.actions import GET_REPO_SECRETS
 from tests.data.github.actions import GET_REPO_VARIABLES
 from tests.data.github.actions import GET_REPO_WORKFLOWS
+from tests.data.github.workflow_content import WORKFLOW_CI_CONTENT
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -566,7 +567,13 @@ def test_transform_and_load_env_variables(neo4j_session):
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=WORKFLOW_CI_CONTENT,
+)
 def test_sync_github_actions(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -577,7 +584,7 @@ def test_sync_github_actions(
     mock_org_secrets,
     neo4j_session,
 ):
-    """Test the full sync function."""
+    """Test the full sync function including workflow parsing."""
     _ensure_repo_exists(neo4j_session)
 
     cartography.intel.github.actions.sync(
@@ -593,6 +600,15 @@ def test_sync_github_actions(
         "MATCH (w:GitHubWorkflow) RETURN count(w) as count",
     ).single()["count"]
     assert workflow_nodes == 3
+
+    # Verify workflows have parsed fields
+    workflow = neo4j_session.run(
+        "MATCH (w:GitHubWorkflow {id: 12345678}) RETURN w",
+    ).single()["w"]
+    assert workflow["permissions_contents"] == "read"
+    assert workflow["permissions_pull_requests"] == "write"
+    assert workflow["job_count"] == 2
+    assert "push" in workflow["trigger_events"]
 
     # Verify environments were created
     env_nodes = neo4j_session.run(
@@ -613,3 +629,25 @@ def test_sync_github_actions(
     ).single()["count"]
     # 2 org vars + 2 repo vars + 1 prod env var + 2 staging env vars = 7
     assert var_nodes == 7
+
+    # Verify GitHubAction nodes were created from parsed workflow content
+    action_nodes = neo4j_session.run(
+        "MATCH (a:GitHubAction) RETURN count(a) as count",
+    ).single()["count"]
+    # WORKFLOW_CI_CONTENT has 2 unique actions (checkout@v4 and setup-node@v4).
+    # Action IDs are {org}:{raw_uses}, so the same action across workflows is merged.
+    assert action_nodes == 2
+
+    # Verify USES_ACTION relationships were created
+    uses_action_rels = neo4j_session.run(
+        "MATCH (:GitHubWorkflow)-[r:USES_ACTION]->(:GitHubAction) RETURN count(r) as count",
+    ).single()["count"]
+    assert uses_action_rels >= 2
+
+    # Verify REFERENCES_SECRET relationships were created for existing secrets
+    # The workflow references NPM_TOKEN which exists as an org secret
+    refs_secret_rels = neo4j_session.run(
+        "MATCH (:GitHubWorkflow)-[r:REFERENCES_SECRET]->(:GitHubActionsSecret) RETURN count(r) as count",
+    ).single()["count"]
+    # NPM_TOKEN exists as org secret and workflow references it
+    assert refs_secret_rels >= 1
