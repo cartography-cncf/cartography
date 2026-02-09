@@ -9,15 +9,15 @@ GET_ESCALATION_POLICY_DATA = [
         "name": "Engineering Escalation Policy",
         "escalation_rules": [
             {
-                "id": "PANZZEQ",
+                "id": "PANZZEA",
                 "escalation_delay_in_minutes": 30,
                 "targets": [
                     {
-                        "id": "PEYSGVF",
-                        "summary": "PagerDuty Admin",
+                        "id": "PXPGF42",
+                        "summary": "Earline Greenholt",
                         "type": "user_reference",
-                        "self": "https://api.pagerduty.com/users/PEYSGVF",
-                        "html_url": "https://subdomain.pagerduty.com/users/PEYSGVF",
+                        "self": "https://api.pagerduty.com/users/PXPGF42",
+                        "html_url": "https://subdomain.pagerduty.com/users/PXPGF42",
                     },
                     {
                         "id": "PI7DH85",

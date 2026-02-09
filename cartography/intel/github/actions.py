@@ -760,7 +760,7 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
-) -> None:
+) -> list[dict[str, Any]]:
     """
     Sync GitHub Actions data (workflows, secrets, variables, environments) for an organization.
 
@@ -769,9 +769,12 @@ def sync(
     2. For each repo: workflows, environments, repo secrets/variables
     3. For each environment: env secrets/variables
     4. Cleanup stale nodes
+
+    :return: List of all transformed workflows (with repo_url and path) for supply chain sync.
     """
     org_url = f"https://github.com/{organization}"
     update_tag = common_job_parameters["UPDATE_TAG"]
+    all_workflows: list[dict[str, Any]] = []
 
     # 1. Sync organization-level secrets and variables
     logger.info(f"Syncing GitHub Actions for organization: {organization}")
@@ -805,7 +808,7 @@ def sync(
             )
 
             # Fetch and parse workflow content for each workflow
-            all_actions: list[dict[str, Any]] = []
+            repo_actions: list[dict[str, Any]] = []
             enriched_workflows = []
 
             for wf in transformed_workflows:
@@ -837,14 +840,15 @@ def sync(
                 # Extract actions for loading
                 if parsed and workflow_id is not None:
                     actions = transform_actions(parsed, workflow_id, organization)
-                    all_actions.extend(actions)
+                    repo_actions.extend(actions)
 
             # Load enriched workflows
             load_workflows(neo4j_session, enriched_workflows, update_tag, org_url)
+            all_workflows.extend(enriched_workflows)
 
             # Load actions
-            if all_actions:
-                load_actions(neo4j_session, all_actions, update_tag, org_url)
+            if repo_actions:
+                load_actions(neo4j_session, repo_actions, update_tag, org_url)
 
         # Sync environments (must come before env secrets/variables)
         environments = get_repo_environments(
@@ -923,3 +927,5 @@ def sync(
     # 4. Cleanup org-level stale nodes
     org_cleanup_params = {**common_job_parameters, "org_url": org_url}
     cleanup_org_level(neo4j_session, org_cleanup_params)
+
+    return all_workflows

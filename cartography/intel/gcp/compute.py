@@ -1250,7 +1250,6 @@ def sync_gcp_subnets(
             continue
         subnets = transform_gcp_subnets(subnet_res)
         load_gcp_subnets(neo4j_session, subnets, gcp_update_tag, project_id)
-    # TODO scope the cleanup to the current project - https://github.com/cartography-cncf/cartography/issues/381
     cleanup_gcp_subnets(neo4j_session, common_job_parameters)
 
 

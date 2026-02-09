@@ -15,11 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.10"
       - name: Install uv
-        uses: astral-sh/setup-uv@803947b9bd8e9f986429fa0c5a41c367cd732b41 # v7.2.1
+        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -58,6 +60,8 @@ jobs:
               }
             }
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
@@ -97,9 +101,10 @@ jobs:
       # Get the cartography version from the GitHub release event metadata and verify it's available on PyPI
       - name: Extract version and verify PyPI availability
         id: version
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
         run: |
-          echo "VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-          VERSION="${{ github.event.release.tag_name }}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Waiting for cartography==$VERSION to be available on PyPI..."
 
           # Poll PyPI for up to 5 minutes

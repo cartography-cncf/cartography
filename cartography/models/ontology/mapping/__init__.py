@@ -3,6 +3,9 @@ import logging
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.device import DeviceSchema
 from cartography.models.ontology.mapping.data.apikeys import APIKEYS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.coderepositories import (
+    CODEREPOSITORIES_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.computeinstance import (
     COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
 )
@@ -19,12 +22,17 @@ from cartography.models.ontology.mapping.data.devices import DEVICES_ONTOLOGY_MA
 from cartography.models.ontology.mapping.data.functions import (
     FUNCTIONS_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.images import IMAGES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.loadbalancers import (
     LOADBALANCERS_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.object_storage import (
+    OBJECT_STORAGE_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.publicips import (
     PUBLIC_IPS_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.secrets import SECRETS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.thirdpartyapps import (
     THIRDPARTYAPPS_ONTOLOGY_MAPPING,
@@ -54,12 +62,16 @@ ONTOLOGY_NODES_MAPPING: dict[str, dict[str, OntologyMapping]] = {
 SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "useraccounts": USERACCOUNTS_ONTOLOGY_MAPPING,
     "apikeys": APIKEYS_ONTOLOGY_MAPPING,
+    "coderepositories": CODEREPOSITORIES_ONTOLOGY_MAPPING,
     "computeinstance": COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
     "containers": CONTAINER_ONTOLOGY_MAPPING,
     "containerregistries": CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
     "databases": DATABASES_ONTOLOGY_MAPPING,
     "functions": FUNCTIONS_ONTOLOGY_MAPPING,
+    "images": IMAGES_ONTOLOGY_MAPPING,
     "loadbalancers": LOADBALANCERS_ONTOLOGY_MAPPING,
+    "objectstorage": OBJECT_STORAGE_ONTOLOGY_MAPPING,
+    "secrets": SECRETS_ONTOLOGY_MAPPING,
     "thirdpartyapps": THIRDPARTYAPPS_ONTOLOGY_MAPPING,
     "tenants": TENANTS_ONTOLOGY_MAPPING,
 }

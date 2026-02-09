@@ -16,7 +16,25 @@ from cartography.rules.spec.result import RuleResult
 
 
 def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:
-    """Generate a clickable Neo4j Browser URL with pre-populated query."""
+    """
+    Generate a clickable Neo4j Browser URL with pre-populated query.
+
+    This function converts a Neo4j connection URI into a browser URL that can be
+    clicked to open the Neo4j Browser with the query pre-populated.
+
+    Args:
+        neo4j_uri (str): The Neo4j connection URI (e.g., "bolt://localhost:7687",
+            "neo4j+s://tenant.databases.neo4j.io:7687").
+        cypher_query (str): The Cypher query to pre-populate in the browser.
+
+    Returns:
+        str: A URL that opens Neo4j Browser with the query ready to execute.
+
+    Examples:
+        >>> url = _generate_neo4j_browser_url("bolt://localhost:7687", "MATCH (n) RETURN n")
+        >>> print(url)
+        http://localhost:7474/browser/?cmd=edit&arg=MATCH%20%28n%29%20RETURN%20n
+    """
     # Handle different Neo4j URI protocols
     if neo4j_uri.startswith("bolt://"):
         browser_uri = neo4j_uri.replace("bolt://", "http://", 1)
@@ -56,6 +74,27 @@ def _generate_neo4j_browser_url(neo4j_uri: str, cypher_query: str) -> str:
 
 
 def to_serializable(obj):
+    """
+    Convert complex objects to JSON-serializable formats.
+
+    This function recursively converts Pydantic models, Enums, dataclasses,
+    and nested structures to basic Python types that can be serialized to JSON.
+
+    Args:
+        obj: Any Python object to convert. Supports Pydantic BaseModel, Enum,
+            dataclass, dict, list, tuple, set, and primitive types.
+
+    Returns:
+        A JSON-serializable representation of the input object.
+
+    Examples:
+        >>> from pydantic import BaseModel
+        >>> class User(BaseModel):
+        ...     name: str
+        ...     age: int
+        >>> to_serializable(User(name="Alice", age=30))
+        {'name': 'Alice', 'age': 30}
+    """
     # Pydantic model (v2)
     if isinstance(obj, BaseModel):
         return to_serializable(obj.model_dump())
@@ -90,7 +129,22 @@ def _format_and_output_results(
     total_passing: int = 0,
     total_failing: int = 0,
 ):
-    """Format and output the results of framework execution."""
+    """
+    Format and output the results of framework execution.
+
+    This function handles the final output of rule execution results,
+    supporting both text (human-readable) and JSON formats.
+
+    Args:
+        all_results (list[RuleResult]): List of results from all executed rules.
+        rule_names (list[str]): Names of the rules that were executed.
+        output_format (str): Output format, either "text" or "json".
+        total_facts (int): Total number of facts executed across all rules.
+        total_findings (int): Total number of findings across all rules.
+        total_assets (int): Total number of assets evaluated (for compliance metrics).
+        total_passing (int): Total number of passing assets (for compliance metrics).
+        total_failing (int): Total number of failing assets (for compliance metrics).
+    """
     if output_format == "json":
         combined_output = [asdict(result) for result in all_results]
         print(json.dumps(to_serializable(combined_output), indent=2))

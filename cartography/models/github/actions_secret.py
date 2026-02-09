@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -61,6 +62,9 @@ class GitHubOrgActionsSecretSchema(CartographyNodeSchema):
     """Schema for organization-level secrets."""
 
     label: str = "GitHubActionsSecret"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["Secret"]
+    )  # Secret label is used for ontology mapping
     properties: GitHubActionsSecretNodeProperties = GitHubActionsSecretNodeProperties()
     sub_resource_relationship: GitHubActionsSecretToOrgRel = (
         GitHubActionsSecretToOrgRel()
@@ -95,6 +99,9 @@ class GitHubRepoActionsSecretSchema(CartographyNodeSchema):
     """Schema for repository-level secrets."""
 
     label: str = "GitHubActionsSecret"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["Secret"]
+    )  # Secret label is used for ontology mapping
     properties: GitHubActionsSecretNodeProperties = GitHubActionsSecretNodeProperties()
     sub_resource_relationship: GitHubActionsSecretToRepoRel = (
         GitHubActionsSecretToRepoRel()
@@ -162,6 +169,9 @@ class GitHubEnvActionsSecretSchema(CartographyNodeSchema):
     """
 
     label: str = "GitHubActionsSecret"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["Secret"]
+    )  # Secret label is used for ontology mapping
     properties: GitHubActionsSecretNodeProperties = GitHubActionsSecretNodeProperties()
     sub_resource_relationship: GitHubEnvActionsSecretToOrgRel = (
         GitHubEnvActionsSecretToOrgRel()

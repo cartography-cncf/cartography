@@ -219,6 +219,27 @@ github_mapping = OntologyMapping(
         ),
     ],
 )
+gitlab_mapping = OntologyMapping(
+    module_name="gitlab",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="GitLabUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="state",
+                    extra={"values": ["active"]},
+                    special_handling="equal_boolean",
+                ),
+            ],
+        ),
+    ],
+)
 keycloak_mapping = OntologyMapping(
     module_name="keycloak",
     nodes=[
@@ -322,6 +343,29 @@ tailscale_mapping = OntologyMapping(
         ),
     ],
 )
+oci_mapping = OntologyMapping(
+    module_name="oci",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="OCIUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa", node_field="is_mfa_activated"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="lifecycle_state",
+                    extra={"values": ["ACTIVE"]},
+                    special_handling="equal_boolean",
+                ),
+            ],
+        ),
+    ],
+)
 okta_mapping = OntologyMapping(
     module_name="okta",
     nodes=[
@@ -409,6 +453,20 @@ spacelift_mapping = OntologyMapping(
         ),
     ],
 )
+pagerduty_mapping = OntologyMapping(
+    module_name="pagerduty",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="PagerDutyUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+            ],
+        ),
+    ],
+)
 
 # UserAccount fields:
 # has_mfa
@@ -424,7 +482,9 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "cloudflare": cloudflare_mapping,
     "duo": duo_mapping,
     "github": github_mapping,
+    "gitlab": gitlab_mapping,
     "keycloak": keycloak_mapping,
+    "oci": oci_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
     "snipeit": snipeit_mapping,
@@ -434,4 +494,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "googleworkspace": googleworkspace_mapping,
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
+    "pagerduty": pagerduty_mapping,
 }

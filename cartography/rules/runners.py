@@ -10,11 +10,33 @@ from cartography.rules.data.rules import RULES
 from cartography.rules.formatters import _format_and_output_results
 from cartography.rules.formatters import _generate_neo4j_browser_url
 from cartography.rules.spec.model import Fact
+from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.result import CounterResult
 from cartography.rules.spec.result import FactResult
 from cartography.rules.spec.result import RuleResult
+
+
+def get_all_frameworks() -> dict[str, list[Framework]]:
+    """
+    Get all unique frameworks from all rules, grouped by short_name.
+
+    Returns:
+        Dictionary mapping framework short_name to list of unique Framework objects.
+    """
+    frameworks_by_name: dict[str, set[Framework]] = {}
+    for rule in RULES.values():
+        for fw in rule.frameworks:
+            if fw.short_name not in frameworks_by_name:
+                frameworks_by_name[fw.short_name] = set()
+            frameworks_by_name[fw.short_name].add(fw)
+
+    # Convert sets to sorted lists
+    return {
+        name: sorted(fws, key=lambda f: (f.scope, f.revision, f.requirement))
+        for name, fws in sorted(frameworks_by_name.items())
+    }
 
 
 def _run_fact(
@@ -26,7 +48,21 @@ def _run_fact(
     output_format: str,
     neo4j_uri: str,
 ) -> FactResult:
-    """Execute a single fact and return the result."""
+    """
+    Execute a single fact and return the result.
+
+    Args:
+        fact (Fact): The Fact to execute.
+        rule (Rule): The Rule that contains this Fact.
+        driver (Driver): The Neo4j driver instance.
+        database (str): The name of the Neo4j database to query.
+        counter (CounterResult): Counter object to track execution progress and totals.
+        output_format (str): Output format, either "text" or "json".
+        neo4j_uri (str): The Neo4j URI for generating browser links.
+
+    Returns:
+        FactResult: The result of executing the Fact, including findings and metrics.
+    """
     if output_format == "text":
         print(
             f"\n\033[1mFact {counter.current_fact}/{counter.total_facts}: {fact.name}\033[0m"
@@ -125,7 +161,21 @@ def _run_single_rule(
     fact_filter: str | None = None,
     exclude_experimental: bool = False,
 ) -> RuleResult:
-    """Execute a single rule and return results."""
+    """
+    Execute a single rule and return results.
+
+    Args:
+        rule_name (str): The name of the rule to execute.
+        driver (GraphDatabase.driver): The Neo4j driver instance.
+        database (str): The name of the Neo4j database to query.
+        output_format (str): Output format, either "text" or "json".
+        neo4j_uri (str): The Neo4j URI for generating browser links.
+        fact_filter (str | None): Optional fact ID to filter execution (case-insensitive).
+        exclude_experimental (bool): Whether to exclude experimental facts from execution.
+
+    Returns:
+        RuleResult: The result of executing the rule, including all fact results and counters.
+    """
     rule = RULES[rule_name]
     counter = CounterResult()
 
@@ -168,7 +218,43 @@ def _run_single_rule(
         rule_description=rule.description,
         facts=rule_results,
         counter=counter,
+        rule_tags=rule.tags,
+        rule_frameworks=rule.frameworks,
     )
+
+
+def filter_rules_by_framework(
+    rule_names: list[str],
+    framework_filter: str,
+) -> list[str]:
+    """
+    Filter rules by framework specification.
+
+    The framework filter supports the following formats (case-insensitive):
+    - "CIS" - Match any rule with a CIS framework
+    - "CIS:aws" - Match CIS frameworks with scope "aws"
+    - "CIS:aws:5.0" - Match CIS frameworks with scope "aws" and revision "5.0"
+
+    Args:
+        rule_names: List of rule names to filter.
+        framework_filter: Framework filter string.
+
+    Returns:
+        List of rule names that match the framework filter.
+    """
+    parts = framework_filter.split(":")
+    short_name = parts[0] if len(parts) >= 1 else None
+    scope = parts[1] if len(parts) >= 2 else None
+    revision = parts[2] if len(parts) >= 3 else None
+
+    filtered = []
+    for rule_name in rule_names:
+        if rule_name not in RULES:
+            continue
+        rule = RULES[rule_name]
+        if rule.has_framework(short_name, scope, revision):
+            filtered.append(rule_name)
+    return filtered
 
 
 def run_rules(
@@ -180,20 +266,34 @@ def run_rules(
     output_format: str = "text",
     fact_filter: str | None = None,
     exclude_experimental: bool = False,
+    framework_filter: str | None = None,
 ):
     """
     Execute the specified rules and present results.
 
-    :param rule_names: The names of the rules to execute.
-    :param uri: The URI of the Neo4j database. E.g. "bolt://localhost:7687" or "neo4j+s://tenant123.databases.neo4j.io:7687"
-    :param neo4j_user: The username for the Neo4j database.
-    :param neo4j_password: The password for the Neo4j database.
-    :param neo4j_database: The name of the Neo4j database.
-    :param output_format: Either "text" or "json". Defaults to "text".
-    :param fact_filter: Optional fact ID to filter execution (case-insensitive).
-    :param exclude_experimental: Whether to exclude experimental facts from execution.
-    :return: The exit code.
+    Args:
+        rule_names (list[str]): The names of the rules to execute.
+        uri (str): The URI of the Neo4j database.
+            E.g. "bolt://localhost:7687" or "neo4j+s://tenant123.databases.neo4j.io:7687"
+        neo4j_user (str): The username for the Neo4j database.
+        neo4j_password (str): The password for the Neo4j database.
+        neo4j_database (str): The name of the Neo4j database.
+        output_format (str): Either "text" or "json". Defaults to "text".
+        fact_filter (str | None): Optional fact ID to filter execution (case-insensitive).
+        exclude_experimental (bool): Whether to exclude experimental facts from execution.
+        framework_filter (str | None): Optional framework filter (e.g., "CIS", "CIS:aws", "CIS:aws:5.0").
+
+    Returns:
+        int: The exit code (0 for success, 1 for failure).
     """
+    # Apply framework filter if specified
+    if framework_filter:
+        rule_names = filter_rules_by_framework(rule_names, framework_filter)
+        if not rule_names:
+            if output_format == "text":
+                print(f"No rules found matching framework filter: {framework_filter}")
+            return 1
+
     # Validate all rules exist
     for rule_name in rule_names:
         if rule_name not in RULES:

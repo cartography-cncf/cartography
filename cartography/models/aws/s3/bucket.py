@@ -4,6 +4,7 @@ from typing import Optional
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -55,6 +56,7 @@ class S3BucketSchema(CartographyNodeSchema):
 
     label: str = "S3Bucket"
     properties: S3BucketNodeProperties = S3BucketNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ObjectStorage"])
     sub_resource_relationship: S3BucketToAWSAccountRel = S3BucketToAWSAccountRel()
 
 

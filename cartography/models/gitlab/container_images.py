@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ConditionalNodeLabel
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -33,6 +35,8 @@ class GitLabContainerImageNodeProperties(CartographyNodeProperties):
     os: PropertyRef = PropertyRef("os")
     variant: PropertyRef = PropertyRef("variant")
     child_image_digests: PropertyRef = PropertyRef("child_image_digests")
+    # Layer diff IDs from the image config (used for Dockerfile matching)
+    layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
@@ -90,6 +94,10 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
     Relationships:
     - RESOURCE: Sub-resource to GitLabOrganization for cleanup
     - CONTAINS_IMAGE: From manifest lists to platform-specific images
+
+    Extra labels:
+    - Image: Applied to regular container images (type="image")
+    - ImageManifestList: Applied to manifest lists (type="manifest_list")
     """
 
     label: str = "GitLabContainerImage"
@@ -102,5 +110,18 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             GitLabContainerImageContainsImageRel(),
+        ],
+    )
+    # Add generic ontology labels for cross-registry querying
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            ConditionalNodeLabel(
+                label="Image",
+                conditions={"type": "image"},
+            ),
+            ConditionalNodeLabel(
+                label="ImageManifestList",
+                conditions={"type": "manifest_list"},
+            ),
         ],
     )
