@@ -122,6 +122,27 @@ def test_extract_secrets_github_token():
     assert secrets == {"GITHUB_TOKEN"}
 
 
+def test_extract_secrets_bracket_notation():
+    content = "${{ secrets['MY_SECRET'] }}"
+    secrets = extract_secrets_from_string(content)
+    assert secrets == {"MY_SECRET"}
+
+
+def test_extract_secrets_bracket_double_quotes():
+    content = '${{ secrets["API_KEY"] }}'
+    secrets = extract_secrets_from_string(content)
+    assert secrets == {"API_KEY"}
+
+
+def test_extract_secrets_mixed_notations():
+    content = """
+    token: ${{ secrets.DOT_SECRET }}
+    key: ${{ secrets['BRACKET_SECRET'] }}
+    """
+    secrets = extract_secrets_from_string(content)
+    assert secrets == {"DOT_SECRET", "BRACKET_SECRET"}
+
+
 # =============================================================================
 # Tests for parse_permissions
 # =============================================================================

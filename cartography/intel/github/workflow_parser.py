@@ -19,8 +19,16 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-# Regex pattern to match secret references: ${{ secrets.SECRET_NAME }}
-SECRET_PATTERN = re.compile(r"\$\{\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
+# Regex pattern to match secret references in both notations:
+#   dot:     ${{ secrets.SECRET_NAME }}
+#   bracket: ${{ secrets['SECRET_NAME'] }}
+SECRET_PATTERN = re.compile(
+    r"\$\{\{\s*secrets(?:"
+    r"\.([A-Za-z_][A-Za-z0-9_]*)"
+    r"|"
+    r"\[\s*['\"]([A-Za-z_][A-Za-z0-9_]*?)['\"]\s*\]"
+    r")\s*\}\}",
+)
 
 # SHA commit pattern (40 hex characters)
 SHA_PATTERN = re.compile(r"^[a-f0-9]{40}$")
@@ -130,10 +138,14 @@ def extract_secrets_from_string(content: str) -> set[str]:
     """
     Extract all secret references from a string.
 
-    :param content: String that may contain ${{ secrets.NAME }} references
+    Supports both dot notation (${{ secrets.NAME }}) and
+    bracket notation (${{ secrets['NAME'] }}).
+
+    :param content: String that may contain secret references
     :return: Set of secret names found
     """
-    return set(SECRET_PATTERN.findall(content))
+    # findall returns tuples (dot_group, bracket_group); exactly one is non-empty
+    return {dot or bracket for dot, bracket in SECRET_PATTERN.findall(content)}
 
 
 def parse_permissions(permissions: Any) -> dict[str, str]:
