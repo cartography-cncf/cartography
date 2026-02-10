@@ -18,11 +18,13 @@ DF -- HAS_DEP --> D
 %% Container Registry
 O -- RESOURCE --> CR(GitLabContainerRepository)
 O -- RESOURCE --> CI(GitLabContainerImage)
+O -- RESOURCE --> CIL(GitLabContainerImageLayer)
 O -- RESOURCE --> CT(GitLabContainerRepositoryTag)
 O -- RESOURCE --> CA(GitLabContainerImageAttestation)
 CR -- HAS_TAG --> CT
 CT -- REFERENCES --> CI
 CI -- CONTAINS_IMAGE --> CI
+CI -- HAS_LAYER --> CIL
 CA -- ATTESTS --> CI
 
 %% Trivy Vulnerability Scanning
@@ -426,6 +428,9 @@ Representation of a container image identified by its digest. Images are content
 | os | Operating system (e.g., `linux`) - null for manifest lists |
 | variant | Architecture variant (e.g., `v8`) - null for manifest lists |
 | child_image_digests | List of child image digests (only for manifest lists) |
+| layer_diff_ids | List of uncompressed layer diff_ids that compose this image (only for single-platform images) |
+| head_layer_diff_id | Diff_id of the first (base) layer in this image |
+| tail_layer_diff_id | Diff_id of the last (topmost) layer in this image |
 
 #### Relationships
 
@@ -469,6 +474,64 @@ Representation of a container image identified by its digest. Images are content
 
     ```
     (KubernetesContainer)-[HAS_IMAGE]->(GitLabContainerImage)
+    ```
+
+- GitLabContainerImages are composed of GitLabContainerImageLayers.
+
+    ```
+    (GitLabContainerImage)-[HAS_LAYER]->(GitLabContainerImageLayer)
+    ```
+
+### GitLabContainerImageLayer
+
+Representation of a container image layer. Layers are the building blocks of container images, identified by their uncompressed content hash (`diff_id`). Multiple images can share the same layers through Docker's layer deduplication mechanism.
+
+> **Ontology Mapping**: This node has the extra label `ImageLayer` to enable cross-provider queries for container image layers across different systems (e.g., ECRImageLayer). This enables identifying shared layers and vulnerabilities across multiple container registries.
+
+**Note**: Layers are keyed by `diff_id` (uncompressed layer digest from the image config) rather than `digest` (compressed layer digest from the manifest). This ensures consistent cross-provider layer deduplication, as the same layer content may have different compressed digests but will always have the same uncompressed diff_id.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first created this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The uncompressed layer digest from the image config (e.g., `sha256:abc123...`) |
+| diff_id | Same as id, the uncompressed layer digest (content hash) |
+| digest | Compressed layer digest from the manifest (may differ between registries for the same content) |
+| media_type | OCI/Docker media type (e.g., `application/vnd.docker.image.rootfs.diff.tar.gzip`) |
+| size | Size of the layer in bytes (compressed) |
+
+#### Relationships
+
+- GitLabContainerImageLayers belong to GitLabOrganizations (for cleanup and cross-image deduplication).
+
+    ```
+    (GitLabOrganization)-[RESOURCE]->(GitLabContainerImageLayer)
+    ```
+
+- GitLabContainerImages are composed of GitLabContainerImageLayers.
+
+    ```
+    (GitLabContainerImage)-[HAS_LAYER]->(GitLabContainerImageLayer)
+    ```
+
+- GitLabContainerImageLayers form a linked list using NEXT relationships.
+
+    ```
+    (GitLabContainerImageLayer)-[NEXT]->(GitLabContainerImageLayer)
+    ```
+
+    This creates a chain from base layer to topmost layer, allowing traversal of the layer stack. A layer may have multiple NEXT pointers if different images branch from that layer.
+
+- GitLabContainerImages point to their first (base) layer.
+
+    ```
+    (GitLabContainerImage)-[HEAD]->(GitLabContainerImageLayer)
+    ```
+
+- GitLabContainerImages point to their last (topmost) layer.
+
+    ```
+    (GitLabContainerImage)-[TAIL]->(GitLabContainerImageLayer)
     ```
 
 ### GitLabContainerImageAttestation
@@ -530,6 +593,51 @@ MATCH (org:GitLabOrganization)-[:RESOURCE]->(repo:GitLabContainerRepository)
 OPTIONAL MATCH (repo)-[:HAS_TAG]->(tag:GitLabContainerRepositoryTag)
 OPTIONAL MATCH (tag)-[:REFERENCES]->(img:GitLabContainerImage)
 RETURN org.name, repo.name, tag.name, img.digest
+```
+
+Find layers shared across multiple images (layer deduplication):
+
+```cypher
+MATCH (img:GitLabContainerImage)-[:HAS_LAYER]->(layer:GitLabContainerImageLayer)
+WITH layer, count(DISTINCT img) AS image_count
+WHERE image_count > 1
+RETURN layer.diff_id, layer.size, image_count
+ORDER BY image_count DESC
+```
+
+Traverse the layer stack of an image (base to top):
+
+```cypher
+MATCH (img:GitLabContainerImage {digest: 'sha256:abc...'})-[:HEAD]->(first:GitLabContainerImageLayer)
+MATCH path = (first)-[:NEXT*0..]->(layer:GitLabContainerImageLayer)
+RETURN layer.diff_id, layer.size, length(path) AS layer_position
+ORDER BY layer_position
+```
+
+#### Cross-Provider Layer Queries
+
+Since layers are keyed by `diff_id` and have the `ImageLayer` label, you can query layers across different container registries:
+
+Find layers shared between GitLab and ECR:
+
+```cypher
+MATCH (layer:ImageLayer)
+WITH layer
+MATCH (gitlab_img:GitLabContainerImage)-[:HAS_LAYER]->(layer)
+MATCH (ecr_img:ECRImage)-[:HAS_LAYER]->(layer)
+RETURN layer.diff_id,
+       count(DISTINCT gitlab_img) AS gitlab_images,
+       count(DISTINCT ecr_img) AS ecr_images
+```
+
+Find vulnerable layers across all providers:
+
+```cypher
+MATCH (vuln:TrivyImageFinding)-[:AFFECTS]->(img)-[:HAS_LAYER]->(layer:ImageLayer)
+WHERE vuln.severity IN ['CRITICAL', 'HIGH']
+WITH layer, collect(DISTINCT vuln.name) AS vulns, collect(DISTINCT labels(img)[0]) AS providers
+RETURN layer.diff_id, layer.size, vulns, providers
+ORDER BY size(vulns) DESC
 ```
 
 #### Trivy Integration Queries
