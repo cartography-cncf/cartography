@@ -55,7 +55,8 @@ _aws_unrestricted_ssh = Fact(
         "unauthorized access and brute force attacks."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:IpRange)
     WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')
@@ -75,7 +76,8 @@ _aws_unrestricted_ssh = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:IpRange)
     WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')
@@ -151,7 +153,8 @@ _aws_unrestricted_rdp = Fact(
         "unauthorized access and brute force attacks on Windows systems."
     ),
     cypher_query="""
-    MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:IpRange)
     WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')
@@ -171,7 +174,8 @@ _aws_unrestricted_rdp = Fact(
         a.name AS account
     """,
     cypher_visual_query="""
-    MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
+    MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
+          -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
           <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
           <-[:MEMBER_OF_IP_RULE]-(range:IpRange)
     WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')

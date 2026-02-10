@@ -8,6 +8,7 @@ import neo4j
 import cartography.intel.github.actions
 import cartography.intel.github.commits
 import cartography.intel.github.repos
+import cartography.intel.github.supply_chain
 import cartography.intel.github.teams
 import cartography.intel.github.users
 from cartography.client.core.tx import read_list_of_values_tx
@@ -84,7 +85,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
 
         # Sync GitHub Actions (workflows, secrets, variables, environments)
-        cartography.intel.github.actions.sync(
+        all_workflows = cartography.intel.github.actions.sync(
             neo4j_session,
             common_job_parameters,
             auth_data["token"],
@@ -105,3 +106,22 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             common_job_parameters["UPDATE_TAG"],
             config.github_commit_lookback_days,
         )
+
+        repos_json = cartography.intel.github.repos.get(
+            auth_data["token"],
+            auth_data["url"],
+            auth_data["name"],
+        )
+        # Filter out None entries
+        valid_repos = [r for r in repos_json if r is not None]
+        if valid_repos:
+            cartography.intel.github.supply_chain.sync(
+                neo4j_session,
+                auth_data["token"],
+                auth_data["url"],
+                auth_data["name"],
+                common_job_parameters["UPDATE_TAG"],
+                common_job_parameters,
+                valid_repos,
+                workflows=all_workflows,
+            )

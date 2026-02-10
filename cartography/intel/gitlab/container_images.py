@@ -277,21 +277,21 @@ def transform_container_images(
                 != "attestation-manifest"
             ]
 
-        # Extract layer diff_ids for regular images (for HAS_LAYER relationship)
+        # Extract architecture, os, variant and layer diff IDs from config blob (for regular images)
+        config = manifest.get("_config", {})
+
+        # Extract layer diff IDs from rootfs (used for Dockerfile matching and layer relationships)
         layer_diff_ids = None
         head_layer_diff_id = None
         tail_layer_diff_id = None
         if not is_manifest_list:
-            config = manifest.get("_config", {})
-            diff_ids = config.get("rootfs", {}).get("diff_ids", [])
+            rootfs = config.get("rootfs", {})
+            diff_ids = rootfs.get("diff_ids")
             # Only set if there are actual layers, otherwise keep as None to skip relationship matching
             if diff_ids and isinstance(diff_ids, list) and len(diff_ids) > 0:
                 layer_diff_ids = diff_ids
                 head_layer_diff_id = diff_ids[0]  # First layer
                 tail_layer_diff_id = diff_ids[-1]  # Last layer
-
-        # Extract architecture, os, variant from config blob (for regular images)
-        config = manifest.get("_config", {})
 
         # Build URI from registry URL and repository name (e.g., registry.gitlab.com/group/project)
         registry_url = manifest.get("_registry_url", "")

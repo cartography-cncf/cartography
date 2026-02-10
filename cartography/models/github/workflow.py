@@ -22,11 +22,11 @@ class GitHubWorkflowNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     name: PropertyRef = PropertyRef("name", extra_index=True)
-    path: PropertyRef = PropertyRef("path")
+    path: PropertyRef = PropertyRef("path", extra_index=True)
     state: PropertyRef = PropertyRef("state")
     created_at: PropertyRef = PropertyRef("created_at")
     updated_at: PropertyRef = PropertyRef("updated_at")
-    html_url: PropertyRef = PropertyRef("html_url")
+    repo_url: PropertyRef = PropertyRef("repo_url", extra_index=True)
 
 
 @dataclass(frozen=True)

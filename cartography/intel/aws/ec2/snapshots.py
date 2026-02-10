@@ -28,8 +28,8 @@ def get_snapshots_in_use(
     WHERE v.region = $Region
     RETURN v.snapshotid as snapshot
     """
-    results = read_list_of_values_tx(
-        neo4j_session,
+    results = neo4j_session.execute_read(
+        read_list_of_values_tx,
         query,
         AWS_ACCOUNT_ID=current_aws_account_id,
         Region=region,

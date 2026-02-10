@@ -30,6 +30,8 @@ T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTAINER --> T
+IT(ImageTag) -- PACKAGED_FROM --> R
+I(Image) -- PACKAGED_BY --> W
 ```
 
 ### GitHubRepository
@@ -425,6 +427,27 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
+### ImageTag to GitHubRepository (Cross-module relationship)
+
+Container images (ImageTag nodes from any registry: ECR, GitLab, GCR, etc.) can be linked to the GitHubRepository that contains the Dockerfile used to build them. This relationship is created by analyzing Dockerfile content and matching layer commands against image history.
+
+#### Relationships
+
+- ImageTag nodes may be packaged from a GitHubRepository
+    ```
+    (:ImageTag)-[:PACKAGED_FROM]->(:GitHubRepository)
+    ```
+
+    Relationship properties:
+    - **match_method**: How the match was determined: `"provenance"` (from SLSA attestation) or `"dockerfile_analysis"` (from command matching)
+    - **dockerfile_path**: Path to the Dockerfile in the repository (only for `dockerfile_analysis` method)
+    - **confidence**: Confidence score of the match (0.0 to 1.0, only for `dockerfile_analysis` method)
+    - **matched_commands**: Number of commands that matched between Dockerfile and image history (only for `dockerfile_analysis` method)
+    - **total_commands**: Total number of commands compared (only for `dockerfile_analysis` method)
+    - **command_similarity**: Average similarity score of matched commands (only for `dockerfile_analysis` method)
+
+    Note: This relationship uses the generic `ImageTag` semantic label, enabling cross-registry querying (ECR, GitLab, GCR, etc.).
+
 ### Dependency::PythonLibrary
 
 Representation of a Python library as listed in a [requirements.txt](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
@@ -468,7 +491,7 @@ Represents a GitHub Actions workflow definition file in a repository.
 | **state** | Workflow state: `active`, `disabled_manually`, `disabled_inactivity`, `disabled_fork`, or `deleted` |
 | **created_at** | Timestamp when the workflow was created |
 | **updated_at** | Timestamp when the workflow was last updated |
-| **html_url** | Web URL for viewing the workflow file |
+| **repo_url** | URL of the repository containing this workflow (e.g., `https://github.com/org/repo`) |
 
 #### Relationships
 
@@ -477,6 +500,14 @@ Represents a GitHub Actions workflow definition file in a repository.
     ```
     (GitHubRepository)-[:HAS_WORKFLOW]->(GitHubWorkflow)
     ```
+
+- Container images may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations).
+
+    ```
+    (:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)
+    ```
+
+    Note: This relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. The `Image` label is a semantic label applied to container images across registries (ECR, GitLab, etc.).
 
 
 ### GitHubEnvironment

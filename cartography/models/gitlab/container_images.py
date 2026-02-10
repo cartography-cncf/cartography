@@ -35,6 +35,7 @@ class GitLabContainerImageNodeProperties(CartographyNodeProperties):
     os: PropertyRef = PropertyRef("os")
     variant: PropertyRef = PropertyRef("variant")
     child_image_digests: PropertyRef = PropertyRef("child_image_digests")
+    # Layer diff IDs from the image config (used for Dockerfile matching and layer relationships)
     layer_diff_ids: PropertyRef = PropertyRef("layer_diff_ids")
     head_layer_diff_id: PropertyRef = PropertyRef("head_layer_diff_id")
     tail_layer_diff_id: PropertyRef = PropertyRef("tail_layer_diff_id")
@@ -166,6 +167,10 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
     - RESOURCE: Sub-resource to GitLabOrganization for cleanup
     - CONTAINS_IMAGE: From manifest lists to platform-specific images
     - HAS_LAYER: From images to their constituent layers
+
+    Extra labels:
+    - Image: Applied to regular container images (type="image")
+    - ImageManifestList: Applied to manifest lists (type="manifest_list")
     """
 
     label: str = "GitLabContainerImage"
@@ -183,6 +188,7 @@ class GitLabContainerImageSchema(CartographyNodeSchema):
             GitLabContainerImageToTailLayerRel(),
         ],
     )
+    # Add generic ontology labels for cross-registry querying
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             ConditionalNodeLabel(

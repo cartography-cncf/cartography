@@ -2415,6 +2415,20 @@ This way, more than one `ECRRepositoryImage` can reference/be connected to the s
     (:ECRRepositoryImage)-[:IMAGE]->(:ECRImage)
     ```
 
+- ECRRepositoryImages may be packaged from a source repository (cross-module relationship via VCS modules)
+    ```
+    (:ECRRepositoryImage)-[:PACKAGED_FROM]->(:GitHubRepository)
+    ```
+
+    Relationship properties:
+    - **dockerfile_path**: Path to the Dockerfile in the repository
+    - **confidence**: Confidence score of the match (0.0 to 1.0)
+    - **matched_commands**: Number of commands that matched
+    - **total_commands**: Total number of commands compared
+    - **command_similarity**: Average similarity score
+
+    This relationship links all images in an ECR repository to the source VCS repository via `repo_uri` matching.
+
 
 ### ECRImage
 
@@ -2443,6 +2457,12 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
 | media_type | The OCI/Docker media type of this manifest (e.g., `"application/vnd.oci.image.manifest.v1+json"`) |
 | artifact_media_type | The artifact media type if this is an OCI artifact. Optional field. |
 | child_image_digests | For manifest lists only: list of platform-specific image digests contained in this manifest list. Excludes attestations. `null` for regular images and attestations. |
+| **source_uri** | Source repository URI extracted from SLSA provenance attestations (e.g., a GitLab project URL or GitHub repo URL). Indexed for cross-module matching. |
+| source_revision | Source commit revision from SLSA provenance attestations. |
+| **invocation_uri** | CI/CD invocation URI from SLSA provenance (e.g., GitHub repository URL). Indexed for cross-module matching. |
+| **invocation_workflow** | CI/CD workflow path from SLSA provenance (e.g., `.github/workflows/build.yml`). Indexed for cross-module matching. |
+| invocation_run_number | CI/CD run number from SLSA provenance (e.g., the GitHub Actions run number). |
+| source_file | Dockerfile path from SLSA provenance (`configSource.entryPoint` prefixed with `vcs localdir:dockerfile` if present). |
 
 #### Relationships
 
@@ -2497,6 +2517,13 @@ For multi-architecture images, Cartography creates ECRImage nodes for the manife
     (:ECRImage {type: "attestation"})-[:ATTESTS]->(:ECRImage)
     ```
 
+- An ECRImage may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations). Only applies to `type="image"` nodes with the `Image` semantic label.
+    ```
+    (:ECRImage:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)
+    ```
+
+    Note: This cross-module relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. See the [GitHub schema](../github/schema.md#githubworkflow) for more details on GitHubWorkflow nodes.
+
 
 ### ECRImageLayer
 
@@ -2510,6 +2537,7 @@ Representation of an individual Docker image layer discovered while processing E
 | diff_id | Digest of the layer |
 | lastupdated | Timestamp of the last time the node was updated |
 | is_empty | Boolean flag identifying Docker's empty layer (true when the **DiffID** is `sha256:5f70bf18...`). |
+| history | The `created_by` command from the image config that created this layer (e.g., `/bin/sh -c pip install flask`). Used for Dockerfile matching. |
 
 #### Relationships
 
