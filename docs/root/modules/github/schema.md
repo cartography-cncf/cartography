@@ -7,6 +7,7 @@ O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
 O -- RESOURCE --> T(GitHubTeam)
 O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
+O -- RESOURCE --> A(GitHubAction)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
