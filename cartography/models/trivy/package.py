@@ -97,7 +97,7 @@ class TrivyPackageToFindingRel(CartographyRelSchema):
 class TrivyPackageSchema(CartographyNodeSchema):
     label: str = "Package"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["TrivyPackage"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["TrivyPackage", "SoftwarePackage"])
     properties: TrivyPackageNodeProperties = TrivyPackageNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

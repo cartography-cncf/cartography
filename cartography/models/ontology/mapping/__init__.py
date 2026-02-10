@@ -29,10 +29,16 @@ from cartography.models.ontology.mapping.data.loadbalancers import (
 from cartography.models.ontology.mapping.data.object_storage import (
     OBJECT_STORAGE_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.packages import (
+    PACKAGE_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.publicips import (
     PUBLIC_IPS_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.secrets import SECRETS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.vulnerabilities import (
+    VULNERABILITY_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.thirdpartyapps import (
     THIRDPARTYAPPS_ONTOLOGY_MAPPING,
@@ -44,7 +50,9 @@ from cartography.models.ontology.mapping.data.users import USERS_ONTOLOGY_MAPPIN
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 from cartography.models.ontology.publicip import PublicIPSchema
+from cartography.models.ontology.softwarepackage import SoftwarePackageSchema
 from cartography.models.ontology.user import UserSchema
+from cartography.models.ontology.vulnerability import VulnerabilitySchema
 
 logger = logging.getLogger(__name__)
 
@@ -71,15 +79,19 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "images": IMAGES_ONTOLOGY_MAPPING,
     "loadbalancers": LOADBALANCERS_ONTOLOGY_MAPPING,
     "objectstorage": OBJECT_STORAGE_ONTOLOGY_MAPPING,
+    "packages": PACKAGE_ONTOLOGY_MAPPING,
     "secrets": SECRETS_ONTOLOGY_MAPPING,
     "thirdpartyapps": THIRDPARTYAPPS_ONTOLOGY_MAPPING,
     "tenants": TENANTS_ONTOLOGY_MAPPING,
+    "vulnerabilities": VULNERABILITY_ONTOLOGY_MAPPING,
 }
 
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
     "users": UserSchema,
     "devices": DeviceSchema,
     "publicips": PublicIPSchema,
+    "vulnerabilities": VulnerabilitySchema,
+    "packages": SoftwarePackageSchema,
 }
 
 

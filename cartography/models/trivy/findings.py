@@ -98,7 +98,7 @@ class TrivyFindingToGitLabImageRel(CartographyRelSchema):
 class TrivyImageFindingSchema(CartographyNodeSchema):
     label: str = "TrivyImageFinding"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "CVE"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Risk", "CVE", "Vulnerability"])
     properties: TrivyImageFindingNodeProperties = TrivyImageFindingNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
