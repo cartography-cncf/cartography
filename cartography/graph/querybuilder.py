@@ -1,7 +1,5 @@
 import logging
 from dataclasses import asdict
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version
 from string import Template
 
 from cartography.models.core.common import PropertyRef
@@ -18,6 +16,7 @@ from cartography.models.ontology.mapping import (
     get_semantic_label_mapping_from_node_schema,
 )
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
+from cartography.version import get_cartography_version
 
 logger = logging.getLogger(__name__)
 
@@ -701,7 +700,7 @@ def _build_attach_sub_resource_statement(
         MatchClause=_build_match_clause(sub_resource_link.target_node_matcher),
         RelMergeClause=rel_merge_clause,
         module_name=_get_module_from_schema(sub_resource_link),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         SubResourceRelLabel=sub_resource_link.rel_label,
         set_rel_properties_statement=_build_rel_properties_statement(
             "r",
@@ -811,7 +810,7 @@ def _build_attach_additional_links_statement(
             rel_var=rel_var,
             RelMerge=rel_merge,
             module_name=_get_module_from_schema(link),
-            module_version=_get_cartography_version(),
+            module_version=get_cartography_version(),
             set_rel_properties_statement=_build_rel_properties_statement(
                 rel_var,
                 rel_props_as_dict,
@@ -1105,7 +1104,7 @@ def build_ingestion_query(
         node_label=node_schema.label,
         dict_id_field=node_props.id,
         module_name=_get_module_from_schema(node_schema),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         set_node_properties_statement=_build_node_properties_statement(
             node_props_as_dict,
             node_schema.extra_node_labels,
@@ -1591,32 +1590,12 @@ def build_matchlink_query(rel_schema: CartographyRelSchema) -> str:
         target_match=target_match,
         rel=rel,
         module_name=_get_module_from_schema(rel_schema),
-        module_version=_get_cartography_version(),
+        module_version=get_cartography_version(),
         set_rel_properties_statement=_build_rel_properties_statement(
             "r",
             rel_props_as_dict,
         ),
     )
-
-
-def _get_cartography_version() -> str:
-    """
-    Get the current version of the cartography package.
-
-    This function attempts to retrieve the version of the installed cartography package
-    using importlib.metadata. If the package is not found (typically in development
-    or testing environments), it returns 'dev' as a fallback.
-
-    Returns:
-        The version string of the cartography package, or 'dev' if not found
-    """
-    try:
-        return version("cartography")
-    except PackageNotFoundError:
-        # This can occured if the cartography package is not installed in the environment, typically in development or testing environments.
-        logger.warning("cartography package not found. Returning 'dev' version.")
-        # Fallback to reading the VERSION file if the package is not found
-        return "dev"
 
 
 def _get_module_from_schema(
