@@ -181,7 +181,7 @@ def parse_workflow_yaml(content: str) -> ParsedWorkflow | None:
     try:
         workflow = yaml.safe_load(content)
     except yaml.YAMLError:
-        logger.warning("Failed to parse workflow YAML", exc_info=True)
+        logger.warning("Failed to parse workflow YAML")
         return None
 
     if not isinstance(workflow, dict):
