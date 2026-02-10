@@ -148,11 +148,26 @@ def extract_secrets_from_string(content: str) -> set[str]:
     return {dot or bracket for dot, bracket in SECRET_PATTERN.findall(content)}
 
 
+ALL_PERMISSION_SCOPES = [
+    "actions",
+    "contents",
+    "packages",
+    "pull_requests",
+    "issues",
+    "deployments",
+    "statuses",
+    "checks",
+    "id_token",
+    "security_events",
+]
+
+
 def parse_permissions(permissions: Any) -> dict[str, str]:
     """
     Parse workflow permissions block.
 
     Handles both string format (read-all, write-all) and dict format.
+    Global permissions (read-all, write-all) are expanded to all scopes.
 
     :param permissions: The permissions value from the workflow
     :return: Dictionary of permission_name -> access_level
@@ -161,8 +176,10 @@ def parse_permissions(permissions: Any) -> dict[str, str]:
         return {}
 
     if isinstance(permissions, str):
-        # Global permission level: read-all, write-all, {}
-        return {"_global": permissions}
+        # Global permission level: expand to all scopes
+        # e.g., "read-all" -> {"actions": "read", "contents": "read", ...}
+        level = permissions.replace("-all", "")
+        return {scope: level for scope in ALL_PERMISSION_SCOPES}
 
     if isinstance(permissions, dict):
         # Convert keys to use underscores for consistency

@@ -459,6 +459,7 @@ def transform_actions(
     parsed: ParsedWorkflow,
     workflow_id: int,
     organization: str,
+    repo_name: str,
 ) -> list[dict[str, Any]]:
     """
     Transform parsed actions into data dicts for loading.
@@ -466,15 +467,19 @@ def transform_actions(
     :param parsed: The parsed workflow content
     :param workflow_id: The workflow ID (for relationship)
     :param organization: The organization name
+    :param repo_name: The repository name
     :return: List of action data dicts
     """
     actions = deduplicate_actions(parsed.actions)
     result = []
 
     for action in actions:
-        # Create a unique ID for the action based on the raw uses string
-        # This ensures actions/checkout@v4 is different from actions/checkout@v3
-        action_id = f"{organization}:{action.raw_uses}"
+        # Local actions (e.g., ./.github/actions/build) are repo-specific,
+        # so include repo_name to avoid cross-repo ID collisions.
+        if action.is_local:
+            action_id = f"{organization}/{repo_name}:{action.raw_uses}"
+        else:
+            action_id = f"{organization}:{action.raw_uses}"
 
         result.append(
             {
@@ -839,7 +844,9 @@ def sync(
 
                 # Extract actions for loading
                 if parsed and workflow_id is not None:
-                    actions = transform_actions(parsed, workflow_id, organization)
+                    actions = transform_actions(
+                        parsed, workflow_id, organization, repo_name
+                    )
                     repo_actions.extend(actions)
 
             # Load enriched workflows

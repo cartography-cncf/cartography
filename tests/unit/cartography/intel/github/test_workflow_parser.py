@@ -2,6 +2,7 @@
 Unit tests for GitHub Workflow YAML parser.
 """
 
+from cartography.intel.github.actions import enrich_workflow_with_parsed_content
 from cartography.intel.github.workflow_parser import deduplicate_actions
 from cartography.intel.github.workflow_parser import extract_secrets_from_string
 from cartography.intel.github.workflow_parser import parse_action_reference
@@ -14,6 +15,7 @@ from tests.data.github.workflow_content import WORKFLOW_FULL_PERMISSIONS
 from tests.data.github.workflow_content import WORKFLOW_LOCAL_ACTION
 from tests.data.github.workflow_content import WORKFLOW_MALFORMED
 from tests.data.github.workflow_content import WORKFLOW_PINNED_ACTIONS
+from tests.data.github.workflow_content import WORKFLOW_READ_ALL_PERMISSIONS
 from tests.data.github.workflow_content import WORKFLOW_REUSABLE
 from tests.data.github.workflow_content import WORKFLOW_SECRETS_EVERYWHERE
 
@@ -158,9 +160,25 @@ def test_parse_permissions_dict():
     assert result["pull_requests"] == "write"
 
 
-def test_parse_permissions_string():
+def test_parse_permissions_read_all():
     result = parse_permissions("read-all")
-    assert result["_global"] == "read-all"
+    assert result["actions"] == "read"
+    assert result["contents"] == "read"
+    assert result["packages"] == "read"
+    assert result["pull_requests"] == "read"
+    assert result["issues"] == "read"
+    assert result["deployments"] == "read"
+    assert result["statuses"] == "read"
+    assert result["checks"] == "read"
+    assert result["id_token"] == "read"
+    assert result["security_events"] == "read"
+
+
+def test_parse_permissions_write_all():
+    result = parse_permissions("write-all")
+    assert result["actions"] == "write"
+    assert result["contents"] == "write"
+    assert len(result) == 10
 
 
 def test_parse_permissions_none():
@@ -303,3 +321,28 @@ def test_deduplicate_actions_different_versions():
 
     result = deduplicate_actions([action1, action2])
     assert len(result) == 2
+
+
+# =============================================================================
+# Tests for enrich_workflow_with_parsed_content (global permissions)
+# =============================================================================
+
+
+def test_enrich_workflow_read_all_permissions():
+    """Test that read-all permissions are expanded to all scopes after enrichment."""
+    parsed = parse_workflow_yaml(WORKFLOW_READ_ALL_PERMISSIONS)
+    assert parsed is not None
+
+    workflow: dict = {"id": 1, "name": "Read All"}
+    enriched = enrich_workflow_with_parsed_content(workflow, parsed, "myorg", "myrepo")
+
+    assert enriched["permissions_actions"] == "read"
+    assert enriched["permissions_contents"] == "read"
+    assert enriched["permissions_packages"] == "read"
+    assert enriched["permissions_pull_requests"] == "read"
+    assert enriched["permissions_issues"] == "read"
+    assert enriched["permissions_deployments"] == "read"
+    assert enriched["permissions_statuses"] == "read"
+    assert enriched["permissions_checks"] == "read"
+    assert enriched["permissions_id_token"] == "read"
+    assert enriched["permissions_security_events"] == "read"

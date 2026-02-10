@@ -188,3 +188,15 @@ jobs:
     steps:
       - run: echo "${{ secrets.ANOTHER_SECRET }}"
 """
+
+# Workflow with global read-all permissions
+WORKFLOW_READ_ALL_PERMISSIONS = """
+name: Read All
+on: push
+permissions: read-all
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+"""
