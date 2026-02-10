@@ -28,7 +28,7 @@ Fine-grained PATs offer better security through minimal permissions and organiza
    | Permission | Access | Required | Why |
    |------------|--------|----------|-----|
    | **Actions** | Read | Optional | GitHub Actions workflows, runs, and artifacts. |
-   | **Administration** | Read | Recommended | Collaborators, branch protection rules. Without this, Cartography logs warnings and skips this data. |
+   | **Administration** | Read | Yes (for collaborator/branch protection coverage) | Collaborators and branch protection rules. Without this, Cartography logs warnings and skips this data. |
    | **Contents** | Read | Yes | Repository files, commit history, dependency manifests. |
    | **Environments** | Read | Optional | Deployment environments configuration. |
    | **Metadata** | Read | Yes | Auto-added. Repository discovery and basic info. |
@@ -74,8 +74,8 @@ Some data requires elevated permissions. Without these, Cartography will log war
 
 | Data | Requirement |
 |------|-------------|
-| **Collaborators** | The token owner must be an **Organization Owner** or have **Admin access** on the repositories. For fine-grained PATs, also add **Administration: Read**. |
-| **Branch protection rules** | Same as collaborators - requires admin-level access. |
+| **Collaborators** | For fine-grained PATs, both are required: `Repository -> Administration: Read` on the token and token-owner rights as an **Organization Owner** or **Admin** on the repositories. |
+| **Branch protection rules** | Same as collaborators: both `Repository -> Administration: Read` and owner/admin-equivalent rights are required. |
 | **Two-factor authentication status** | Visible only to Organization Owners. |
 | **Enterprise owners** | Requires GitHub Enterprise with appropriate enterprise-level permissions. |
 
@@ -145,7 +145,7 @@ For GitHub Enterprise, use the same token scopes/permissions as above. Set the `
 
 | Issue | Solution |
 |-------|----------|
-| `FORBIDDEN` warnings for collaborators | The token owner needs Organization Owner or Admin access on repos. |
+| `FORBIDDEN` warnings for collaborators/branch protection rules | Ensure fine-grained PAT includes `Repository -> Administration: Read` and the token owner has Organization Owner or repository Admin rights; otherwise Cartography will skip this enrichment and continue. |
 | Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled on your repositories. |
 | Missing 2FA status | Only visible to Organization Owners. |
 | Rate limiting | Cartography handles rate limits automatically by sleeping until the quota resets. |
