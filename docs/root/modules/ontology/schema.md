@@ -467,8 +467,8 @@ It generalizes concepts like AWS ECRRepositoryImage, GCP Artifact Registry image
 
 | Field | Description |
 |-------|-------------|
-| tag | The tag name (e.g., "latest", "v1.0.0"). |
-| uri | The full URI to the tagged image. |
+| _ont_tag | The tag name (e.g., "latest", "v1.0.0"). |
+| _ont_uri | The full URI to the tagged image. |
 
 #### Relationships
 
@@ -489,10 +489,10 @@ It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, an
 
 | Field | Description |
 |-------|-------------|
-| digest | The content-addressable digest (SHA256) of the image. |
-| architecture | CPU architecture (e.g., "amd64", "arm64"). |
-| os | Operating system (e.g., "linux", "windows"). |
-| variant | Architecture variant (e.g., "v8" for ARM). |
+| _ont_digest | The content-addressable digest (SHA256) of the image. |
+| _ont_architecture | CPU architecture (e.g., "amd64", "arm64"). |
+| _ont_os | Operating system (e.g., "linux", "windows"). |
+| _ont_variant | Architecture variant (e.g., "v8" for ARM). |
 
 
 ### ImageAttestation
@@ -506,9 +506,9 @@ It generalizes concepts like AWS ECRImage attestations and OCI attestation manif
 
 | Field | Description |
 |-------|-------------|
-| digest | The content-addressable digest (SHA256) of the attestation. |
-| attestation_type | The type of attestation (e.g., "attestation-manifest"). |
-| attests_digest | The digest of the image this attestation validates. |
+| _ont_digest | The content-addressable digest (SHA256) of the attestation. |
+| _ont_attestation_type | The type of attestation (e.g., "attestation-manifest"). |
+| _ont_attests_digest | The digest of the image this attestation validates. |
 
 #### Relationships
 
@@ -529,8 +529,8 @@ It generalizes concepts like AWS ECRImage manifest lists and OCI image indexes.
 
 | Field | Description |
 |-------|-------------|
-| digest | The content-addressable digest (SHA256) of the manifest list. |
-| child_image_digests | List of platform-specific image digests contained in this manifest list. |
+| _ont_digest | The content-addressable digest (SHA256) of the manifest list. |
+| _ont_child_image_digests | List of platform-specific image digests contained in this manifest list. |
 
 #### Relationships
 
@@ -552,8 +552,9 @@ It generalizes concepts like AWS ECRImageLayer and OCI image layers.
 
 | Field | Description |
 |-------|-------------|
-| diff_id | The uncompressed (DiffID) SHA-256 digest of the layer. |
-| is_empty | Boolean flag identifying Docker's canonical empty layer. |
+| _ont_diff_id | The uncompressed (DiffID) SHA-256 digest of the layer. |
+| _ont_is_empty | Boolean flag identifying Docker's canonical empty layer. |
+| _ont_history | The shell command that created this layer (for Dockerfile matching). |
 
 #### Relationships
 

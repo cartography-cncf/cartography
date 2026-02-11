@@ -14,6 +14,7 @@ import cartography.intel.gitlab.dependency_files
 import cartography.intel.gitlab.groups
 import cartography.intel.gitlab.organizations
 import cartography.intel.gitlab.projects
+import cartography.intel.gitlab.supply_chain
 import cartography.intel.gitlab.users
 from cartography.config import Config
 from cartography.util import timeit
@@ -162,6 +163,18 @@ def start_gitlab_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         manifest_lists,
         config.update_tag,
         common_job_parameters,
+    )
+
+    # Sync supply chain (dockerfiles, provenance) and match to container images
+    # Must happen after container images and tags are synced
+    cartography.intel.gitlab.supply_chain.sync(
+        neo4j_session,
+        gitlab_url,
+        token,
+        org_url,
+        config.update_tag,
+        common_job_parameters,
+        all_projects,
     )
 
     # Sync branches - pass projects to avoid re-fetching

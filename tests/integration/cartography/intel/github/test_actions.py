@@ -11,6 +11,7 @@ from tests.data.github.actions import GET_REPO_ENVIRONMENTS
 from tests.data.github.actions import GET_REPO_SECRETS
 from tests.data.github.actions import GET_REPO_VARIABLES
 from tests.data.github.actions import GET_REPO_WORKFLOWS
+from tests.data.github.workflow_content import WORKFLOW_CI_CONTENT
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -84,7 +85,13 @@ def _ensure_repo_exists(neo4j_session):
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_org_secrets(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -220,7 +227,13 @@ def test_sync_github_actions_org_secrets(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_org_variables(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -313,7 +326,13 @@ def test_sync_github_actions_org_variables(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_workflows(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -425,7 +444,13 @@ def test_sync_github_actions_workflows(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_environments(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -532,7 +557,13 @@ def test_sync_github_actions_environments(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_repo_secrets(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -643,7 +674,13 @@ def test_sync_github_actions_repo_secrets(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_repo_variables(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -736,7 +773,13 @@ def test_sync_github_actions_repo_variables(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_env_secrets(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -847,7 +890,13 @@ def test_sync_github_actions_env_secrets(
         else GET_ENV_VARIABLES_STAGING
     ),
 )
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=None,
+)
 def test_sync_github_actions_env_variables(
+    mock_workflow_content,
     mock_env_variables,
     mock_env_secrets,
     mock_repo_variables,
@@ -920,3 +969,112 @@ def test_sync_github_actions_env_variables(
             987654322,
         ),
     }
+
+
+@patch.object(
+    cartography.intel.github.actions,
+    "get_org_secrets",
+    return_value=GET_ORG_SECRETS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_org_variables",
+    return_value=GET_ORG_VARIABLES,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_workflows",
+    return_value=GET_REPO_WORKFLOWS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_environments",
+    return_value=GET_REPO_ENVIRONMENTS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_secrets",
+    return_value=GET_REPO_SECRETS,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_repo_variables",
+    return_value=GET_REPO_VARIABLES,
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_env_secrets",
+    side_effect=lambda *args, **kwargs: (
+        GET_ENV_SECRETS_PRODUCTION
+        if args[4] == "production"
+        else GET_ENV_SECRETS_STAGING
+    ),
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_env_variables",
+    side_effect=lambda *args, **kwargs: (
+        GET_ENV_VARIABLES_PRODUCTION
+        if args[4] == "production"
+        else GET_ENV_VARIABLES_STAGING
+    ),
+)
+@patch.object(
+    cartography.intel.github.actions,
+    "get_workflow_content",
+    return_value=WORKFLOW_CI_CONTENT,
+)
+def test_sync_github_actions_workflow_parsing(
+    mock_workflow_content,
+    mock_env_variables,
+    mock_env_secrets,
+    mock_repo_variables,
+    mock_repo_secrets,
+    mock_repo_environments,
+    mock_repo_workflows,
+    mock_org_variables,
+    mock_org_secrets,
+    neo4j_session,
+):
+    """Test that workflow YAML parsing extracts actions, secrets, and permissions."""
+    # Arrange
+    _ensure_repo_exists(neo4j_session)
+
+    # Act
+    cartography.intel.github.actions.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_ORGANIZATION,
+    )
+
+    # Assert - Verify workflows have parsed fields
+    workflow = neo4j_session.run(
+        "MATCH (w:GitHubWorkflow {id: 12345678}) RETURN w",
+    ).single()["w"]
+    assert workflow["permissions_contents"] == "read"
+    assert workflow["permissions_pull_requests"] == "write"
+    assert workflow["job_count"] == 2
+    assert "push" in workflow["trigger_events"]
+
+    # Assert - Verify GitHubAction nodes were created from parsed workflow content
+    action_nodes = neo4j_session.run(
+        "MATCH (a:GitHubAction) RETURN count(a) as count",
+    ).single()["count"]
+    # WORKFLOW_CI_CONTENT has 2 unique actions (checkout@v4 and setup-node@v4).
+    # Action IDs are {org}:{raw_uses}, so the same action across workflows is merged.
+    assert action_nodes == 2
+
+    # Assert - Verify USES_ACTION relationships were created
+    uses_action_rels = neo4j_session.run(
+        "MATCH (:GitHubWorkflow)-[r:USES_ACTION]->(:GitHubAction) RETURN count(r) as count",
+    ).single()["count"]
+    assert uses_action_rels >= 2
+
+    # Assert - Verify REFERENCES_SECRET relationships were created for existing secrets
+    # The workflow references NPM_TOKEN which exists as an org secret
+    refs_secret_rels = neo4j_session.run(
+        "MATCH (:GitHubWorkflow)-[r:REFERENCES_SECRET]->(:GitHubActionsSecret) RETURN count(r) as count",
+    ).single()["count"]
+    assert refs_secret_rels >= 1

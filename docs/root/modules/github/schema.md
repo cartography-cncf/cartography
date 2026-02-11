@@ -7,6 +7,7 @@ O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
 O -- RESOURCE --> T(GitHubTeam)
 O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
+O -- RESOURCE --> A(GitHubAction)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
@@ -23,6 +24,8 @@ R -- HAS_WORKFLOW --> W(GitHubWorkflow)
 R -- HAS_SECRET --> RS(GitHubActionsSecret)
 R -- HAS_VARIABLE --> RV(GitHubActionsVariable)
 R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
+W -- USES_ACTION --> A(GitHubAction)
+W -- REFERENCES_SECRET --> RS
 E -- HAS_SECRET --> ES(GitHubActionsSecret)
 E -- HAS_VARIABLE --> EV(GitHubActionsVariable)
 M -- HAS_DEP --> D
@@ -30,6 +33,8 @@ T -- {ROLE} --> R
 T -- MEMBER_OF_TEAM --> T
 U -- MEMBER --> T
 U -- MAINTAINER --> T
+IT(ImageTag) -- PACKAGED_FROM --> R
+I(Image) -- PACKAGED_BY --> W
 ```
 
 ### GitHubRepository
@@ -425,6 +430,27 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
     (DependencyGraphManifest)-[:HAS_DEP]->(Dependency)
     ```
 
+### ImageTag to GitHubRepository (Cross-module relationship)
+
+Container images (ImageTag nodes from any registry: ECR, GitLab, GCR, etc.) can be linked to the GitHubRepository that contains the Dockerfile used to build them. This relationship is created by analyzing Dockerfile content and matching layer commands against image history.
+
+#### Relationships
+
+- ImageTag nodes may be packaged from a GitHubRepository
+    ```
+    (:ImageTag)-[:PACKAGED_FROM]->(:GitHubRepository)
+    ```
+
+    Relationship properties:
+    - **match_method**: How the match was determined: `"provenance"` (from SLSA attestation) or `"dockerfile_analysis"` (from command matching)
+    - **dockerfile_path**: Path to the Dockerfile in the repository (only for `dockerfile_analysis` method)
+    - **confidence**: Confidence score of the match (0.0 to 1.0, only for `dockerfile_analysis` method)
+    - **matched_commands**: Number of commands that matched between Dockerfile and image history (only for `dockerfile_analysis` method)
+    - **total_commands**: Total number of commands compared (only for `dockerfile_analysis` method)
+    - **command_similarity**: Average similarity score of matched commands (only for `dockerfile_analysis` method)
+
+    Note: This relationship uses the generic `ImageTag` semantic label, enabling cross-registry querying (ECR, GitLab, GCR, etc.).
+
 ### Dependency::PythonLibrary
 
 Representation of a Python library as listed in a [requirements.txt](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
@@ -468,7 +494,21 @@ Represents a GitHub Actions workflow definition file in a repository.
 | **state** | Workflow state: `active`, `disabled_manually`, `disabled_inactivity`, `disabled_fork`, or `deleted` |
 | **created_at** | Timestamp when the workflow was created |
 | **updated_at** | Timestamp when the workflow was last updated |
-| **html_url** | Web URL for viewing the workflow file |
+| **repo_url** | URL of the repository containing this workflow (e.g., `https://github.com/org/repo`) |
+| **trigger_events** | List of events that trigger the workflow (e.g., `push`, `pull_request`, `schedule`) |
+| **permissions_actions** | Permission level for the `actions` scope |
+| **permissions_contents** | Permission level for the `contents` scope |
+| **permissions_packages** | Permission level for the `packages` scope |
+| **permissions_pull_requests** | Permission level for the `pull-requests` scope |
+| **permissions_issues** | Permission level for the `issues` scope |
+| **permissions_deployments** | Permission level for the `deployments` scope |
+| **permissions_statuses** | Permission level for the `statuses` scope |
+| **permissions_checks** | Permission level for the `checks` scope |
+| **permissions_id_token** | Permission level for the `id-token` scope |
+| **permissions_security_events** | Permission level for the `security-events` scope |
+| **env_vars** | List of top-level environment variable names defined in the workflow |
+| **job_count** | Number of jobs defined in the workflow |
+| **has_reusable_workflow_calls** | Whether the workflow calls reusable workflows |
 
 #### Relationships
 
@@ -476,6 +516,57 @@ Represents a GitHub Actions workflow definition file in a repository.
 
     ```
     (GitHubRepository)-[:HAS_WORKFLOW]->(GitHubWorkflow)
+    ```
+
+- GitHubWorkflows use GitHubActions.
+
+    ```
+    (GitHubWorkflow)-[:USES_ACTION]->(GitHubAction)
+    ```
+
+- GitHubWorkflows reference GitHubActionsSecrets (detected via `${{ secrets.NAME }}` patterns in the YAML).
+
+    ```
+    (GitHubWorkflow)-[:REFERENCES_SECRET]->(GitHubActionsSecret)
+    ```
+
+- Container images may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations).
+
+    ```
+    (:Image)-[:PACKAGED_BY]->(:GitHubWorkflow)
+    ```
+
+    Note: This relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. The `Image` label is a semantic label applied to container images across registries (ECR, GitLab, etc.).
+
+
+### GitHubAction
+
+Represents a third-party GitHub Action used in workflows, parsed from workflow YAML `uses` references.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier in the format `{org}:{raw_uses}` (e.g., `my-org:actions/checkout@v4`) |
+| **owner** | Owner of the action repository (e.g., `actions`, `docker`), or `None` for local actions |
+| **name** | Name of the action (e.g., `checkout`, `setup-node`, `./.github/actions/my-action`) |
+| **version** | Version reference (tag, branch, or SHA), or `None` for docker/local actions |
+| **is_pinned** | Whether the action is pinned to a full 40-character SHA commit hash |
+| **is_local** | Whether the action is a local action (path starting with `./`) |
+| **full_name** | Full name of the action (e.g., `actions/checkout`) |
+
+#### Relationships
+
+- GitHubWorkflows use GitHubActions.
+
+    ```
+    (GitHubWorkflow)-[:USES_ACTION]->(GitHubAction)
+    ```
+
+- GitHubOrganizations are sub-resources for GitHubActions (for cleanup scoping).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubAction)
     ```
 
 

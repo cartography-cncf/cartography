@@ -18,6 +18,7 @@ class ECRImageLayerNodeProperties(CartographyNodeProperties):
     diff_id: PropertyRef = PropertyRef("diff_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     is_empty: PropertyRef = PropertyRef("is_empty")
+    history: PropertyRef = PropertyRef("history")
 
 
 @dataclass(frozen=True)

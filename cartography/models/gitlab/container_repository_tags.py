@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -112,6 +113,9 @@ class GitLabContainerRepositoryTagSchema(CartographyNodeSchema):
     - RESOURCE: Sub-resource to GitLabOrganization for cleanup
     - HAS_TAG: Links from GitLabContainerRepository to this tag
     - REFERENCES: Links to GitLabContainerImage via digest
+
+    Extra labels:
+    - ImageTag: Generic ontology label for cross-registry querying
     """
 
     label: str = "GitLabContainerRepositoryTag"
@@ -127,3 +131,5 @@ class GitLabContainerRepositoryTagSchema(CartographyNodeSchema):
             GitLabContainerRepositoryTagToImageRel(),
         ],
     )
+    # Add generic ontology label for cross-registry querying
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ImageTag"])
