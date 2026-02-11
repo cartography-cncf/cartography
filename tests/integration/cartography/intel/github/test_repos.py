@@ -3,6 +3,7 @@ from unittest.mock import patch
 import cartography.intel.github.repos
 from cartography.intel.github.util import PaginatedGraphqlData
 from tests.data.github.collaborators_test_data import COLLABORATORS_TEST_REPOS
+from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import DIRECT_COLLABORATORS
 from tests.data.github.repos import GET_REPOS
 from tests.data.github.repos import OUTSIDE_COLLABORATORS
@@ -457,6 +458,61 @@ def test_sync_github_manifests(mock_get_collabs, mock_get_repos, neo4j_session):
     assert expected_manifest_dependency_relationships.issubset(
         actual_manifest_dependency_relationships
     )
+
+
+@patch.object(
+    cartography.intel.github.repos, "_get_repo_collaborators_for_multiple_repos"
+)
+@patch.object(cartography.intel.github.repos, "get_repo_dependency_details_by_url")
+@patch.object(cartography.intel.github.repos, "get")
+def test_sync_github_dependencies_from_split_dependency_fetch(
+    mock_get_repos,
+    mock_get_dependency_details,
+    mock_get_collabs,
+    neo4j_session,
+):
+    repos_without_dependency_graph = []
+    for repo in GET_REPOS:
+        repo_copy = dict(repo)
+        repo_copy.pop("dependencyGraphManifests", None)
+        repos_without_dependency_graph.append(repo_copy)
+
+    mock_get_repos.return_value = repos_without_dependency_graph
+    mock_get_dependency_details.return_value = {
+        "https://github.com/cartography-cncf/cartography": {
+            "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
+        },
+    }
+
+    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
+        if affiliation == "DIRECT":
+            return DIRECT_COLLABORATORS
+        return OUTSIDE_COLLABORATORS
+
+    mock_get_collabs.side_effect = collabs_side_effect
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    assert mock_get_dependency_details.called
+
+    expected_github_dependency_nodes = {
+        ("react|18.2.0", "react"),
+        ("lodash", "lodash"),
+        ("django|= 4.2.0", "django"),
+        ("org.springframework:spring-core|5.3.21", "org.springframework:spring-core"),
+    }
+    actual_dependency_nodes = check_nodes(
+        neo4j_session,
+        "Dependency",
+        ["id", "name"],
+    )
+    assert expected_github_dependency_nodes.issubset(actual_dependency_nodes)
 
 
 @patch.object(

@@ -70,7 +70,7 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> dic
         )
     except requests.exceptions.Timeout:
         # Add context and re-raise for callers to handle
-        logger.warning("GitHub: requests.get('%s') timed out.", api_url)
+        logger.warning("GitHub: requests.post('%s') timed out.", api_url)
         raise
     response.raise_for_status()
     response_json = response.json()
@@ -80,6 +80,38 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> dic
             f"continuing sync.",
         )
     return response_json  # type: ignore
+
+
+def _is_transient_graphql_error(error: dict[str, Any]) -> bool:
+    """
+    Return True if a GitHub GraphQL error looks transient/retriable.
+    """
+    message = str(error.get("message", "")).lower()
+    error_type = str(error.get("type", "")).upper()
+    return (
+        "timedout" in message
+        or "timeout" in message
+        or "service unavailable" in message
+        or "something went wrong" in message
+        or error_type
+        in {
+            "INTERNAL",
+            "INTERNAL_ERROR",
+            "INTERNAL_SERVER_ERROR",
+            "SERVER_ERROR",
+            "SERVICE_UNAVAILABLE",
+        }
+    )
+
+
+def _has_transient_graphql_errors(resp: dict[str, Any]) -> bool:
+    errors = resp.get("errors")
+    if not isinstance(errors, list):
+        return False
+    return any(
+        isinstance(error, dict) and _is_transient_graphql_error(error)
+        for error in errors
+    )
 
 
 def fetch_page(
@@ -147,6 +179,7 @@ def fetch_all(
 
     while has_next_page:
         exc: Any = None
+        resp: dict[str, Any] = {}
         try:
             # In the future, we may use also use the rateLimit object from the graphql response.
             # But we still need at least one call to the REST endpoint in case the graphql remaining is already 0
@@ -185,6 +218,21 @@ def fetch_all(
         elif retry > 0:
             time.sleep(2**retry)
             continue
+
+        has_transient_graphql_errors = _has_transient_graphql_errors(resp)
+        if has_transient_graphql_errors and kwargs.get("count"):
+            if kwargs["count"] > 1:
+                kwargs["count"] = max(1, kwargs["count"] // 2)
+                logger.warning(
+                    "GitHub: Received transient GraphQL errors for `%s`. Reducing page size to %s and retrying.",
+                    resource_type,
+                    kwargs["count"],
+                )
+                continue
+            logger.warning(
+                "GitHub: Received transient GraphQL errors for `%s` at minimum page size; continuing with partial data.",
+                resource_type,
+            )
 
         if "data" not in resp:
             logger.warning(

@@ -97,18 +97,6 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                             text
                         }
                     }
-                    dependencyGraphManifests(first: 20) {
-                        nodes {
-                            blobPath
-                            dependencies(first: 100) {
-                                nodes {
-                                    packageName
-                                    requirements
-                                    packageManager
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -153,6 +141,37 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                             requiresStrictStatusChecks
                             restrictsPushes
                             restrictsReviewDismissals
+                        }
+                    }
+                }
+            }
+        }
+    }
+    """
+
+GITHUB_ORG_REPOS_DEPENDENCIES_PAGINATED_GRAPHQL = """
+    query($login: String!, $cursor: String, $count: Int!) {
+    organization(login: $login)
+        {
+            url
+            login
+            repositories(first: $count, after: $cursor){
+                pageInfo{
+                    endCursor
+                    hasNextPage
+                }
+                nodes{
+                    url
+                    dependencyGraphManifests(first: 20) {
+                        nodes {
+                            blobPath
+                            dependencies(first: 100) {
+                                nodes {
+                                    packageName
+                                    requirements
+                                    packageManager
+                                }
+                            }
                         }
                     }
                 }
@@ -375,6 +394,17 @@ def _repos_need_privileged_details(repos_json: List[Optional[Dict]]) -> bool:
     return collaborator_counts_missing or branch_rules_missing_everywhere
 
 
+def _repos_need_dependency_details(repos_json: List[Optional[Dict]]) -> bool:
+    """
+    Return True when repo objects are missing dependency graph manifest fields.
+    """
+    non_null_repos = [repo for repo in repos_json if repo is not None]
+    if not non_null_repos:
+        return False
+
+    return any(repo.get("dependencyGraphManifests") is None for repo in non_null_repos)
+
+
 def get_repo_privileged_details_by_url(
     token: str,
     api_url: str,
@@ -406,6 +436,36 @@ def get_repo_privileged_details_by_url(
             "branchProtectionRules": repo.get("branchProtectionRules"),
         }
     return privileged_repo_data
+
+
+def get_repo_dependency_details_by_url(
+    token: str,
+    api_url: str,
+    organization: str,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Retrieve dependency graph manifest fields for repositories in an organization.
+    """
+    repos, _ = fetch_all(
+        token,
+        api_url,
+        organization,
+        GITHUB_ORG_REPOS_DEPENDENCIES_PAGINATED_GRAPHQL,
+        "repositories",
+        count=25,
+    )
+    dependency_repo_data: dict[str, dict[str, Any]] = {}
+    dependency_nodes = cast(List[Optional[Dict]], repos.nodes)
+    for repo in dependency_nodes:
+        if repo is None:
+            continue
+        repo_url = repo.get("url")
+        if not repo_url:
+            continue
+        dependency_repo_data[repo_url] = {
+            "dependencyGraphManifests": repo.get("dependencyGraphManifests"),
+        }
+    return dependency_repo_data
 
 
 def _merge_repos_with_privileged_details(
@@ -455,6 +515,46 @@ def _merge_repos_with_privileged_details(
         merged_repos.append(merged_repo)
 
     return merged_repos, merged_repo_count, repos_missing_privileged_details
+
+
+def _merge_repos_with_dependency_details(
+    repo_raw_data: List[Optional[Dict]],
+    dependency_repo_data_by_url: Dict[str, Dict[str, Any]],
+) -> tuple[List[Optional[Dict]], int, int]:
+    """
+    Merge dependency graph fields by URL into the base repo list.
+    Returns merged repos + merged count + count still missing dependency details.
+    """
+    merged_repo_count = 0
+    repos_missing_dependency_details = 0
+    merged_repos: List[Optional[Dict]] = []
+
+    for repo in repo_raw_data:
+        if repo is None:
+            merged_repos.append(None)
+            continue
+
+        merged_repo = dict(repo)
+        repo_url = merged_repo.get("url")
+        dependency_data: Dict[str, Any] = {}
+        if isinstance(repo_url, str):
+            dependency_data = dependency_repo_data_by_url.get(repo_url, {})
+
+        if (
+            merged_repo.get("dependencyGraphManifests") is None
+            and "dependencyGraphManifests" in dependency_data
+        ):
+            merged_repo["dependencyGraphManifests"] = dependency_data.get(
+                "dependencyGraphManifests"
+            )
+            merged_repo_count += 1
+
+        if merged_repo.get("dependencyGraphManifests") is None:
+            repos_missing_dependency_details += 1
+
+        merged_repos.append(merged_repo)
+
+    return merged_repos, merged_repo_count, repos_missing_dependency_details
 
 
 def transform(
@@ -1514,22 +1614,54 @@ def sync(
 
     privileged_repo_data_by_url: dict[str, dict[str, Any]] = {}
     if _repos_need_privileged_details(repos_json):
-        privileged_repo_data_by_url = get_repo_privileged_details_by_url(
-            github_api_key,
-            github_url,
-            organization,
-        )
+        try:
+            privileged_repo_data_by_url = get_repo_privileged_details_by_url(
+                github_api_key,
+                github_url,
+                organization,
+            )
+        except Exception:
+            logger.warning(
+                "Unable to fetch privileged repo details for org %s; continuing without collaborator counts and branch protection enrichment.",
+                organization,
+                exc_info=True,
+            )
 
     repos_json, merged_repo_count, missing_privileged_repo_count = (
         _merge_repos_with_privileged_details(repos_json, privileged_repo_data_by_url)
     )
+
+    dependency_repo_data_by_url: dict[str, dict[str, Any]] = {}
+    if _repos_need_dependency_details(repos_json):
+        try:
+            dependency_repo_data_by_url = get_repo_dependency_details_by_url(
+                github_api_key,
+                github_url,
+                organization,
+            )
+        except Exception:
+            logger.warning(
+                "Unable to fetch dependency graph details for org %s; continuing with requirements.txt/setup.cfg fallback where available.",
+                organization,
+                exc_info=True,
+            )
+
+    (
+        repos_json,
+        merged_dependency_repo_count,
+        missing_dependency_repo_count,
+    ) = _merge_repos_with_dependency_details(repos_json, dependency_repo_data_by_url)
+
     logger.info(
-        "GitHub repo sync summary for org %s: base_repos=%d privileged_details_fetched=%d merged_repos=%d repos_missing_privileged_details=%d",
+        "GitHub repo sync summary for org %s: base_repos=%d privileged_details_fetched=%d merged_repos=%d repos_missing_privileged_details=%d dependency_details_fetched=%d merged_dependency_repos=%d repos_missing_dependency_details=%d",
         organization,
         base_repo_count,
         len(privileged_repo_data_by_url),
         merged_repo_count,
         missing_privileged_repo_count,
+        len(dependency_repo_data_by_url),
+        merged_dependency_repo_count,
+        missing_dependency_repo_count,
     )
 
     direct_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}

@@ -1,11 +1,11 @@
 from copy import deepcopy
 from unittest.mock import patch
 
-import pytest
-
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
+from cartography.intel.github.repos import _merge_repos_with_dependency_details
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
+from cartography.intel.github.repos import _repos_need_dependency_details
 from cartography.intel.github.repos import _repos_need_privileged_details
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
@@ -297,27 +297,120 @@ def test_repos_need_privileged_details_when_fields_present():
     assert _repos_need_privileged_details([GET_REPOS[0], GET_REPOS[2]]) is False
 
 
+def test_merge_repos_with_dependency_details_merges_by_url():
+    base_repos = deepcopy(GET_REPOS[:2])
+    for repo in base_repos:
+        repo.pop("dependencyGraphManifests", None)
+
+    dependency_repo_data = {
+        base_repos[1]["url"]: {
+            "dependencyGraphManifests": {"nodes": []},
+        },
+        "https://github.com/simpsoncorp/non_matching_repo": {
+            "dependencyGraphManifests": {"nodes": [{"blobPath": "/package.json"}]},
+        },
+    }
+
+    merged_repos, merged_repo_count, missing_repo_count = (
+        _merge_repos_with_dependency_details(base_repos, dependency_repo_data)
+    )
+
+    assert merged_repo_count == 1
+    assert missing_repo_count == 1
+    assert merged_repos[1]["dependencyGraphManifests"] == {"nodes": []}
+    assert "dependencyGraphManifests" not in merged_repos[0]
+    # Ensure input repos are not mutated by merge.
+    assert "dependencyGraphManifests" not in base_repos[1]
+
+
+def test_repos_need_dependency_details_when_fields_missing():
+    repo = deepcopy(GET_REPOS[0])
+    repo.pop("dependencyGraphManifests", None)
+
+    assert _repos_need_dependency_details([repo]) is True
+
+
+def test_repos_need_dependency_details_when_fields_present():
+    assert _repos_need_dependency_details([GET_REPOS[2]]) is False
+
+
+def _empty_repo_data():
+    return {
+        "repos": [],
+        "repo_languages": [],
+        "repo_owners": [],
+        "repo_outside_collaborators": {
+            "ADMIN": [],
+            "MAINTAIN": [],
+            "READ": [],
+            "TRIAGE": [],
+            "WRITE": [],
+        },
+        "repo_direct_collaborators": {
+            "ADMIN": [],
+            "MAINTAIN": [],
+            "READ": [],
+            "TRIAGE": [],
+            "WRITE": [],
+        },
+        "python_requirements": [],
+        "dependencies": [],
+        "manifests": [],
+        "branch_protection_rules": [],
+    }
+
+
 @patch.object(
     cartography.intel.github.repos,
     "get_repo_privileged_details_by_url",
     side_effect=RuntimeError("privileged fetch failed"),
 )
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    side_effect=RuntimeError("dependency fetch failed"),
+)
 @patch.object(cartography.intel.github.repos, "get")
-def test_sync_raises_when_privileged_fetch_fails(
+@patch.object(
+    cartography.intel.github.repos, "_get_repo_collaborators_for_multiple_repos"
+)
+@patch.object(
+    cartography.intel.github.repos, "transform", return_value=_empty_repo_data()
+)
+@patch.object(cartography.intel.github.repos, "load")
+@patch.object(cartography.intel.github.repos, "cleanup_github_dependencies")
+@patch.object(cartography.intel.github.repos, "cleanup_github_manifests")
+@patch.object(cartography.intel.github.repos, "cleanup_branch_protection_rules")
+@patch.object(cartography.intel.github.repos, "run_cleanup_job")
+def test_sync_continues_when_privileged_or_dependency_fetch_fails(
+    mock_run_cleanup_job,
+    mock_cleanup_branch_protection_rules,
+    mock_cleanup_github_manifests,
+    mock_cleanup_github_dependencies,
+    mock_load,
+    mock_transform,
+    mock_get_collaborators,
     mock_get,
+    mock_get_dependency_details,
     mock_get_privileged,
 ):
     repo = deepcopy(GET_REPOS[0])
     repo.pop("directCollaborators", None)
     repo.pop("outsideCollaborators", None)
     repo.pop("branchProtectionRules", None)
+    repo.pop("dependencyGraphManifests", None)
     mock_get.return_value = [repo]
+    mock_get_collaborators.return_value = {}
 
-    with pytest.raises(RuntimeError, match="privileged fetch failed"):
-        cartography.intel.github.repos.sync(
-            None,
-            {"UPDATE_TAG": TEST_UPDATE_TAG},
-            "token",
-            "https://api.github.com/graphql",
-            "example-org",
-        )
+    cartography.intel.github.repos.sync(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        "token",
+        "https://api.github.com/graphql",
+        "example-org",
+    )
+
+    assert mock_get_privileged.called
+    assert mock_get_dependency_details.called
+    assert mock_transform.called
+    assert mock_load.called

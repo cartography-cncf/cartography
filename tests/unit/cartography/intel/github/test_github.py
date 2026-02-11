@@ -82,6 +82,92 @@ def test_fetch_all_reduces_count_on_502(
     assert mock_fetch_page.call_args_list[1][1]["count"] == 25
 
 
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_reduces_count_on_transient_graphql_errors(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    transient_error_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        },
+        "errors": [
+            {
+                "path": ["organization", "repositories", "nodes", 0],
+                "message": "timedout",
+            },
+        ],
+    }
+    success_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        },
+    }
+
+    mock_fetch_page.side_effect = [transient_error_response, success_response]
+
+    fetch_all("token", "api_url", "org", "query", "repositories", count=50)
+
+    assert mock_fetch_page.call_count == 2
+    assert mock_fetch_page.call_args_list[0][1]["count"] == 50
+    assert mock_fetch_page.call_args_list[1][1]["count"] == 25
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_does_not_reduce_count_on_forbidden_graphql_errors(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    forbidden_error_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        },
+        "errors": [
+            {
+                "type": "FORBIDDEN",
+                "path": ["organization", "repositories", "nodes", 0],
+                "message": "Resource not accessible by personal access token",
+            },
+        ],
+    }
+    mock_fetch_page.return_value = forbidden_error_response
+
+    fetch_all("token", "api_url", "org", "query", "repositories", count=50)
+
+    assert mock_fetch_page.call_count == 1
+    assert mock_fetch_page.call_args_list[0][1]["count"] == 50
+
+
 @typing.no_type_check
 @patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.datetime")
