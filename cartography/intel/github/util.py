@@ -13,6 +13,16 @@ import requests
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
+
+
+def _resolve_token(token: Any) -> str:
+    """Resolve a token string or GitHubCredential to a plain token string."""
+    if isinstance(token, str):
+        return token
+    result: str = token.get_token()
+    return result
+
+
 _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
 _REST_RATE_LIMIT_REMAINING_THRESHOLD = 100
 # Search API has a stricter rate limit (30 requests/minute for authenticated users)
@@ -31,7 +41,7 @@ def handle_rate_limit_sleep(token: str) -> None:
     """
     response = requests.get(
         "https://api.github.com/rate_limit",
-        headers={"Authorization": f"token {token}"},
+        headers={"Authorization": f"Bearer {_resolve_token(token)}"},
     )
     response.raise_for_status()
     response_json = response.json()
@@ -60,7 +70,7 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> dic
     :param api_url: the URL to call for the API
     :return: query results json
     """
-    headers = {"Authorization": f"token {token}"}
+    headers = {"Authorization": f"Bearer {_resolve_token(token)}"}
     try:
         response = requests.post(
             api_url,
@@ -248,7 +258,7 @@ def handle_rest_rate_limit_sleep(token: str, base_url: str) -> None:
     rate_limit_url = f"{base_url}/rate_limit"
     response = requests.get(
         rate_limit_url,
-        headers={"Authorization": f"token {token}"},
+        headers={"Authorization": f"Bearer {_resolve_token(token)}"},
         timeout=_TIMEOUT,
     )
     response.raise_for_status()
@@ -288,14 +298,15 @@ def fetch_all_rest_api_pages(
     """
     results: list[dict[str, Any]] = []
     url: str | None = f"{base_url}{endpoint}"
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
     retry = 0
 
     while url:
+        # Resolve token each iteration so AppCredential can refresh expired tokens
+        headers = {
+            "Authorization": f"Bearer {_resolve_token(token)}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
         exc: Any = None
         try:
             handle_rest_rate_limit_sleep(token, base_url)
@@ -383,7 +394,7 @@ def call_github_rest_api(
     )
 
     headers = {
-        "Authorization": f"token {token}",
+        "Authorization": f"Bearer {_resolve_token(token)}",
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
