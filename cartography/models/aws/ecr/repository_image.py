@@ -16,7 +16,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class ECRRepositoryImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     tag: PropertyRef = PropertyRef("imageTag")
-    uri: PropertyRef = PropertyRef("uri")
+    uri: PropertyRef = PropertyRef(
+        "uri", extra_index=True
+    )  # Used in image name filtering
     repo_uri: PropertyRef = PropertyRef("repo_uri")
     image_size_bytes: PropertyRef = PropertyRef("imageSizeInBytes")
     image_pushed_at: PropertyRef = PropertyRef("imagePushedAt")

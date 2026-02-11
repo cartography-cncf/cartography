@@ -1,0 +1,35 @@
+{
+  "name": "Container manifest list to platform image resolution",
+  "statements": [
+    {
+      "__comment__": "ECS: Direct platform images - resolved_image_digest equals image_digest",
+      "query": "MATCH (c:ECSContainer) WHERE c.image_digest IS NOT NULL MATCH (img:ECRImage {digest: c.image_digest}) WHERE img.type = 'image' SET c.resolved_image_digest = img.digest, c.manifest_list_digest = null",
+      "iterative": false
+    },
+    {
+      "__comment__": "ECS: Manifest lists - resolve to platform image via CONTAINS_IMAGE (prefer task arch, then amd64)",
+      "query": "MATCH (c:ECSContainer) WHERE c.image_digest IS NOT NULL AND c.resolved_image_digest IS NULL MATCH (ml:ECRImage {digest: c.image_digest}) WHERE ml.type = 'manifest_list' MATCH (ml)-[:CONTAINS_IMAGE]->(img:ECRImage) WHERE img.type = 'image' OPTIONAL MATCH (c)<-[:HAS_CONTAINER]-(task:ECSTask)-[:HAS_TASK_DEFINITION]->(td:ECSTaskDefinition) WITH c, ml, img, td.runtime_platform_cpu_architecture AS task_arch ORDER BY CASE WHEN img.architecture = task_arch THEN 0 WHEN img.architecture = 'amd64' THEN 1 WHEN img.architecture = 'arm64' THEN 2 ELSE 3 END WITH c, ml, COLLECT(img)[0] AS platform_img SET c.resolved_image_digest = platform_img.digest, c.manifest_list_digest = ml.digest",
+      "iterative": false
+    },
+    {
+      "__comment__": "K8s: Direct platform images - resolved_image_digest equals status_image_sha",
+      "query": "MATCH (c:KubernetesContainer) WHERE c.status_image_sha IS NOT NULL MATCH (img:ECRImage {digest: c.status_image_sha}) WHERE img.type = 'image' SET c.resolved_image_digest = img.digest, c.manifest_list_digest = null",
+      "iterative": false
+    },
+    {
+      "__comment__": "K8s: Manifest lists - resolve to platform image (prefer amd64)",
+      "query": "MATCH (c:KubernetesContainer) WHERE c.status_image_sha IS NOT NULL AND c.resolved_image_digest IS NULL MATCH (ml:ECRImage {digest: c.status_image_sha}) WHERE ml.type = 'manifest_list' MATCH (ml)-[:CONTAINS_IMAGE]->(img:ECRImage) WHERE img.type = 'image' WITH c, ml, img ORDER BY CASE WHEN img.architecture = 'amd64' THEN 0 WHEN img.architecture = 'arm64' THEN 1 ELSE 2 END WITH c, ml, COLLECT(img)[0] AS platform_img SET c.resolved_image_digest = platform_img.digest, c.manifest_list_digest = ml.digest",
+      "iterative": false
+    },
+    {
+      "__comment__": "Cleanup: Clear resolved_image_digest for ECS containers whose ECR image no longer exists",
+      "query": "MATCH (c:ECSContainer) WHERE c.resolved_image_digest IS NOT NULL AND NOT EXISTS { MATCH (img:ECRImage {digest: c.resolved_image_digest}) } SET c.resolved_image_digest = null, c.manifest_list_digest = null",
+      "iterative": false
+    },
+    {
+      "__comment__": "Cleanup: Clear resolved_image_digest for K8s containers whose ECR image no longer exists",
+      "query": "MATCH (c:KubernetesContainer) WHERE c.resolved_image_digest IS NOT NULL AND NOT EXISTS { MATCH (img:ECRImage {digest: c.resolved_image_digest}) } SET c.resolved_image_digest = null, c.manifest_list_digest = null",
+      "iterative": false
+    }
+  ]
+}

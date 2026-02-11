@@ -16,10 +16,18 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class ECSContainerNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("containerArn")
     arn: PropertyRef = PropertyRef("containerArn", extra_index=True)
-    task_arn: PropertyRef = PropertyRef("taskArn")
+    task_arn: PropertyRef = PropertyRef(
+        "taskArn", extra_index=True
+    )  # Used in container counting
     name: PropertyRef = PropertyRef("name")
     image: PropertyRef = PropertyRef("image")
     image_digest: PropertyRef = PropertyRef("imageDigest")
+    resolved_image_digest: PropertyRef = PropertyRef(
+        "resolvedImageDigest", extra_index=True
+    )  # Resolved platform-specific image for vulnerability correlation
+    manifest_list_digest: PropertyRef = PropertyRef(
+        "manifestListDigest"
+    )  # NEW: Original manifest list digest (null if direct image)
     runtime_id: PropertyRef = PropertyRef("runtimeId")
     last_status: PropertyRef = PropertyRef("lastStatus", extra_index=True)
     exit_code: PropertyRef = PropertyRef("exitCode")
@@ -74,6 +82,12 @@ class ECSContainerToECRImageRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class ECSContainerToECRImageRel(CartographyRelSchema):
+    """
+    Links ECSContainer to its ECRImage by image digest.
+    Note: For vulnerability queries, use c.resolved_image_digest property
+    which resolves manifest lists to platform-specific images.
+    """
+
     target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"digest": PropertyRef("imageDigest")}
