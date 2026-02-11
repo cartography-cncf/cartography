@@ -25,9 +25,19 @@ FAKE_API_KEY = "asdf"
 )
 @patch.object(
     cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
     "_get_repo_collaborators_for_multiple_repos",
 )
-def test_sync_github_repos(mock_get_collabs, mock_get_repos, neo4j_session):
+def test_sync_github_repos(
+    mock_get_collabs,
+    mock_get_dependency_details,
+    mock_get_repos,
+    neo4j_session,
+):
     """
     Test that GitHub repos sync correctly, creating proper nodes and relationships.
     """
@@ -131,10 +141,15 @@ def test_sync_github_repos(mock_get_collabs, mock_get_repos, neo4j_session):
 )
 @patch.object(
     cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
     "_get_repo_collaborators_for_multiple_repos",
 )
 def test_sync_github_repo_collaborators(
-    mock_get_collabs, mock_get_repos, neo4j_session
+    mock_get_collabs, mock_get_dependency_details, mock_get_repos, neo4j_session
 ):
     """
     Test that GitHub repo collaborators sync correctly with proper relationships.
@@ -302,9 +317,16 @@ def test_sync_github_repo_collaborators(
 )
 @patch.object(
     cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
     "_get_repo_collaborators_for_multiple_repos",
 )
-def test_sync_github_dependencies(mock_get_collabs, mock_get_repos, neo4j_session):
+def test_sync_github_dependencies(
+    mock_get_collabs, mock_get_dependency_details, mock_get_repos, neo4j_session
+):
     """
     Test that GitHub dependencies from dependency graph are correctly synced.
     """
@@ -374,9 +396,16 @@ def test_sync_github_dependencies(mock_get_collabs, mock_get_repos, neo4j_sessio
 )
 @patch.object(
     cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
     "_get_repo_collaborators_for_multiple_repos",
 )
-def test_sync_github_manifests(mock_get_collabs, mock_get_repos, neo4j_session):
+def test_sync_github_manifests(
+    mock_get_collabs, mock_get_dependency_details, mock_get_repos, neo4j_session
+):
     """
     Test that GitHub dependency manifests are correctly synced.
     """
@@ -522,10 +551,15 @@ def test_sync_github_dependencies_from_split_dependency_fetch(
 )
 @patch.object(
     cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
     "_get_repo_collaborators_for_multiple_repos",
 )
 def test_sync_github_branch_protection_rules(
-    mock_get_collabs, mock_get_repos, neo4j_session
+    mock_get_collabs, mock_get_dependency_details, mock_get_repos, neo4j_session
 ):
     """
     Test that GitHub branch protection rules are correctly synced.
@@ -589,9 +623,17 @@ def test_sync_github_branch_protection_rules(
 
 
 @patch.object(cartography.intel.github.repos, "get")
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    return_value={},
+)
 @patch.object(cartography.intel.github.repos, "_get_repo_collaborators")
 def test_sync_collaborators_per_repo(
-    mock_repo_collaborators, mock_get_repos, neo4j_session
+    mock_repo_collaborators,
+    mock_get_dependency_details,
+    mock_get_repos,
+    neo4j_session,
 ):
     """
     Test that collaborators are synced correctly per repository.
@@ -701,10 +743,15 @@ def test_sync_collaborators_per_repo(
 )
 @patch.object(
     cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
     "_get_repo_collaborators_for_multiple_repos",
 )
 def test_sync_github_python_requirements(
-    mock_get_collabs, mock_get_repos, neo4j_session
+    mock_get_collabs, mock_get_dependency_details, mock_get_repos, neo4j_session
 ):
     """
     Test that Python requirements from requirements.txt and setup.cfg are synced.
