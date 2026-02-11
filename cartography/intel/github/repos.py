@@ -124,6 +124,33 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
                     outsideCollaborators: collaborators(first: 100, affiliation: OUTSIDE) {
                         totalCount
                     }
+                }
+            }
+        }
+    }
+    """
+# Note: In the above query, `HEAD` references the default branch.
+# See https://stackoverflow.com/questions/48935381/github-graphql-api-default-branch-in-repository
+
+GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
+    query($login: String!, $cursor: String, $count: Int!) {
+    organization(login: $login)
+        {
+            url
+            login
+            repositories(first: $count, after: $cursor){
+                pageInfo{
+                    endCursor
+                    hasNextPage
+                }
+                nodes{
+                    url
+                    directCollaborators: collaborators(first: 100, affiliation: DIRECT) {
+                        totalCount
+                    }
+                    outsideCollaborators: collaborators(first: 100, affiliation: OUTSIDE) {
+                        totalCount
+                    }
                     branchProtectionRules(first: 50) {
                         nodes {
                             id
@@ -148,7 +175,6 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
         }
     }
     """
-
 GITHUB_ORG_REPOS_DEPENDENCIES_PAGINATED_GRAPHQL = """
     query($login: String!, $cursor: String, $count: Int!) {
     organization(login: $login)
@@ -179,7 +205,6 @@ GITHUB_ORG_REPOS_DEPENDENCIES_PAGINATED_GRAPHQL = """
         }
     }
     """
-
 GITHUB_REPO_COLLABS_PAGINATED_GRAPHQL = """
     query($login: String!, $repo: String!, $affiliation: CollaboratorAffiliation!, $cursor: String) {
         organization(login: $login) {

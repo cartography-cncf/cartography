@@ -79,6 +79,17 @@ Some data requires elevated permissions. Without these, Cartography will log war
 | **Two-factor authentication status** | Visible only to Organization Owners. |
 | **Enterprise owners** | Requires GitHub Enterprise with appropriate enterprise-level permissions. |
 
+### Alternative: GitHub App Authentication
+
+GitHub App authentication provides better security through short-lived tokens and granular, installation-scoped permissions. Use this instead of PATs when you need app-level (not user-level) access.
+
+1. [Create a GitHub App](https://docs.github.com/en/apps/creating-github-apps) with the same repository and organization permissions listed above.
+2. Install the App on your target organization(s).
+3. Note the **Client ID** (from the App's settings page) and the **Installation ID** (from the URL when viewing the installation: `https://github.com/organizations/{org}/settings/installations/{installation_id}`).
+4. Generate and download a **private key** from the App's settings page.
+
+Then configure Cartography with the App credentials instead of a PAT (see Step 2 below).
+
 ### Step 2: Configure Cartography
 
 Cartography accepts GitHub credentials as a base64-encoded JSON configuration. This format supports multiple GitHub instances (e.g., public GitHub and GitHub Enterprise).
@@ -109,6 +120,24 @@ Cartography accepts GitHub credentials as a base64-encoded JSON configuration. T
     encoded = base64.b64encode(json.dumps(config).encode()).decode()
     print(encoded)
     ```
+
+For **GitHub App authentication**, use this format instead:
+
+    ```python
+    config = {
+        "organization": [
+            {
+                "client_id": "Iv1.abc123def456",
+                "private_key": open("your-app.private-key.pem").read(),
+                "installation_id": "12345678",
+                "url": "https://api.github.com/graphql",
+                "name": "your-org-name",
+            },
+        ]
+    }
+    ```
+
+You can mix PAT and App authentication across organizations in the same config.
 
 2. Set the encoded value as an environment variable:
 
