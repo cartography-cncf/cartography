@@ -30,20 +30,12 @@ jobs:
 
   unit-and-integration-tests:
     runs-on: ubuntu-latest
+    env:
+      NEO4J_DOCKER_IMAGE: neo4j:4.4-community
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      # https://stackoverflow.com/a/64592785
-      - name: neo4j 4 instance setup
-        run: |
-          docker run --detach \
-            --name neo4j-4 \
-            --env NEO4J_AUTH=none \
-            --publish 7474:7474 \
-            --publish 7473:7473 \
-            --publish 7687:7687 \
-            neo4j:4.4-community
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.10"
@@ -54,9 +46,6 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Install the project
         run: uv sync --frozen --all-extras --dev
-      - name: Wait for neo4j 4 to be ready
-        timeout-minutes: 1
-        run: (docker logs -f neo4j-4 & ) | grep -q Started
       - name: run test_unit
         run: make test_unit
       - name: run test_integration
@@ -64,20 +53,12 @@ jobs:
 
   unit-and-integration-tests-neo4j5:
     runs-on: ubuntu-latest
+    env:
+      NEO4J_DOCKER_IMAGE: neo4j:5-community
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      # https://stackoverflow.com/a/64592785
-      - name: neo4j 5 setup
-        run: |
-          docker run --detach \
-            --name neo4j-5 \
-            --env NEO4J_AUTH=none \
-            --publish 7474:7474 \
-            --publish 7473:7473 \
-            --publish 7687:7687 \
-            neo4j:5
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.10"
@@ -88,11 +69,8 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - name: Install the project
         run: uv sync --frozen --all-extras --dev
-      - name: Wait for neo4j 5 to be ready
-        timeout-minutes: 1
-        run: (docker logs -f neo4j-5 & ) | grep -q Started
       - name: run test_unit
-        run:  make test_unit
+        run: make test_unit
       - name: run test_integration
         run: make test_integration
 

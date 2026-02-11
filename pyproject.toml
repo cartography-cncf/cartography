@@ -108,6 +108,7 @@ dev = [
     "pytest-cov==7.0.0",
     "pytest-rerunfailures",
     "pytest-asyncio",
+    "testcontainers>=4.14.0,<5.0.0",
     "types-PyYAML",
     "black==26.1.0",
     "types-requests<2.32.4.20260108",
