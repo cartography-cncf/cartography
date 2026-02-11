@@ -183,10 +183,9 @@ def _sync_project_resources(
 
         if service_names.storage in enabled_services:
             logger.info("Syncing GCP project %s for Storage.", project_id)
-            storage_cred = build_client("storage", "v1", credentials=credentials)
             storage.sync_gcp_buckets(
                 neo4j_session,
-                storage_cred,
+                credentials,
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
