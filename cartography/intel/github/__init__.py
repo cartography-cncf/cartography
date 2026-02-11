@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+from typing import Any
 from typing import cast
 
 import neo4j
@@ -67,24 +68,27 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         api_url = auth_data["url"]
         org_name = auth_data["name"]
 
+        # credential is a GitHubCredential (duck-typed as str by _resolve_token in util.py)
+        token: Any = credential
+
         cartography.intel.github.users.sync(
             neo4j_session,
             common_job_parameters,
-            credential,
+            token,
             api_url,
             org_name,
         )
         cartography.intel.github.repos.sync(
             neo4j_session,
             common_job_parameters,
-            credential,
+            token,
             api_url,
             org_name,
         )
         cartography.intel.github.teams.sync_github_teams(
             neo4j_session,
             common_job_parameters,
-            credential,
+            token,
             api_url,
             org_name,
         )
@@ -93,7 +97,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         all_workflows = cartography.intel.github.actions.sync(
             neo4j_session,
             common_job_parameters,
-            credential,
+            token,
             api_url,
             org_name,
         )
@@ -104,7 +108,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
         cartography.intel.github.commits.sync_github_commits(
             neo4j_session,
-            credential,
+            token,
             api_url,
             org_name,
             repo_names,
@@ -113,7 +117,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
 
         repos_json = cartography.intel.github.repos.get(
-            credential,
+            token,
             api_url,
             org_name,
         )
@@ -122,7 +126,7 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         if valid_repos:
             cartography.intel.github.supply_chain.sync(
                 neo4j_session,
-                credential,
+                token,
                 api_url,
                 org_name,
                 common_job_parameters["UPDATE_TAG"],

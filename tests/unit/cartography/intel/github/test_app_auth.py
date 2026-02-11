@@ -121,7 +121,10 @@ def test_app_github_enterprise_url(
     cred.get_token()
 
     call_url = mock_post.call_args[0][0]
-    assert call_url == "https://github.example.com/api/v3/app/installations/12345/access_tokens"
+    assert (
+        call_url
+        == "https://github.example.com/api/v3/app/installations/12345/access_tokens"
+    )
 
 
 @patch("cartography.intel.github.app_auth.jwt.encode")
@@ -184,6 +187,16 @@ def test_make_credential_app_config_enterprise() -> None:
     cred = make_credential(auth_data)
     assert isinstance(cred, AppCredential)
     assert cred._api_base_url == "https://github.example.com/api/v3"
+
+
+def test_make_credential_app_missing_keys_raises() -> None:
+    auth_data = {
+        "client_id": "Iv1.abc",
+        "url": "https://api.github.com/graphql",
+        "name": "my-org",
+    }
+    with pytest.raises(ValueError, match="missing required keys"):
+        make_credential(auth_data)
 
 
 def test_make_credential_invalid_config_raises() -> None:

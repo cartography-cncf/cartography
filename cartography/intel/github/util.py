@@ -19,7 +19,8 @@ def _resolve_token(token: Any) -> str:
     """Resolve a token string or GitHubCredential to a plain token string."""
     if isinstance(token, str):
         return token
-    return token.get_token()
+    result: str = token.get_token()
+    return result
 
 
 _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
@@ -297,14 +298,15 @@ def fetch_all_rest_api_pages(
     """
     results: list[dict[str, Any]] = []
     url: str | None = f"{base_url}{endpoint}"
-    headers = {
-        "Authorization": f"Bearer {_resolve_token(token)}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
     retry = 0
 
     while url:
+        # Resolve token each iteration so AppCredential can refresh expired tokens
+        headers = {
+            "Authorization": f"Bearer {_resolve_token(token)}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
         exc: Any = None
         try:
             handle_rest_rate_limit_sleep(token, base_url)

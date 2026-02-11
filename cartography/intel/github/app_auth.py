@@ -6,6 +6,7 @@ GitHub App authentication flow:
 2. Exchange the JWT for a short-lived installation access token
 3. Use the installation token for API calls (auto-refreshes when near expiry)
 """
+
 import logging
 import time
 from typing import Any
@@ -79,7 +80,8 @@ class AppCredential(GitHubCredential):
             "exp": now + _JWT_EXPIRATION_SECONDS,
             "iss": self._client_id,
         }
-        return jwt.encode(payload, self._private_key, algorithm="RS256")
+        encoded: str = jwt.encode(payload, self._private_key, algorithm="RS256")
+        return encoded
 
     def _refresh_token(self) -> None:
         logger.debug("Refreshing GitHub App installation token")
@@ -111,6 +113,11 @@ def make_credential(auth_data: dict[str, Any]) -> GitHubCredential:
     if "token" in auth_data:
         return PatCredential(auth_data["token"])
     if "client_id" in auth_data:
+        missing = [k for k in ("private_key", "installation_id") if k not in auth_data]
+        if missing:
+            raise ValueError(
+                f"GitHub App config with 'client_id' is missing required keys: {', '.join(missing)}",
+            )
         api_base_url = _get_rest_api_base_url(auth_data["url"])
         return AppCredential(
             client_id=auth_data["client_id"],
