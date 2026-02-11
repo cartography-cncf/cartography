@@ -1514,18 +1514,11 @@ def sync(
 
     privileged_repo_data_by_url: dict[str, dict[str, Any]] = {}
     if _repos_need_privileged_details(repos_json):
-        try:
-            privileged_repo_data_by_url = get_repo_privileged_details_by_url(
-                github_api_key,
-                github_url,
-                organization,
-            )
-        except Exception:
-            logger.warning(
-                "Unable to fetch privileged GitHub repo details for org %s; continuing with base repo data.",
-                organization,
-                exc_info=True,
-            )
+        privileged_repo_data_by_url = get_repo_privileged_details_by_url(
+            github_api_key,
+            github_url,
+            organization,
+        )
 
     repos_json, merged_repo_count, missing_privileged_repo_count = (
         _merge_repos_with_privileged_details(repos_json, privileged_repo_data_by_url)
