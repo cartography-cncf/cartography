@@ -34,6 +34,7 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
     "backoff>=2.1.2",
+    "dockerfile>=3.0.0",
     "boto3>=1.15.1",
     "aioboto3>=13.0.0",
     "httpx>=0.24.0",
@@ -46,6 +47,7 @@ dependencies = [
     "marshmallow>=3.0.0rc7",
     "oci>=2.71.0",
     "okta<1.0.0",
+    "PyJWT[crypto]>=2.0.0",
     "pyyaml>=5.3.1",
     "requests>=2.22.0",
     "statsd",
@@ -56,7 +58,7 @@ dependencies = [
     "azure-mgmt-compute>=5.0.0",
     "azure-mgmt-containerinstance>=10.0.0",
     "azure-mgmt-keyvault>=10.0.0",
-    "azure-mgmt-resource>=10.2.0",
+    "azure-mgmt-resource>=10.2.0,<25.0.0",
     "azure-mgmt-cosmosdb>=6.0.0",
     "azure-mgmt-web>=7.0.0",
     "azure-mgmt-eventgrid>=10.0.0",

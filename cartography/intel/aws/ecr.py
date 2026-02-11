@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.models.aws.ecr.image import ECRImageBaseSchema
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.repository import ECRRepositorySchema
 from cartography.models.aws.ecr.repository_image import ECRRepositoryImageSchema
@@ -324,7 +325,7 @@ def load_ecr_repository_images(
 
     load(
         neo4j_session,
-        ECRImageSchema(),
+        ECRImageBaseSchema(),
         ecr_images_list,
         lastupdated=aws_update_tag,
         Region=region,

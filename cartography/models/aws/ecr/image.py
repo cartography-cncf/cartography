@@ -14,7 +14,28 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 
 @dataclass(frozen=True)
+class ECRImageBaseNodeProperties(CartographyNodeProperties):
+    """Properties managed by the basic ECR module (ecr.py) from DescribeImages API."""
+
+    id: PropertyRef = PropertyRef("imageDigest")
+    digest: PropertyRef = PropertyRef("imageDigest", extra_index=True)
+    region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    type: PropertyRef = PropertyRef("type", extra_index=True)
+    architecture: PropertyRef = PropertyRef("architecture")
+    os: PropertyRef = PropertyRef("os")
+    variant: PropertyRef = PropertyRef("variant")
+    attestation_type: PropertyRef = PropertyRef("attestation_type")
+    attests_digest: PropertyRef = PropertyRef("attests_digest")
+    media_type: PropertyRef = PropertyRef("media_type")
+    artifact_media_type: PropertyRef = PropertyRef("artifact_media_type")
+    child_image_digests: PropertyRef = PropertyRef("child_image_digests")
+
+
+@dataclass(frozen=True)
 class ECRImageNodeProperties(CartographyNodeProperties):
+    """All ECRImage properties including layer/provenance fields managed by ecr_image_layers."""
+
     id: PropertyRef = PropertyRef("imageDigest")
     digest: PropertyRef = PropertyRef("imageDigest", extra_index=True)
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
@@ -29,6 +50,17 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     media_type: PropertyRef = PropertyRef("media_type")
     artifact_media_type: PropertyRef = PropertyRef("artifact_media_type")
     child_image_digests: PropertyRef = PropertyRef("child_image_digests")
+    # SLSA Provenance: Source repository info from VCS metadata
+    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
+    source_revision: PropertyRef = PropertyRef("source_revision")
+    # SLSA Provenance: Build invocation info from CI
+    invocation_uri: PropertyRef = PropertyRef("invocation_uri", extra_index=True)
+    invocation_workflow: PropertyRef = PropertyRef(
+        "invocation_workflow", extra_index=True
+    )
+    invocation_run_number: PropertyRef = PropertyRef("invocation_run_number")
+    # SLSA Provenance: Dockerfile path from configSource.entryPoint + vcs localdir
+    source_file: PropertyRef = PropertyRef("source_file")
 
 
 @dataclass(frozen=True)
@@ -134,7 +166,48 @@ class ECRImageAttestsRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ECRImageBaseSchema(CartographyNodeSchema):
+    """Schema used by the basic ECR module (ecr.py) to load image metadata from DescribeImages.
+
+    Only includes properties from the ECR API — does NOT include layer or provenance
+    fields (layer_diff_ids, source_uri, invocation_uri, etc.) so that loading from
+    DescribeImages doesn't clear values set by ecr_image_layers.
+    """
+
+    label: str = "ECRImage"
+    properties: ECRImageBaseNodeProperties = ECRImageBaseNodeProperties()
+    sub_resource_relationship: ECRImageToAWSAccountRel = ECRImageToAWSAccountRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ECRImageContainsImageRel(),
+            ECRImageAttestsRel(),
+        ],
+    )
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        [
+            ConditionalNodeLabel(
+                label="Image",
+                conditions={"type": "image"},
+            ),
+            ConditionalNodeLabel(
+                label="ImageAttestation",
+                conditions={"type": "attestation"},
+            ),
+            ConditionalNodeLabel(
+                label="ImageManifestList",
+                conditions={"type": "manifest_list"},
+            ),
+        ],
+    )
+
+
+@dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
+    """Full schema used by ecr_image_layers to enrich ECRImage nodes with layer and provenance data.
+
+    Also used for cleanup in ecr.py to handle all relationship types (HAS_LAYER, BUILT_FROM, etc.).
+    """
+
     label: str = "ECRImage"
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
     sub_resource_relationship: ECRImageToAWSAccountRel = ECRImageToAWSAccountRel()

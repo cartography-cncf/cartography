@@ -1,14 +1,14 @@
-from cartography.graph.querybuilder import _get_cartography_version
 from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.graph.querybuilder import build_ingestion_query
 from cartography.models.aws.iam.instanceprofile import InstanceProfileSchema
+from cartography.version import get_cartography_version
 from tests.unit.cartography.graph.helpers import (
     remove_leading_whitespace_and_empty_lines,
 )
 
 
 def test_build_ingestion_query_onetomany():
-    module_version = _get_cartography_version()
+    module_version = get_cartography_version()
     module_name = _get_module_from_schema(InstanceProfileSchema())
 
     # Act

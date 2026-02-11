@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import time
@@ -5,24 +6,32 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone as tz
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import NamedTuple
-from typing import Optional
-from typing import Tuple
 
 import requests
 
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
+
+
+def _resolve_token(token: Any) -> str:
+    """Resolve a token string or GitHubCredential to a plain token string."""
+    if isinstance(token, str):
+        return token
+    result: str = token.get_token()
+    return result
+
+
 _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
 _REST_RATE_LIMIT_REMAINING_THRESHOLD = 100
+# Search API has a stricter rate limit (30 requests/minute for authenticated users)
+_SEARCH_RATE_LIMIT_REMAINING_THRESHOLD = 5
 
 
 class PaginatedGraphqlData(NamedTuple):
-    nodes: List[Dict[str, Any]]
-    edges: List[Dict[str, Any]]
+    nodes: list[dict[str, Any]]
+    edges: list[dict[str, Any]]
 
 
 def handle_rate_limit_sleep(token: str) -> None:
@@ -32,7 +41,7 @@ def handle_rate_limit_sleep(token: str) -> None:
     """
     response = requests.get(
         "https://api.github.com/rate_limit",
-        headers={"Authorization": f"token {token}"},
+        headers={"Authorization": f"Bearer {_resolve_token(token)}"},
     )
     response.raise_for_status()
     response_json = response.json()
@@ -52,7 +61,7 @@ def handle_rate_limit_sleep(token: str) -> None:
     time.sleep(sleep_duration.total_seconds())
 
 
-def call_github_api(query: str, variables: str, token: str, api_url: str) -> Dict:
+def call_github_api(query: str, variables: str, token: str, api_url: str) -> dict:
     """
     Calls the GitHub v4 API and executes a query
     :param query: the GraphQL query to run
@@ -61,7 +70,7 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> Dic
     :param api_url: the URL to call for the API
     :return: query results json
     """
-    headers = {"Authorization": f"token {token}"}
+    headers = {"Authorization": f"Bearer {_resolve_token(token)}"}
     try:
         response = requests.post(
             api_url,
@@ -88,9 +97,9 @@ def fetch_page(
     api_url: str,
     organization: str,
     query: str,
-    cursor: Optional[str] = None,
+    cursor: str | None = None,
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Return a single page of max size 100 elements from the Github api_url using the given `query` and `cursor` params.
     :param token: The API token as string. Must have permission for the object being paginated.
@@ -119,9 +128,9 @@ def fetch_all(
     query: str,
     resource_type: str,
     retries: int = 5,
-    resource_inner_type: Optional[str] = None,
+    resource_inner_type: str | None = None,
     **kwargs: Any,
-) -> Tuple[PaginatedGraphqlData, Dict[str, Any]]:
+) -> tuple[PaginatedGraphqlData, dict[str, Any]]:
     """
     Fetch and return all data items of the given `resource_type` and `field_name` from Github's paginated GraphQL API as
     a list, along with information on the organization that they belong to.
@@ -142,7 +151,7 @@ def fetch_all(
     """
     cursor = None
     has_next_page = True
-    org_data: Dict[str, Any] = {}
+    org_data: dict[str, Any] = {}
     data: PaginatedGraphqlData = PaginatedGraphqlData(nodes=[], edges=[])
     retry = 0
 
@@ -249,7 +258,7 @@ def handle_rest_rate_limit_sleep(token: str, base_url: str) -> None:
     rate_limit_url = f"{base_url}/rate_limit"
     response = requests.get(
         rate_limit_url,
-        headers={"Authorization": f"token {token}"},
+        headers={"Authorization": f"Bearer {_resolve_token(token)}"},
         timeout=_TIMEOUT,
     )
     response.raise_for_status()
@@ -289,14 +298,15 @@ def fetch_all_rest_api_pages(
     """
     results: list[dict[str, Any]] = []
     url: str | None = f"{base_url}{endpoint}"
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
     retry = 0
 
     while url:
+        # Resolve token each iteration so AppCredential can refresh expired tokens
+        headers = {
+            "Authorization": f"Bearer {_resolve_token(token)}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
         exc: Any = None
         try:
             handle_rest_rate_limit_sleep(token, base_url)
@@ -358,3 +368,112 @@ def fetch_all_rest_api_pages(
                     break
 
     return results
+
+
+def call_github_rest_api(
+    endpoint: str,
+    token: str,
+    api_url: str = "https://api.github.com",
+    params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Calls the GitHub REST API and returns the JSON response.
+
+    :param endpoint: The REST API endpoint path (e.g., "/search/code", "/repos/owner/repo/contents/path")
+    :param token: The OAuth token for authentication
+    :param api_url: The GitHub API URL (GraphQL or REST base URL - will be converted as needed)
+    :param params: Optional query parameters for the request
+    :return: The JSON response as a dictionary
+    :raises requests.exceptions.HTTPError: If the request fails
+    """
+    # Use the helper to get correct REST API base URL (handles GitHub Enterprise correctly)
+    base_url = (
+        _get_rest_api_base_url(api_url)
+        if api_url.endswith("/graphql")
+        else api_url.rstrip("/")
+    )
+
+    headers = {
+        "Authorization": f"Bearer {_resolve_token(token)}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    url = f"{base_url}{endpoint}"
+
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=_TIMEOUT)
+    except requests.exceptions.Timeout:
+        logger.warning("GitHub REST API: requests.get('%s') timed out.", url)
+        raise
+
+    # Handle rate limiting for Search API
+    if "X-RateLimit-Remaining" in response.headers:
+        remaining = int(response.headers["X-RateLimit-Remaining"])
+        # Check if this is a search endpoint (stricter limits)
+        is_search = "/search/" in endpoint
+        threshold = (
+            _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD
+            if is_search
+            else _REST_RATE_LIMIT_REMAINING_THRESHOLD
+        )
+
+        if remaining < threshold:
+            reset_timestamp = int(response.headers.get("X-RateLimit-Reset", 0))
+            if reset_timestamp:
+                reset_at = datetime.fromtimestamp(reset_timestamp, tz=tz.utc)
+                now = datetime.now(tz.utc)
+                sleep_duration = reset_at - now + timedelta(seconds=10)  # Add buffer
+                if sleep_duration.total_seconds() > 0:
+                    logger.warning(
+                        f"GitHub REST API rate limit has {remaining} remaining (threshold: {threshold}), "
+                        f"sleeping until reset at {reset_at} for {sleep_duration}",
+                    )
+                    time.sleep(sleep_duration.total_seconds())
+
+    response.raise_for_status()
+    result: dict[str, Any] = response.json()
+    return result
+
+
+def get_file_content(
+    token: str,
+    owner: str,
+    repo: str,
+    path: str,
+    ref: str = "HEAD",
+    base_url: str = "https://api.github.com",
+) -> str | None:
+    """
+    Download the content of a file from a GitHub repository using the Contents API.
+
+    :param token: The GitHub API token
+    :param owner: The repository owner
+    :param repo: The repository name
+    :param path: The path to the file within the repository
+    :param ref: The git reference (branch, tag, or commit SHA) to get the file from
+    :param base_url: The base URL for the GitHub API
+    :return: The file content as a string, or None if retrieval fails
+    """
+    endpoint = f"/repos/{owner}/{repo}/contents/{path}"
+    params: dict[str, Any] = {"ref": ref}
+
+    try:
+        response = call_github_rest_api(endpoint, token, base_url, params)
+
+        # The content is base64 encoded
+        if response.get("encoding") == "base64":
+            content_b64 = response.get("content", "")
+            # GitHub returns content with newlines for readability, remove them
+            content_b64 = content_b64.replace("\n", "")
+            content = base64.b64decode(content_b64).decode("utf-8")
+            return content
+
+        # If not base64 encoded, try to get raw content
+        return response.get("content")
+
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            logger.debug("File not found: %s/%s/%s", owner, repo, path)
+            return None
+        raise

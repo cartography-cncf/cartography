@@ -2,18 +2,23 @@ import getpass
 import logging
 import os
 import sys
+from typing import TYPE_CHECKING
 
 import typer
 from typing_extensions import Annotated
 
-import cartography.config
-import cartography.sync
-import cartography.util
-from cartography.intel.aws.util.common import parse_and_validate_aws_regions
-from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
-from cartography.intel.semgrep.dependencies import parse_and_validate_semgrep_ecosystems
+from cartography.config import Config
+from cartography.version import get_release_version_and_commit_revision
+
+if TYPE_CHECKING:
+    from cartography.sync import Sync
 
 logger = logging.getLogger(__name__)
+
+# Keep these local to avoid importing cartography.util (and its heavy deps) on --help/--version paths.
+STATUS_SUCCESS = 0
+STATUS_FAILURE = 1
+STATUS_KEYBOARD_INTERRUPT = 130
 
 # Help Panel Names - Used to organize options in --help output
 PANEL_CORE = "Core Options"
@@ -100,6 +105,20 @@ MODULE_PANELS = {
 ALWAYS_SHOW_PANELS = {PANEL_CORE, PANEL_NEO4J, PANEL_STATSD, PANEL_ANALYSIS}
 
 
+def _version_callback(value: bool) -> None:
+    """
+    Handle eager --version processing before command execution.
+    """
+    if not value:
+        return
+
+    release_version, commit_revision = get_release_version_and_commit_revision()
+    typer.echo(
+        f"cartography release {release_version}, commit revision {commit_revision}"
+    )
+    raise typer.Exit(code=0)
+
+
 def _parse_selected_modules_from_argv(argv: list[str]) -> set[str]:
     """
     Pre-parse argv to extract --selected-modules value for dynamic help visibility.
@@ -169,10 +188,11 @@ class CLI:
 
     def __init__(
         self,
-        sync: cartography.sync.Sync | None = None,
+        sync: "Sync | None" = None,
         prog: str | None = None,
     ):
-        self.sync = sync if sync else cartography.sync.build_default_sync()
+        # Defer default sync construction until command execution to keep --help fast.
+        self.sync = sync
         self.prog = prog
 
     def main(self, argv: list[str]) -> int:
@@ -200,20 +220,24 @@ class CLI:
         # Typer doesn't return exit codes directly, so we catch SystemExit
         try:
             app(argv, standalone_mode=False)
-            return cartography.util.STATUS_SUCCESS
+            return STATUS_SUCCESS
+        except typer.Exit as e:
+            if e.exit_code is None:
+                return STATUS_SUCCESS
+            return e.exit_code
         except SystemExit as e:
             if e.code is None:
-                return cartography.util.STATUS_SUCCESS
+                return STATUS_SUCCESS
             elif isinstance(e.code, int):
                 return e.code
             else:
                 # e.code can be a string message in some cases
-                return cartography.util.STATUS_FAILURE
+                return STATUS_FAILURE
         except KeyboardInterrupt:
-            return cartography.util.STATUS_KEYBOARD_INTERRUPT
+            return STATUS_KEYBOARD_INTERRUPT
         except Exception as e:
             logger.error("Cartography failed: %s", e)
-            return cartography.util.STATUS_FAILURE
+            return STATUS_FAILURE
 
     def _build_app(self, visible_panels: set[str]) -> typer.Typer:
         """
@@ -237,6 +261,7 @@ class CLI:
             epilog="For more documentation please visit: https://github.com/cartography-cncf/cartography",
             no_args_is_help=False,
             add_completion=True,
+            context_settings={"help_option_names": ["-h", "--help"]},
         )
 
         # Store reference to self for use in the command function
@@ -247,12 +272,28 @@ class CLI:
             # =================================================================
             # Core Options
             # =================================================================
+            # DEPRECATED: `--verbose` will be removed in v1.0.0. Use `--debug` instead.
             verbose: Annotated[
                 bool,
                 typer.Option(
                     "--verbose",
                     "-v",
-                    help="Enable verbose logging for cartography.",
+                    "--debug",
+                    "-d",
+                    help=(
+                        "Enable verbose logging for cartography. "
+                        "DEPRECATED: --verbose will be removed in v1.0.0; use --debug instead."
+                    ),
+                    rich_help_panel=PANEL_CORE,
+                ),
+            ] = False,
+            show_version: Annotated[
+                bool,
+                typer.Option(
+                    "--version",
+                    callback=_version_callback,
+                    is_eager=True,
+                    help="Show cartography release version and commit revision, then exit.",
                     rich_help_panel=PANEL_CORE,
                 ),
             ] = False,
@@ -1453,15 +1494,28 @@ class CLI:
                         "Neo4j username was provided but a password could not be found.",
                     )
 
+            # Load sync helpers lazily so --help/--version don't import all intel modules.
+            import cartography.sync
+
             # Update sync if selected_modules specified
             sync = cli_instance.sync
             if selected_modules:
                 sync = cartography.sync.build_sync(selected_modules)
+            elif sync is None:
+                sync = cartography.sync.build_default_sync()
 
             # Validate AWS options
             if aws_requested_syncs:
+                from cartography.intel.aws.util.common import (
+                    parse_and_validate_aws_requested_syncs,
+                )
+
                 parse_and_validate_aws_requested_syncs(aws_requested_syncs)
             if aws_regions:
+                from cartography.intel.aws.util.common import (
+                    parse_and_validate_aws_regions,
+                )
+
                 parse_and_validate_aws_regions(aws_regions)
 
             # Read Azure client secret
@@ -1662,6 +1716,10 @@ class CLI:
                 semgrep_app_token = os.environ.get(semgrep_app_token_env_var)
 
             if semgrep_dependency_ecosystems:
+                from cartography.intel.semgrep.dependencies import (
+                    parse_and_validate_semgrep_ecosystems,
+                )
+
                 parse_and_validate_semgrep_ecosystems(semgrep_dependency_ecosystems)
 
             # Read CVE API key
@@ -1828,7 +1886,7 @@ class CLI:
                     )
 
             # Build the Config object
-            config = cartography.config.Config(
+            config = Config(
                 neo4j_uri=neo4j_uri,
                 neo4j_user=neo4j_user,
                 neo4j_password=neo4j_password,
