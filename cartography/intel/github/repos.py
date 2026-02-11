@@ -1639,18 +1639,11 @@ def sync(
 
     privileged_repo_data_by_url: dict[str, dict[str, Any]] = {}
     if _repos_need_privileged_details(repos_json):
-        try:
-            privileged_repo_data_by_url = get_repo_privileged_details_by_url(
-                github_api_key,
-                github_url,
-                organization,
-            )
-        except Exception:
-            logger.warning(
-                "Unable to fetch privileged repo details for org %s; continuing without collaborator counts and branch protection enrichment.",
-                organization,
-                exc_info=True,
-            )
+        privileged_repo_data_by_url = get_repo_privileged_details_by_url(
+            github_api_key,
+            github_url,
+            organization,
+        )
 
     repos_json, merged_repo_count, missing_privileged_repo_count = (
         _merge_repos_with_privileged_details(repos_json, privileged_repo_data_by_url)
@@ -1658,18 +1651,11 @@ def sync(
 
     dependency_repo_data_by_url: dict[str, dict[str, Any]] = {}
     if _repos_need_dependency_details(repos_json):
-        try:
-            dependency_repo_data_by_url = get_repo_dependency_details_by_url(
-                github_api_key,
-                github_url,
-                organization,
-            )
-        except Exception:
-            logger.warning(
-                "Unable to fetch dependency graph details for org %s; continuing with requirements.txt/setup.cfg fallback where available.",
-                organization,
-                exc_info=True,
-            )
+        dependency_repo_data_by_url = get_repo_dependency_details_by_url(
+            github_api_key,
+            github_url,
+            organization,
+        )
 
     (
         repos_json,
