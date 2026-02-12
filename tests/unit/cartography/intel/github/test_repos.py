@@ -17,6 +17,7 @@ from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
 from cartography.intel.github.repos import GitHubDependencyStageError
 from cartography.intel.github.repos import transform
+from cartography.intel.github.util import GitHubGraphqlPartialDataError
 from cartography.intel.github.util import GitHubRestApiError
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import GET_REPOS
@@ -562,6 +563,68 @@ def test_sync_raises_dependency_stage_error_when_incomplete(
     mock_collect_sbom,
 ):
     with pytest.raises(GitHubDependencyStageError):
+        cartography.intel.github.repos.sync(
+            None,
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+            "token",
+            "https://api.github.com/graphql",
+            "example-org",
+        )
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    side_effect=GitHubGraphqlPartialDataError("manifest query partial"),
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_collect_sbom_dependencies_for_repos",
+    return_value=(
+        [],
+        {
+            "repos_scanned": 1,
+            "strict_repos_scanned": 1,
+            "strict_exempt_repos": 0,
+            "sbom_successes": 1,
+            "missing_dependency_graph": 0,
+            "permission_failures": 0,
+            "rate_limit_failures": 0,
+            "transient_failures": 0,
+            "strict_failures": 0,
+        },
+        [],
+    ),
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    return_value={},
+)
+@patch.object(cartography.intel.github.repos, "run_cleanup_job", return_value=None)
+@patch.object(
+    cartography.intel.github.repos,
+    "cleanup_branch_protection_rules",
+    return_value=None,
+)
+@patch.object(cartography.intel.github.repos, "load", return_value=None)
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_privileged_details_by_url",
+    return_value={},
+)
+@patch.object(cartography.intel.github.repos, "get", return_value=[GET_REPOS[0]])
+def test_sync_raises_dependency_stage_error_when_manifest_query_partial(
+    mock_get,
+    mock_get_privileged_details,
+    mock_load,
+    mock_cleanup_branch_protection_rules,
+    mock_run_cleanup_job,
+    mock_get_collabs,
+    mock_collect_sbom,
+    mock_get_dependency_details,
+):
+    with pytest.raises(GitHubDependencyStageError, match="Manifest query failed"):
         cartography.intel.github.repos.sync(
             None,
             {"UPDATE_TAG": TEST_UPDATE_TAG},

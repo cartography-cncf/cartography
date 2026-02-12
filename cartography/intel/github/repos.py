@@ -10,6 +10,7 @@ from typing import List
 from typing import Optional
 
 import neo4j
+import requests
 from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
@@ -19,6 +20,7 @@ from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import call_github_rest_api_with_retries
 from cartography.intel.github.util import fetch_all
+from cartography.intel.github.util import GitHubGraphqlPartialDataError
 from cartography.intel.github.util import GitHubRestApiError
 from cartography.intel.github.util import PaginatedGraphqlData
 from cartography.models.github.branch_protection_rules import (
@@ -26,8 +28,6 @@ from cartography.models.github.branch_protection_rules import (
 )
 from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.models.github.manifests import DependencyGraphManifestSchema
-from cartography.util import backoff_handler
-from cartography.util import retries_with_backoff
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -355,19 +355,13 @@ def _get_repo_collaborators_for_multiple_repos(
         f'Retrieving repo collaborators for affiliation "{affiliation}" on org "{org}".',
     )
 
-    result: dict[str, list[UserAffiliationAndRepoPermission]] = retries_with_backoff(
-        _get_repo_collaborators_inner_func,
-        TypeError,
-        5,
-        backoff_handler,
-    )(
+    return _get_repo_collaborators_inner_func(
         org=org,
         api_url=api_url,
         token=token,
         repo_raw_data=repo_raw_data,
         affiliation=affiliation,
     )
-    return result
 
 
 def _get_repo_collaborators(
@@ -508,6 +502,7 @@ def get_repo_dependency_details_by_url(
         GITHUB_ORG_REPOS_MANIFESTS_PAGINATED_GRAPHQL,
         "repositories",
         count=25,
+        fail_on_incomplete_graphql_response=True,
     )
     dependency_repo_data: dict[str, dict[str, Any]] = {}
     dependency_nodes = cast(List[Optional[Dict]], repos.nodes)
@@ -1966,12 +1961,30 @@ def sync(
     )
 
     dependency_repo_data_by_url: dict[str, dict[str, Any]] = {}
+    dependency_manifest_query_failed = False
+    dependency_manifest_query_failure_reason = ""
     if _repos_need_dependency_details(repos_json):
-        dependency_repo_data_by_url = get_repo_dependency_details_by_url(
-            github_api_key,
-            github_url,
-            organization,
-        )
+        try:
+            dependency_repo_data_by_url = get_repo_dependency_details_by_url(
+                github_api_key,
+                github_url,
+                organization,
+            )
+        except (
+            GitHubGraphqlPartialDataError,
+            requests.exceptions.HTTPError,
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+            ValueError,
+        ) as err:
+            dependency_manifest_query_failed = True
+            dependency_manifest_query_failure_reason = str(err)
+            logger.error(
+                "GitHub dependency manifest GraphQL fetch failed for org %s: %s",
+                organization,
+                err,
+            )
 
     (
         repos_json_with_manifests,
@@ -2081,8 +2094,11 @@ def sync(
     load(neo4j_session, common_job_parameters, repo_data)
 
     dependency_stage_complete = len(failed_dependency_repos) == 0
+    dependency_stage_complete = (
+        dependency_stage_complete and not dependency_manifest_query_failed
+    )
     logger.info(
-        "GitHub dependency sync summary for org %s: repos_scanned=%d strict_repos_scanned=%d strict_exempt_repos=%d sbom_successes=%d manifests_loaded=%d missing_dependency_graph=%d permission_failures=%d rate_limit_failures=%d transient_failures=%d strict_failures=%d dependency_stage_complete=%s",
+        "GitHub dependency sync summary for org %s: repos_scanned=%d strict_repos_scanned=%d strict_exempt_repos=%d sbom_successes=%d manifests_loaded=%d missing_dependency_graph=%d permission_failures=%d rate_limit_failures=%d transient_failures=%d strict_failures=%d manifest_query_failures=%d dependency_stage_complete=%s",
         organization,
         dependency_summary["repos_scanned"],
         dependency_summary["strict_repos_scanned"],
@@ -2094,6 +2110,7 @@ def sync(
         dependency_summary["rate_limit_failures"],
         dependency_summary["transient_failures"],
         dependency_summary["strict_failures"],
+        1 if dependency_manifest_query_failed else 0,
         dependency_stage_complete,
     )
 
@@ -2113,9 +2130,11 @@ def sync(
         )
     else:
         logger.error(
-            "Dependency stage incomplete for org %s. Skipping dependency/manifests cleanup for data safety. Failed repos: %s",
+            "Dependency stage incomplete for org %s. Skipping dependency/manifests cleanup for data safety. "
+            "Failed repos: %s. manifest_query_failed=%s",
             organization,
             failed_dependency_repos,
+            dependency_manifest_query_failed,
         )
 
     # Collect repository URLs that have branch protection rules for cleanup
@@ -2129,6 +2148,18 @@ def sync(
     run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)
 
     if not dependency_stage_complete:
+        failure_components = []
+        if failed_dependency_repos:
+            failure_components.append(f"Failed repos: {failed_dependency_repos}")
+        if dependency_manifest_query_failed:
+            failure_components.append(
+                "Manifest query failed: "
+                + (
+                    dependency_manifest_query_failure_reason
+                    or "GraphQL manifest fetch incomplete"
+                )
+            )
         raise GitHubDependencyStageError(
-            f"GitHub dependency stage incomplete for org {organization}. Failed repos: {failed_dependency_repos}"
+            f"GitHub dependency stage incomplete for org {organization}. "
+            + " ".join(failure_components)
         )

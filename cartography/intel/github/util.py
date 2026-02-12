@@ -43,6 +43,10 @@ class GitHubRestApiError(RuntimeError):
         self.category = category
 
 
+class GitHubGraphqlPartialDataError(RuntimeError):
+    """Raised when GraphQL pagination can only continue with known partial data."""
+
+
 class PaginatedGraphqlData(NamedTuple):
     nodes: list[dict[str, Any]]
     edges: list[dict[str, Any]]
@@ -175,6 +179,7 @@ def fetch_all(
     resource_type: str,
     retries: int = 5,
     resource_inner_type: str | None = None,
+    fail_on_incomplete_graphql_response: bool = False,
     **kwargs: Any,
 ) -> tuple[PaginatedGraphqlData, dict[str, Any]]:
     """
@@ -191,6 +196,8 @@ def fetch_all(
     :param resource_inner_type: Optional str. Default = None. Sometimes we need to paginate a field that is inside
     `resource_type` - for example: organization['team']['repositories']. In this case, we specify 'repositories' as the
     `resource_inner_type`.
+    :param fail_on_incomplete_graphql_response: When True, raise instead of silently continuing on minimum-page transient
+        GraphQL errors or malformed responses that indicate incomplete data.
     :param kwargs: Additional key-value args (other than `login` and `cursor`) to pass to the GraphQL query variables.
     :return: A 2-tuple containing 1. A list of data items of the given `resource_type` and `field_name`,  and 2. a dict
     containing the `url` and the `login` fields of the organization that the items belong to.
@@ -260,6 +267,11 @@ def fetch_all(
                 "GitHub: Received transient GraphQL errors for `%s` at minimum page size; continuing with partial data.",
                 resource_type,
             )
+            if fail_on_incomplete_graphql_response:
+                raise GitHubGraphqlPartialDataError(
+                    f"GitHub GraphQL returned partial data at minimum page size for resource "
+                    f"{resource_type} in organization {organization}",
+                )
 
         if "data" not in resp:
             logger.warning(
@@ -267,6 +279,11 @@ def fetch_all(
                 f"Stopping requests for organization: {organization} and "
                 f"resource_type: {resource_type}",
             )
+            if fail_on_incomplete_graphql_response:
+                raise GitHubGraphqlPartialDataError(
+                    f'GitHub GraphQL response was missing "data" for resource '
+                    f"{resource_type} in organization {organization}",
+                )
             has_next_page = False
             continue
 
@@ -535,7 +552,11 @@ def call_github_rest_api_with_retries(
             response.raise_for_status()
             result: dict[str, Any] = response.json()
             return result
-        except (requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError):
+        except (
+            requests.exceptions.Timeout,
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ConnectionError,
+        ):
             if attempt >= retries:
                 raise GitHubRestApiError(
                     f"GitHub REST API timed out calling {url}",

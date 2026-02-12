@@ -15,6 +15,7 @@ from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOL
 from cartography.intel.github.util import call_github_rest_api_with_retries
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import GitHubGraphqlPartialDataError
 from cartography.intel.github.util import GitHubRestApiError
 from cartography.intel.github.util import handle_rate_limit_sleep
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
@@ -134,6 +135,68 @@ def test_fetch_all_reduces_count_on_transient_graphql_errors(
     assert mock_fetch_page.call_count == 2
     assert mock_fetch_page.call_args_list[0][1]["count"] == 50
     assert mock_fetch_page.call_args_list[1][1]["count"] == 25
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_raises_on_transient_graphql_errors_in_strict_mode(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    transient_error_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        },
+        "errors": [
+            {
+                "path": ["organization", "repositories", "nodes", 0],
+                "message": "timedout",
+            },
+        ],
+    }
+    mock_fetch_page.return_value = transient_error_response
+
+    with pytest.raises(GitHubGraphqlPartialDataError):
+        fetch_all(
+            "token",
+            "api_url",
+            "org",
+            "query",
+            "repositories",
+            count=1,
+            fail_on_incomplete_graphql_response=True,
+        )
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_raises_on_missing_data_in_strict_mode(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    mock_fetch_page.return_value = {"errors": [{"message": "upstream error"}]}
+
+    with pytest.raises(GitHubGraphqlPartialDataError):
+        fetch_all(
+            "token",
+            "api_url",
+            "org",
+            "query",
+            "repositories",
+            fail_on_incomplete_graphql_response=True,
+        )
 
 
 @patch("cartography.intel.github.util.time.sleep")

@@ -84,8 +84,9 @@ def mock_dependency_graph_external_apis():
         query: str,
         result_key: str,
         count: int = 100,
+        **kwargs,
     ):
-        del token, api_url, organization, query, result_key, count
+        del token, api_url, organization, query, result_key, count, kwargs
         nodes = [
             {
                 "url": "https://github.com/simpsoncorp/sample_repo",
