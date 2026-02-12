@@ -78,13 +78,20 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             api_url,
             org_name,
         )
-        cartography.intel.github.repos.sync(
-            neo4j_session,
-            common_job_parameters,
-            token,
-            api_url,
-            org_name,
-        )
+        try:
+            cartography.intel.github.repos.sync(
+                neo4j_session,
+                common_job_parameters,
+                token,
+                api_url,
+                org_name,
+                config.github_dependency_fetch_workers,
+            )
+        except cartography.intel.github.repos.GitHubDependencyStageError:
+            logger.exception(
+                "GitHub repo dependency stage failed for org %s; continuing with other GitHub sync stages.",
+                org_name,
+            )
         cartography.intel.github.teams.sync_github_teams(
             neo4j_session,
             common_job_parameters,

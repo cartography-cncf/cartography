@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.github.repos
 from cartography.intel.github.util import PaginatedGraphqlData
 from tests.data.github.collaborators_test_data import COLLABORATORS_TEST_REPOS
@@ -16,6 +18,30 @@ TEST_JOB_PARAMS = {"UPDATE_TAG": TEST_UPDATE_TAG}
 TEST_GITHUB_URL = "https://fake.github.net/graphql/"
 TEST_GITHUB_ORG = "simpsoncorp"
 FAKE_API_KEY = "asdf"
+SBOM_DEPENDENCIES: list[dict[str, object]] = []
+cartography.intel.github.repos._transform_dependency_graph(
+    DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
+    "https://github.com/cartography-cncf/cartography",
+    SBOM_DEPENDENCIES,
+)
+
+
+@pytest.fixture(autouse=True)
+def mock_sbom_dependency_collection():
+    summary = {
+        "repos_scanned": len(GET_REPOS),
+        "sbom_successes": len(GET_REPOS),
+        "missing_dependency_graph": 0,
+        "permission_failures": 0,
+        "rate_limit_failures": 0,
+        "transient_failures": 0,
+    }
+    with patch.object(
+        cartography.intel.github.repos,
+        "_collect_sbom_dependencies_for_repos",
+        return_value=([dict(dep) for dep in SBOM_DEPENDENCIES], summary, []),
+    ):
+        yield
 
 
 @patch.object(
@@ -754,8 +780,7 @@ def test_sync_github_python_requirements(
     mock_get_collabs, mock_get_dependency_details, mock_get_repos, neo4j_session
 ):
     """
-    Test that Python requirements from requirements.txt and setup.cfg are synced.
-    Note: repos with dependencyGraphManifests skip requirements.txt/setup.cfg parsing.
+    In strict dependency mode, requirements.txt/setup.cfg fallback parsing is disabled.
     """
 
     # Arrange
@@ -776,28 +801,9 @@ def test_sync_github_python_requirements(
         TEST_GITHUB_ORG,
     )
 
-    # Assert - Verify PythonLibrary nodes were created
-    # sample_repo and SampleRepo2 have requirements.txt/setup.cfg but no dependencyGraphManifests
-    # cartography has dependencyGraphManifests so it skips requirements.txt/setup.cfg parsing
-    expected_python_libraries = {
-        ("cartography",),
-        ("cartography|0.1.0",),
-        ("neo4j",),
-        ("okta",),
-        ("okta|0.9.0",),
-    }
     actual_python_libraries = check_nodes(neo4j_session, "PythonLibrary", ["id"])
-    assert expected_python_libraries.issubset(actual_python_libraries)
+    assert actual_python_libraries == set()
 
-    # Assert - Verify REQUIRES relationships for Python libraries
-    sample_repo_url = "https://github.com/simpsoncorp/sample_repo"
-    expected_requires_rels = {
-        (sample_repo_url, "cartography"),
-        (sample_repo_url, "cartography|0.1.0"),
-        (sample_repo_url, "neo4j"),
-        (sample_repo_url, "okta"),
-        (sample_repo_url, "okta|0.9.0"),
-    }
     actual_requires_rels = check_rels(
         neo4j_session,
         "GitHubRepository",
@@ -806,4 +812,4 @@ def test_sync_github_python_requirements(
         "id",
         "REQUIRES",
     )
-    assert expected_requires_rels.issubset(actual_requires_rels)
+    assert actual_requires_rels == set()

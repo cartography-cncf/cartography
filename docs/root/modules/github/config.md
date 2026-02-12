@@ -29,6 +29,7 @@ Fine-grained PATs offer better security through minimal permissions and organiza
    |------------|--------|----------|-----|
    | **Actions** | Read | Optional | GitHub Actions workflows, runs, and artifacts. |
    | **Administration** | Read | Yes (for collaborator/branch protection coverage) | Collaborators and branch protection rules. Without this, Cartography logs warnings and skips this data. |
+   | **Dependency graph** | Read | Yes (for strict dependency completeness) | Repository SBOM export (`/dependency-graph/sbom`) and dependency manifests. |
    | **Contents** | Read | Yes | Repository files, commit history, dependency manifests. |
    | **Environments** | Read | Optional | Deployment environments configuration. |
    | **Metadata** | Read | Yes | Auto-added. Repository discovery and basic info. |
@@ -76,6 +77,7 @@ Some data requires elevated permissions. Without these, Cartography will log war
 |------|-------------|
 | **Collaborators** | For fine-grained PATs, both are required: `Repository -> Administration: Read` on the token and token-owner rights as an **Organization Owner** or **Admin** on the repositories. |
 | **Branch protection rules** | Same as collaborators: both `Repository -> Administration: Read` and owner/admin-equivalent rights are required. |
+| **SBOM export / dependency graph dependencies** | Fine-grained PAT or GitHub App must include `Repository -> Dependency graph: Read` and dependency graph must be enabled on the organization/repositories. |
 | **Two-factor authentication status** | Visible only to Organization Owners. |
 | **Enterprise owners** | Requires GitHub Enterprise with appropriate enterprise-level permissions. |
 
@@ -157,6 +159,17 @@ You can mix PAT and App authentication across organizations in the same config.
 |----------|-------------|
 | `--github-config-env-var` | Environment variable containing the base64-encoded config |
 | `--github-commit-lookback-days` | Number of days of commit history to ingest (default: 30) |
+| `--github-dependency-fetch-workers` | Number of workers for GitHub dependency SBOM fetches (default: 4). Lower values are slower but more stable under API pressure. |
+
+### Dependency Graph Enablement (Required for Complete Dependency Sync)
+
+Cartography now treats GitHub dependency ingestion as strict-by-default for completeness: if repository dependency data is incomplete, dependency stage is marked failed for that org.
+
+1. Enable dependency graph at the organization level: [Configuring the dependency graph for your organization](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/configuring-the-dependency-graph-for-your-organization)
+2. Ensure repositories inherit org settings or enable per-repo: [Managing the dependency graph for your repository](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/managing-the-dependency-graph-for-your-repository)
+3. Confirm your token/App has dependency graph read permission as listed above.
+
+If these are not enabled consistently, Cartography still ingests repo metadata but marks dependency stage incomplete for that org and skips dependency cleanup to avoid accidental data loss.
 
 ### GitHub Enterprise
 
@@ -175,6 +188,9 @@ For GitHub Enterprise, use the same token scopes/permissions as above. Set the `
 | Issue | Solution |
 |-------|----------|
 | `FORBIDDEN` warnings for collaborators/branch protection rules | Ensure fine-grained PAT includes `Repository -> Administration: Read` and the token owner has Organization Owner or repository Admin rights; otherwise Cartography will skip this enrichment and continue. |
-| Empty dependency data | Ensure the [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph) is enabled on your repositories. |
+| `Dependency stage incomplete` with `missing_dependency_graph` failures | Enable dependency graph at org/repo level and rerun sync. |
+| `Dependency stage incomplete` with `permission_failures` | Ensure token/App includes `Repository -> Dependency graph: Read` and installation covers all target repos. |
+| `Dependency stage incomplete` with `rate_limit_failures` | Lower `--github-dependency-fetch-workers` and prefer GitHub App auth for larger rate budgets. |
+| `Dependency stage incomplete` with `transient_failures` | Re-run sync; transient network/API instability can recover on retry. |
 | Missing 2FA status | Only visible to Organization Owners. |
 | Rate limiting | Cartography handles rate limits automatically by sleeping until the quota resets. |

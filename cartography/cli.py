@@ -642,6 +642,15 @@ class CLI:
                     hidden=PANEL_GITHUB not in visible_panels,
                 ),
             ] = 30,
+            github_dependency_fetch_workers: Annotated[
+                int,
+                typer.Option(
+                    "--github-dependency-fetch-workers",
+                    help="Number of workers for GitHub dependency SBOM fetches. Default: 4.",
+                    rich_help_panel=PANEL_GITHUB,
+                    hidden=PANEL_GITHUB not in visible_panels,
+                ),
+            ] = 4,
             # =================================================================
             # GitLab Options
             # =================================================================
@@ -1917,6 +1926,7 @@ class CLI:
                 okta_saml_role_regex=okta_saml_role_regex,
                 github_config=github_config,
                 github_commit_lookback_days=github_commit_lookback_days,
+                github_dependency_fetch_workers=github_dependency_fetch_workers,
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,

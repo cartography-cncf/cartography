@@ -11,7 +11,9 @@ from requests import Response
 from requests.exceptions import HTTPError
 
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
+from cartography.intel.github.util import call_github_rest_api_with_retries
 from cartography.intel.github.util import fetch_all
+from cartography.intel.github.util import GitHubRestApiError
 from cartography.intel.github.util import handle_rate_limit_sleep
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 
@@ -230,3 +232,54 @@ def test_handle_rate_limit_sleep(
     # Assert
     mock_datetime.now.assert_called_once_with(tz.utc)
     mock_sleep.assert_called_once_with(expected_sleep_seconds)
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.requests.get")
+def test_call_github_rest_api_with_retries_retries_transient_errors(
+    mock_requests_get: Mock,
+    mock_sleep: Mock,
+) -> None:
+    response_502 = Response()
+    response_502.status_code = 502
+    response_502._content = b'{"message":"server error"}'
+    response_200 = Response()
+    response_200.status_code = 200
+    response_200._content = b'{"ok": true}'
+
+    mock_requests_get.side_effect = [
+        HTTPError("bad gateway", response=response_502),
+        response_200,
+    ]
+
+    result = call_github_rest_api_with_retries(
+        "/repos/acme/widgets/dependency-graph/sbom",
+        "token",
+        "https://api.github.com/graphql",
+        retries=2,
+    )
+
+    assert result == {"ok": True}
+    assert mock_requests_get.call_count == 2
+    assert mock_sleep.called
+
+
+@patch("cartography.intel.github.util.requests.get")
+def test_call_github_rest_api_with_retries_classifies_missing_dependency_graph(
+    mock_requests_get: Mock,
+) -> None:
+    response_404 = Response()
+    response_404.status_code = 404
+    response_404._content = b'{"message":"Not Found"}'
+    mock_requests_get.side_effect = HTTPError("not found", response=response_404)
+
+    with pytest.raises(GitHubRestApiError) as exc_info:
+        call_github_rest_api_with_retries(
+            "/repos/acme/widgets/dependency-graph/sbom",
+            "token",
+            "https://api.github.com/graphql",
+            retries=1,
+        )
+
+    assert exc_info.value.category == "missing_dependency_graph"
+    assert exc_info.value.status_code == 404
