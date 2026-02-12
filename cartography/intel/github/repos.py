@@ -10,6 +10,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
+import httpx
 import neo4j
 from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
@@ -749,6 +750,7 @@ async def _fetch_repo_sbom_async(
     token: str,
     api_url: str,
     repo_url: str,
+    client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     owner, repo = _repo_url_to_owner_and_name(repo_url)
     endpoint = f"/repos/{owner}/{repo}/dependency-graph/sbom"
@@ -756,6 +758,7 @@ async def _fetch_repo_sbom_async(
         endpoint,
         token,
         api_url=api_url,
+        client=client,
     )
 
 
@@ -778,19 +781,33 @@ def _collect_sbom_dependencies_for_repos(
         "transient_failures": 0,
     }
 
-    async def _fetch_all() -> list[tuple[str, dict[str, Any] | Exception]]:
+    async def _fetch_all() -> list[tuple[str, dict[str, Any] | BaseException]]:
         semaphore = asyncio.Semaphore(max_workers)
 
-        async def _fetch_one(repo_url: str) -> tuple[str, dict[str, Any] | Exception]:
+        async def _fetch_one(
+            repo_url: str,
+            client: httpx.AsyncClient,
+        ) -> tuple[str, dict[str, Any]]:
             async with semaphore:
-                try:
-                    response = await _fetch_repo_sbom_async(token, api_url, repo_url)
-                    return repo_url, response
-                except Exception as exc:  # noqa: BLE001
-                    return repo_url, exc
+                response = await _fetch_repo_sbom_async(
+                    token,
+                    api_url,
+                    repo_url,
+                    client=client,
+                )
+                return repo_url, response
 
-        tasks = [_fetch_one(repo_url) for repo_url in repo_urls]
-        return await asyncio.gather(*tasks)
+        async with httpx.AsyncClient() as client:
+            tasks = [_fetch_one(repo_url, client) for repo_url in repo_urls]
+            raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        results: list[tuple[str, dict[str, Any] | BaseException]] = []
+        for repo_url, raw_result in zip(repo_urls, raw_results):
+            if isinstance(raw_result, BaseException):
+                results.append((repo_url, raw_result))
+            else:
+                results.append(raw_result)
+        return results
 
     try:
         running_loop = asyncio.get_running_loop()
@@ -825,7 +842,9 @@ def _collect_sbom_dependencies_for_repos(
             )
             continue
 
-        if isinstance(sbom_result, Exception):
+        if isinstance(sbom_result, BaseException):
+            if not isinstance(sbom_result, Exception):
+                raise sbom_result
             failed_repo_urls.append(repo_url)
             summary["transient_failures"] += 1
             logger.warning(
