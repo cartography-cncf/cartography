@@ -23,6 +23,8 @@ import os
 from typing import Any
 
 import boto3
+from botocore.exceptions import BotoCoreError
+from botocore.exceptions import ClientError
 from neo4j import Session
 
 from cartography.client.core.tx import load_matchlinks
@@ -37,6 +39,10 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
+
+
+class SyftIngestionError(RuntimeError):
+    """Raised when one or more Syft result objects fail to load."""
 
 
 @timeit
@@ -200,13 +206,15 @@ def sync_syft_from_dir(
     sub_resource_id = common_job_parameters.get("_sub_resource_id", "default")
 
     logger.info("Processing %d local Syft result files", len(json_files))
+    failed_files: list[str] = []
 
     for file_path in json_files:
         try:
             with open(file_path, encoding="utf-8") as f:
                 syft_data = json.load(f)
-        except json.JSONDecodeError as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.error("Failed to read Syft data from %s: %s", file_path, e)
+            failed_files.append(file_path)
             continue
 
         sync_single_syft(
@@ -215,6 +223,12 @@ def sync_syft_from_dir(
             update_tag,
             sub_resource_label,
             sub_resource_id,
+        )
+
+    if failed_files:
+        raise SyftIngestionError(
+            f"Failed to load {len(failed_files)} Syft file(s) from {results_dir}. "
+            "Skipping cleanup to avoid deleting valid relationships."
         )
 
     cleanup_syft(neo4j_session, sub_resource_label, sub_resource_id, update_tag)
@@ -261,6 +275,7 @@ def sync_syft_from_s3(
 
     logger.info("Processing %d Syft result files from S3", len(json_files))
     s3_client = boto3_session.client("s3")
+    failed_objects: list[str] = []
 
     for s3_object_key in json_files:
         logger.debug(
@@ -270,13 +285,20 @@ def sync_syft_from_s3(
             response = s3_client.get_object(Bucket=syft_s3_bucket, Key=s3_object_key)
             scan_data_json = response["Body"].read().decode("utf-8")
             syft_data = json.loads(scan_data_json)
-        except Exception as e:
+        except (
+            BotoCoreError,
+            ClientError,
+            UnicodeDecodeError,
+            json.JSONDecodeError,
+            KeyError,
+        ) as e:
             logger.error(
                 "Failed to read Syft data from s3://%s/%s: %s",
                 syft_s3_bucket,
                 s3_object_key,
                 e,
             )
+            failed_objects.append(s3_object_key)
             continue
 
         sync_single_syft(
@@ -285,6 +307,13 @@ def sync_syft_from_s3(
             update_tag,
             sub_resource_label,
             sub_resource_id,
+        )
+
+    if failed_objects:
+        raise SyftIngestionError(
+            f"Failed to load {len(failed_objects)} Syft object(s) from "
+            f"s3://{syft_s3_bucket}/{syft_s3_prefix}. "
+            "Skipping cleanup to avoid deleting valid relationships."
         )
 
     cleanup_syft(neo4j_session, sub_resource_label, sub_resource_id, update_tag)
