@@ -3,6 +3,7 @@ import configparser
 import logging
 from collections import defaultdict
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 from string import Template
 from typing import Any
 from typing import cast
@@ -810,18 +811,18 @@ def _collect_sbom_dependencies_for_repos(
         return results
 
     try:
-        running_loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
     except RuntimeError:
-        running_loop = None
-
-    if running_loop and running_loop.is_running():
+        # Run on an isolated loop without mutating global event-loop policy.
         loop = asyncio.new_event_loop()
         try:
             results = loop.run_until_complete(_fetch_all())
         finally:
             loop.close()
     else:
-        results = asyncio.run(_fetch_all())
+        # If a loop is already running in this thread, execute in a worker thread.
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            results = executor.submit(lambda: asyncio.run(_fetch_all())).result()
     for repo_url, sbom_result in results:
         if isinstance(sbom_result, GitHubRestApiError):
             failed_repo_urls.append(repo_url)
