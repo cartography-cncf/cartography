@@ -490,7 +490,7 @@ def test_determine_manifest_for_repo_uses_dependency_graph_manifests_nodes():
 
 @patch.object(
     cartography.intel.github.repos,
-    "_fetch_repo_sbom_async",
+    "_fetch_repo_sbom",
     return_value={"sbom": {"packages": []}},
 )
 def test_collect_sbom_dependencies_empty_sbom_is_not_failure(mock_fetch_sbom):
@@ -500,7 +500,6 @@ def test_collect_sbom_dependencies_empty_sbom_is_not_failure(mock_fetch_sbom):
             api_url="https://api.github.com/graphql",
             repo_urls=["https://github.com/acme/widgets"],
             manifests_by_repo={},
-            max_workers=1,
         )
     )
     assert dependencies == []
@@ -574,7 +573,7 @@ def test_sync_raises_dependency_stage_error_when_incomplete(
 
 @patch.object(
     cartography.intel.github.repos,
-    "_fetch_repo_sbom_async",
+    "_fetch_repo_sbom",
     side_effect=[
         GitHubRestApiError(
             "missing dependency graph",
@@ -597,7 +596,6 @@ def test_collect_sbom_dependencies_ignores_strict_failures_for_exempt_repos(
             api_url="https://api.github.com/graphql",
             repo_urls=repo_urls,
             manifests_by_repo={},
-            max_workers=1,
             required_repo_urls={"https://github.com/acme/active"},
         )
     )

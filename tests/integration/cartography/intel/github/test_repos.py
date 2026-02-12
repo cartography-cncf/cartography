@@ -1,4 +1,3 @@
-from unittest.mock import AsyncMock
 from unittest.mock import patch
 
 import pytest
@@ -23,13 +22,12 @@ FAKE_API_KEY = "asdf"
 
 @pytest.fixture(autouse=True)
 def mock_dependency_graph_external_apis():
-    async def _mock_sbom(
+    def _mock_sbom(
         endpoint: str,
         token: str,
         api_url: str,
-        client=None,
     ):
-        del token, api_url, client
+        del token, api_url
         if endpoint == "/repos/cartography-cncf/cartography/dependency-graph/sbom":
             return {
                 "sbom": {
@@ -107,8 +105,8 @@ def mock_dependency_graph_external_apis():
     with (
         patch.object(
             cartography.intel.github.repos,
-            "call_github_rest_api_with_retries_async",
-            new=AsyncMock(side_effect=_mock_sbom),
+            "call_github_rest_api_with_retries",
+            side_effect=_mock_sbom,
         ),
         patch.object(
             cartography.intel.github.repos,

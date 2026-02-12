@@ -1,9 +1,7 @@
-import asyncio
 import configparser
 import logging
 from collections import defaultdict
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
 from string import Template
 from typing import Any
 from typing import cast
@@ -11,7 +9,6 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-import httpx
 import neo4j
 from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
@@ -20,7 +17,7 @@ from packaging.utils import canonicalize_name
 from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
-from cartography.intel.github.util import call_github_rest_api_with_retries_async
+from cartography.intel.github.util import call_github_rest_api_with_retries
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import GitHubRestApiError
 from cartography.intel.github.util import PaginatedGraphqlData
@@ -35,7 +32,6 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-_SBOM_FETCH_WORKERS = 4
 
 
 # Representation of a user's permission level and affiliation to a GitHub repo. See:
@@ -747,19 +743,17 @@ def _determine_manifest_for_repo(
     return f"{repo_url}#{manifest_path}", manifest_path
 
 
-async def _fetch_repo_sbom_async(
+def _fetch_repo_sbom(
     token: str,
     api_url: str,
     repo_url: str,
-    client: httpx.AsyncClient | None = None,
 ) -> dict[str, Any]:
     owner, repo = _repo_url_to_owner_and_name(repo_url)
     endpoint = f"/repos/{owner}/{repo}/dependency-graph/sbom"
-    return await call_github_rest_api_with_retries_async(
+    return call_github_rest_api_with_retries(
         endpoint,
         token,
         api_url=api_url,
-        client=client,
     )
 
 
@@ -768,7 +762,6 @@ def _collect_sbom_dependencies_for_repos(
     api_url: str,
     repo_urls: list[str],
     manifests_by_repo: dict[str, dict[str, Any]],
-    max_workers: int,
     required_repo_urls: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int], list[str]]:
     dependencies: list[dict[str, Any]] = []
@@ -790,48 +783,17 @@ def _collect_sbom_dependencies_for_repos(
         "strict_failures": 0,
     }
 
-    async def _fetch_all() -> list[tuple[str, dict[str, Any] | BaseException]]:
-        semaphore = asyncio.Semaphore(max_workers)
-
-        async def _fetch_one(
-            repo_url: str,
-            client: httpx.AsyncClient,
-        ) -> tuple[str, dict[str, Any]]:
-            async with semaphore:
-                response = await _fetch_repo_sbom_async(
-                    token,
-                    api_url,
-                    repo_url,
-                    client=client,
-                )
-                return repo_url, response
-
-        async with httpx.AsyncClient() as client:
-            tasks = [_fetch_one(repo_url, client) for repo_url in repo_urls]
-            raw_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        results: list[tuple[str, dict[str, Any] | BaseException]] = []
-        for repo_url, raw_result in zip(repo_urls, raw_results):
-            if isinstance(raw_result, BaseException):
-                results.append((repo_url, raw_result))
-            else:
-                results.append(raw_result)
-        return results
-
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        # Run on an isolated loop without mutating global event-loop policy.
-        loop = asyncio.new_event_loop()
+    for repo_url in repo_urls:
+        sbom_result: dict[str, Any] | Exception
         try:
-            results = loop.run_until_complete(_fetch_all())
-        finally:
-            loop.close()
-    else:
-        # If a loop is already running in this thread, execute in a worker thread.
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            results = executor.submit(lambda: asyncio.run(_fetch_all())).result()
-    for repo_url, sbom_result in results:
+            sbom_result = _fetch_repo_sbom(
+                token,
+                api_url,
+                repo_url,
+            )
+        except Exception as err:
+            sbom_result = err
+
         if isinstance(sbom_result, GitHubRestApiError):
             if sbom_result.category == "missing_dependency_graph":
                 summary["missing_dependency_graph"] += 1
@@ -858,9 +820,7 @@ def _collect_sbom_dependencies_for_repos(
                 )
             continue
 
-        if isinstance(sbom_result, BaseException):
-            if not isinstance(sbom_result, Exception):
-                raise sbom_result
+        if isinstance(sbom_result, Exception):
             summary["transient_failures"] += 1
             logger.warning(
                 "GitHub SBOM fetch failed for %s due to unexpected error: %s",
@@ -2088,7 +2048,6 @@ def sync(
             github_url,
             repo_urls,
             manifests_by_repo,
-            _SBOM_FETCH_WORKERS,
             strict_required_repo_urls,
         )
     )
