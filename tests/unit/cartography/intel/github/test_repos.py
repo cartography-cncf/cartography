@@ -17,6 +17,7 @@ from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
 from cartography.intel.github.repos import GitHubDependencyStageError
 from cartography.intel.github.repos import transform
+from cartography.intel.github.util import GitHubRestApiError
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import GET_REPOS
 
@@ -352,11 +353,14 @@ def test_repos_need_dependency_details_when_fields_present():
         [],
         {
             "repos_scanned": 1,
+            "strict_repos_scanned": 1,
+            "strict_exempt_repos": 0,
             "sbom_successes": 1,
             "missing_dependency_graph": 0,
             "permission_failures": 0,
             "rate_limit_failures": 0,
             "transient_failures": 0,
+            "strict_failures": 0,
         },
         [],
     ),
@@ -395,11 +399,14 @@ def test_sync_raises_when_privileged_fetch_fails(
         [],
         {
             "repos_scanned": 1,
+            "strict_repos_scanned": 1,
+            "strict_exempt_repos": 0,
             "sbom_successes": 1,
             "missing_dependency_graph": 0,
             "permission_failures": 0,
             "rate_limit_failures": 0,
             "transient_failures": 0,
+            "strict_failures": 0,
         },
         [],
     ),
@@ -500,6 +507,7 @@ def test_collect_sbom_dependencies_empty_sbom_is_not_failure(mock_fetch_sbom):
     assert failed_repos == []
     assert summary["sbom_successes"] == 1
     assert summary["missing_dependency_graph"] == 0
+    assert summary["strict_failures"] == 0
 
 
 @patch.object(
@@ -509,11 +517,14 @@ def test_collect_sbom_dependencies_empty_sbom_is_not_failure(mock_fetch_sbom):
         [],
         {
             "repos_scanned": 1,
+            "strict_repos_scanned": 1,
+            "strict_exempt_repos": 0,
             "sbom_successes": 0,
             "missing_dependency_graph": 1,
             "permission_failures": 0,
             "rate_limit_failures": 0,
             "transient_failures": 0,
+            "strict_failures": 1,
         },
         ["https://github.com/simpsoncorp/sample_repo"],
     ),
@@ -559,3 +570,42 @@ def test_sync_raises_dependency_stage_error_when_incomplete(
             "https://api.github.com/graphql",
             "example-org",
         )
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_fetch_repo_sbom_async",
+    side_effect=[
+        GitHubRestApiError(
+            "missing dependency graph",
+            status_code=404,
+            category="missing_dependency_graph",
+        ),
+        {"sbom": {"packages": []}},
+    ],
+)
+def test_collect_sbom_dependencies_ignores_strict_failures_for_exempt_repos(
+    mock_fetch_sbom,
+):
+    repo_urls = [
+        "https://github.com/acme/archived",
+        "https://github.com/acme/active",
+    ]
+    dependencies, summary, failed_repos = (
+        cartography.intel.github.repos._collect_sbom_dependencies_for_repos(
+            token="token",
+            api_url="https://api.github.com/graphql",
+            repo_urls=repo_urls,
+            manifests_by_repo={},
+            max_workers=1,
+            required_repo_urls={"https://github.com/acme/active"},
+        )
+    )
+    assert dependencies == []
+    assert failed_repos == []
+    assert summary["repos_scanned"] == 2
+    assert summary["strict_repos_scanned"] == 1
+    assert summary["strict_exempt_repos"] == 1
+    assert summary["sbom_successes"] == 1
+    assert summary["missing_dependency_graph"] == 1
+    assert summary["strict_failures"] == 0
