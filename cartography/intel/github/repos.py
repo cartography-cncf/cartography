@@ -1,9 +1,8 @@
+import asyncio
 import configparser
 import logging
 from collections import defaultdict
 from collections import namedtuple
-from concurrent.futures import as_completed
-from concurrent.futures import ThreadPoolExecutor
 from string import Template
 from typing import Any
 from typing import cast
@@ -19,7 +18,7 @@ from packaging.utils import canonicalize_name
 from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
-from cartography.intel.github.util import call_github_rest_api_with_retries
+from cartography.intel.github.util import call_github_rest_api_with_retries_async
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import GitHubRestApiError
 from cartography.intel.github.util import PaginatedGraphqlData
@@ -740,14 +739,18 @@ def _determine_manifest_for_repo(
     return f"{repo_url}#{manifest_path}", manifest_path
 
 
-def _fetch_repo_sbom(
+async def _fetch_repo_sbom_async(
     token: str,
     api_url: str,
     repo_url: str,
 ) -> dict[str, Any]:
     owner, repo = _repo_url_to_owner_and_name(repo_url)
     endpoint = f"/repos/{owner}/{repo}/dependency-graph/sbom"
-    return call_github_rest_api_with_retries(endpoint, token, api_url=api_url)
+    return await call_github_rest_api_with_retries_async(
+        endpoint,
+        token,
+        api_url=api_url,
+    )
 
 
 def _collect_sbom_dependencies_for_repos(
@@ -769,85 +772,103 @@ def _collect_sbom_dependencies_for_repos(
         "transient_failures": 0,
     }
 
-    def _fetch(repo_url: str) -> tuple[str, dict[str, Any]]:
-        return repo_url, _fetch_repo_sbom(token, api_url, repo_url)
+    async def _fetch_all() -> list[tuple[str, dict[str, Any] | Exception]]:
+        semaphore = asyncio.Semaphore(max_workers)
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_repo = {
-            executor.submit(_fetch, repo_url): repo_url for repo_url in repo_urls
-        }
-        for future in as_completed(future_to_repo):
-            repo_url = future_to_repo[future]
-            try:
-                _, sbom_response = future.result()
-            except GitHubRestApiError as exc:
-                failed_repo_urls.append(repo_url)
-                if exc.category == "missing_dependency_graph":
-                    summary["missing_dependency_graph"] += 1
-                elif exc.category == "permission_denied":
-                    summary["permission_failures"] += 1
-                elif exc.category == "rate_limited":
-                    summary["rate_limit_failures"] += 1
-                else:
-                    summary["transient_failures"] += 1
-                logger.warning(
-                    "GitHub SBOM fetch failed for %s (category=%s, status=%s): %s",
-                    repo_url,
-                    exc.category,
-                    exc.status_code,
-                    exc,
-                )
-                continue
-            except Exception as exc:
-                failed_repo_urls.append(repo_url)
-                summary["transient_failures"] += 1
-                logger.warning(
-                    "GitHub SBOM fetch failed for %s due to unexpected error: %s",
-                    repo_url,
-                    exc,
-                )
-                continue
+        async def _fetch_one(repo_url: str) -> tuple[str, dict[str, Any] | Exception]:
+            async with semaphore:
+                try:
+                    response = await _fetch_repo_sbom_async(token, api_url, repo_url)
+                    return repo_url, response
+                except Exception as exc:  # noqa: BLE001
+                    return repo_url, exc
 
-            sbom = sbom_response.get("sbom", {})
-            packages = sbom.get("packages", []) if isinstance(sbom, dict) else []
-            if not isinstance(packages, list):
-                packages = []
+        tasks = [_fetch_one(repo_url) for repo_url in repo_urls]
+        return await asyncio.gather(*tasks)
 
-            manifest_id, manifest_path = _determine_manifest_for_repo(
-                repo_url, manifests_by_repo
-            )
-            added_any = False
-            for package in packages:
-                if not isinstance(package, dict):
-                    continue
-                dependency = _build_dependency_record_from_sbom_package(
-                    package,
-                    repo_url,
-                    manifest_id,
-                    manifest_path,
-                )
-                if dependency is None:
-                    continue
-                dedupe_key = (
-                    dependency["repo_url"],
-                    dependency["manifest_id"],
-                    dependency["id"],
-                )
-                if dedupe_key in dependency_ids_seen:
-                    continue
-                dependency_ids_seen.add(dedupe_key)
-                dependencies.append(dependency)
-                added_any = True
+    try:
+        running_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        running_loop = None
 
-            if added_any:
-                summary["sbom_successes"] += 1
-            else:
-                failed_repo_urls.append(repo_url)
+    if running_loop and running_loop.is_running():
+        loop = asyncio.new_event_loop()
+        try:
+            results = loop.run_until_complete(_fetch_all())
+        finally:
+            loop.close()
+    else:
+        results = asyncio.run(_fetch_all())
+    for repo_url, sbom_result in results:
+        if isinstance(sbom_result, GitHubRestApiError):
+            failed_repo_urls.append(repo_url)
+            if sbom_result.category == "missing_dependency_graph":
                 summary["missing_dependency_graph"] += 1
-                logger.warning(
-                    "GitHub SBOM response had no dependency packages for %s.",
-                    repo_url,
-                )
+            elif sbom_result.category == "permission_denied":
+                summary["permission_failures"] += 1
+            elif sbom_result.category == "rate_limited":
+                summary["rate_limit_failures"] += 1
+            else:
+                summary["transient_failures"] += 1
+            logger.warning(
+                "GitHub SBOM fetch failed for %s (category=%s, status=%s): %s",
+                repo_url,
+                sbom_result.category,
+                sbom_result.status_code,
+                sbom_result,
+            )
+            continue
+
+        if isinstance(sbom_result, Exception):
+            failed_repo_urls.append(repo_url)
+            summary["transient_failures"] += 1
+            logger.warning(
+                "GitHub SBOM fetch failed for %s due to unexpected error: %s",
+                repo_url,
+                sbom_result,
+            )
+            continue
+
+        sbom = sbom_result.get("sbom", {})
+        packages = sbom.get("packages", []) if isinstance(sbom, dict) else []
+        if not isinstance(packages, list):
+            packages = []
+
+        manifest_id, manifest_path = _determine_manifest_for_repo(
+            repo_url, manifests_by_repo
+        )
+        added_any = False
+        for package in packages:
+            if not isinstance(package, dict):
+                continue
+            dependency = _build_dependency_record_from_sbom_package(
+                package,
+                repo_url,
+                manifest_id,
+                manifest_path,
+            )
+            if dependency is None:
+                continue
+            dedupe_key = (
+                dependency["repo_url"],
+                dependency["manifest_id"],
+                dependency["id"],
+            )
+            if dedupe_key in dependency_ids_seen:
+                continue
+            dependency_ids_seen.add(dedupe_key)
+            dependencies.append(dependency)
+            added_any = True
+
+        if added_any:
+            summary["sbom_successes"] += 1
+        else:
+            failed_repo_urls.append(repo_url)
+            summary["missing_dependency_graph"] += 1
+            logger.warning(
+                "GitHub SBOM response had no dependency packages for %s.",
+                repo_url,
+            )
 
     dependencies.sort(
         key=lambda dep: (dep["repo_url"], dep["manifest_path"], dep["name"], dep["id"])

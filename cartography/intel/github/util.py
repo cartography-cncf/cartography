@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -9,11 +10,13 @@ from datetime import timezone as tz
 from typing import Any
 from typing import NamedTuple
 
+import httpx
 import requests
 
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
+_HTTPX_TIMEOUT = httpx.Timeout(timeout=60.0, connect=60.0, read=60.0, write=60.0)
 
 
 def _resolve_token(token: Any) -> str:
@@ -447,6 +450,21 @@ def _categorize_rest_http_error(
         except ValueError:
             message = response.text[:512]
 
+    return _categorize_rest_http_error_values(
+        status_code=status_code,
+        message=message,
+        retry_after=retry_after,
+        endpoint=endpoint,
+    )
+
+
+def _categorize_rest_http_error_values(
+    *,
+    status_code: int | None,
+    message: str,
+    retry_after: str | None,
+    endpoint: str,
+) -> tuple[str, bool]:
     message_lower = message.lower()
     if status_code == 404 and "/dependency-graph/sbom" in endpoint:
         return "missing_dependency_graph", False
@@ -482,6 +500,26 @@ def _sleep_for_rate_limit(response: requests.Response | None, attempt: int) -> N
             except ValueError:
                 pass
     time.sleep(sleep_seconds)
+
+
+async def _async_sleep_for_rate_limit(
+    *,
+    retry_after: str | None,
+    rate_limit_reset: str | None,
+    attempt: int,
+) -> None:
+    sleep_seconds = min(60, 2**attempt) + random.uniform(0.0, 0.5)
+    if retry_after and retry_after.isdigit():
+        sleep_seconds = float(retry_after)
+    elif rate_limit_reset:
+        try:
+            reset_epoch = int(rate_limit_reset)
+            now_epoch = int(datetime.now(tz.utc).timestamp())
+            if reset_epoch > now_epoch:
+                sleep_seconds = max(sleep_seconds, float(reset_epoch - now_epoch))
+        except ValueError:
+            pass
+    await asyncio.sleep(sleep_seconds)
 
 
 def call_github_rest_api_with_retries(
@@ -541,6 +579,103 @@ def call_github_rest_api_with_retries(
         f"GitHub REST API request failed for {url}",
         category="unknown",
     )
+
+
+async def call_github_rest_api_with_retries_async(
+    endpoint: str,
+    token: str,
+    api_url: str = "https://api.github.com",
+    params: dict[str, Any] | None = None,
+    retries: int = 5,
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
+    """
+    Async variant of call_github_rest_api_with_retries for concurrent REST calls.
+    """
+    base_url = (
+        _get_rest_api_base_url(api_url)
+        if api_url.endswith("/graphql")
+        else api_url.rstrip("/")
+    )
+    url = f"{base_url}{endpoint}"
+
+    owns_client = client is None
+    async_client = client or httpx.AsyncClient(timeout=_HTTPX_TIMEOUT)
+    try:
+        for attempt in range(1, retries + 1):
+            headers = {
+                "Authorization": f"Bearer {_resolve_token(token)}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            }
+            try:
+                response = await async_client.get(url, headers=headers, params=params)
+            except httpx.TimeoutException:
+                if attempt >= retries:
+                    raise GitHubRestApiError(
+                        f"GitHub REST API timed out calling {url}",
+                        category="transient_network",
+                    ) from None
+                await asyncio.sleep(min(60, 2**attempt) + random.uniform(0.0, 0.5))
+                continue
+            except httpx.TransportError:
+                if attempt >= retries:
+                    raise GitHubRestApiError(
+                        f"GitHub REST API transport error calling {url}",
+                        category="transient_network",
+                    ) from None
+                await asyncio.sleep(min(60, 2**attempt) + random.uniform(0.0, 0.5))
+                continue
+
+            if response.is_error:
+                message = ""
+                try:
+                    payload = response.json()
+                    message = str(payload.get("message", ""))
+                except ValueError:
+                    message = response.text[:512]
+
+                retry_after = response.headers.get("Retry-After")
+                category, should_retry = _categorize_rest_http_error_values(
+                    status_code=response.status_code,
+                    message=message,
+                    retry_after=retry_after,
+                    endpoint=endpoint,
+                )
+                if should_retry and attempt < retries:
+                    if category == "rate_limited":
+                        await _async_sleep_for_rate_limit(
+                            retry_after=retry_after,
+                            rate_limit_reset=response.headers.get("X-RateLimit-Reset"),
+                            attempt=attempt,
+                        )
+                    else:
+                        await asyncio.sleep(
+                            min(60, 2**attempt) + random.uniform(0.0, 0.5)
+                        )
+                    continue
+                raise GitHubRestApiError(
+                    f"GitHub REST API request failed for {url}",
+                    status_code=response.status_code,
+                    category=category,
+                )
+
+            try:
+                result: dict[str, Any] = response.json()
+            except ValueError as err:
+                raise GitHubRestApiError(
+                    f"GitHub REST API returned invalid JSON for {url}",
+                    category="unknown",
+                ) from err
+            return result
+
+        raise GitHubRestApiError(
+            f"GitHub REST API request failed for {url}",
+            category="unknown",
+        )
+    finally:
+        if owns_client:
+            await async_client.aclose()
 
 
 def call_github_rest_api(
