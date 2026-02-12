@@ -134,7 +134,9 @@ def test_fetch_all_rest_api_pages_retries_connection_errors(
         success_response,
     ]
 
-    result = fetch_all_rest_api_pages("token", "https://api.github.com", "/endpoint", "items")
+    result = fetch_all_rest_api_pages(
+        "token", "https://api.github.com", "/endpoint", "items"
+    )
 
     assert result == [{"id": 1}]
     assert mock_requests_get.call_count == 2
