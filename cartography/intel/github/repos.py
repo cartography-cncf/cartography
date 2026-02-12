@@ -769,17 +769,25 @@ def _collect_sbom_dependencies_for_repos(
     repo_urls: list[str],
     manifests_by_repo: dict[str, dict[str, Any]],
     max_workers: int,
+    required_repo_urls: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int], list[str]]:
     dependencies: list[dict[str, Any]] = []
     dependency_ids_seen: set[tuple[str, str, str]] = set()
     failed_repo_urls: list[str] = []
+    required_repos = (
+        set(repo_urls) if required_repo_urls is None else required_repo_urls
+    )
+    strict_exempt_repos = set(repo_urls) - required_repos
     summary = {
         "repos_scanned": len(repo_urls),
+        "strict_repos_scanned": len(required_repos),
+        "strict_exempt_repos": len(strict_exempt_repos),
         "sbom_successes": 0,
         "missing_dependency_graph": 0,
         "permission_failures": 0,
         "rate_limit_failures": 0,
         "transient_failures": 0,
+        "strict_failures": 0,
     }
 
     async def _fetch_all() -> list[tuple[str, dict[str, Any] | BaseException]]:
@@ -825,7 +833,6 @@ def _collect_sbom_dependencies_for_repos(
             results = executor.submit(lambda: asyncio.run(_fetch_all())).result()
     for repo_url, sbom_result in results:
         if isinstance(sbom_result, GitHubRestApiError):
-            failed_repo_urls.append(repo_url)
             if sbom_result.category == "missing_dependency_graph":
                 summary["missing_dependency_graph"] += 1
             elif sbom_result.category == "permission_denied":
@@ -841,18 +848,33 @@ def _collect_sbom_dependencies_for_repos(
                 sbom_result.status_code,
                 sbom_result,
             )
+            if repo_url in required_repos:
+                failed_repo_urls.append(repo_url)
+                summary["strict_failures"] += 1
+            else:
+                logger.info(
+                    "GitHub SBOM strict completeness exempted repo %s due to repo lifecycle state.",
+                    repo_url,
+                )
             continue
 
         if isinstance(sbom_result, BaseException):
             if not isinstance(sbom_result, Exception):
                 raise sbom_result
-            failed_repo_urls.append(repo_url)
             summary["transient_failures"] += 1
             logger.warning(
                 "GitHub SBOM fetch failed for %s due to unexpected error: %s",
                 repo_url,
                 sbom_result,
             )
+            if repo_url in required_repos:
+                failed_repo_urls.append(repo_url)
+                summary["strict_failures"] += 1
+            else:
+                logger.info(
+                    "GitHub SBOM strict completeness exempted repo %s due to repo lifecycle state.",
+                    repo_url,
+                )
             continue
 
         sbom = sbom_result.get("sbom", {})
@@ -898,6 +920,10 @@ def _collect_sbom_dependencies_for_repos(
     )
     failed_repo_urls = sorted(set(failed_repo_urls))
     return dependencies, summary, failed_repo_urls
+
+
+def _is_repo_strict_dependency_exempt(repo: dict[str, Any]) -> bool:
+    return bool(repo.get("isArchived")) or bool(repo.get("isDisabled"))
 
 
 def _synthesize_manifest_node(repo_url: str, manifest_path: str) -> dict[str, Any]:
@@ -2041,6 +2067,15 @@ def sync(
         for repo in repos_json_with_manifests
         if repo is not None and isinstance(repo.get("url"), str)
     )
+    strict_required_repo_urls = {
+        repo["url"]
+        for repo in repos_json_with_manifests
+        if (
+            repo is not None
+            and isinstance(repo.get("url"), str)
+            and not _is_repo_strict_dependency_exempt(repo)
+        )
+    }
     manifests_by_repo: dict[str, dict[str, Any]] = {
         repo_url: payload
         for repo_url, payload in dependency_repo_data_by_url.items()
@@ -2054,6 +2089,7 @@ def sync(
             repo_urls,
             manifests_by_repo,
             _SBOM_FETCH_WORKERS,
+            strict_required_repo_urls,
         )
     )
 
@@ -2087,15 +2123,18 @@ def sync(
 
     dependency_stage_complete = len(failed_dependency_repos) == 0
     logger.info(
-        "GitHub dependency sync summary for org %s: repos_scanned=%d sbom_successes=%d manifests_loaded=%d missing_dependency_graph=%d permission_failures=%d rate_limit_failures=%d transient_failures=%d dependency_stage_complete=%s",
+        "GitHub dependency sync summary for org %s: repos_scanned=%d strict_repos_scanned=%d strict_exempt_repos=%d sbom_successes=%d manifests_loaded=%d missing_dependency_graph=%d permission_failures=%d rate_limit_failures=%d transient_failures=%d strict_failures=%d dependency_stage_complete=%s",
         organization,
         dependency_summary["repos_scanned"],
+        dependency_summary["strict_repos_scanned"],
+        dependency_summary["strict_exempt_repos"],
         dependency_summary["sbom_successes"],
         len(transformed_manifests),
         dependency_summary["missing_dependency_graph"],
         dependency_summary["permission_failures"],
         dependency_summary["rate_limit_failures"],
         dependency_summary["transient_failures"],
+        dependency_summary["strict_failures"],
         dependency_stage_complete,
     )
 
