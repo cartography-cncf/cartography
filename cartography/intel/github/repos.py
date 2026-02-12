@@ -716,7 +716,7 @@ def _build_dependency_record_from_sbom_package(
         "manifest_path": manifest_path,
         "manifest_id": manifest_id,
         "repo_url": repo_url,
-        "manifest_file": manifest_path.split("/")[-1] if manifest_path else "",
+        "manifest_file": manifest_path.split("/")[-1] if manifest_path else None,
     }
 
 
@@ -724,7 +724,13 @@ def _determine_manifest_for_repo(
     repo_url: str,
     manifests_by_repo: dict[str, dict[str, Any]],
 ) -> tuple[str, str]:
-    manifests = manifests_by_repo.get(repo_url, {}).get("nodes", [])
+    manifests_container = manifests_by_repo.get(repo_url, {})
+    dependency_manifests = manifests_container.get("dependencyGraphManifests")
+    manifests = (
+        dependency_manifests.get("nodes", [])
+        if isinstance(dependency_manifests, dict)
+        else []
+    )
     if not isinstance(manifests, list) or not manifests:
         fallback_path = "/_github_sbom.spdx.json"
         return f"{repo_url}#{fallback_path}", fallback_path
@@ -860,12 +866,9 @@ def _collect_sbom_dependencies_for_repos(
             dependencies.append(dependency)
             added_any = True
 
-        if added_any:
-            summary["sbom_successes"] += 1
-        else:
-            failed_repo_urls.append(repo_url)
-            summary["missing_dependency_graph"] += 1
-            logger.warning(
+        summary["sbom_successes"] += 1
+        if not added_any:
+            logger.info(
                 "GitHub SBOM response had no dependency packages for %s.",
                 repo_url,
             )
@@ -881,7 +884,7 @@ def _synthesize_manifest_node(repo_url: str, manifest_path: str) -> dict[str, An
     return {
         "id": f"{repo_url}#{manifest_path}",
         "blob_path": manifest_path,
-        "filename": manifest_path.split("/")[-1] if manifest_path else "None",
+        "filename": manifest_path.split("/")[-1] if manifest_path else None,
         "dependencies_count": 0,
         "repo_url": repo_url,
     }

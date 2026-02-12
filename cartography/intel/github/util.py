@@ -234,6 +234,9 @@ def fetch_all(
         except requests.exceptions.ChunkedEncodingError as err:
             retry += 1
             exc = err
+        except requests.exceptions.ConnectionError as err:
+            retry += 1
+            exc = err
 
         if retry >= retries:
             logger.error(
@@ -397,6 +400,9 @@ def fetch_all_rest_api_pages(
             retry += 1
             exc = err
         except requests.exceptions.ChunkedEncodingError as err:
+            retry += 1
+            exc = err
+        except requests.exceptions.ConnectionError as err:
             retry += 1
             exc = err
 

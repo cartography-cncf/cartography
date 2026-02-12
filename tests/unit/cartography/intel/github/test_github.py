@@ -8,11 +8,13 @@ from unittest.mock import patch
 
 import pytest
 from requests import Response
+from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
 
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
 from cartography.intel.github.util import call_github_rest_api_with_retries
 from cartography.intel.github.util import fetch_all
+from cartography.intel.github.util import fetch_all_rest_api_pages
 from cartography.intel.github.util import GitHubRestApiError
 from cartography.intel.github.util import handle_rate_limit_sleep
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
@@ -168,6 +170,66 @@ def test_fetch_all_does_not_reduce_count_on_forbidden_graphql_errors(
 
     assert mock_fetch_page.call_count == 1
     assert mock_fetch_page.call_args_list[0][1]["count"] == 50
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_retries_connection_errors(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            }
+        }
+    }
+    mock_fetch_page.side_effect = [
+        RequestsConnectionError("connection reset by peer"),
+        response,
+    ]
+
+    fetch_all("token", "api_url", "org", "query", "repositories", retries=3)
+
+    assert mock_fetch_page.call_count == 2
+    mock_sleep.assert_called_once_with(2)
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rest_rate_limit_sleep")
+@patch("cartography.intel.github.util.requests.get")
+def test_fetch_all_rest_api_pages_retries_connection_errors(
+    mock_requests_get: Mock,
+    mock_handle_rest_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    success_response = Mock(
+        json=Mock(return_value={"items": [{"id": 1}]}),
+        headers={},
+    )
+    success_response.raise_for_status = Mock()
+    mock_requests_get.side_effect = [
+        RequestsConnectionError("connection aborted"),
+        success_response,
+    ]
+
+    result = fetch_all_rest_api_pages(
+        "token", "https://api.github.com", "/endpoint", "items"
+    )
+
+    assert result == [{"id": 1}]
+    assert mock_requests_get.call_count == 2
+    assert mock_handle_rest_rate_limit_sleep.call_count == 2
+    mock_sleep.assert_called_once_with(2)
 
 
 @typing.no_type_check

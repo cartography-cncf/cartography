@@ -5,6 +5,7 @@ import pytest
 
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
+from cartography.intel.github.repos import _determine_manifest_for_repo
 from cartography.intel.github.repos import _merge_repos_with_dependency_details
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
 from cartography.intel.github.repos import _repo_url_to_owner_and_name
@@ -460,6 +461,45 @@ def test_synthesize_manifest_node():
         "dependencies_count": 0,
         "repo_url": "https://github.com/acme/widgets",
     }
+
+
+def test_determine_manifest_for_repo_uses_dependency_graph_manifests_nodes():
+    manifest_id, manifest_path = _determine_manifest_for_repo(
+        "https://github.com/acme/widgets",
+        {
+            "https://github.com/acme/widgets": {
+                "dependencyGraphManifests": {
+                    "nodes": [
+                        {"blobPath": "/requirements.txt"},
+                        {"blobPath": "/package.json"},
+                    ]
+                }
+            }
+        },
+    )
+    assert manifest_id == "https://github.com/acme/widgets#/package.json"
+    assert manifest_path == "/package.json"
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_fetch_repo_sbom_async",
+    return_value={"sbom": {"packages": []}},
+)
+def test_collect_sbom_dependencies_empty_sbom_is_not_failure(mock_fetch_sbom):
+    dependencies, summary, failed_repos = (
+        cartography.intel.github.repos._collect_sbom_dependencies_for_repos(
+            token="token",
+            api_url="https://api.github.com/graphql",
+            repo_urls=["https://github.com/acme/widgets"],
+            manifests_by_repo={},
+            max_workers=1,
+        )
+    )
+    assert dependencies == []
+    assert failed_repos == []
+    assert summary["sbom_successes"] == 1
+    assert summary["missing_dependency_graph"] == 0
 
 
 @patch.object(
