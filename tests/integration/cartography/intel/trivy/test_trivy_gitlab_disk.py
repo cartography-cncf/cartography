@@ -129,6 +129,10 @@ def test_sync_trivy_gitlab(
             "7.88.1-10+deb12u5|curl",
             "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
         ),
+        (
+            "9.1-1|coreutils",
+            "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+        ),
     }
 
     expected_finding_rels = {

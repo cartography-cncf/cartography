@@ -120,6 +120,10 @@ def test_sync_trivy_gcp(
             "7.88.1-10+deb12u5|curl",
             "sha256:def456",  # Platform-specific digest
         ),
+        (
+            "2.36-9+deb12u4|libc6",
+            "sha256:def456",  # Non-vulnerable package from Packages array
+        ),
     }
 
     expected_finding_rels = {

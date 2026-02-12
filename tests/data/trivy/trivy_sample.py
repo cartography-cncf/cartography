@@ -1370,6 +1370,44 @@ TRIVY_SAMPLE = {
                     "LastModifiedDate": "2025-04-30T15:21:11.547Z",
                 },
             ],
+            "Packages": [
+                {
+                    "ID": "apt@2.6.1",
+                    "Name": "apt",
+                    "Version": "2.6.1",
+                    "Identifier": {
+                        "PURL": "pkg:deb/debian/apt@2.6.1?arch=amd64&distro=debian-12.8",
+                    },
+                    "Layer": {
+                        "Digest": "sha256:8cf9fb7a0b56cf93bf2502aff8087344f2dd06e29fb027b0c06aa2726ab3eda8",
+                        "DiffID": "sha256:c0f1022b22a9b36851b358f44e5475e39d166e71a8073cf53c894a299239b1c5",
+                    },
+                },
+                {
+                    "ID": "bash@5.2.15-2+b2",
+                    "Name": "bash",
+                    "Version": "5.2.15-2+b2",
+                    "Identifier": {
+                        "PURL": "pkg:deb/debian/bash@5.2.15-2+b2?arch=amd64&distro=debian-12.8",
+                    },
+                    "Layer": {
+                        "Digest": "sha256:8cf9fb7a0b56cf93bf2502aff8087344f2dd06e29fb027b0c06aa2726ab3eda8",
+                        "DiffID": "sha256:c0f1022b22a9b36851b358f44e5475e39d166e71a8073cf53c894a299239b1c5",
+                    },
+                },
+                {
+                    "ID": "gcc-12-base@12.2.0-14",
+                    "Name": "gcc-12-base",
+                    "Version": "12.2.0-14",
+                    "Identifier": {
+                        "PURL": "pkg:deb/debian/gcc-12-base@12.2.0-14?arch=amd64&distro=debian-12.8",
+                    },
+                    "Layer": {
+                        "Digest": "sha256:8cf9fb7a0b56cf93bf2502aff8087344f2dd06e29fb027b0c06aa2726ab3eda8",
+                        "DiffID": "sha256:c0f1022b22a9b36851b358f44e5475e39d166e71a8073cf53c894a299239b1c5",
+                    },
+                },
+            ],
         },
         {
             "Target": "Python",
@@ -1425,6 +1463,32 @@ TRIVY_SAMPLE = {
                     "PublishedDate": "2025-04-24T19:15:47.06Z",
                     "LastModifiedDate": "2025-04-29T13:52:28.49Z",
                 }
+            ],
+            "Packages": [
+                {
+                    "ID": "h11@0.14.0",
+                    "Name": "h11",
+                    "Version": "0.14.0",
+                    "Identifier": {
+                        "PURL": "pkg:pypi/h11@0.14.0",
+                    },
+                },
+                {
+                    "ID": "requests@2.31.0",
+                    "Name": "requests",
+                    "Version": "2.31.0",
+                    "Identifier": {
+                        "PURL": "pkg:pypi/requests@2.31.0",
+                    },
+                },
+                {
+                    "ID": "urllib3@2.0.7",
+                    "Name": "urllib3",
+                    "Version": "2.0.7",
+                    "Identifier": {
+                        "PURL": "pkg:pypi/urllib3@2.0.7",
+                    },
+                },
             ],
         },
     ],
