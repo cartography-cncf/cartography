@@ -159,7 +159,6 @@ You can mix PAT and App authentication across organizations in the same config.
 |----------|-------------|
 | `--github-config-env-var` | Environment variable containing the base64-encoded config |
 | `--github-commit-lookback-days` | Number of days of commit history to ingest (default: 30) |
-| `--github-dependency-fetch-workers` | Number of workers for GitHub dependency SBOM fetches (default: 4). Lower values are slower but more stable under API pressure. |
 
 ### Dependency Graph Enablement (Required for Complete Dependency Sync)
 
@@ -190,7 +189,7 @@ For GitHub Enterprise, use the same token scopes/permissions as above. Set the `
 | `FORBIDDEN` warnings for collaborators/branch protection rules | Ensure fine-grained PAT includes `Repository -> Administration: Read` and the token owner has Organization Owner or repository Admin rights; otherwise Cartography will skip this enrichment and continue. |
 | `Dependency stage incomplete` with `missing_dependency_graph` failures | Enable dependency graph at org/repo level and rerun sync. |
 | `Dependency stage incomplete` with `permission_failures` | Ensure token/App includes `Repository -> Dependency graph: Read` and installation covers all target repos. |
-| `Dependency stage incomplete` with `rate_limit_failures` | Lower `--github-dependency-fetch-workers` and prefer GitHub App auth for larger rate budgets. |
+| `Dependency stage incomplete` with `rate_limit_failures` | Prefer GitHub App auth for larger rate budgets; if needed, run fewer organizations per sync batch. |
 | `Dependency stage incomplete` with `transient_failures` | Re-run sync; transient network/API instability can recover on retry. |
 | Missing 2FA status | Only visible to Organization Owners. |
 | Rate limiting | Cartography handles rate limits automatically by sleeping until the quota resets. |

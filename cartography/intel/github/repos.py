@@ -34,6 +34,7 @@ from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+_SBOM_FETCH_WORKERS = 4
 
 
 # Representation of a user's permission level and affiliation to a GitHub repo. See:
@@ -1908,7 +1909,6 @@ def sync(
     github_api_key: str,
     github_url: str,
     organization: str,
-    dependency_fetch_workers: int = 4,
 ) -> None:
     """
     Performs the sequential tasks to collect, transform, and sync github data
@@ -2009,7 +2009,7 @@ def sync(
             github_url,
             repo_urls,
             manifests_by_repo,
-            max(1, dependency_fetch_workers),
+            _SBOM_FETCH_WORKERS,
         )
     )
 

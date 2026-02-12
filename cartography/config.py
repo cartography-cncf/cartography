@@ -75,8 +75,6 @@ class Config:
     :param github_config: Base64 encoded config object for GitHub ingestion. Optional.
     :type github_commit_lookback_days: int
     :param github_commit_lookback_days: Number of days to look back for GitHub commit tracking. Optional.
-    :type github_dependency_fetch_workers: int
-    :param github_dependency_fetch_workers: Number of workers for GitHub dependency SBOM fetches. Optional.
     :type digitalocean_token: str
     :param digitalocean_token: DigitalOcean access token. Optional.
     :type permission_relationships_file: str
@@ -266,7 +264,6 @@ class Config:
         okta_saml_role_regex=None,
         github_config=None,
         github_commit_lookback_days=30,
-        github_dependency_fetch_workers=4,
         digitalocean_token=None,
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
@@ -383,7 +380,6 @@ class Config:
         self.okta_saml_role_regex = okta_saml_role_regex
         self.github_config = github_config
         self.github_commit_lookback_days = github_commit_lookback_days
-        self.github_dependency_fetch_workers = github_dependency_fetch_workers
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file

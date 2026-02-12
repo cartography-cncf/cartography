@@ -85,7 +85,6 @@ def start_github_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
                 token,
                 api_url,
                 org_name,
-                config.github_dependency_fetch_workers,
             )
         except cartography.intel.github.repos.GitHubDependencyStageError:
             logger.exception(
