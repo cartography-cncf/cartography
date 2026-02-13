@@ -836,7 +836,9 @@ def sync_identity_center_instances(
             if owner and owner != current_aws_account_id:
                 logger.debug(
                     "Skipping Identity Center instance %s owned by account %s (current: %s)",
-                    inst.get("InstanceArn"), owner, current_aws_account_id,
+                    inst.get("InstanceArn"),
+                    owner,
+                    current_aws_account_id,
                 )
                 continue
             owned_instances.append(inst)
