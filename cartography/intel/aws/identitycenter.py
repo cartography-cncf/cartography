@@ -826,15 +826,32 @@ def sync_identity_center_instances(
     for region in regions:
         logger.info(f"Syncing Identity Center instances for region {region}")
         instances = get_identity_center_instances(boto3_session, region)
+
+        # Filter out instances not owned by the current account. The sso-admin
+        # ListInstances API returns org-level instances to every member account,
+        # which would otherwise create incorrect RESOURCE edges to all accounts.
+        owned_instances = []
+        for inst in instances:
+            owner = inst.get("OwnerAccountId")
+            if owner and owner != current_aws_account_id:
+                logger.debug(
+                    "Skipping Identity Center instance %s owned by account %s (current: %s)",
+                    inst.get("InstanceArn"),
+                    owner,
+                    current_aws_account_id,
+                )
+                continue
+            owned_instances.append(inst)
+
         load_identity_center_instances(
             neo4j_session,
-            instances,
+            owned_instances,
             region,
             current_aws_account_id,
             update_tag,
         )
 
-        for instance in instances:
+        for instance in owned_instances:
             _sync_instance(
                 neo4j_session,
                 boto3_session,
