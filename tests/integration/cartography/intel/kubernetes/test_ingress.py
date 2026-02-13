@@ -4,12 +4,14 @@ from unittest.mock import patch
 import pytest
 
 import cartography.intel.kubernetes.ingress
+from cartography.intel.aws.ec2.load_balancer_v2s import load_load_balancer_v2s
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.ingress import cleanup
 from cartography.intel.kubernetes.ingress import load_ingresses
 from cartography.intel.kubernetes.ingress import sync_ingress
 from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.services import load_services
+from tests.data.aws.ec2.load_balancer_v2s import GET_LOAD_BALANCER_V2_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
@@ -21,10 +23,13 @@ from tests.data.kubernetes.ingress import SHARED_ALB_DNS_NAME
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_2_NAMESPACES_DATA
 from tests.data.kubernetes.services import KUBERNETES_SERVICES_DATA
+from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
+TEST_ACCOUNT_ID = "000000000000"
+TEST_REGION = "us-east-1"
 
 
 @pytest.fixture
@@ -79,6 +84,24 @@ def _create_test_cluster(neo4j_session):
     neo4j_session.run(
         """
         MATCH (n: KubernetesCluster)
+        DETACH DELETE n
+        """,
+    )
+    neo4j_session.run(
+        """
+        MATCH (n: AWSLoadBalancerV2)
+        DETACH DELETE n
+        """,
+    )
+    neo4j_session.run(
+        """
+        MATCH (n: ELBV2Listener)
+        DETACH DELETE n
+        """,
+    )
+    neo4j_session.run(
+        """
+        MATCH (n: AWSAccount)
         DETACH DELETE n
         """,
     )
@@ -410,3 +433,115 @@ def test_sync_ingress_end_to_end(mock_get_ingress, neo4j_session, _create_test_c
     # Assert: All ingresses should be cleaned up
     ingress_nodes = check_nodes(neo4j_session, "KubernetesIngress", ["name"])
     assert set() == ingress_nodes
+
+
+@patch.object(cartography.intel.kubernetes.ingress, "get_ingress")
+def test_load_ingress_to_loadbalancer_relationship(
+    mock_get_ingress,
+    neo4j_session,
+    _create_test_cluster,
+):
+    """
+    Test that KubernetesIngress creates USES_LOAD_BALANCER relationship to
+    AWSLoadBalancerV2 when the DNS names match.
+    """
+    # Arrange: Mock get_ingress with raw ALB ingress objects
+    mock_get_ingress.return_value = KUBERNETES_ALB_INGRESS_RAW
+
+    # Arrange: Create AWS Account and LoadBalancerV2 nodes using the real loader
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    load_load_balancer_v2s(
+        neo4j_session,
+        GET_LOAD_BALANCER_V2_DATA,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act: Run sync_ingress (the production entry point)
+    k8s_client = MagicMock()
+    k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
+    }
+    sync_ingress(
+        neo4j_session=neo4j_session,
+        client=k8s_client,
+        update_tag=TEST_UPDATE_TAG,
+        common_job_parameters=common_job_parameters,
+    )
+
+    # Assert: Expect USES_LOAD_BALANCER relationships exist
+    expected_rels = {
+        ("alb-ingress-api", SHARED_ALB_DNS_NAME),
+        ("alb-ingress-web", SHARED_ALB_DNS_NAME),
+    }
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesIngress",
+            "name",
+            "AWSLoadBalancerV2",
+            "dnsname",
+            "USES_LOAD_BALANCER",
+            rel_direction_right=True,
+        )
+        == expected_rels
+    )
+
+
+@patch.object(cartography.intel.kubernetes.ingress, "get_ingress")
+def test_load_ingress_no_loadbalancer_relationship_when_no_match(
+    mock_get_ingress,
+    neo4j_session,
+    _create_test_cluster,
+):
+    """
+    Test that KubernetesIngress does NOT create USES_LOAD_BALANCER relationship
+    when there is no matching AWS LoadBalancerV2.
+    """
+    # Arrange: Mock get_ingress with raw ingress objects (no LB DNS names)
+    mock_get_ingress.return_value = KUBERNETES_INGRESS_RAW
+
+    # Arrange: Create AWS Account and LoadBalancerV2 nodes using the real loader
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    load_load_balancer_v2s(
+        neo4j_session,
+        GET_LOAD_BALANCER_V2_DATA,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    # Act: Run sync_ingress (the production entry point)
+    k8s_client = MagicMock()
+    k8s_client.name = KUBERNETES_CLUSTER_NAMES[0]
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "CLUSTER_ID": KUBERNETES_CLUSTER_IDS[0],
+    }
+    sync_ingress(
+        neo4j_session=neo4j_session,
+        client=k8s_client,
+        update_tag=TEST_UPDATE_TAG,
+        common_job_parameters=common_job_parameters,
+    )
+
+    # Assert: Expect that the ingresses were loaded
+    expected_nodes = {("my-ingress",), ("simple-ingress",)}
+    assert check_nodes(neo4j_session, "KubernetesIngress", ["name"]) == expected_nodes
+
+    # Assert: No USES_LOAD_BALANCER relationship should exist (DNS names don't match)
+    assert (
+        check_rels(
+            neo4j_session,
+            "KubernetesIngress",
+            "name",
+            "AWSLoadBalancerV2",
+            "dnsname",
+            "USES_LOAD_BALANCER",
+            rel_direction_right=True,
+        )
+        == set()
+    )

@@ -182,7 +182,6 @@ def sync_ingress(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    logger.info(f"Syncing ingress for cluster {client.name}")
     ingresses = get_ingress(client)
     transformed_ingresses = transform_ingresses(ingresses)
     load_ingresses(
