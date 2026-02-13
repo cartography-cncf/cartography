@@ -201,6 +201,11 @@ An Ingress is an API object that manages external access to services in a cluste
     (:KubernetesIngress)-[:TARGETS]->(:KubernetesService)
     ```
 
+- `KubernetesIngress` uses an `AWSLoadBalancerV2`. Matched by the DNS hostname from the Ingress status to the load balancer's DNS name.
+    ```
+    (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
+    ```
+
 ### KubernetesSecret
 Representation of a [Kubernetes Secret.](https://kubernetes.io/docs/concepts/configuration/secret/)
 

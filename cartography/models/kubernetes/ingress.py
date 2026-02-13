@@ -96,6 +96,32 @@ class KubernetesIngressToKubernetesServiceRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesIngressToLoadBalancerV2RelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:KubernetesIngress)-[:USES_LOAD_BALANCER]->(:AWSLoadBalancerV2)
+class KubernetesIngressToLoadBalancerV2Rel(CartographyRelSchema):
+    """
+    Relationship linking a KubernetesIngress to the AWS LoadBalancerV2 (ALB/NLB)
+    that backs it. Matching is done by the DNS hostname from the Kubernetes
+    ingress's status.loadBalancer.ingress[].hostname field to the
+    LoadBalancerV2.dnsname property.
+    """
+
+    target_node_label: str = "AWSLoadBalancerV2"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"dnsname": PropertyRef("load_balancer_dns_names", one_to_many=True)}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_LOAD_BALANCER"
+    properties: KubernetesIngressToLoadBalancerV2RelProperties = (
+        KubernetesIngressToLoadBalancerV2RelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesIngressSchema(CartographyNodeSchema):
     label: str = "KubernetesIngress"
     properties: KubernetesIngressNodeProperties = KubernetesIngressNodeProperties()
@@ -106,5 +132,6 @@ class KubernetesIngressSchema(CartographyNodeSchema):
         [
             KubernetesIngressToKubernetesNamespaceRel(),
             KubernetesIngressToKubernetesServiceRel(),
+            KubernetesIngressToLoadBalancerV2Rel(),
         ]
     )

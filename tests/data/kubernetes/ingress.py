@@ -18,7 +18,8 @@ from kubernetes.client import V1ServiceBackendPort
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 
 # Shared ALB DNS name for ingress group testing
-SHARED_ALB_DNS_NAME = "k8s-shared-alb-abc123-1234567890.us-west-2.elb.amazonaws.com"
+# This matches the ALB DNS name in tests/data/aws/ec2/load_balancer_v2s.py
+SHARED_ALB_DNS_NAME = "test-alb-1234567890.us-east-1.elb.amazonaws.com"
 
 KUBERNETES_INGRESS_DATA = [
     {
