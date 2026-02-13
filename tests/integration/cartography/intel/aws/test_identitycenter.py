@@ -663,6 +663,46 @@ def test_sync_account_instance_skips_permission_sets(
 
 @patch.object(
     cartography.intel.aws.identitycenter,
+    "get_identity_center_instances",
+    return_value=[
+        {
+            "InstanceArn": "arn:aws:sso:::instance/ssoins-other",
+            "IdentityStoreId": "d-other",
+            "OwnerAccountId": "999999999999",
+        }
+    ],
+)
+def test_sync_skips_instance_owned_by_other_account(
+    mock_instances,
+    neo4j_session,
+):
+    """
+    Test that Identity Center instances owned by a different account are skipped.
+
+    The sso-admin ListInstances API returns org-level instances to every member
+    account. Without filtering, this creates incorrect RESOURCE edges from SSO
+    users/groups to every synced account instead of just the owner.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    cartography.intel.aws.identitycenter.sync_identity_center_instances(
+        neo4j_session,
+        boto3_session=None,
+        regions=["us-east-1"],
+        current_aws_account_id=TEST_ACCOUNT_ID,
+        update_tag=123,
+        common_job_parameters={"AWS_ID": TEST_ACCOUNT_ID, "UPDATE_TAG": 123},
+    )
+
+    # Instance owned by another account should NOT be loaded
+    assert check_nodes(neo4j_session, "AWSIdentityCenter", ["id"]) == set()
+    # No users or groups should be synced
+    assert check_nodes(neo4j_session, "AWSSSOUser", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AWSSSOGroup", ["id"]) == set()
+
+
+@patch.object(
+    cartography.intel.aws.identitycenter,
     "get_user_group_memberships",
     return_value={},
 )
