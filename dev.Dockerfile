@@ -4,7 +4,7 @@
 # - This dockerfile will get called with .cache as a volume mount.
 # - The current working directory on the host building this container
 #   is the cartography source tree from github.
-FROM python:3.10.19-slim@sha256:218027ad8e5a6fb68245ccffcb8bcfa98d9891039bfedd53b1b4666dc48a4bb1
+FROM python:3.10.19-slim@sha256:e508a34e5491225a76fbb9e0f43ebde1f691c6a689d096d7510cf7fb17d4ba6f
 
 # The UID and GID to run cartography as.
 # This needs to match the gid and uid on the host.
