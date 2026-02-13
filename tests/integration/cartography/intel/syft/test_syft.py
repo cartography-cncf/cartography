@@ -9,8 +9,11 @@ import json
 from unittest.mock import mock_open
 from unittest.mock import patch
 
+import pytest
+
 from cartography.intel.syft import sync_single_syft
 from cartography.intel.syft import sync_syft_from_dir
+from cartography.intel.syft.parser import SyftValidationError
 from tests.data.syft.syft_sample import EXPECTED_DEPENDENCIES
 from tests.data.syft.syft_sample import SYFT_SAMPLE
 from tests.integration.util import check_rels
@@ -159,37 +162,19 @@ def test_sync_single_syft_no_packages_to_enrich(neo4j_session):
 
 def test_sync_single_syft_invalid_data(neo4j_session):
     """
-    Test that sync_single_syft handles invalid Syft data gracefully.
+    Test that sync_single_syft raises SyftValidationError on invalid data,
+    so the caller can track the failure and gate cleanup.
     """
-    # Count relationships before
-    before_count = neo4j_session.run(
-        """
-        MATCH (:TrivyPackage)-[r:DEPENDS_ON]->(:TrivyPackage)
-        RETURN count(r) AS count
-        """
-    ).single()["count"]
-
-    # Act: Run Syft sync with invalid data (missing artifacts)
     invalid_data = {"source": {"type": "image"}}
 
-    # Should not raise - just log an error and skip
-    sync_single_syft(
-        neo4j_session,
-        invalid_data,
-        TEST_UPDATE_TAG,
-        sub_resource_label="SyftSync",
-        sub_resource_id="test-invalid",
-    )
-
-    # Assert: No new relationships should have been created
-    after_count = neo4j_session.run(
-        """
-        MATCH (:TrivyPackage)-[r:DEPENDS_ON]->(:TrivyPackage)
-        RETURN count(r) AS count
-        """
-    ).single()["count"]
-
-    assert after_count == before_count
+    with pytest.raises(SyftValidationError):
+        sync_single_syft(
+            neo4j_session,
+            invalid_data,
+            TEST_UPDATE_TAG,
+            sub_resource_label="SyftSync",
+            sub_resource_id="test-invalid",
+        )
 
 
 @patch(

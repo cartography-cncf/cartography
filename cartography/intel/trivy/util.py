@@ -101,7 +101,10 @@ def make_normalized_package_id(
     """
     Create a normalized package ID for cross-tool matching.
 
-    The ID format is: {type}|{normalized_name}|{version}
+    The ID format is: {type}|{namespace/}{normalized_name}|{version}
+
+    The namespace is included when present to avoid collisions between
+    packages like pkg:npm/%40types/node@18.0.0 and pkg:npm/node@18.0.0.
 
     This enables matching packages between Trivy and Syft despite:
     - Case differences (PyNaCl vs pynacl)
@@ -115,13 +118,14 @@ def make_normalized_package_id(
         pkg_type: Package type (fallback if no PURL)
 
     Returns:
-        Normalized ID in format "{type}|{normalized_name}|{version}" or None
+        Normalized ID in format "{type}|{namespace/}{normalized_name}|{version}" or None
     """
     if purl:
         parsed = parse_purl(purl)
         if parsed and parsed["name"] and parsed["version"]:
             norm_name = normalize_package_name(parsed["name"], parsed["type"])
-            return f"{parsed['type']}|{norm_name}|{parsed['version']}"
+            ns_prefix = f"{parsed['namespace']}/" if parsed.get("namespace") else ""
+            return f"{parsed['type']}|{ns_prefix}{norm_name}|{parsed['version']}"
 
     # Fallback to provided components
     if name and version and pkg_type:

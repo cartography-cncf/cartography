@@ -99,11 +99,7 @@ def sync_single_syft(
         sub_resource_label: Label of the sub-resource (e.g., "AWSAccount")
         sub_resource_id: ID of the sub-resource (e.g., account ID)
     """
-    try:
-        validate_syft_json(data)
-    except SyftValidationError as e:
-        logger.error("Invalid Syft JSON data: %s", e)
-        return
+    validate_syft_json(data)
 
     # Transform and load DEPENDS_ON relationships
     dependencies = transform_dependencies(data)
@@ -212,22 +208,21 @@ def sync_syft_from_dir(
         try:
             with open(file_path, encoding="utf-8") as f:
                 syft_data = json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            logger.error("Failed to read Syft data from %s: %s", file_path, e)
+            sync_single_syft(
+                neo4j_session,
+                syft_data,
+                update_tag,
+                sub_resource_label,
+                sub_resource_id,
+            )
+        except (OSError, json.JSONDecodeError, SyftValidationError) as e:
+            logger.error("Failed to process Syft file %s: %s", file_path, e)
             failed_files.append(file_path)
             continue
 
-        sync_single_syft(
-            neo4j_session,
-            syft_data,
-            update_tag,
-            sub_resource_label,
-            sub_resource_id,
-        )
-
     if failed_files:
         raise SyftIngestionError(
-            f"Failed to load {len(failed_files)} Syft file(s) from {results_dir}. "
+            f"Failed to process {len(failed_files)} Syft file(s) from {results_dir}. "
             "Skipping cleanup to avoid deleting valid relationships."
         )
 
@@ -285,15 +280,23 @@ def sync_syft_from_s3(
             response = s3_client.get_object(Bucket=syft_s3_bucket, Key=s3_object_key)
             scan_data_json = response["Body"].read().decode("utf-8")
             syft_data = json.loads(scan_data_json)
+            sync_single_syft(
+                neo4j_session,
+                syft_data,
+                update_tag,
+                sub_resource_label,
+                sub_resource_id,
+            )
         except (
             BotoCoreError,
             ClientError,
             UnicodeDecodeError,
             json.JSONDecodeError,
             KeyError,
+            SyftValidationError,
         ) as e:
             logger.error(
-                "Failed to read Syft data from s3://%s/%s: %s",
+                "Failed to process Syft data from s3://%s/%s: %s",
                 syft_s3_bucket,
                 s3_object_key,
                 e,
@@ -301,17 +304,9 @@ def sync_syft_from_s3(
             failed_objects.append(s3_object_key)
             continue
 
-        sync_single_syft(
-            neo4j_session,
-            syft_data,
-            update_tag,
-            sub_resource_label,
-            sub_resource_id,
-        )
-
     if failed_objects:
         raise SyftIngestionError(
-            f"Failed to load {len(failed_objects)} Syft object(s) from "
+            f"Failed to process {len(failed_objects)} Syft object(s) from "
             f"s3://{syft_s3_bucket}/{syft_s3_prefix}. "
             "Skipping cleanup to avoid deleting valid relationships."
         )

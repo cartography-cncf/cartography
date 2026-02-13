@@ -178,11 +178,19 @@ class TestMakeNormalizedPackageId:
         assert result == "pypi|jaraco-context|4.3.0"
 
     def test_make_id_from_purl_deb(self):
-        """Test creating ID from Debian PURL."""
+        """Test creating ID from Debian PURL (includes namespace)."""
         result = make_normalized_package_id(
             purl="pkg:deb/debian/gcc-12-base@12.2.0-14?arch=amd64"
         )
-        assert result == "deb|gcc-12-base|12.2.0-14"
+        assert result == "deb|debian/gcc-12-base|12.2.0-14"
+
+    def test_make_id_from_purl_scoped_npm(self):
+        """Test scoped npm packages include namespace to avoid collisions."""
+        scoped = make_normalized_package_id(purl="pkg:npm/%40types/node@18.0.0")
+        unscoped = make_normalized_package_id(purl="pkg:npm/node@18.0.0")
+        assert scoped == "npm|@types/node|18.0.0"
+        assert unscoped == "npm|node|18.0.0"
+        assert scoped != unscoped
 
     def test_make_id_from_components(self):
         """Test creating ID from individual components (fallback)."""
@@ -317,7 +325,7 @@ class TestCrossToolMatchingScenarios:
                     "version": "3.0.11-1",
                     "pkg_type": "deb",
                 },
-                "deb|libssl3|3.0.11-1",
+                "deb|debian/libssl3|3.0.11-1",
             ),
         ],
     )
