@@ -117,6 +117,17 @@ class DeviceToGoogleWorkspaceDeviceRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:SantaMachine)
+class DeviceToSantaMachineRel(CartographyRelSchema):
+    target_node_label: str = "SantaMachine"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 @dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):
     label: str = "Device"
@@ -133,5 +144,6 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToCrowdstrikeHostRel(),
             DeviceToBigfixComputerRel(),
             DeviceToGoogleWorkspaceDeviceRel(),
+            DeviceToSantaMachineRel(),
         ],
     )
