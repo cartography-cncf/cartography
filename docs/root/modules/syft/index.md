@@ -1,16 +1,19 @@
 # Syft Module
 
-The Syft module enriches TrivyPackage nodes with dependency graph information from [Syft](https://github.com/anchore/syft).
+The Syft module creates `SyftPackage` nodes with `DEPENDS_ON` dependency relationships from [Syft](https://github.com/anchore/syft), and enriches existing `TrivyPackage` nodes with dependency graph information.
 
 ## Purpose
 
-While Trivy provides vulnerability scanning and creates `TrivyPackage` nodes with CVE findings, it lacks dependency relationship information. Syft complements Trivy by creating `DEPENDS_ON` relationships between packages.
+While Trivy provides vulnerability scanning and creates `TrivyPackage` nodes with CVE findings, it lacks dependency relationship information. Syft complements Trivy by:
+
+1. Creating `SyftPackage` nodes with `DEPENDS_ON` relationships between them
+2. Creating `DEPENDS_ON` MatchLinks between existing `TrivyPackage` nodes for CVE tracing
 
 This enables powerful queries like tracing CVEs through the dependency tree to find which direct dependencies need updating.
 
 ## Usage
 
-Run Syft **after** Trivy in your cartography sync. Syft enriches existing TrivyPackage nodes rather than creating new ones.
+Run Syft **after** Trivy in your cartography sync. Syft creates its own package nodes and also enriches existing TrivyPackage nodes.
 
 ### Generate Syft Output
 
@@ -32,9 +35,17 @@ cartography --trivy-s3-bucket my-bucket --trivy-s3-prefix trivy/ \
 
 ## Key Queries
 
+### Browse the SyftPackage dependency tree
+
+```cypher
+MATCH path = (p:SyftPackage)-[:DEPENDS_ON*1..5]->(dep:SyftPackage)
+WHERE NOT exists((p)<-[:DEPENDS_ON]-())
+RETURN path
+```
+
 ### Find CVEs in transitive dependencies and trace to direct deps
 
-Direct vs transitive is determined by graph structure:
+Uses TrivyPackage DEPENDS_ON MatchLinks for CVE tracing. Direct vs transitive is determined by graph structure:
 - **Direct deps**: packages with no incoming DEPENDS_ON edges (nothing depends on them)
 - **Transitive deps**: packages that have incoming DEPENDS_ON edges
 
@@ -46,18 +57,10 @@ WHERE NOT exists((direct)<-[:DEPENDS_ON]-())
 RETURN cve.cve_id, vuln.name AS vulnerable_package, direct.name AS update_this
 ```
 
-### View dependency tree from direct dependencies
+### Find all SyftPackages that depend on a specific package
 
 ```cypher
-MATCH path = (p:TrivyPackage)-[:DEPENDS_ON*1..5]->(dep:TrivyPackage)
-WHERE NOT exists((p)<-[:DEPENDS_ON]-())
-RETURN path
-```
-
-### Find all packages that depend on a vulnerable package
-
-```cypher
-MATCH (upstream:TrivyPackage)-[:DEPENDS_ON*1..10]->(vuln:TrivyPackage {name: 'lodash'})
+MATCH (upstream:SyftPackage)-[:DEPENDS_ON*1..10]->(dep:SyftPackage {name: 'lodash'})
 RETURN DISTINCT upstream.name
 ```
 

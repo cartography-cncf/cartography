@@ -1,10 +1,43 @@
 # Syft Schema
 
+## Nodes
+
+### SyftPackage
+
+Package nodes created from Syft's `artifacts` array.
+
+Labels: `Package`, `SyftPackage`
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | string | Normalized package ID (e.g., `npm\|express\|4.18.2`) |
+| `name` | string | Package name |
+| `version` | string | Package version |
+| `type` | string | Package type (e.g., `npm`, `pypi`, `deb`) |
+| `purl` | string | Package URL |
+| `normalized_id` | string | Same as `id`; indexed for cross-tool matching |
+| `language` | string | Programming language |
+| `found_by` | string | Syft cataloger that discovered the package |
+| `lastupdated` | int | Timestamp of last update |
+
 ## Relationships
 
-### DEPENDS_ON
+### SyftPackage DEPENDS_ON SyftPackage
 
-Created between TrivyPackage nodes to represent dependency relationships.
+Self-referential dependency relationships between SyftPackage nodes.
+
+```
+(:SyftPackage)-[:DEPENDS_ON]->(:SyftPackage)
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `lastupdated` | int | Timestamp of last update |
+
+### TrivyPackage DEPENDS_ON TrivyPackage (MatchLink)
+
+Created between existing TrivyPackage nodes to represent dependency relationships.
+Kept for backwards compatibility; uses MatchLink pattern.
 
 ```
 (:TrivyPackage)-[:DEPENDS_ON]->(:TrivyPackage)
@@ -28,7 +61,7 @@ Direct and transitive dependencies are determined by graph structure rather than
 ### Query to find direct dependencies
 
 ```cypher
-MATCH (p:TrivyPackage)
+MATCH (p:SyftPackage)
 WHERE NOT exists((p)<-[:DEPENDS_ON]-())
 RETURN p.name
 ```
@@ -36,7 +69,7 @@ RETURN p.name
 ### Query to find transitive dependencies
 
 ```cypher
-MATCH (p:TrivyPackage)
+MATCH (p:SyftPackage)
 WHERE exists((p)<-[:DEPENDS_ON]-())
 RETURN p.name
 ```
@@ -44,16 +77,17 @@ RETURN p.name
 ## Example Graph
 
 ```
-(express:TrivyPackage)  <-- direct (nothing depends on it)
+(express:SyftPackage)  <-- direct (nothing depends on it)
     -[:DEPENDS_ON]->
-        (body-parser:TrivyPackage)  <-- transitive (express depends on it)
+        (body-parser:SyftPackage)  <-- transitive (express depends on it)
             -[:DEPENDS_ON]->
-                (bytes:TrivyPackage)  <-- transitive (body-parser depends on it)
+                (bytes:SyftPackage)  <-- transitive (body-parser depends on it)
 ```
 
 ## Integration with Trivy
 
-The Syft module enriches the graph created by Trivy:
+The Syft module creates its own SyftPackage nodes and also enriches the graph created by Trivy
+via TrivyPackage DEPENDS_ON MatchLinks:
 
 ```
                     ┌─────────────────┐
@@ -66,9 +100,14 @@ The Syft module enriches the graph created by Trivy:
 │ ECRImage    │◄───│  TrivyPackage   │───►│   TrivyFix      │
 │             │    │  (transitive)   │    │                 │
 └─────────────┘    └────────▲────────┘    └─────────────────┘
-                            │ DEPENDS_ON
+                            │ DEPENDS_ON (MatchLink)
                    ┌────────┴────────┐
                    │  TrivyPackage   │
                    │    (direct)     │
                    └─────────────────┘
+
+┌─────────────────┐    DEPENDS_ON    ┌─────────────────┐
+│  SyftPackage    │─────────────────►│  SyftPackage    │
+│   (direct)      │                  │  (transitive)   │
+└─────────────────┘                  └─────────────────┘
 ```

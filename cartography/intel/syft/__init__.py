@@ -27,13 +27,16 @@ from botocore.exceptions import BotoCoreError
 from botocore.exceptions import ClientError
 from neo4j import Session
 
+from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.syft.parser import SyftValidationError
+from cartography.intel.syft.parser import transform_artifacts
 from cartography.intel.syft.parser import transform_dependencies
 from cartography.intel.syft.parser import validate_syft_json
 from cartography.models.syft import SyftPackageDependsOnMatchLink
+from cartography.models.syft import SyftPackageSchema
 from cartography.stats import get_stats_client
 from cartography.util import timeit
 
@@ -43,6 +46,27 @@ stat_handler = get_stats_client(__name__)
 
 class SyftIngestionError(RuntimeError):
     """Raised when one or more Syft result objects fail to load."""
+
+
+@timeit
+def _load_packages(
+    neo4j_session: Session,
+    packages: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    """
+    Create SyftPackage nodes with DEPENDS_ON relationships between them.
+
+    Args:
+        neo4j_session: Neo4j session
+        packages: List of package dicts from transform_artifacts()
+        update_tag: Update timestamp
+    """
+    if not packages:
+        return
+
+    load(neo4j_session, SyftPackageSchema(), packages, lastupdated=update_tag)
+    logger.info("Created %d SyftPackage nodes", len(packages))
 
 
 @timeit
@@ -101,7 +125,11 @@ def sync_single_syft(
     """
     validate_syft_json(data)
 
-    # Transform and load DEPENDS_ON relationships
+    # Transform and load SyftPackage nodes with self-referential DEPENDS_ON
+    packages = transform_artifacts(data)
+    _load_packages(neo4j_session, packages, update_tag)
+
+    # Transform and load DEPENDS_ON MatchLinks between TrivyPackage nodes
     dependencies = transform_dependencies(data)
     _load_dependencies(
         neo4j_session,
@@ -330,7 +358,14 @@ def cleanup_syft(
         sub_resource_id: ID of the sub-resource for scoped cleanup
         update_tag: Update timestamp
     """
-    logger.info("Running Syft DEPENDS_ON cleanup")
+    logger.info("Running Syft cleanup")
+    # Clean up SyftPackage nodes (unscoped, uses UPDATE_TAG)
+    GraphJob.from_node_schema(
+        SyftPackageSchema(),
+        {"UPDATE_TAG": update_tag},
+    ).run(neo4j_session)
+
+    # Clean up TrivyPackage DEPENDS_ON MatchLinks (scoped)
     matchlink = SyftPackageDependsOnMatchLink()
     cleanup_job = GraphJob.from_matchlink(
         matchlink, sub_resource_label, sub_resource_id, update_tag

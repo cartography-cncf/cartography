@@ -6,9 +6,11 @@ import pytest
 
 from cartography.intel.syft.parser import get_image_digest_from_syft
 from cartography.intel.syft.parser import SyftValidationError
+from cartography.intel.syft.parser import transform_artifacts
 from cartography.intel.syft.parser import transform_dependencies
 from cartography.intel.syft.parser import validate_syft_json
 from tests.data.syft.syft_sample import EXPECTED_DEPENDENCIES
+from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGES
 from tests.data.syft.syft_sample import SYFT_INVALID_ARTIFACTS_NOT_LIST
 from tests.data.syft.syft_sample import SYFT_INVALID_NO_ARTIFACTS
 from tests.data.syft.syft_sample import SYFT_INVALID_RELATIONSHIPS_NOT_LIST
@@ -113,6 +115,69 @@ class TestTransformDependencies:
         }
         dependencies = transform_dependencies(data)
         assert dependencies == []
+
+
+class TestTransformArtifacts:
+    """Tests for transform_artifacts function."""
+
+    def test_transform_artifacts_produces_expected_ids(self):
+        """Test that all artifacts produce correct normalized IDs."""
+        packages = transform_artifacts(SYFT_SAMPLE)
+        ids = {p["id"] for p in packages}
+        assert ids == EXPECTED_SYFT_PACKAGES
+
+    def test_transform_artifacts_dependency_ids(self):
+        """Test that dependency_ids lists are correct per package."""
+        packages = transform_artifacts(SYFT_SAMPLE)
+        pkg_by_id = {p["id"]: p for p in packages}
+
+        # express depends on body-parser and accepts
+        assert set(pkg_by_id["npm|express|4.18.2"]["dependency_ids"]) == {
+            "npm|body-parser|1.20.1",
+            "npm|accepts|1.3.8",
+        }
+        # body-parser depends on bytes
+        assert pkg_by_id["npm|body-parser|1.20.1"]["dependency_ids"] == [
+            "npm|bytes|3.1.2",
+        ]
+        # bytes, accepts, lodash have no dependencies
+        assert pkg_by_id["npm|bytes|3.1.2"]["dependency_ids"] == []
+        assert pkg_by_id["npm|accepts|1.3.8"]["dependency_ids"] == []
+        assert pkg_by_id["npm|lodash|4.17.21"]["dependency_ids"] == []
+
+    def test_transform_artifacts_properties(self):
+        """Test that package properties are mapped correctly."""
+        packages = transform_artifacts(SYFT_SAMPLE)
+        pkg_by_id = {p["id"]: p for p in packages}
+
+        express = pkg_by_id["npm|express|4.18.2"]
+        assert express["name"] == "express"
+        assert express["version"] == "4.18.2"
+        assert express["type"] == "npm"
+        assert express["purl"] == "pkg:npm/express@4.18.2"
+        assert express["language"] == "javascript"
+        assert express["found_by"] == "javascript-package-cataloger"
+        assert express["normalized_id"] == "npm|express|4.18.2"
+
+    def test_transform_artifacts_empty(self):
+        """Test with empty artifacts."""
+        data = {"artifacts": [], "artifactRelationships": []}
+        packages = transform_artifacts(data)
+        assert packages == []
+
+    def test_transform_artifacts_skips_missing_name_version(self):
+        """Test that artifacts missing name or version are skipped."""
+        data = {
+            "artifacts": [
+                {"id": "a", "name": "pkg-a", "version": "", "type": "npm"},
+                {"id": "b", "name": "", "version": "1.0.0", "type": "npm"},
+                {"id": "c", "name": "pkg-c", "version": "1.0.0", "type": "npm"},
+            ],
+            "artifactRelationships": [],
+        }
+        packages = transform_artifacts(data)
+        assert len(packages) == 1
+        assert packages[0]["name"] == "pkg-c"
 
 
 class TestGetImageDigestFromSyft:

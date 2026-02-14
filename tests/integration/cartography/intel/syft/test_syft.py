@@ -15,7 +15,10 @@ from cartography.intel.syft import sync_single_syft
 from cartography.intel.syft import sync_syft_from_dir
 from cartography.intel.syft.parser import SyftValidationError
 from tests.data.syft.syft_sample import EXPECTED_DEPENDENCIES
+from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGE_DEPENDENCIES
+from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGES
 from tests.data.syft.syft_sample import SYFT_SAMPLE
+from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
@@ -315,3 +318,109 @@ def test_transitive_cve_tracing_query(neo4j_session):
     assert result[0]["cve_id"] == "CVE-2023-12345"
     assert result[0]["vulnerable_package"] == "bytes"
     assert result[0]["direct_dependency"] == "express"
+
+
+def test_sync_single_syft_creates_syft_package_nodes(neo4j_session):
+    """
+    Test that sync_single_syft creates SyftPackage nodes with correct properties.
+    """
+    # Clear any SyftPackage nodes from previous tests
+    neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
+
+    sync_single_syft(
+        neo4j_session,
+        SYFT_SAMPLE,
+        TEST_UPDATE_TAG,
+        sub_resource_label="SyftSync",
+        sub_resource_id="test",
+    )
+
+    # Check SyftPackage nodes exist with expected IDs
+    actual_nodes = check_nodes(neo4j_session, "SyftPackage", ["id"])
+    expected_nodes = {(pkg_id,) for pkg_id in EXPECTED_SYFT_PACKAGES}
+    assert actual_nodes == expected_nodes
+
+    # Verify a specific node has all expected properties
+    result = neo4j_session.run(
+        """
+        MATCH (p:SyftPackage {id: 'npm|express|4.18.2'})
+        RETURN p.name AS name, p.version AS version, p.type AS type,
+               p.purl AS purl, p.language AS language, p.found_by AS found_by,
+               p.normalized_id AS normalized_id, p.lastupdated AS lastupdated
+        """,
+    ).single()
+
+    assert result["name"] == "express"
+    assert result["version"] == "4.18.2"
+    assert result["type"] == "npm"
+    assert result["purl"] == "pkg:npm/express@4.18.2"
+    assert result["language"] == "javascript"
+    assert result["found_by"] == "javascript-package-cataloger"
+    assert result["normalized_id"] == "npm|express|4.18.2"
+    assert result["lastupdated"] == TEST_UPDATE_TAG
+
+
+def test_sync_single_syft_creates_syft_depends_on(neo4j_session):
+    """
+    Test that sync_single_syft creates DEPENDS_ON between SyftPackage nodes.
+    """
+    sync_single_syft(
+        neo4j_session,
+        SYFT_SAMPLE,
+        TEST_UPDATE_TAG,
+        sub_resource_label="SyftSync",
+        sub_resource_id="test",
+    )
+
+    actual_rels = check_rels(
+        neo4j_session,
+        "SyftPackage",
+        "id",
+        "SyftPackage",
+        "id",
+        "DEPENDS_ON",
+        rel_direction_right=True,
+    )
+
+    assert actual_rels == EXPECTED_SYFT_PACKAGE_DEPENDENCIES
+
+
+def test_sync_preserves_both_trivy_and_syft_depends_on(neo4j_session):
+    """
+    Test that both TrivyPackage MatchLinks and SyftPackage relationships coexist.
+    """
+    # Create TrivyPackage nodes first
+    _create_trivy_packages(neo4j_session, TEST_UPDATE_TAG)
+
+    # Run Syft sync (creates both SyftPackage nodes + TrivyPackage MatchLinks)
+    sync_single_syft(
+        neo4j_session,
+        SYFT_SAMPLE,
+        TEST_UPDATE_TAG,
+        sub_resource_label="SyftSync",
+        sub_resource_id="test",
+    )
+
+    # Verify TrivyPackage DEPENDS_ON relationships
+    trivy_rels = check_rels(
+        neo4j_session,
+        "TrivyPackage",
+        "normalized_id",
+        "TrivyPackage",
+        "normalized_id",
+        "DEPENDS_ON",
+        rel_direction_right=True,
+    )
+    assert trivy_rels == EXPECTED_DEPENDENCIES
+
+    # Verify SyftPackage DEPENDS_ON relationships
+    syft_rels = check_rels(
+        neo4j_session,
+        "SyftPackage",
+        "id",
+        "SyftPackage",
+        "id",
+        "DEPENDS_ON",
+        rel_direction_right=True,
+    )
+    assert syft_rels == EXPECTED_SYFT_PACKAGE_DEPENDENCIES

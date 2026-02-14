@@ -153,6 +153,24 @@ EXPECTED_DEPENDENCIES = {
 }
 
 
+# Expected SyftPackage node IDs (same as normalized_id)
+EXPECTED_SYFT_PACKAGES = {
+    "npm|express|4.18.2",
+    "npm|body-parser|1.20.1",
+    "npm|bytes|3.1.2",
+    "npm|accepts|1.3.8",
+    "npm|lodash|4.17.21",
+}
+
+# Expected DEPENDS_ON relationships between SyftPackage nodes
+# Same edges as EXPECTED_DEPENDENCIES but between SyftPackage nodes
+EXPECTED_SYFT_PACKAGE_DEPENDENCIES = {
+    ("npm|express|4.18.2", "npm|body-parser|1.20.1"),
+    ("npm|express|4.18.2", "npm|accepts|1.3.8"),
+    ("npm|body-parser|1.20.1", "npm|bytes|3.1.2"),
+}
+
+
 # Minimal valid Syft JSON for validation tests
 SYFT_MINIMAL_VALID: dict[str, Any] = {
     "artifacts": [],
