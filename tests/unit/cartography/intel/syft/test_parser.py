@@ -5,7 +5,6 @@ Unit tests for cartography.intel.syft.parser module.
 import pytest
 
 from cartography.intel.syft.parser import get_image_digest_from_syft
-from cartography.intel.syft.parser import SyftValidationError
 from cartography.intel.syft.parser import transform_artifacts
 from cartography.intel.syft.parser import validate_syft_json
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGES
@@ -30,26 +29,24 @@ class TestValidateSyftJson:
         validate_syft_json(SYFT_MINIMAL_VALID)
 
     def test_invalid_not_dict(self):
-        """Test that non-dict input raises SyftValidationError."""
-        with pytest.raises(SyftValidationError, match="must be a dictionary"):
+        """Test that non-dict input raises ValueError."""
+        with pytest.raises(ValueError, match="must be a dictionary"):
             validate_syft_json([])
 
     def test_invalid_missing_artifacts(self):
-        """Test that missing artifacts field raises SyftValidationError."""
-        with pytest.raises(SyftValidationError, match="missing required 'artifacts'"):
+        """Test that missing artifacts field raises ValueError."""
+        with pytest.raises(ValueError, match="missing required 'artifacts'"):
             validate_syft_json(SYFT_INVALID_NO_ARTIFACTS)
 
     def test_invalid_artifacts_not_list(self):
-        """Test that non-list artifacts field raises SyftValidationError."""
-        with pytest.raises(
-            SyftValidationError, match="'artifacts' field must be a list"
-        ):
+        """Test that non-list artifacts field raises ValueError."""
+        with pytest.raises(ValueError, match="'artifacts' field must be a list"):
             validate_syft_json(SYFT_INVALID_ARTIFACTS_NOT_LIST)
 
     def test_invalid_relationships_not_list(self):
-        """Test that non-list artifactRelationships raises SyftValidationError."""
+        """Test that non-list artifactRelationships raises ValueError."""
         with pytest.raises(
-            SyftValidationError, match="'artifactRelationships' field must be a list"
+            ValueError, match="'artifactRelationships' field must be a list"
         ):
             validate_syft_json(SYFT_INVALID_RELATIONSHIPS_NOT_LIST)
 

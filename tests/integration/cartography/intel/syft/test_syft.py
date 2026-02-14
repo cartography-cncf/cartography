@@ -13,7 +13,6 @@ import pytest
 
 from cartography.intel.syft import sync_single_syft
 from cartography.intel.syft import sync_syft_from_dir
-from cartography.intel.syft.parser import SyftValidationError
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGE_DEPENDENCIES
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGES
 from tests.data.syft.syft_sample import SYFT_SAMPLE
@@ -85,12 +84,11 @@ def test_sync_single_syft_creates_depends_on(neo4j_session):
 
 def test_sync_single_syft_invalid_data(neo4j_session):
     """
-    Test that sync_single_syft raises SyftValidationError on invalid data,
-    so the caller can track the failure and gate cleanup.
+    Test that sync_single_syft raises ValueError on invalid data.
     """
     invalid_data = {"source": {"type": "image"}}
 
-    with pytest.raises(SyftValidationError):
+    with pytest.raises(ValueError):
         sync_single_syft(
             neo4j_session,
             invalid_data,

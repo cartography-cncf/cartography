@@ -37,12 +37,6 @@ from cartography.intel.trivy.util import make_normalized_package_id
 logger = logging.getLogger(__name__)
 
 
-class SyftValidationError(ValueError):
-    """Raised when Syft JSON data fails validation."""
-
-    pass
-
-
 def validate_syft_json(data: dict[str, Any]) -> None:
     """
     Validate that the provided data is a valid Syft JSON structure.
@@ -51,24 +45,22 @@ def validate_syft_json(data: dict[str, Any]) -> None:
         data: Dictionary parsed from Syft JSON output
 
     Raises:
-        SyftValidationError: If required fields are missing or invalid
+        ValueError: If required fields are missing or invalid
     """
     if not isinstance(data, dict):
-        raise SyftValidationError("Syft data must be a dictionary")
+        raise ValueError("Syft data must be a dictionary")
 
     if "artifacts" not in data:
-        raise SyftValidationError("Syft data missing required 'artifacts' field")
+        raise ValueError("Syft data missing required 'artifacts' field")
 
     if not isinstance(data.get("artifacts", []), list):
-        raise SyftValidationError("Syft 'artifacts' field must be a list")
+        raise ValueError("Syft 'artifacts' field must be a list")
 
     # artifactRelationships is optional but must be a list if present
     if "artifactRelationships" in data and not isinstance(
         data["artifactRelationships"], list
     ):
-        raise SyftValidationError(
-            "Syft 'artifactRelationships' field must be a list if present"
-        )
+        raise ValueError("Syft 'artifactRelationships' field must be a list if present")
 
 
 def _build_artifact_lookup(data: dict[str, Any]) -> dict[str, dict[str, Any]]:

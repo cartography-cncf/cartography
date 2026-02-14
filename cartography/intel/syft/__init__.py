@@ -25,7 +25,6 @@ from neo4j import Session
 from cartography.client.core.tx import load
 from cartography.config import Config
 from cartography.graph.job import GraphJob
-from cartography.intel.syft.parser import SyftValidationError
 from cartography.intel.syft.parser import transform_artifacts
 from cartography.intel.syft.parser import validate_syft_json
 from cartography.models.syft import SyftPackageSchema
@@ -34,31 +33,6 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
-
-
-class SyftIngestionError(RuntimeError):
-    """Raised when one or more Syft result objects fail to load."""
-
-
-@timeit
-def _load_packages(
-    neo4j_session: Session,
-    packages: list[dict[str, Any]],
-    update_tag: int,
-) -> None:
-    """
-    Create SyftPackage nodes with DEPENDS_ON relationships between them.
-
-    Args:
-        neo4j_session: Neo4j session
-        packages: List of package dicts from transform_artifacts()
-        update_tag: Update timestamp
-    """
-    if not packages:
-        return
-
-    load(neo4j_session, SyftPackageSchema(), packages, lastupdated=update_tag)
-    logger.info("Created %d SyftPackage nodes", len(packages))
 
 
 @timeit
@@ -78,7 +52,9 @@ def sync_single_syft(
     validate_syft_json(data)
 
     packages = transform_artifacts(data)
-    _load_packages(neo4j_session, packages, update_tag)
+    if packages:
+        load(neo4j_session, SyftPackageSchema(), packages, lastupdated=update_tag)
+        logger.info("Created %d SyftPackage nodes", len(packages))
 
     stat_handler.incr("syft_files_processed")
 
@@ -166,7 +142,6 @@ def sync_syft_from_dir(
         return
 
     logger.info("Processing %d local Syft result files", len(json_files))
-    failed_files: list[str] = []
 
     for file_path in json_files:
         try:
@@ -177,16 +152,9 @@ def sync_syft_from_dir(
                 syft_data,
                 update_tag,
             )
-        except (OSError, json.JSONDecodeError, SyftValidationError) as e:
+        except (OSError, json.JSONDecodeError, ValueError) as e:
             logger.error("Failed to process Syft file %s: %s", file_path, e)
-            failed_files.append(file_path)
             continue
-
-    if failed_files:
-        raise SyftIngestionError(
-            f"Failed to process {len(failed_files)} Syft file(s) from {results_dir}. "
-            "Skipping cleanup to avoid deleting valid data."
-        )
 
     cleanup_syft(neo4j_session, update_tag)
 
@@ -228,7 +196,6 @@ def sync_syft_from_s3(
 
     logger.info("Processing %d Syft result files from S3", len(json_files))
     s3_client = boto3_session.client("s3")
-    failed_objects: list[str] = []
 
     for s3_object_key in json_files:
         logger.debug(
@@ -249,7 +216,7 @@ def sync_syft_from_s3(
             UnicodeDecodeError,
             json.JSONDecodeError,
             KeyError,
-            SyftValidationError,
+            ValueError,
         ) as e:
             logger.error(
                 "Failed to process Syft data from s3://%s/%s: %s",
@@ -257,15 +224,7 @@ def sync_syft_from_s3(
                 s3_object_key,
                 e,
             )
-            failed_objects.append(s3_object_key)
             continue
-
-    if failed_objects:
-        raise SyftIngestionError(
-            f"Failed to process {len(failed_objects)} Syft object(s) from "
-            f"s3://{syft_s3_bucket}/{syft_s3_prefix}. "
-            "Skipping cleanup to avoid deleting valid data."
-        )
 
     cleanup_syft(neo4j_session, update_tag)
 
