@@ -1,8 +1,8 @@
 """
 Parser module for Syft native JSON format.
 
-This module provides functions to parse Syft's native JSON output and transform it
-into DEPENDS_ON relationship data for enriching TrivyPackage nodes.
+This module provides functions to parse Syft's native JSON output and transform
+artifacts into SyftPackage node data with dependency relationships.
 
 Syft JSON Format Reference:
     {
@@ -165,92 +165,6 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
         )
 
     return packages
-
-
-def transform_dependencies(data: dict[str, Any]) -> list[dict[str, Any]]:
-    """
-    Transform Syft artifactRelationships into DEPENDS_ON relationship data.
-
-    Creates relationship data for: (child)-[:DEPENDS_ON]->(parent)
-    because in Syft's model, {parent: X, child: Y} means Y depends on X.
-
-    Uses normalized_id for cross-tool matching to handle naming differences.
-
-    Args:
-        data: Validated Syft JSON data
-
-    Returns:
-        List of dicts with keys:
-            - source_id: Normalized ID of the dependent (the one that needs)
-            - target_id: Normalized ID of the dependency (the one that is needed)
-    """
-    artifacts = _build_artifact_lookup(data)
-    relationships = data.get("artifactRelationships", [])
-    dependency_data: list[dict[str, Any]] = []
-
-    for rel in relationships:
-        rel_type = rel.get("type", "")
-        child_id = rel.get("child", "")
-        parent_id = rel.get("parent", "")
-
-        # Only process "dependency-of" relationships
-        if rel_type != "dependency-of":
-            continue
-
-        # Both parent and child must be artifacts (packages)
-        if parent_id not in artifacts or child_id not in artifacts:
-            continue
-
-        parent = artifacts[parent_id]
-        child = artifacts[child_id]
-
-        parent_name: str | None = parent.get("name")
-        parent_version: str | None = parent.get("version")
-        child_name: str | None = child.get("name")
-        child_version: str | None = child.get("version")
-
-        # Skip if any required fields are missing
-        if not parent_name or not parent_version or not child_name or not child_version:
-            logger.debug(
-                "Skipping relationship %s -> %s: missing name or version",
-                parent_id,
-                child_id,
-            )
-            continue
-
-        # Compute normalized IDs for cross-tool matching
-        parent_norm_id = make_normalized_package_id(
-            purl=parent.get("purl"),
-            name=parent_name,
-            version=parent_version,
-            pkg_type=parent.get("type"),
-        )
-        child_norm_id = make_normalized_package_id(
-            purl=child.get("purl"),
-            name=child_name,
-            version=child_version,
-            pkg_type=child.get("type"),
-        )
-
-        # Skip if normalization failed
-        if not parent_norm_id or not child_norm_id:
-            logger.debug(
-                "Skipping relationship %s -> %s: normalization failed",
-                parent_id,
-                child_id,
-            )
-            continue
-
-        # DEPENDS_ON: child depends on parent (child needs parent)
-        # So: (child)-[:DEPENDS_ON]->(parent)
-        dependency_data.append(
-            {
-                "source_id": child_norm_id,
-                "target_id": parent_norm_id,
-            }
-        )
-
-    return dependency_data
 
 
 def get_image_digest_from_syft(data: dict[str, Any]) -> str | None:

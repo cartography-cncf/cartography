@@ -10,15 +10,10 @@ This sample represents a simplified Syft scan of a container image with:
 
 Syft relationship semantics:
     {parent: X, child: Y, type: "dependency-of"} means Y depends on X (Y requires X)
-
-Package IDs in Syft format use UUIDs, but we map them to TrivyPackage IDs
-using the format: {version}|{name}
 """
 
 from typing import Any
 
-# Sample Syft JSON matching packages that would be created by Trivy
-# These package names/versions match what Trivy would report
 SYFT_SAMPLE = {
     "artifacts": [
         {
@@ -133,26 +128,6 @@ SYFT_SAMPLE = {
 }
 
 
-# Expected normalized IDs (format: {type}|{normalized_name}|{version})
-# These are used for cross-tool matching between Trivy and Syft
-EXPECTED_NORMALIZED_IDS = {
-    "npm|express|4.18.2",
-    "npm|body-parser|1.20.1",
-    "npm|bytes|3.1.2",
-    "npm|accepts|1.3.8",
-    "npm|lodash|4.17.21",
-}
-
-# Expected DEPENDS_ON relationships (source_id -> target_id) using normalized IDs
-# Direction: (dependent)-[:DEPENDS_ON]->(dependency)
-# i.e., source DEPENDS ON target (source needs target)
-EXPECTED_DEPENDENCIES = {
-    ("npm|express|4.18.2", "npm|body-parser|1.20.1"),  # express needs body-parser
-    ("npm|express|4.18.2", "npm|accepts|1.3.8"),  # express needs accepts
-    ("npm|body-parser|1.20.1", "npm|bytes|3.1.2"),  # body-parser needs bytes
-}
-
-
 # Expected SyftPackage node IDs (same as normalized_id)
 EXPECTED_SYFT_PACKAGES = {
     "npm|express|4.18.2",
@@ -163,11 +138,11 @@ EXPECTED_SYFT_PACKAGES = {
 }
 
 # Expected DEPENDS_ON relationships between SyftPackage nodes
-# Same edges as EXPECTED_DEPENDENCIES but between SyftPackage nodes
+# Direction: (dependent)-[:DEPENDS_ON]->(dependency)
 EXPECTED_SYFT_PACKAGE_DEPENDENCIES = {
-    ("npm|express|4.18.2", "npm|body-parser|1.20.1"),
-    ("npm|express|4.18.2", "npm|accepts|1.3.8"),
-    ("npm|body-parser|1.20.1", "npm|bytes|3.1.2"),
+    ("npm|express|4.18.2", "npm|body-parser|1.20.1"),  # express needs body-parser
+    ("npm|express|4.18.2", "npm|accepts|1.3.8"),  # express needs accepts
+    ("npm|body-parser|1.20.1", "npm|bytes|3.1.2"),  # body-parser needs bytes
 }
 
 

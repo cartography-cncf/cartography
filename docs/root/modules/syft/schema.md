@@ -15,7 +15,7 @@ Labels: `Package`, `SyftPackage`
 | `version` | string | Package version |
 | `type` | string | Package type (e.g., `npm`, `pypi`, `deb`) |
 | `purl` | string | Package URL |
-| `normalized_id` | string | Same as `id`; indexed for cross-tool matching |
+| **`normalized_id`** | string | Same as `id`; indexed for cross-tool matching |
 | `language` | string | Programming language |
 | `found_by` | string | Syft cataloger that discovered the package |
 | `lastupdated` | int | Timestamp of last update |
@@ -33,21 +33,6 @@ Self-referential dependency relationships between SyftPackage nodes.
 | Property | Type | Description |
 |----------|------|-------------|
 | `lastupdated` | int | Timestamp of last update |
-
-### TrivyPackage DEPENDS_ON TrivyPackage (MatchLink)
-
-Created between existing TrivyPackage nodes to represent dependency relationships.
-Kept for backwards compatibility; uses MatchLink pattern.
-
-```
-(:TrivyPackage)-[:DEPENDS_ON]->(:TrivyPackage)
-```
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `lastupdated` | int | Timestamp of last update |
-| `_sub_resource_label` | string | Sub-resource label for cleanup scoping |
-| `_sub_resource_id` | string | Sub-resource ID for cleanup scoping |
 
 Direction: Parent package DEPENDS_ON its dependency (child package).
 
@@ -82,32 +67,4 @@ RETURN p.name
         (body-parser:SyftPackage)  <-- transitive (express depends on it)
             -[:DEPENDS_ON]->
                 (bytes:SyftPackage)  <-- transitive (body-parser depends on it)
-```
-
-## Integration with Trivy
-
-The Syft module creates its own SyftPackage nodes and also enriches the graph created by Trivy
-via TrivyPackage DEPENDS_ON MatchLinks:
-
-```
-                    ┌─────────────────┐
-                    │ TrivyImageFinding│
-                    │   (CVE-XXXX)    │
-                    └────────┬────────┘
-                             │ AFFECTS
-                             ▼
-┌─────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ ECRImage    │◄───│  TrivyPackage   │───►│   TrivyFix      │
-│             │    │  (transitive)   │    │                 │
-└─────────────┘    └────────▲────────┘    └─────────────────┘
-                            │ DEPENDS_ON (MatchLink)
-                   ┌────────┴────────┐
-                   │  TrivyPackage   │
-                   │    (direct)     │
-                   └─────────────────┘
-
-┌─────────────────┐    DEPENDS_ON    ┌─────────────────┐
-│  SyftPackage    │─────────────────►│  SyftPackage    │
-│   (direct)      │                  │  (transitive)   │
-└─────────────────┘                  └─────────────────┘
 ```

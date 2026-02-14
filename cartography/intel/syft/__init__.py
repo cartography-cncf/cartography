@@ -1,20 +1,15 @@
 """
-Syft intel module for enriching TrivyPackage nodes with dependency information.
+Syft intel module for creating SyftPackage nodes with dependency relationships.
 
-This module ingests Syft's native JSON format to create DEPENDS_ON relationships
-between TrivyPackage nodes, enabling CVE -> dependency chain tracing for remediation.
+This module ingests Syft's native JSON format to create SyftPackage nodes
+with DEPENDS_ON relationships between them.
 
 Direct vs transitive dependencies are derivable from the graph structure:
 - Direct deps: packages with no incoming DEPENDS_ON edges (nothing depends on them)
 - Transitive deps: packages that have incoming DEPENDS_ON edges
 
-Usage:
-    Syft should be run AFTER Trivy to enrich existing TrivyPackage nodes.
-    The module matches packages by normalized_id for cross-tool compatibility.
-
 File Naming Convention:
     - Syft JSON files should be named *.json
-    - For pairing with Trivy: use matching base names (e.g., myimage.json for both)
 """
 
 import json
@@ -28,14 +23,11 @@ from botocore.exceptions import ClientError
 from neo4j import Session
 
 from cartography.client.core.tx import load
-from cartography.client.core.tx import load_matchlinks
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.syft.parser import SyftValidationError
 from cartography.intel.syft.parser import transform_artifacts
-from cartography.intel.syft.parser import transform_dependencies
 from cartography.intel.syft.parser import validate_syft_json
-from cartography.models.syft import SyftPackageDependsOnMatchLink
 from cartography.models.syft import SyftPackageSchema
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -70,74 +62,23 @@ def _load_packages(
 
 
 @timeit
-def _load_dependencies(
-    neo4j_session: Session,
-    dependencies: list[dict[str, Any]],
-    update_tag: int,
-    sub_resource_label: str,
-    sub_resource_id: str,
-) -> None:
-    """
-    Create DEPENDS_ON relationships between TrivyPackage nodes.
-
-    Args:
-        neo4j_session: Neo4j session
-        dependencies: List of dicts with 'source_id' and 'target_id' keys
-        update_tag: Update timestamp
-        sub_resource_label: Label of the sub-resource for scoped cleanup
-        sub_resource_id: ID of the sub-resource for scoped cleanup
-    """
-    if not dependencies:
-        return
-
-    matchlink = SyftPackageDependsOnMatchLink()
-    load_matchlinks(
-        neo4j_session,
-        matchlink,
-        dependencies,
-        lastupdated=update_tag,
-        _sub_resource_label=sub_resource_label,
-        _sub_resource_id=sub_resource_id,
-    )
-    logger.info(
-        "Created %d DEPENDS_ON relationships between TrivyPackage nodes",
-        len(dependencies),
-    )
-
-
-@timeit
 def sync_single_syft(
     neo4j_session: Session,
     data: dict[str, Any],
     update_tag: int,
-    sub_resource_label: str,
-    sub_resource_id: str,
 ) -> None:
     """
-    Process a single Syft JSON result and create DEPENDS_ON relationships.
+    Process a single Syft JSON result and create SyftPackage nodes.
 
     Args:
         neo4j_session: Neo4j session
         data: Parsed Syft JSON data
         update_tag: Update timestamp
-        sub_resource_label: Label of the sub-resource (e.g., "AWSAccount")
-        sub_resource_id: ID of the sub-resource (e.g., account ID)
     """
     validate_syft_json(data)
 
-    # Transform and load SyftPackage nodes with self-referential DEPENDS_ON
     packages = transform_artifacts(data)
     _load_packages(neo4j_session, packages, update_tag)
-
-    # Transform and load DEPENDS_ON MatchLinks between TrivyPackage nodes
-    dependencies = transform_dependencies(data)
-    _load_dependencies(
-        neo4j_session,
-        dependencies,
-        update_tag,
-        sub_resource_label,
-        sub_resource_id,
-    )
 
     stat_handler.incr("syft_files_processed")
 
@@ -210,7 +151,7 @@ def sync_syft_from_dir(
         neo4j_session: Neo4j session
         results_dir: Path to directory containing Syft JSON files
         update_tag: Update timestamp
-        common_job_parameters: Common job parameters (must include sub-resource info)
+        common_job_parameters: Common job parameters
     """
     logger.info("Using Syft scan results from %s", results_dir)
 
@@ -224,11 +165,6 @@ def sync_syft_from_dir(
         )
         return
 
-    # Extract sub-resource info from common_job_parameters
-    # Default to a generic "SyftSync" scope if not provided
-    sub_resource_label = common_job_parameters.get("_sub_resource_label", "SyftSync")
-    sub_resource_id = common_job_parameters.get("_sub_resource_id", "default")
-
     logger.info("Processing %d local Syft result files", len(json_files))
     failed_files: list[str] = []
 
@@ -240,8 +176,6 @@ def sync_syft_from_dir(
                 neo4j_session,
                 syft_data,
                 update_tag,
-                sub_resource_label,
-                sub_resource_id,
             )
         except (OSError, json.JSONDecodeError, SyftValidationError) as e:
             logger.error("Failed to process Syft file %s: %s", file_path, e)
@@ -251,10 +185,10 @@ def sync_syft_from_dir(
     if failed_files:
         raise SyftIngestionError(
             f"Failed to process {len(failed_files)} Syft file(s) from {results_dir}. "
-            "Skipping cleanup to avoid deleting valid relationships."
+            "Skipping cleanup to avoid deleting valid data."
         )
 
-    cleanup_syft(neo4j_session, sub_resource_label, sub_resource_id, update_tag)
+    cleanup_syft(neo4j_session, update_tag)
 
 
 @timeit
@@ -292,10 +226,6 @@ def sync_syft_from_s3(
         )
         return
 
-    # Extract sub-resource info
-    sub_resource_label = common_job_parameters.get("_sub_resource_label", "SyftSync")
-    sub_resource_id = common_job_parameters.get("_sub_resource_id", "default")
-
     logger.info("Processing %d Syft result files from S3", len(json_files))
     s3_client = boto3_session.client("s3")
     failed_objects: list[str] = []
@@ -312,8 +242,6 @@ def sync_syft_from_s3(
                 neo4j_session,
                 syft_data,
                 update_tag,
-                sub_resource_label,
-                sub_resource_id,
             )
         except (
             BotoCoreError,
@@ -336,41 +264,29 @@ def sync_syft_from_s3(
         raise SyftIngestionError(
             f"Failed to process {len(failed_objects)} Syft object(s) from "
             f"s3://{syft_s3_bucket}/{syft_s3_prefix}. "
-            "Skipping cleanup to avoid deleting valid relationships."
+            "Skipping cleanup to avoid deleting valid data."
         )
 
-    cleanup_syft(neo4j_session, sub_resource_label, sub_resource_id, update_tag)
+    cleanup_syft(neo4j_session, update_tag)
 
 
 @timeit
 def cleanup_syft(
     neo4j_session: Session,
-    sub_resource_label: str,
-    sub_resource_id: str,
     update_tag: int,
 ) -> None:
     """
-    Run cleanup for Syft-created DEPENDS_ON relationships.
+    Run cleanup for Syft-created SyftPackage nodes.
 
     Args:
         neo4j_session: Neo4j session
-        sub_resource_label: Label of the sub-resource for scoped cleanup
-        sub_resource_id: ID of the sub-resource for scoped cleanup
         update_tag: Update timestamp
     """
     logger.info("Running Syft cleanup")
-    # Clean up SyftPackage nodes (unscoped, uses UPDATE_TAG)
     GraphJob.from_node_schema(
         SyftPackageSchema(),
         {"UPDATE_TAG": update_tag},
     ).run(neo4j_session)
-
-    # Clean up TrivyPackage DEPENDS_ON MatchLinks (scoped)
-    matchlink = SyftPackageDependsOnMatchLink()
-    cleanup_job = GraphJob.from_matchlink(
-        matchlink, sub_resource_label, sub_resource_id, update_tag
-    )
-    cleanup_job.run(neo4j_session)
 
 
 @timeit
@@ -388,10 +304,6 @@ def start_syft_ingestion(neo4j_session: Session, config: Config) -> None:
 
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
-        # Use a generic sub-resource scope for Syft
-        # This allows cleanup to work across all Syft-created relationships
-        "_sub_resource_label": "SyftSync",
-        "_sub_resource_id": "default",
     }
 
     if config.syft_results_dir:
