@@ -1,8 +1,11 @@
 from unittest.mock import patch
 
+import pytest
+
 import cartography.intel.github.repos
 from cartography.intel.github.util import PaginatedGraphqlData
 from tests.data.github.collaborators_test_data import COLLABORATORS_TEST_REPOS
+from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import DIRECT_COLLABORATORS
 from tests.data.github.repos import GET_REPOS
 from tests.data.github.repos import OUTSIDE_COLLABORATORS
@@ -17,6 +20,104 @@ TEST_GITHUB_ORG = "simpsoncorp"
 FAKE_API_KEY = "asdf"
 
 
+@pytest.fixture(autouse=True)
+def mock_dependency_graph_external_apis():
+    def _mock_sbom(
+        endpoint: str,
+        token: str,
+        api_url: str,
+    ):
+        del token, api_url
+        if endpoint == "/repos/cartography-cncf/cartography/dependency-graph/sbom":
+            return {
+                "sbom": {
+                    "packages": [
+                        {
+                            "name": "react",
+                            "versionInfo": "18.2.0",
+                            "externalRefs": [
+                                {
+                                    "referenceType": "purl",
+                                    "referenceLocator": "pkg:npm/react@18.2.0",
+                                },
+                            ],
+                        },
+                        {
+                            "name": "lodash",
+                            "externalRefs": [
+                                {
+                                    "referenceType": "purl",
+                                    "referenceLocator": "pkg:npm/lodash",
+                                },
+                            ],
+                        },
+                        {
+                            "name": "Django",
+                            "versionInfo": "= 4.2.0",
+                            "externalRefs": [
+                                {
+                                    "referenceType": "purl",
+                                    "referenceLocator": "pkg:pypi/Django@4.2.0",
+                                },
+                            ],
+                        },
+                        {
+                            "name": "org.springframework:spring-core",
+                            "versionInfo": "5.3.21",
+                            "externalRefs": [
+                                {
+                                    "referenceType": "purl",
+                                    "referenceLocator": "pkg:maven/org.springframework/spring-core@5.3.21",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            }
+
+        return {"sbom": {"packages": []}}
+
+    def _mock_fetch_all(
+        token: str,
+        api_url: str,
+        organization: str,
+        query: str,
+        result_key: str,
+        count: int = 100,
+        **kwargs,
+    ):
+        del token, api_url, organization, query, result_key, count, kwargs
+        nodes = [
+            {
+                "url": "https://github.com/simpsoncorp/sample_repo",
+                "dependencyGraphManifests": {"nodes": []},
+            },
+            {
+                "url": "https://github.com/simpsoncorp/SampleRepo2",
+                "dependencyGraphManifests": {"nodes": []},
+            },
+            {
+                "url": "https://github.com/cartography-cncf/cartography",
+                "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
+            },
+        ]
+        return PaginatedGraphqlData(nodes=nodes, edges=[]), None
+
+    with (
+        patch.object(
+            cartography.intel.github.repos,
+            "call_github_rest_api_with_retries",
+            side_effect=_mock_sbom,
+        ),
+        patch.object(
+            cartography.intel.github.repos,
+            "fetch_all",
+            side_effect=_mock_fetch_all,
+        ),
+    ):
+        yield
+
+
 @patch.object(
     cartography.intel.github.repos,
     "get",
@@ -26,7 +127,11 @@ FAKE_API_KEY = "asdf"
     cartography.intel.github.repos,
     "_get_repo_collaborators_for_multiple_repos",
 )
-def test_sync_github_repos(mock_get_collabs, mock_get_repos, neo4j_session):
+def test_sync_github_repos(
+    mock_get_collabs,
+    mock_get_repos,
+    neo4j_session,
+):
     """
     Test that GitHub repos sync correctly, creating proper nodes and relationships.
     """
@@ -336,7 +441,7 @@ def test_sync_github_dependencies(mock_get_collabs, mock_get_repos, neo4j_sessio
     expected_github_dependency_nodes = {
         (react_id, "react", "18.2.0", "npm"),
         (lodash_id, "lodash", None, "npm"),
-        (django_id, "django", "= 4.2.0", "pip"),
+        (django_id, "django", "= 4.2.0", "pypi"),
         (spring_core_id, "org.springframework:spring-core", "5.3.21", "maven"),
     }
     actual_dependency_nodes = check_nodes(
@@ -443,8 +548,8 @@ def test_sync_github_manifests(mock_get_collabs, mock_get_repos, neo4j_session):
     expected_manifest_dependency_relationships = {
         (package_json_id, react_id),
         (package_json_id, lodash_id),
-        (requirements_txt_id, django_id),
-        (pom_xml_id, spring_core_id),
+        (package_json_id, django_id),
+        (package_json_id, spring_core_id),
     }
     actual_manifest_dependency_relationships = check_rels(
         neo4j_session,
@@ -457,6 +562,52 @@ def test_sync_github_manifests(mock_get_collabs, mock_get_repos, neo4j_session):
     assert expected_manifest_dependency_relationships.issubset(
         actual_manifest_dependency_relationships
     )
+
+
+@patch.object(
+    cartography.intel.github.repos, "_get_repo_collaborators_for_multiple_repos"
+)
+@patch.object(cartography.intel.github.repos, "get")
+def test_sync_github_dependencies_from_split_dependency_fetch(
+    mock_get_repos,
+    mock_get_collabs,
+    neo4j_session,
+):
+    repos_without_dependency_graph = []
+    for repo in GET_REPOS:
+        repo_copy = dict(repo)
+        repo_copy.pop("dependencyGraphManifests", None)
+        repos_without_dependency_graph.append(repo_copy)
+
+    mock_get_repos.return_value = repos_without_dependency_graph
+
+    def collabs_side_effect(repo_raw_data, affiliation, org, api_url, token):
+        if affiliation == "DIRECT":
+            return DIRECT_COLLABORATORS
+        return OUTSIDE_COLLABORATORS
+
+    mock_get_collabs.side_effect = collabs_side_effect
+
+    cartography.intel.github.repos.sync(
+        neo4j_session,
+        TEST_JOB_PARAMS,
+        FAKE_API_KEY,
+        TEST_GITHUB_URL,
+        TEST_GITHUB_ORG,
+    )
+
+    expected_github_dependency_nodes = {
+        ("react|18.2.0", "react"),
+        ("lodash", "lodash"),
+        ("django|= 4.2.0", "django"),
+        ("org.springframework:spring-core|5.3.21", "org.springframework:spring-core"),
+    }
+    actual_dependency_nodes = check_nodes(
+        neo4j_session,
+        "Dependency",
+        ["id", "name"],
+    )
+    assert expected_github_dependency_nodes.issubset(actual_dependency_nodes)
 
 
 @patch.object(
@@ -535,7 +686,9 @@ def test_sync_github_branch_protection_rules(
 @patch.object(cartography.intel.github.repos, "get")
 @patch.object(cartography.intel.github.repos, "_get_repo_collaborators")
 def test_sync_collaborators_per_repo(
-    mock_repo_collaborators, mock_get_repos, neo4j_session
+    mock_repo_collaborators,
+    mock_get_repos,
+    neo4j_session,
 ):
     """
     Test that collaborators are synced correctly per repository.
@@ -651,8 +804,7 @@ def test_sync_github_python_requirements(
     mock_get_collabs, mock_get_repos, neo4j_session
 ):
     """
-    Test that Python requirements from requirements.txt and setup.cfg are synced.
-    Note: repos with dependencyGraphManifests skip requirements.txt/setup.cfg parsing.
+    In strict dependency mode, requirements.txt/setup.cfg fallback parsing is disabled.
     """
 
     # Arrange
@@ -673,28 +825,9 @@ def test_sync_github_python_requirements(
         TEST_GITHUB_ORG,
     )
 
-    # Assert - Verify PythonLibrary nodes were created
-    # sample_repo and SampleRepo2 have requirements.txt/setup.cfg but no dependencyGraphManifests
-    # cartography has dependencyGraphManifests so it skips requirements.txt/setup.cfg parsing
-    expected_python_libraries = {
-        ("cartography",),
-        ("cartography|0.1.0",),
-        ("neo4j",),
-        ("okta",),
-        ("okta|0.9.0",),
-    }
     actual_python_libraries = check_nodes(neo4j_session, "PythonLibrary", ["id"])
-    assert expected_python_libraries.issubset(actual_python_libraries)
+    assert actual_python_libraries == set()
 
-    # Assert - Verify REQUIRES relationships for Python libraries
-    sample_repo_url = "https://github.com/simpsoncorp/sample_repo"
-    expected_requires_rels = {
-        (sample_repo_url, "cartography"),
-        (sample_repo_url, "cartography|0.1.0"),
-        (sample_repo_url, "neo4j"),
-        (sample_repo_url, "okta"),
-        (sample_repo_url, "okta|0.9.0"),
-    }
     actual_requires_rels = check_rels(
         neo4j_session,
         "GitHubRepository",
@@ -703,4 +836,4 @@ def test_sync_github_python_requirements(
         "id",
         "REQUIRES",
     )
-    assert expected_requires_rels.issubset(actual_requires_rels)
+    assert actual_requires_rels == set()

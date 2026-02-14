@@ -10,6 +10,7 @@ from typing import List
 from typing import Optional
 
 import neo4j
+import requests
 from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
@@ -17,15 +18,16 @@ from packaging.utils import canonicalize_name
 from cartography.client.core.tx import execute_write_with_retry
 from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
+from cartography.intel.github.util import call_github_rest_api_with_retries
 from cartography.intel.github.util import fetch_all
+from cartography.intel.github.util import GitHubGraphqlPartialDataError
+from cartography.intel.github.util import GitHubRestApiError
 from cartography.intel.github.util import PaginatedGraphqlData
 from cartography.models.github.branch_protection_rules import (
     GitHubBranchProtectionRuleSchema,
 )
 from cartography.models.github.dependencies import GitHubDependencySchema
 from cartography.models.github.manifests import DependencyGraphManifestSchema
-from cartography.util import backoff_handler
-from cartography.util import retries_with_backoff
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -97,17 +99,32 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                             text
                         }
                     }
-                    dependencyGraphManifests(first: 20) {
-                        nodes {
-                            blobPath
-                            dependencies(first: 100) {
-                                nodes {
-                                    packageName
-                                    requirements
-                                    packageManager
-                                }
-                            }
-                        }
+                }
+            }
+        }
+    }
+    """
+# Note: In the above query, `HEAD` references the default branch.
+# See https://stackoverflow.com/questions/48935381/github-graphql-api-default-branch-in-repository
+
+GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
+    query($login: String!, $cursor: String, $count: Int!) {
+    organization(login: $login)
+        {
+            url
+            login
+            repositories(first: $count, after: $cursor){
+                pageInfo{
+                    endCursor
+                    hasNextPage
+                }
+                nodes{
+                    url
+                    directCollaborators: collaborators(first: 100, affiliation: DIRECT) {
+                        totalCount
+                    }
+                    outsideCollaborators: collaborators(first: 100, affiliation: OUTSIDE) {
+                        totalCount
                     }
                 }
             }
@@ -160,7 +177,63 @@ GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
         }
     }
     """
+GITHUB_ORG_REPOS_DEPENDENCIES_PAGINATED_GRAPHQL = """
+    query($login: String!, $cursor: String, $count: Int!) {
+    organization(login: $login)
+        {
+            url
+            login
+            repositories(first: $count, after: $cursor){
+                pageInfo{
+                    endCursor
+                    hasNextPage
+                }
+                nodes{
+                    url
+                    dependencyGraphManifests(first: 20) {
+                        nodes {
+                            blobPath
+                            dependencies(first: 100) {
+                                nodes {
+                                    packageName
+                                    requirements
+                                    packageManager
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    """
 
+GITHUB_ORG_REPOS_MANIFESTS_PAGINATED_GRAPHQL = """
+    query($login: String!, $cursor: String, $count: Int!) {
+    organization(login: $login)
+        {
+            url
+            login
+            repositories(first: $count, after: $cursor){
+                pageInfo{
+                    endCursor
+                    hasNextPage
+                }
+                nodes{
+                    url
+                    dependencyGraphManifests(first: 20) {
+                        nodes {
+                            blobPath
+                            dependencies {
+                                totalCount
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    """
 GITHUB_REPO_COLLABS_PAGINATED_GRAPHQL = """
     query($login: String!, $repo: String!, $affiliation: CollaboratorAffiliation!, $cursor: String) {
         organization(login: $login) {
@@ -282,19 +355,13 @@ def _get_repo_collaborators_for_multiple_repos(
         f'Retrieving repo collaborators for affiliation "{affiliation}" on org "{org}".',
     )
 
-    result: dict[str, list[UserAffiliationAndRepoPermission]] = retries_with_backoff(
-        _get_repo_collaborators_inner_func,
-        TypeError,
-        5,
-        backoff_handler,
-    )(
+    return _get_repo_collaborators_inner_func(
         org=org,
         api_url=api_url,
         token=token,
         repo_raw_data=repo_raw_data,
         affiliation=affiliation,
     )
-    return result
 
 
 def _get_repo_collaborators(
@@ -375,6 +442,17 @@ def _repos_need_privileged_details(repos_json: List[Optional[Dict]]) -> bool:
     return collaborator_counts_missing or branch_rules_missing_everywhere
 
 
+def _repos_need_dependency_details(repos_json: List[Optional[Dict]]) -> bool:
+    """
+    Return True when repo objects are missing dependency graph manifest fields.
+    """
+    non_null_repos = [repo for repo in repos_json if repo is not None]
+    if not non_null_repos:
+        return False
+
+    return any(repo.get("dependencyGraphManifests") is None for repo in non_null_repos)
+
+
 def get_repo_privileged_details_by_url(
     token: str,
     api_url: str,
@@ -406,6 +484,38 @@ def get_repo_privileged_details_by_url(
             "branchProtectionRules": repo.get("branchProtectionRules"),
         }
     return privileged_repo_data
+
+
+def get_repo_dependency_details_by_url(
+    token: str,
+    api_url: str,
+    organization: str,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Retrieve dependency graph manifest fields for repositories in an organization.
+    This is a manifest-only GraphQL path used to preserve per-manifest fidelity.
+    """
+    repos, _ = fetch_all(
+        token,
+        api_url,
+        organization,
+        GITHUB_ORG_REPOS_MANIFESTS_PAGINATED_GRAPHQL,
+        "repositories",
+        count=25,
+        fail_on_incomplete_graphql_response=True,
+    )
+    dependency_repo_data: dict[str, dict[str, Any]] = {}
+    dependency_nodes = cast(List[Optional[Dict]], repos.nodes)
+    for repo in dependency_nodes:
+        if repo is None:
+            continue
+        repo_url = repo.get("url")
+        if not repo_url:
+            continue
+        dependency_repo_data[repo_url] = {
+            "dependencyGraphManifests": repo.get("dependencyGraphManifests"),
+        }
+    return dependency_repo_data
 
 
 def _merge_repos_with_privileged_details(
@@ -457,10 +567,335 @@ def _merge_repos_with_privileged_details(
     return merged_repos, merged_repo_count, repos_missing_privileged_details
 
 
+def _merge_repos_with_dependency_details(
+    repo_raw_data: List[Optional[Dict]],
+    dependency_repo_data_by_url: Dict[str, Dict[str, Any]],
+) -> tuple[List[Optional[Dict]], int, int]:
+    """
+    Merge dependency graph fields by URL into the base repo list.
+    Returns merged repos + merged count + count still missing dependency details.
+    """
+    merged_repo_count = 0
+    repos_missing_dependency_details = 0
+    merged_repos: List[Optional[Dict]] = []
+
+    for repo in repo_raw_data:
+        if repo is None:
+            merged_repos.append(None)
+            continue
+
+        merged_repo = dict(repo)
+        repo_url = merged_repo.get("url")
+        dependency_data: Dict[str, Any] = {}
+        if isinstance(repo_url, str):
+            dependency_data = dependency_repo_data_by_url.get(repo_url, {})
+
+        if (
+            merged_repo.get("dependencyGraphManifests") is None
+            and "dependencyGraphManifests" in dependency_data
+        ):
+            merged_repo["dependencyGraphManifests"] = dependency_data.get(
+                "dependencyGraphManifests"
+            )
+            merged_repo_count += 1
+
+        if merged_repo.get("dependencyGraphManifests") is None:
+            repos_missing_dependency_details += 1
+
+        merged_repos.append(merged_repo)
+
+    return merged_repos, merged_repo_count, repos_missing_dependency_details
+
+
+class GitHubDependencyStageError(RuntimeError):
+    """Raised when the strict dependency stage has incomplete repository coverage."""
+
+
+def _repo_url_to_owner_and_name(repo_url: str) -> tuple[str, str]:
+    """
+    Convert a repo URL like https://github.com/org/repo into (org, repo).
+    """
+    stripped = repo_url.rstrip("/")
+    path_parts = stripped.split("/")
+    if len(path_parts) < 2:
+        raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
+    owner = path_parts[-2]
+    repo = path_parts[-1]
+    if repo.endswith(".git"):
+        repo = repo[:-4]
+    if not owner or not repo:
+        raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
+    return owner, repo
+
+
+def _extract_package_manager_from_purl(purl: str | None) -> str:
+    if not purl or not purl.startswith("pkg:"):
+        return "UNKNOWN"
+    payload = purl[len("pkg:") :]
+    manager = payload.split("/", 1)[0]
+    manager = manager.split("@", 1)[0]
+    return manager.upper() if manager else "UNKNOWN"
+
+
+def _extract_version_from_sbom_package(package: dict[str, Any]) -> str | None:
+    version = package.get("versionInfo")
+    if isinstance(version, str) and version.strip():
+        return version.strip()
+    return None
+
+
+def _extract_name_from_sbom_package(package: dict[str, Any]) -> str | None:
+    package_name = package.get("name")
+    if isinstance(package_name, str) and package_name.strip():
+        return package_name.strip()
+
+    purl = package.get("externalRefs", [])
+    if isinstance(purl, list):
+        for ref in purl:
+            if not isinstance(ref, dict):
+                continue
+            if ref.get("referenceType") != "purl":
+                continue
+            locator = ref.get("referenceLocator")
+            if not isinstance(locator, str) or not locator.startswith("pkg:"):
+                continue
+            payload = locator[len("pkg:") :]
+            package_part = payload.split("/", 1)[-1]
+            package_part = package_part.split("@", 1)[0]
+            package_part = package_part.split("?", 1)[0]
+            if package_part:
+                return package_part
+    return None
+
+
+def _extract_purl(package: dict[str, Any]) -> str | None:
+    external_refs = package.get("externalRefs")
+    if not isinstance(external_refs, list):
+        return None
+    for ref in external_refs:
+        if not isinstance(ref, dict):
+            continue
+        if ref.get("referenceType") != "purl":
+            continue
+        locator = ref.get("referenceLocator")
+        if isinstance(locator, str) and locator:
+            return locator
+    return None
+
+
+def _build_dependency_record_from_sbom_package(
+    package: dict[str, Any],
+    repo_url: str,
+    manifest_id: str,
+    manifest_path: str,
+) -> dict[str, Any] | None:
+    package_name = _extract_name_from_sbom_package(package)
+    if not package_name:
+        return None
+
+    purl = _extract_purl(package)
+    package_manager = _extract_package_manager_from_purl(purl)
+    canonical_name = _canonicalize_dependency_name(package_name, package_manager)
+    version = _extract_version_from_sbom_package(package)
+    dependency_id = f"{canonical_name}|{version}" if version else canonical_name
+
+    return {
+        "id": dependency_id,
+        "name": canonical_name,
+        "original_name": package_name,
+        "requirements": version,
+        "ecosystem": package_manager.lower(),
+        "package_manager": package_manager,
+        "manifest_path": manifest_path,
+        "manifest_id": manifest_id,
+        "repo_url": repo_url,
+        "manifest_file": manifest_path.split("/")[-1] if manifest_path else None,
+    }
+
+
+def _determine_manifest_for_repo(
+    repo_url: str,
+    manifests_by_repo: dict[str, dict[str, Any]],
+) -> tuple[str, str]:
+    manifests_container = manifests_by_repo.get(repo_url, {})
+    dependency_manifests = manifests_container.get("dependencyGraphManifests")
+    manifests = (
+        dependency_manifests.get("nodes", [])
+        if isinstance(dependency_manifests, dict)
+        else []
+    )
+    if not isinstance(manifests, list) or not manifests:
+        fallback_path = "/_github_sbom.spdx.json"
+        return f"{repo_url}#{fallback_path}", fallback_path
+
+    # Deterministic fallback: first manifest by blob path.
+    sorted_manifests = sorted(
+        [manifest for manifest in manifests if isinstance(manifest, dict)],
+        key=lambda manifest: str(manifest.get("blobPath", "")),
+    )
+    first_manifest = sorted_manifests[0] if sorted_manifests else {}
+    manifest_path = str(first_manifest.get("blobPath", "")) or "/_github_sbom.spdx.json"
+    return f"{repo_url}#{manifest_path}", manifest_path
+
+
+def _fetch_repo_sbom(
+    token: str,
+    api_url: str,
+    repo_url: str,
+) -> dict[str, Any]:
+    owner, repo = _repo_url_to_owner_and_name(repo_url)
+    endpoint = f"/repos/{owner}/{repo}/dependency-graph/sbom"
+    return call_github_rest_api_with_retries(
+        endpoint,
+        token,
+        api_url=api_url,
+    )
+
+
+def _collect_sbom_dependencies_for_repos(
+    token: str,
+    api_url: str,
+    repo_urls: list[str],
+    manifests_by_repo: dict[str, dict[str, Any]],
+    required_repo_urls: set[str] | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, int], list[str]]:
+    dependencies: list[dict[str, Any]] = []
+    dependency_ids_seen: set[tuple[str, str, str]] = set()
+    failed_repo_urls: list[str] = []
+    required_repos = (
+        set(repo_urls) if required_repo_urls is None else required_repo_urls
+    )
+    strict_exempt_repos = set(repo_urls) - required_repos
+    summary = {
+        "repos_scanned": len(repo_urls),
+        "strict_repos_scanned": len(required_repos),
+        "strict_exempt_repos": len(strict_exempt_repos),
+        "sbom_successes": 0,
+        "missing_dependency_graph": 0,
+        "permission_failures": 0,
+        "rate_limit_failures": 0,
+        "transient_failures": 0,
+        "strict_failures": 0,
+    }
+
+    for repo_url in repo_urls:
+        sbom_result: dict[str, Any] | Exception
+        try:
+            sbom_result = _fetch_repo_sbom(
+                token,
+                api_url,
+                repo_url,
+            )
+        except Exception as err:
+            sbom_result = err
+
+        if isinstance(sbom_result, GitHubRestApiError):
+            if sbom_result.category == "missing_dependency_graph":
+                summary["missing_dependency_graph"] += 1
+            elif sbom_result.category == "permission_denied":
+                summary["permission_failures"] += 1
+            elif sbom_result.category == "rate_limited":
+                summary["rate_limit_failures"] += 1
+            else:
+                summary["transient_failures"] += 1
+            logger.warning(
+                "GitHub SBOM fetch failed for %s (category=%s, status=%s): %s",
+                repo_url,
+                sbom_result.category,
+                sbom_result.status_code,
+                sbom_result,
+            )
+            if repo_url in required_repos:
+                failed_repo_urls.append(repo_url)
+                summary["strict_failures"] += 1
+            else:
+                logger.info(
+                    "GitHub SBOM strict completeness exempted repo %s due to repo lifecycle state.",
+                    repo_url,
+                )
+            continue
+
+        if isinstance(sbom_result, Exception):
+            summary["transient_failures"] += 1
+            logger.warning(
+                "GitHub SBOM fetch failed for %s due to unexpected error: %s",
+                repo_url,
+                sbom_result,
+            )
+            if repo_url in required_repos:
+                failed_repo_urls.append(repo_url)
+                summary["strict_failures"] += 1
+            else:
+                logger.info(
+                    "GitHub SBOM strict completeness exempted repo %s due to repo lifecycle state.",
+                    repo_url,
+                )
+            continue
+
+        sbom = sbom_result.get("sbom", {})
+        packages = sbom.get("packages", []) if isinstance(sbom, dict) else []
+        if not isinstance(packages, list):
+            packages = []
+
+        manifest_id, manifest_path = _determine_manifest_for_repo(
+            repo_url, manifests_by_repo
+        )
+        added_any = False
+        for package in packages:
+            if not isinstance(package, dict):
+                continue
+            dependency = _build_dependency_record_from_sbom_package(
+                package,
+                repo_url,
+                manifest_id,
+                manifest_path,
+            )
+            if dependency is None:
+                continue
+            dedupe_key = (
+                dependency["repo_url"],
+                dependency["manifest_id"],
+                dependency["id"],
+            )
+            if dedupe_key in dependency_ids_seen:
+                continue
+            dependency_ids_seen.add(dedupe_key)
+            dependencies.append(dependency)
+            added_any = True
+
+        summary["sbom_successes"] += 1
+        if not added_any:
+            logger.info(
+                "GitHub SBOM response had no dependency packages for %s.",
+                repo_url,
+            )
+
+    dependencies.sort(
+        key=lambda dep: (dep["repo_url"], dep["manifest_path"], dep["name"], dep["id"])
+    )
+    failed_repo_urls = sorted(set(failed_repo_urls))
+    return dependencies, summary, failed_repo_urls
+
+
+def _is_repo_strict_dependency_exempt(repo: dict[str, Any]) -> bool:
+    return bool(repo.get("isArchived")) or bool(repo.get("isDisabled"))
+
+
+def _synthesize_manifest_node(repo_url: str, manifest_path: str) -> dict[str, Any]:
+    return {
+        "id": f"{repo_url}#{manifest_path}",
+        "blob_path": manifest_path,
+        "filename": manifest_path.split("/")[-1] if manifest_path else None,
+        "dependencies_count": 0,
+        "repo_url": repo_url,
+    }
+
+
 def transform(
     repos_json: List[Optional[Dict]],
     direct_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
     outside_collaborators: dict[str, List[UserAffiliationAndRepoPermission]],
+    strict_dependency_mode: bool = False,
 ) -> Dict:
     """
     Parses the JSON returned from GitHub API to create data for graph ingestion
@@ -473,6 +908,7 @@ def transform(
     :return: Dict containing the repos, repo->language mapping, owners->repo mapping, outside collaborators->repo
     mapping, Python requirements files (if any) in a repo, manifests from GitHub's dependency graph, all
     dependencies from GitHub's dependency graph, and branch protection rules.
+    :param strict_dependency_mode: When True, do not fall back to requirements file parsing.
     """
     logger.info(f"Processing {len(repos_json)} GitHub repositories")
     transformed_repo_list: List[Dict] = []
@@ -534,7 +970,7 @@ def transform(
             dependency_manifests and dependency_manifests.get("nodes"),
         )
 
-        if not has_dependency_graph:
+        if not has_dependency_graph and not strict_dependency_mode:
             _transform_requirements_txt(
                 repo_object["requirements"],
                 repo_url,
@@ -1523,27 +1959,63 @@ def sync(
     repos_json, merged_repo_count, missing_privileged_repo_count = (
         _merge_repos_with_privileged_details(repos_json, privileged_repo_data_by_url)
     )
+
+    dependency_repo_data_by_url: dict[str, dict[str, Any]] = {}
+    dependency_manifest_query_failed = False
+    dependency_manifest_query_failure_reason = ""
+    if _repos_need_dependency_details(repos_json):
+        try:
+            dependency_repo_data_by_url = get_repo_dependency_details_by_url(
+                github_api_key,
+                github_url,
+                organization,
+            )
+        except (
+            GitHubGraphqlPartialDataError,
+            requests.exceptions.HTTPError,
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+            ValueError,
+        ) as err:
+            dependency_manifest_query_failed = True
+            dependency_manifest_query_failure_reason = str(err)
+            logger.error(
+                "GitHub dependency manifest GraphQL fetch failed for org %s: %s",
+                organization,
+                err,
+            )
+
+    (
+        repos_json_with_manifests,
+        merged_dependency_repo_count,
+        missing_dependency_repo_count,
+    ) = _merge_repos_with_dependency_details(repos_json, dependency_repo_data_by_url)
+
     logger.info(
-        "GitHub repo sync summary for org %s: base_repos=%d privileged_details_fetched=%d merged_repos=%d repos_missing_privileged_details=%d",
+        "GitHub repo sync summary for org %s: base_repos=%d privileged_details_fetched=%d merged_repos=%d repos_missing_privileged_details=%d manifest_details_fetched=%d merged_manifest_repos=%d repos_missing_manifest_details=%d",
         organization,
         base_repo_count,
         len(privileged_repo_data_by_url),
         merged_repo_count,
         missing_privileged_repo_count,
+        len(dependency_repo_data_by_url),
+        merged_dependency_repo_count,
+        missing_dependency_repo_count,
     )
 
     direct_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
     outside_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
     try:
         direct_collabs = _get_repo_collaborators_for_multiple_repos(
-            repos_json,
+            repos_json_with_manifests,
             "DIRECT",
             organization,
             github_url,
             github_api_key,
         )
         outside_collabs = _get_repo_collaborators_for_multiple_repos(
-            repos_json,
+            repos_json_with_manifests,
             "OUTSIDE",
             organization,
             github_url,
@@ -1555,24 +2027,115 @@ def sync(
             "Unable to list repo collaborators due to permission errors; continuing on.",
             exc_info=True,
         )
-    repo_data = transform(repos_json, direct_collabs, outside_collabs)
+
+    repo_data = transform(
+        repos_json_with_manifests,
+        direct_collabs,
+        outside_collabs,
+        strict_dependency_mode=True,
+    )
+
+    repo_urls = sorted(
+        repo["url"]
+        for repo in repos_json_with_manifests
+        if repo is not None and isinstance(repo.get("url"), str)
+    )
+    strict_required_repo_urls = {
+        repo["url"]
+        for repo in repos_json_with_manifests
+        if (
+            repo is not None
+            and isinstance(repo.get("url"), str)
+            and not _is_repo_strict_dependency_exempt(repo)
+        )
+    }
+    manifests_by_repo: dict[str, dict[str, Any]] = {
+        repo_url: payload
+        for repo_url, payload in dependency_repo_data_by_url.items()
+        if isinstance(payload, dict)
+    }
+
+    sbom_dependencies, dependency_summary, failed_dependency_repos = (
+        _collect_sbom_dependencies_for_repos(
+            github_api_key,
+            github_url,
+            repo_urls,
+            manifests_by_repo,
+            strict_required_repo_urls,
+        )
+    )
+
+    transformed_manifests: list[dict[str, Any]] = []
+    for repo in repos_json_with_manifests:
+        if repo is None:
+            continue
+        repo_url = repo.get("url")
+        if not isinstance(repo_url, str):
+            continue
+        _transform_dependency_manifests(
+            repo.get("dependencyGraphManifests"),
+            repo_url,
+            transformed_manifests,
+        )
+
+    manifest_ids_seen = {manifest["id"] for manifest in transformed_manifests}
+    for dep in sbom_dependencies:
+        if dep["manifest_id"] in manifest_ids_seen:
+            continue
+        synthesized = _synthesize_manifest_node(dep["repo_url"], dep["manifest_path"])
+        if synthesized["id"] in manifest_ids_seen:
+            continue
+        transformed_manifests.append(synthesized)
+        manifest_ids_seen.add(synthesized["id"])
+
+    repo_data["dependencies"] = sbom_dependencies
+    repo_data["manifests"] = transformed_manifests
+
     load(neo4j_session, common_job_parameters, repo_data)
 
-    # Collect repository URLs that have dependencies for cleanup
-    repo_urls_with_dependencies = list(
-        {dep["repo_url"] for dep in repo_data["dependencies"]}
+    dependency_stage_complete = len(failed_dependency_repos) == 0
+    dependency_stage_complete = (
+        dependency_stage_complete and not dependency_manifest_query_failed
     )
-    cleanup_github_dependencies(
-        neo4j_session, common_job_parameters, repo_urls_with_dependencies
+    logger.info(
+        "GitHub dependency sync summary for org %s: repos_scanned=%d strict_repos_scanned=%d strict_exempt_repos=%d sbom_successes=%d manifests_loaded=%d missing_dependency_graph=%d permission_failures=%d rate_limit_failures=%d transient_failures=%d strict_failures=%d manifest_query_failures=%d dependency_stage_complete=%s",
+        organization,
+        dependency_summary["repos_scanned"],
+        dependency_summary["strict_repos_scanned"],
+        dependency_summary["strict_exempt_repos"],
+        dependency_summary["sbom_successes"],
+        len(transformed_manifests),
+        dependency_summary["missing_dependency_graph"],
+        dependency_summary["permission_failures"],
+        dependency_summary["rate_limit_failures"],
+        dependency_summary["transient_failures"],
+        dependency_summary["strict_failures"],
+        1 if dependency_manifest_query_failed else 0,
+        dependency_stage_complete,
     )
 
-    # Collect repository URLs that have manifests for cleanup
-    repo_urls_with_manifests = list(
-        {manifest["repo_url"] for manifest in repo_data["manifests"]}
-    )
-    cleanup_github_manifests(
-        neo4j_session, common_job_parameters, repo_urls_with_manifests
-    )
+    if dependency_stage_complete:
+        repo_urls_with_dependencies = list(
+            {dep["repo_url"] for dep in repo_data["dependencies"]}
+        )
+        cleanup_github_dependencies(
+            neo4j_session, common_job_parameters, repo_urls_with_dependencies
+        )
+
+        repo_urls_with_manifests = list(
+            {manifest["repo_url"] for manifest in repo_data["manifests"]}
+        )
+        cleanup_github_manifests(
+            neo4j_session, common_job_parameters, repo_urls_with_manifests
+        )
+    else:
+        logger.error(
+            "Dependency stage incomplete for org %s. Skipping dependency/manifests cleanup for data safety. "
+            "Failed repos: %s. manifest_query_failed=%s",
+            organization,
+            failed_dependency_repos,
+            dependency_manifest_query_failed,
+        )
 
     # Collect repository URLs that have branch protection rules for cleanup
     repo_urls_with_branch_protection_rules = list(
@@ -1583,3 +2146,20 @@ def sync(
     )
 
     run_cleanup_job("github_repos_cleanup.json", neo4j_session, common_job_parameters)
+
+    if not dependency_stage_complete:
+        failure_components = []
+        if failed_dependency_repos:
+            failure_components.append(f"Failed repos: {failed_dependency_repos}")
+        if dependency_manifest_query_failed:
+            failure_components.append(
+                "Manifest query failed: "
+                + (
+                    dependency_manifest_query_failure_reason
+                    or "GraphQL manifest fetch incomplete"
+                )
+            )
+        raise GitHubDependencyStageError(
+            f"GitHub dependency stage incomplete for org {organization}. "
+            + " ".join(failure_components)
+        )

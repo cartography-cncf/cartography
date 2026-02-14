@@ -12,8 +12,11 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import HTTPError
 
 from cartography.intel.github.util import _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD
+from cartography.intel.github.util import call_github_rest_api_with_retries
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import GitHubGraphqlPartialDataError
+from cartography.intel.github.util import GitHubRestApiError
 from cartography.intel.github.util import handle_rate_limit_sleep
 from tests.data.github.rate_limit import RATE_LIMIT_RESPONSE_JSON
 
@@ -87,6 +90,154 @@ def test_fetch_all_reduces_count_on_502(
 @patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.handle_rate_limit_sleep")
 @patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_reduces_count_on_transient_graphql_errors(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    transient_error_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        },
+        "errors": [
+            {
+                "path": ["organization", "repositories", "nodes", 0],
+                "message": "timedout",
+            },
+        ],
+    }
+    success_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        },
+    }
+
+    mock_fetch_page.side_effect = [transient_error_response, success_response]
+
+    fetch_all("token", "api_url", "org", "query", "repositories", count=50)
+
+    assert mock_fetch_page.call_count == 2
+    assert mock_fetch_page.call_args_list[0][1]["count"] == 50
+    assert mock_fetch_page.call_args_list[1][1]["count"] == 25
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_raises_on_transient_graphql_errors_in_strict_mode(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    transient_error_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        },
+        "errors": [
+            {
+                "path": ["organization", "repositories", "nodes", 0],
+                "message": "timedout",
+            },
+        ],
+    }
+    mock_fetch_page.return_value = transient_error_response
+
+    with pytest.raises(GitHubGraphqlPartialDataError):
+        fetch_all(
+            "token",
+            "api_url",
+            "org",
+            "query",
+            "repositories",
+            count=1,
+            fail_on_incomplete_graphql_response=True,
+        )
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_raises_on_missing_data_in_strict_mode(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    mock_fetch_page.return_value = {"errors": [{"message": "upstream error"}]}
+
+    with pytest.raises(GitHubGraphqlPartialDataError):
+        fetch_all(
+            "token",
+            "api_url",
+            "org",
+            "query",
+            "repositories",
+            fail_on_incomplete_graphql_response=True,
+        )
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_does_not_reduce_count_on_forbidden_graphql_errors(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    forbidden_error_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        },
+        "errors": [
+            {
+                "type": "FORBIDDEN",
+                "path": ["organization", "repositories", "nodes", 0],
+                "message": "Resource not accessible by personal access token",
+            },
+        ],
+    }
+    mock_fetch_page.return_value = forbidden_error_response
+
+    fetch_all("token", "api_url", "org", "query", "repositories", count=50)
+
+    assert mock_fetch_page.call_count == 1
+    assert mock_fetch_page.call_args_list[0][1]["count"] == 50
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
 def test_fetch_all_retries_connection_errors(
     mock_fetch_page: Mock,
     mock_handle_rate_limit_sleep: Mock,
@@ -102,7 +253,7 @@ def test_fetch_all_retries_connection_errors(
                 },
                 "url": "url",
                 "login": "org",
-            },
+            }
         }
     }
     mock_fetch_page.side_effect = [
@@ -206,3 +357,54 @@ def test_handle_rate_limit_sleep(
     # Assert
     mock_datetime.now.assert_called_once_with(tz.utc)
     mock_sleep.assert_called_once_with(expected_sleep_seconds)
+
+
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.requests.get")
+def test_call_github_rest_api_with_retries_retries_transient_errors(
+    mock_requests_get: Mock,
+    mock_sleep: Mock,
+) -> None:
+    response_502 = Response()
+    response_502.status_code = 502
+    response_502._content = b'{"message":"server error"}'
+    response_200 = Response()
+    response_200.status_code = 200
+    response_200._content = b'{"ok": true}'
+
+    mock_requests_get.side_effect = [
+        HTTPError("bad gateway", response=response_502),
+        response_200,
+    ]
+
+    result = call_github_rest_api_with_retries(
+        "/repos/acme/widgets/dependency-graph/sbom",
+        "token",
+        "https://api.github.com/graphql",
+        retries=2,
+    )
+
+    assert result == {"ok": True}
+    assert mock_requests_get.call_count == 2
+    assert mock_sleep.called
+
+
+@patch("cartography.intel.github.util.requests.get")
+def test_call_github_rest_api_with_retries_classifies_missing_dependency_graph(
+    mock_requests_get: Mock,
+) -> None:
+    response_404 = Response()
+    response_404.status_code = 404
+    response_404._content = b'{"message":"Not Found"}'
+    mock_requests_get.side_effect = HTTPError("not found", response=response_404)
+
+    with pytest.raises(GitHubRestApiError) as exc_info:
+        call_github_rest_api_with_retries(
+            "/repos/acme/widgets/dependency-graph/sbom",
+            "token",
+            "https://api.github.com/graphql",
+            retries=1,
+        )
+
+    assert exc_info.value.category == "missing_dependency_graph"
+    assert exc_info.value.status_code == 404
