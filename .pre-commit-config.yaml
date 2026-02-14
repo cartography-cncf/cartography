@@ -42,3 +42,12 @@ repos:
         -   types-requests
         -   types-PyYAML
         -   types-python-dateutil
+
+-   repo: local
+    hooks:
+    -   id: docs-markdown-txt-aliases
+        name: Ensure docs markdown .txt aliases are synced
+        entry: python docs/sync_markdown_txt_aliases.py --check
+        language: system
+        pass_filenames: false
+        files: ^docs/root/.*\.md$

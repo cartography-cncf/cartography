@@ -77,6 +77,7 @@ PropertyRef("field_list", one_to_many=True)        # One-to-many relationships
 - Ensure `__init__.py` files exist in all module directories
 - Look at `tests/integration/cartography/intel/` for similar test patterns
 - Review `cartography/models/` for existing relationship patterns
+- If you add/rename files in `docs/root/`, run `python docs/sync_markdown_txt_aliases.py` to keep `*.md.txt` aliases in sync (required for docs "View as Markdown" links).
 
 ## Git and Pull Request Guidelines
 
