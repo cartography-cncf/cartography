@@ -88,6 +88,16 @@ class TestParsePurl:
             "version": "18.0.0",
         }
 
+    def test_parse_purl_with_subpath(self):
+        """Test parsing PURL with a subpath (subpath should be ignored)."""
+        result = parse_purl("pkg:golang/github.com/pkg/errors@v0.9.1#errors")
+        assert result == {
+            "type": "golang",
+            "namespace": "github.com/pkg",
+            "name": "errors",
+            "version": "v0.9.1",
+        }
+
     def test_parse_purl_invalid_no_prefix(self):
         """Test parsing invalid PURL without pkg: prefix."""
         result = parse_purl("npm/express@4.18.2")
@@ -107,6 +117,16 @@ class TestParsePurl:
         """Test parsing None."""
         result = parse_purl(None)
         assert result is None
+
+    def test_parse_purl_typed_pypi(self):
+        """Test parsing PURL that includes typed package name prefix."""
+        result = parse_purl("pkg:pypi/django@5.0.4")
+        assert result == {
+            "type": "pypi",
+            "namespace": None,
+            "name": "django",
+            "version": "5.0.4",
+        }
 
 
 class TestNormalizePackageName:
