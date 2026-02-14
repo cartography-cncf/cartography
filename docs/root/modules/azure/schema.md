@@ -12,6 +12,13 @@ S -- RESOURCE --> SA(StorageAccount)
 S -- RESOURCE --> CA(CosmosDBAccount)
 S -- RESOURCE --> NIC(NetworkInterface)
 S -- RESOURCE --> PIP(PublicIPAddress)
+S -- RESOURCE --> FW(Firewall)
+S -- RESOURCE --> FWP(FirewallPolicy)
+S -- RESOURCE --> FWIP(FirewallIPConfig)
+FW -- HAS_IP_CONFIGURATION --> FWIP
+FW -- USES_POLICY --> FWP
+FWIP -- IN_SUBNET --> Subnet
+FWIP -- USES_PUBLIC_IP --> PIP
 S -- RESOURCE --> RA(RoleAssignment)
 S -- RESOURCE --> RD(RoleDefinition)
 S -- RESOURCE --> Permissions
@@ -2095,6 +2102,192 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
   - Azure Network Security Groups can be tagged with Azure Tags.
     ```cypher
     (AzureNetworkSecurityGroup)-[:TAGGED]->(AzureTag)
+    ```
+
+### AzureFirewall
+
+Representation of an [Azure Firewall](https://learn.microsoft.com/en-us/rest/api/firewall/azure-firewalls/get).
+
+Azure Firewall is a cloud-native network security service that provides threat protection for cloud workloads running in Azure. It's a fully stateful firewall as a service with built-in high availability and unrestricted cloud scalability.
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the Azure Firewall.   |
+| name        | The name of the Azure Firewall.               |
+| location    | The Azure region where the Firewall is deployed.           |
+| type    | The resource type (Microsoft.Network/azureFirewalls).           |
+| provisioning_state    | The provisioning state of the Firewall (e.g., Succeeded).           |
+| threat_intel_mode    | Threat intelligence mode: Off, Alert, or Deny.           |
+| sku_name    | The SKU name: AZFW_VNet (VNet) or AZFW_Hub (Virtual WAN).           |
+| sku_tier    | The SKU tier: Standard, Premium, or Basic.           |
+| firewall_policy_id    | Resource ID of the associated Firewall Policy.           |
+| virtual_hub_id    | Resource ID of the Virtual Hub (for AZFW_Hub deployments).           |
+| zones    | Availability zones for the Firewall (JSON string).           |
+| tags    | Resource tags (JSON string).           |
+| hub_private_ip_address    | Private IP address when deployed in a Virtual Hub.           |
+| hub_public_ip_count    | Number of public IPs when deployed in a Virtual Hub.           |
+| ip_groups_count    | Number of IP Groups associated with the Firewall.           |
+| autoscale_min_capacity    | Minimum number of firewall instances for autoscaling.           |
+| autoscale_max_capacity    | Maximum number of firewall instances for autoscaling.           |
+| has_management_ip    | Boolean indicating if a dedicated management IP is configured.           |
+| ip_configuration_count    | Number of IP configurations on the Firewall.           |
+| application_rule_collection_count    | Number of application rule collections (deprecated, use policy).           |
+| nat_rule_collection_count    | Number of NAT rule collections (deprecated, use policy).           |
+| network_rule_collection_count    | Number of network rule collections (deprecated, use policy).           |
+| ip_configurations    | Detailed IP configurations (JSON string).           |
+| application_rule_collections    | Application rule collections with ports and FQDNs (JSON string).           |
+| nat_rule_collections    | NAT rule collections with destination/translated addresses and ports (JSON string).           |
+| network_rule_collections    | Network rule collections with ports, protocols, and addresses (JSON string).           |
+| ip_groups_detail    | Detailed information about associated IP Groups (JSON string).           |
+
+#### Security Properties
+
+The following fields capture critical security configuration:
+
+- **threat_intel_mode**: Controls Microsoft threat intelligence filtering (Off/Alert/Deny)
+- **application_rule_collections**: L7 filtering rules with target FQDNs and ports
+- **network_rule_collections**: L4 filtering rules with ports, protocols, and IP addresses
+- **nat_rule_collections**: DNAT rules exposing internal services to the internet
+- **ip_groups_detail**: Reusable IP address collections for rule definitions
+
+#### Relationships
+
+  - An Azure Firewall is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureFirewall)
+    ```
+
+  - An Azure Firewall uses a Firewall Policy for rule management.
+    ```cypher
+    (AzureFirewall)-[:USES_POLICY]->(:AzureFirewallPolicy)
+    ```
+
+  - An Azure Firewall has one or more IP Configurations.
+    ```cypher
+    (AzureFirewall)-[:HAS_IP_CONFIGURATION]->(:AzureFirewallIPConfiguration)
+    ```
+
+  - An Azure Firewall is a member of a Virtual Network (for AZFW_VNet deployments).
+    ```cypher
+    (AzureFirewall)-[:MEMBER_OF]->(:AzureVirtualNetwork)
+    ```
+
+  - An Azure Firewall is deployed to a Virtual Hub (for AZFW_Hub deployments).
+    ```cypher
+    (AzureFirewall)-[:DEPLOYED_TO]->(:AzureVirtualHub)
+    ```
+
+### AzureFirewallPolicy
+
+Representation of an [Azure Firewall Policy](https://learn.microsoft.com/en-us/rest/api/firewall/firewall-policies/get).
+
+Azure Firewall Policy is a top-level resource that contains security and operational settings for Azure Firewall. It allows you to define rule collections and hierarchies, and can be shared across multiple firewalls.
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the Firewall Policy.   |
+| name        | The name of the Firewall Policy.               |
+| location    | The Azure region where the Policy is deployed.           |
+| type    | The resource type (Microsoft.Network/firewallPolicies).           |
+| provisioning_state    | The provisioning state (e.g., Succeeded).           |
+| threat_intel_mode    | Threat intelligence mode: Off, Alert, or Deny.           |
+| size    | The size of the policy in bytes.           |
+| sku_tier    | The SKU tier: Standard, Premium, or Basic.           |
+| base_policy_id    | Resource ID of the parent policy (for policy hierarchies).           |
+| dns_servers    | Custom DNS servers (JSON string).           |
+| dns_enable_proxy    | Boolean indicating if DNS proxy is enabled.           |
+| sql_allow_sql_redirect    | Boolean allowing SQL redirect traffic.           |
+| snat_private_ranges    | Private IP ranges to exclude from SNAT (JSON string).           |
+| explicit_proxy_enable    | Boolean indicating if explicit proxy is enabled.           |
+| explicit_proxy_http_port    | HTTP port for explicit proxy.           |
+| explicit_proxy_https_port    | HTTPS port for explicit proxy.           |
+| intrusion_detection_mode    | IDPS mode: Off, Alert, or Deny.           |
+| intrusion_detection_profile    | IDPS profile: Basic, Standard, Advanced, or Extended.           |
+| tls_certificate_authority_name    | Name of the TLS inspection certificate authority.           |
+| threat_intel_whitelist_ip_addresses    | Whitelisted IP addresses for threat intelligence (JSON string).           |
+| threat_intel_whitelist_fqdns    | Whitelisted FQDNs for threat intelligence (JSON string).           |
+| rule_groups    | List of rule collection group IDs (JSON string).           |
+| rule_groups_detail    | Detailed security rules with ports, protocols, and addresses (JSON string).           |
+
+#### Security Properties
+
+The following fields capture critical security configuration:
+
+- **threat_intel_mode**: Controls Microsoft threat intelligence filtering
+- **intrusion_detection_mode**: Controls IDPS (Intrusion Detection and Prevention System)
+- **rule_groups_detail**: Contains all security rules including:
+  - Network rules: destination_ports (22, 80, 443, etc.), ip_protocols (TCP, UDP, ICMP), source/destination addresses
+  - Application rules: target_fqdns, protocols, ports
+  - NAT rules: destination/translated addresses and ports
+- **dns_servers**: Custom DNS configuration for name resolution
+- **snat_private_ranges**: Controls which traffic bypasses SNAT
+- **tls_certificate_authority_name**: TLS inspection for encrypted traffic
+
+#### Relationships
+
+  - An Azure Firewall Policy is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureFirewallPolicy)
+    ```
+
+  - An Azure Firewall Policy can inherit from a parent policy.
+    ```cypher
+    (AzureFirewallPolicy)-[:INHERITS_FROM]->(:AzureFirewallPolicy)
+    ```
+
+### AzureFirewallIPConfiguration
+
+Representation of an [Azure Firewall IP Configuration](https://learn.microsoft.com/en-us/rest/api/firewall/azure-firewalls/get).
+
+Azure Firewall IP Configurations define the network connectivity settings for an Azure Firewall instance. Each IP configuration associates the firewall with a subnet and a public IP address. Firewalls can have multiple IP configurations for load balancing and high availability. Management IP configurations provide dedicated connectivity for control plane operations.
+
+| Field       | Description                                           |
+| ----------- | ----------------------------------------------------- |
+| firstseen   | Timestamp of when a sync job discovered this node     |
+| lastupdated | Timestamp of the last time the node was updated       |
+| **id** | The full resource ID of the IP Configuration.   |
+| name        | The name of the IP Configuration.               |
+| private_ip_address    | The private IP address assigned to the Firewall in the subnet.           |
+| private_ip_allocation_method    | IP allocation method: Dynamic or Static.           |
+| provisioning_state    | The provisioning state (e.g., Succeeded).           |
+| type    | The resource type (Microsoft.Network/azureFirewalls/azureFirewallIpConfigurations).           |
+| etag    | A unique read-only string that changes when the resource is updated.           |
+| subnet_id    | Resource ID of the subnet this IP configuration connects to.           |
+| public_ip_address_id    | Resource ID of the public IP address used by this configuration.           |
+| firewall_id    | Resource ID of the parent Azure Firewall.           |
+
+#### Security Properties
+
+The following fields capture critical network configuration:
+
+- **subnet_id**: Identifies which Azure subnet the firewall protects (typically AzureFirewallSubnet or AzureFirewallManagementSubnet)
+- **public_ip_address_id**: Public IP used for outbound traffic and management
+- **private_ip_address**: Internal IP for routing protected subnet traffic through the firewall
+
+#### Relationships
+
+  - An Azure Firewall IP Configuration is a resource within an Azure Subscription.
+    ```cypher
+    (AzureSubscription)-[:RESOURCE]->(:AzureFirewallIPConfiguration)
+    ```
+
+  - An Azure Firewall has one or more IP Configurations.
+    ```cypher
+    (AzureFirewall)-[:HAS_IP_CONFIGURATION]->(:AzureFirewallIPConfiguration)
+    ```
+
+  - An Azure Firewall IP Configuration connects to a Subnet.
+    ```cypher
+    (AzureFirewallIPConfiguration)-[:IN_SUBNET]->(:AzureSubnet)
+    ```
+
+  - An Azure Firewall IP Configuration uses a Public IP Address.
+    ```cypher
+    (AzureFirewallIPConfiguration)-[:USES_PUBLIC_IP]->(:AzurePublicIPAddress)
     ```
 
 ### AzureNetworkInterface
