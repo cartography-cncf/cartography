@@ -21,6 +21,7 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     cluster_name: PropertyRef = PropertyRef(
         "CLUSTER_NAME", set_in_kwargs=True, extra_index=True
     )
+    region: PropertyRef = PropertyRef("REGION", set_in_kwargs=True)
     image_pull_policy: PropertyRef = PropertyRef("image_pull_policy")
     status_image_id: PropertyRef = PropertyRef("status_image_id")
     status_image_sha: PropertyRef = PropertyRef("status_image_sha", extra_index=True)
