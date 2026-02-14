@@ -231,6 +231,7 @@ def test_secret_version_kms_key_relationship(
         "SecretsManagerSecretVersion",
         "arn",
         "KMSKey",
+        "id",
         "arn",
         "ENCRYPTED_BY",
         rel_direction_right=True,
@@ -238,5 +239,66 @@ def test_secret_version_kms_key_relationship(
         (
             "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000:version:00000000-0000-0000-0000-000000000000",
             key_arn,
+        ),
+    }
+
+
+@patch.object(
+    cartography.intel.aws.secretsmanager,
+    "get_secret_list",
+    return_value=copy.deepcopy(tests.data.aws.secretsmanager.LIST_SECRETS[:1]),
+)
+@patch.object(
+    cartography.intel.aws.secretsmanager, "get_secret_versions", return_value=[]
+)
+def test_secret_kms_key_relationship(
+    mock_get_versions, mock_get_secrets, neo4j_session
+):
+    """
+    Test that SecretsManagerSecret nodes correctly connect to KMSKey nodes via ENCRYPTED_BY relationship
+    """
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    # Create a KMSKey node to link to
+    neo4j_session.run(
+        """
+        MERGE (k:KMSKey{id: $key_id})
+        ON CREATE SET k.firstseen = timestamp()
+        SET k.arn = $key_arn,
+            k.region = $region,
+            k.lastupdated = $update_tag
+    """,
+        key_id="arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
+        key_arn="arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
+        region=TEST_REGION,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    neo4j_session.run("MATCH (n:SecretsManagerSecret) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:SecretsManagerSecretVersion) DETACH DELETE n")
+
+    sync(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Verify that the Secret is correctly linked to its KMS key
+    assert check_rels(
+        neo4j_session,
+        "SecretsManagerSecret",
+        "arn",
+        "KMSKey",
+        "id",
+        "ENCRYPTED_BY",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:secretsmanager:us-east-1:000000000000:secret:test-secret-1-000000",
+            "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000",
         ),
     }
