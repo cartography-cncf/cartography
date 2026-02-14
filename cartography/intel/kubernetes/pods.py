@@ -200,6 +200,7 @@ def load_containers(
     update_tag: int,
     cluster_id: str,
     cluster_name: str,
+    region: str | None = None,
 ) -> None:
     logger.info(f"Loading {len(containers)} kubernetes containers.")
     load(
@@ -209,6 +210,7 @@ def load_containers(
         lastupdated=update_tag,
         CLUSTER_ID=cluster_id,
         CLUSTER_NAME=cluster_name,
+        REGION=region,
     )
 
 
@@ -233,6 +235,7 @@ def sync_pods(
     client: K8sClient,
     update_tag: int,
     common_job_parameters: dict[str, Any],
+    region: str | None = None,
 ) -> list[dict[str, Any]]:
     pods = get_pods(client)
 
@@ -252,6 +255,7 @@ def sync_pods(
         update_tag=update_tag,
         cluster_id=common_job_parameters["CLUSTER_ID"],
         cluster_name=client.name,
+        region=region,
     )
 
     cleanup(session, common_job_parameters)

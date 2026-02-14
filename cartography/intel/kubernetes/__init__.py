@@ -56,10 +56,17 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             sync_kubernetes_rbac(
                 session, client, config.update_tag, common_job_parameters
             )
-            if config.managed_kubernetes == "eks":
-                # EKS identity provider sync
-                boto3_session = boto3.Session()
+
+            # Extract region from cluster ARN (works for EKS; None for non-EKS clusters)
+            try:
                 region = get_region_from_arn(cluster_info.get("id", ""))
+            except ValueError:
+                region = None
+
+            if config.managed_kubernetes == "eks":
+                # EKS identity provider sync — region is always available for EKS clusters
+                assert region is not None, "EKS cluster ARN must yield a valid region"
+                boto3_session = boto3.Session()
                 sync_eks(
                     session,
                     client,
@@ -74,6 +81,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 client,
                 config.update_tag,
                 common_job_parameters,
+                region=region,
             )
             sync_secrets(session, client, config.update_tag, common_job_parameters)
             sync_services(
