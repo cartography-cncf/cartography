@@ -6,7 +6,8 @@ rules (PEP 503 for Python, lowercase for others) to enable cross-tool matching.
 """
 
 import re
-from urllib.parse import unquote
+
+from packageurl import PackageURL
 
 
 def normalize_package_name(name: str, pkg_type: str) -> str:
@@ -33,7 +34,7 @@ def normalize_package_name(name: str, pkg_type: str) -> str:
         return name.lower()
 
 
-def parse_purl(purl: str) -> dict | None:
+def parse_purl(purl: str | None) -> dict | None:
     """
     Parse PURL into components.
 
@@ -43,52 +44,19 @@ def parse_purl(purl: str) -> dict | None:
     Returns:
         Dictionary with type, namespace, name, version, or None if invalid
     """
-    if not purl or not purl.startswith("pkg:"):
+    if not purl:
         return None
 
-    # Remove pkg: prefix
-    rest = purl[4:]
-
-    # Split type from rest
-    type_end = rest.find("/")
-    if type_end == -1:
+    try:
+        parsed = PackageURL.from_string(purl)
+    except ValueError:
         return None
-    pkg_type = rest[:type_end]
-    rest = rest[type_end + 1 :]
-
-    # Split by @ to get name@version
-    at_pos = rest.find("@")
-    if at_pos == -1:
-        name_part = rest.split("?")[0]
-        version = None
-    else:
-        name_part = rest[:at_pos]
-        version_part = rest[at_pos + 1 :]
-        version = version_part.split("?")[0]
-
-    # Handle namespace (for deb, npm scoped, etc.)
-    # pkg:deb/debian/name -> namespace=debian, name=name
-    # pkg:pypi/name -> namespace=None, name=name
-    parts = name_part.split("/")
-    if len(parts) > 1:
-        namespace = "/".join(parts[:-1])
-        name = parts[-1]
-    else:
-        namespace = None
-        name = parts[0]
-
-    # URL decode
-    name = unquote(name)
-    if namespace:
-        namespace = unquote(namespace)
-    if version:
-        version = unquote(version)
 
     return {
-        "type": pkg_type,
-        "namespace": namespace,
-        "name": name,
-        "version": version,
+        "type": parsed.type,
+        "namespace": parsed.namespace,
+        "name": parsed.name,
+        "version": parsed.version,
     }
 
 
