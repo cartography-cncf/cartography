@@ -59,13 +59,12 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
 
             # Extract region from cluster ARN (works for EKS; None for non-EKS clusters)
             try:
-                region = get_region_from_arn(cluster_info.get("id", ""))
+                region: str | None = get_region_from_arn(cluster_info.get("id", ""))
             except ValueError:
                 region = None
 
-            if config.managed_kubernetes == "eks":
-                # EKS identity provider sync — region is always available for EKS clusters
-                assert region is not None, "EKS cluster ARN must yield a valid region"
+            if config.managed_kubernetes == "eks" and region is not None:
+                # EKS identity provider sync
                 boto3_session = boto3.Session()
                 sync_eks(
                     session,
