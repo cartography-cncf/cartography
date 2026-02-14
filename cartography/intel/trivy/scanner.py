@@ -8,6 +8,7 @@ from neo4j import Session
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.trivy.findings import TrivyImageFindingSchema
 from cartography.models.trivy.fix import TrivyFixSchema
 from cartography.models.trivy.package import TrivyPackageSchema
@@ -127,6 +128,16 @@ def transform_scan_results(
 
                 # Transform package data
                 package_id = f"{result['InstalledVersion']}|{result['PkgName']}"
+
+                # Compute normalized ID for cross-tool matching
+                # This enables Syft to match packages despite naming differences
+                normalized_id = make_normalized_package_id(
+                    purl=purl,
+                    name=result["PkgName"],
+                    version=result["InstalledVersion"],
+                    pkg_type=scan_class["Type"],
+                )
+
                 packages_list.append(
                     {
                         "id": package_id,
@@ -139,6 +150,7 @@ def transform_scan_results(
                         # Additional fields
                         "PURL": purl,
                         "PkgID": result.get("PkgID"),
+                        "normalized_id": normalized_id,
                     }
                 )
 
@@ -202,6 +214,13 @@ def transform_all_packages(
             if "Identifier" in pkg and pkg["Identifier"]:
                 purl = pkg["Identifier"].get("PURL")
 
+            normalized_id = make_normalized_package_id(
+                purl=purl,
+                name=name,
+                version=version,
+                pkg_type=pkg_type,
+            )
+
             packages_list.append(
                 {
                     "id": package_id,
@@ -213,6 +232,7 @@ def transform_all_packages(
                     "FindingId": None,
                     "PURL": purl,
                     "PkgID": pkg.get("ID"),
+                    "normalized_id": normalized_id,
                 },
             )
 
