@@ -230,6 +230,12 @@ class Config:
     :param slack_teams: List of Slack team IDs to sync. Optional.
     :type slack_channels_memberships: bool
     :param slack_channels_memberships: If True, sync Slack channel membership data. Optional.
+    :type syft_results_dir: str
+    :param syft_results_dir: Local directory containing Syft JSON results. Optional.
+    :type syft_s3_bucket: str
+    :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
+    :type syft_s3_prefix: str
+    :param syft_s3_prefix: S3 prefix path containing Syft scan results. Optional.
     """
 
     def __init__(
@@ -347,6 +353,9 @@ class Config:
         slack_token=None,
         slack_teams=None,
         slack_channels_memberships=False,
+        syft_results_dir=None,
+        syft_s3_bucket=None,
+        syft_s3_prefix=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -463,3 +472,6 @@ class Config:
         self.slack_token = slack_token
         self.slack_teams = slack_teams
         self.slack_channels_memberships = slack_channels_memberships
+        self.syft_results_dir = syft_results_dir
+        self.syft_s3_bucket = syft_s3_bucket
+        self.syft_s3_prefix = syft_s3_prefix
