@@ -2,47 +2,9 @@
 Unit tests for cartography.intel.syft.parser module.
 """
 
-import pytest
-
 from cartography.intel.syft.parser import transform_artifacts
-from cartography.intel.syft.parser import validate_syft_json
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGES
-from tests.data.syft.syft_sample import SYFT_INVALID_ARTIFACTS_NOT_LIST
-from tests.data.syft.syft_sample import SYFT_INVALID_NO_ARTIFACTS
-from tests.data.syft.syft_sample import SYFT_INVALID_RELATIONSHIPS_NOT_LIST
-from tests.data.syft.syft_sample import SYFT_MINIMAL_VALID
 from tests.data.syft.syft_sample import SYFT_SAMPLE
-
-
-class TestValidateSyftJson:
-    """Tests for validate_syft_json function."""
-
-    def test_valid_syft_json(self):
-        """Test that valid Syft JSON passes validation."""
-        # Should not raise
-        validate_syft_json(SYFT_SAMPLE)
-
-    def test_valid_minimal_syft_json(self):
-        """Test that minimal valid Syft JSON passes validation."""
-        # Should not raise
-        validate_syft_json(SYFT_MINIMAL_VALID)
-
-    def test_invalid_missing_artifacts(self):
-        """Test that missing artifacts field raises ValueError."""
-        with pytest.raises(ValueError, match="missing required 'artifacts'"):
-            validate_syft_json(SYFT_INVALID_NO_ARTIFACTS)
-
-    def test_invalid_artifacts_not_list(self):
-        """Test that non-list artifacts field raises ValueError."""
-        with pytest.raises(ValueError, match="'artifacts' field must be a list"):
-            validate_syft_json(SYFT_INVALID_ARTIFACTS_NOT_LIST)
-
-    def test_invalid_relationships_not_list(self):
-        """Test that non-list artifactRelationships raises ValueError."""
-        with pytest.raises(
-            ValueError, match="'artifactRelationships' field must be a list"
-        ):
-            validate_syft_json(SYFT_INVALID_RELATIONSHIPS_NOT_LIST)
 
 
 class TestTransformArtifacts:

@@ -37,29 +37,6 @@ from cartography.intel.trivy.util import make_normalized_package_id
 logger = logging.getLogger(__name__)
 
 
-def validate_syft_json(data: dict[str, Any]) -> None:
-    """
-    Validate that the provided data is a valid Syft JSON structure.
-
-    Args:
-        data: Dictionary parsed from Syft JSON output
-
-    Raises:
-        ValueError: If required fields are missing or invalid
-    """
-    if "artifacts" not in data:
-        raise ValueError("Syft data missing required 'artifacts' field")
-
-    if not isinstance(data.get("artifacts", []), list):
-        raise ValueError("Syft 'artifacts' field must be a list")
-
-    # artifactRelationships is optional but must be a list if present
-    if "artifactRelationships" in data and not isinstance(
-        data["artifactRelationships"], list
-    ):
-        raise ValueError("Syft 'artifactRelationships' field must be a list if present")
-
-
 def _build_artifact_lookup(data: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """
     Build a lookup dictionary from Syft artifact ID to artifact data.
@@ -115,7 +92,6 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
         )
         if not parent_norm_id:
             continue
-
         dep_map.setdefault(child_id, []).append(parent_norm_id)
 
     packages: list[dict[str, Any]] = []
@@ -132,13 +108,6 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
             version=version,
             pkg_type=artifact.get("type"),
         )
-        if not normalized_id:
-            logger.debug(
-                "Skipping artifact %s: normalization failed",
-                artifact_id,
-            )
-            continue
-
         packages.append(
             {
                 "id": normalized_id,

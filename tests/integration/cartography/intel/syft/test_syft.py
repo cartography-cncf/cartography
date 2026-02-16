@@ -9,8 +9,6 @@ import json
 from unittest.mock import mock_open
 from unittest.mock import patch
 
-import pytest
-
 from cartography.intel.syft import sync_single_syft
 from cartography.intel.syft import sync_syft_from_dir
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGE_DEPENDENCIES
@@ -80,20 +78,6 @@ def test_sync_single_syft_creates_depends_on(neo4j_session):
     )
 
     assert actual_rels == EXPECTED_SYFT_PACKAGE_DEPENDENCIES
-
-
-def test_sync_single_syft_invalid_data(neo4j_session):
-    """
-    Test that sync_single_syft raises ValueError on invalid data.
-    """
-    invalid_data = {"source": {"type": "image"}}
-
-    with pytest.raises(ValueError):
-        sync_single_syft(
-            neo4j_session,
-            invalid_data,
-            TEST_UPDATE_TAG,
-        )
 
 
 @patch(

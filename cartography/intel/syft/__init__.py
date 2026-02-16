@@ -26,7 +26,6 @@ from cartography.client.core.tx import load
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.syft.parser import transform_artifacts
-from cartography.intel.syft.parser import validate_syft_json
 from cartography.models.syft import SyftPackageSchema
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -49,8 +48,6 @@ def sync_single_syft(
         data: Parsed Syft JSON data
         update_tag: Update timestamp
     """
-    validate_syft_json(data)
-
     packages = transform_artifacts(data)
     if packages:
         load(neo4j_session, SyftPackageSchema(), packages, lastupdated=update_tag)
@@ -87,27 +84,17 @@ def _get_json_files_in_s3(
     s3_client = boto3_session.client("s3")
     results = set()
 
-    try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        page_iterator = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
+    paginator = s3_client.get_paginator("list_objects_v2")
+    page_iterator = paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix)
 
-        for page in page_iterator:
-            if "Contents" not in page:
-                continue
+    for page in page_iterator:
+        if "Contents" not in page:
+            continue
 
-            for obj in page["Contents"]:
-                object_key = obj["Key"]
-                if object_key.endswith(".json") and object_key.startswith(s3_prefix):
-                    results.add(object_key)
-
-    except Exception as e:
-        logger.error(
-            "Error listing S3 objects in bucket %s with prefix %s: %s",
-            s3_bucket,
-            s3_prefix,
-            e,
-        )
-        raise
+        for obj in page["Contents"]:
+            object_key = obj["Key"]
+            if object_key.endswith(".json") and object_key.startswith(s3_prefix):
+                results.add(object_key)
 
     logger.info("Found %d json files in s3://%s/%s", len(results), s3_bucket, s3_prefix)
     return results
