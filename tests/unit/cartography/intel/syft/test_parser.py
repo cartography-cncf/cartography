@@ -28,11 +28,6 @@ class TestValidateSyftJson:
         # Should not raise
         validate_syft_json(SYFT_MINIMAL_VALID)
 
-    def test_invalid_not_dict(self):
-        """Test that non-dict input raises ValueError."""
-        with pytest.raises(ValueError, match="must be a dictionary"):
-            validate_syft_json([])
-
     def test_invalid_missing_artifacts(self):
         """Test that missing artifacts field raises ValueError."""
         with pytest.raises(ValueError, match="missing required 'artifacts'"):

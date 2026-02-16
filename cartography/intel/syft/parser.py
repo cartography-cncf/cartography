@@ -47,9 +47,6 @@ def validate_syft_json(data: dict[str, Any]) -> None:
     Raises:
         ValueError: If required fields are missing or invalid
     """
-    if not isinstance(data, dict):
-        raise ValueError("Syft data must be a dictionary")
-
     if "artifacts" not in data:
         raise ValueError("Syft data missing required 'artifacts' field")
 
@@ -170,20 +167,16 @@ def get_image_digest_from_syft(data: dict[str, Any]) -> str | None:
         Image digest string (e.g., "sha256:abc123...") or None if not found
     """
     source = data.get("source", {})
-
-    # For image sources, digest is in target
     target = source.get("target", {})
-    if isinstance(target, dict):
-        digest = target.get("digest")
-        if digest:
-            return digest
 
-        # Also check for repoDigests
-        repo_digests = target.get("repoDigests", [])
-        if repo_digests and len(repo_digests) > 0:
-            # Extract digest from repo digest format: "repo@sha256:..."
-            first_digest = repo_digests[0]
-            if "@" in first_digest:
-                return first_digest.split("@")[1]
+    digest = target.get("digest")
+    if digest:
+        return digest
+
+    repo_digests = target.get("repoDigests", [])
+    if repo_digests:
+        first_digest = repo_digests[0]
+        if "@" in first_digest:
+            return first_digest.split("@")[1]
 
     return None
