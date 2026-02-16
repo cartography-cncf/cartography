@@ -10,7 +10,7 @@ Label: `SyftPackage`
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `id` | string | Normalized package ID (e.g., `npm\|express\|4.18.2`) |
+| **`id`** | string | Normalized package ID (e.g., `npm\|express\|4.18.2`) |
 | `name` | string | Package name |
 | `version` | string | Package version |
 | `type` | string | Package type (e.g., `npm`, `pypi`, `deb`) |

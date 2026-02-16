@@ -18,8 +18,6 @@ import os
 from typing import Any
 
 import boto3
-from botocore.exceptions import BotoCoreError
-from botocore.exceptions import ClientError
 from neo4j import Session
 
 from cartography.client.core.tx import load
@@ -131,17 +129,13 @@ def sync_syft_from_dir(
     logger.info("Processing %d local Syft result files", len(json_files))
 
     for file_path in json_files:
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                syft_data = json.load(f)
-            sync_single_syft(
-                neo4j_session,
-                syft_data,
-                update_tag,
-            )
-        except (OSError, json.JSONDecodeError, ValueError) as e:
-            logger.error("Failed to process Syft file %s: %s", file_path, e)
-            continue
+        with open(file_path, encoding="utf-8") as f:
+            syft_data = json.load(f)
+        sync_single_syft(
+            neo4j_session,
+            syft_data,
+            update_tag,
+        )
 
     cleanup_syft(neo4j_session, update_tag)
 
@@ -188,30 +182,14 @@ def sync_syft_from_s3(
         logger.debug(
             "Reading scan results from S3: s3://%s/%s", syft_s3_bucket, s3_object_key
         )
-        try:
-            response = s3_client.get_object(Bucket=syft_s3_bucket, Key=s3_object_key)
-            scan_data_json = response["Body"].read().decode("utf-8")
-            syft_data = json.loads(scan_data_json)
-            sync_single_syft(
-                neo4j_session,
-                syft_data,
-                update_tag,
-            )
-        except (
-            BotoCoreError,
-            ClientError,
-            UnicodeDecodeError,
-            json.JSONDecodeError,
-            KeyError,
-            ValueError,
-        ) as e:
-            logger.error(
-                "Failed to process Syft data from s3://%s/%s: %s",
-                syft_s3_bucket,
-                s3_object_key,
-                e,
-            )
-            continue
+        response = s3_client.get_object(Bucket=syft_s3_bucket, Key=s3_object_key)
+        scan_data_json = response["Body"].read().decode("utf-8")
+        syft_data = json.loads(scan_data_json)
+        sync_single_syft(
+            neo4j_session,
+            syft_data,
+            update_tag,
+        )
 
     cleanup_syft(neo4j_session, update_tag)
 
