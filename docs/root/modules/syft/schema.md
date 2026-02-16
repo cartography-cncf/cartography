@@ -6,7 +6,7 @@
 
 Package nodes created from Syft's `artifacts` array.
 
-Labels: `Package`, `SyftPackage`
+Label: `SyftPackage`
 
 | Property | Type | Description |
 |----------|------|-------------|

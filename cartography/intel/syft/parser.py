@@ -154,29 +154,3 @@ def transform_artifacts(data: dict[str, Any]) -> list[dict[str, Any]]:
         )
 
     return packages
-
-
-def get_image_digest_from_syft(data: dict[str, Any]) -> str | None:
-    """
-    Extract the image digest from Syft JSON source metadata.
-
-    Args:
-        data: Syft JSON data
-
-    Returns:
-        Image digest string (e.g., "sha256:abc123...") or None if not found
-    """
-    source = data.get("source", {})
-    target = source.get("target", {})
-
-    digest = target.get("digest")
-    if digest:
-        return digest
-
-    repo_digests = target.get("repoDigests", [])
-    if repo_digests:
-        first_digest = repo_digests[0]
-        if "@" in first_digest:
-            return first_digest.split("@")[1]
-
-    return None

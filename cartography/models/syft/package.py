@@ -58,7 +58,7 @@ class SyftPackageDependsOnRel(CartographyRelSchema):
 class SyftPackageSchema(CartographyNodeSchema):
     label: str = "SyftPackage"
     scoped_cleanup: bool = False
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Package"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([])
     properties: SyftPackageNodeProperties = SyftPackageNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [

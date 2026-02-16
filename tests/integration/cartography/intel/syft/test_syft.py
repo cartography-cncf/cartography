@@ -139,25 +139,3 @@ def test_sync_syft_from_dir(
     ).single()
 
     assert result["count"] == 3
-
-
-def test_syft_package_has_package_label(neo4j_session):
-    """
-    Test that SyftPackage nodes also have the Package primary label.
-    """
-    neo4j_session.run("MATCH (n:SyftPackage) DETACH DELETE n")
-
-    sync_single_syft(
-        neo4j_session,
-        SYFT_SAMPLE,
-        TEST_UPDATE_TAG,
-    )
-
-    result = neo4j_session.run(
-        """
-        MATCH (p:Package:SyftPackage)
-        RETURN count(p) AS count
-        """
-    ).single()
-
-    assert result["count"] == 5

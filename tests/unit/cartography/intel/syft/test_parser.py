@@ -4,7 +4,6 @@ Unit tests for cartography.intel.syft.parser module.
 
 import pytest
 
-from cartography.intel.syft.parser import get_image_digest_from_syft
 from cartography.intel.syft.parser import transform_artifacts
 from cartography.intel.syft.parser import validate_syft_json
 from tests.data.syft.syft_sample import EXPECTED_SYFT_PACKAGES
@@ -150,33 +149,3 @@ class TestTransformArtifacts:
         assert pkg_by_id["npm|pkg-b|2.0.0"]["dependency_ids"] == ["npm|pkg-a|1.0.0"]
         # a has no deps (image-root is not an artifact)
         assert pkg_by_id["npm|pkg-a|1.0.0"]["dependency_ids"] == []
-
-
-class TestGetImageDigestFromSyft:
-    """Tests for get_image_digest_from_syft function."""
-
-    def test_get_image_digest(self):
-        """Test extracting image digest from Syft source metadata."""
-        digest = get_image_digest_from_syft(SYFT_SAMPLE)
-        assert (
-            digest
-            == "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-        )
-
-    def test_get_image_digest_from_repo_digests(self):
-        """Test extracting digest from repoDigests."""
-        data = {"source": {"target": {"repoDigests": ["myimage@sha256:abcdef123456"]}}}
-        digest = get_image_digest_from_syft(data)
-        assert digest == "sha256:abcdef123456"
-
-    def test_get_image_digest_not_found(self):
-        """Test when no digest is available."""
-        data = {"source": {"target": {}}}
-        digest = get_image_digest_from_syft(data)
-        assert digest is None
-
-    def test_get_image_digest_no_source(self):
-        """Test when source is missing."""
-        data = {"artifacts": []}
-        digest = get_image_digest_from_syft(data)
-        assert digest is None
