@@ -52,6 +52,7 @@ PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_TRIVY = "Trivy Options"
+PANEL_SYFT = "Syft Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
@@ -92,6 +93,7 @@ MODULE_PANELS = {
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
     "trivy": PANEL_TRIVY,
+    "syft": PANEL_SYFT,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentinelone": PANEL_SENTINELONE,
@@ -1195,6 +1197,36 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Syft Options
+            # =================================================================
+            syft_s3_bucket: Annotated[
+                str | None,
+                typer.Option(
+                    "--syft-s3-bucket",
+                    help="S3 bucket name containing Syft scan results.",
+                    rich_help_panel=PANEL_SYFT,
+                    hidden=PANEL_SYFT not in visible_panels,
+                ),
+            ] = None,
+            syft_s3_prefix: Annotated[
+                str | None,
+                typer.Option(
+                    "--syft-s3-prefix",
+                    help="S3 prefix path for Syft scan results.",
+                    rich_help_panel=PANEL_SYFT,
+                    hidden=PANEL_SYFT not in visible_panels,
+                ),
+            ] = None,
+            syft_results_dir: Annotated[
+                str | None,
+                typer.Option(
+                    "--syft-results-dir",
+                    help="Local directory containing Syft JSON results.",
+                    rich_help_panel=PANEL_SYFT,
+                    hidden=PANEL_SYFT not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Ontology Options
             # =================================================================
             ontology_users_source: Annotated[
@@ -1803,6 +1835,14 @@ class CLI:
             if trivy_results_dir:
                 logger.debug("Trivy results dir: %s", trivy_results_dir)
 
+            # Log Syft config
+            if syft_s3_bucket:
+                logger.debug("Syft S3 bucket: %s", syft_s3_bucket)
+            if syft_s3_prefix:
+                logger.debug("Syft S3 prefix: %s", syft_s3_prefix)
+            if syft_results_dir:
+                logger.debug("Syft results dir: %s", syft_results_dir)
+
             # Read Scaleway secret key
             scaleway_secret_key = None
             if scaleway_secret_key_env_var:
@@ -1977,6 +2017,9 @@ class CLI:
                 airbyte_api_url=airbyte_api_url,
                 trivy_s3_bucket=trivy_s3_bucket,
                 trivy_s3_prefix=trivy_s3_prefix,
+                syft_s3_bucket=syft_s3_bucket,
+                syft_s3_prefix=syft_s3_prefix,
+                syft_results_dir=syft_results_dir,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 trivy_results_dir=trivy_results_dir,
