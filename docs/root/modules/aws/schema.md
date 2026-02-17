@@ -3159,6 +3159,16 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
     (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
     ```
 
+- Internet-facing AWSLoadBalancerV2's can expose private ECS containers. Set by an analysis job.
+    ```
+    (AWSLoadBalancerV2)-[EXPOSE_CONTAINER]->(ECSContainer)
+    ```
+
+- AWSLoadBalancerV2's can be protected by network ACLs via subnet traversal. Set by an analysis job.
+    ```
+    (AWSLoadBalancerV2)-[PROTECTED_BY_NACL]->(EC2NetworkAcl)
+    ```
+
 ### Nameserver
 
 Represents a DNS nameserver.
