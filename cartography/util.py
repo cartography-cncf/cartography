@@ -27,7 +27,9 @@ import backoff
 import boto3
 import botocore
 import neo4j
+from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
 from botocore.parsers import ResponseParserError
 
 from cartography.graph.job import GraphJob
@@ -716,6 +718,12 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             logger.warning(
                 "Encountered an EndpointConnectionError. This means that the AWS "
                 "resource is not available in this region. Skipping.",
+            )
+            return []
+        except (ConnectTimeoutError, ReadTimeoutError):
+            logger.warning(
+                "Encountered a timeout while calling a regional AWS endpoint. "
+                "Skipping this region.",
             )
             return []
 
