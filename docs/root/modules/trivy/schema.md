@@ -67,6 +67,9 @@ Representation of a package installed in a container image.
 | version | Version of the package (same as installed_version) |
 | class_name | Class of the package (e.g. os, library) |
 | type | Type of the package |
+| purl | Package URL (e.g., `pkg:npm/express@4.18.2`) |
+| pkg_id | Package identifier from Trivy |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
 
 #### Relationships
 

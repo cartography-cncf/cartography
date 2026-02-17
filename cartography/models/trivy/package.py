@@ -23,6 +23,9 @@ class TrivyPackageNodeProperties(CartographyNodeProperties):
     # Additional fields from Trivy scan results
     purl: PropertyRef = PropertyRef("PURL")
     pkg_id: PropertyRef = PropertyRef("PkgID")
+    # Normalized ID for cross-tool matching (format: {type}|{namespace/}{normalized_name}|{version})
+    # Namespace included when present (e.g., deb packages). Uses PEP 503 normalization for Python.
+    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

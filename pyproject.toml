@@ -52,6 +52,7 @@ dependencies = [
     "requests>=2.22.0",
     "statsd",
     "packaging",
+    "packageurl-python",
     "python-digitalocean>=1.16.0",
     "adal>=1.2.4",
     "azure-cli-core>=2.26.0",
