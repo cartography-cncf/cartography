@@ -87,12 +87,6 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                         login
                         __typename
                     }
-                    directCollaborators: collaborators(first: 100, affiliation: DIRECT) {
-                        totalCount
-                    }
-                    outsideCollaborators: collaborators(first: 100, affiliation: OUTSIDE) {
-                        totalCount
-                    }
                     requirements:object(expression: "HEAD:requirements.txt") {
                         ... on Blob {
                             text
@@ -114,6 +108,33 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+    """
+# Note: In the above query, `HEAD` references the default branch.
+# See https://stackoverflow.com/questions/48935381/github-graphql-api-default-branch-in-repository
+
+GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL = """
+    query($login: String!, $cursor: String, $count: Int!) {
+    organization(login: $login)
+        {
+            url
+            login
+            repositories(first: $count, after: $cursor){
+                pageInfo{
+                    endCursor
+                    hasNextPage
+                }
+                nodes{
+                    url
+                    directCollaborators: collaborators(first: 100, affiliation: DIRECT) {
+                        totalCount
+                    }
+                    outsideCollaborators: collaborators(first: 100, affiliation: OUTSIDE) {
+                        totalCount
                     }
                     branchProtectionRules(first: 50) {
                         nodes {
@@ -139,8 +160,6 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
         }
     }
     """
-# Note: In the above query, `HEAD` references the default branch.
-# See https://stackoverflow.com/questions/48935381/github-graphql-api-default-branch-in-repository
 
 GITHUB_REPO_COLLABS_PAGINATED_GRAPHQL = """
     query($login: String!, $repo: String!, $affiliation: CollaboratorAffiliation!, $cursor: String) {
@@ -335,6 +354,107 @@ def get(token: str, api_url: str, organization: str) -> List[Optional[Dict]]:
     # See https://github.com/cartography-cncf/cartography/issues/1334
     # and https://github.com/cartography-cncf/cartography/issues/1404
     return cast(List[Optional[Dict]], repos.nodes)
+
+
+def _repos_need_privileged_details(repos_json: List[Optional[Dict]]) -> bool:
+    """
+    Return True when repo objects are missing collaborator counts and/or branch protection fields.
+    """
+    non_null_repos = [repo for repo in repos_json if repo is not None]
+    if not non_null_repos:
+        return False
+
+    collaborator_counts_missing = any(
+        repo.get("directCollaborators") is None
+        or repo.get("outsideCollaborators") is None
+        for repo in non_null_repos
+    )
+    branch_rules_missing_everywhere = all(
+        repo.get("branchProtectionRules") is None for repo in non_null_repos
+    )
+    return collaborator_counts_missing or branch_rules_missing_everywhere
+
+
+def get_repo_privileged_details_by_url(
+    token: str,
+    api_url: str,
+    organization: str,
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Retrieve collaborator counts + branch protection fields for repositories in an organization.
+    """
+    repos, _ = fetch_all(
+        token,
+        api_url,
+        organization,
+        GITHUB_ORG_REPOS_PRIVILEGED_PAGINATED_GRAPHQL,
+        "repositories",
+        count=50,
+    )
+    privileged_repo_data = {}
+    privileged_nodes = cast(List[Optional[Dict]], repos.nodes)
+    for repo in privileged_nodes:
+        # GitHub can return null repository entries.
+        if repo is None:
+            continue
+        repo_url = repo.get("url")
+        if not repo_url:
+            continue
+        privileged_repo_data[repo_url] = {
+            "directCollaborators": repo.get("directCollaborators"),
+            "outsideCollaborators": repo.get("outsideCollaborators"),
+            "branchProtectionRules": repo.get("branchProtectionRules"),
+        }
+    return privileged_repo_data
+
+
+def _merge_repos_with_privileged_details(
+    repo_raw_data: List[Optional[Dict]],
+    privileged_repo_data_by_url: Dict[str, Dict[str, Any]],
+) -> tuple[List[Optional[Dict]], int, int]:
+    """
+    Merge privileged repo fields by URL into the base repo list.
+    Returns merged repos + merged count + count still missing privileged details.
+    """
+    merged_repo_count = 0
+    repos_missing_privileged_details = 0
+    merged_repos: List[Optional[Dict]] = []
+
+    for repo in repo_raw_data:
+        # Preserve null entries as-is.
+        if repo is None:
+            merged_repos.append(None)
+            continue
+
+        merged_repo = dict(repo)
+        repo_url = merged_repo.get("url")
+        privileged_data: Dict[str, Any] = {}
+        if isinstance(repo_url, str):
+            privileged_data = privileged_repo_data_by_url.get(repo_url, {})
+        merged_fields = 0
+
+        for field_name in (
+            "directCollaborators",
+            "outsideCollaborators",
+            "branchProtectionRules",
+        ):
+            if merged_repo.get(field_name) is None and field_name in privileged_data:
+                merged_repo[field_name] = privileged_data.get(field_name)
+                merged_fields += 1
+
+        if merged_fields > 0:
+            merged_repo_count += 1
+
+        if (
+            merged_repo.get("directCollaborators") is None
+            or merged_repo.get("outsideCollaborators") is None
+            or merged_repo.get("branchProtectionRules") is None
+        ):
+            repos_missing_privileged_details += 1
+
+        merged_repos.append(merged_repo)
+
+    return merged_repos, merged_repo_count, repos_missing_privileged_details
 
 
 def transform(
@@ -1390,6 +1510,28 @@ def sync(
     """
     logger.info("Syncing GitHub repos")
     repos_json = get(github_api_key, github_url, organization)
+    base_repo_count = sum(1 for repo in repos_json if repo is not None)
+
+    privileged_repo_data_by_url: dict[str, dict[str, Any]] = {}
+    if _repos_need_privileged_details(repos_json):
+        privileged_repo_data_by_url = get_repo_privileged_details_by_url(
+            github_api_key,
+            github_url,
+            organization,
+        )
+
+    repos_json, merged_repo_count, missing_privileged_repo_count = (
+        _merge_repos_with_privileged_details(repos_json, privileged_repo_data_by_url)
+    )
+    logger.info(
+        "GitHub repo sync summary for org %s: base_repos=%d privileged_details_fetched=%d merged_repos=%d repos_missing_privileged_details=%d",
+        organization,
+        base_repo_count,
+        len(privileged_repo_data_by_url),
+        merged_repo_count,
+        missing_privileged_repo_count,
+    )
+
     direct_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
     outside_collabs: dict[str, list[UserAffiliationAndRepoPermission]] = {}
     try:

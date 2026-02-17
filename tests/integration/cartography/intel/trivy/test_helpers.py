@@ -23,8 +23,9 @@ def assert_trivy_findings(neo4j_session: Session) -> None:
 
 
 def assert_trivy_packages(neo4j_session: Session) -> None:
-    """Assert Package nodes exist with expected values."""
+    """Assert Package nodes exist with expected values (vulnerable + non-vulnerable)."""
     assert check_nodes(neo4j_session, "Package", ["id", "name", "version"]) == {
+        # Vulnerable packages (from Vulnerabilities array)
         ("0.14.0|h11", "h11", "0.14.0"),
         ("1.20.1-2+deb12u2|krb5-locales", "krb5-locales", "1.20.1-2+deb12u2"),
         ("1.20.1-2+deb12u2|libk5crypto3", "libk5crypto3", "1.20.1-2+deb12u2"),
@@ -39,6 +40,11 @@ def assert_trivy_packages(neo4j_session: Session) -> None:
         ("4.19.0-2|libtasn1-6", "libtasn1-6", "4.19.0-2"),
         ("5.36.0-7+deb12u1|perl-base", "perl-base", "5.36.0-7+deb12u1"),
         ("5.4.1-0.2|liblzma5", "liblzma5", "5.4.1-0.2"),
+        # Non-vulnerable packages (from Packages array only)
+        ("2.6.1|apt", "apt", "2.6.1"),
+        ("5.2.15-2+b2|bash", "bash", "5.2.15-2+b2"),
+        ("2.31.0|requests", "requests", "2.31.0"),
+        ("2.0.7|urllib3", "urllib3", "2.0.7"),
     }
 
 
@@ -108,6 +114,23 @@ def assert_all_trivy_relationships(neo4j_session: Session) -> None:
         ),
         (
             "5.4.1-0.2|liblzma5",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        # Non-vulnerable packages from Packages array
+        (
+            "2.6.1|apt",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            "5.2.15-2+b2|bash",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            "2.31.0|requests",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+        (
+            "2.0.7|urllib3",
             "sha256:0000000000000000000000000000000000000000000000000000000000000000",
         ),
     }
