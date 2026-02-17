@@ -5,12 +5,20 @@ import pytest
 
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
+from cartography.intel.github.repos import _determine_manifest_for_repo
+from cartography.intel.github.repos import _merge_repos_with_dependency_details
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
+from cartography.intel.github.repos import _repo_url_to_owner_and_name
+from cartography.intel.github.repos import _repos_need_dependency_details
 from cartography.intel.github.repos import _repos_need_privileged_details
+from cartography.intel.github.repos import _synthesize_manifest_node
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
+from cartography.intel.github.repos import GitHubDependencyStageError
 from cartography.intel.github.repos import transform
+from cartography.intel.github.util import GitHubGraphqlPartialDataError
+from cartography.intel.github.util import GitHubRestApiError
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import GET_REPOS
 
@@ -297,14 +305,71 @@ def test_repos_need_privileged_details_when_fields_present():
     assert _repos_need_privileged_details([GET_REPOS[0], GET_REPOS[2]]) is False
 
 
+def test_merge_repos_with_dependency_details_merges_by_url():
+    base_repos = deepcopy(GET_REPOS[:2])
+    for repo in base_repos:
+        repo.pop("dependencyGraphManifests", None)
+
+    dependency_repo_data = {
+        base_repos[1]["url"]: {
+            "dependencyGraphManifests": {"nodes": []},
+        },
+        "https://github.com/simpsoncorp/non_matching_repo": {
+            "dependencyGraphManifests": {"nodes": [{"blobPath": "/package.json"}]},
+        },
+    }
+
+    merged_repos, merged_repo_count, missing_repo_count = (
+        _merge_repos_with_dependency_details(base_repos, dependency_repo_data)
+    )
+
+    assert merged_repo_count == 1
+    assert missing_repo_count == 1
+    assert merged_repos[1]["dependencyGraphManifests"] == {"nodes": []}
+    assert "dependencyGraphManifests" not in merged_repos[0]
+    # Ensure input repos are not mutated by merge.
+    assert "dependencyGraphManifests" not in base_repos[1]
+
+
+def test_repos_need_dependency_details_when_fields_missing():
+    repo = deepcopy(GET_REPOS[0])
+    repo.pop("dependencyGraphManifests", None)
+
+    assert _repos_need_dependency_details([repo]) is True
+
+
+def test_repos_need_dependency_details_when_fields_present():
+    assert _repos_need_dependency_details([GET_REPOS[2]]) is False
+
+
 @patch.object(
     cartography.intel.github.repos,
     "get_repo_privileged_details_by_url",
     side_effect=RuntimeError("privileged fetch failed"),
 )
+@patch.object(
+    cartography.intel.github.repos,
+    "_collect_sbom_dependencies_for_repos",
+    return_value=(
+        [],
+        {
+            "repos_scanned": 1,
+            "strict_repos_scanned": 1,
+            "strict_exempt_repos": 0,
+            "sbom_successes": 1,
+            "missing_dependency_graph": 0,
+            "permission_failures": 0,
+            "rate_limit_failures": 0,
+            "transient_failures": 0,
+            "strict_failures": 0,
+        },
+        [],
+    ),
+)
 @patch.object(cartography.intel.github.repos, "get")
 def test_sync_raises_when_privileged_fetch_fails(
     mock_get,
+    mock_collect_sbom_dependencies,
     mock_get_privileged,
 ):
     repo = deepcopy(GET_REPOS[0])
@@ -321,3 +386,287 @@ def test_sync_raises_when_privileged_fetch_fails(
             "https://api.github.com/graphql",
             "example-org",
         )
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    side_effect=RuntimeError("dependency fetch failed"),
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_collect_sbom_dependencies_for_repos",
+    return_value=(
+        [],
+        {
+            "repos_scanned": 1,
+            "strict_repos_scanned": 1,
+            "strict_exempt_repos": 0,
+            "sbom_successes": 1,
+            "missing_dependency_graph": 0,
+            "permission_failures": 0,
+            "rate_limit_failures": 0,
+            "transient_failures": 0,
+            "strict_failures": 0,
+        },
+        [],
+    ),
+)
+@patch.object(cartography.intel.github.repos, "get")
+def test_sync_raises_when_dependency_fetch_fails(
+    mock_get,
+    mock_collect_sbom_dependencies,
+    mock_get_dependency_details,
+):
+    # Use repo data that does not require privileged-detail enrichment.
+    repo = deepcopy(GET_REPOS[2])
+    repo.pop("dependencyGraphManifests", None)
+    mock_get.return_value = [repo]
+
+    with pytest.raises(RuntimeError, match="dependency fetch failed"):
+        cartography.intel.github.repos.sync(
+            None,
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+            "token",
+            "https://api.github.com/graphql",
+            "example-org",
+        )
+
+
+def test_transform_strict_dependency_mode_disables_requirements_fallback():
+    repo = GET_REPOS[0]
+    repo_url = repo["url"]
+
+    result = transform(
+        [repo],
+        {repo_url: []},
+        {repo_url: []},
+        strict_dependency_mode=True,
+    )
+
+    assert result["python_requirements"] == []
+
+
+def test_repo_url_to_owner_and_name():
+    assert _repo_url_to_owner_and_name("https://github.com/acme/widgets") == (
+        "acme",
+        "widgets",
+    )
+    assert _repo_url_to_owner_and_name("https://github.com/acme/widgets.git") == (
+        "acme",
+        "widgets",
+    )
+
+
+def test_synthesize_manifest_node():
+    manifest = _synthesize_manifest_node(
+        "https://github.com/acme/widgets", "/_github_sbom.spdx.json"
+    )
+    assert manifest == {
+        "id": "https://github.com/acme/widgets#/_github_sbom.spdx.json",
+        "blob_path": "/_github_sbom.spdx.json",
+        "filename": "_github_sbom.spdx.json",
+        "dependencies_count": 0,
+        "repo_url": "https://github.com/acme/widgets",
+    }
+
+
+def test_determine_manifest_for_repo_uses_dependency_graph_manifests_nodes():
+    manifest_id, manifest_path = _determine_manifest_for_repo(
+        "https://github.com/acme/widgets",
+        {
+            "https://github.com/acme/widgets": {
+                "dependencyGraphManifests": {
+                    "nodes": [
+                        {"blobPath": "/requirements.txt"},
+                        {"blobPath": "/package.json"},
+                    ]
+                }
+            }
+        },
+    )
+    assert manifest_id == "https://github.com/acme/widgets#/package.json"
+    assert manifest_path == "/package.json"
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_fetch_repo_sbom",
+    return_value={"sbom": {"packages": []}},
+)
+def test_collect_sbom_dependencies_empty_sbom_is_not_failure(mock_fetch_sbom):
+    dependencies, summary, failed_repos = (
+        cartography.intel.github.repos._collect_sbom_dependencies_for_repos(
+            token="token",
+            api_url="https://api.github.com/graphql",
+            repo_urls=["https://github.com/acme/widgets"],
+            manifests_by_repo={},
+        )
+    )
+    assert dependencies == []
+    assert failed_repos == []
+    assert summary["sbom_successes"] == 1
+    assert summary["missing_dependency_graph"] == 0
+    assert summary["strict_failures"] == 0
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_collect_sbom_dependencies_for_repos",
+    return_value=(
+        [],
+        {
+            "repos_scanned": 1,
+            "strict_repos_scanned": 1,
+            "strict_exempt_repos": 0,
+            "sbom_successes": 0,
+            "missing_dependency_graph": 1,
+            "permission_failures": 0,
+            "rate_limit_failures": 0,
+            "transient_failures": 0,
+            "strict_failures": 1,
+        },
+        ["https://github.com/simpsoncorp/sample_repo"],
+    ),
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    return_value={},
+)
+@patch.object(cartography.intel.github.repos, "run_cleanup_job", return_value=None)
+@patch.object(
+    cartography.intel.github.repos,
+    "cleanup_branch_protection_rules",
+    return_value=None,
+)
+@patch.object(cartography.intel.github.repos, "load", return_value=None)
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_privileged_details_by_url",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    return_value={},
+)
+@patch.object(cartography.intel.github.repos, "get", return_value=[GET_REPOS[0]])
+def test_sync_raises_dependency_stage_error_when_incomplete(
+    mock_get,
+    mock_get_dependency_details,
+    mock_get_privileged_details,
+    mock_load,
+    mock_cleanup_branch_protection_rules,
+    mock_run_cleanup_job,
+    mock_get_collabs,
+    mock_collect_sbom,
+):
+    with pytest.raises(GitHubDependencyStageError):
+        cartography.intel.github.repos.sync(
+            None,
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+            "token",
+            "https://api.github.com/graphql",
+            "example-org",
+        )
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_dependency_details_by_url",
+    side_effect=GitHubGraphqlPartialDataError("manifest query partial"),
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_collect_sbom_dependencies_for_repos",
+    return_value=(
+        [],
+        {
+            "repos_scanned": 1,
+            "strict_repos_scanned": 1,
+            "strict_exempt_repos": 0,
+            "sbom_successes": 1,
+            "missing_dependency_graph": 0,
+            "permission_failures": 0,
+            "rate_limit_failures": 0,
+            "transient_failures": 0,
+            "strict_failures": 0,
+        },
+        [],
+    ),
+)
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    return_value={},
+)
+@patch.object(cartography.intel.github.repos, "run_cleanup_job", return_value=None)
+@patch.object(
+    cartography.intel.github.repos,
+    "cleanup_branch_protection_rules",
+    return_value=None,
+)
+@patch.object(cartography.intel.github.repos, "load", return_value=None)
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_privileged_details_by_url",
+    return_value={},
+)
+@patch.object(cartography.intel.github.repos, "get", return_value=[GET_REPOS[0]])
+def test_sync_raises_dependency_stage_error_when_manifest_query_partial(
+    mock_get,
+    mock_get_privileged_details,
+    mock_load,
+    mock_cleanup_branch_protection_rules,
+    mock_run_cleanup_job,
+    mock_get_collabs,
+    mock_collect_sbom,
+    mock_get_dependency_details,
+):
+    with pytest.raises(GitHubDependencyStageError, match="Manifest query failed"):
+        cartography.intel.github.repos.sync(
+            None,
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+            "token",
+            "https://api.github.com/graphql",
+            "example-org",
+        )
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "_fetch_repo_sbom",
+    side_effect=[
+        GitHubRestApiError(
+            "missing dependency graph",
+            status_code=404,
+            category="missing_dependency_graph",
+        ),
+        {"sbom": {"packages": []}},
+    ],
+)
+def test_collect_sbom_dependencies_ignores_strict_failures_for_exempt_repos(
+    mock_fetch_sbom,
+):
+    repo_urls = [
+        "https://github.com/acme/archived",
+        "https://github.com/acme/active",
+    ]
+    dependencies, summary, failed_repos = (
+        cartography.intel.github.repos._collect_sbom_dependencies_for_repos(
+            token="token",
+            api_url="https://api.github.com/graphql",
+            repo_urls=repo_urls,
+            manifests_by_repo={},
+            required_repo_urls={"https://github.com/acme/active"},
+        )
+    )
+    assert dependencies == []
+    assert failed_repos == []
+    assert summary["repos_scanned"] == 2
+    assert summary["strict_repos_scanned"] == 1
+    assert summary["strict_exempt_repos"] == 1
+    assert summary["sbom_successes"] == 1
+    assert summary["missing_dependency_graph"] == 1
+    assert summary["strict_failures"] == 0

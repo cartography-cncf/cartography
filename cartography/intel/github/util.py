@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import random
 import time
 from datetime import datetime
 from datetime import timedelta
@@ -27,6 +28,23 @@ _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
 _REST_RATE_LIMIT_REMAINING_THRESHOLD = 100
 # Search API has a stricter rate limit (30 requests/minute for authenticated users)
 _SEARCH_RATE_LIMIT_REMAINING_THRESHOLD = 5
+
+
+class GitHubRestApiError(RuntimeError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        category: str = "unknown",
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.category = category
+
+
+class GitHubGraphqlPartialDataError(RuntimeError):
+    """Raised when GraphQL pagination can only continue with known partial data."""
 
 
 class PaginatedGraphqlData(NamedTuple):
@@ -80,7 +98,7 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> dic
         )
     except requests.exceptions.Timeout:
         # Add context and re-raise for callers to handle
-        logger.warning("GitHub: requests.get('%s') timed out.", api_url)
+        logger.warning("GitHub: requests.post('%s') timed out.", api_url)
         raise
     response.raise_for_status()
     response_json = response.json()
@@ -90,6 +108,38 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> dic
             f"continuing sync.",
         )
     return response_json  # type: ignore
+
+
+def _is_transient_graphql_error(error: dict[str, Any]) -> bool:
+    """
+    Return True if a GitHub GraphQL error looks transient/retriable.
+    """
+    message = str(error.get("message", "")).lower()
+    error_type = str(error.get("type", "")).upper()
+    return (
+        "timedout" in message
+        or "timeout" in message
+        or "service unavailable" in message
+        or "something went wrong" in message
+        or error_type
+        in {
+            "INTERNAL",
+            "INTERNAL_ERROR",
+            "INTERNAL_SERVER_ERROR",
+            "SERVER_ERROR",
+            "SERVICE_UNAVAILABLE",
+        }
+    )
+
+
+def _has_transient_graphql_errors(resp: dict[str, Any]) -> bool:
+    errors = resp.get("errors")
+    if not isinstance(errors, list):
+        return False
+    return any(
+        isinstance(error, dict) and _is_transient_graphql_error(error)
+        for error in errors
+    )
 
 
 def fetch_page(
@@ -129,6 +179,7 @@ def fetch_all(
     resource_type: str,
     retries: int = 5,
     resource_inner_type: str | None = None,
+    fail_on_incomplete_graphql_response: bool = False,
     **kwargs: Any,
 ) -> tuple[PaginatedGraphqlData, dict[str, Any]]:
     """
@@ -145,6 +196,8 @@ def fetch_all(
     :param resource_inner_type: Optional str. Default = None. Sometimes we need to paginate a field that is inside
     `resource_type` - for example: organization['team']['repositories']. In this case, we specify 'repositories' as the
     `resource_inner_type`.
+    :param fail_on_incomplete_graphql_response: When True, raise instead of silently continuing on minimum-page transient
+        GraphQL errors or malformed responses that indicate incomplete data.
     :param kwargs: Additional key-value args (other than `login` and `cursor`) to pass to the GraphQL query variables.
     :return: A 2-tuple containing 1. A list of data items of the given `resource_type` and `field_name`,  and 2. a dict
     containing the `url` and the `login` fields of the organization that the items belong to.
@@ -157,6 +210,7 @@ def fetch_all(
 
     while has_next_page:
         exc: Any = None
+        resp: dict[str, Any] = {}
         try:
             # In the future, we may use also use the rateLimit object from the graphql response.
             # But we still need at least one call to the REST endpoint in case the graphql remaining is already 0
@@ -199,12 +253,37 @@ def fetch_all(
             time.sleep(2**retry)
             continue
 
+        has_transient_graphql_errors = _has_transient_graphql_errors(resp)
+        if has_transient_graphql_errors and kwargs.get("count"):
+            if kwargs["count"] > 1:
+                kwargs["count"] = max(1, kwargs["count"] // 2)
+                logger.warning(
+                    "GitHub: Received transient GraphQL errors for `%s`. Reducing page size to %s and retrying.",
+                    resource_type,
+                    kwargs["count"],
+                )
+                continue
+            logger.warning(
+                "GitHub: Received transient GraphQL errors for `%s` at minimum page size; continuing with partial data.",
+                resource_type,
+            )
+            if fail_on_incomplete_graphql_response:
+                raise GitHubGraphqlPartialDataError(
+                    f"GitHub GraphQL returned partial data at minimum page size for resource "
+                    f"{resource_type} in organization {organization}",
+                )
+
         if "data" not in resp:
             logger.warning(
                 f'Got no "data" attribute in response: {resp}. '
                 f"Stopping requests for organization: {organization} and "
                 f"resource_type: {resource_type}",
             )
+            if fail_on_incomplete_graphql_response:
+                raise GitHubGraphqlPartialDataError(
+                    f'GitHub GraphQL response was missing "data" for resource '
+                    f"{resource_type} in organization {organization}",
+                )
             has_next_page = False
             continue
 
@@ -374,6 +453,136 @@ def fetch_all_rest_api_pages(
                     break
 
     return results
+
+
+def _categorize_rest_http_error(
+    response: requests.Response | None,
+    endpoint: str,
+) -> tuple[str, bool]:
+    status_code = response.status_code if response is not None else None
+    message = ""
+    retry_after = None
+    if response is not None:
+        retry_after = response.headers.get("Retry-After")
+        try:
+            body = response.json()
+            message = str(body.get("message", ""))
+        except ValueError:
+            message = response.text[:512]
+
+    return _categorize_rest_http_error_values(
+        status_code=status_code,
+        message=message,
+        retry_after=retry_after,
+        endpoint=endpoint,
+    )
+
+
+def _categorize_rest_http_error_values(
+    *,
+    status_code: int | None,
+    message: str,
+    retry_after: str | None,
+    endpoint: str,
+) -> tuple[str, bool]:
+    message_lower = message.lower()
+    if status_code == 404 and "/dependency-graph/sbom" in endpoint:
+        return "missing_dependency_graph", False
+    if status_code in (401, 404):
+        return "permission_denied", False
+    if status_code == 403:
+        if (
+            "secondary rate limit" in message_lower
+            or "rate limit" in message_lower
+            or retry_after is not None
+        ):
+            return "rate_limited", True
+        return "permission_denied", False
+    if status_code == 429:
+        return "rate_limited", True
+    if status_code is not None and 500 <= status_code < 600:
+        return "transient_network", True
+    return "unknown", False
+
+
+def _sleep_for_rate_limit(response: requests.Response | None, attempt: int) -> None:
+    sleep_seconds = min(60, 2**attempt) + random.uniform(0.0, 0.5)
+    if response is not None:
+        retry_after = response.headers.get("Retry-After")
+        if retry_after and retry_after.isdigit():
+            sleep_seconds = float(retry_after)
+        elif response.headers.get("X-RateLimit-Reset"):
+            try:
+                reset_epoch = int(response.headers["X-RateLimit-Reset"])
+                now_epoch = int(datetime.now(tz.utc).timestamp())
+                if reset_epoch > now_epoch:
+                    sleep_seconds = max(sleep_seconds, float(reset_epoch - now_epoch))
+            except ValueError:
+                pass
+    time.sleep(sleep_seconds)
+
+
+def call_github_rest_api_with_retries(
+    endpoint: str,
+    token: str,
+    api_url: str = "https://api.github.com",
+    params: dict[str, Any] | None = None,
+    retries: int = 5,
+) -> dict[str, Any]:
+    """
+    Calls the GitHub REST API with retry/backoff semantics for transient failures.
+    """
+    base_url = (
+        _get_rest_api_base_url(api_url)
+        if api_url.endswith("/graphql")
+        else api_url.rstrip("/")
+    )
+    url = f"{base_url}{endpoint}"
+
+    for attempt in range(1, retries + 1):
+        headers = {
+            "Authorization": f"Bearer {_resolve_token(token)}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        try:
+            response = requests.get(
+                url, headers=headers, params=params, timeout=_TIMEOUT
+            )
+            response.raise_for_status()
+            result: dict[str, Any] = response.json()
+            return result
+        except (
+            requests.exceptions.Timeout,
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ConnectionError,
+        ):
+            if attempt >= retries:
+                raise GitHubRestApiError(
+                    f"GitHub REST API timed out calling {url}",
+                    category="transient_network",
+                ) from None
+            time.sleep(min(60, 2**attempt) + random.uniform(0.0, 0.5))
+            continue
+        except requests.exceptions.HTTPError as err:
+            category, should_retry = _categorize_rest_http_error(err.response, endpoint)
+            status_code = err.response.status_code if err.response is not None else None
+            if should_retry and attempt < retries:
+                if category == "rate_limited":
+                    _sleep_for_rate_limit(err.response, attempt)
+                else:
+                    time.sleep(min(60, 2**attempt) + random.uniform(0.0, 0.5))
+                continue
+            raise GitHubRestApiError(
+                f"GitHub REST API request failed for {url}",
+                status_code=status_code,
+                category=category,
+            ) from err
+
+    raise GitHubRestApiError(
+        f"GitHub REST API request failed for {url}",
+        category="unknown",
+    )
 
 
 def call_github_rest_api(
