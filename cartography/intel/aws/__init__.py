@@ -141,6 +141,18 @@ def _sync_one_account(
         common_job_parameters,
     )
 
+    run_analysis_job(
+        "aws_lb_container_exposure.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+    run_analysis_job(
+        "aws_lb_nacl_direct.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
     merge_module_sync_metadata(
         neo4j_session,
         group_type="AWSAccount",

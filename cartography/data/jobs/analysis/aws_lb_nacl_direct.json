@@ -1,0 +1,15 @@
+{
+  "name": "AWS LoadBalancer to NACL direct relationship",
+  "statements": [
+    {
+      "__comment": "Cleanup: Remove all previous PROTECTED_BY_NACL relationships",
+      "query": "MATCH ()-[r:PROTECTED_BY_NACL]->() DELETE r",
+      "iterative": false
+    },
+    {
+      "__comment": "Create: PROTECTED_BY_NACL relationships via subnet traversal",
+      "query": "MATCH (lb:AWSLoadBalancerV2)-[:SUBNET]->(subnet:EC2Subnet)<-[:PART_OF_SUBNET]-(nacl:EC2NetworkAcl) MERGE (lb)-[r:PROTECTED_BY_NACL]->(nacl) SET r.lastupdated = $UPDATE_TAG, r.via_subnet = subnet.subnetid",
+      "iterative": false
+    }
+  ]
+}
