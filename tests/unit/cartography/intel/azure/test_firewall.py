@@ -1,5 +1,5 @@
-from cartography.intel.azure.firewall import transform_firewalls
 from cartography.intel.azure.firewall import transform_firewall_policies
+from cartography.intel.azure.firewall import transform_firewalls
 from cartography.intel.azure.firewall import transform_ip_configurations
 
 
@@ -35,15 +35,24 @@ def test_transform_firewalls():
     result = transform_firewalls(raw_data)
 
     assert len(result) == 1
-    assert result[0]["id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1"
+    assert (
+        result[0]["id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1"
+    )
     assert result[0]["name"] == "fw1"
     assert result[0]["location"] == "eastus"
     assert result[0]["sku_name"] == "AZFW_VNet"
     assert result[0]["sku_tier"] == "Premium"
     assert result[0]["threat_intel_mode"] == "Alert"
     assert result[0]["provisioning_state"] == "Succeeded"
-    assert result[0]["firewall_policy_id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/firewallPolicies/policy1"
-    assert result[0]["vnet_id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet1"
+    assert (
+        result[0]["firewall_policy_id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/firewallPolicies/policy1"
+    )
+    assert (
+        result[0]["vnet_id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet1"
+    )
     assert result[0]["ip_configuration_count"] == 1
 
 
@@ -60,7 +69,10 @@ def test_transform_firewalls_handles_missing_optional_fields():
     result = transform_firewalls(raw_data)
 
     assert len(result) == 1
-    assert result[0]["id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1"
+    assert (
+        result[0]["id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1"
+    )
     assert result[0]["name"] == "fw1"
     assert result[0]["sku_name"] is None
     assert result[0]["firewall_policy_id"] is None
@@ -93,15 +105,21 @@ def test_transform_firewall_policies():
     result = transform_firewall_policies(raw_data)
 
     assert len(result) == 1
-    assert result[0]["id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/firewallPolicies/policy1"
+    assert (
+        result[0]["id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/firewallPolicies/policy1"
+    )
     assert result[0]["name"] == "policy1"
     assert result[0]["location"] == "eastus"
     assert result[0]["sku_tier"] == "Premium"
-    assert result[0]["threatIntelMode"] == "Alert"
-    assert result[0]["provisioningState"] == "Succeeded"
-    assert result[0]["basePolicyId"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/firewallPolicies/parent-policy"
-    assert result[0]["dnsEnableProxy"] is True
-    assert result[0]["dnsServers"] is not None
+    assert result[0]["threat_intel_mode"] == "Alert"
+    assert result[0]["provisioning_state"] == "Succeeded"
+    assert (
+        result[0]["base_policy_id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/firewallPolicies/parent-policy"
+    )
+    assert result[0]["dns_enable_proxy"] is True
+    assert result[0]["dns_servers"] is not None
 
 
 def test_transform_firewall_policies_handles_missing_optional_fields():
@@ -117,11 +135,14 @@ def test_transform_firewall_policies_handles_missing_optional_fields():
     result = transform_firewall_policies(raw_data)
 
     assert len(result) == 1
-    assert result[0]["id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/firewallPolicies/policy1"
+    assert (
+        result[0]["id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/firewallPolicies/policy1"
+    )
     assert result[0]["name"] == "policy1"
     assert result[0]["sku_tier"] is None
-    assert result[0]["basePolicyId"] is None
-    assert result[0]["dnsEnableProxy"] is None
+    assert result[0]["base_policy_id"] is None
+    assert result[0]["dns_enable_proxy"] is None
 
 
 def test_transform_ip_configurations():
@@ -161,19 +182,34 @@ def test_transform_ip_configurations():
     result = transform_ip_configurations(raw_data)
 
     assert len(result) == 2
-    
+
     # Check first IP configuration
-    assert result[0]["id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1/azureFirewallIpConfigurations/ipconfig1"
+    assert (
+        result[0]["id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1/azureFirewallIpConfigurations/ipconfig1"
+    )
     assert result[0]["name"] == "ipconfig1"
     assert result[0]["private_ip_address"] == "10.0.1.4"
     assert result[0]["private_ip_allocation_method"] == "Dynamic"
     assert result[0]["provisioning_state"] == "Succeeded"
-    assert result[0]["subnet_id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/AzureFirewallSubnet"
-    assert result[0]["public_ip_address_id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip1"
-    assert result[0]["firewall_id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1"
-    
+    assert (
+        result[0]["subnet_id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/AzureFirewallSubnet"
+    )
+    assert (
+        result[0]["public_ip_address_id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip1"
+    )
+    assert (
+        result[0]["firewall_id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1"
+    )
+
     # Check second IP configuration
-    assert result[1]["id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1/azureFirewallIpConfigurations/ipconfig2"
+    assert (
+        result[1]["id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1/azureFirewallIpConfigurations/ipconfig2"
+    )
     assert result[1]["name"] == "ipconfig2"
     assert result[1]["private_ip_address"] == "10.0.1.5"
 
@@ -213,12 +249,15 @@ def test_transform_ip_configurations_includes_management_ip():
     result = transform_ip_configurations(raw_data)
 
     assert len(result) == 2
-    
+
     # Check that management IP is included
     mgmt_ips = [ip for ip in result if ip["name"] == "mgmt-ipconfig"]
     assert len(mgmt_ips) == 1
     assert mgmt_ips[0]["private_ip_address"] == "10.0.1.10"
-    assert mgmt_ips[0]["subnet_id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/AzureFirewallManagementSubnet"
+    assert (
+        mgmt_ips[0]["subnet_id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/AzureFirewallManagementSubnet"
+    )
 
 
 def test_transform_ip_configurations_handles_missing_optional_fields():
@@ -238,7 +277,10 @@ def test_transform_ip_configurations_handles_missing_optional_fields():
     result = transform_ip_configurations(raw_data)
 
     assert len(result) == 1
-    assert result[0]["id"] == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1/azureFirewallIpConfigurations/ipconfig1"
+    assert (
+        result[0]["id"]
+        == "/subscriptions/test/resourceGroups/rg/providers/Microsoft.Network/azureFirewalls/fw1/azureFirewallIpConfigurations/ipconfig1"
+    )
     assert result[0]["name"] == "ipconfig1"
     assert result[0]["private_ip_address"] is None
     assert result[0]["subnet_id"] is None

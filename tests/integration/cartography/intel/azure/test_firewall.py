@@ -435,7 +435,7 @@ def test_sync_azure_firewalls_cleanup(
         SET p.name = 'old-policy', p.lastupdated = $old_tag
         WITH p
         MATCH (s:AzureSubscription{id: $sub_id})
-        MERGE (p)-[r:RESOURCE]->(s)
+        MERGE (s)-[r:RESOURCE]->(p)
         SET r.lastupdated = $old_tag
         """,
         policy_id="/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/firewallPolicies/old-policy",

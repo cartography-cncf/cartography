@@ -206,7 +206,7 @@ def _sync_one_subscription(
     )
     firewall.sync(
         neo4j_session,
-        credentials.credential,
+        credentials,
         subscription_id,
         update_tag,
         common_job_parameters,
@@ -255,8 +255,12 @@ def _sync_tenant(
 ) -> None:
     logger.info("Syncing Azure Tenant: %s", credentials.tenant_id)
     tenant.sync(
-        neo4j_session, credentials.tenant_id, None, update_tag, common_job_parameters
-    )  # type: ignore
+        neo4j_session,
+        credentials.tenant_id or "",
+        None,
+        update_tag,
+        common_job_parameters,
+    )
 
 
 def _sync_multiple_subscriptions(

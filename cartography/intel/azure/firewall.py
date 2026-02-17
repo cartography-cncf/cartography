@@ -8,6 +8,7 @@ from azure.mgmt.network import NetworkManagementClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.azure.util.credentials import Credentials
 from cartography.models.azure.firewall.azure_firewall import AzureFirewallSchema
 from cartography.models.azure.firewall.firewall_policy import AzureFirewallPolicySchema
 from cartography.models.azure.firewall.ip_configuration import (
@@ -19,11 +20,13 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_client(credentials: Any, subscription_id: str) -> NetworkManagementClient:
+def get_client(
+    credentials: Credentials, subscription_id: str
+) -> NetworkManagementClient:
     """
     Create Azure Network Management client
     """
-    return NetworkManagementClient(credentials, subscription_id)
+    return NetworkManagementClient(credentials.credential, subscription_id)
 
 
 @timeit
@@ -73,10 +76,10 @@ def get_firewall_policy_rule_groups(
         )
         return [rg.as_dict() for rg in rule_groups]
     except HttpResponseError as e:
-        logger.warning(f"Failed to retrieve rule groups for policy {policy_id}: {e}")
+        logger.warning("Failed to retrieve rule groups for policy %s: %s", policy_id, e)
         return []
     except (IndexError, ValueError) as e:
-        logger.warning(f"Failed to parse policy ID {policy_id}: {e}")
+        logger.warning("Failed to parse policy ID %s: %s", policy_id, e)
         return []
 
 
@@ -90,7 +93,7 @@ def get_ip_groups(client: NetworkManagementClient) -> list[dict[str, Any]]:
         ip_groups = list(client.ip_groups.list())
         return [ipg.as_dict() for ipg in ip_groups]
     except HttpResponseError as e:
-        logger.warning(f"Failed to retrieve IP Groups: {e}")
+        logger.warning("Failed to retrieve IP Groups: %s", e)
         return []
 
 
@@ -246,99 +249,99 @@ def transform_firewall_policies(policies: list[dict[str, Any]]) -> list[dict[str
             "etag": policy.get("etag"),
             "tags": json.dumps(policy.get("tags")) if policy.get("tags") else None,
             # Provisioning and configuration
-            "provisioningState": policy.get("provisioning_state"),
-            "threatIntelMode": policy.get("threat_intel_mode"),
+            "provisioning_state": policy.get("provisioning_state"),
+            "threat_intel_mode": policy.get("threat_intel_mode"),
             "size": policy.get("size"),
             # SKU
             "sku_tier": sku.get("tier"),
             # Parent policy
-            "basePolicyId": policy.get("base_policy", {}).get("id"),
+            "base_policy_id": policy.get("base_policy", {}).get("id"),
             # DNS Settings
-            "dnsEnableProxy": dns_settings.get("enable_proxy"),
-            "dnsRequireProxyForNetworkRules": dns_settings.get(
-                "require_proxy_for_network_rules"
+            "dns_enable_proxy": dns_settings.get("enable_proxy"),
+            "dns_require_proxy_for_network_rules": dns_settings.get(
+                "require_proxy_for_network_rules",
             ),
-            "dnsServers": (
+            "dns_servers": (
                 json.dumps(dns_settings.get("servers"))
                 if dns_settings.get("servers")
                 else None
             ),
             # SQL Settings
-            "sqlAllowSqlRedirect": sql_settings.get("allow_sql_redirect"),
+            "sql_allow_sql_redirect": sql_settings.get("allow_sql_redirect"),
             # SNAT Settings - security critical (defines what gets NATted)
-            "snatPrivateRanges": (
+            "snat_private_ranges": (
                 json.dumps(snat_settings.get("private_ranges"))
                 if snat_settings.get("private_ranges")
                 else None
             ),
-            "snatAutoLearnPrivateRanges": snat_settings.get(
-                "auto_learn_private_ranges"
+            "snat_auto_learn_private_ranges": snat_settings.get(
+                "auto_learn_private_ranges",
             ),
             # Explicit Proxy Settings - security critical (proxy ports)
-            "explicitProxyEnable": explicit_proxy.get("enable_explicit_proxy"),
-            "explicitProxyHttpPort": explicit_proxy.get("http_port"),
-            "explicitProxyHttpsPort": explicit_proxy.get("https_port"),
-            "explicitProxyEnablePacFile": explicit_proxy.get("enable_pac_file"),
-            "explicitProxyPacFilePort": explicit_proxy.get("pac_file_port"),
-            "explicitProxyPacFile": explicit_proxy.get("pac_file"),
+            "explicit_proxy_enable": explicit_proxy.get("enable_explicit_proxy"),
+            "explicit_proxy_http_port": explicit_proxy.get("http_port"),
+            "explicit_proxy_https_port": explicit_proxy.get("https_port"),
+            "explicit_proxy_enable_pac_file": explicit_proxy.get("enable_pac_file"),
+            "explicit_proxy_pac_file_port": explicit_proxy.get("pac_file_port"),
+            "explicit_proxy_pac_file": explicit_proxy.get("pac_file"),
             # Intrusion Detection - security critical
-            "intrusionDetectionMode": (
+            "intrusion_detection_mode": (
                 intrusion_detection.get("mode") if intrusion_detection else None
             ),
-            "intrusionDetectionProfile": (
+            "intrusion_detection_profile": (
                 intrusion_detection.get("profile") if intrusion_detection else None
             ),
             # Insights
-            "insightsIsEnabled": insights.get("is_enabled") if insights else None,
-            "insightsRetentionDays": (
+            "insights_is_enabled": insights.get("is_enabled") if insights else None,
+            "insights_retention_days": (
                 insights.get("retention_days") if insights else None
             ),
             # Transport Security
-            "transportSecurityCaName": cert_authority.get("name"),
-            "transportSecurityKeyVaultSecretId": cert_authority.get(
-                "key_vault_secret_id"
+            "transport_security_ca_name": cert_authority.get("name"),
+            "transport_security_key_vault_secret_id": cert_authority.get(
+                "key_vault_secret_id",
             ),
             # Threat Intel Whitelist - security critical (bypass rules)
-            "threatIntelWhitelistIpAddresses": (
+            "threat_intel_whitelist_ip_addresses": (
                 json.dumps(threat_intel_whitelist.get("ip_addresses"))
                 if threat_intel_whitelist.get("ip_addresses")
                 else None
             ),
-            "threatIntelWhitelistFqdns": (
+            "threat_intel_whitelist_fqdns": (
                 json.dumps(threat_intel_whitelist.get("fqdns"))
                 if threat_intel_whitelist.get("fqdns")
                 else None
             ),
             # Intrusion Detection Configuration - security critical (bypass traffic, signature overrides)
-            "intrusionDetectionSignatureOverrides": (
+            "intrusion_detection_signature_overrides": (
                 json.dumps(intrusion_config.get("signature_overrides"))
                 if intrusion_config.get("signature_overrides")
                 else None
             ),
-            "intrusionDetectionBypassTraffic": (
+            "intrusion_detection_bypass_traffic": (
                 json.dumps(intrusion_config.get("bypass_traffic_settings"))
                 if intrusion_config.get("bypass_traffic_settings")
                 else None
             ),
-            "intrusionDetectionPrivateRanges": (
+            "intrusion_detection_private_ranges": (
                 json.dumps(intrusion_config.get("private_ranges"))
                 if intrusion_config.get("private_ranges")
                 else None
             ),
             # Rule Collection Groups - security critical (references to actual rules)
-            "ruleCollectionGroups": (
+            "rule_collection_groups": (
                 json.dumps(policy.get("rule_collection_groups"))
                 if policy.get("rule_collection_groups")
                 else None
             ),
             # Detailed rule groups with actual security rules (ports, protocols, addresses)
-            "ruleGroupsDetail": (
+            "rule_groups_detail": (
                 json.dumps(policy.get("_rule_groups_detail"))
                 if policy.get("_rule_groups_detail")
                 else None
             ),
             # Parent/Child relationships
-            "childPolicies": (
+            "child_policies": (
                 json.dumps(policy.get("child_policies"))
                 if policy.get("child_policies")
                 else None
@@ -495,7 +498,7 @@ def cleanup(
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    credentials: Any,
+    credentials: Credentials,
     subscription_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],

@@ -24,77 +24,83 @@ class AzureFirewallPolicyProperties(CartographyNodeProperties):
     type: PropertyRef = PropertyRef("type")
     etag: PropertyRef = PropertyRef("etag")
     tags: PropertyRef = PropertyRef("tags")
-    provisioning_state: PropertyRef = PropertyRef("provisioningState")
-    threat_intel_mode: PropertyRef = PropertyRef("threatIntelMode")
+    provisioning_state: PropertyRef = PropertyRef("provisioning_state")
+    threat_intel_mode: PropertyRef = PropertyRef("threat_intel_mode")
     size: PropertyRef = PropertyRef("size")
     sku_tier: PropertyRef = PropertyRef("sku_tier")
-    base_policy_id: PropertyRef = PropertyRef("basePolicyId")
+    base_policy_id: PropertyRef = PropertyRef("base_policy_id")
 
     # DNS Settings
-    dns_enable_proxy: PropertyRef = PropertyRef("dnsEnableProxy")
+    dns_enable_proxy: PropertyRef = PropertyRef("dns_enable_proxy")
     dns_require_proxy_for_network_rules: PropertyRef = PropertyRef(
-        "dnsRequireProxyForNetworkRules"
+        "dns_require_proxy_for_network_rules",
     )
-    dns_servers: PropertyRef = PropertyRef("dnsServers")
+    dns_servers: PropertyRef = PropertyRef("dns_servers")
 
     # SQL Settings
-    sql_allow_sql_redirect: PropertyRef = PropertyRef("sqlAllowSqlRedirect")
+    sql_allow_sql_redirect: PropertyRef = PropertyRef("sql_allow_sql_redirect")
 
     # SNAT Settings
-    snat_private_ranges: PropertyRef = PropertyRef("snatPrivateRanges")
+    snat_private_ranges: PropertyRef = PropertyRef("snat_private_ranges")
     snat_auto_learn_private_ranges: PropertyRef = PropertyRef(
-        "snatAutoLearnPrivateRanges"
+        "snat_auto_learn_private_ranges",
     )
 
     # Explicit Proxy Settings
-    explicit_proxy_enable: PropertyRef = PropertyRef("explicitProxyEnable")
-    explicit_proxy_http_port: PropertyRef = PropertyRef("explicitProxyHttpPort")
-    explicit_proxy_https_port: PropertyRef = PropertyRef("explicitProxyHttpsPort")
+    explicit_proxy_enable: PropertyRef = PropertyRef("explicit_proxy_enable")
+    explicit_proxy_http_port: PropertyRef = PropertyRef("explicit_proxy_http_port")
+    explicit_proxy_https_port: PropertyRef = PropertyRef("explicit_proxy_https_port")
     explicit_proxy_enable_pac_file: PropertyRef = PropertyRef(
-        "explicitProxyEnablePacFile"
+        "explicit_proxy_enable_pac_file",
     )
-    explicit_proxy_pac_file_port: PropertyRef = PropertyRef("explicitProxyPacFilePort")
-    explicit_proxy_pac_file: PropertyRef = PropertyRef("explicitProxyPacFile")
+    explicit_proxy_pac_file_port: PropertyRef = PropertyRef(
+        "explicit_proxy_pac_file_port"
+    )
+    explicit_proxy_pac_file: PropertyRef = PropertyRef("explicit_proxy_pac_file")
 
     # Intrusion Detection Settings
-    intrusion_detection_mode: PropertyRef = PropertyRef("intrusionDetectionMode")
-    intrusion_detection_profile: PropertyRef = PropertyRef("intrusionDetectionProfile")
+    intrusion_detection_mode: PropertyRef = PropertyRef("intrusion_detection_mode")
+    intrusion_detection_profile: PropertyRef = PropertyRef(
+        "intrusion_detection_profile"
+    )
 
     # Insights Settings
-    insights_is_enabled: PropertyRef = PropertyRef("insightsIsEnabled")
-    insights_retention_days: PropertyRef = PropertyRef("insightsRetentionDays")
+    insights_is_enabled: PropertyRef = PropertyRef("insights_is_enabled")
+    insights_retention_days: PropertyRef = PropertyRef("insights_retention_days")
 
     # Transport Security
-    transport_security_ca_name: PropertyRef = PropertyRef("transportSecurityCaName")
+    transport_security_ca_name: PropertyRef = PropertyRef("transport_security_ca_name")
     transport_security_key_vault_secret_id: PropertyRef = PropertyRef(
-        "transportSecurityKeyVaultSecretId"
+        "transport_security_key_vault_secret_id",
     )
 
     # Threat Intel Whitelist - IPs and FQDNs that bypass threat intelligence
     threat_intel_whitelist_ip_addresses: PropertyRef = PropertyRef(
-        "threatIntelWhitelistIpAddresses"
+        "threat_intel_whitelist_ip_addresses",
     )
-    threat_intel_whitelist_fqdns: PropertyRef = PropertyRef("threatIntelWhitelistFqdns")
+    threat_intel_whitelist_fqdns: PropertyRef = PropertyRef(
+        "threat_intel_whitelist_fqdns"
+    )
 
     # Intrusion Detection - detailed security rules
     intrusion_detection_signature_overrides: PropertyRef = PropertyRef(
-        "intrusionDetectionSignatureOverrides"
+        "intrusion_detection_signature_overrides",
     )
     intrusion_detection_bypass_traffic: PropertyRef = PropertyRef(
-        "intrusionDetectionBypassTraffic"
+        "intrusion_detection_bypass_traffic",
     )
     intrusion_detection_private_ranges: PropertyRef = PropertyRef(
-        "intrusionDetectionPrivateRanges"
+        "intrusion_detection_private_ranges",
     )
 
     # Rule Collection Groups - references to actual firewall rule sets
-    rule_collection_groups: PropertyRef = PropertyRef("ruleCollectionGroups")
+    rule_collection_groups: PropertyRef = PropertyRef("rule_collection_groups")
 
     # Detailed rule groups with full security rule data (ports, protocols, addresses)
-    rule_groups_detail: PropertyRef = PropertyRef("ruleGroupsDetail")
+    rule_groups_detail: PropertyRef = PropertyRef("rule_groups_detail")
 
     # Parent/Child Policy relationships
-    child_policies: PropertyRef = PropertyRef("childPolicies")
+    child_policies: PropertyRef = PropertyRef("child_policies")
     firewalls: PropertyRef = PropertyRef("firewalls")
 
 
@@ -147,7 +153,7 @@ class AzureFirewallPolicyToParentPolicyRel(CartographyRelSchema):
 
     target_node_label: str = "AzureFirewallPolicy"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("basePolicyId")},
+        {"id": PropertyRef("base_policy_id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "INHERITS_FROM"
