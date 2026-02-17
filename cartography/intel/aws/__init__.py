@@ -141,13 +141,13 @@ def _sync_one_account(
         common_job_parameters,
     )
 
-    run_analysis_job(
+    run_scoped_analysis_job(
         "aws_lb_container_exposure.json",
         neo4j_session,
         common_job_parameters,
     )
 
-    run_analysis_job(
+    run_scoped_analysis_job(
         "aws_lb_nacl_direct.json",
         neo4j_session,
         common_job_parameters,
