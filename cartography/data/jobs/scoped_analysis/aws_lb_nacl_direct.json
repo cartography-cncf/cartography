@@ -8,7 +8,7 @@
     },
     {
       "__comment": "Create: PROTECTS relationships via subnet traversal",
-      "query": "MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(lb:AWSLoadBalancerV2)-[:SUBNET]->(subnet:EC2Subnet)<-[:PART_OF_SUBNET]-(nacl:EC2NetworkAcl) MERGE (nacl)-[r:PROTECTS]->(lb) SET r.lastupdated = $UPDATE_TAG, r.via_subnet = subnet.subnetid",
+      "query": "MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(lb:AWSLoadBalancerV2)-[:SUBNET]->(subnet:EC2Subnet)<-[:PART_OF_SUBNET]-(nacl:EC2NetworkAcl) MERGE (nacl)-[r:PROTECTS]->(lb) SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     }
   ]

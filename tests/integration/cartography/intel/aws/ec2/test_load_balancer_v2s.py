@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.aws.ec2.load_balancer_v2s
 from cartography.intel.aws.ec2.load_balancer_v2s import sync_load_balancer_v2s
+from cartography.util import run_scoped_analysis_job
 from tests.data.aws.ec2.load_balancer_v2s import GET_LOAD_BALANCER_V2_DATA
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
@@ -195,4 +196,145 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
     ) == {
         ("test-alb-1234567890.us-east-1.elb.amazonaws.com", "i-1234567890abcdef0"),
         ("test-alb-1234567890.us-east-1.elb.amazonaws.com", "i-0987654321fedcba0"),
+    }
+
+
+@patch.object(
+    cartography.intel.aws.ec2.load_balancer_v2s,
+    "get_loadbalancer_v2_data",
+    return_value=GET_LOAD_BALANCER_V2_DATA,
+)
+def test_nacl_protects_lb_analysis(mock_get_loadbalancer_v2_data, neo4j_session):
+    """
+    Test that the aws_lb_nacl_direct analysis job creates PROTECTS rels from NACLs to LBs.
+    """
+    # Arrange: sync LBs (creates LB nodes with SUBNET rels)
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _create_test_subnets_security_groups_and_instances(neo4j_session)
+    sync_load_balancer_v2s(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Create a NACL attached to subnet-11111111
+    neo4j_session.run(
+        "MERGE (nacl:EC2NetworkAcl{id: 'acl-11111111'}) SET nacl.lastupdated = $tag",
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MATCH (nacl:EC2NetworkAcl{id: 'acl-11111111'}), (s:EC2Subnet{subnetid: 'subnet-11111111'}) "
+        "MERGE (nacl)-[:PART_OF_SUBNET]->(s)",
+    )
+
+    # Act
+    run_scoped_analysis_job(
+        "aws_lb_nacl_direct.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "EC2NetworkAcl",
+        "id",
+        "AWSLoadBalancerV2",
+        "id",
+        "PROTECTS",
+        rel_direction_right=True,
+    ) == {
+        ("acl-11111111", "test-alb-1234567890.us-east-1.elb.amazonaws.com"),
+    }
+
+
+@patch.object(
+    cartography.intel.aws.ec2.load_balancer_v2s,
+    "get_loadbalancer_v2_data",
+    return_value=GET_LOAD_BALANCER_V2_DATA,
+)
+def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_session):
+    """
+    Test that the aws_lb_container_exposure analysis job creates EXPOSE rels from LBs to ECS containers.
+    """
+    # Arrange: sync LBs to get the internet-facing ALB with RESOURCE rel to AWSAccount
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _create_test_subnets_security_groups_and_instances(neo4j_session)
+    sync_load_balancer_v2s(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Manually create the full traversal chain:
+    # LB -[:EXPOSE]-> EC2PrivateIp <-[:PRIVATE_IP_ADDRESS]- NetworkInterface
+    #   <-[:NETWORK_INTERFACE]- ECSTask -[:HAS_CONTAINER]-> ECSContainer
+    lb_id = "test-alb-1234567890.us-east-1.elb.amazonaws.com"
+    neo4j_session.run(
+        "MERGE (ip:EC2PrivateIp{id: '10.0.0.50'}) SET ip.lastupdated = $tag",
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MATCH (lb:AWSLoadBalancerV2{id: $lb_id}), (ip:EC2PrivateIp{id: '10.0.0.50'}) "
+        "MERGE (lb)-[:EXPOSE]->(ip)",
+        lb_id=lb_id,
+    )
+    neo4j_session.run(
+        "MERGE (ni:NetworkInterface{id: 'eni-test123'}) SET ni.lastupdated = $tag",
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MATCH (ni:NetworkInterface{id: 'eni-test123'}), (ip:EC2PrivateIp{id: '10.0.0.50'}) "
+        "MERGE (ni)-[:PRIVATE_IP_ADDRESS]->(ip)",
+    )
+    neo4j_session.run(
+        "MERGE (task:ECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}) "
+        "SET task.lastupdated = $tag",
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MATCH (task:ECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}), "
+        "(ni:NetworkInterface{id: 'eni-test123'}) "
+        "MERGE (task)-[:NETWORK_INTERFACE]->(ni)",
+    )
+    neo4j_session.run(
+        "MERGE (c:ECSContainer{id: 'arn:aws:ecs:us-east-1:000000000000:container/cluster/task1/web'}) "
+        "SET c.lastupdated = $tag, c.name = 'web'",
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MATCH (task:ECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}), "
+        "(c:ECSContainer{id: 'arn:aws:ecs:us-east-1:000000000000:container/cluster/task1/web'}) "
+        "MERGE (task)-[:HAS_CONTAINER]->(c)",
+    )
+
+    # Act
+    run_scoped_analysis_job(
+        "aws_lb_container_exposure.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert
+    assert check_rels(
+        neo4j_session,
+        "AWSLoadBalancerV2",
+        "id",
+        "ECSContainer",
+        "id",
+        "EXPOSE",
+        rel_direction_right=True,
+    ) == {
+        (
+            lb_id,
+            "arn:aws:ecs:us-east-1:000000000000:container/cluster/task1/web",
+        ),
     }

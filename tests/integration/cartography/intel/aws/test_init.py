@@ -382,7 +382,7 @@ def test_sync_one_account_just_iam_rels_and_tags(
     # _sync_one_account() above did not specify regions, so we expect 1 call to _autodiscover_account_regions().
     assert mock_autodiscover.call_count == 1
     assert mock_cleanup.call_count == 0
-    assert mock_analysis.call_count == 3
+    assert mock_analysis.call_count == 1
 
 
 def test_standardize_aws_sync_kwargs():
