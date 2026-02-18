@@ -12,6 +12,7 @@ U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
+CT -- RESOLVED_IMAGE --> IM
 DB{{Database}}
 OS{{ObjectStorage}}
 TN{{Tenant}}
@@ -242,6 +243,15 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 | _ont_region | The region or zone where the container is running. |
 | _ont_namespace | Namespace for logical isolation (e.g., Kubernetes namespace). |
 | _ont_health_status | The health status of the container. |
+
+#### Relationships
+
+- `Container` resolves to one or many `Image` (semantic label). This relationship is derived from two graph patterns:
+    - Direct: `(:Container)-[:HAS_IMAGE]->(:Image)`
+    - Via manifest list: `(:Container)-[:HAS_IMAGE]->(:ImageManifestList)-[:CONTAINS_IMAGE]->(:Image)`
+    ```
+    (:Container)-[:RESOLVED_IMAGE]->(:Image)
+    ```
 
 
 ### ThirdPartyApp
