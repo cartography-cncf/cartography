@@ -16,14 +16,18 @@ kind: ClusterRole
 metadata:
   name: cartography-viewer
 rules:
-# Core resources
+# Namespaces - list for namespace sync, get for kube-system cluster metadata
 - apiGroups: [""]
   resources:
     - namespaces
+  verbs: ["get", "list"]
+# Core resources - list only
+- apiGroups: [""]
+  resources:
     - pods
     - services
     - serviceaccounts
-  verbs: ["get", "list"]
+  verbs: ["list"]
 # Secrets - list only, no read access
 - apiGroups: [""]
   resources:
@@ -36,7 +40,7 @@ rules:
     - rolebindings
     - clusterroles
     - clusterrolebindings
-  verbs: ["get", "list"]
+  verbs: ["list"]
 # Networking resources
 - apiGroups: ["networking.k8s.io"]
   resources:
