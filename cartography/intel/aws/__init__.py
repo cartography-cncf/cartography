@@ -86,6 +86,7 @@ def _sync_one_account(
         "ec2:images": ["ec2:instance"],
         "ec2:load_balancer": ["ec2:subnet", "ec2:instance"],
         "ec2:load_balancer_v2": ["ec2:subnet", "ec2:instance"],
+        "ec2:load_balancer_v2:expose": ["ec2:load_balancer_v2", "ec2:network_interface"],
         "ec2:route_table": ["ec2:vpc_endpoint"],
         "dynamodb": ["kms"],
     }
@@ -141,7 +142,7 @@ def _sync_one_account(
         common_job_parameters,
     )
 
-    if {"ecs", "ec2:load_balancer_v2"}.issubset(requested_syncs_set):
+    if {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"}.issubset(requested_syncs_set):
         run_scoped_analysis_job(
             "aws_lb_container_exposure.json",
             neo4j_session,
@@ -360,7 +361,7 @@ def _perform_aws_analysis(
 
     run_analysis_and_ensure_deps(
         "aws_ecs_asset_exposure.json",
-        {"ecs", "ec2:load_balancer_v2"},
+        {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"},
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
