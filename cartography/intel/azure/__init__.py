@@ -5,6 +5,8 @@ from typing import List
 import neo4j
 
 from cartography.config import Config
+from cartography.util import run_analysis_job
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 from . import aks
@@ -245,6 +247,16 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
+    run_scoped_analysis_job(
+        "azure_lb_exposure.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+    run_scoped_analysis_job(
+        "azure_firewall_lb_protection.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
 
 def _sync_tenant(
@@ -358,5 +370,11 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             credentials.tenant_id,
             subscriptions,
             config.update_tag,
+            common_job_parameters,
+        )
+
+        run_analysis_job(
+            "azure_compute_asset_exposure.json",
+            neo4j_session,
             common_job_parameters,
         )

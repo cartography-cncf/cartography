@@ -9,11 +9,9 @@ MOCK_LOAD_BALANCERS = [
             {
                 "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/loadBalancers/my-test-lb/frontendIPConfigurations/my-lb-frontend",
                 "name": "my-lb-frontend",
-                "properties": {
-                    "private_ip_address": "10.0.0.4",
-                    "public_ip_address": {
-                        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/my-public-ip"
-                    },
+                "private_ip_address": "10.0.0.4",
+                "public_ip_address": {
+                    "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/publicIPAddresses/my-public-ip",
                 },
             },
         ],
@@ -21,19 +19,20 @@ MOCK_LOAD_BALANCERS = [
             {
                 "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/loadBalancers/my-test-lb/backendAddressPools/my-lb-backend-pool",
                 "name": "my-lb-backend-pool",
-                "properties": {},
+                "backend_ip_configurations": [
+                    {
+                        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/networkInterfaces/my-test-nic/ipConfigurations/ipconfig1",
+                    },
+                ],
             },
         ],
         "load_balancing_rules": [
             {
                 "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/loadBalancers/my-test-lb/loadBalancingRules/my-http-rule",
                 "name": "my-http-rule",
-                "properties": {
-                    "protocol": "Tcp",
-                    "frontend_port": 80,
-                    "backend_port": 80,
-                },
-                # These objects are at the top level in the real API response
+                "protocol": "Tcp",
+                "frontend_port": 80,
+                "backend_port": 80,
                 "frontend_ip_configuration": {
                     "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/loadBalancers/my-test-lb/frontendIPConfigurations/my-lb-frontend",
                 },
@@ -46,11 +45,9 @@ MOCK_LOAD_BALANCERS = [
             {
                 "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.Network/loadBalancers/my-test-lb/inboundNatRules/my-rdp-rule",
                 "name": "my-rdp-rule",
-                "properties": {
-                    "protocol": "Tcp",
-                    "frontend_port": 3389,
-                    "backend_port": 3389,
-                },
+                "protocol": "Tcp",
+                "frontend_port": 3389,
+                "backend_port": 3389,
             },
         ],
     },

@@ -194,8 +194,10 @@ def transform_network_interfaces(network_interfaces: list[dict]) -> list[dict]:
                 private_ips.append(private_ip)
 
         # Handle case where virtual_machine can be None (unattached NIC)
+        # Lowercase the VM ID to match the normalized VM node id (Azure APIs
+        # return inconsistent casing for resource group names across services)
         vm_ref = interface.get("virtual_machine")
-        vm_id = vm_ref.get("id") if vm_ref else None
+        vm_id = vm_ref.get("id").lower() if vm_ref and vm_ref.get("id") else None
 
         transformed.append(
             {

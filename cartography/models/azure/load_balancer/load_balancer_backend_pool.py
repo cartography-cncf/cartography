@@ -40,6 +40,24 @@ class AzureLoadBalancerBackendPoolToLBRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class AzureLoadBalancerBackendPoolToNICRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AzureLoadBalancerBackendPoolToNICRel(CartographyRelSchema):
+    target_node_label: str = "AzureNetworkInterface"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("NIC_IDS", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ROUTES_TO"
+    properties: AzureLoadBalancerBackendPoolToNICRelProperties = (
+        AzureLoadBalancerBackendPoolToNICRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class AzureLoadBalancerBackendPoolToSubscriptionRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -69,5 +87,6 @@ class AzureLoadBalancerBackendPoolSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             AzureLoadBalancerBackendPoolToLBRel(),
+            AzureLoadBalancerBackendPoolToNICRel(),
         ],
     )
