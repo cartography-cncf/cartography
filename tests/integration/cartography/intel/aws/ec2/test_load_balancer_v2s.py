@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import cartography.intel.aws.ec2.load_balancer_v2s
+from cartography.intel.aws.ec2.load_balancer_v2s import sync_load_balancer_v2_expose
 from cartography.intel.aws.ec2.load_balancer_v2s import sync_load_balancer_v2s
 from cartography.util import run_scoped_analysis_job
 from tests.data.aws.ec2.load_balancer_v2s import GET_LOAD_BALANCER_V2_DATA
@@ -185,6 +186,77 @@ def test_sync_load_balancer_v2s(mock_get_loadbalancer_v2_data, neo4j_session):
 
     # Assert - Relationships (AWSLoadBalancerV2)-[EXPOSE]->(EC2Instance)
     # Only for target groups with target type = instance
+    assert check_rels(
+        neo4j_session,
+        "AWSLoadBalancerV2",
+        "id",
+        "EC2Instance",
+        "instanceid",
+        "EXPOSE",
+        rel_direction_right=True,
+    ) == {
+        ("test-alb-1234567890.us-east-1.elb.amazonaws.com", "i-1234567890abcdef0"),
+        ("test-alb-1234567890.us-east-1.elb.amazonaws.com", "i-0987654321fedcba0"),
+    }
+
+
+@patch.object(
+    cartography.intel.aws.ec2.load_balancer_v2s,
+    "get_loadbalancer_v2_data",
+    return_value=GET_LOAD_BALANCER_V2_DATA,
+)
+def test_sync_load_balancer_v2_expose(mock_get_loadbalancer_v2_data, neo4j_session):
+    """
+    Ensure that Phase 2 (sync_load_balancer_v2_expose) creates EXPOSE rels to EC2PrivateIp.
+    """
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _create_test_subnets_security_groups_and_instances(neo4j_session)
+
+    # Phase 1: sync LB nodes + non-IP matchlinks
+    sync_load_balancer_v2s(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Create EC2PrivateIp nodes (normally created by ec2:network_interface)
+    for ip in ["10.0.0.50", "10.0.0.51"]:
+        neo4j_session.run(
+            "MERGE (ip:EC2PrivateIp{id: $ip}) SET ip.lastupdated = $tag, ip.private_ip_address = $ip",
+            ip=ip,
+            tag=TEST_UPDATE_TAG,
+        )
+
+    # Act: Phase 2 - sync IP target matchlinks
+    sync_load_balancer_v2_expose(
+        neo4j_session,
+        boto3_session,
+        [TEST_REGION],
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+    )
+
+    # Assert - Relationships (AWSLoadBalancerV2)-[EXPOSE]->(EC2PrivateIp)
+    assert check_rels(
+        neo4j_session,
+        "AWSLoadBalancerV2",
+        "id",
+        "EC2PrivateIp",
+        "id",
+        "EXPOSE",
+        rel_direction_right=True,
+    ) == {
+        ("test-alb-1234567890.us-east-1.elb.amazonaws.com", "10.0.0.50"),
+        ("test-alb-1234567890.us-east-1.elb.amazonaws.com", "10.0.0.51"),
+    }
+
+    # Assert - Instance EXPOSE rels from Phase 1 still exist
     assert check_rels(
         neo4j_session,
         "AWSLoadBalancerV2",

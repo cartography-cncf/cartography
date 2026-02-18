@@ -225,9 +225,11 @@ def load_load_balancer_v2s(
             AWS_ID=current_aws_account_id,
         )
 
-    # Load target relationships
+    # Load non-IP target relationships (instance, lambda, alb)
+    # IP targets are deferred to sync_load_balancer_v2_expose so that EC2PrivateIp nodes
+    # created by ec2:network_interface exist first.
     if target_data:
-        _load_load_balancer_v2_targets(
+        _load_load_balancer_v2_non_ip_targets(
             neo4j_session,
             target_data,
             current_aws_account_id,
@@ -235,16 +237,14 @@ def load_load_balancer_v2s(
         )
 
 
-def _load_load_balancer_v2_targets(
+def _load_load_balancer_v2_non_ip_targets(
     neo4j_session: neo4j.Session,
     target_data: List[Dict],
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
-    """Load EXPOSE relationships to various target types using MatchLinks."""
-    # Group targets by type
+    """Load EXPOSE relationships to non-IP target types (instance, lambda, alb) using MatchLinks."""
     instance_targets = [t for t in target_data if t["TargetType"] == "instance"]
-    ip_targets = [t for t in target_data if t["TargetType"] == "ip"]
     lambda_targets = [t for t in target_data if t["TargetType"] == "lambda"]
     alb_targets = [t for t in target_data if t["TargetType"] == "alb"]
 
@@ -253,16 +253,6 @@ def _load_load_balancer_v2_targets(
             neo4j_session,
             LoadBalancerV2ToEC2InstanceMatchLink(),
             instance_targets,
-            lastupdated=update_tag,
-            _sub_resource_label="AWSAccount",
-            _sub_resource_id=current_aws_account_id,
-        )
-
-    if ip_targets:
-        load_matchlinks(
-            neo4j_session,
-            LoadBalancerV2ToEC2PrivateIpMatchLink(),
-            ip_targets,
             lastupdated=update_tag,
             _sub_resource_label="AWSAccount",
             _sub_resource_id=current_aws_account_id,
@@ -283,6 +273,26 @@ def _load_load_balancer_v2_targets(
             neo4j_session,
             LoadBalancerV2ToLoadBalancerV2MatchLink(),
             alb_targets,
+            lastupdated=update_tag,
+            _sub_resource_label="AWSAccount",
+            _sub_resource_id=current_aws_account_id,
+        )
+
+
+def _load_load_balancer_v2_ip_targets(
+    neo4j_session: neo4j.Session,
+    target_data: List[Dict],
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    """Load EXPOSE relationships to IP target types (EC2PrivateIp) using MatchLinks."""
+    ip_targets = [t for t in target_data if t["TargetType"] == "ip"]
+
+    if ip_targets:
+        load_matchlinks(
+            neo4j_session,
+            LoadBalancerV2ToEC2PrivateIpMatchLink(),
+            ip_targets,
             lastupdated=update_tag,
             _sub_resource_label="AWSAccount",
             _sub_resource_id=current_aws_account_id,
@@ -344,7 +354,13 @@ def load_load_balancer_v2_target_groups(
                 }
             )
     if target_data:
-        _load_load_balancer_v2_targets(
+        _load_load_balancer_v2_non_ip_targets(
+            neo4j_session,
+            target_data,
+            current_aws_account_id,
+            update_tag,
+        )
+        _load_load_balancer_v2_ip_targets(
             neo4j_session,
             target_data,
             current_aws_account_id,
@@ -358,11 +374,10 @@ def cleanup_load_balancer_v2s(
     common_job_parameters: Dict,
 ) -> None:
     """Delete elbv2's and dependent resources in the DB without the most recent
-    lastupdated tag."""
-    # Cleanup target MatchLinks first (relationships must be cleaned before nodes)
+    lastupdated tag. Cleans up non-IP MatchLinks, nodes, and listeners."""
+    # Cleanup non-IP target MatchLinks first (relationships must be cleaned before nodes)
     for matchlink in [
         LoadBalancerV2ToEC2InstanceMatchLink(),
-        LoadBalancerV2ToEC2PrivateIpMatchLink(),
         LoadBalancerV2ToAWSLambdaMatchLink(),
         LoadBalancerV2ToLoadBalancerV2MatchLink(),
     ]:
@@ -387,6 +402,20 @@ def cleanup_load_balancer_v2s(
 
 
 @timeit
+def cleanup_load_balancer_v2_expose(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+) -> None:
+    """Cleanup stale IP target MatchLinks (EC2PrivateIp EXPOSE relationships)."""
+    GraphJob.from_matchlink(
+        LoadBalancerV2ToEC2PrivateIpMatchLink(),
+        "AWSAccount",
+        common_job_parameters["AWS_ID"],
+        common_job_parameters["UPDATE_TAG"],
+    ).run(neo4j_session)
+
+
+@timeit
 def sync_load_balancer_v2s(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -395,6 +424,11 @@ def sync_load_balancer_v2s(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    """Phase 1: Sync LBv2 nodes, listeners, and non-IP MatchLinks (instance, lambda, alb).
+
+    IP target MatchLinks are deferred to sync_load_balancer_v2_expose (Phase 2)
+    so that EC2PrivateIp nodes created by ec2:network_interface exist first.
+    """
     _migrate_legacy_loadbalancerv2_labels(neo4j_session)
 
     for region in regions:
@@ -412,3 +446,34 @@ def sync_load_balancer_v2s(
             update_tag,
         )
     cleanup_load_balancer_v2s(neo4j_session, common_job_parameters)
+
+
+@timeit
+def sync_load_balancer_v2_expose(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.session.Session,
+    regions: List[str],
+    current_aws_account_id: str,
+    update_tag: int,
+    common_job_parameters: Dict,
+) -> None:
+    """Phase 2: Sync IP target MatchLinks (LBv2 -> EC2PrivateIp EXPOSE relationships).
+
+    Runs after ec2:network_interface so that EC2PrivateIp nodes exist.
+    Re-fetches LBv2 data from AWS API to get target information.
+    """
+    for region in regions:
+        logger.info(
+            "Syncing EC2 load balancer v2 IP targets for region '%s' in account '%s'.",
+            region,
+            current_aws_account_id,
+        )
+        data = get_loadbalancer_v2_data(boto3_session, region)
+        _, _, target_data = _transform_load_balancer_v2_data(data)
+        _load_load_balancer_v2_ip_targets(
+            neo4j_session,
+            target_data,
+            current_aws_account_id,
+            update_tag,
+        )
+    cleanup_load_balancer_v2_expose(neo4j_session, common_job_parameters)

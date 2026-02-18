@@ -30,6 +30,29 @@ stat_handler = get_stats_client(__name__)
 logger = logging.getLogger(__name__)
 
 
+# DEPRECATED: this is for backward compatibility, will be removed in v1.0.0
+def _normalize_requested_syncs(aws_requested_syncs: Iterable[str]) -> list[str]:
+    """
+    Auto-include dependent sync phases for backward compatibility.
+    E.g., requesting 'ec2:load_balancer_v2' alone will auto-include 'ec2:load_balancer_v2:expose'.
+    """
+    # Preserve order + dedupe
+    requested_syncs = list(dict.fromkeys(aws_requested_syncs))
+    requested_syncs_set = set(requested_syncs)
+
+    if (
+        "ec2:load_balancer_v2" in requested_syncs_set
+        and "ec2:load_balancer_v2:expose" not in requested_syncs_set
+    ):
+        requested_syncs.append("ec2:load_balancer_v2:expose")
+        logger.info(
+            "Auto-including 'ec2:load_balancer_v2:expose' because "
+            "'ec2:load_balancer_v2' was requested.",
+        )
+
+    return requested_syncs
+
+
 def _build_aws_sync_kwargs(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
@@ -71,6 +94,8 @@ def _sync_one_account(
         common_job_parameters,
     )
 
+    aws_requested_syncs = _normalize_requested_syncs(aws_requested_syncs)
+
     # Validate that all requested syncs exist
     requested_syncs_set = set(aws_requested_syncs)
     invalid_syncs = requested_syncs_set - set(RESOURCE_FUNCTIONS.keys())
@@ -86,6 +111,10 @@ def _sync_one_account(
         "ec2:images": ["ec2:instance"],
         "ec2:load_balancer": ["ec2:subnet", "ec2:instance"],
         "ec2:load_balancer_v2": ["ec2:subnet", "ec2:instance"],
+        "ec2:load_balancer_v2:expose": [
+            "ec2:load_balancer_v2",
+            "ec2:network_interface",
+        ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
         "dynamodb": ["kms"],
     }
@@ -141,7 +170,9 @@ def _sync_one_account(
         common_job_parameters,
     )
 
-    if {"ecs", "ec2:load_balancer_v2"}.issubset(requested_syncs_set):
+    if {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"}.issubset(
+        requested_syncs_set
+    ):
         run_scoped_analysis_job(
             "aws_lb_container_exposure.json",
             neo4j_session,
@@ -360,7 +391,7 @@ def _perform_aws_analysis(
 
     run_analysis_and_ensure_deps(
         "aws_ecs_asset_exposure.json",
-        {"ecs", "ec2:load_balancer_v2"},
+        {"ecs", "ec2:load_balancer_v2", "ec2:load_balancer_v2:expose"},
         requested_syncs_as_set,
         common_job_parameters,
         neo4j_session,
@@ -416,6 +447,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         requested_syncs = parse_and_validate_aws_requested_syncs(
             config.aws_requested_syncs,
         )
+    requested_syncs = _normalize_requested_syncs(requested_syncs)
 
     if config.aws_regions:
         regions = parse_and_validate_aws_regions(config.aws_regions)
