@@ -22,7 +22,6 @@ class ECSContainerNodeProperties(CartographyNodeProperties):
     image_digest: PropertyRef = PropertyRef("imageDigest")
     architecture: PropertyRef = PropertyRef("architecture")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
-    architecture_raw: PropertyRef = PropertyRef("architecture_raw")
     architecture_source: PropertyRef = PropertyRef("architecture_source")
     runtime_id: PropertyRef = PropertyRef("runtimeId")
     last_status: PropertyRef = PropertyRef("lastStatus", extra_index=True)
