@@ -422,7 +422,7 @@ def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
     if legacy_count == 0:
         return
 
-    logger.info(f"Migrating {legacy_count} legacy Package nodes to TrivyPackage...")
+    logger.info("Migrating %d legacy Package nodes to TrivyPackage...", legacy_count)
     migration_query = """
     MATCH (n:Package)
     WHERE NOT n:TrivyPackage AND NOT n:Ontology
@@ -431,7 +431,7 @@ def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
     RETURN count(n) as migrated
     """
     result = neo4j_session.run(migration_query)
-    logger.info(f"Migrated {result.single()['migrated']} Package nodes to TrivyPackage")
+    logger.info("Migrated %d Package nodes to TrivyPackage", result.single()["migrated"])
 
 
 @timeit
