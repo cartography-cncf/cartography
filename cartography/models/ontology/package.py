@@ -16,7 +16,6 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class PackageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("normalized_id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     version: PropertyRef = PropertyRef("version")
     type: PropertyRef = PropertyRef("type")

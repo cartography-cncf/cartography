@@ -450,14 +450,13 @@ Package is an abstract ontology node.
 ```
 
 A package represents a software package (library, dependency, or system package) discovered across different scanning tools.
-Package nodes are deduplicated by their `normalized_id`, which uses the format `{type}|{namespace/}{name}|{version}` for cross-tool matching.
+Package nodes are deduplicated by their `id`, which uses the format `{type}|{namespace/}{name}|{version}` for cross-tool matching.
 
 | Field | Description |
 |-------|-------------|
-| **id** | The unique identifier for the package (same as `normalized_id`). |
+| **id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). |
 | firstseen | Timestamp of when a sync job first created this node. |
 | lastupdated | Timestamp of the last time the node was updated. |
-| normalized_id | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
 | name | Name of the package. |
 | version | Version of the package. |
 | type | Package ecosystem type (e.g., npm, pypi, deb). |

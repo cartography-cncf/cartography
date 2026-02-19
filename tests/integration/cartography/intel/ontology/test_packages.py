@@ -129,7 +129,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     actual_packages = check_nodes(
         neo4j_session,
         "Package",
-        ["normalized_id", "name", "version", "type"],
+        ["id", "name", "version", "type"],
     )
     assert actual_packages == expected_packages
 
@@ -147,7 +147,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     actual_trivy_rels = check_rels(
         neo4j_session,
         "Package",
-        "normalized_id",
+        "id",
         "TrivyPackage",
         "normalized_id",
         "DETECTED_AS",
@@ -163,7 +163,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     actual_syft_rels = check_rels(
         neo4j_session,
         "Package",
-        "normalized_id",
+        "id",
         "SyftPackage",
         "normalized_id",
         "DETECTED_AS",
@@ -178,7 +178,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     actual_deployed_ecr = check_rels(
         neo4j_session,
         "Package",
-        "normalized_id",
+        "id",
         "ECRImage",
         "id",
         "DEPLOYED",
@@ -193,7 +193,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     actual_deployed_gitlab = check_rels(
         neo4j_session,
         "Package",
-        "normalized_id",
+        "id",
         "GitLabContainerImage",
         "id",
         "DEPLOYED",
@@ -210,7 +210,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         "TrivyImageFinding",
         "id",
         "Package",
-        "normalized_id",
+        "id",
         "AFFECTS",
         rel_direction_right=True,
     )
@@ -223,9 +223,9 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     actual_depends_on = check_rels(
         neo4j_session,
         "Package",
-        "normalized_id",
+        "id",
         "Package",
-        "normalized_id",
+        "id",
         "DEPENDS_ON",
         rel_direction_right=True,
     )
@@ -238,7 +238,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     actual_dep_rels = check_rels(
         neo4j_session,
         "Package",
-        "normalized_id",
+        "id",
         "Dependency",
         "normalized_id",
         "DETECTED_AS",
@@ -255,7 +255,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         "GitHubRepository",
         "id",
         "Package",
-        "normalized_id",
+        "id",
         "REQUIRES",
         rel_direction_right=True,
     )
