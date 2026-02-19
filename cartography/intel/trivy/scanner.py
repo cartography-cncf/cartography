@@ -431,7 +431,10 @@ def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
     RETURN count(n) as migrated
     """
     result = neo4j_session.run(migration_query)
-    logger.info("Migrated %d Package nodes to TrivyPackage", result.single()["migrated"])
+    logger.info(
+        "Migrated %d Package nodes to TrivyPackage",
+        result.single()["migrated"],
+    )
 
 
 @timeit
