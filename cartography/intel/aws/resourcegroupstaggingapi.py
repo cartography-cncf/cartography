@@ -390,7 +390,9 @@ def _run_cleanup_until_empty(
         result = tx.run(query, **params)
         summary = result.consume()
         stat_handler.incr("nodes_deleted", summary.counters.nodes_deleted)
-        stat_handler.incr("relationships_deleted", summary.counters.relationships_deleted)
+        stat_handler.incr(
+            "relationships_deleted", summary.counters.relationships_deleted
+        )
         return summary.counters.nodes_deleted + summary.counters.relationships_deleted
 
     total_deleted = 0
