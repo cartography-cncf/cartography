@@ -282,6 +282,50 @@ def enrich_container_architecture(
             updates=exact_updates,
         )
 
+    node_hint_rows = session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        MATCH (cluster:KubernetesCluster {id: $CLUSTER_ID})-[:RESOURCE]->(
+            c:KubernetesContainer {lastupdated: $UPDATE_TAG}
+        )
+        WHERE c.architecture_normalized IS NULL OR c.architecture_normalized = 'unknown'
+        MATCH (cluster)-[:RESOURCE]->(p:KubernetesPod)-[:CONTAINS]->(c)
+        MATCH (p)-[:RUNS_ON]->(n:KubernetesNode)
+        WHERE n.architecture IS NOT NULL
+        RETURN c.id AS container_id, n.id AS node_id, n.architecture AS architecture_raw
+        ORDER BY node_id ASC
+        """,
+        CLUSTER_ID=cluster_id,
+        UPDATE_TAG=update_tag,
+    )
+    node_hint_updates_by_container = {}
+    for row in node_hint_rows:
+        container_id = row["container_id"]
+        if container_id in node_hint_updates_by_container:
+            continue
+        normalized, _ = normalize_architecture_with_raw(row.get("architecture_raw"))
+        if normalized == "unknown":
+            continue
+        node_hint_updates_by_container[container_id] = {
+            "id": container_id,
+            "architecture": row.get("architecture_raw"),
+            "architecture_normalized": normalized,
+            "architecture_source": ARCH_SOURCE_CLUSTER_HINT,
+        }
+    node_hint_updates = list(node_hint_updates_by_container.values())
+    if node_hint_updates:
+        run_write_query(
+            session,
+            """
+            UNWIND $updates AS row
+            MATCH (c:KubernetesContainer {id: row.id})
+            SET c.architecture = row.architecture,
+                c.architecture_normalized = row.architecture_normalized,
+                c.architecture_source = row.architecture_source
+            """,
+            updates=node_hint_updates,
+        )
+
     fallback_rows = session.execute_read(
         read_list_of_dicts_tx,
         """
@@ -294,7 +338,7 @@ def enrich_container_architecture(
         CLUSTER_ID=cluster_id,
         UPDATE_TAG=update_tag,
     )
-    fallback_updates = []
+    cluster_hint_updates = []
     for row in fallback_rows:
         platform = row.get("platform")
         arch_hint = None
@@ -305,7 +349,7 @@ def enrich_container_architecture(
         normalized, _ = normalize_architecture_with_raw(arch_hint)
         if normalized == "unknown":
             continue
-        fallback_updates.append(
+        cluster_hint_updates.append(
             {
                 "id": row["container_id"],
                 "architecture": arch_hint,
@@ -313,7 +357,7 @@ def enrich_container_architecture(
                 "architecture_source": ARCH_SOURCE_CLUSTER_HINT,
             }
         )
-    if fallback_updates:
+    if cluster_hint_updates:
         run_write_query(
             session,
             """
@@ -323,7 +367,7 @@ def enrich_container_architecture(
                 c.architecture_normalized = row.architecture_normalized,
                 c.architecture_source = row.architecture_source
             """,
-            updates=fallback_updates,
+            updates=cluster_hint_updates,
         )
 
 
