@@ -267,6 +267,7 @@ def enrich_container_architecture(
         exact_updates_by_container[container_id] = {
             "id": container_id,
             "architecture": normalized,
+            "architecture_normalized": normalized,
             "architecture_raw": normalized_raw,
             "architecture_source": ARCH_SOURCE_IMAGE_DIGEST_EXACT,
         }
@@ -278,6 +279,7 @@ def enrich_container_architecture(
             UNWIND $updates AS row
             MATCH (c:KubernetesContainer {id: row.id})
             SET c.architecture = row.architecture,
+                c.architecture_normalized = row.architecture_normalized,
                 c.architecture_raw = row.architecture_raw,
                 c.architecture_source = row.architecture_source
             """,
@@ -290,7 +292,7 @@ def enrich_container_architecture(
         MATCH (cluster:KubernetesCluster {id: $CLUSTER_ID})-[:RESOURCE]->(
             c:KubernetesContainer {lastupdated: $UPDATE_TAG}
         )
-        WHERE c.architecture IS NULL OR c.architecture = 'unknown'
+        WHERE c.architecture_normalized IS NULL OR c.architecture_normalized = 'unknown'
         RETURN c.id AS container_id, cluster.platform AS platform
         """,
         CLUSTER_ID=cluster_id,
@@ -311,6 +313,7 @@ def enrich_container_architecture(
             {
                 "id": row["container_id"],
                 "architecture": normalized,
+                "architecture_normalized": normalized,
                 "architecture_raw": normalized_raw,
                 "architecture_source": ARCH_SOURCE_CLUSTER_HINT,
             }
@@ -322,6 +325,7 @@ def enrich_container_architecture(
             UNWIND $updates AS row
             MATCH (c:KubernetesContainer {id: row.id})
             SET c.architecture = row.architecture,
+                c.architecture_normalized = row.architecture_normalized,
                 c.architecture_raw = row.architecture_raw,
                 c.architecture_source = row.architecture_source
             """,

@@ -381,10 +381,15 @@ def test_kubernetes_container_architecture_exact_from_image(
     assert check_nodes(
         neo4j_session,
         "KubernetesContainer",
-        ["name", "architecture", "architecture_source"],
+        [
+            "name",
+            "architecture",
+            "architecture_normalized",
+            "architecture_source",
+        ],
     ) == {
-        ("my-pod-container", "arm64", "image_digest_exact"),
-        ("my-service-pod-container", "arm64", "image_digest_exact"),
+        ("my-pod-container", "arm64", "arm64", "image_digest_exact"),
+        ("my-service-pod-container", "arm64", "arm64", "image_digest_exact"),
     }
 
 
@@ -418,10 +423,15 @@ def test_kubernetes_container_architecture_cluster_fallback(
     assert check_nodes(
         neo4j_session,
         "KubernetesContainer",
-        ["name", "architecture", "architecture_source"],
+        [
+            "name",
+            "architecture",
+            "architecture_normalized",
+            "architecture_source",
+        ],
     ) == {
-        ("my-pod-container", "amd64", "cluster_hint"),
-        ("my-service-pod-container", "amd64", "cluster_hint"),
+        ("my-pod-container", "amd64", "amd64", "cluster_hint"),
+        ("my-service-pod-container", "amd64", "amd64", "cluster_hint"),
     }
 
 
