@@ -259,16 +259,13 @@ def enrich_container_architecture(
         container_id = row["container_id"]
         if container_id in exact_updates_by_container:
             continue
-        normalized, normalized_raw = normalize_architecture_with_raw(
-            row.get("architecture_raw")
-        )
+        normalized, _ = normalize_architecture_with_raw(row.get("architecture_raw"))
         if normalized == "unknown":
             continue
         exact_updates_by_container[container_id] = {
             "id": container_id,
-            "architecture": normalized,
+            "architecture": row.get("architecture_raw"),
             "architecture_normalized": normalized,
-            "architecture_raw": normalized_raw,
             "architecture_source": ARCH_SOURCE_IMAGE_DIGEST_EXACT,
         }
     exact_updates = list(exact_updates_by_container.values())
@@ -280,7 +277,6 @@ def enrich_container_architecture(
             MATCH (c:KubernetesContainer {id: row.id})
             SET c.architecture = row.architecture,
                 c.architecture_normalized = row.architecture_normalized,
-                c.architecture_raw = row.architecture_raw,
                 c.architecture_source = row.architecture_source
             """,
             updates=exact_updates,
@@ -306,15 +302,14 @@ def enrich_container_architecture(
             arch_hint = platform.split("/", 1)[1]
         elif isinstance(platform, str):
             arch_hint = platform
-        normalized, normalized_raw = normalize_architecture_with_raw(arch_hint)
+        normalized, _ = normalize_architecture_with_raw(arch_hint)
         if normalized == "unknown":
             continue
         fallback_updates.append(
             {
                 "id": row["container_id"],
-                "architecture": normalized,
+                "architecture": arch_hint,
                 "architecture_normalized": normalized,
-                "architecture_raw": normalized_raw,
                 "architecture_source": ARCH_SOURCE_CLUSTER_HINT,
             }
         )
@@ -326,7 +321,6 @@ def enrich_container_architecture(
             MATCH (c:KubernetesContainer {id: row.id})
             SET c.architecture = row.architecture,
                 c.architecture_normalized = row.architecture_normalized,
-                c.architecture_raw = row.architecture_raw,
                 c.architecture_source = row.architecture_source
             """,
             updates=fallback_updates,

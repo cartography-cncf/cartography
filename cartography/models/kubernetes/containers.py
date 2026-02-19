@@ -27,7 +27,6 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     status_image_sha: PropertyRef = PropertyRef("status_image_sha", extra_index=True)
     architecture: PropertyRef = PropertyRef("architecture")
     architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
-    architecture_raw: PropertyRef = PropertyRef("architecture_raw")
     architecture_source: PropertyRef = PropertyRef("architecture_source")
     status_ready: PropertyRef = PropertyRef("status_ready")
     status_started: PropertyRef = PropertyRef("status_started")
