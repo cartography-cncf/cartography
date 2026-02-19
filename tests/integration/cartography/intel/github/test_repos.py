@@ -369,7 +369,7 @@ def test_sync_github_dependencies(mock_get_collabs, mock_get_repos, neo4j_sessio
     expected_ontology_fields = {
         (react_id, "npm|react|18.2.0", "18.2.0", "npm", "pkg:npm/react@18.2.0"),
         (lodash_id, None, None, None, None),
-        (django_id, "pypi|django|4.2.0", "4.2.0", "pypi", "pkg:pypi/Django@4.2.0"),
+        (django_id, "pypi|django|4.2.0", "4.2.0", "pypi", "pkg:pypi/django@4.2.0"),
         (
             spring_core_id,
             "maven|org.springframework/spring-core|5.3.21",
