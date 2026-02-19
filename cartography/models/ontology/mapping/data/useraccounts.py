@@ -468,6 +468,45 @@ pagerduty_mapping = OntologyMapping(
     ],
 )
 
+workos_useraccounts_mapping = OntologyMapping(
+    module_name="workos",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="WorkOSUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="first_name"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="last_sign_in_at"
+                ),
+            ],
+        ),
+        OntologyNodeMapping(
+            node_label="WorkOSDirectoryUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="first_name"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="state",
+                    extra={"values": ["active"]},
+                    special_handling="equal_boolean",
+                ),
+            ],
+        ),
+    ],
+)
+
 # UserAccount fields:
 # has_mfa
 # inactive
@@ -495,4 +534,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "pagerduty": pagerduty_mapping,
+    "workos": workos_useraccounts_mapping,
 }

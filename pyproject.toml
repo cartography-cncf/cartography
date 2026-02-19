@@ -94,6 +94,7 @@ dependencies = [
     "azure-mgmt-synapse>=2.0.0",
     "azure-synapse-artifacts>=0.17.0",
     "slack-sdk>=3.37.0",
+    "workos>=5.41.0",
 ]
 # Comes from Git tag
 dynamic = [ "version" ]

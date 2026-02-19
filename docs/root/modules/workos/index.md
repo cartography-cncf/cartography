@@ -1,0 +1,6 @@
+# WorkOS
+
+```{toctree}
+config
+schema
+```
