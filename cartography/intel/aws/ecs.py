@@ -201,6 +201,7 @@ def _get_containers_from_tasks(
             c = container.copy()
             if task_architecture_raw is not None:
                 c["architecture"] = task_architecture
+                c["architecture_normalized"] = task_architecture
                 c["architecture_raw"] = task_architecture_raw
                 c["architecture_source"] = ARCH_SOURCE_RUNTIME_API_EXACT
             else:
@@ -212,6 +213,7 @@ def _get_containers_from_tasks(
                     )
                 if task_definition_arch:
                     c["architecture"] = task_definition_arch[0]
+                    c["architecture_normalized"] = task_definition_arch[0]
                     c["architecture_raw"] = task_definition_arch[1]
                     c["architecture_source"] = ARCH_SOURCE_TASK_DEFINITION_HINT
             containers.append(c)

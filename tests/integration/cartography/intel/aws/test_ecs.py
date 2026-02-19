@@ -198,10 +198,17 @@ def test_load_ecs_tasks(neo4j_session, *args):
     assert check_nodes(
         neo4j_session,
         "ECSContainer",
-        ["id", "architecture", "architecture_raw", "architecture_source"],
+        [
+            "id",
+            "architecture",
+            "architecture_normalized",
+            "architecture_raw",
+            "architecture_source",
+        ],
     ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
+            "amd64",
             "amd64",
             "x86_64",
             "runtime_api_exact",
@@ -240,10 +247,17 @@ def test_ecs_container_architecture_fallback_from_task_definition(neo4j_session)
     assert check_nodes(
         neo4j_session,
         "ECSContainer",
-        ["id", "architecture", "architecture_raw", "architecture_source"],
+        [
+            "id",
+            "architecture",
+            "architecture_normalized",
+            "architecture_raw",
+            "architecture_source",
+        ],
     ) == {
         (
             "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
+            "amd64",
             "amd64",
             "X86_64",
             "task_definition_hint",
