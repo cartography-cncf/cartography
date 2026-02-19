@@ -24,7 +24,8 @@ def _container_model_classes() -> list[Type[CartographyNodeSchema]]:
 
 
 def test_container_runtime_models_expose_architecture_contract() -> None:
-    required_fields = {"architecture", "architecture_raw", "architecture_source"}
+    required_fields = {"architecture", "architecture_source"}
+    raw_or_normalized_field_options = {"architecture_raw", "architecture_normalized"}
     models = _container_model_classes()
     assert models, "Expected at least one model with ExtraNodeLabels(['Container'])."
     for model_class in models:
@@ -33,4 +34,8 @@ def test_container_runtime_models_expose_architecture_contract() -> None:
         assert not missing, (
             f"{model_class.__name__} is missing required container runtime field(s): "
             f"{', '.join(sorted(missing))}"
+        )
+        assert available & raw_or_normalized_field_options, (
+            f"{model_class.__name__} must define one of: "
+            f"{', '.join(sorted(raw_or_normalized_field_options))}"
         )

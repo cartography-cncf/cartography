@@ -91,6 +91,10 @@ def guess_architecture_from_image_ref(ref: str | None) -> str:
         return "arm64"
     if "arm64-v8" in lowered:
         return "arm64"
+    if "-amd64" in lowered:
+        return "amd64"
+    if "-arm64" in lowered:
+        return "arm64"
     if "linux/arm/v7" in lowered or "arm/v7" in lowered:
         return "arm"
 

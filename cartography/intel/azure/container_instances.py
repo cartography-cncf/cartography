@@ -43,6 +43,10 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
     def get_group_property(
         group: dict[str, Any], snake_key: str, camel_key: str
     ) -> Any:
+        if snake_key in group:
+            return group.get(snake_key)
+        if camel_key in group:
+            return group.get(camel_key)
         properties = group.get("properties") or {}
         if snake_key in properties:
             return properties.get(snake_key)
@@ -73,15 +77,15 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
     for group in container_groups:
         image_refs = extract_image_refs(group)
         image_digests = extract_image_digests(image_refs)
-        architecture = "unknown"
-        architecture_raw = None
+        architecture = None
+        architecture_normalized = "unknown"
         architecture_source = None
         # Prefer digest-based exact image resolution; only apply image-ref guessing
         # when no digest is available on the container group payload.
         if not image_digests and image_refs:
-            architecture_raw = image_refs[0]
-            architecture = guess_architecture_from_image_ref(architecture_raw)
-            if architecture != "unknown":
+            architecture = image_refs[0]
+            architecture_normalized = guess_architecture_from_image_ref(architecture)
+            if architecture_normalized != "unknown":
                 architecture_source = ARCH_SOURCE_IMAGE_REF_HINT
 
         ip_data = get_group_property(group, "ip_address", "ipAddress")
@@ -96,7 +100,7 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
             "ip_address": ip_data.get("ip") if isinstance(ip_data, dict) else None,
             "os_type": get_group_property(group, "os_type", "osType"),
             "architecture": architecture,
-            "architecture_raw": architecture_raw,
+            "architecture_normalized": architecture_normalized,
             "architecture_source": architecture_source,
             "image_refs": image_refs,
             "image_digests": image_digests,
