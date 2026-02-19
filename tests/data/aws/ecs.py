@@ -292,6 +292,10 @@ GET_ECS_TASK_DEFINITIONS = [
             "FARGATE",
         ],
         "requiresCompatibilities": ["FARGATE"],
+        "runtimePlatform": {
+            "cpuArchitecture": "X86_64",
+            "operatingSystemFamily": "LINUX",
+        },
         "cpu": "256",
         "memory": "512",
         "registeredAt": datetime.datetime(
