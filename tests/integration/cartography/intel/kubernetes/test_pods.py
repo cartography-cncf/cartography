@@ -6,6 +6,7 @@ from cartography.intel.kubernetes.pods import cleanup
 from cartography.intel.kubernetes.pods import enrich_container_architecture
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
+from cartography.intel.kubernetes.pods import transform_containers
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
@@ -13,6 +14,7 @@ from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DAT
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_2_NAMESPACES_DATA
 from tests.data.kubernetes.pods import KUBERNETES_CONTAINER_DATA
 from tests.data.kubernetes.pods import KUBERNETES_PODS_DATA
+from tests.data.kubernetes.pods import KUBERNETES_PODS_LIVE_REDACTED_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -482,3 +484,47 @@ def test_kubernetes_container_has_image_relationship_to_gar(
         pod_name="my-service-pod",
     )
     assert result.single()["count"] == 0
+
+
+def test_kubernetes_live_redacted_pod_architecture_cluster_hint(
+    neo4j_session, _create_test_cluster
+):
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_LIVE_REDACTED_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+    load_containers(
+        neo4j_session,
+        transform_containers(KUBERNETES_PODS_LIVE_REDACTED_DATA),
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+    enrich_container_architecture(
+        neo4j_session,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesContainer",
+        [
+            "name",
+            "architecture",
+            "architecture_normalized",
+            "architecture_source",
+            "status_image_sha",
+        ],
+    ) >= {
+        (
+            "example-web",
+            "amd64",
+            "amd64",
+            "cluster_hint",
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        ),
+    }
