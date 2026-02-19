@@ -94,6 +94,8 @@ class IpRuleSchema(CartographyNodeSchema):
 @dataclass(frozen=True)
 class IpPermissionInboundSchema(CartographyNodeSchema):
     label: str = "AWSIpPermissionInbound"
+    # Keep AWSIpRule as an extra label so inbound rules are still queryable as
+    # the broader AWSIpRule type while preserving a provider-specific primary label.
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         ["IpPermissionInbound", "IpRule", "AWSIpRule"]
     )
