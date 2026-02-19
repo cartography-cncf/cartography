@@ -93,8 +93,9 @@ def guess_architecture_from_image_ref(ref: str | None) -> str:
     if "linux/arm/v7" in lowered or "arm/v7" in lowered:
         return "arm"
 
-    # Tokenized checks for registry/repo naming hints.
-    tokens = re.split(r"[^a-z0-9_./-]+", lowered)
+    # Tokenized checks for registry/repo naming hints. Split on common path/tag
+    # separators so suffixes like "worker-arm64" are recognized.
+    tokens = re.split(r"[^a-z0-9]+", lowered)
     for token in tokens:
         arch = normalize_architecture(token)
         if arch != "unknown":
