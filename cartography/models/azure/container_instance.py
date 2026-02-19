@@ -25,6 +25,7 @@ class AzureContainerInstanceProperties(CartographyNodeProperties):
     ip_address: PropertyRef = PropertyRef("ip_address")
     os_type: PropertyRef = PropertyRef("os_type")
     architecture: PropertyRef = PropertyRef("architecture")
+    architecture_normalized: PropertyRef = PropertyRef("architecture_normalized")
     architecture_raw: PropertyRef = PropertyRef("architecture_raw")
     architecture_source: PropertyRef = PropertyRef("architecture_source")
     image_refs: PropertyRef = PropertyRef("image_refs")

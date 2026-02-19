@@ -96,6 +96,7 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
             "ip_address": ip_data.get("ip") if isinstance(ip_data, dict) else None,
             "os_type": get_group_property(group, "os_type", "osType"),
             "architecture": architecture,
+            "architecture_normalized": architecture,
             "architecture_raw": architecture_raw,
             "architecture_source": architecture_source,
             "image_refs": image_refs,

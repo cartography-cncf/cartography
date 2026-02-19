@@ -48,13 +48,20 @@ def test_sync_container_instances(mock_get, neo4j_session):
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/my-test-aci",
             "my-test-aci",
             "unknown",
+            "unknown",
             None,
         ),
     }
     actual_nodes = check_nodes(
         neo4j_session,
         "AzureContainerInstance",
-        ["id", "name", "architecture", "architecture_source"],
+        [
+            "id",
+            "name",
+            "architecture",
+            "architecture_normalized",
+            "architecture_source",
+        ],
     )
     assert actual_nodes == expected_nodes
 
@@ -179,6 +186,7 @@ def test_transform_container_instances_accepts_camel_case_properties():
             "ip_address": "20.1.1.1",
             "os_type": "Linux",
             "architecture": "unknown",
+            "architecture_normalized": "unknown",
             "architecture_raw": None,
             "architecture_source": None,
             "image_refs": ["myregistry.azurecr.io/team/app@sha256:def456"],
