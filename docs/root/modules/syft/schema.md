@@ -36,6 +36,14 @@ Self-referential dependency relationships between SyftPackage nodes.
 
 Direction: Parent package DEPENDS_ON its dependency (child package).
 
+### Package DETECTED_AS SyftPackage
+
+Link from the canonical ontology Package node to the SyftPackage source node.
+
+```
+(:Package)-[:DETECTED_AS]->(:SyftPackage)
+```
+
 ## Direct vs Transitive Dependencies
 
 Direct and transitive dependencies are determined by graph structure rather than stored properties:

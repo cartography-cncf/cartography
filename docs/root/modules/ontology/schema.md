@@ -20,8 +20,11 @@ REPO{{CodeRepository}}
 SC{{Secret}}
 PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
+PKG(Package) -- DEPLOYED --> IM{{Image}}
+PKG -- DEPENDS_ON --> PKG
+F[TrivyImageFinding] -- AFFECTS --> PKG
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
-IT -- IMAGE --> IM{{Image}}
+IT -- IMAGE --> IM
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
 IA{{ImageAttestation}} -- ATTESTS --> IM
 IM -- HAS_LAYER --> IL{{ImageLayer}}
@@ -435,6 +438,47 @@ If field `ip_version` is null, it should not be considered as `4` or `6`, only a
 - `PublicIP` can point to one or many `ComputeInstance` (semantic label) that have this IP:
     ```
     (:PublicIP)-[:POINTS_TO]->(:ComputeInstance)
+    ```
+
+
+### Package
+
+```{note}
+Package is an abstract ontology node.
+```
+
+A package represents a software package (library, dependency, or system package) discovered across different scanning tools.
+Package nodes are deduplicated by their `normalized_id`, which uses the format `{type}|{namespace/}{name}|{version}` for cross-tool matching.
+
+| Field | Description |
+|-------|-------------|
+| **id** | The unique identifier for the package (same as `normalized_id`). |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| normalized_id | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
+| name | Name of the package. |
+| version | Version of the package. |
+| type | Package ecosystem type (e.g., npm, pypi, deb). |
+| purl | Package URL (e.g., `pkg:npm/express@4.18.2`). |
+
+#### Relationships
+
+- `Package` is linked to one or many source nodes that detected it:
+    ```
+    (:Package)-[:DETECTED_AS]->(:TrivyPackage)
+    (:Package)-[:DETECTED_AS]->(:SyftPackage)
+    ```
+- `Package` can be deployed in one or many container images (propagated from TrivyPackage):
+    ```
+    (:Package)-[:DEPLOYED]->(:Image)
+    ```
+- `Package` can be affected by one or many vulnerability findings (propagated from TrivyPackage):
+    ```
+    (:TrivyImageFinding)-[:AFFECTS]->(:Package)
+    ```
+- `Package` can depend on other packages (propagated from SyftPackage):
+    ```
+    (:Package)-[:DEPENDS_ON]->(:Package)
     ```
 
 
