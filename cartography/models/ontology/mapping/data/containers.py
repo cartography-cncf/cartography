@@ -33,13 +33,6 @@ aws_ecs_container_mapping = OntologyMapping(
     ],
     rels=[
         OntologyRelMapping(
-            __comment__="Delete stale ECSContainer RESOLVED_IMAGE relationships for this run.",
-            query=(
-                "MATCH (c:ECSContainer {lastupdated: $UPDATE_TAG})-[r:RESOLVED_IMAGE]->(:Image) "
-                "DELETE r"
-            ),
-        ),
-        OntologyRelMapping(
             __comment__="Create deterministic architecture-aware RESOLVED_IMAGE for ECSContainer.",
             query=(
                 "MATCH (c:ECSContainer {lastupdated: $UPDATE_TAG}) "
@@ -55,6 +48,12 @@ aws_ecs_container_mapping = OntologyMapping(
                 "  ORDER BY cand.priority ASC, cand.id ASC "
                 "  LIMIT 1 "
                 "} "
+                "WITH c, cand "
+                "OPTIONAL MATCH (c)-[existing:RESOLVED_IMAGE]->(existing_img:Image) "
+                "WHERE cand IS NULL OR existing_img.id <> cand.id "
+                "DELETE existing "
+                "WITH c, cand "
+                "WHERE cand IS NOT NULL "
                 "MATCH (resolved:Image {id: cand.id}) "
                 "MERGE (c)-[r:RESOLVED_IMAGE]->(resolved) "
                 "ON CREATE SET r.firstseen = timestamp() "
@@ -94,13 +93,6 @@ kubernetes_mapping = OntologyMapping(
     ],
     rels=[
         OntologyRelMapping(
-            __comment__="Delete stale KubernetesContainer RESOLVED_IMAGE relationships for this run.",
-            query=(
-                "MATCH (c:KubernetesContainer {lastupdated: $UPDATE_TAG})-[r:RESOLVED_IMAGE]->(:Image) "
-                "DELETE r"
-            ),
-        ),
-        OntologyRelMapping(
             __comment__="Create deterministic architecture-aware RESOLVED_IMAGE for KubernetesContainer.",
             query=(
                 "MATCH (c:KubernetesContainer {lastupdated: $UPDATE_TAG}) "
@@ -116,6 +108,12 @@ kubernetes_mapping = OntologyMapping(
                 "  ORDER BY cand.priority ASC, cand.id ASC "
                 "  LIMIT 1 "
                 "} "
+                "WITH c, cand "
+                "OPTIONAL MATCH (c)-[existing:RESOLVED_IMAGE]->(existing_img:Image) "
+                "WHERE cand IS NULL OR existing_img.id <> cand.id "
+                "DELETE existing "
+                "WITH c, cand "
+                "WHERE cand IS NOT NULL "
                 "MATCH (resolved:Image {id: cand.id}) "
                 "MERGE (c)-[r:RESOLVED_IMAGE]->(resolved) "
                 "ON CREATE SET r.firstseen = timestamp() "
@@ -153,20 +151,17 @@ azure_mapping = OntologyMapping(
     ],
     rels=[
         OntologyRelMapping(
-            __comment__="Delete stale AzureContainerInstance RESOLVED_IMAGE relationships for this run.",
-            query=(
-                "MATCH (c:AzureContainerInstance {lastupdated: $UPDATE_TAG})-[r:RESOLVED_IMAGE]->(:Image) "
-                "DELETE r"
-            ),
-        ),
-        OntologyRelMapping(
             __comment__="Create deterministic digest-based RESOLVED_IMAGE for AzureContainerInstance.",
             query=(
                 "MATCH (c:AzureContainerInstance {lastupdated: $UPDATE_TAG}) "
                 "WITH c, coalesce(c.image_digests, []) AS image_digests "
-                "OPTIONAL MATCH (img_direct:Image) "
-                "WHERE img_direct.digest IN image_digests "
-                "WITH c, [x IN collect(DISTINCT {id: img_direct.id, priority: 0}) WHERE x.id IS NOT NULL] AS candidates "
+                "CALL { "
+                "  WITH image_digests "
+                "  UNWIND image_digests AS image_digest "
+                "  MATCH (img_direct:Image {digest: image_digest}) "
+                "  RETURN collect(DISTINCT {id: img_direct.id, priority: 0}) AS digest_candidates "
+                "} "
+                "WITH c, [x IN digest_candidates WHERE x.id IS NOT NULL] AS candidates "
                 "CALL { "
                 "  WITH candidates "
                 "  UNWIND candidates AS cand "
@@ -174,6 +169,12 @@ azure_mapping = OntologyMapping(
                 "  ORDER BY cand.priority ASC, cand.id ASC "
                 "  LIMIT 1 "
                 "} "
+                "WITH c, cand "
+                "OPTIONAL MATCH (c)-[existing:RESOLVED_IMAGE]->(existing_img:Image) "
+                "WHERE cand IS NULL OR existing_img.id <> cand.id "
+                "DELETE existing "
+                "WITH c, cand "
+                "WHERE cand IS NOT NULL "
                 "MATCH (resolved:Image {id: cand.id}) "
                 "MERGE (c)-[r:RESOLVED_IMAGE]->(resolved) "
                 "ON CREATE SET r.firstseen = timestamp() "

@@ -382,7 +382,7 @@ def test_kubernetes_container_architecture_exact_from_image(
         neo4j_session,
         "KubernetesContainer",
         ["name", "architecture", "architecture_source"],
-    ) >= {
+    ) == {
         ("my-pod-container", "arm64", "image_digest_exact"),
         ("my-service-pod-container", "arm64", "image_digest_exact"),
     }
@@ -419,7 +419,7 @@ def test_kubernetes_container_architecture_cluster_fallback(
         neo4j_session,
         "KubernetesContainer",
         ["name", "architecture", "architecture_source"],
-    ) >= {
+    ) == {
         ("my-pod-container", "amd64", "cluster_hint"),
         ("my-service-pod-container", "amd64", "cluster_hint"),
     }

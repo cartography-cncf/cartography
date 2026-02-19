@@ -223,6 +223,8 @@ def enrich_container_architecture_from_task_definition(
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
+    # ECS resources are region-scoped in AWS accounts, so the fallback enrichment
+    # query includes explicit region filtering.
     rows = neo4j_session.execute_read(
         read_list_of_dicts_tx,
         """

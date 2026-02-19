@@ -50,6 +50,8 @@ def run(neo4j_session: neo4j.Session, config: Config) -> None:
         config.update_tag,
         common_job_parameters,
     )
+    # Container semantic linking depends on provider image ingestion, not on other
+    # ontology module ordering within this function.
     cartography.intel.ontology.containers.sync(
         neo4j_session,
         config.update_tag,

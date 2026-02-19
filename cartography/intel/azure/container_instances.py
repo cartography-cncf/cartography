@@ -76,6 +76,8 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
         architecture = "unknown"
         architecture_raw = None
         architecture_source = None
+        # Prefer digest-based exact image resolution; only apply image-ref guessing
+        # when no digest is available on the container group payload.
         if not image_digests and image_refs:
             architecture_raw = image_refs[0]
             architecture = guess_architecture_from_image_ref(architecture_raw)

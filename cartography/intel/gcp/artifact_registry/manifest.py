@@ -9,7 +9,7 @@ from google.auth.transport.requests import Request
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.container_arch import normalize_architecture
+from cartography.intel.container_arch import normalize_optional_architecture
 from cartography.models.gcp.artifact_registry.platform_image import (
     GCPArtifactRegistryPlatformImageSchema,
 )
@@ -22,12 +22,6 @@ MANIFEST_LIST_MEDIA_TYPES = {
     "application/vnd.docker.distribution.manifest.list.v2+json",
     "application/vnd.oci.image.index.v1+json",
 }
-
-
-def _normalize_optional_architecture(raw: str | None) -> str | None:
-    if raw is None:
-        return None
-    return normalize_architecture(raw)
 
 
 def _get_registry_url_from_uri(uri: str) -> tuple[str, str] | None:
@@ -222,7 +216,7 @@ def transform_manifests(
                     f"{parent_artifact_id}@{digest}" if digest else parent_artifact_id
                 ),
                 "digest": digest,
-                "architecture": _normalize_optional_architecture(
+                "architecture": normalize_optional_architecture(
                     platform.get("architecture")
                 ),
                 "os": platform.get("os"),

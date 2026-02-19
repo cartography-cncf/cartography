@@ -479,7 +479,7 @@ def transform_ecr_image_layers(
                 membership.update(existing_properties_map[image_digest])
                 if not membership.get("architecture"):
                     platform_values = list(platforms.keys())
-                    if platform_values:
+                    if len(platform_values) == 1:
                         first_platform = platform_values[0]
                         arch_hint = (
                             first_platform.split("/")[1]
@@ -489,6 +489,13 @@ def transform_ecr_image_layers(
                         normalized_arch = normalize_architecture(arch_hint)
                         if normalized_arch != "unknown":
                             membership["architecture"] = normalized_arch
+                    elif len(platform_values) > 1:
+                        # Ambiguous platform hints for this digest; avoid arbitrary picks.
+                        logger.debug(
+                            "Skipping architecture backfill for %s due to multiple platform keys: %s",
+                            image_digest,
+                            platform_values,
+                        )
 
             # Add provenance data if available for this image
             if image_uri in image_attestation_map:

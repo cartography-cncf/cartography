@@ -240,6 +240,8 @@ def enrich_container_architecture(
     cluster_id: str,
     update_tag: int,
 ) -> None:
+    # Cluster scoping is the authoritative boundary for Kubernetes runtime data,
+    # so additional region filtering is unnecessary here.
     exact_rows = session.execute_read(
         read_list_of_dicts_tx,
         """

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 # Canonical architecture source values for runtime containers.
 ARCH_SOURCE_RUNTIME_API_EXACT = "runtime_api_exact"
@@ -65,6 +66,12 @@ def normalize_architecture_with_raw(raw: str | None) -> tuple[str, str | None]:
     if raw is None:
         return "unknown", None
     return normalize_architecture(raw), raw
+
+
+def normalize_optional_architecture(raw: Any) -> str | None:
+    if raw is None:
+        return None
+    return normalize_architecture(str(raw))
 
 
 def guess_architecture_from_image_ref(ref: str | None) -> str:
