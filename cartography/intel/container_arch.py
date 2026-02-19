@@ -7,6 +7,7 @@ from typing import Any
 ARCH_SOURCE_RUNTIME_API_EXACT = "runtime_api_exact"
 ARCH_SOURCE_IMAGE_DIGEST_EXACT = "image_digest_exact"
 ARCH_SOURCE_TASK_DEFINITION_HINT = "task_definition_hint"
+ARCH_SOURCE_NODE_HINT = "node_hint"
 ARCH_SOURCE_CLUSTER_HINT = "cluster_hint"
 ARCH_SOURCE_IMAGE_REF_HINT = "image_ref_hint"
 
@@ -84,6 +85,12 @@ def guess_architecture_from_image_ref(ref: str | None) -> str:
         return "arm64"
     if "linux/amd64" in lowered:
         return "amd64"
+    if "linux-amd64" in lowered:
+        return "amd64"
+    if "linux-arm64" in lowered:
+        return "arm64"
+    if "arm64-v8" in lowered:
+        return "arm64"
     if "linux/arm/v7" in lowered or "arm/v7" in lowered:
         return "arm"
 

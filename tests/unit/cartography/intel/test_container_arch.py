@@ -1,6 +1,7 @@
 from cartography.intel.container_arch import ARCH_SOURCE_CLUSTER_HINT
 from cartography.intel.container_arch import ARCH_SOURCE_IMAGE_DIGEST_EXACT
 from cartography.intel.container_arch import ARCH_SOURCE_IMAGE_REF_HINT
+from cartography.intel.container_arch import ARCH_SOURCE_NODE_HINT
 from cartography.intel.container_arch import ARCH_SOURCE_RUNTIME_API_EXACT
 from cartography.intel.container_arch import ARCH_SOURCE_TASK_DEFINITION_HINT
 from cartography.intel.container_arch import guess_architecture_from_image_ref
@@ -37,5 +38,6 @@ def test_architecture_source_constants() -> None:
     assert ARCH_SOURCE_RUNTIME_API_EXACT == "runtime_api_exact"
     assert ARCH_SOURCE_IMAGE_DIGEST_EXACT == "image_digest_exact"
     assert ARCH_SOURCE_TASK_DEFINITION_HINT == "task_definition_hint"
+    assert ARCH_SOURCE_NODE_HINT == "node_hint"
     assert ARCH_SOURCE_CLUSTER_HINT == "cluster_hint"
     assert ARCH_SOURCE_IMAGE_REF_HINT == "image_ref_hint"

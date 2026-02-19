@@ -2,6 +2,7 @@ import pytest
 
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.namespaces import load_namespaces
+from cartography.intel.kubernetes.nodes import load_nodes
 from cartography.intel.kubernetes.pods import cleanup
 from cartography.intel.kubernetes.pods import enrich_container_architecture
 from cartography.intel.kubernetes.pods import load_containers
@@ -11,6 +12,7 @@ from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_IDS
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_NAMES
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_1_NAMESPACES_DATA
 from tests.data.kubernetes.namespaces import KUBERNETES_CLUSTER_2_NAMESPACES_DATA
+from tests.data.kubernetes.nodes import KUBERNETES_CLUSTER_1_NODES_DATA
 from tests.data.kubernetes.pods import KUBERNETES_CONTAINER_DATA
 from tests.data.kubernetes.pods import KUBERNETES_PODS_DATA
 from tests.integration.util import check_nodes
@@ -47,6 +49,12 @@ def _create_test_cluster(neo4j_session):
     # Clean up
     neo4j_session.run(
         """
+        MATCH (n: KubernetesNode)
+        DETACH DELETE n
+        """,
+    )
+    neo4j_session.run(
+        """
         MATCH (n: KubernetesNamespace)
         DETACH DELETE n
         """,
@@ -76,6 +84,13 @@ def test_load_pods(neo4j_session, _create_test_cluster):
 
 def test_load_pod_relationships(neo4j_session, _create_test_cluster):
     # Act
+    load_nodes(
+        neo4j_session,
+        KUBERNETES_CLUSTER_1_NODES_DATA,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_IDS[0],
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
     load_pods(
         neo4j_session,
         KUBERNETES_PODS_DATA,
@@ -100,6 +115,19 @@ def test_load_pod_relationships(neo4j_session, _create_test_cluster):
         )
         == expected_rels
     )
+
+    assert check_rels(
+        neo4j_session,
+        "KubernetesPod",
+        "name",
+        "KubernetesNode",
+        "name",
+        "RUNS_ON",
+        rel_direction_right=True,
+    ) == {
+        ("my-pod", "my-node"),
+        ("my-service-pod", "my-node"),
+    }
 
     # Assert: Expect pods to be in the correct namespace in the correct cluster
     expected_rels = {
@@ -391,6 +419,12 @@ def test_kubernetes_container_architecture_exact_from_image(
 def test_kubernetes_container_architecture_cluster_fallback(
     neo4j_session, _create_test_cluster
 ):
+    neo4j_session.run(
+        """
+        MATCH (:KubernetesContainer)-[r:HAS_IMAGE]->(:Image)
+        DELETE r
+        """
+    )
     load_pods(
         neo4j_session,
         KUBERNETES_PODS_DATA,
@@ -422,6 +456,61 @@ def test_kubernetes_container_architecture_cluster_fallback(
     ) == {
         ("my-pod-container", "amd64", "cluster_hint"),
         ("my-service-pod-container", "amd64", "cluster_hint"),
+    }
+
+
+def test_kubernetes_container_architecture_prefers_node_architecture(
+    neo4j_session, _create_test_cluster
+):
+    neo4j_session.run(
+        """
+        MATCH (:KubernetesContainer)-[r:HAS_IMAGE]->(:Image)
+        DELETE r
+        """
+    )
+    load_nodes(
+        neo4j_session,
+        KUBERNETES_CLUSTER_1_NODES_DATA,
+        TEST_UPDATE_TAG,
+        KUBERNETES_CLUSTER_IDS[0],
+        KUBERNETES_CLUSTER_NAMES[0],
+    )
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    containers = [
+        dict(item, status_image_sha=None) for item in KUBERNETES_CONTAINER_DATA
+    ]
+    load_containers(
+        neo4j_session,
+        containers,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+    enrich_container_architecture(
+        neo4j_session,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesContainer",
+        [
+            "name",
+            "architecture",
+            "architecture_raw",
+            "architecture_source",
+        ],
+    ) == {
+        ("my-pod-container", "arm64", "arm64", "node_hint"),
+        ("my-service-pod-container", "arm64", "arm64", "node_hint"),
     }
 
 
