@@ -19,6 +19,7 @@ from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import PaginatedGraphqlData
+from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.github.branch_protection_rules import (
     GitHubBranchProtectionRuleSchema,
 )
@@ -803,6 +804,74 @@ def _transform_dependency_manifests(
         logger.info(f"Found {manifests_added} dependency manifests in {repo_name}")
 
 
+GITHUB_ECOSYSTEM_TO_PURL_TYPE: Dict[str, str] = {
+    "NPM": "npm",
+    "PIP": "pypi",
+    "MAVEN": "maven",
+    "NUGET": "nuget",
+    "RUBYGEMS": "gem",
+    "GO": "golang",
+    "CARGO": "cargo",
+    "COMPOSER": "composer",
+}
+
+
+def _extract_exact_version(requirements: Optional[str]) -> Optional[str]:
+    """
+    Extract an exact version from a requirements string.
+
+    Returns the version string for exact pins (e.g. "18.2.0", "= 4.2.0", "== 4.2.0").
+    Returns None for ranges, wildcards, or empty strings.
+    """
+    if not requirements:
+        return None
+    req = requirements.strip()
+    if not req:
+        return None
+    # Match "= version" or "== version" prefix
+    if req.startswith("=="):
+        return req[2:].strip() or None
+    if req.startswith("=") and not req.startswith("=>"):
+        return req[1:].strip() or None
+    # Check for range/wildcard indicators — if present, not an exact version
+    if any(c in req for c in ("<", ">", "~", "^", "*", ",", "!")):
+        return None
+    # Plain version string (e.g. "18.2.0", "5.3.21")
+    return req
+
+
+def _make_dependency_purl(
+    name: str,
+    version: str,
+    purl_type: str,
+    package_manager: str,
+) -> str:
+    """
+    Build a Package URL (PURL) string from dependency metadata.
+
+    Handles Maven namespace (e.g. "org.springframework:spring-core" ->
+    "pkg:maven/org.springframework/spring-core@5.3.21") and npm scoped
+    packages (e.g. "@types/node" -> "pkg:npm/%40types/node@18.0.0").
+    """
+    namespace = ""
+    pkg_name = name
+
+    if package_manager == "MAVEN" and ":" in name:
+        parts = name.split(":", 1)
+        namespace = parts[0]
+        pkg_name = parts[1]
+    elif purl_type == "npm" and name.startswith("@"):
+        # Scoped npm package: @scope/name
+        scope_end = name.find("/")
+        if scope_end > 0:
+            namespace = name[1:scope_end]
+            pkg_name = name[scope_end + 1 :]
+
+    if namespace:
+        return f"pkg:{purl_type}/{namespace}/{pkg_name}@{version}"
+    return f"pkg:{purl_type}/{pkg_name}@{version}"
+
+
 def _transform_dependency_graph(
     dependency_manifests: Optional[Dict],
     repo_url: str,
@@ -858,6 +927,23 @@ def _transform_dependency_graph(
             # Create manifest ID for the HAS_DEP relationship
             manifest_id = f"{repo_url}#{manifest_path}"
 
+            # Compute ontology fields for Package matching
+            exact_version = _extract_exact_version(requirements)
+            purl_type = GITHUB_ECOSYSTEM_TO_PURL_TYPE.get(package_manager)
+            dep_purl: Optional[str] = None
+            dep_normalized_id: Optional[str] = None
+            dep_type: Optional[str] = None
+
+            if exact_version and purl_type:
+                dep_purl = _make_dependency_purl(
+                    package_name,
+                    exact_version,
+                    purl_type,
+                    package_manager,
+                )
+                dep_type = purl_type
+                dep_normalized_id = make_normalized_package_id(purl=dep_purl)
+
             out_dependencies_list.append(
                 {
                     "id": dependency_id,
@@ -872,6 +958,10 @@ def _transform_dependency_graph(
                     "manifest_file": (
                         manifest_path.split("/")[-1] if manifest_path else ""
                     ),
+                    "version": exact_version,
+                    "type": dep_type,
+                    "purl": dep_purl,
+                    "normalized_id": dep_normalized_id,
                 }
             )
             dependencies_added += 1

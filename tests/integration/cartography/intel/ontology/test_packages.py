@@ -55,6 +55,21 @@ def _setup_syft_graph(neo4j_session):
     )
 
 
+def _setup_github_dependency_graph(neo4j_session):
+    """Create Dependency nodes with REQUIRES relationship from GitHubRepository for testing."""
+    neo4j_session.run(
+        """
+        MERGE (d:Dependency {id: 'react|18.2.0'})
+        SET d.normalized_id = 'npm|react|18.2.0',
+            d.name = 'react', d.version = '18.2.0',
+            d.type = 'npm', d.purl = 'pkg:npm/react@18.2.0'
+        MERGE (r:GitHubRepository {id: 'https://github.com/example/app'})
+        SET r.fullname = 'example/app'
+        MERGE (r)-[:REQUIRES]->(d)
+        """,
+    )
+
+
 @patch.object(
     cartography.intel.ontology.packages,
     "get_source_nodes_from_graph",
@@ -80,6 +95,13 @@ def _setup_syft_graph(neo4j_session):
             "type": "npm",
             "purl": "pkg:npm/body-parser@1.20.2",
         },
+        {
+            "normalized_id": "npm|react|18.2.0",
+            "name": "react",
+            "version": "18.2.0",
+            "type": "npm",
+            "purl": "pkg:npm/react@18.2.0",
+        },
     ],
 )
 def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
@@ -88,6 +110,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     # Arrange
     _setup_trivy_graph(neo4j_session)
     _setup_syft_graph(neo4j_session)
+    _setup_github_dependency_graph(neo4j_session)
 
     # Act
     cartography.intel.ontology.packages.sync(
@@ -101,6 +124,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         ("npm|express|4.18.2", "express", "4.18.2", "npm"),
         ("pypi|requests|2.31.0", "requests", "2.31.0", "pypi"),
         ("npm|body-parser|1.20.2", "body-parser", "1.20.2", "npm"),
+        ("npm|react|18.2.0", "react", "18.2.0", "npm"),
     }
     actual_packages = check_nodes(
         neo4j_session,
@@ -113,7 +137,7 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
     ontology_count = neo4j_session.run(
         "MATCH (p:Package:Ontology) RETURN count(p) as count",
     ).single()["count"]
-    assert ontology_count == 3
+    assert ontology_count == 4
 
     # Assert - Check DETECTED_AS relationships to TrivyPackage
     expected_trivy_rels = {
@@ -206,3 +230,33 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         rel_direction_right=True,
     )
     assert actual_depends_on == expected_depends_on
+
+    # Assert - Check DETECTED_AS relationships to Dependency (GitHub)
+    expected_dep_rels = {
+        ("npm|react|18.2.0", "npm|react|18.2.0"),
+    }
+    actual_dep_rels = check_rels(
+        neo4j_session,
+        "Package",
+        "normalized_id",
+        "Dependency",
+        "normalized_id",
+        "DETECTED_AS",
+        rel_direction_right=True,
+    )
+    assert actual_dep_rels == expected_dep_rels
+
+    # Assert - Check REQUIRES propagated from GitHubRepository to Package
+    expected_repo_requires = {
+        ("https://github.com/example/app", "npm|react|18.2.0"),
+    }
+    actual_repo_requires = check_rels(
+        neo4j_session,
+        "GitHubRepository",
+        "id",
+        "Package",
+        "normalized_id",
+        "REQUIRES",
+        rel_direction_right=True,
+    )
+    assert actual_repo_requires == expected_repo_requires

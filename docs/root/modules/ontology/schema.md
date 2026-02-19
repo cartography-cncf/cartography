@@ -22,6 +22,8 @@ PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
 PKG(Package) -- DEPLOYED --> IM{{Image}}
 PKG -- DEPENDS_ON --> PKG
+PKG -- DETECTED_AS --> DEP(Dependency)
+R(GitHubRepository) -- REQUIRES --> PKG
 F[TrivyImageFinding] -- AFFECTS --> PKG
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
 IT -- IMAGE --> IM
@@ -467,6 +469,7 @@ Package nodes are deduplicated by their `normalized_id`, which uses the format `
     ```
     (:Package)-[:DETECTED_AS]->(:TrivyPackage)
     (:Package)-[:DETECTED_AS]->(:SyftPackage)
+    (:Package)-[:DETECTED_AS]->(:Dependency)
     ```
 - `Package` can be deployed in one or many container images (propagated from TrivyPackage):
     ```
@@ -479,6 +482,10 @@ Package nodes are deduplicated by their `normalized_id`, which uses the format `
 - `Package` can depend on other packages (propagated from SyftPackage):
     ```
     (:Package)-[:DEPENDS_ON]->(:Package)
+    ```
+- `Package` can be required by GitHub repositories (propagated from Dependency):
+    ```
+    (:GitHubRepository)-[:REQUIRES]->(:Package)
     ```
 
 
