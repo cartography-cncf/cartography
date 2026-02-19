@@ -43,6 +43,10 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
     def get_group_property(
         group: dict[str, Any], snake_key: str, camel_key: str
     ) -> Any:
+        if snake_key in group:
+            return group.get(snake_key)
+        if camel_key in group:
+            return group.get(camel_key)
         properties = group.get("properties") or {}
         if snake_key in properties:
             return properties.get(snake_key)

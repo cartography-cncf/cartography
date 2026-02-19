@@ -193,3 +193,74 @@ def test_transform_container_instances_accepts_camel_case_properties():
             "tags": {},
         }
     ]
+
+
+def test_transform_container_instances_uses_image_ref_hint_without_digest():
+    data = [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/no-digest",
+            "name": "no-digest",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "properties": {
+                "provisioning_state": "Succeeded",
+                "ip_address": {"ip": "20.1.1.9"},
+                "os_type": "Linux",
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "mcr.microsoft.com/oss/nginx/nginx:1.25.3-amd64",
+                    }
+                ],
+            },
+            "tags": {},
+        }
+    ]
+
+    transformed = container_instances.transform_container_instances(data)
+    assert (
+        transformed[0]["architecture"]
+        == "mcr.microsoft.com/oss/nginx/nginx:1.25.3-amd64"
+    )
+    assert transformed[0]["architecture_normalized"] == "amd64"
+    assert transformed[0]["architecture_source"] == "image_ref_hint"
+
+
+def test_transform_container_instances_accepts_top_level_sdk_shape():
+    data = [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/top-level",
+            "name": "top-level",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "provisioningState": "Succeeded",
+            "ipAddress": {"ip": "10.0.2.4"},
+            "osType": "Linux",
+            "containers": [
+                {
+                    "name": "app",
+                    "image": "mcr.microsoft.com/azuredocs/aci-helloworld",
+                }
+            ],
+            "tags": {},
+        }
+    ]
+
+    transformed = container_instances.transform_container_instances(data)
+    assert transformed == [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/top-level",
+            "name": "top-level",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "provisioning_state": "Succeeded",
+            "ip_address": "10.0.2.4",
+            "os_type": "Linux",
+            "architecture": "mcr.microsoft.com/azuredocs/aci-helloworld",
+            "architecture_normalized": "unknown",
+            "architecture_source": None,
+            "image_refs": ["mcr.microsoft.com/azuredocs/aci-helloworld"],
+            "image_digests": [],
+            "tags": {},
+        }
+    ]
