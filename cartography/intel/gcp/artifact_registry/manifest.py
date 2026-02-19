@@ -9,6 +9,7 @@ from google.auth.transport.requests import Request
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import normalize_optional_architecture
 from cartography.models.gcp.artifact_registry.platform_image import (
     GCPArtifactRegistryPlatformImageSchema,
 )
@@ -215,7 +216,9 @@ def transform_manifests(
                     f"{parent_artifact_id}@{digest}" if digest else parent_artifact_id
                 ),
                 "digest": digest,
-                "architecture": platform.get("architecture"),
+                "architecture": normalize_optional_architecture(
+                    platform.get("architecture")
+                ),
                 "os": platform.get("os"),
                 "os_version": platform.get("os.version"),
                 "os_features": platform.get("os.features"),
