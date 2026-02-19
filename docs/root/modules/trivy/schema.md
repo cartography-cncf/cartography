@@ -103,7 +103,7 @@ Representation of a package installed in a container image, as detected by Trivy
     (TrivyPackage)<-[AFFECTS]-(TrivyImageFinding)
     ```
 
-- A TrivyPackage is detected as a canonical Package (ontology).
+- A canonical Package (ontology) is detected as a TrivyPackage.
 
     ```
     (Package)-[DETECTED_AS]->(TrivyPackage)

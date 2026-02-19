@@ -861,10 +861,10 @@ def _make_dependency_purl(
         namespace = parts[0]
         pkg_name = parts[1]
     elif purl_type == "npm" and name.startswith("@"):
-        # Scoped npm package: @scope/name
+        # Scoped npm package: @scope/name → pkg:npm/%40scope/name@version
         scope_end = name.find("/")
         if scope_end > 0:
-            namespace = name[1:scope_end]
+            namespace = f"%40{name[1:scope_end]}"
             pkg_name = name[scope_end + 1 :]
 
     if namespace:

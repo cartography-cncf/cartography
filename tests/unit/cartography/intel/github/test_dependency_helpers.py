@@ -70,7 +70,7 @@ class TestMakeDependencyPurl:
 
     def test_npm_scoped_package(self):
         result = _make_dependency_purl("@types/node", "18.0.0", "npm", "NPM")
-        assert result == "pkg:npm/types/node@18.0.0"
+        assert result == "pkg:npm/%40types/node@18.0.0"
 
     def test_simple_gem_package(self):
         result = _make_dependency_purl("rails", "7.0.0", "gem", "RUBYGEMS")

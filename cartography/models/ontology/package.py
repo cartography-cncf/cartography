@@ -29,6 +29,7 @@ class PackageToNodeRelProperties(CartographyRelProperties):
 
 
 # (:Package)-[:DETECTED_AS]->(:TrivyPackage)
+@dataclass(frozen=True)
 class PackageToTrivyPackageRel(CartographyRelSchema):
     target_node_label: str = "TrivyPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -40,6 +41,7 @@ class PackageToTrivyPackageRel(CartographyRelSchema):
 
 
 # (:Package)-[:DETECTED_AS]->(:SyftPackage)
+@dataclass(frozen=True)
 class PackageToSyftPackageRel(CartographyRelSchema):
     target_node_label: str = "SyftPackage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -51,6 +53,7 @@ class PackageToSyftPackageRel(CartographyRelSchema):
 
 
 # (:Package)-[:DETECTED_AS]->(:Dependency)
+@dataclass(frozen=True)
 class PackageToDependencyRel(CartographyRelSchema):
     target_node_label: str = "Dependency"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
