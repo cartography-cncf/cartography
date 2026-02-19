@@ -1,4 +1,5 @@
-[
+{
+  "statements": [
   {
     "__comment__": "Drop legacy AWSAccount->RESOURCE edges to pre-migration shared IpRange nodes.",
     "query": "MATCH (:AWSAccount)-[r:RESOURCE]->(n:IpRange) WHERE NOT n:AWSIpRange DELETE r",
@@ -29,4 +30,6 @@
     "query": "MATCH (n:IpPermissionInbound) WHERE NOT (n:AWSIpPermissionInbound OR n:GCPIpRule) DETACH DELETE n",
     "iterative": false
   }
-]
+  ],
+  "name": "AWS IP node label migration"
+}

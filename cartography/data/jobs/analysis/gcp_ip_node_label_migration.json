@@ -1,4 +1,5 @@
-[
+{
+  "statements": [
   {
     "__comment__": "Drop legacy GCPProject->RESOURCE edges to pre-migration shared IpRange nodes.",
     "query": "MATCH (:GCPProject)-[r:RESOURCE]->(n:IpRange) WHERE NOT n:GCPIpRange DELETE r",
@@ -29,4 +30,6 @@
     "query": "MATCH (n:IpPermissionInbound) WHERE NOT (n:AWSIpPermissionInbound OR n:GCPIpRule) DETACH DELETE n",
     "iterative": false
   }
-]
+  ],
+  "name": "GCP IP node label migration"
+}
