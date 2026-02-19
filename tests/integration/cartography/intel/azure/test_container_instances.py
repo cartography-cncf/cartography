@@ -10,6 +10,12 @@ TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
 
 
+def test_resource_group_from_id():
+    resource_id = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/my-test-aci"
+    assert container_instances._resource_group_from_id(resource_id) == "TestRG"
+    assert container_instances._resource_group_from_id(None) is None
+
+
 @patch("cartography.intel.azure.container_instances.get_container_instances")
 def test_sync_container_instances(mock_get, neo4j_session):
     """
@@ -264,3 +270,69 @@ def test_transform_container_instances_accepts_top_level_sdk_shape():
             "tags": {},
         }
     ]
+
+
+@patch("cartography.intel.azure.container_instances.ContainerInstanceManagementClient")
+def test_get_container_instances_hydrates_with_get(mock_client_cls):
+    list_item = {
+        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/demo",
+        "name": "demo",
+    }
+    detailed_item = {
+        **list_item,
+        "osType": "Linux",
+        "containers": [{"name": "app", "image": "repo/app:latest"}],
+    }
+
+    mock_client = MagicMock()
+    mock_client.container_groups.list.return_value = [
+        MagicMock(as_dict=lambda: list_item)
+    ]
+    mock_client.container_groups.get.return_value = MagicMock(
+        as_dict=lambda: detailed_item
+    )
+    mock_client_cls.return_value = mock_client
+
+    result = container_instances.get_container_instances(
+        credentials=MagicMock(credential=MagicMock()),
+        subscription_id=TEST_SUBSCRIPTION_ID,
+    )
+    assert result == [detailed_item]
+    mock_client.container_groups.get.assert_called_once_with(
+        resource_group_name="TestRG",
+        container_group_name="demo",
+    )
+
+
+def test_transform_container_instances_extracts_runtime_pulled_digest():
+    digest = "sha256:c48f9e3a9902321d8e7b50a9d975ed24259f377981d93551d565850243431673"
+    data = [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/runtime-digest",
+            "name": "runtime-digest",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "provisioningState": "Succeeded",
+            "ipAddress": None,
+            "osType": "Linux",
+            "containers": [
+                {
+                    "name": "app",
+                    "image": "mcr.microsoft.com/cbl-mariner/base/core:2.0",
+                    "instanceView": {
+                        "events": [
+                            {
+                                "message": f'pulling image "mcr.microsoft.com/cbl-mariner/base/core@{digest}"'
+                            }
+                        ]
+                    },
+                }
+            ],
+            "tags": {},
+        }
+    ]
+    transformed = container_instances.transform_container_instances(data)
+    assert transformed[0]["image_refs"] == [
+        "mcr.microsoft.com/cbl-mariner/base/core:2.0"
+    ]
+    assert transformed[0]["image_digests"] == [digest]
