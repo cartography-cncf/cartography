@@ -214,6 +214,63 @@ def test_load_ecs_tasks(neo4j_session, *args):
     }
 
 
+def test_load_ecs_tasks_with_live_redacted_payload(neo4j_session):
+    # The neo4j integration fixture is module-scoped, so isolate this test's data.
+    neo4j_session.run("MATCH (n) DETACH DELETE n;")
+    try:
+        data = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASKS_LIVE_REDACTED)
+        data = cartography.intel.aws.ecs.transform_ecs_tasks(data)
+        containers = cartography.intel.aws.ecs._get_containers_from_tasks(data)
+
+        task_definitions = copy.deepcopy(
+            tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS_LIVE_REDACTED
+        )
+        task_definition_architecture = (
+            cartography.intel.aws.ecs._get_task_definition_architecture(
+                task_definitions
+            )
+        )
+        assert task_definition_architecture == {}
+
+        cartography.intel.aws.ecs.load_ecs_tasks(
+            neo4j_session,
+            "arn:aws:ecs:us-east-1:000000000000:cluster/internal-tooling",
+            data,
+            TEST_REGION,
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+        )
+        cartography.intel.aws.ecs.load_ecs_containers(
+            neo4j_session,
+            containers,
+            TEST_REGION,
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+        )
+
+        assert check_nodes(
+            neo4j_session,
+            "ECSTask",
+            ["id", "service_name", "network_interface_id"],
+        ) == {
+            (
+                "arn:aws:ecs:us-east-1:000000000000:task/internal-tooling/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "sublime",
+                "eni-00000000000000000",
+            ),
+        }
+
+        assert check_nodes(
+            neo4j_session,
+            "ECSContainer",
+            ["name", "architecture", "architecture_normalized", "architecture_source"],
+        ) == {
+            ("sublime", "x86_64", "amd64", "runtime_api_exact"),
+        }
+    finally:
+        neo4j_session.run("MATCH (n) DETACH DELETE n;")
+
+
 def test_ecs_container_architecture_fallback_from_task_definition(neo4j_session):
     tasks = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASKS)
     tasks[0]["attributes"] = []
