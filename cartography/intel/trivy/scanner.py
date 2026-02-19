@@ -394,6 +394,8 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     """
     Run cleanup jobs for Trivy nodes.
     """
+    _migrate_legacy_package_labels(neo4j_session)
+
     logger.info("Running Trivy cleanup")
     GraphJob.from_node_schema(TrivyImageFindingSchema(), common_job_parameters).run(
         neo4j_session
@@ -404,6 +406,32 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     GraphJob.from_node_schema(TrivyFixSchema(), common_job_parameters).run(
         neo4j_session
     )
+
+
+# TODO: Remove this migration function when releasing v1
+def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
+    """One-time migration: relabel legacy Package → TrivyPackage for nodes created before the rename."""
+    check_query = """
+    MATCH (n:Package)
+    WHERE NOT n:TrivyPackage AND NOT n:Ontology
+    RETURN count(n) as legacy_count
+    """
+    result = neo4j_session.run(check_query)
+    legacy_count = result.single()["legacy_count"]
+
+    if legacy_count == 0:
+        return
+
+    logger.info(f"Migrating {legacy_count} legacy Package nodes to TrivyPackage...")
+    migration_query = """
+    MATCH (n:Package)
+    WHERE NOT n:TrivyPackage AND NOT n:Ontology
+    SET n:TrivyPackage
+    REMOVE n:Package
+    RETURN count(n) as migrated
+    """
+    result = neo4j_session.run(migration_query)
+    logger.info(f"Migrated {result.single()['migrated']} Package nodes to TrivyPackage")
 
 
 @timeit
