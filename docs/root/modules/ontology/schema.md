@@ -240,8 +240,16 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 | _ont_cpu | CPU allocated to the container. |
 | _ont_memory | Memory allocated to the container (in MB). |
 | _ont_region | The region or zone where the container is running. |
+| _ont_architecture | CPU architecture of the runtime container (e.g., "amd64", "arm64"). |
 | _ont_namespace | Namespace for logical isolation (e.g., Kubernetes namespace). |
 | _ont_health_status | The health status of the container. |
+
+#### Relationships
+
+- `Container` can resolve to one runtime-compatible `Image`:
+    ```
+    (:Container)-[:RESOLVED_IMAGE]->(:Image)
+    ```
 
 
 ### ThirdPartyApp

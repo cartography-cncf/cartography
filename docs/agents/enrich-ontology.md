@@ -17,6 +17,7 @@ This guide covers how to integrate your module with Cartography's Ontology syste
 9. [Step 5: Handle Complex Relationships](#step-5-handle-complex-relationships)
 10. [Testing Ontology Integration](#testing-ontology-integration)
 11. [Documenting Ontology Integration](#documenting-ontology-integration)
+12. [Container Runtime Onboarding Contract](#container-runtime-onboarding-contract)
 
 ## Overview of Ontology System
 
@@ -323,6 +324,23 @@ OntologyFieldMapping(ontology_field="firstname", node_field="first_name"),  # Op
 ```
 
 **Example**: If a `DuoUser` node has no email address and email is marked as `required=True`, no corresponding `User` ontology node will be created for that record.
+
+## Container Runtime Onboarding Contract
+
+For any runtime node with semantic label `Container`, follow this contract so ontology image resolution remains deterministic:
+
+1. The runtime node must expose:
+- `architecture`: canonical normalized architecture (`amd64`, `arm64`, etc.)
+- `architecture_raw`: raw upstream architecture string when available
+- `architecture_source`: source of architecture derivation (`runtime_api_exact`, `image_digest_exact`, `task_definition_hint`, `cluster_hint`, `image_ref_hint`)
+
+2. The runtime node must have a deterministic image reference path:
+- preferred via `HAS_IMAGE` relationships to image nodes, or
+- digest-based fallback fields usable for exact matching.
+
+3. Manifest list resolution must be architecture-aware:
+- runtime-to-manifest linking should only resolve to child `:Image` nodes whose `architecture` matches runtime `architecture`,
+- if architecture cannot be determined, do not create a resolved image edge from manifest list candidates.
 
 ### Node Eligibility
 

@@ -7,7 +7,12 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import ARCH_SOURCE_RUNTIME_API_EXACT
+from cartography.intel.container_arch import ARCH_SOURCE_TASK_DEFINITION_HINT
+from cartography.intel.container_arch import normalize_architecture_with_raw
 from cartography.models.aws.ecs.clusters import ECSClusterSchema
 from cartography.models.aws.ecs.container_definitions import (
     ECSContainerDefinitionSchema,
@@ -165,7 +170,15 @@ def get_ecs_tasks(
 def _get_containers_from_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     containers: list[dict[str, Any]] = []
     for task in tasks:
-        containers.extend(task.get("containers", []))
+        task_architecture = task.get("_normalized_architecture")
+        task_architecture_raw = task.get("_architecture_raw")
+        for container in task.get("containers", []):
+            c = container.copy()
+            if task_architecture_raw is not None:
+                c["architecture"] = task_architecture
+                c["architecture_raw"] = task_architecture_raw
+                c["architecture_source"] = ARCH_SOURCE_RUNTIME_API_EXACT
+            containers.append(c)
     return containers
 
 
@@ -188,7 +201,71 @@ def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
                         task["networkInterfaceId"] = detail.get("value")
                         break
                 break
+
+        # ECS task attributes can contain the runtime cpu architecture.
+        task_arch_raw = None
+        for attribute in task.get("attributes", []):
+            if attribute.get("name") == "ecs.cpu-architecture":
+                task_arch_raw = attribute.get("value")
+                break
+        normalized_architecture, raw_architecture = normalize_architecture_with_raw(
+            task_arch_raw
+        )
+        task["_normalized_architecture"] = normalized_architecture
+        task["_architecture_raw"] = raw_architecture
     return tasks
+
+
+@timeit
+def enrich_container_architecture_from_task_definition(
+    neo4j_session: neo4j.Session,
+    region: str,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    rows = neo4j_session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(c:ECSContainer {lastupdated: $UPDATE_TAG, region: $Region})
+        WHERE c.architecture IS NULL OR c.architecture = 'unknown'
+        MATCH (c)<-[:HAS_CONTAINER]-(:ECSTask)-[:HAS_TASK_DEFINITION]->(td:ECSTaskDefinition)
+        WHERE td.runtime_platform_cpu_architecture IS NOT NULL
+        RETURN DISTINCT c.id AS container_id, td.runtime_platform_cpu_architecture AS architecture_raw
+        """,
+        AWS_ID=current_aws_account_id,
+        UPDATE_TAG=aws_update_tag,
+        Region=region,
+    )
+
+    updates = []
+    for row in rows:
+        raw = row.get("architecture_raw")
+        normalized, normalized_raw = normalize_architecture_with_raw(raw)
+        if normalized == "unknown":
+            continue
+        updates.append(
+            {
+                "id": row["container_id"],
+                "architecture": normalized,
+                "architecture_raw": normalized_raw,
+                "architecture_source": ARCH_SOURCE_TASK_DEFINITION_HINT,
+            }
+        )
+
+    if not updates:
+        return
+
+    run_write_query(
+        neo4j_session,
+        """
+        UNWIND $updates AS row
+        MATCH (c:ECSContainer {id: row.id})
+        SET c.architecture = row.architecture,
+            c.architecture_raw = row.architecture_raw,
+            c.architecture_source = row.architecture_source
+        """,
+        updates=updates,
+    )
 
 
 @timeit
@@ -463,6 +540,12 @@ def _sync_ecs_task_and_container_defns(
     load_ecs_container_definitions(
         neo4j_session,
         container_defs,
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
+    enrich_container_architecture_from_task_definition(
+        neo4j_session,
         region,
         current_aws_account_id,
         update_tag,

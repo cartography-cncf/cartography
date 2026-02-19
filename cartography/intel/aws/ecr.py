@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import normalize_architecture
 from cartography.models.aws.ecr.image import ECRImageBaseSchema
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.repository import ECRRepositorySchema
@@ -25,6 +26,12 @@ MANIFEST_LIST_MEDIA_TYPES = {
     "application/vnd.docker.distribution.manifest.list.v2+json",
     "application/vnd.oci.image.index.v1+json",
 }
+
+
+def _normalize_optional_architecture(raw: Any) -> str | None:
+    if raw is None:
+        return None
+    return normalize_architecture(str(raw))
 
 
 @timeit
@@ -106,7 +113,7 @@ def _get_platform_specific_digests(
             {
                 "digest": digest,
                 "type": "attestation" if is_attestation else "image",
-                "architecture": architecture,
+                "architecture": _normalize_optional_architecture(architecture),
                 "os": os_name,
                 "variant": platform_info.get("variant"),
                 "attestation_type": (
@@ -278,7 +285,9 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
                         ecr_images_dict[manifest_digest] = {
                             "imageDigest": manifest_digest,
                             "type": manifest_img.get("type"),
-                            "architecture": manifest_img.get("architecture"),
+                            "architecture": _normalize_optional_architecture(
+                                manifest_img.get("architecture")
+                            ),
                             "os": manifest_img.get("os"),
                             "variant": manifest_img.get("variant"),
                             "attestation_type": manifest_img.get("attestation_type"),

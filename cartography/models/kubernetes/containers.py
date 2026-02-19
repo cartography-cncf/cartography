@@ -25,6 +25,9 @@ class KubernetesContainerNodeProperties(CartographyNodeProperties):
     image_pull_policy: PropertyRef = PropertyRef("image_pull_policy")
     status_image_id: PropertyRef = PropertyRef("status_image_id")
     status_image_sha: PropertyRef = PropertyRef("status_image_sha", extra_index=True)
+    architecture: PropertyRef = PropertyRef("architecture")
+    architecture_raw: PropertyRef = PropertyRef("architecture_raw")
+    architecture_source: PropertyRef = PropertyRef("architecture_source")
     status_ready: PropertyRef = PropertyRef("status_ready")
     status_started: PropertyRef = PropertyRef("status_started")
     status_state: PropertyRef = PropertyRef("status_state", extra_index=True)
@@ -141,6 +144,46 @@ class KubernetesContainerToGitLabContainerImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class KubernetesContainerToGCPArtifactRegistryContainerImageRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToGCPArtifactRegistryContainerImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryContainerImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("status_image_sha")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: KubernetesContainerToGCPArtifactRegistryContainerImageRelProperties = (
+        KubernetesContainerToGCPArtifactRegistryContainerImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties(
+    CartographyRelProperties
+):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class KubernetesContainerToGCPArtifactRegistryPlatformImageRel(CartographyRelSchema):
+    target_node_label: str = "GCPArtifactRegistryPlatformImage"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"digest": PropertyRef("status_image_sha")}
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_IMAGE"
+    properties: KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties = (
+        KubernetesContainerToGCPArtifactRegistryPlatformImageRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class KubernetesContainerSchema(CartographyNodeSchema):
     label: str = "KubernetesContainer"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Container"])
@@ -154,5 +197,7 @@ class KubernetesContainerSchema(CartographyNodeSchema):
             KubernetesContainerToKubernetesPodRel(),
             KubernetesContainerToECRImageRel(),
             KubernetesContainerToGitLabContainerImageRel(),
+            KubernetesContainerToGCPArtifactRegistryContainerImageRel(),
+            KubernetesContainerToGCPArtifactRegistryPlatformImageRel(),
         ]
     )

@@ -7,7 +7,12 @@ from kubernetes.client.models import V1Container
 from kubernetes.client.models import V1Pod
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_dicts_tx
+from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import ARCH_SOURCE_CLUSTER_HINT
+from cartography.intel.container_arch import ARCH_SOURCE_IMAGE_DIGEST_EXACT
+from cartography.intel.container_arch import normalize_architecture_with_raw
 from cartography.intel.kubernetes.util import get_epoch
 from cartography.intel.kubernetes.util import k8s_paginate
 from cartography.intel.kubernetes.util import K8sClient
@@ -230,6 +235,99 @@ def cleanup(session: neo4j.Session, common_job_parameters: dict[str, Any]) -> No
 
 
 @timeit
+def enrich_container_architecture(
+    session: neo4j.Session,
+    cluster_id: str,
+    update_tag: int,
+) -> None:
+    exact_rows = session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        MATCH (:KubernetesCluster {id: $CLUSTER_ID})-[:RESOURCE]->(c:KubernetesContainer {lastupdated: $UPDATE_TAG})
+        MATCH (c)-[:HAS_IMAGE]->(img:Image)
+        WHERE img.architecture IS NOT NULL
+        RETURN c.id AS container_id, img.id AS image_id, img.architecture AS architecture_raw
+        ORDER BY image_id ASC
+        """,
+        CLUSTER_ID=cluster_id,
+        UPDATE_TAG=update_tag,
+    )
+    exact_updates_by_container = {}
+    for row in exact_rows:
+        container_id = row["container_id"]
+        if container_id in exact_updates_by_container:
+            continue
+        normalized, normalized_raw = normalize_architecture_with_raw(
+            row.get("architecture_raw")
+        )
+        if normalized == "unknown":
+            continue
+        exact_updates_by_container[container_id] = {
+            "id": container_id,
+            "architecture": normalized,
+            "architecture_raw": normalized_raw,
+            "architecture_source": ARCH_SOURCE_IMAGE_DIGEST_EXACT,
+        }
+    exact_updates = list(exact_updates_by_container.values())
+    if exact_updates:
+        run_write_query(
+            session,
+            """
+            UNWIND $updates AS row
+            MATCH (c:KubernetesContainer {id: row.id})
+            SET c.architecture = row.architecture,
+                c.architecture_raw = row.architecture_raw,
+                c.architecture_source = row.architecture_source
+            """,
+            updates=exact_updates,
+        )
+
+    fallback_rows = session.execute_read(
+        read_list_of_dicts_tx,
+        """
+        MATCH (cluster:KubernetesCluster {id: $CLUSTER_ID})-[:RESOURCE]->(
+            c:KubernetesContainer {lastupdated: $UPDATE_TAG}
+        )
+        WHERE c.architecture IS NULL OR c.architecture = 'unknown'
+        RETURN c.id AS container_id, cluster.platform AS platform
+        """,
+        CLUSTER_ID=cluster_id,
+        UPDATE_TAG=update_tag,
+    )
+    fallback_updates = []
+    for row in fallback_rows:
+        platform = row.get("platform")
+        arch_hint = None
+        if isinstance(platform, str) and "/" in platform:
+            arch_hint = platform.split("/", 1)[1]
+        elif isinstance(platform, str):
+            arch_hint = platform
+        normalized, normalized_raw = normalize_architecture_with_raw(arch_hint)
+        if normalized == "unknown":
+            continue
+        fallback_updates.append(
+            {
+                "id": row["container_id"],
+                "architecture": normalized,
+                "architecture_raw": normalized_raw,
+                "architecture_source": ARCH_SOURCE_CLUSTER_HINT,
+            }
+        )
+    if fallback_updates:
+        run_write_query(
+            session,
+            """
+            UNWIND $updates AS row
+            MATCH (c:KubernetesContainer {id: row.id})
+            SET c.architecture = row.architecture,
+                c.architecture_raw = row.architecture_raw,
+                c.architecture_source = row.architecture_source
+            """,
+            updates=fallback_updates,
+        )
+
+
+@timeit
 def sync_pods(
     session: neo4j.Session,
     client: K8sClient,
@@ -256,6 +354,11 @@ def sync_pods(
         cluster_id=common_job_parameters["CLUSTER_ID"],
         cluster_name=client.name,
         region=region,
+    )
+    enrich_container_architecture(
+        session=session,
+        cluster_id=common_job_parameters["CLUSTER_ID"],
+        update_tag=update_tag,
     )
 
     cleanup(session, common_job_parameters)

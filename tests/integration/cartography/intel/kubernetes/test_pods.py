@@ -3,6 +3,7 @@ import pytest
 from cartography.intel.kubernetes.clusters import load_kubernetes_cluster
 from cartography.intel.kubernetes.namespaces import load_namespaces
 from cartography.intel.kubernetes.pods import cleanup
+from cartography.intel.kubernetes.pods import enrich_container_architecture
 from cartography.intel.kubernetes.pods import load_containers
 from cartography.intel.kubernetes.pods import load_pods
 from tests.data.kubernetes.clusters import KUBERNETES_CLUSTER_DATA
@@ -335,6 +336,132 @@ def test_load_pod_to_secret_relationships(neo4j_session, _create_test_cluster):
         pod_name="my-pod",
     )
     assert result.single()["count"] == 0
+
+
+def test_kubernetes_container_architecture_exact_from_image(
+    neo4j_session, _create_test_cluster
+):
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+    load_containers(
+        neo4j_session,
+        KUBERNETES_CONTAINER_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+    neo4j_session.run(
+        """
+        MERGE (img:ECRImage:Image {id: $id})
+        SET img.digest = $digest, img.architecture = 'arm64', img.type = 'image'
+        """,
+        id="my-image-sha",
+        digest="my-image-sha",
+    )
+
+    # Re-load to ensure HAS_IMAGE links to the newly created image node.
+    load_containers(
+        neo4j_session,
+        KUBERNETES_CONTAINER_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+    enrich_container_architecture(
+        neo4j_session,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesContainer",
+        ["name", "architecture", "architecture_source"],
+    ) >= {
+        ("my-pod-container", "arm64", "image_digest_exact"),
+        ("my-service-pod-container", "arm64", "image_digest_exact"),
+    }
+
+
+def test_kubernetes_container_architecture_cluster_fallback(
+    neo4j_session, _create_test_cluster
+):
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    containers = [
+        dict(item, status_image_sha=None) for item in KUBERNETES_CONTAINER_DATA
+    ]
+    load_containers(
+        neo4j_session,
+        containers,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+    enrich_container_architecture(
+        neo4j_session,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesContainer",
+        ["name", "architecture", "architecture_source"],
+    ) >= {
+        ("my-pod-container", "amd64", "cluster_hint"),
+        ("my-service-pod-container", "amd64", "cluster_hint"),
+    }
+
+
+def test_kubernetes_container_has_image_relationship_to_gar(
+    neo4j_session, _create_test_cluster
+):
+    load_pods(
+        neo4j_session,
+        KUBERNETES_PODS_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+    neo4j_session.run(
+        """
+        MERGE (img:GCPArtifactRegistryContainerImage {id: 'gar-image'})
+        SET img.digest = 'my-image-sha', img.lastupdated = $tag
+        """,
+        tag=TEST_UPDATE_TAG,
+    )
+    load_containers(
+        neo4j_session,
+        KUBERNETES_CONTAINER_DATA,
+        update_tag=TEST_UPDATE_TAG,
+        cluster_id=KUBERNETES_CLUSTER_IDS[0],
+        cluster_name=KUBERNETES_CLUSTER_NAMES[0],
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "KubernetesContainer",
+        "name",
+        "GCPArtifactRegistryContainerImage",
+        "id",
+        "HAS_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        ("my-pod-container", "gar-image"),
+        ("my-service-pod-container", "gar-image"),
+    }
 
     # Assert: Verify that my-service-pod does NOT have USES_SECRET_VOLUME relationships
     result = neo4j_session.run(

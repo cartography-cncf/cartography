@@ -1,3 +1,4 @@
+import copy
 from unittest.mock import patch
 
 import cartography.intel.aws.ecs
@@ -190,6 +191,68 @@ def test_load_ecs_tasks(neo4j_session, *args):
         (
             "arn:aws:ecs:us-east-1:000000000000:task/test_task/00000000000000000000000000000000",
             "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
+        ),
+    }
+
+    assert check_nodes(
+        neo4j_session,
+        "ECSContainer",
+        ["id", "architecture", "architecture_raw", "architecture_source"],
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
+            "amd64",
+            "x86_64",
+            "runtime_api_exact",
+        ),
+    }
+
+
+def test_ecs_container_architecture_fallback_from_task_definition(neo4j_session):
+    tasks = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASKS)
+    tasks[0]["attributes"] = []
+    task_definitions = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS)
+    containers = cartography.intel.aws.ecs._get_containers_from_tasks(tasks)
+
+    cartography.intel.aws.ecs.load_ecs_tasks(
+        neo4j_session,
+        CLUSTER_ARN,
+        tasks,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ecs.load_ecs_containers(
+        neo4j_session,
+        containers,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ecs.load_ecs_task_definitions(
+        neo4j_session,
+        task_definitions,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+    cartography.intel.aws.ecs.enrich_container_architecture_from_task_definition(
+        neo4j_session,
+        TEST_REGION,
+        TEST_ACCOUNT_ID,
+        TEST_UPDATE_TAG,
+    )
+
+    assert check_nodes(
+        neo4j_session,
+        "ECSContainer",
+        ["id", "architecture", "architecture_raw", "architecture_source"],
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:container/test_instance/00000000000000000000000000000000/00000000-0000-0000-0000-000000000000",
+            "amd64",
+            "X86_64",
+            "task_definition_hint",
         ),
     }
 

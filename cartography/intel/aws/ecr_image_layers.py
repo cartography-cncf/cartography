@@ -19,6 +19,7 @@ from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
 from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.aws.ecr.image import ECRImageSchema
@@ -476,6 +477,18 @@ def transform_ecr_image_layers(
             # Preserve existing ECRImage properties (type, architecture, os, variant, etc.)
             if image_digest in existing_properties_map:
                 membership.update(existing_properties_map[image_digest])
+                if not membership.get("architecture"):
+                    platform_values = list(platforms.keys())
+                    if platform_values:
+                        first_platform = platform_values[0]
+                        arch_hint = (
+                            first_platform.split("/")[1]
+                            if "/" in first_platform
+                            else first_platform
+                        )
+                        normalized_arch = normalize_architecture(arch_hint)
+                        if normalized_arch != "unknown":
+                            membership["architecture"] = normalized_arch
 
             # Add provenance data if available for this image
             if image_uri in image_attestation_map:

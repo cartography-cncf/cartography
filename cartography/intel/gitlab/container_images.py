@@ -13,6 +13,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.gitlab.util import get_paginated
@@ -40,6 +41,12 @@ MANIFEST_LIST_MEDIA_TYPES = {
     "application/vnd.docker.distribution.manifest.list.v2+json",
     "application/vnd.oci.image.index.v1+json",
 }
+
+
+def _normalize_optional_architecture(raw: Any) -> str | None:
+    if raw is None:
+        return None
+    return normalize_architecture(str(raw))
 
 
 def _parse_repository_location(location: str) -> tuple[str, str]:
@@ -311,7 +318,9 @@ def transform_container_images(
                 "media_type": media_type,
                 "schema_version": manifest.get("schemaVersion"),
                 "type": "manifest_list" if is_manifest_list else "image",
-                "architecture": config.get("architecture"),
+                "architecture": _normalize_optional_architecture(
+                    config.get("architecture")
+                ),
                 "os": config.get("os"),
                 "variant": config.get("variant"),
                 "child_image_digests": child_image_digests,
