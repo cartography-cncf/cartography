@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 
 import neo4j
@@ -20,6 +21,20 @@ from cartography.util import timeit
 from .util.credentials import Credentials
 
 logger = logging.getLogger(__name__)
+_SHA256_PATTERN = re.compile(r"sha256:[0-9a-f]{64}")
+
+
+def _resource_group_from_id(resource_id: str | None) -> str | None:
+    if not isinstance(resource_id, str):
+        return None
+    parts = resource_id.split("/")
+    try:
+        rg_index = parts.index("resourceGroups")
+    except ValueError:
+        return None
+    if rg_index + 1 >= len(parts):
+        return None
+    return parts[rg_index + 1]
 
 
 @timeit
@@ -30,8 +45,27 @@ def get_container_instances(
         client = ContainerInstanceManagementClient(
             credentials.credential, subscription_id
         )
-        # NOTE: Azure Container Instances are called "Container Groups" in the SDK
-        return [cg.as_dict() for cg in client.container_groups.list()]
+        # NOTE: Azure Container Instances are called "Container Groups" in the SDK.
+        # list() can omit container instanceView details; hydrate with get() when possible.
+        groups: list[dict[str, Any]] = []
+        for container_group in client.container_groups.list():
+            list_item = container_group.as_dict()
+            name = list_item.get("name")
+            resource_group = list_item.get("resource_group") or _resource_group_from_id(
+                list_item.get("id")
+            )
+            if not name or not resource_group:
+                groups.append(list_item)
+                continue
+            try:
+                detailed = client.container_groups.get(
+                    resource_group_name=resource_group,
+                    container_group_name=name,
+                ).as_dict()
+                groups.append(detailed)
+            except HttpResponseError:
+                groups.append(list_item)
+        return groups
     except (ClientAuthenticationError, HttpResponseError) as e:
         logger.warning(
             f"Failed to get Container Instances for subscription {subscription_id}: {str(e)}"
@@ -73,10 +107,36 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
                 digests.append(digest)
         return list(dict.fromkeys(digests))
 
+    def extract_image_digests_from_events(group: dict[str, Any]) -> list[str]:
+        containers = get_group_property(group, "containers", "containers") or []
+        digests: list[str] = []
+        for container in containers:
+            instance_view = container.get("instance_view") or container.get(
+                "instanceView"
+            )
+            if not isinstance(instance_view, dict):
+                continue
+            events = instance_view.get("events")
+            if not isinstance(events, list):
+                continue
+            for event in events:
+                message = (event or {}).get("message")
+                if not isinstance(message, str):
+                    continue
+                match = _SHA256_PATTERN.search(message)
+                if match:
+                    digests.append(match.group(0))
+        return list(dict.fromkeys(digests))
+
     transformed_instances: list[dict[str, Any]] = []
     for group in container_groups:
         image_refs = extract_image_refs(group)
-        image_digests = extract_image_digests(image_refs)
+        image_digests = list(
+            dict.fromkeys(
+                extract_image_digests(image_refs)
+                + extract_image_digests_from_events(group)
+            )
+        )
         architecture = None
         architecture_normalized = "unknown"
         architecture_source = None

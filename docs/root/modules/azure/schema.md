@@ -1899,7 +1899,7 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 |architecture_normalized| Canonical normalized architecture (`amd64`, `arm64`, etc.) derived from available hints. |
 |architecture_source| Provenance of architecture inference (for example, `image_ref_hint`). |
 |image_refs| List of container image references extracted from the container group payload. |
-|image_digests| List of `sha256:*` digests extracted from `image_refs`. |
+|image_digests| List of `sha256:*` digests extracted from `image_refs` and container runtime pull events when available. |
 
 #### Relationships
 
