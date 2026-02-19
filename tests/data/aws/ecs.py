@@ -450,3 +450,147 @@ GET_ECS_TASKS = [
         },
     },
 ]
+
+# Redacted from live aws ecs describe-tasks/describe-task-definition payloads.
+GET_ECS_TASKS_LIVE_REDACTED = [
+    {
+        "attachments": [
+            {
+                "id": "11111111-2222-3333-4444-555555555555",
+                "type": "ElasticNetworkInterface",
+                "status": "ATTACHED",
+                "details": [
+                    {"name": "subnetId", "value": "subnet-00000000000000000"},
+                    {"name": "networkInterfaceId", "value": "eni-00000000000000000"},
+                    {"name": "macAddress", "value": "16:ff:f1:84:a4:2d"},
+                    {
+                        "name": "privateDnsName",
+                        "value": "ip-172-31-65-78.ec2.internal",
+                    },
+                    {"name": "privateIPv4Address", "value": "172.31.65.78"},
+                ],
+            }
+        ],
+        "attributes": [{"name": "ecs.cpu-architecture", "value": "x86_64"}],
+        "availabilityZone": "us-east-1f",
+        "clusterArn": "arn:aws:ecs:us-east-1:000000000000:cluster/internal-tooling",
+        "connectivity": "CONNECTED",
+        "connectivityAt": datetime.datetime(
+            2026, 2, 10, 22, 55, 12, 698000, tzinfo=tz.utc
+        ),
+        "containers": [
+            {
+                "containerArn": "arn:aws:ecs:us-east-1:000000000000:container/internal-tooling/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/bbbbbbbb-cccc-dddd-eeee-ffffffffffff",  # noqa:E501
+                "taskArn": "arn:aws:ecs:us-east-1:000000000000:task/internal-tooling/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",  # noqa:E501
+                "name": "sublime",
+                "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-sublime:exampletag",  # noqa:E501
+                "imageDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",  # noqa:E501
+                "runtimeId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1715442380",
+                "lastStatus": "RUNNING",
+                "networkBindings": [],
+                "networkInterfaces": [
+                    {
+                        "attachmentId": "11111111-2222-3333-4444-555555555555",
+                        "privateIpv4Address": "172.31.65.78",
+                    }
+                ],
+                "healthStatus": "HEALTHY",
+                "cpu": "0",
+            }
+        ],
+        "cpu": "256",
+        "createdAt": datetime.datetime(2026, 2, 10, 22, 55, 7, 691000, tzinfo=tz.utc),
+        "desiredStatus": "RUNNING",
+        "enableExecuteCommand": False,
+        "group": "service:sublime",
+        "healthStatus": "HEALTHY",
+        "lastStatus": "RUNNING",
+        "launchType": "FARGATE",
+        "memory": "512",
+        "platformVersion": "1.4.0",
+        "platformFamily": "Linux",
+        "pullStartedAt": datetime.datetime(
+            2026, 2, 10, 22, 55, 20, 428000, tzinfo=tz.utc
+        ),
+        "pullStoppedAt": datetime.datetime(
+            2026, 2, 10, 22, 55, 31, 152000, tzinfo=tz.utc
+        ),
+        "startedAt": datetime.datetime(2026, 2, 10, 22, 55, 32, 185000, tzinfo=tz.utc),
+        "startedBy": "ecs-svc/0000000000000000000",
+        "tags": [],
+        "taskArn": "arn:aws:ecs:us-east-1:000000000000:task/internal-tooling/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",  # noqa:E501
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:000000000000:task-definition/sublime:2",  # noqa:E501
+        "version": 4,
+        "ephemeralStorage": {"sizeInGiB": 20},
+        "fargateEphemeralStorage": {"sizeInGiB": 20},
+    }
+]
+
+GET_ECS_TASK_DEFINITIONS_LIVE_REDACTED = [
+    {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:000000000000:task-definition/sublime:2",  # noqa:E501
+        "containerDefinitions": [
+            {
+                "name": "sublime",
+                "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-sublime:latest",  # noqa:E501
+                "cpu": 0,
+                "portMappings": [
+                    {"containerPort": 8080, "hostPort": 8080, "protocol": "tcp"}
+                ],
+                "essential": True,
+                "environment": [
+                    {"name": "HEALTH_PORT", "value": "8080"},
+                    {"name": "LOG_LEVEL", "value": "INFO"},
+                ],
+                "mountPoints": [],
+                "volumesFrom": [],
+                "secrets": [
+                    {
+                        "name": "APP_SECRET",
+                        "valueFrom": "arn:aws:secretsmanager:us-east-1:000000000000:secret:placeholder",  # noqa:E501
+                    }
+                ],
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                        "awslogs-group": "/ecs/sublime",
+                        "awslogs-region": "us-east-1",
+                        "awslogs-stream-prefix": "sublime",
+                    },
+                },
+                "healthCheck": {
+                    "command": [
+                        "CMD-SHELL",
+                        "curl -f http://localhost:8080/healthz || exit 1",
+                    ],  # noqa:E501
+                    "interval": 30,
+                    "timeout": 5,
+                    "retries": 3,
+                    "startPeriod": 10,
+                },
+                "systemControls": [],
+            }
+        ],
+        "family": "sublime",
+        "taskRoleArn": "arn:aws:iam::000000000000:role/internal-tooling-ecs-task",
+        "executionRoleArn": "arn:aws:iam::000000000000:role/internal-tooling-ecs-execution",  # noqa:E501
+        "networkMode": "awsvpc",
+        "revision": 2,
+        "volumes": [],
+        "status": "ACTIVE",
+        "requiresAttributes": [
+            {"name": "com.amazonaws.ecs.capability.logging-driver.awslogs"},
+            {"name": "ecs.capability.execution-role-awslogs"},
+            {"name": "com.amazonaws.ecs.capability.ecr-auth"},
+        ],
+        "placementConstraints": [],
+        "compatibilities": ["EC2", "MANAGED_INSTANCES", "FARGATE"],
+        "requiresCompatibilities": ["FARGATE"],
+        "cpu": "256",
+        "memory": "512",
+        "registeredAt": datetime.datetime(
+            2026, 2, 11, 20, 35, 0, 749000, tzinfo=tz.utc
+        ),
+        "registeredBy": "arn:aws:sts::000000000000:assumed-role/OrganizationAccountAccessRole/aws-go-sdk-0000000000000000000",  # noqa:E501
+    }
+]
