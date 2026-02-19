@@ -47,9 +47,15 @@ def test_sync_container_instances(mock_get, neo4j_session):
         (
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/my-test-aci",
             "my-test-aci",
+            "unknown",
+            None,
         ),
     }
-    actual_nodes = check_nodes(neo4j_session, "AzureContainerInstance", ["id", "name"])
+    actual_nodes = check_nodes(
+        neo4j_session,
+        "AzureContainerInstance",
+        ["id", "name", "architecture", "architecture_source"],
+    )
     assert actual_nodes == expected_nodes
 
     # Assert Relationships
@@ -68,6 +74,18 @@ def test_sync_container_instances(mock_get, neo4j_session):
         "RESOURCE",
     )
     assert actual_rels == expected_rels
+
+    record = neo4j_session.run(
+        """
+        MATCH (c:AzureContainerInstance {name: 'my-test-aci'})
+        RETURN c.image_refs AS image_refs, c.image_digests AS image_digests
+        """
+    ).single()
+    assert record["image_refs"] == [
+        "mcr.microsoft.com/oss/nginx/nginx:1.25.3-amd64",
+        "myregistry.azurecr.io/team/worker@sha256:abc123",
+    ]
+    assert record["image_digests"] == ["sha256:abc123"]
 
 
 def test_load_container_instance_tags(neo4j_session):
@@ -126,3 +144,45 @@ def test_load_container_instance_tags(neo4j_session):
         "TAGGED",
     )
     assert actual_rels == expected_rels
+
+
+def test_transform_container_instances_accepts_camel_case_properties():
+    data = [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/camel",
+            "name": "camel",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "properties": {
+                "provisioningState": "Succeeded",
+                "ipAddress": {"ip": "20.1.1.1"},
+                "osType": "Linux",
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "myregistry.azurecr.io/team/app@sha256:def456",
+                    }
+                ],
+            },
+            "tags": {},
+        }
+    ]
+
+    transformed = container_instances.transform_container_instances(data)
+    assert transformed == [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/camel",
+            "name": "camel",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "provisioning_state": "Succeeded",
+            "ip_address": "20.1.1.1",
+            "os_type": "Linux",
+            "architecture": "unknown",
+            "architecture_raw": None,
+            "architecture_source": None,
+            "image_refs": ["myregistry.azurecr.io/team/app@sha256:def456"],
+            "image_digests": ["sha256:def456"],
+            "tags": {},
+        }
+    ]
