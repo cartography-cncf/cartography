@@ -65,6 +65,8 @@ trivy_mapping = OntologyMapping(
             ),
             iterative=False,
         ),
+        # TODO: When a canonical Vulnerability ontology node exists, migrate this
+        # propagation to link Vulnerability -> Package and deprecate this finding-based edge.
         OntologyRelMapping(
             __comment__="Link TrivyImageFinding AFFECTS to canonical Package via TrivyPackage",
             query=(
