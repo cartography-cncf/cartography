@@ -1,49 +1,44 @@
-# Syft Schema
-
-## Nodes
+## Syft Schema
 
 ### SyftPackage
 
-Package nodes created from Syft's `artifacts` array.
+Representation of a software package discovered by Syft, created from Syft's `artifacts` array.
 
-Label: `SyftPackage`
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Normalized package ID (e.g., `npm\|express\|4.18.2`) |
+| name | Package name |
+| version | Package version |
+| type | Package type (e.g., `npm`, `pypi`, `deb`) |
+| purl | Package URL |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
+| language | Programming language |
+| found_by | Syft cataloger that discovered the package |
 
-| Property | Type | Description |
-|----------|------|-------------|
-| **`id`** | string | Normalized package ID (e.g., `npm\|express\|4.18.2`) |
-| `name` | string | Package name |
-| `version` | string | Package version |
-| `type` | string | Package type (e.g., `npm`, `pypi`, `deb`) |
-| `purl` | string | Package URL |
-| **`normalized_id`** | string | Same as `id`; indexed for cross-tool matching |
-| `language` | string | Programming language |
-| `found_by` | string | Syft cataloger that discovered the package |
-| `lastupdated` | int | Timestamp of last update |
+#### Relationships
 
-## Relationships
+- A SyftPackage depends on another SyftPackage.
 
-### SyftPackage DEPENDS_ON SyftPackage
+    ```
+    (SyftPackage)-[:DEPENDS_ON]->(SyftPackage)
+    ```
 
-Self-referential dependency relationships between SyftPackage nodes.
+- A canonical Package (ontology) is detected as a SyftPackage.
 
-```
-(:SyftPackage)-[:DEPENDS_ON]->(:SyftPackage)
-```
+    ```
+    (Package)-[:DETECTED_AS]->(SyftPackage)
+    ```
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `lastupdated` | int | Timestamp of last update |
-
-Direction: Parent package DEPENDS_ON its dependency (child package).
-
-## Direct vs Transitive Dependencies
+### Direct vs Transitive Dependencies
 
 Direct and transitive dependencies are determined by graph structure rather than stored properties:
 
 - **Direct dependencies**: Packages with no incoming `DEPENDS_ON` edges (nothing depends on them)
 - **Transitive dependencies**: Packages that have incoming `DEPENDS_ON` edges
 
-### Query to find direct dependencies
+Query to find direct dependencies:
 
 ```cypher
 MATCH (p:SyftPackage)
@@ -51,20 +46,10 @@ WHERE NOT exists((p)<-[:DEPENDS_ON]-())
 RETURN p.name
 ```
 
-### Query to find transitive dependencies
+Query to find transitive dependencies:
 
 ```cypher
 MATCH (p:SyftPackage)
 WHERE exists((p)<-[:DEPENDS_ON]-())
 RETURN p.name
-```
-
-## Example Graph
-
-```
-(express:SyftPackage)  <-- direct (nothing depends on it)
-    -[:DEPENDS_ON]->
-        (body-parser:SyftPackage)  <-- transitive (express depends on it)
-            -[:DEPENDS_ON]->
-                (bytes:SyftPackage)  <-- transitive (body-parser depends on it)
 ```

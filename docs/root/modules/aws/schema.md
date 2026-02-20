@@ -160,6 +160,12 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
     (:AWSGroup)-[:POLICY]->(:AWSPolicy)
     ```
 
+- AWS Groups can be tagged with AWSTags.
+
+    ```cypher
+    (AWSGroup)-[TAGGED]->(AWSTag)
+    ```
+
 ### GuardDutyDetector
 
 Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_GetDetector.html).
@@ -812,6 +818,12 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSUser)-[:MFA_DEVICE]->(AWSMfaDevice)
     ```
 
+- AWS Users can be tagged with AWSTags.
+
+    ```cypher
+    (AWSUser)-[TAGGED]->(AWSTag)
+    ```
+
 
 ### AWSPrincipal::AWSRole
 
@@ -870,6 +882,12 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSRole)
+    ```
+
+- AWS Roles can be tagged with AWSTags.
+
+    ```cypher
+    (AWSRole)-[TAGGED]->(AWSTag)
     ```
 
 - ECSTaskDefinitions have task roles.
@@ -1102,9 +1120,9 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 | region | The region where this tag was discovered.|
 
 #### Relationships
--  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, and S3 Buckets can be tagged with AWSTags.
+-  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, S3 Buckets, AWS Roles, AWS Users, and AWS Groups can be tagged with AWSTags.
     ```
-    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket)-[TAGGED]->(AWSTag)
+    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket, AWSRole, AWSUser, AWSGroup)-[TAGGED]->(AWSTag)
     ```
 
 ### AccountAccessKey

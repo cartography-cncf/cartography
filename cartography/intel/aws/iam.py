@@ -272,6 +272,52 @@ def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
 
 
 @timeit
+@aws_handle_regions
+def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
+    user_list = get_user_list_data(boto3_session)["Users"]
+    resource_client = boto3_session.resource("iam")
+    user_tag_data: List[Dict] = []
+    for user in user_list:
+        name = user["UserName"]
+        user_arn = user["Arn"]
+        resource_user = resource_client.User(name)
+        user_tags = resource_user.tags
+        if not user_tags:
+            continue
+
+        tag_data = {
+            "ResourceARN": user_arn,
+            "Tags": user_tags,
+        }
+        user_tag_data.append(tag_data)
+
+    return user_tag_data
+
+
+@timeit
+@aws_handle_regions
+def get_group_tags(boto3_session: boto3.Session) -> List[Dict]:
+    group_list = get_group_list_data(boto3_session)["Groups"]
+    resource_client = boto3_session.resource("iam")
+    group_tag_data: List[Dict] = []
+    for group in group_list:
+        name = group["GroupName"]
+        group_arn = group["Arn"]
+        resource_group = resource_client.Group(name)
+        group_tags = resource_group.tags
+        if not group_tags:
+            continue
+
+        tag_data = {
+            "ResourceARN": group_arn,
+            "Tags": group_tags,
+        }
+        group_tag_data.append(tag_data)
+
+    return group_tag_data
+
+
+@timeit
 def get_user_list_data(boto3_session: boto3.Session) -> Dict:
     client = boto3_session.client("iam")
 

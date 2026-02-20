@@ -8,7 +8,9 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import execute_write_with_retry
+from cartography.intel.aws.iam import get_group_tags
 from cartography.intel.aws.iam import get_role_tags
+from cartography.intel.aws.iam import get_user_tags
 from cartography.util import aws_handle_regions
 from cartography.util import batch
 from cartography.util import timeit
@@ -197,6 +199,14 @@ def get_tags(
     if "iam:role" in resource_types:
         resources.extend(get_role_tags(boto3_session))
         resource_types = [rt for rt in resource_types if rt != "iam:role"]
+
+    if "iam:user" in resource_types:
+        resources.extend(get_user_tags(boto3_session))
+        resource_types = [rt for rt in resource_types if rt != "iam:user"]
+
+    if "iam:group" in resource_types:
+        resources.extend(get_group_tags(boto3_session))
+        resource_types = [rt for rt in resource_types if rt != "iam:group"]
 
     if not resource_types:
         return resources
