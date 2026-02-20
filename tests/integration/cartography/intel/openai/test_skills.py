@@ -56,10 +56,7 @@ def test_load_openai_skills(mock_api, neo4j_session):
         ("skill-abc123def456", "code-reviewer"),
         ("skill-ghi789jkl012", "data-analyzer"),
     }
-    assert (
-        check_nodes(neo4j_session, "OpenAISkill", ["id", "name"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "OpenAISkill", ["id", "name"]) == expected_nodes
 
     # Assert Skills are connected with Project
     expected_rels = {

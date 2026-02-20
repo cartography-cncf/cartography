@@ -36,15 +36,11 @@ class OpenAISkillToProjectRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: OpenAISkillToProjectRelProperties = (
-        OpenAISkillToProjectRelProperties()
-    )
+    properties: OpenAISkillToProjectRelProperties = OpenAISkillToProjectRelProperties()
 
 
 @dataclass(frozen=True)
 class OpenAISkillSchema(CartographyNodeSchema):
     label: str = "OpenAISkill"
     properties: OpenAISkillNodeProperties = OpenAISkillNodeProperties()
-    sub_resource_relationship: OpenAISkillToProjectRel = (
-        OpenAISkillToProjectRel()
-    )
+    sub_resource_relationship: OpenAISkillToProjectRel = OpenAISkillToProjectRel()

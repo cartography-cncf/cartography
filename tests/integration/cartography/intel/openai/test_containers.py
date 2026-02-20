@@ -57,8 +57,7 @@ def test_load_openai_containers(mock_api, neo4j_session):
         ("cntr-ghi789jkl012", "model-serving"),
     }
     assert (
-        check_nodes(neo4j_session, "OpenAIContainer", ["id", "name"])
-        == expected_nodes
+        check_nodes(neo4j_session, "OpenAIContainer", ["id", "name"]) == expected_nodes
     )
 
     # Assert Containers are connected with Project
