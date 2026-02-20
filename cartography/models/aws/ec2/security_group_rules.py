@@ -71,7 +71,7 @@ class IpRangeToIpRuleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class IpRangeToIpRuleRel(CartographyRelSchema):
-    target_node_label: str = "IpRule"
+    target_node_label: str = "AWSIpRule"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"ruleid": PropertyRef("RuleId")}
     )
@@ -82,7 +82,8 @@ class IpRangeToIpRuleRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class IpRuleSchema(CartographyNodeSchema):
-    label: str = "IpRule"
+    label: str = "AWSIpRule"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IpRule"])
     properties: IpRuleNodeProperties = IpRuleNodeProperties()
     sub_resource_relationship: IpRuleToAWSAccountRel = IpRuleToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -92,8 +93,12 @@ class IpRuleSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class IpPermissionInboundSchema(CartographyNodeSchema):
-    label: str = "IpRule"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IpPermissionInbound"])
+    label: str = "AWSIpPermissionInbound"
+    # Keep AWSIpRule as an extra label so inbound rules are still queryable as
+    # the broader AWSIpRule type while preserving a provider-specific primary label.
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["IpPermissionInbound", "IpRule", "AWSIpRule"]
+    )
     properties: IpRuleNodeProperties = IpRuleNodeProperties()
     sub_resource_relationship: IpRuleToAWSAccountRel = IpRuleToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships(
@@ -103,7 +108,8 @@ class IpPermissionInboundSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class IpRangeSchema(CartographyNodeSchema):
-    label: str = "IpRange"
+    label: str = "AWSIpRange"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IpRange"])
     properties: IpRangeNodeProperties = IpRangeNodeProperties()
     sub_resource_relationship: IpRuleToAWSAccountRel = IpRuleToAWSAccountRel()
     other_relationships: OtherRelationships = OtherRelationships([IpRangeToIpRuleRel()])

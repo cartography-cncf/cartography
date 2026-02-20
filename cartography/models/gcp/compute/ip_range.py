@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -25,7 +26,7 @@ class IpRangeToIpRuleRelProperties(CartographyRelProperties):
 
 @dataclass(frozen=True)
 class IpRangeToIpRuleRel(CartographyRelSchema):
-    target_node_label: str = "IpRule"
+    target_node_label: str = "GCPIpRule"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {
             "id": PropertyRef("ruleid"),
@@ -56,7 +57,8 @@ class IpRangeToProjectRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class IpRangeSchema(CartographyNodeSchema):
-    label: str = "IpRange"
+    label: str = "GCPIpRange"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["IpRange"])
     properties: IpRangeNodeProperties = IpRangeNodeProperties()
     sub_resource_relationship: IpRangeToProjectRel = IpRangeToProjectRel()
     other_relationships: OtherRelationships = OtherRelationships(

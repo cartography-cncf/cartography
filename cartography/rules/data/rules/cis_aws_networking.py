@@ -57,8 +57,8 @@ _aws_unrestricted_ssh = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
           -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
-          <-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+          <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')
       AND (
           (rule.fromport <= 22 AND rule.toport >= 22)
@@ -78,8 +78,8 @@ _aws_unrestricted_ssh = Fact(
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
           -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
-          <-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+          <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')
       AND (
           (rule.fromport <= 22 AND rule.toport >= 22)
@@ -155,8 +155,8 @@ _aws_unrestricted_rdp = Fact(
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
           -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
-          <-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+          <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')
       AND (
           (rule.fromport <= 3389 AND rule.toport >= 3389)
@@ -176,8 +176,8 @@ _aws_unrestricted_rdp = Fact(
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2:EC2Instance)
           -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
-          <-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
+          <-[:MEMBER_OF_IP_RULE]-(range:AWSIpRange)
     WHERE (range.id = '0.0.0.0/0' OR range.id = '::/0')
       AND (
           (rule.fromport <= 3389 AND rule.toport >= 3389)
@@ -252,7 +252,7 @@ _aws_default_sg_allows_traffic = Fact(
     ),
     cypher_query="""
     MATCH (a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpPermissionInbound)
+          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpPermissionInbound)
     WHERE sg.name = 'default'
     RETURN DISTINCT
         sg.groupid AS security_group_id,
@@ -281,7 +281,7 @@ _aws_default_sg_allows_traffic = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(a:AWSAccount)-[:RESOURCE]->(sg:EC2SecurityGroup)
-          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:IpRule)
+          <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(rule:AWSIpRule)
     WHERE sg.name = 'default'
     RETURN *
     """,
