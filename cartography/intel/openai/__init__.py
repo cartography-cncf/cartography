@@ -2,6 +2,8 @@ import logging
 
 import neo4j
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 
 import cartography.intel.openai.adminapikeys
 import cartography.intel.openai.apikeys
@@ -33,8 +35,15 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
         return
 
-    # Create requests sessions
+    # Create requests session with retry on transient errors
     api_session = requests.session()
+    retry_policy = Retry(
+        total=5,
+        backoff_factor=1,
+        status_forcelist=[500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    api_session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     api_session.headers.update(
         {
             "Authorization": f"Bearer {config.openai_apikey}",
