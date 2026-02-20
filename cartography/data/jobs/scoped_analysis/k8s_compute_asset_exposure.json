@@ -18,7 +18,7 @@
     },
     {
       "__comment": "Set: KubernetesService exposed via Service type=LoadBalancer backed by internet-facing LB",
-      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2{exposed_internet: true}) SET svc.exposed_internet = true, svc.exposed_internet_type = coalesce(svc.exposed_internet_type, []) + 'lb'",
+      "query": "MATCH (cluster:KubernetesCluster{id: $CLUSTER_ID})-[:RESOURCE]->(svc:KubernetesService)-[:USES_LOAD_BALANCER]->(lb:AWSLoadBalancerV2{exposed_internet: true}) WHERE svc.exposed_internet_type IS NULL OR NOT 'lb' IN svc.exposed_internet_type SET svc.exposed_internet = true, svc.exposed_internet_type = coalesce(svc.exposed_internet_type, []) + 'lb'",
       "iterative": false
     },
     {
