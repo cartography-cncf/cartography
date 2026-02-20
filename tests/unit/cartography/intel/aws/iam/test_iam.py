@@ -106,6 +106,136 @@ def test__get_role_tags_no_tags(mocker):
     assert result == []
 
 
+def test__get_user_tags_valid_tags(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_user_list_data",
+        return_value={
+            "Users": [
+                {
+                    "UserName": "test-user",
+                    "Arn": "test-user-arn",
+                },
+            ],
+        },
+    )
+    mocker.patch("boto3.session.Session")
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+    mock_user = mocker.Mock()
+    mock_user.tags = [
+        {
+            "Key": "k1",
+            "Value": "v1",
+        },
+    ]
+    mock_client.User.return_value = mock_user
+    mock_session.resource.return_value = mock_client
+
+    result = iam.get_user_tags(mock_session)
+
+    assert result == [
+        {
+            "ResourceARN": "test-user-arn",
+            "Tags": [
+                {
+                    "Key": "k1",
+                    "Value": "v1",
+                },
+            ],
+        },
+    ]
+
+
+def test__get_user_tags_no_tags(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_user_list_data",
+        return_value={
+            "Users": [
+                {
+                    "UserName": "test-user",
+                    "Arn": "test-user-arn",
+                },
+            ],
+        },
+    )
+    mocker.patch("boto3.session.Session")
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+    mock_user = mocker.Mock()
+    mock_user.tags = []
+    mock_client.User.return_value = mock_user
+    mock_session.resource.return_value = mock_client
+
+    result = iam.get_user_tags(mock_session)
+
+    assert result == []
+
+
+def test__get_group_tags_valid_tags(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_group_list_data",
+        return_value={
+            "Groups": [
+                {
+                    "GroupName": "test-group",
+                    "Arn": "test-group-arn",
+                },
+            ],
+        },
+    )
+    mocker.patch("boto3.session.Session")
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+    mock_group = mocker.Mock()
+    mock_group.tags = [
+        {
+            "Key": "k1",
+            "Value": "v1",
+        },
+    ]
+    mock_client.Group.return_value = mock_group
+    mock_session.resource.return_value = mock_client
+
+    result = iam.get_group_tags(mock_session)
+
+    assert result == [
+        {
+            "ResourceARN": "test-group-arn",
+            "Tags": [
+                {
+                    "Key": "k1",
+                    "Value": "v1",
+                },
+            ],
+        },
+    ]
+
+
+def test__get_group_tags_no_tags(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_group_list_data",
+        return_value={
+            "Groups": [
+                {
+                    "GroupName": "test-group",
+                    "Arn": "test-group-arn",
+                },
+            ],
+        },
+    )
+    mocker.patch("boto3.session.Session")
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+    mock_group = mocker.Mock()
+    mock_group.tags = []
+    mock_client.Group.return_value = mock_group
+    mock_session.resource.return_value = mock_client
+
+    result = iam.get_group_tags(mock_session)
+
+    assert result == []
+
+
 def test_transform_policy_data_correctly_creates_lists_of_statements():
     # "pol-name" is a policy containing a single statement
     # See https://github.com/cartography-cncf/cartography/issues/1102

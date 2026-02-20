@@ -2468,7 +2468,7 @@ wheels = [
 
 [[package]]
 name = "msgraph-sdk"
-version = "1.54.0"
+version = "1.55.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-identity" },
@@ -2478,9 +2478,9 @@ dependencies = [
     { name = "microsoft-kiota-serialization-text" },
     { name = "msgraph-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/56/0c2fba87b6eee19e4589bf21c3141de290afc51d654445fc3e2908244d7b/msgraph_sdk-1.54.0.tar.gz", hash = "sha256:4dc294fc7f8a173f5bee30ccfc396b81fa1a16d7dcc95debe76fdf706920e5b3", size = 6283861, upload-time = "2026-02-06T01:29:26.975Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/10/44/0b5a188addf6341b3da10dd207e444417de255f7c1651902ba72016a2843/msgraph_sdk-1.55.0.tar.gz", hash = "sha256:6df691a31954a050d26b8a678968017e157d940fb377f2a8a4e17a9741b98756", size = 6295669, upload-time = "2026-02-20T00:32:29.378Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/7a/d9eed36c7f309eb6c81c5b72b5b8bad40203487414ad2b9e371febc79885/msgraph_sdk-1.54.0-py3-none-any.whl", hash = "sha256:2b9894fd9f21ed9a71188e3d68bd1a9a58b2d1077e96ee4cb10a9f3d9d59a58e", size = 25707515, upload-time = "2026-02-06T01:29:23.344Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/a8/de807e62f8ff93003b573aa243cdcee2da2c0618b42efbc9a8e61aa7300d/msgraph_sdk-1.55.0-py3-none-any.whl", hash = "sha256:c8e68ebc4b88af5111de312e7fa910a4e76ddf48a4534feadb1fb8a411c48cfc", size = 25758742, upload-time = "2026-02-20T00:30:40.039Z" },
 ]
 
 [[package]]
@@ -2715,7 +2715,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.167.1"
+version = "2.167.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -2725,9 +2725,9 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c1/48/2d981e9c295bdec19962bc000a552a5d8d2a94cc0e6c5f80881408b96a88/oci-2.167.1.tar.gz", hash = "sha256:a8465d64f0ec0c3a0f7f0727fb3e0ea6b6f8da173c7c1b44462d181f3a7460f3", size = 16458286, upload-time = "2026-02-10T06:58:09.27Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/08/72/42e4b67594f54f40c2456f9616b28cdae5081cebffd367b810c42fdb5688/oci-2.167.2.tar.gz", hash = "sha256:85d47cd5e1032943afa3ac8b5d852c7aacdc5ac61e3f3f82e5757657de13b52e", size = 16554375, upload-time = "2026-02-17T07:07:30.74Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/fd/a128c657c53be3402159cf920db0315416eea2ea54cbe7cf1235eebe86f4/oci-2.167.1-py3-none-any.whl", hash = "sha256:34c90b561ae2371ba2bd5f8e2b8810777a3b257d8562a774ceb0af9bde6f70f4", size = 33598954, upload-time = "2026-02-10T06:58:01.788Z" },
+    { url = "https://files.pythonhosted.org/packages/96/a2/031eb40baacdf492e16b87153dbd03e4aa88f5b65903053ab8e3e6f6193a/oci-2.167.2-py3-none-any.whl", hash = "sha256:befe491b212fb3e1b362004005a2bb1764303aa33e589c2a60267ae156d5723f", size = 33695500, upload-time = "2026-02-17T07:07:24.161Z" },
 ]
 
 [[package]]
@@ -3700,11 +3700,11 @@ wheels = [
 
 [[package]]
 name = "slack-sdk"
-version = "3.40.0"
+version = "3.40.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/45/f7/4a968e1d091569ff7f6da929695728c3eacf10afcda7c424b70df2c3700b/slack_sdk-3.40.0.tar.gz", hash = "sha256:87b9a79d1d6e19a2b1877727a0ec6f016d82d30a6a410389fba87c221c99f10e", size = 249478, upload-time = "2026-02-10T22:12:13.445Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3a/18/784859b33a3f9c8cdaa1eda4115eb9fe72a0a37304718887d12991eeb2fd/slack_sdk-3.40.1.tar.gz", hash = "sha256:a215333bc251bc90abf5f5110899497bf61a3b5184b6d9ee35d73ebf09ec3fd0", size = 250379, upload-time = "2026-02-18T22:11:01.819Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/27/72/428fb01a1043ddbb3f66297363406d6e69ddff5ad89c4d07945a3753a235/slack_sdk-3.40.0-py2.py3-none-any.whl", hash = "sha256:f2bada5ed3adb10a01e154e90db01d6d8938d0461b5790c12bcb807b2d28bbe2", size = 312786, upload-time = "2026-02-10T22:12:11.258Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/e1/bb81f93c9f403e3b573c429dd4838ec9b44e4ef35f3b0759eb49557ab6e3/slack_sdk-3.40.1-py2.py3-none-any.whl", hash = "sha256:cd8902252979aa248092b0d77f3a9ea3cc605bc5d53663ad728e892e26e14a65", size = 313687, upload-time = "2026-02-18T22:11:00.027Z" },
 ]
 
 [[package]]
@@ -4028,7 +4028,7 @@ wheels = [
 
 [[package]]
 name = "typer"
-version = "0.23.1"
+version = "0.24.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -4036,21 +4036,21 @@ dependencies = [
     { name = "rich" },
     { name = "shellingham" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fd/07/b822e1b307d40e263e8253d2384cf98c51aa2368cc7ba9a07e523a1d964b/typer-0.23.1.tar.gz", hash = "sha256:2070374e4d31c83e7b61362fd859aa683576432fd5b026b060ad6b4cd3b86134", size = 120047, upload-time = "2026-02-13T10:04:30.984Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/b6/3e681d3b6bb22647509bdbfdd18055d5adc0dce5c5585359fa46ff805fdc/typer-0.24.0.tar.gz", hash = "sha256:f9373dc4eff901350694f519f783c29b6d7a110fc0dcc11b1d7e353b85ca6504", size = 118380, upload-time = "2026-02-16T22:08:48.496Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d5/91/9b286ab899c008c2cb05e8be99814807e7fbbd33f0c0c960470826e5ac82/typer-0.23.1-py3-none-any.whl", hash = "sha256:3291ad0d3c701cbf522012faccfbb29352ff16ad262db2139e6b01f15781f14e", size = 56813, upload-time = "2026-02-13T10:04:32.008Z" },
+    { url = "https://files.pythonhosted.org/packages/85/d0/4da85c2a45054bb661993c93524138ace4956cb075a7ae0c9d1deadc331b/typer-0.24.0-py3-none-any.whl", hash = "sha256:5fc435a9c8356f6160ed6e85a6301fdd6e3d8b2851da502050d1f92c5e9eddc8", size = 56441, upload-time = "2026-02-16T22:08:47.535Z" },
 ]
 
 [[package]]
 name = "types-aiobotocore-ecr"
-version = "3.1.2"
+version = "3.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/34/46/7979d9a18f89c4d25986037960156c05025c47ad61cf427c363b3df9a6da/types_aiobotocore_ecr-3.1.2.tar.gz", hash = "sha256:ebac5adfd531fa01e27820b59f01f5b480bca622e12f37bef1f29732e1cb5cb8", size = 37019, upload-time = "2026-02-06T02:23:10.771Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/f8/6ffa443bac9bf7f4ac8937b9fd8ec2b35f397f467e6993066790098c40c3/types_aiobotocore_ecr-3.1.3.tar.gz", hash = "sha256:0f85b11c2b37f2abd5ac73e64463260c15672392fd89e4675bac3867b7daf79b", size = 37053, upload-time = "2026-02-15T02:37:49.031Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/42/a6/7d34604a06e8a10e04ba78eea814269f6a4dc790e5882a285f04decfde45/types_aiobotocore_ecr-3.1.2-py3-none-any.whl", hash = "sha256:201231fd66a593d9d8bab9638ef0d089524b57153c74c2d1dc6aec9e652c2ed9", size = 43574, upload-time = "2026-02-06T02:23:09.386Z" },
+    { url = "https://files.pythonhosted.org/packages/69/a5/ddb68591ddfae423c048244dd183fd254ea2227c3480005ea211a39db1bb/types_aiobotocore_ecr-3.1.3-py3-none-any.whl", hash = "sha256:25f4d926b1f40880ae208ca994e2eba5eb093a61cc541bee48d4803865e06beb", size = 43575, upload-time = "2026-02-15T02:37:46.946Z" },
 ]
 
 [[package]]
@@ -4405,11 +4405,11 @@ wheels = [
 
 [[package]]
 name = "xmltodict"
-version = "1.0.2"
+version = "1.0.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6a/aa/917ceeed4dbb80d2f04dbd0c784b7ee7bba8ae5a54837ef0e5e062cd3cfb/xmltodict-1.0.2.tar.gz", hash = "sha256:54306780b7c2175a3967cad1db92f218207e5bc1aba697d887807c0fb68b7649", size = 25725, upload-time = "2025-09-17T21:59:26.459Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/66/d1242ce8748c698e0036837dfbb530480e31f11d3ecf7101cd4e30d29913/xmltodict-1.0.3.tar.gz", hash = "sha256:3bf1f49c7836df34cf6d9cc7e690c4351f7dfff2ab0b8a1988bba4a9b9474909", size = 25170, upload-time = "2026-02-15T04:05:05.728Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/20/69a0e6058bc5ea74892d089d64dfc3a62ba78917ec5e2cfa70f7c92ba3a5/xmltodict-1.0.2-py3-none-any.whl", hash = "sha256:62d0fddb0dcbc9f642745d8bbf4d81fd17d6dfaec5a15b5c1876300aad92af0d", size = 13893, upload-time = "2025-09-17T21:59:24.859Z" },
+    { url = "https://files.pythonhosted.org/packages/82/df/5c50d5bfc886cf61e665f34925e70c7d5ab1d39db0bcc4a03f6fdae3cd76/xmltodict-1.0.3-py3-none-any.whl", hash = "sha256:35d65d5c08f2a1121df338a0c4e49ca638480fa7c1b899ded45e0759bf32e40e", size = 13295, upload-time = "2026-02-15T04:05:04.407Z" },
 ]
 
 [[package]]
