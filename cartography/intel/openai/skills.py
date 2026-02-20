@@ -1,7 +1,7 @@
+from __future__ import annotations
+
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 import requests
@@ -21,7 +21,7 @@ _TIMEOUT = (60, 60)
 def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
     project_id: str,
 ) -> None:
     skills = get(
@@ -41,7 +41,7 @@ def sync(
 def get(
     api_session: requests.Session,
     base_url: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     return list(
         paginated_get(
             api_session,
@@ -54,7 +54,7 @@ def get(
 @timeit
 def load_skills(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     project_id: str,
     update_tag: int,
 ) -> None:
@@ -70,7 +70,7 @@ def load_skills(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
 ) -> None:
     GraphJob.from_node_schema(OpenAISkillSchema(), common_job_parameters).run(
         neo4j_session

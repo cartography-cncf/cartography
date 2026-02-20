@@ -27,7 +27,7 @@ Represents an OpenAI Organization.
 
 | Field | Description |
 |-------|-------------|
-| id | The identifier, which can be referenced in API endpoints |
+| **id** | The identifier, which can be referenced in API endpoints |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 
@@ -49,7 +49,7 @@ Represents an individual Admin API key in an org.
 
 | Field | Description |
 |-------|-------------|
-| id | The identifier, which can be referenced in API endpoints |
+| **id** | The identifier, which can be referenced in API endpoints |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | object | The object type, which is always `organization.admin_api_key` |
@@ -77,12 +77,12 @@ Represents an individual `user` within an organization.
 
 | Field | Description |
 |-------|-------------|
-| id | The identifier, which can be referenced in API endpoints |
+| **id** | The identifier, which can be referenced in API endpoints |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | object | The object type, which is always `organization.user` |
 | name | The name of the user |
-| email | The email address of the user |
+| **email** | The email address of the user |
 | role | `owner` or `reader` |
 | added_at | The Unix timestamp (in seconds) of when the user was added. |
 
@@ -116,7 +116,7 @@ Represents an individual project.
 
 | Field | Description |
 |-------|-------------|
-| id | The identifier, which can be referenced in API endpoints |
+| **id** | The identifier, which can be referenced in API endpoints |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | object | The object type, which is always `organization.project` |
@@ -155,7 +155,7 @@ Represents an individual service account in a project.
 
 | Field | Description |
 |-------|-------------|
-| id | The identifier, which can be referenced in API endpoints |
+| **id** | The identifier, which can be referenced in API endpoints |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | object | The object type, which is always `organization.project.service_account` |
@@ -186,7 +186,7 @@ Represents an individual API key in a project.
 
 | Field | Description |
 |-------|-------------|
-| id | The identifier, which can be referenced in API endpoints |
+| **id** | The identifier, which can be referenced in API endpoints |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | object | The object type, which is always `organization.project.api_key` |
@@ -214,7 +214,7 @@ Represents a compute container in a project.
 
 | Field | Description |
 |-------|-------------|
-| id | The identifier, which can be referenced in API endpoints |
+| **id** | The identifier, which can be referenced in API endpoints |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | object | The object type, which is always `container` |
@@ -227,7 +227,7 @@ Represents a compute container in a project.
 #### Relationships
 - `Container` belongs to a `Project`
     ```
-    (:OpenAIProject)-[:RESOURCE]->(:OpenAIContainer)
+    (:OpenAIContainer)<-[:RESOURCE]-(:OpenAIProject)
     ```
 
 ### OpenAISkill
@@ -236,7 +236,7 @@ Represents a custom skill in a project.
 
 | Field | Description |
 |-------|-------------|
-| id | The identifier, which can be referenced in API endpoints |
+| **id** | The identifier, which can be referenced in API endpoints |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | object | The object type, which is always `skill` |
@@ -249,7 +249,7 @@ Represents a custom skill in a project.
 #### Relationships
 - `Skill` belongs to a `Project`
     ```
-    (:OpenAIProject)-[:RESOURCE]->(:OpenAISkill)
+    (:OpenAISkill)<-[:RESOURCE]-(:OpenAIProject)
     ```
 
 ### OpenAIVectorStore
@@ -260,7 +260,7 @@ Represents a vector store in a project.
 
 | Field | Description |
 |-------|-------------|
-| id | The identifier, which can be referenced in API endpoints |
+| **id** | The identifier, which can be referenced in API endpoints |
 | firstseen| Timestamp of when a sync job first created this node  |
 | lastupdated |  Timestamp of the last time the node was updated |
 | object | The object type, which is always `vector_store` |
@@ -274,5 +274,5 @@ Represents a vector store in a project.
 #### Relationships
 - `VectorStore` belongs to a `Project`
     ```
-    (:OpenAIProject)-[:RESOURCE]->(:OpenAIVectorStore)
+    (:OpenAIVectorStore)<-[:RESOURCE]-(:OpenAIProject)
     ```
