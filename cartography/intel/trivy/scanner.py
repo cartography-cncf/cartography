@@ -411,6 +411,9 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
 # TODO: Remove this migration function when releasing v1
 def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
     """One-time migration: relabel legacy Package → TrivyPackage for nodes created before the rename."""
+    # Package is reserved as the canonical ontology primary label.
+    # Non-ontology nodes should never use :Package going forward
+    # (enforced by tests/unit/cartography/intel/ontology/test_ontology_mapping.py).
     check_query = """
     MATCH (n:Package)
     WHERE NOT n:Ontology
