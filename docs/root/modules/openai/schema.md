@@ -6,6 +6,9 @@ O(Organization) -- RESOURCE --> P(Project)
 O -- RESOURCE --> U(User)
 P -- RESOURCE --> K(ApiKey)
 P -- RESOURCE --> SA(ServiceAccount)
+P -- RESOURCE --> C(Container)
+P -- RESOURCE --> S(Skill)
+P -- RESOURCE --> VS(VectorStore)
 U -- OWNS --> AK
 U -- OWNS --> K
 SA -- OWNS --> AK
@@ -123,11 +126,14 @@ Represents an individual project.
 | status | `active` or `archived` |
 
 #### Relationships
--  `ServiceAccount` and `APIKey` belong to an `OpenAIProject`.
+-  `ServiceAccount`, `APIKey`, `Container`, `Skill`, and `VectorStore` belong to an `OpenAIProject`.
     ```
     (:OpenAIProject)<-[:RESOURCE]-(
         :OpenAIServiceAccount,
         :OpenAIApiKey,
+        :OpenAIContainer,
+        :OpenAISkill,
+        :OpenAIVectorStore,
     )
     ```
 - `Project` belongs to an `Organization`
@@ -198,4 +204,75 @@ Represents an individual API key in a project.
     ```
     (:OpenAIUser)-[:OWNS]->(:OpenAIApiKey)
     (:OpenAIServiceAccount)-[:OWNS]->(:OpenAIApiKey)
+    ```
+
+### OpenAIContainer
+
+Represents a compute container in a project.
+
+> **Ontology Mapping**: This node has the extra label `ComputeInstance` to enable cross-platform queries for compute resources across different systems (e.g., EC2Instance, GCPInstance).
+
+| Field | Description |
+|-------|-------------|
+| id | The identifier, which can be referenced in API endpoints |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| object | The object type, which is always `container` |
+| name | The name of the container |
+| status | Status of the container (e.g., active, deleted) |
+| created_at | The Unix timestamp (in seconds) of when the container was created |
+| last_active_at | The Unix timestamp (in seconds) of when the container was last active |
+| memory_limit | The memory limit configured for the container |
+
+#### Relationships
+- `Container` belongs to a `Project`
+    ```
+    (:OpenAIProject)-[:RESOURCE]->(:OpenAIContainer)
+    ```
+
+### OpenAISkill
+
+Represents a custom skill in a project.
+
+| Field | Description |
+|-------|-------------|
+| id | The identifier, which can be referenced in API endpoints |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| object | The object type, which is always `skill` |
+| name | The name of the skill |
+| description | Description of the skill |
+| created_at | The Unix timestamp (in seconds) of when the skill was created |
+| default_version | The default version for the skill |
+| latest_version | The latest version for the skill |
+
+#### Relationships
+- `Skill` belongs to a `Project`
+    ```
+    (:OpenAIProject)-[:RESOURCE]->(:OpenAISkill)
+    ```
+
+### OpenAIVectorStore
+
+Represents a vector store in a project.
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for data stores across different systems (e.g., AzureSQLDatabase, GCPBigtableInstance).
+
+| Field | Description |
+|-------|-------------|
+| id | The identifier, which can be referenced in API endpoints |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| object | The object type, which is always `vector_store` |
+| name | The name of the vector store |
+| status | The status of the vector store (`expired`, `in_progress`, or `completed`) |
+| created_at | The Unix timestamp (in seconds) of when the vector store was created |
+| last_active_at | The Unix timestamp (in seconds) of when the vector store was last active |
+| usage_bytes | The total number of bytes used by the files in the vector store |
+| expires_at | The Unix timestamp (in seconds) of when the vector store will expire |
+
+#### Relationships
+- `VectorStore` belongs to a `Project`
+    ```
+    (:OpenAIProject)-[:RESOURCE]->(:OpenAIVectorStore)
     ```
