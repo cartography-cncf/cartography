@@ -51,18 +51,6 @@ class PackageToSyftPackageRel(CartographyRelSchema):
     properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
 
 
-# (:Package)-[:DETECTED_AS]->(:Dependency)
-@dataclass(frozen=True)
-class PackageToDependencyRel(CartographyRelSchema):
-    target_node_label: str = "Dependency"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"normalized_id": PropertyRef("normalized_id")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "DETECTED_AS"
-    properties: PackageToNodeRelProperties = PackageToNodeRelProperties()
-
-
 @dataclass(frozen=True)
 class PackageSchema(CartographyNodeSchema):
     label: str = "Package"
@@ -73,6 +61,5 @@ class PackageSchema(CartographyNodeSchema):
         rels=[
             PackageToTrivyPackageRel(),
             PackageToSyftPackageRel(),
-            PackageToDependencyRel(),
         ],
     )
