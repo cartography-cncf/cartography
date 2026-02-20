@@ -24,6 +24,10 @@ def _setup_trivy_graph(neo4j_session):
         MERGE (f:TrivyImageFinding {id: 'TIF|CVE-2024-00001'})
         SET f.name = 'CVE-2024-00001'
         MERGE (f)-[:AFFECTS]->(p)
+        MERGE (fix:TrivyFix {id: 'npm|express|4.18.3'})
+        SET fix.version = '4.18.3'
+        MERGE (p)-[:SHOULD_UPDATE_TO]->(fix)
+        MERGE (fix)-[:APPLIES_TO]->(f)
         """,
     )
     neo4j_session.run(
@@ -215,6 +219,21 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         rel_direction_right=True,
     )
     assert actual_affects == expected_affects
+
+    # Assert - Check SHOULD_UPDATE_TO propagated from TrivyPackage to Package -> TrivyFix
+    expected_should_update_to = {
+        ("npm|express|4.18.2", "npm|express|4.18.3"),
+    }
+    actual_should_update_to = check_rels(
+        neo4j_session,
+        "Package",
+        "id",
+        "TrivyFix",
+        "id",
+        "SHOULD_UPDATE_TO",
+        rel_direction_right=True,
+    )
+    assert actual_should_update_to == expected_should_update_to
 
     # Assert - Check DEPENDS_ON propagated from SyftPackage to Package -> Package
     expected_depends_on = {

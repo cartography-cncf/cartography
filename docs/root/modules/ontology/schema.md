@@ -478,6 +478,10 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     ```
     (:TrivyImageFinding)-[:AFFECTS]->(:Package)
     ```
+- `Package` can have one or many recommended fix versions (propagated from TrivyPackage):
+    ```
+    (:Package)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
+    ```
 - `Package` can depend on other packages (propagated from SyftPackage):
     ```
     (:Package)-[:DEPENDS_ON]->(:Package)

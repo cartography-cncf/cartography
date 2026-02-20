@@ -76,6 +76,17 @@ trivy_mapping = OntologyMapping(
             ),
             iterative=False,
         ),
+        OntologyRelMapping(
+            __comment__="Link Package SHOULD_UPDATE_TO TrivyFix via TrivyPackage for compatibility",
+            query=(
+                "MATCH (p:Package)-[:DETECTED_AS]->(tp:TrivyPackage)"
+                "-[:SHOULD_UPDATE_TO]->(fix:TrivyFix) "
+                "MERGE (p)-[r:SHOULD_UPDATE_TO]->(fix) "
+                "ON CREATE SET r.firstseen = timestamp() "
+                "SET r.lastupdated = $UPDATE_TAG"
+            ),
+            iterative=False,
+        ),
     ],
 )
 
