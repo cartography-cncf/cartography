@@ -225,3 +225,79 @@ def test_load_ontology_packages(_mock_get_source_nodes, neo4j_session):
         rel_direction_right=True,
     )
     assert actual_depends_on == expected_depends_on
+
+
+def test_cleanup_removes_stale_derived_package_relationships(neo4j_session):
+    """
+    Verify Package cleanup deletes stale derived relationships created by ontology
+    mapping propagation while preserving fresh relationships.
+    """
+    neo4j_session.run(
+        """
+        MATCH (n)
+        WHERE n:Package OR n:TrivyPackage OR n:TrivyImageFinding OR n:TrivyFix OR n:ECRImage
+        DETACH DELETE n
+        """,
+    )
+
+    stale_tag = TEST_UPDATE_TAG - 1
+
+    neo4j_session.run(
+        """
+        MERGE (p:Package:Ontology {id: 'npm|express|4.18.2'})
+        SET p.lastupdated = $update_tag
+
+        MERGE (img:ECRImage {id: 'sha256:stale'})
+        MERGE (p)-[r1:DEPLOYED]->(img)
+        SET r1.lastupdated = $stale_tag
+
+        MERGE (f:TrivyImageFinding {id: 'TIF|CVE-2024-99999'})
+        MERGE (f)-[r2:AFFECTS]->(p)
+        SET r2.lastupdated = $stale_tag
+
+        MERGE (fix:TrivyFix {id: 'npm|express|4.18.3'})
+        MERGE (p)-[r3:SHOULD_UPDATE_TO]->(fix)
+        SET r3.lastupdated = $stale_tag
+
+        MERGE (p2:Package:Ontology {id: 'npm|body-parser|1.20.2'})
+        SET p2.lastupdated = $update_tag
+        MERGE (p)-[r4:DEPENDS_ON]->(p2)
+        SET r4.lastupdated = $stale_tag
+
+        MERGE (tp:TrivyPackage {normalized_id: 'npm|express|4.18.2'})
+        MERGE (p)-[r5:DETECTED_AS]->(tp)
+        SET r5.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+        stale_tag=stale_tag,
+    )
+
+    cartography.intel.ontology.packages.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    stale_derived_rels_count = neo4j_session.run(
+        """
+        MATCH (:Package {id: 'npm|express|4.18.2'})-[r]->()
+        WHERE type(r) IN ['DEPLOYED', 'SHOULD_UPDATE_TO', 'DEPENDS_ON']
+        RETURN count(r) as count
+        """,
+    ).single()["count"]
+    assert stale_derived_rels_count == 0
+
+    stale_affects_count = neo4j_session.run(
+        """
+        MATCH (:TrivyImageFinding {id: 'TIF|CVE-2024-99999'})-[r:AFFECTS]->(:Package {id: 'npm|express|4.18.2'})
+        RETURN count(r) as count
+        """,
+    ).single()["count"]
+    assert stale_affects_count == 0
+
+    fresh_detected_as_count = neo4j_session.run(
+        """
+        MATCH (:Package {id: 'npm|express|4.18.2'})-[r:DETECTED_AS]->(:TrivyPackage {normalized_id: 'npm|express|4.18.2'})
+        RETURN count(r) as count
+        """,
+    ).single()["count"]
+    assert fresh_detected_as_count == 1
