@@ -5,9 +5,12 @@ import requests
 
 import cartography.intel.openai.adminapikeys
 import cartography.intel.openai.apikeys
+import cartography.intel.openai.containers
 import cartography.intel.openai.projects
 import cartography.intel.openai.serviceaccounts
+import cartography.intel.openai.skills
 import cartography.intel.openai.users
+import cartography.intel.openai.vectorstores
 from cartography.config import Config
 from cartography.util import timeit
 
@@ -77,6 +80,28 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             project_job_parameters,
             project_id=project["id"],
         )
+
+        # Data-plane APIs scoped by OpenAI-Project header
+        api_session.headers["OpenAI-Project"] = project["id"]
+        cartography.intel.openai.containers.sync(
+            neo4j_session,
+            api_session,
+            project_job_parameters,
+            project_id=project["id"],
+        )
+        cartography.intel.openai.skills.sync(
+            neo4j_session,
+            api_session,
+            project_job_parameters,
+            project_id=project["id"],
+        )
+        cartography.intel.openai.vectorstores.sync(
+            neo4j_session,
+            api_session,
+            project_job_parameters,
+            project_id=project["id"],
+        )
+        api_session.headers.pop("OpenAI-Project", None)
 
     cartography.intel.openai.adminapikeys.sync(
         neo4j_session,
