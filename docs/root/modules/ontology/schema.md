@@ -483,6 +483,7 @@ Package nodes are deduplicated by their `id`, which uses the format `{type}|{nam
     ```
     (:Package)-[:DEPENDS_ON]->(:Package)
     ```
+
 ### ContainerRegistry
 
 ```{note}
