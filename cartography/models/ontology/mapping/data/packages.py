@@ -124,41 +124,7 @@ syft_mapping = OntologyMapping(
     ],
 )
 
-github_mapping = OntologyMapping(
-    module_name="github",
-    nodes=[
-        OntologyNodeMapping(
-            node_label="Dependency",
-            fields=[
-                OntologyFieldMapping(
-                    ontology_field="normalized_id",
-                    node_field="normalized_id",
-                    required=True,
-                ),
-                OntologyFieldMapping(ontology_field="name", node_field="name"),
-                OntologyFieldMapping(ontology_field="version", node_field="version"),
-                OntologyFieldMapping(ontology_field="type", node_field="type"),
-                OntologyFieldMapping(ontology_field="purl", node_field="purl"),
-            ],
-        ),
-    ],
-    rels=[
-        OntologyRelMapping(
-            __comment__="Link Package to GitHubRepository via Dependency REQUIRES",
-            query=(
-                "MATCH (p:Package)-[:DETECTED_AS]->(d:Dependency)"
-                "<-[:REQUIRES]-(r:GitHubRepository) "
-                "MERGE (r)-[rel:REQUIRES]->(p) "
-                "ON CREATE SET rel.firstseen = timestamp() "
-                "SET rel.lastupdated = $UPDATE_TAG"
-            ),
-            iterative=False,
-        ),
-    ],
-)
-
 PACKAGES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "trivy": trivy_mapping,
     "syft": syft_mapping,
-    "github": github_mapping,
 }
