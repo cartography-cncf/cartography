@@ -76,6 +76,7 @@ trivy_mapping = OntologyMapping(
             ),
             iterative=False,
         ),
+        # DEPRECATED: compatibility edge; remove in Cartography v1.
         OntologyRelMapping(
             __comment__="Link Package SHOULD_UPDATE_TO TrivyFix via TrivyPackage for compatibility",
             query=(
