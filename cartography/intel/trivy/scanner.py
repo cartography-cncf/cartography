@@ -413,7 +413,7 @@ def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
     """One-time migration: relabel legacy Package → TrivyPackage for nodes created before the rename."""
     check_query = """
     MATCH (n:Package)
-    WHERE NOT n:TrivyPackage AND NOT n:Ontology
+    WHERE NOT n:Ontology
     RETURN count(n) as legacy_count
     """
     result = neo4j_session.run(check_query)
@@ -425,7 +425,7 @@ def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
     logger.info("Migrating %d legacy Package nodes to TrivyPackage...", legacy_count)
     migration_query = """
     MATCH (n:Package)
-    WHERE NOT n:TrivyPackage AND NOT n:Ontology
+    WHERE NOT n:Ontology
     SET n:TrivyPackage
     REMOVE n:Package
     RETURN count(n) as migrated
