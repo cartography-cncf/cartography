@@ -1,11 +1,9 @@
 import json
 from unittest.mock import MagicMock
-from unittest.mock import mock_open
 from unittest.mock import patch
 
 import cartography.intel.aws.ecr
 import cartography.intel.ontology.packages
-import cartography.intel.trivy
 import tests.data.aws.ecr
 from cartography.intel.syft import sync_single_syft
 from cartography.intel.trivy import sync_trivy_from_dir
@@ -60,16 +58,6 @@ SYFT_TRIVY_OVERLAP_SAMPLE = {
 }
 
 
-@patch(
-    "builtins.open",
-    new_callable=mock_open,
-    read_data=json.dumps(TRIVY_SAMPLE),
-)
-@patch.object(
-    cartography.intel.trivy,
-    "get_json_files_in_dir",
-    return_value={"/tmp/scan.json"},
-)
 @patch.object(
     cartography.intel.aws.ecr,
     "get_ecr_repositories",
@@ -85,8 +73,7 @@ SYFT_TRIVY_OVERLAP_SAMPLE = {
 def test_packages_end_to_end_from_trivy_syft_to_ontology(
     _mock_get_images,
     _mock_get_repos,
-    _mock_list_dir_scan_results,
-    _mock_file_open,
+    tmp_path,
     neo4j_session,
 ):
     """
@@ -118,9 +105,11 @@ def test_packages_end_to_end_from_trivy_syft_to_ontology(
     )
 
     # 2) Ingest Trivy scan data from sample.
+    scan_path = tmp_path / "scan.json"
+    scan_path.write_text(json.dumps(TRIVY_SAMPLE))
     sync_trivy_from_dir(
         neo4j_session,
-        "/tmp",
+        str(tmp_path),
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
