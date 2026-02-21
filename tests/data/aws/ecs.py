@@ -1,6 +1,78 @@
 import datetime
 from datetime import timezone as tz
 
+# Test data for manifest list resolution scenarios
+# Scenario 1: Container with direct platform image digest
+DIRECT_IMAGE_DIGEST = (
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+)
+
+# Scenario 2: Container with manifest list digest that needs resolution
+MANIFEST_LIST_DIGEST = (
+    "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+)
+PLATFORM_IMAGE_AMD64_DIGEST = (
+    "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+)
+PLATFORM_IMAGE_ARM64_DIGEST = (
+    "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+)
+
+# ECR Images for testing manifest list resolution
+ECR_IMAGES_FOR_RESOLUTION = [
+    {
+        "id": DIRECT_IMAGE_DIGEST,
+        "digest": DIRECT_IMAGE_DIGEST,
+        "type": "image",
+        "architecture": "amd64",
+    },
+    {
+        "id": MANIFEST_LIST_DIGEST,
+        "digest": MANIFEST_LIST_DIGEST,
+        "type": "manifest_list",
+    },
+    {
+        "id": PLATFORM_IMAGE_AMD64_DIGEST,
+        "digest": PLATFORM_IMAGE_AMD64_DIGEST,
+        "type": "image",
+        "architecture": "amd64",
+    },
+    {
+        "id": PLATFORM_IMAGE_ARM64_DIGEST,
+        "digest": PLATFORM_IMAGE_ARM64_DIGEST,
+        "type": "image",
+        "architecture": "arm64",
+    },
+]
+
+# ECS containers for resolution testing
+ECS_CONTAINERS_FOR_RESOLUTION = [
+    {
+        # Container referencing a direct platform image
+        "containerArn": "arn:aws:ecs:us-east-1:000000000000:container/test_cluster/direct_task/direct-container-id",
+        "taskArn": "arn:aws:ecs:us-east-1:000000000000:task/test_cluster/direct_task",
+        "name": "direct-image-container",
+        "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repo:v1",
+        "imageDigest": DIRECT_IMAGE_DIGEST,
+        "lastStatus": "RUNNING",
+        "healthStatus": "HEALTHY",
+        "cpu": "256",
+        "memory": "512",
+    },
+    {
+        # Container referencing a manifest list (should be resolved to platform image)
+        "containerArn": "arn:aws:ecs:us-east-1:000000000000:container/test_cluster/manifest_task/manifest-container-id",
+        "taskArn": "arn:aws:ecs:us-east-1:000000000000:task/test_cluster/manifest_task",
+        "name": "manifest-list-container",
+        "image": "000000000000.dkr.ecr.us-east-1.amazonaws.com/test-repo:latest",
+        "imageDigest": MANIFEST_LIST_DIGEST,
+        "lastStatus": "RUNNING",
+        "healthStatus": "HEALTHY",
+        "cpu": "512",
+        "memory": "1024",
+    },
+]
+
 GET_ECS_CLUSTERS = [
     {
         "clusterArn": "arn:aws:ecs:us-east-1:000000000000:cluster/test_cluster",

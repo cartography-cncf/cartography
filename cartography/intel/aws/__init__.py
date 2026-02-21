@@ -405,6 +405,16 @@ def _perform_aws_analysis(
         neo4j_session,
     )
 
+    # Resolve container image manifest lists to platform-specific images
+    # This allows unified vulnerability queries without complex OR logic
+    run_analysis_and_ensure_deps(
+        "container_image_resolution.json",
+        {"ecs", "ecr"},
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
 
 @timeit
 def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:

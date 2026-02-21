@@ -14,7 +14,7 @@ aws_ecs_container_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
-                    ontology_field="image_digest", node_field="image_digest"
+                    ontology_field="image_digest", node_field="resolved_image_digest"
                 ),
                 OntologyFieldMapping(ontology_field="state", node_field="last_status"),
                 OntologyFieldMapping(ontology_field="cpu", node_field="cpu"),
@@ -41,7 +41,7 @@ kubernetes_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="image", node_field="image"),
                 OntologyFieldMapping(
-                    ontology_field="image_digest", node_field="status_image_sha"
+                    ontology_field="image_digest", node_field="resolved_image_digest"
                 ),
                 OntologyFieldMapping(ontology_field="state", node_field="status_state"),
                 # cpu: Not exposed as a direct field in KubernetesContainer node
