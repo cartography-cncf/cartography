@@ -8,6 +8,7 @@ from neo4j import Session
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.trivy.util import make_normalized_package_id
 from cartography.models.trivy.findings import TrivyImageFindingSchema
 from cartography.models.trivy.fix import TrivyFixSchema
 from cartography.models.trivy.package import TrivyPackageSchema
@@ -127,6 +128,16 @@ def transform_scan_results(
 
                 # Transform package data
                 package_id = f"{result['InstalledVersion']}|{result['PkgName']}"
+
+                # Compute normalized ID for cross-tool matching
+                # This enables Syft to match packages despite naming differences
+                normalized_id = make_normalized_package_id(
+                    purl=purl,
+                    name=result["PkgName"],
+                    version=result["InstalledVersion"],
+                    pkg_type=scan_class["Type"],
+                )
+
                 packages_list.append(
                     {
                         "id": package_id,
@@ -139,6 +150,7 @@ def transform_scan_results(
                         # Additional fields
                         "PURL": purl,
                         "PkgID": result.get("PkgID"),
+                        "normalized_id": normalized_id,
                     }
                 )
 
@@ -202,6 +214,13 @@ def transform_all_packages(
             if "Identifier" in pkg and pkg["Identifier"]:
                 purl = pkg["Identifier"].get("PURL")
 
+            normalized_id = make_normalized_package_id(
+                purl=purl,
+                name=name,
+                version=version,
+                pkg_type=pkg_type,
+            )
+
             packages_list.append(
                 {
                     "id": package_id,
@@ -213,6 +232,7 @@ def transform_all_packages(
                     "FindingId": None,
                     "PURL": purl,
                     "PkgID": pkg.get("ID"),
+                    "normalized_id": normalized_id,
                 },
             )
 
@@ -374,6 +394,8 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     """
     Run cleanup jobs for Trivy nodes.
     """
+    _migrate_legacy_package_labels(neo4j_session)
+
     logger.info("Running Trivy cleanup")
     GraphJob.from_node_schema(TrivyImageFindingSchema(), common_job_parameters).run(
         neo4j_session
@@ -383,6 +405,38 @@ def cleanup(neo4j_session: Session, common_job_parameters: dict[str, Any]) -> No
     )
     GraphJob.from_node_schema(TrivyFixSchema(), common_job_parameters).run(
         neo4j_session
+    )
+
+
+# DEPRECATED: Remove this migration function when releasing v1
+def _migrate_legacy_package_labels(neo4j_session: Session) -> None:
+    """One-time migration: relabel legacy Package → TrivyPackage for nodes created before the rename."""
+    # Package is reserved as the canonical ontology primary label.
+    # Non-ontology nodes should never use :Package going forward
+    # (enforced by tests/unit/cartography/intel/ontology/test_ontology_mapping.py).
+    check_query = """
+    MATCH (n:Package)
+    WHERE NOT n:Ontology
+    RETURN count(n) as legacy_count
+    """
+    result = neo4j_session.run(check_query)
+    legacy_count = result.single()["legacy_count"]
+
+    if legacy_count == 0:
+        return
+
+    logger.info("Migrating %d legacy Package nodes to TrivyPackage...", legacy_count)
+    migration_query = """
+    MATCH (n:Package)
+    WHERE NOT n:Ontology
+    SET n:TrivyPackage
+    REMOVE n:Package
+    RETURN count(n) as migrated
+    """
+    result = neo4j_session.run(migration_query)
+    logger.info(
+        "Migrated %d Package nodes to TrivyPackage",
+        result.single()["migrated"],
     )
 
 

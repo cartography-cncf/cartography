@@ -129,7 +129,7 @@ _gcp_unrestricted_ssh = Fact(
     ),
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
-    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:GCPIpRange)
     WHERE range.range IN ['0.0.0.0/0', '::/0']
       AND coalesce(fw.disabled, false) = false
       AND (
@@ -148,7 +148,7 @@ _gcp_unrestricted_ssh = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
-    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:GCPIpRange)
     WHERE range.range IN ['0.0.0.0/0', '::/0']
       AND coalesce(fw.disabled, false) = false
       AND (
@@ -223,7 +223,7 @@ _gcp_unrestricted_rdp = Fact(
     ),
     cypher_query="""
     MATCH (project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
-    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:GCPIpRange)
     WHERE range.range IN ['0.0.0.0/0', '::/0']
       AND coalesce(fw.disabled, false) = false
       AND (
@@ -242,7 +242,7 @@ _gcp_unrestricted_rdp = Fact(
     """,
     cypher_visual_query="""
     MATCH p=(project:GCPProject)-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall {direction: 'INGRESS'})
-    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:IpRange)
+    MATCH (fw)<-[:ALLOWED_BY]-(rule:GCPIpRule)<-[:MEMBER_OF_IP_RULE]-(range:GCPIpRange)
     WHERE range.range IN ['0.0.0.0/0', '::/0']
       AND coalesce(fw.disabled, false) = false
       AND (

@@ -24,7 +24,7 @@ def assert_trivy_findings(neo4j_session: Session) -> None:
 
 def assert_trivy_packages(neo4j_session: Session) -> None:
     """Assert Package nodes exist with expected values (vulnerable + non-vulnerable)."""
-    assert check_nodes(neo4j_session, "Package", ["id", "name", "version"]) == {
+    assert check_nodes(neo4j_session, "TrivyPackage", ["id", "name", "version"]) == {
         # Vulnerable packages (from Vulnerabilities array)
         ("0.14.0|h11", "h11", "0.14.0"),
         ("1.20.1-2+deb12u2|krb5-locales", "krb5-locales", "1.20.1-2+deb12u2"),
@@ -53,7 +53,7 @@ def assert_all_trivy_relationships(neo4j_session: Session) -> None:
     # Package to ECRImage relationships
     assert check_rels(
         neo4j_session,
-        "Package",
+        "TrivyPackage",
         "id",
         "ECRImage",
         "id",
@@ -138,7 +138,7 @@ def assert_all_trivy_relationships(neo4j_session: Session) -> None:
     # Package to TrivyFix relationships
     assert check_rels(
         neo4j_session,
-        "Package",
+        "TrivyPackage",
         "id",
         "TrivyFix",
         "id",
@@ -196,7 +196,7 @@ def assert_all_trivy_relationships(neo4j_session: Session) -> None:
     # Package to TrivyImageFinding relationships
     assert check_rels(
         neo4j_session,
-        "Package",
+        "TrivyPackage",
         "id",
         "TrivyImageFinding",
         "id",
@@ -307,7 +307,7 @@ def assert_trivy_package_extended_fields(neo4j_session: Session) -> None:
     """Assert Package nodes have extended fields populated."""
     result = neo4j_session.run(
         """
-        MATCH (p:Package)
+        MATCH (p:TrivyPackage)
         WHERE p.purl IS NOT NULL
         RETURN p.id AS id, p.purl AS purl, p.pkg_id AS pkg_id
         LIMIT 5
@@ -332,7 +332,7 @@ def assert_trivy_gcp_image_relationships(
     # Package to GCPArtifactRegistryContainerImage relationships (DEPLOYED)
     container_image_package_rels = check_rels(
         neo4j_session,
-        "Package",
+        "TrivyPackage",
         "id",
         "GCPArtifactRegistryContainerImage",
         "digest",
@@ -343,7 +343,7 @@ def assert_trivy_gcp_image_relationships(
     # Package to GCPArtifactRegistryPlatformImage relationships (DEPLOYED)
     platform_image_package_rels = check_rels(
         neo4j_session,
-        "Package",
+        "TrivyPackage",
         "id",
         "GCPArtifactRegistryPlatformImage",
         "digest",
@@ -392,7 +392,7 @@ def assert_trivy_gitlab_image_relationships(
     assert (
         check_rels(
             neo4j_session,
-            "Package",
+            "TrivyPackage",
             "id",
             "GitLabContainerImage",
             "id",

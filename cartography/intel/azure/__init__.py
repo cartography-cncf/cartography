@@ -20,6 +20,7 @@ from . import data_lake
 from . import event_grid
 from . import event_hub
 from . import event_hub_namespace
+from . import firewall
 from . import functions
 from . import key_vaults
 from . import load_balancers
@@ -203,6 +204,13 @@ def _sync_one_subscription(
         update_tag,
         common_job_parameters,
     )
+    firewall.sync(
+        neo4j_session,
+        credentials,
+        subscription_id,
+        update_tag,
+        common_job_parameters,
+    )
     load_balancers.sync(
         neo4j_session,
         credentials,
@@ -246,7 +254,13 @@ def _sync_tenant(
     common_job_parameters: Dict,
 ) -> None:
     logger.info("Syncing Azure Tenant: %s", credentials.tenant_id)
-    tenant.sync(neo4j_session, credentials.tenant_id, None, update_tag, common_job_parameters)  # type: ignore
+    tenant.sync(
+        neo4j_session,
+        credentials.tenant_id or "",
+        None,
+        update_tag,
+        common_job_parameters,
+    )
 
 
 def _sync_multiple_subscriptions(
