@@ -13,6 +13,9 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.backendservice import sync_gcp_backend_services
+from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
+from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.compute.firewall import GCPFirewallSchema
 from cartography.models.gcp.compute.firewall_target_tag import (
@@ -1386,6 +1389,30 @@ def sync(
             common_job_parameters,
         )
         sync_gcp_forwarding_rules(
+            neo4j_session,
+            compute,
+            project_id,
+            regions,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_instance_groups(
+            neo4j_session,
+            compute,
+            project_id,
+            zones,
+            regions,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_cloud_armor(
+            neo4j_session,
+            compute,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_backend_services(
             neo4j_session,
             compute,
             project_id,

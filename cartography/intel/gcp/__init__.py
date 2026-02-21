@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from collections import namedtuple
 from typing import Dict
 from typing import List
@@ -56,6 +57,7 @@ from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import run_analysis_job
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -157,6 +159,16 @@ def _sync_project_resources(
     )
 
     # Per-project sync across services
+    # TODO: Remove this filter after testing
+    _gcp_project_filter = os.environ.get("GCP_PROJECT_FILTER")
+    if _gcp_project_filter:
+        projects = [p for p in projects if p["projectId"] == _gcp_project_filter]
+        logger.info(
+            "Filtered to %d project(s) matching GCP_PROJECT_FILTER=%s",
+            len(projects),
+            _gcp_project_filter,
+        )
+
     for project in projects:
         project_id = project["projectId"]
         common_job_parameters["PROJECT_ID"] = project_id
@@ -560,6 +572,18 @@ def _sync_project_resources(
                 f"Skipping IAM cleanup for project {project_id} - IAM sync did not complete"
             )
 
+        # Scoped analysis jobs - run per project after all syncs
+        run_scoped_analysis_job(
+            "gcp_compute_exposure.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+        run_scoped_analysis_job(
+            "gcp_lb_exposure.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
         del common_job_parameters["PROJECT_ID"]
 
 
@@ -704,12 +728,6 @@ def start_gcp_ingestion(
 
     run_analysis_job(
         "gcp_ip_node_label_migration.json",
-        neo4j_session,
-        common_job_parameters,
-    )
-
-    run_analysis_job(
-        "gcp_compute_asset_inet_exposure.json",
         neo4j_session,
         common_job_parameters,
     )
