@@ -91,3 +91,51 @@ def test_load_tags_empty_data():
 
     # Assert
     mock_neo4j_session.execute_write.assert_not_called()
+
+
+def test_get_tags_includes_iam_users_roles_and_groups(mocker):
+    mocker.patch(
+        "cartography.intel.aws.resourcegroupstaggingapi.get_role_tags",
+        return_value=[
+            {"ResourceARN": "arn:aws:iam::123456789012:role/test-role", "Tags": []}
+        ],
+    )
+    mocker.patch(
+        "cartography.intel.aws.resourcegroupstaggingapi.get_user_tags",
+        return_value=[
+            {"ResourceARN": "arn:aws:iam::123456789012:user/test-user", "Tags": []}
+        ],
+    )
+    mocker.patch(
+        "cartography.intel.aws.resourcegroupstaggingapi.get_group_tags",
+        return_value=[
+            {"ResourceARN": "arn:aws:iam::123456789012:group/test-group", "Tags": []}
+        ],
+    )
+
+    mock_session = MagicMock()
+    mock_client = MagicMock()
+    mock_paginator = MagicMock()
+    mock_paginator.paginate.return_value = [
+        {
+            "ResourceTagMappingList": [
+                {"ResourceARN": "arn:aws:s3:::bucket", "Tags": []}
+            ]
+        },
+    ]
+    mock_client.get_paginator.return_value = mock_paginator
+    mock_session.client.return_value = mock_client
+
+    result = rgta.get_tags(
+        mock_session,
+        ["iam:role", "iam:user", "iam:group", "s3"],
+        "us-east-1",
+    )
+
+    assert {item["ResourceARN"] for item in result} == {
+        "arn:aws:iam::123456789012:role/test-role",
+        "arn:aws:iam::123456789012:user/test-user",
+        "arn:aws:iam::123456789012:group/test-group",
+        "arn:aws:s3:::bucket",
+    }
+    mock_paginator.paginate.assert_called_once_with(ResourceTypeFilters=["s3"])

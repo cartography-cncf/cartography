@@ -20,6 +20,10 @@ class GitHubDependencyNodeProperties(CartographyNodeProperties):
     ecosystem: PropertyRef = PropertyRef("ecosystem")
     package_manager: PropertyRef = PropertyRef("package_manager")
     manifest_file: PropertyRef = PropertyRef("manifest_file")
+    version: PropertyRef = PropertyRef("version")
+    type: PropertyRef = PropertyRef("type")
+    purl: PropertyRef = PropertyRef("purl")
+    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

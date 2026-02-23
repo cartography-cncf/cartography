@@ -1,0 +1,58 @@
+{
+  "name": "Azure asset internet exposure",
+  "statements": [
+    {
+      "__comment": "Reset exposed_internet on AzureVirtualMachine. This analysis job is intentionally global and should run after all Azure subscriptions are synced for the run.",
+      "query": "MATCH (n:AzureVirtualMachine) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment": "Reset exposed_internet on AzureLoadBalancer",
+      "query": "MATCH (n:AzureLoadBalancer) WHERE n.exposed_internet IS NOT NULL OR n.exposed_internet_type IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment": "Reset exposed_internet on AzureContainerInstance",
+      "query": "MATCH (n:AzureContainerInstance) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type RETURN COUNT(*) AS TotalCompleted",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment": "Mark VMs as directly exposed if they have a NIC with a public IP",
+      "query": "MATCH (vm:AzureVirtualMachine)<-[:ATTACHED_TO]-(nic:AzureNetworkInterface)-[:ASSOCIATED_WITH]->(pip:AzurePublicIPAddress) WHERE pip.ip_address IS NOT NULL AND (vm.exposed_internet_type IS NULL OR NOT 'direct' IN vm.exposed_internet_type) SET vm.exposed_internet = true, vm.exposed_internet_type = CASE WHEN vm.exposed_internet_type IS NULL THEN ['direct'] WHEN NOT 'direct' IN vm.exposed_internet_type THEN vm.exposed_internet_type + ['direct'] ELSE vm.exposed_internet_type END",
+      "iterative": false
+    },
+    {
+      "__comment": "Mark LBs as exposed if a frontend IP has a public IP",
+      "query": "MATCH (lb:AzureLoadBalancer)-[:CONTAINS]->(fip:AzureLoadBalancerFrontendIPConfiguration)-[:ASSOCIATED_WITH]->(pip:AzurePublicIPAddress) WHERE pip.ip_address IS NOT NULL SET lb.exposed_internet = true",
+      "iterative": false
+    },
+    {
+      "__comment": "Mark VMs as exposed via LB",
+      "query": "MATCH (lb:AzureLoadBalancer{exposed_internet: true})-[:CONTAINS]->(:AzureLoadBalancerBackendPool)-[:ROUTES_TO]->(nic:AzureNetworkInterface)-[:ATTACHED_TO]->(vm:AzureVirtualMachine) WITH vm WHERE vm.exposed_internet_type IS NULL OR NOT 'lb' IN vm.exposed_internet_type SET vm.exposed_internet = true, vm.exposed_internet_type = CASE WHEN vm.exposed_internet_type IS NULL THEN ['lb'] WHEN NOT 'lb' IN vm.exposed_internet_type THEN vm.exposed_internet_type + ['lb'] ELSE vm.exposed_internet_type END",
+      "iterative": false
+    },
+    {
+      "__comment": "Mark container instances as directly exposed if they have a public IP and are not VNet-integrated. Prefer ip_address_type when present, fall back to topology.",
+      "query": "MATCH (c:AzureContainerInstance) WHERE c.ip_address IS NOT NULL AND (c.ip_address_type = 'Public' OR (c.ip_address_type IS NULL AND NOT (c)-[:ATTACHED_TO]->(:AzureSubnet))) SET c.exposed_internet = true, c.exposed_internet_type = ['direct']",
+      "iterative": false
+    },
+    {
+      "__comment": "Set exposed_internet = false on VMs not marked as exposed",
+      "query": "MATCH (vm:AzureVirtualMachine) WHERE vm.exposed_internet IS NULL SET vm.exposed_internet = false",
+      "iterative": false
+    },
+    {
+      "__comment": "Set exposed_internet = false on LBs not marked as exposed",
+      "query": "MATCH (lb:AzureLoadBalancer) WHERE lb.exposed_internet IS NULL SET lb.exposed_internet = false",
+      "iterative": false
+    },
+    {
+      "__comment": "Set exposed_internet = false on container instances not marked as exposed",
+      "query": "MATCH (c:AzureContainerInstance) WHERE c.exposed_internet IS NULL SET c.exposed_internet = false",
+      "iterative": false
+    }
+  ]
+}

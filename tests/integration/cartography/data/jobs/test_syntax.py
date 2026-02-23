@@ -17,6 +17,7 @@ def test_analysis_jobs_cypher_syntax(neo4j_session):
         "UPDATE_TAG": "my_update_tag",
         "OKTA_ORG_ID": "my_okta_org_id",
         "DEPLOYMENT_ID": "my_deployment_id",
+        "AZURE_SUBSCRIPTION_ID": "my_azure_subscription_id",
     }
 
     for job_name in contents("cartography.data.jobs.analysis"):
