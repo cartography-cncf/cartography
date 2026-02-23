@@ -1886,6 +1886,8 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 
 > **Ontology Mapping**: This node has the extra label `Container` to enable cross-platform queries for container instances across different systems (e.g., ECSContainer, KubernetesContainer).
 
+| Field | Description |
+|---|---|
 |**id**| The full resource ID of the Container Instance. |
 |name| The name of the Container Instance. |
 |location| The Azure region where the Container Instance is deployed. |
@@ -1893,6 +1895,11 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 |provisioning_state| The deployment status of the Container Instance (e.g., Succeeded). |
 |ip_address| The public IP address of the Container Instance, if one is assigned. |
 |os_type| The operating system type of the Container Instance (e.g., Linux or Windows). |
+|architecture| Raw runtime architecture hint source value. For ACI, this is typically the image reference used for hinting when no digest is present. |
+|architecture_normalized| Canonical normalized architecture (`amd64`, `arm64`, etc.) derived from available hints. |
+|architecture_source| Provenance of architecture inference (for example, `image_ref_hint`). |
+|image_refs| List of container image references extracted from the container group payload. |
+|image_digests| List of `sha256:*` digests extracted from `image_refs` and container runtime pull events when available. |
 
 #### Relationships
 

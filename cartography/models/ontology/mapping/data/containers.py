@@ -74,6 +74,9 @@ azure_mapping = OntologyMapping(
                 # cpu: Not exposed as a direct field in AzureContainerInstance node
                 # memory: Not exposed as a direct field in AzureContainerInstance node
                 OntologyFieldMapping(ontology_field="region", node_field="location"),
+                OntologyFieldMapping(
+                    ontology_field="architecture", node_field="architecture_normalized"
+                ),
                 # namespace: Not applicable for Azure Container Instances (Azure does not use namespaces in this context)
                 # health_status: Not exposed as a direct field in AzureContainerInstance node
             ],

@@ -10,6 +10,12 @@ TEST_SUBSCRIPTION_ID = "00-00-00-00"
 TEST_UPDATE_TAG = 123456789
 
 
+def test_resource_group_from_id():
+    resource_id = "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/my-test-aci"
+    assert container_instances._resource_group_from_id(resource_id) == "TestRG"
+    assert container_instances._resource_group_from_id(None) is None
+
+
 @patch("cartography.intel.azure.container_instances.get_container_instances")
 def test_sync_container_instances(mock_get, neo4j_session):
     """
@@ -47,9 +53,22 @@ def test_sync_container_instances(mock_get, neo4j_session):
         (
             "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/my-test-aci",
             "my-test-aci",
+            None,
+            "unknown",
+            None,
         ),
     }
-    actual_nodes = check_nodes(neo4j_session, "AzureContainerInstance", ["id", "name"])
+    actual_nodes = check_nodes(
+        neo4j_session,
+        "AzureContainerInstance",
+        [
+            "id",
+            "name",
+            "architecture",
+            "architecture_normalized",
+            "architecture_source",
+        ],
+    )
     assert actual_nodes == expected_nodes
 
     # Assert Relationships
@@ -68,6 +87,18 @@ def test_sync_container_instances(mock_get, neo4j_session):
         "RESOURCE",
     )
     assert actual_rels == expected_rels
+
+    record = neo4j_session.run(
+        """
+        MATCH (c:AzureContainerInstance {name: 'my-test-aci'})
+        RETURN c.image_refs AS image_refs, c.image_digests AS image_digests
+        """
+    ).single()
+    assert record["image_refs"] == [
+        "mcr.microsoft.com/oss/nginx/nginx:1.25.3-amd64",
+        "myregistry.azurecr.io/team/worker@sha256:abc123",
+    ]
+    assert record["image_digests"] == ["sha256:abc123"]
 
 
 def test_load_container_instance_tags(neo4j_session):
@@ -126,3 +157,182 @@ def test_load_container_instance_tags(neo4j_session):
         "TAGGED",
     )
     assert actual_rels == expected_rels
+
+
+def test_transform_container_instances_accepts_camel_case_properties():
+    data = [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/camel",
+            "name": "camel",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "properties": {
+                "provisioningState": "Succeeded",
+                "ipAddress": {"ip": "20.1.1.1"},
+                "osType": "Linux",
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "myregistry.azurecr.io/team/app@sha256:def456",
+                    }
+                ],
+            },
+            "tags": {},
+        }
+    ]
+
+    transformed = container_instances.transform_container_instances(data)
+    assert transformed == [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/camel",
+            "name": "camel",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "provisioning_state": "Succeeded",
+            "ip_address": "20.1.1.1",
+            "os_type": "Linux",
+            "architecture": None,
+            "architecture_normalized": "unknown",
+            "architecture_source": None,
+            "image_refs": ["myregistry.azurecr.io/team/app@sha256:def456"],
+            "image_digests": ["sha256:def456"],
+            "tags": {},
+        }
+    ]
+
+
+def test_transform_container_instances_uses_image_ref_hint_without_digest():
+    data = [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/no-digest",
+            "name": "no-digest",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "properties": {
+                "provisioning_state": "Succeeded",
+                "ip_address": {"ip": "20.1.1.9"},
+                "os_type": "Linux",
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "mcr.microsoft.com/oss/nginx/nginx:1.25.3-amd64",
+                    }
+                ],
+            },
+            "tags": {},
+        }
+    ]
+
+    transformed = container_instances.transform_container_instances(data)
+    assert (
+        transformed[0]["architecture"]
+        == "mcr.microsoft.com/oss/nginx/nginx:1.25.3-amd64"
+    )
+    assert transformed[0]["architecture_normalized"] == "amd64"
+    assert transformed[0]["architecture_source"] == "image_ref_hint"
+
+
+def test_transform_container_instances_accepts_top_level_sdk_shape():
+    data = [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/top-level",
+            "name": "top-level",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "provisioningState": "Succeeded",
+            "ipAddress": {"ip": "10.0.2.4"},
+            "osType": "Linux",
+            "containers": [
+                {
+                    "name": "app",
+                    "image": "mcr.microsoft.com/azuredocs/aci-helloworld",
+                }
+            ],
+            "tags": {},
+        }
+    ]
+
+    transformed = container_instances.transform_container_instances(data)
+    assert transformed == [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/top-level",
+            "name": "top-level",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "provisioning_state": "Succeeded",
+            "ip_address": "10.0.2.4",
+            "os_type": "Linux",
+            "architecture": "mcr.microsoft.com/azuredocs/aci-helloworld",
+            "architecture_normalized": "unknown",
+            "architecture_source": None,
+            "image_refs": ["mcr.microsoft.com/azuredocs/aci-helloworld"],
+            "image_digests": [],
+            "tags": {},
+        }
+    ]
+
+
+@patch("cartography.intel.azure.container_instances.ContainerInstanceManagementClient")
+def test_get_container_instances_hydrates_with_get(mock_client_cls):
+    list_item = {
+        "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/demo",
+        "name": "demo",
+    }
+    detailed_item = {
+        **list_item,
+        "osType": "Linux",
+        "containers": [{"name": "app", "image": "repo/app:latest"}],
+    }
+
+    mock_client = MagicMock()
+    mock_client.container_groups.list.return_value = [
+        MagicMock(as_dict=lambda: list_item)
+    ]
+    mock_client.container_groups.get.return_value = MagicMock(
+        as_dict=lambda: detailed_item
+    )
+    mock_client_cls.return_value = mock_client
+
+    result = container_instances.get_container_instances(
+        credentials=MagicMock(credential=MagicMock()),
+        subscription_id=TEST_SUBSCRIPTION_ID,
+    )
+    assert result == [detailed_item]
+    mock_client.container_groups.get.assert_called_once_with(
+        resource_group_name="TestRG",
+        container_group_name="demo",
+    )
+
+
+def test_transform_container_instances_extracts_runtime_pulled_digest():
+    digest = "sha256:c48f9e3a9902321d8e7b50a9d975ed24259f377981d93551d565850243431673"
+    data = [
+        {
+            "id": "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/runtime-digest",
+            "name": "runtime-digest",
+            "location": "eastus",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "provisioningState": "Succeeded",
+            "ipAddress": None,
+            "osType": "Linux",
+            "containers": [
+                {
+                    "name": "app",
+                    "image": "mcr.microsoft.com/cbl-mariner/base/core:2.0",
+                    "instanceView": {
+                        "events": [
+                            {
+                                "message": f'pulling image "mcr.microsoft.com/cbl-mariner/base/core@{digest}"'
+                            }
+                        ]
+                    },
+                }
+            ],
+            "tags": {},
+        }
+    ]
+    transformed = container_instances.transform_container_instances(data)
+    assert transformed[0]["image_refs"] == [
+        "mcr.microsoft.com/cbl-mariner/base/core:2.0"
+    ]
+    assert transformed[0]["image_digests"] == [digest]
