@@ -3188,6 +3188,12 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
     (AWSLoadBalancerV2)-[EXPOSE]->(ECSContainer)
     ```
 
+- Internet-facing AWSLoadBalancerV2's can expose Kubernetes pods and containers. Set by the `k8s_lb_exposure` analysis job.
+    ```
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(KubernetesPod)
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(KubernetesContainer)
+    ```
+
 - EC2NetworkAcl's can protect AWSLoadBalancerV2's via subnet traversal. Set by an analysis job.
     ```
     (EC2NetworkAcl)-[PROTECTS]->(AWSLoadBalancerV2)
