@@ -40,17 +40,37 @@ def get_container_instances(
 def transform_container_instances(container_groups: list[dict]) -> list[dict]:
     transformed_instances: list[dict[str, Any]] = []
     for group in container_groups:
+        subnet_ids: list[str] = []
+        # Azure SDK as_dict() returns flat structure (not nested under "properties")
+        for subnet_ref in group.get(
+            "subnet_ids", group.get("properties", {}).get("subnet_ids", [])
+        ):
+            subnet_id = subnet_ref.get("id")
+            if subnet_id:
+                subnet_ids.append(subnet_id)
+
         transformed_instance = {
             "id": group.get("id"),
             "name": group.get("name"),
             "location": group.get("location"),
             "type": group.get("type"),
-            "provisioning_state": group.get("properties", {}).get("provisioning_state"),
-            "ip_address": ((group.get("properties") or {}).get("ip_address") or {}).get(
-                "ip"
+            "provisioning_state": group.get(
+                "provisioning_state",
+                group.get("properties", {}).get("provisioning_state"),
             ),
-            "os_type": group.get("properties", {}).get("os_type"),
+            "ip_address": (
+                group.get("ip_address")
+                or group.get("properties", {}).get("ip_address")
+                or {}
+            ).get("ip"),
+            "ip_address_type": (
+                group.get("ip_address")
+                or group.get("properties", {}).get("ip_address")
+                or {}
+            ).get("type"),
+            "os_type": group.get("os_type", group.get("properties", {}).get("os_type")),
             "tags": group.get("tags"),
+            "SUBNET_IDS": subnet_ids,
         }
         transformed_instances.append(transformed_instance)
     return transformed_instances
