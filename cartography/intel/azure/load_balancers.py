@@ -85,10 +85,10 @@ def transform_backend_pools(load_balancer: dict) -> list[dict]:
             "backend_ip_configurations",
             pool.get("properties", {}).get("backend_ip_configurations", []),
         ):
-            ip_config_id = ip_config.get("id", "")
+            ip_config_id = ip_config.get("id")
             # NIC ID is the parent of the ipConfiguration
             # Format: .../networkInterfaces/{nic-name}/ipConfigurations/{config-name}
-            if "/ipConfigurations/" in ip_config_id:
+            if ip_config_id and "/ipConfigurations/" in ip_config_id:
                 nic_id = ip_config_id.split("/ipConfigurations/")[0]
                 nic_ids.append(nic_id)
         transformed.append(

@@ -1,3 +1,4 @@
+from cartography.intel.azure.load_balancers import transform_backend_pools
 from cartography.intel.azure.load_balancers import transform_frontend_ips
 
 
@@ -22,4 +23,23 @@ def test_transform_frontend_ips_extracts_nested_public_ip_id() -> None:
             "private_ip_address": "10.0.0.5",
             "public_ip_address_id": "pip-1",
         },
+    ]
+
+
+def test_transform_backend_pools_ignores_missing_ip_config_id() -> None:
+    load_balancer = {
+        "backend_address_pools": [
+            {
+                "id": "pool-1",
+                "name": "backend-1",
+                "backend_ip_configurations": [
+                    {"name": "missing-id"},
+                    {"id": None},
+                ],
+            },
+        ],
+    }
+
+    assert transform_backend_pools(load_balancer) == [
+        {"id": "pool-1", "name": "backend-1", "NIC_IDS": []},
     ]
