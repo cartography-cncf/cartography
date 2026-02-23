@@ -205,6 +205,7 @@ def transform_ec2_instances(
                     "ReservationId": reservation_id,
                     "PublicDnsName": instance.get("PublicDnsName"),
                     "PublicIpAddress": instance.get("PublicIpAddress"),
+                    "Ipv6Address": instance.get("Ipv6Address"),
                     "PublicIpOwnerId": ip_owner_id,
                     "IsStaticIp": is_static_ip,
                     "PrivateIpAddress": instance.get("PrivateIpAddress"),
