@@ -242,3 +242,52 @@ def test_azure_compute_exposure_end_to_end(neo4j_session):
         "PROTECTS",
         rel_direction_right=True,
     ) == {("test-fw-id", "test-lb-id")}
+
+
+def test_azure_lb_exposure_requires_compute_analysis_first(neo4j_session):
+    """
+    LB EXPOSE relationships depend on lb.exposed_internet, which is set by
+    azure_compute_asset_exposure.json.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_base_graph(neo4j_session)
+
+    # Running scoped LB exposure before compute analysis should not create EXPOSE rels.
+    cartography.util.run_scoped_analysis_job(
+        "azure_lb_exposure.json",
+        neo4j_session,
+        COMMON_JOB_PARAMETERS,
+    )
+    assert (
+        check_rels(
+            neo4j_session,
+            "AzureLoadBalancer",
+            "id",
+            "AzureVirtualMachine",
+            "id",
+            "EXPOSE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
+
+    # After compute analysis, scoped LB exposure should create EXPOSE rels.
+    cartography.util.run_analysis_job(
+        "azure_compute_asset_exposure.json",
+        neo4j_session,
+        COMMON_JOB_PARAMETERS,
+    )
+    cartography.util.run_scoped_analysis_job(
+        "azure_lb_exposure.json",
+        neo4j_session,
+        COMMON_JOB_PARAMETERS,
+    )
+    assert check_rels(
+        neo4j_session,
+        "AzureLoadBalancer",
+        "id",
+        "AzureVirtualMachine",
+        "id",
+        "EXPOSE",
+        rel_direction_right=True,
+    ) == {("test-lb-id", "vm-lb-id")}

@@ -60,6 +60,9 @@ def transform_load_balancers(load_balancers: list[dict]) -> list[dict]:
 def transform_frontend_ips(load_balancer: dict) -> list[dict]:
     transformed: list[dict[str, Any]] = []
     for config in load_balancer.get("frontend_ip_configurations", []):
+        public_ip_ref = config.get("public_ip_address") or config.get(
+            "properties", {}
+        ).get("public_ip_address", {})
         transformed.append(
             {
                 "id": config.get("id"),
@@ -68,9 +71,7 @@ def transform_frontend_ips(load_balancer: dict) -> list[dict]:
                     "private_ip_address",
                     config.get("properties", {}).get("private_ip_address"),
                 ),
-                "public_ip_address_id": config.get(
-                    "public_ip_address", config.get("properties", {})
-                ).get("id"),
+                "public_ip_address_id": public_ip_ref.get("id"),
             }
         )
     return transformed
