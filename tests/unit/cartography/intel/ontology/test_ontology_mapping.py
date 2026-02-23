@@ -94,6 +94,30 @@ def test_ontology_mapping_categories():
         ), f"Module '{category}' not found in ONTOLOGY_MODELS."
 
 
+def test_ontology_primary_labels_are_reserved_for_ontology_models():
+    # Ontology primary labels (e.g. Package, UserAccount) must only be owned by
+    # ontology model classes. Reusing them in provider/raw schemas causes
+    # collisions in ontology matching and migration logic.
+    ontology_labels = {model().label for model in ONTOLOGY_MODELS.values()}
+    violations: set[str] = set()
+
+    for _, node_class in MODELS:
+        if not issubclass(node_class, CartographyNodeSchema):
+            continue
+        if node_class.__module__.startswith("cartography.models.ontology"):
+            continue
+        if node_class.label in ontology_labels:
+            violations.add(
+                f"{node_class.__module__}.{node_class.__name__} uses reserved ontology label '{node_class.label}'.",
+            )
+
+    assert (
+        not violations
+    ), "Ontology primary labels are reserved for ontology schemas only.\n" + "\n".join(
+        sorted(violations)
+    )
+
+
 def test_ontology_mapping_fields():
     # Verify that all ontology fields in the mapping exist as extra indexed fields
     # in the corresponding module's model.

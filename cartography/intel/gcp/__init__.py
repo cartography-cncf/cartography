@@ -703,6 +703,12 @@ def start_gcp_ingestion(
         )
 
     run_analysis_job(
+        "gcp_ip_node_label_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+
+    run_analysis_job(
         "gcp_compute_asset_inet_exposure.json",
         neo4j_session,
         common_job_parameters,

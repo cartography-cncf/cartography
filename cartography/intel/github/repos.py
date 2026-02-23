@@ -19,6 +19,8 @@ from cartography.client.core.tx import load as load_data
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import fetch_all
 from cartography.intel.github.util import PaginatedGraphqlData
+from cartography.intel.trivy.util import make_normalized_package_id
+from cartography.intel.trivy.util import parse_purl
 from cartography.models.github.branch_protection_rules import (
     GitHubBranchProtectionRuleSchema,
 )
@@ -103,6 +105,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                             dependencies(first: 100) {
                                 nodes {
                                     packageName
+                                    packageUrl
                                     requirements
                                     packageManager
                                 }
@@ -858,11 +861,18 @@ def _transform_dependency_graph(
             # Create manifest ID for the HAS_DEP relationship
             manifest_id = f"{repo_url}#{manifest_path}"
 
+            # Extract ontology fields from GitHub's native PURL
+            dep_purl = dep.get("packageUrl") or None
+            parsed = parse_purl(dep_purl)
+            dep_version = parsed["version"] if parsed else None
+            dep_type = parsed["type"] if parsed else None
+            dep_normalized_id = make_normalized_package_id(purl=dep_purl)
+
             out_dependencies_list.append(
                 {
                     "id": dependency_id,
                     "name": canonical_name,
-                    "original_name": package_name,  # Keep original for reference
+                    "original_name": package_name,
                     "requirements": normalized_requirements,
                     "ecosystem": ecosystem,
                     "package_manager": package_manager,
@@ -872,6 +882,10 @@ def _transform_dependency_graph(
                     "manifest_file": (
                         manifest_path.split("/")[-1] if manifest_path else ""
                     ),
+                    "version": dep_version,
+                    "type": dep_type,
+                    "purl": dep_purl,
+                    "normalized_id": dep_normalized_id,
                 }
             )
             dependencies_added += 1
