@@ -229,6 +229,7 @@ def _enrich_server_data(
     server['engine'] = engine
     server['engineVersion'] = engine_version
     server['port'] = port
+    server['location'] = server.get("location", "").replace(" ", "").lower()
 
     endpoint_info = _extract_endpoint_info(server, credentials, subscription_id)
     server['endpoint'] = endpoint_info['public_endpoint']
@@ -260,7 +261,8 @@ def load_server_data(
     UNWIND $server_list as server
     MERGE (s:AzureSQLServer{id: server.id})
     ON CREATE SET s.firstseen = timestamp(),
-    s.resourcegroup = server.resourceGroup, s.location = server.location,
+    s.resourcegroup = server.resourceGroup, 
+    s.location = server.location,
     s.region = server.location
     SET s.lastupdated = $azure_update_tag,
     s.name = server.name,
@@ -397,7 +399,7 @@ def get_dns_aliases(credentials: Credentials, subscription_id: str, server: Dict
             ),
         )
         for aliase in dns_aliases:
-            aliase["location"] = server.get("location", "global")
+            aliase["location"] = server.get("location", "global").replace(" ", "").lower()
     except ClientAuthenticationError as e:
         logger.warning(f"Client Authentication Error while retrieving DNS Aliases - {e}")
         return []
@@ -428,7 +430,7 @@ def get_ad_admins(credentials: Credentials, subscription_id: str, server: Dict) 
             ),
         )
         for admin in ad_admins:
-            admin["location"] = server.get("location", "global")
+            admin["location"] = server.get("location", "global").replace(" ", "").lower()
 
     except ClientAuthenticationError as e:
         logger.warning(f"Client Authentication Error while retrieving Azure AD Administrators - {e}")

@@ -1112,6 +1112,7 @@ def get_public_ip_addresses_list(client: NetworkManagementClient, regions: list,
             ip["is_static_ip"] = False
             if ip.get("public_ip_allocation_method") == "Static":
                 ip["is_static_ip"] = True
+            ip['location'] = ip.get('location', '').replace(" ", "").lower()
             if regions is None:
                 publicip_list.append(ip)
             else:
@@ -1144,7 +1145,8 @@ def _load_public_ip_addresses_tx(
     n.ipAddress = address.ip_address,
     n.publicIpAllocationMethod = address.public_ip_allocation_method,
     n.isStaticIp = address.is_static_ip,
-    n.etag=address.etag
+    n.etag=address.etag,
+    n.region = address.location
     WITH n
     MATCH (owner:AzureSubscription{id: $SUBSCRIPTION_ID})
     MERGE (owner)-[r:RESOURCE]->(n)

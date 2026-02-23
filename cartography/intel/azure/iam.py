@@ -250,7 +250,8 @@ def _load_tenant_users_tx(
     i.firstseen = timestamp(),
     i.consolelink = user.consolelink,
     i.object_id = user.object_id,
-    i.object_type = user.object_type
+    i.object_type = user.object_type,
+    i.region = $region
     SET i.lastupdated = $update_tag,
     i.consolelink = user.consolelink,
     i.user_principal_name = user.user_principal_name,
@@ -400,7 +401,8 @@ def _load_tenant_groups_tx(
     i.on_premises_sam_account_name = group.on_premises_sam_account_name,
     i.on_premises_security_identifier = group.on_premises_security_identifier,
     i.renewed_date_time = group.renewed_date_time,
-    i.security_identifier = group.security_identifier
+    i.security_identifier = group.security_identifier,
+    i.region = $region
     WITH i
     MATCH (owner:AzureTenant{id: $tenant_id})
     MERGE (owner)-[r:RESOURCE]->(i)
@@ -583,7 +585,8 @@ def _load_tenant_applications_tx(
     i.application_template_id = app.application_template_id,
     i.disabled_by_microsoft_status = app.disabled_by_microsoft_status,
     i.is_device_only_auth_supported = app.is_device_only_auth_supported,
-    i.is_fallback_public_client = app.is_fallback_public_client
+    i.is_fallback_public_client = app.is_fallback_public_client,
+    i.region = $region
     WITH i
     MATCH (owner:AzureTenant{id: $tenant_id})
     MERGE (owner)-[r:RESOURCE]->(i)
@@ -714,7 +717,8 @@ def _load_tenant_service_accounts_tx(
     i.preferred_token_signing_key_thumbprint = service.preferred_token_signing_key_thumbprint,
     i.service_principal_type = service.service_principal_type,
     i.sign_in_audience = service.sign_in_audience,
-    i.token_encryption_key_id = service.token_encryption_key_id
+    i.token_encryption_key_id = service.token_encryption_key_id,
+    i.region = $region
     WITH i
     MATCH (owner:AzureTenant{id: $tenant_id})
     MERGE (owner)-[r:RESOURCE]->(i)
@@ -832,7 +836,8 @@ def _load_tenant_domains_tx(
     i.supported_services = domain.supported_services,
     i.state_last_action_date_time = CASE WHEN domain.state IS NOT NULL THEN domain.state.last_action_date_time ELSE null END,
     i.state_operation = CASE WHEN domain.state IS NOT NULL THEN domain.state.operation ELSE null END,
-    i.state_status = CASE WHEN domain.state IS NOT NULL THEN domain.state.status ELSE null END
+    i.state_status = CASE WHEN domain.state IS NOT NULL THEN domain.state.status ELSE null END,
+    i.region = $region
     WITH i
     MATCH (owner:AzureTenant{id: $tenant_id})
     MERGE (owner)-[r:RESOURCE]->(i)
@@ -925,6 +930,7 @@ def get_managed_identity_list(client: ManagedServiceIdentityClient, subscription
             managed_identity['consolelink'] = azure_console_link.get_console_link(
                 id=managed_identity['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
             )
+            managed_identity['location'] = managed_identity.get('location', '').replace(" ", "").lower()
         return managed_identity_list
     except HttpResponseError as e:
         logger.warning(f"Error while retrieving managed identity - {e}")
@@ -948,7 +954,8 @@ def _load_roles_tx(
     i.type = role.type,
     i.role_type = role.role_type,
     i.identity_id = role.identity_id,
-    i.role_owner_type = role.role_owner_type
+    i.role_owner_type = role.role_owner_type,
+    i.region = $region
     WITH i,role
     MATCH (t:AzureTenant{id: $tenant_id})
     MERGE (t)-[tr:RESOURCE]->(i)
@@ -996,11 +1003,14 @@ def _load_managed_identities_tx(
     UNWIND $managed_identity_list AS managed_identity
     MERGE (i:AzureManagedIdentity{id: toLower(managed_identity.id)})
     ON CREATE SET i:AzurePrincipal,
-    i.firstseen = timestamp()
+    i.firstseen = timestamp(),
+    i.location = managed_identity.location,
+    i.region = managed_identity.location
     SET i.lastupdated = $update_tag,
     i.name = managed_identity.name,
     i.consolelink = managed_identity.consolelink,
     i.location = managed_identity.location,
+    i.region = managed_identity.location,
     i.type = managed_identity.type,
     i.object_id = managed_identity.principal_id,
     i.principal_id = managed_identity.principal_id,
