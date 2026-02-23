@@ -42,8 +42,9 @@
     },
     {
       "__comment__": "Delete stale FIREWALL_INGRESS relationships for this project",
-      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall)-[a:FIREWALL_INGRESS]->(inst:GCPInstance) WHERE a.lastupdated <> $UPDATE_TAG DELETE a",
-      "iterative": false
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall)-[a:FIREWALL_INGRESS]->(inst:GCPInstance) WHERE a.lastupdated <> $UPDATE_TAG WITH a LIMIT $LIMIT_SIZE DELETE a",
+      "iterative": true,
+      "iterationsize": 1000
     },
     {
       "__comment__": "Mark GCPInstance as directly exposed (TCP) - has public IP, open ingress firewall from 0.0.0.0/0, no blocking deny rule",

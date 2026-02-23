@@ -28,20 +28,31 @@ def get_gcp_cloud_armor_policies(
     :param compute: The compute resource object created by googleapiclient.discovery.build()
     :return: Response object containing data on all security policies for a given project
     """
+    items: list[dict] = []
+    response_id = f"projects/{project_id}/global/securityPolicies"
     req = compute.securityPolicies().list(project=project_id)
-    return gcp_api_execute_with_retry(req)
+    while req is not None:
+        res = gcp_api_execute_with_retry(req)
+        items.extend(res.get("items", []))
+        response_id = res.get("id", response_id)
+        req = compute.securityPolicies().list_next(
+            previous_request=req, previous_response=res
+        )
+    return {"id": response_id, "items": items}
 
 
 @timeit
-def transform_gcp_cloud_armor_policies(response: Resource) -> list[dict]:
+def transform_gcp_cloud_armor_policies(
+    response: Resource, project_id: str
+) -> list[dict]:
     """
     Transform the security policy response object for Neo4j ingestion.
     :param response: The response object returned from securityPolicies.list()
+    :param project_id: The GCP project ID
     :return: List of transformed policy dicts ready for loading
     """
     policy_list: list[dict] = []
     prefix = response["id"]
-    project_id = prefix.split("/")[1]
 
     for policy in response.get("items", []):
         transformed: dict[str, Any] = {}
@@ -104,6 +115,6 @@ def sync_gcp_cloud_armor(
     """
     logger.info("Syncing GCP Cloud Armor policies for project %s", project_id)
     response = get_gcp_cloud_armor_policies(project_id, compute)
-    policies = transform_gcp_cloud_armor_policies(response)
+    policies = transform_gcp_cloud_armor_policies(response, project_id)
     load_gcp_cloud_armor_policies(neo4j_session, policies, gcp_update_tag, project_id)
     cleanup_gcp_cloud_armor_policies(neo4j_session, common_job_parameters)

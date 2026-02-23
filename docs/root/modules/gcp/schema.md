@@ -1910,12 +1910,14 @@ Representation of a GCP [Instance Group](https://cloud.google.com/compute/docs/r
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The partial resource URI representing this instance group (e.g., `projects/{project}/zones/{zone}/instanceGroups/{name}`) |
 | partial_uri | Same as `id` |
-| name | The name of the instance group |
+| **name** | The name of the instance group (indexed) |
 | self_link | Server-defined URL for the resource |
 | project_id | The project ID that this instance group belongs to |
 | zone | The zone of this instance group |
 | region | The region of this instance group (for regional instance groups) |
 | description | An optional description of this instance group |
+| network | The partial URI of the VPC network this instance group belongs to |
+| subnetwork | The partial URI of the subnet this instance group belongs to |
 | size | The number of instances in this instance group |
 | creation_timestamp | Creation timestamp of the resource |
 

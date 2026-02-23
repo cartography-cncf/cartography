@@ -59,6 +59,7 @@ def _get_instance_group_members(
             instanceGroup=instance_group_name,
             body={"instanceState": "ALL"},
         )
+        list_next_fn = compute.instanceGroups().listInstances_next
     elif region:
         req = compute.regionInstanceGroups().listInstances(
             project=project_id,
@@ -66,22 +67,27 @@ def _get_instance_group_members(
             instanceGroup=instance_group_name,
             body={"instanceState": "ALL"},
         )
+        list_next_fn = compute.regionInstanceGroups().listInstances_next
     else:
         return []
 
-    try:
-        res = gcp_api_execute_with_retry(req)
-        return res.get("items", [])
-    except HttpError as e:
-        reason = _get_error_reason(e)
-        if reason in {"backendError", "rateLimitExceeded", "internalError"}:
-            logger.warning(
-                "Transient error listing members for instance group %s: %s; skipping.",
-                instance_group_name,
-                e,
-            )
-            return []
-        raise
+    members: list[dict] = []
+    while req is not None:
+        try:
+            res = gcp_api_execute_with_retry(req)
+        except HttpError as e:
+            reason = _get_error_reason(e)
+            if reason in {"backendError", "rateLimitExceeded", "internalError"}:
+                logger.warning(
+                    "Transient error listing members for instance group %s: %s; skipping.",
+                    instance_group_name,
+                    e,
+                )
+                return []
+            raise
+        members.extend(res.get("items", []))
+        req = list_next_fn(previous_request=req, previous_response=res)
+    return members
 
 
 @timeit
@@ -100,22 +106,36 @@ def get_gcp_zonal_instance_groups(
     """
     response_objects: list[Resource] = []
     for zone in zones:
+        items: list[dict] = []
+        response_id = f"projects/{project_id}/zones/{zone['name']}/instanceGroups"
         req = compute.instanceGroups().list(project=project_id, zone=zone["name"])
-        try:
-            res = gcp_api_execute_with_retry(req)
-        except HttpError as e:
-            reason = _get_error_reason(e)
-            if reason in {"backendError", "rateLimitExceeded", "internalError"}:
-                logger.warning(
-                    "Transient error listing instance groups for project %s zone %s: %s; skipping.",
-                    project_id,
-                    zone.get("name"),
-                    e,
-                )
-                continue
-            raise
+        # Track transient errors so we can skip the entire zone rather than ingesting partial data
+        skip_zone = False
+        while req is not None:
+            try:
+                res = gcp_api_execute_with_retry(req)
+            except HttpError as e:
+                reason = _get_error_reason(e)
+                if reason in {"backendError", "rateLimitExceeded", "internalError"}:
+                    logger.warning(
+                        "Transient error listing instance groups for project %s zone %s: %s; skipping.",
+                        project_id,
+                        zone.get("name"),
+                        e,
+                    )
+                    skip_zone = True
+                    break
+                raise
+            items.extend(res.get("items", []))
+            response_id = res.get("id", response_id)
+            req = compute.instanceGroups().list_next(
+                previous_request=req, previous_response=res
+            )
 
-        for ig in res.get("items", []):
+        if skip_zone:
+            continue
+
+        for ig in items:
             ig["_members"] = _get_instance_group_members(
                 project_id,
                 ig["name"],
@@ -123,7 +143,8 @@ def get_gcp_zonal_instance_groups(
                 None,
                 compute,
             )
-        response_objects.append(res)
+        if items:
+            response_objects.append({"id": response_id, "items": items})
     return response_objects
 
 
@@ -143,21 +164,35 @@ def get_gcp_regional_instance_groups(
     """
     response_objects: list[Resource] = []
     for region in regions:
+        items: list[dict] = []
+        response_id = f"projects/{project_id}/regions/{region}/instanceGroups"
         req = compute.regionInstanceGroups().list(project=project_id, region=region)
-        try:
-            res = gcp_api_execute_with_retry(req)
-        except HttpError as e:
-            reason = _get_error_reason(e)
-            if reason == "invalid":
-                logger.warning(
-                    "GCP: Invalid region %s for project %s; skipping instance groups sync for this region.",
-                    region,
-                    project_id,
-                )
-                continue
-            raise
+        # Track invalid regions so we can skip them entirely rather than ingesting partial data
+        skip_region = False
+        while req is not None:
+            try:
+                res = gcp_api_execute_with_retry(req)
+            except HttpError as e:
+                reason = _get_error_reason(e)
+                if reason == "invalid":
+                    logger.warning(
+                        "GCP: Invalid region %s for project %s; skipping instance groups sync for this region.",
+                        region,
+                        project_id,
+                    )
+                    skip_region = True
+                    break
+                raise
+            items.extend(res.get("items", []))
+            response_id = res.get("id", response_id)
+            req = compute.regionInstanceGroups().list_next(
+                previous_request=req, previous_response=res
+            )
 
-        for ig in res.get("items", []):
+        if skip_region:
+            continue
+
+        for ig in items:
             ig["_members"] = _get_instance_group_members(
                 project_id,
                 ig["name"],
@@ -165,7 +200,8 @@ def get_gcp_regional_instance_groups(
                 region,
                 compute,
             )
-        response_objects.append(res)
+        if items:
+            response_objects.append({"id": response_id, "items": items})
     return response_objects
 
 

@@ -47,8 +47,17 @@ def get_gcp_global_backend_services(
     :param compute: The compute resource object created by googleapiclient.discovery.build()
     :return: Response object containing data on all global backend services for a given project
     """
+    items: list[dict] = []
+    response_id = f"projects/{project_id}/global/backendServices"
     req = compute.backendServices().list(project=project_id)
-    return gcp_api_execute_with_retry(req)
+    while req is not None:
+        res = gcp_api_execute_with_retry(req)
+        items.extend(res.get("items", []))
+        response_id = res.get("id", response_id)
+        req = compute.backendServices().list_next(
+            previous_request=req, previous_response=res
+        )
+    return {"id": response_id, "items": items}
 
 
 @timeit
@@ -65,31 +74,40 @@ def get_gcp_regional_backend_services(
     :param compute: The compute resource object created by googleapiclient.discovery.build()
     :return: Response object containing backend services for a given project and region, or None if region is invalid
     """
+    items: list[dict] = []
+    response_id = f"projects/{project_id}/regions/{region}/backendServices"
     req = compute.regionBackendServices().list(project=project_id, region=region)
-    try:
-        return gcp_api_execute_with_retry(req)
-    except HttpError as e:
-        reason = _get_error_reason(e)
-        if reason == "invalid":
-            logger.warning(
-                "GCP: Invalid region %s for project %s; skipping backend services sync for this region.",
-                region,
-                project_id,
-            )
-            return None
-        raise
+    while req is not None:
+        try:
+            res = gcp_api_execute_with_retry(req)
+        except HttpError as e:
+            reason = _get_error_reason(e)
+            if reason == "invalid":
+                logger.warning(
+                    "GCP: Invalid region %s for project %s; skipping backend services sync for this region.",
+                    region,
+                    project_id,
+                )
+                return None
+            raise
+        items.extend(res.get("items", []))
+        response_id = res.get("id", response_id)
+        req = compute.regionBackendServices().list_next(
+            previous_request=req, previous_response=res
+        )
+    return {"id": response_id, "items": items}
 
 
 @timeit
-def transform_gcp_backend_services(response: Resource) -> list[dict]:
+def transform_gcp_backend_services(response: Resource, project_id: str) -> list[dict]:
     """
     Transform the backend service response object for Neo4j ingestion.
     :param response: The response object returned from backendServices.list() or regionBackendServices.list()
+    :param project_id: The GCP project ID
     :return: List of transformed backend service dicts ready for loading
     """
     backend_service_list: list[dict] = []
     prefix = response["id"]
-    project_id = prefix.split("/")[1]
 
     for bs in response.get("items", []):
         backend_service: dict[str, Any] = {}
@@ -190,18 +208,20 @@ def sync_gcp_backend_services(
 
     # Global backend services
     global_response = get_gcp_global_backend_services(project_id, compute)
-    backend_services = transform_gcp_backend_services(global_response)
+    backend_services = transform_gcp_backend_services(global_response, project_id)
     load_gcp_backend_services(
         neo4j_session, backend_services, gcp_update_tag, project_id
     )
-    cleanup_gcp_backend_services(neo4j_session, common_job_parameters)
 
     # Regional backend services
     for r in regions:
         regional_response = get_gcp_regional_backend_services(project_id, r, compute)
         if regional_response is None:
             continue
-        backend_services = transform_gcp_backend_services(regional_response)
+        backend_services = transform_gcp_backend_services(regional_response, project_id)
         load_gcp_backend_services(
             neo4j_session, backend_services, gcp_update_tag, project_id
         )
+
+    # Cleanup after all loads complete
+    cleanup_gcp_backend_services(neo4j_session, common_job_parameters)
