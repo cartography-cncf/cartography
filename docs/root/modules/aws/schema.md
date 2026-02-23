@@ -3128,7 +3128,7 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 | scheme|  The type of load balancer.  If scheme is `internet-facing`, the load balancer has a public DNS name that resolves to a public IP address.  If scheme is `internal`, the load balancer has a public DNS name that resolves to a private IP address. |
 | name| The name of the load balancer|
 | **dnsname** | The DNS name of the load balancer. |
-| exposed_internet | The `exposed_internet` flag is set to `True` when the load balancer's `scheme` field is set to `internet-facing`.  This indicates that the load balancer has a public DNS name that resolves to a public IP address. |
+| exposed_internet | The `exposed_internet` flag is set to `True` by the `aws_ec2_asset_exposure` analysis job when internet reachability is inferred. For NLBs (`type='network'`), this is based on `scheme='internet-facing'` and listener presence. For ALBs, this requires `scheme='internet-facing'` plus a security group path open from `0.0.0.0/0` to a listener port. |
 | exposed\_internet\_type | A list indicating the type(s) of internet exposure. Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
 | **id** |  Currently set to the `dnsname` of the load balancer. |
 | arn | The Amazon Resource Name (ARN) of the load balancer. |
@@ -3186,6 +3186,12 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
 - Internet-facing AWSLoadBalancerV2's can expose private ECS containers. Set by an analysis job.
     ```
     (AWSLoadBalancerV2)-[EXPOSE]->(ECSContainer)
+    ```
+
+- Internet-facing AWSLoadBalancerV2's can expose Kubernetes pods and containers. Set by the `k8s_lb_exposure` analysis job.
+    ```
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(KubernetesPod)
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(KubernetesContainer)
     ```
 
 - EC2NetworkAcl's can protect AWSLoadBalancerV2's via subnet traversal. Set by an analysis job.
