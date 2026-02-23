@@ -26,62 +26,85 @@ from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_rels
 
 
-def _seed_exposure_graph(neo4j_session, *, include_duplicate_ingress: bool = False):
-    create_test_account(neo4j_session, TEST_AWS_ACCOUNT_ID, TEST_UPDATE_TAG)
-    load_kubernetes_cluster(neo4j_session, TEST_CLUSTER, TEST_UPDATE_TAG)
+def _seed_exposure_graph(
+    neo4j_session,
+    *,
+    update_tag: int = TEST_UPDATE_TAG,
+    include_duplicate_ingress: bool = False,
+    include_ingress: bool = True,
+    nlb_scheme: str = "internet-facing",
+    mark_alb_exposed: bool = True,
+):
+    create_test_account(neo4j_session, TEST_AWS_ACCOUNT_ID, update_tag)
+    load_kubernetes_cluster(neo4j_session, TEST_CLUSTER, update_tag)
     load_namespaces(
         neo4j_session,
         TEST_NAMESPACES,
-        update_tag=TEST_UPDATE_TAG,
+        update_tag=update_tag,
         cluster_id=TEST_CLUSTER_ID,
         cluster_name=TEST_CLUSTER_NAME,
     )
     load_pods(
         neo4j_session,
         TEST_PODS,
-        update_tag=TEST_UPDATE_TAG,
+        update_tag=update_tag,
         cluster_id=TEST_CLUSTER_ID,
         cluster_name=TEST_CLUSTER_NAME,
     )
     load_containers(
         neo4j_session,
         TEST_CONTAINERS,
-        update_tag=TEST_UPDATE_TAG,
+        update_tag=update_tag,
         cluster_id=TEST_CLUSTER_ID,
         cluster_name=TEST_CLUSTER_NAME,
         region=TEST_REGION,
     )
+    lb_data = copy.deepcopy(TEST_LB_DATA)
+    for lb in lb_data:
+        if lb["DNSName"] == "nlb-dns.elb.amazonaws.com":
+            lb["Scheme"] = nlb_scheme
+
     load_load_balancer_v2s(
         neo4j_session,
-        copy.deepcopy(TEST_LB_DATA),
+        lb_data,
         TEST_REGION,
         TEST_AWS_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
+        update_tag,
+    )
+    neo4j_session.run(
+        "MATCH (lb:AWSLoadBalancerV2{id: 'nlb-dns.elb.amazonaws.com'}) "
+        "REMOVE lb.exposed_internet, lb.exposed_internet_type"
+    )
+    neo4j_session.run(
+        "MATCH (lb:AWSLoadBalancerV2{id: 'alb-dns.elb.amazonaws.com'}) "
+        "REMOVE lb.exposed_internet, lb.exposed_internet_type"
     )
     # Keep ingress-path tests deterministic: ALB exposure is modeled via aws_ec2_asset_exposure,
     # but these scoped-job tests exercise only k8s jobs.
-    neo4j_session.run(
-        "MATCH (lb:AWSLoadBalancerV2{id: 'alb-dns.elb.amazonaws.com'}) "
-        "SET lb.exposed_internet = true"
-    )
+    if mark_alb_exposed:
+        neo4j_session.run(
+            "MATCH (lb:AWSLoadBalancerV2{id: 'alb-dns.elb.amazonaws.com'}) "
+            "SET lb.exposed_internet = true"
+        )
     load_services(
         neo4j_session,
         TEST_SERVICES,
-        update_tag=TEST_UPDATE_TAG,
+        update_tag=update_tag,
         cluster_id=TEST_CLUSTER_ID,
         cluster_name=TEST_CLUSTER_NAME,
     )
 
-    ingresses = [TEST_INGRESS]
-    if include_duplicate_ingress:
-        ingresses.append(TEST_DUPLICATE_INGRESS)
-    load_ingresses(
-        neo4j_session,
-        ingresses,
-        update_tag=TEST_UPDATE_TAG,
-        cluster_id=TEST_CLUSTER_ID,
-        cluster_name=TEST_CLUSTER_NAME,
-    )
+    if include_ingress:
+        ingresses = [TEST_INGRESS]
+        if include_duplicate_ingress:
+            ingresses.append(TEST_DUPLICATE_INGRESS)
+        load_ingresses(
+            neo4j_session,
+            ingresses,
+            update_tag=update_tag,
+            cluster_id=TEST_CLUSTER_ID,
+            cluster_name=TEST_CLUSTER_NAME,
+        )
 
 
 def test_k8s_lb_expose_via_service(neo4j_session):
@@ -243,3 +266,63 @@ def test_nlb_internet_exposure_propagates_to_kubernetes_compute(neo4j_session):
         ("nlb-dns.elb.amazonaws.com", "pod-lb-uid"),
         ("alb-dns.elb.amazonaws.com", "pod-ing-uid"),
     }
+
+
+def test_internal_nlb_does_not_propagate_exposure(neo4j_session):
+    update_tag = TEST_UPDATE_TAG + 1000
+    _seed_exposure_graph(
+        neo4j_session,
+        update_tag=update_tag,
+        include_ingress=False,
+        nlb_scheme="internal",
+        mark_alb_exposed=False,
+    )
+
+    common_job_parameters = {
+        "UPDATE_TAG": update_tag,
+        "CLUSTER_ID": TEST_CLUSTER_ID,
+    }
+
+    run_scoped_analysis_job(
+        "k8s_compute_asset_exposure.json", neo4j_session, common_job_parameters
+    )
+    run_scoped_analysis_job(
+        "k8s_lb_exposure.json", neo4j_session, common_job_parameters
+    )
+
+    result = neo4j_session.run(
+        "MATCH (svc:KubernetesService{id: 'svc-lb-uid'}) "
+        "RETURN svc.exposed_internet AS exposed, svc.exposed_internet_type AS exposure_types",
+    )
+    record = result.single()
+    assert record["exposed"] is None
+    assert record["exposure_types"] is None
+
+    result = neo4j_session.run(
+        "MATCH (pod:KubernetesPod{id: 'pod-lb-uid'}) "
+        "RETURN pod.exposed_internet AS exposed, pod.exposed_internet_type AS exposure_types",
+    )
+    record = result.single()
+    assert record["exposed"] is None
+    assert record["exposure_types"] is None
+
+    result = neo4j_session.run(
+        "MATCH (c:KubernetesContainer{id: 'cont-lb-uid'}) "
+        "RETURN c.exposed_internet AS exposed, c.exposed_internet_type AS exposure_types",
+    )
+    record = result.single()
+    assert record["exposed"] is None
+    assert record["exposure_types"] is None
+
+    assert (
+        check_rels(
+            neo4j_session,
+            "AWSLoadBalancerV2",
+            "id",
+            "KubernetesPod",
+            "id",
+            "EXPOSE",
+            rel_direction_right=True,
+        )
+        == set()
+    )
