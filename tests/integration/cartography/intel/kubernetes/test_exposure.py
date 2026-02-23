@@ -155,6 +155,27 @@ def _create_prereq_nodes(neo4j_session):
     )
 
 
+def _create_duplicate_ingress_path(neo4j_session):
+    neo4j_session.run(
+        "MERGE (ing:KubernetesIngress{id: 'ing-uid-2', name: 'my-ingress-2', namespace: 'default'}) "
+        "SET ing.lastupdated = $tag",
+        tag=TEST_UPDATE_TAG,
+    )
+    neo4j_session.run(
+        "MATCH (c:KubernetesCluster{id: $cid}), (ing:KubernetesIngress{id: 'ing-uid-2'}) "
+        "MERGE (c)-[:RESOURCE]->(ing)",
+        cid=TEST_CLUSTER_ID,
+    )
+    neo4j_session.run(
+        "MATCH (ing:KubernetesIngress{id: 'ing-uid-2'}), (lb:AWSLoadBalancerV2{id: 'alb-dns.elb.amazonaws.com'}) "
+        "MERGE (ing)-[:USES_LOAD_BALANCER]->(lb)",
+    )
+    neo4j_session.run(
+        "MATCH (ing:KubernetesIngress{id: 'ing-uid-2'}), (svc:KubernetesService{id: 'svc-clusterip-uid'}) "
+        "MERGE (ing)-[:TARGETS]->(svc)",
+    )
+
+
 def test_k8s_lb_expose_via_service(neo4j_session):
     """
     Test that the k8s_lb_exposure analysis job creates EXPOSE rels
@@ -244,3 +265,35 @@ def test_k8s_asset_exposure_properties(neo4j_session):
         "MATCH (c:KubernetesContainer) WHERE c.exposed_internet = true RETURN c.id AS id ORDER BY id",
     )
     assert [r["id"] for r in result] == ["cont-ing-uid", "cont-lb-uid"]
+
+
+def test_k8s_asset_exposure_type_deduplicates_on_multiple_paths(neo4j_session):
+    _create_prereq_nodes(neo4j_session)
+    _create_duplicate_ingress_path(neo4j_session)
+
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "CLUSTER_ID": TEST_CLUSTER_ID,
+    }
+
+    run_scoped_analysis_job(
+        "k8s_compute_asset_exposure.json", neo4j_session, common_job_parameters
+    )
+
+    result = neo4j_session.run(
+        "MATCH (svc:KubernetesService{id: 'svc-clusterip-uid'}) "
+        "RETURN svc.exposed_internet_type AS exposure_types",
+    )
+    assert result.single()["exposure_types"] == ["lb"]
+
+    result = neo4j_session.run(
+        "MATCH (pod:KubernetesPod{id: 'pod-ing-uid'}) "
+        "RETURN pod.exposed_internet_type AS exposure_types",
+    )
+    assert result.single()["exposure_types"] == ["lb"]
+
+    result = neo4j_session.run(
+        "MATCH (c:KubernetesContainer{id: 'cont-ing-uid'}) "
+        "RETURN c.exposed_internet_type AS exposure_types",
+    )
+    assert result.single()["exposure_types"] == ["lb"]
