@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def get_region_from_arn(arn: str) -> str:
     """
     Extract AWS region from EKS cluster ARN.
-    Example: arn:aws:eks:us-east-1:205930638578:cluster/infra-test-eks → us-east-1
+    Example: arn:aws:eks:us-east-1:111122223333:cluster/example-eks-cluster → us-east-1
     """
     parts = arn.split(":")
     if len(parts) < 6 or parts[2] != "eks":
@@ -52,6 +52,9 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 common_job_parameters,
             )
             common_job_parameters["CLUSTER_ID"] = cluster_info.get("id")
+            cluster_external_ref = cluster_info.get("external_id") or cluster_info.get(
+                "name", ""
+            )
 
             sync_namespaces(session, client, config.update_tag, common_job_parameters)
             sync_kubernetes_rbac(
@@ -62,7 +65,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             region: str | None = None
             if config.managed_kubernetes == "eks":
                 # EKS clusters always have a valid ARN — let ValueError propagate if not
-                region = get_region_from_arn(cluster_info.get("id", ""))
+                region = get_region_from_arn(cluster_external_ref)
                 boto3_session = boto3.Session()
                 sync_eks(
                     session,
@@ -71,11 +74,11 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                     region,
                     config.update_tag,
                     cluster_info.get("id", ""),
-                    cluster_info.get("name", ""),
+                    cluster_external_ref,
                 )
             else:
                 try:
-                    region = get_region_from_arn(cluster_info.get("id", ""))
+                    region = get_region_from_arn(cluster_external_ref)
                 except ValueError:
                     pass
             all_pods = sync_pods(
