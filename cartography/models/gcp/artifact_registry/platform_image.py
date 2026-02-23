@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 @dataclass(frozen=True)
 class GCPArtifactRegistryPlatformImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id", extra_index=True)
-    digest: PropertyRef = PropertyRef("digest")
+    digest: PropertyRef = PropertyRef("digest", extra_index=True)
     architecture: PropertyRef = PropertyRef("architecture")
     os: PropertyRef = PropertyRef("os")
     os_version: PropertyRef = PropertyRef("os_version")

@@ -23,6 +23,7 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
     ```
     (:KubernetesCluster)-[:RESOURCE]->(:KubernetesNamespace,
                                        :KubernetesPod,
+                                       :KubernetesNode,
                                        :KubernetesContainer,
                                        :KubernetesService,
                                        :KubernetesSecret,
@@ -93,6 +94,38 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 - `KubernetesPod` has `KubernetesContainer`.
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
+    ```
+
+- `KubernetesPod` runs on a `KubernetesNode`.
+    ```
+    (:KubernetesPod)-[:RUNS_ON]->(:KubernetesNode)
+    ```
+
+### KubernetesNode
+Representation of a [Kubernetes Node.](https://kubernetes.io/docs/concepts/architecture/nodes/)
+
+| Field | Description |
+|-------|-------------|
+| **id** | UID of the Kubernetes node |
+| **name** | Name of the Kubernetes node |
+| creation\_timestamp | Timestamp of the creation time of the Kubernetes node |
+| deletion\_timestamp | Timestamp of the deletion time of the Kubernetes node |
+| architecture | CPU architecture of the node (normalized) |
+| operating\_system | OS reported by kubelet (`linux`, `windows`, etc.) |
+| os\_image | Human-readable operating system image string |
+| kernel\_version | Kernel version reported by kubelet |
+| container\_runtime\_version | Container runtime and version (e.g. `containerd://1.7.27`) |
+| kubelet\_version | Kubelet version running on the node |
+| provider\_id | Cloud provider node identifier (e.g. AWS instance provider ID) |
+| ready | Whether the node is currently in `Ready=True` status |
+| **cluster\_name** | Name of the Kubernetes cluster where this node belongs |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesNode` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesNode)
     ```
 
 ### KubernetesContainer

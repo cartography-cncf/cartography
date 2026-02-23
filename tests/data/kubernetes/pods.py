@@ -93,3 +93,44 @@ KUBERNETES_PODS_DATA = [
         ],
     },
 ]
+
+
+# Redacted from live `kubectl get pods -A -o json` payloads.
+KUBERNETES_PODS_LIVE_REDACTED_DATA = [
+    {
+        "uid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "name": "example-web-6b75848f4f-abcde",
+        "status_phase": "Running",
+        "creation_timestamp": 1752120518,
+        "deletion_timestamp": None,
+        "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+        "node": "ip-172-31-0-10.ec2.internal",
+        "labels": json.dumps(
+            {
+                "app": "example-web",
+                "pod-template-hash": "6b75848f4f",
+            }
+        ),
+        "containers": [
+            {
+                "name": "example-web",
+                "image": "nginx:alpine",
+                "uid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee-example-web",
+                "namespace": KUBERNETES_CLUSTER_1_NAMESPACES_DATA[-1]["name"],
+                "pod_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                "imagePullPolicy": "IfNotPresent",
+                "status_image_id": "docker.io/library/nginx@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "status_image_sha": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "status_ready": True,
+                "status_started": True,
+                "status_state": "running",
+                "memory_request": None,
+                "cpu_request": None,
+                "memory_limit": None,
+                "cpu_limit": None,
+            }
+        ],
+        "secret_volume_ids": [],
+        "secret_env_ids": [],
+    },
+]

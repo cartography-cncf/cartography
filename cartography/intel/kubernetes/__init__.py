@@ -8,6 +8,7 @@ from cartography.intel.kubernetes.clusters import sync_kubernetes_cluster
 from cartography.intel.kubernetes.eks import sync as sync_eks
 from cartography.intel.kubernetes.ingress import sync_ingress
 from cartography.intel.kubernetes.namespaces import sync_namespaces
+from cartography.intel.kubernetes.nodes import sync_nodes
 from cartography.intel.kubernetes.pods import sync_pods
 from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
@@ -53,6 +54,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             common_job_parameters["CLUSTER_ID"] = cluster_info.get("id")
 
             sync_namespaces(session, client, config.update_tag, common_job_parameters)
+            sync_nodes(session, client, config.update_tag, common_job_parameters)
             sync_kubernetes_rbac(
                 session, client, config.update_tag, common_job_parameters
             )
