@@ -1894,6 +1894,7 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 |type| The type of the resource (e.g., `Microsoft.ContainerInstance/containerGroups`). |
 |provisioning_state| The deployment status of the Container Instance (e.g., Succeeded). |
 |ip_address| The public IP address of the Container Instance, if one is assigned. |
+|ip_address_type| The IP type of the Container Instance (`Public` or `Private`) when available. |
 |os_type| The operating system type of the Container Instance (e.g., Linux or Windows). |
 
 #### Relationships
@@ -1954,7 +1955,7 @@ Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/res
     ```cypher
     (AzureLoadBalancer)-[:EXPOSE]->(:AzureVirtualMachine)
     ```
-- Azure Firewalls can protect Load Balancers via VNet traversal. Set by an analysis job.
+- Azure Firewalls can protect Load Balancers via VNet traversal. Set by an analysis job. This is a topology-based approximation and does not validate effective route path or firewall rule evaluation.
     ```cypher
     (AzureFirewall)-[:PROTECTS]->(:AzureLoadBalancer)
     ```

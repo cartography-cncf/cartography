@@ -283,19 +283,22 @@ def _sync_multiple_subscriptions(
         common_job_parameters,
     )
 
-    for sub in subscriptions:
-        logger.info("Syncing Azure Subscription with ID '%s'", sub["subscriptionId"])
-        common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
+    try:
+        for sub in subscriptions:
+            logger.info(
+                "Syncing Azure Subscription with ID '%s'", sub["subscriptionId"]
+            )
+            common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
 
-        _sync_one_subscription(
-            neo4j_session,
-            credentials,
-            sub["subscriptionId"],
-            update_tag,
-            common_job_parameters,
-        )
-
-    del common_job_parameters["AZURE_SUBSCRIPTION_ID"]
+            _sync_one_subscription(
+                neo4j_session,
+                credentials,
+                sub["subscriptionId"],
+                update_tag,
+                common_job_parameters,
+            )
+    finally:
+        common_job_parameters.pop("AZURE_SUBSCRIPTION_ID", None)
 
 
 @timeit
@@ -369,17 +372,18 @@ def start_azure_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             common_job_parameters,
         )
 
-        for sub in subscriptions:
-            common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
-            run_scoped_analysis_job(
-                "azure_lb_exposure.json",
-                neo4j_session,
-                common_job_parameters,
-            )
-            run_scoped_analysis_job(
-                "azure_firewall_lb_protection.json",
-                neo4j_session,
-                common_job_parameters,
-            )
-
-        del common_job_parameters["AZURE_SUBSCRIPTION_ID"]
+        try:
+            for sub in subscriptions:
+                common_job_parameters["AZURE_SUBSCRIPTION_ID"] = sub["subscriptionId"]
+                run_scoped_analysis_job(
+                    "azure_lb_exposure.json",
+                    neo4j_session,
+                    common_job_parameters,
+                )
+                run_scoped_analysis_job(
+                    "azure_firewall_lb_protection.json",
+                    neo4j_session,
+                    common_job_parameters,
+                )
+        finally:
+            common_job_parameters.pop("AZURE_SUBSCRIPTION_ID", None)

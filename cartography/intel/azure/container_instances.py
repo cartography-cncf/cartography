@@ -63,6 +63,11 @@ def transform_container_instances(container_groups: list[dict]) -> list[dict]:
                 or group.get("properties", {}).get("ip_address")
                 or {}
             ).get("ip"),
+            "ip_address_type": (
+                group.get("ip_address")
+                or group.get("properties", {}).get("ip_address")
+                or {}
+            ).get("type"),
             "os_type": group.get("os_type", group.get("properties", {}).get("os_type")),
             "tags": group.get("tags"),
             "SUBNET_IDS": subnet_ids,

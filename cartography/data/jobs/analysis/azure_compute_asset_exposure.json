@@ -2,14 +2,14 @@
   "name": "Azure asset internet exposure",
   "statements": [
     {
-      "__comment": "Reset exposed_internet on AzureVirtualMachine",
+      "__comment": "Reset exposed_internet on AzureVirtualMachine. This analysis job is intentionally global and should run after all Azure subscriptions are synced for the run.",
       "query": "MATCH (n:AzureVirtualMachine) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type RETURN COUNT(*) AS TotalCompleted",
       "iterative": true,
       "iterationsize": 1000
     },
     {
       "__comment": "Reset exposed_internet on AzureLoadBalancer",
-      "query": "MATCH (n:AzureLoadBalancer) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet RETURN COUNT(*) AS TotalCompleted",
+      "query": "MATCH (n:AzureLoadBalancer) WHERE n.exposed_internet IS NOT NULL OR n.exposed_internet_type IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type RETURN COUNT(*) AS TotalCompleted",
       "iterative": true,
       "iterationsize": 1000
     },
@@ -35,8 +35,8 @@
       "iterative": false
     },
     {
-      "__comment": "Mark container instances as directly exposed if they have a public IP (not VNet-integrated)",
-      "query": "MATCH (c:AzureContainerInstance) WHERE c.ip_address IS NOT NULL AND NOT (c)-[:ATTACHED_TO]->(:AzureSubnet) SET c.exposed_internet = true, c.exposed_internet_type = ['direct']",
+      "__comment": "Mark container instances as directly exposed if they have a public IP and are not VNet-integrated. Prefer ip_address_type when present, fall back to topology.",
+      "query": "MATCH (c:AzureContainerInstance) WHERE c.ip_address IS NOT NULL AND (c.ip_address_type = 'Public' OR (c.ip_address_type IS NULL AND NOT (c)-[:ATTACHED_TO]->(:AzureSubnet))) SET c.exposed_internet = true, c.exposed_internet_type = ['direct']",
       "iterative": false
     },
     {

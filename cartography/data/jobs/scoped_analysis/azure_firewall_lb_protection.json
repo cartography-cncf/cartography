@@ -7,7 +7,7 @@
       "iterative": false
     },
     {
-      "__comment": "Create PROTECTS rels from Firewalls to LBs via VNet traversal",
+      "__comment": "Create PROTECTS rels from Firewalls to LBs via VNet traversal. This is topology-based and does not validate effective route path or firewall rule evaluation.",
       "query": "MATCH (s:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})-[:RESOURCE]->(fw:AzureFirewall)-[:MEMBER_OF]->(vnet:AzureVirtualNetwork)-[:CONTAINS]->(subnet:AzureSubnet)<-[:ATTACHED_TO]-(nic:AzureNetworkInterface)<-[:ROUTES_TO]-(:AzureLoadBalancerBackendPool)<-[:CONTAINS]-(lb:AzureLoadBalancer) MERGE (fw)-[r:PROTECTS]->(lb) SET r.lastupdated = $UPDATE_TAG",
       "iterative": false
     }

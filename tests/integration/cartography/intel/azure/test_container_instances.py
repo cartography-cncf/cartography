@@ -63,6 +63,24 @@ def test_sync_container_instances(mock_get, neo4j_session):
     actual_nodes = check_nodes(neo4j_session, "AzureContainerInstance", ["id", "name"])
     assert actual_nodes == expected_nodes
 
+    # Assert ip_address_type is populated from container group ip_address.type
+    expected_ip_types = {
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/my-test-aci",
+            "Public",
+        ),
+        (
+            "/subscriptions/00-00-00-00/resourceGroups/TestRG/providers/Microsoft.ContainerInstance/containerGroups/my-private-aci",
+            "Private",
+        ),
+    }
+    actual_ip_types = check_nodes(
+        neo4j_session,
+        "AzureContainerInstance",
+        ["id", "ip_address_type"],
+    )
+    assert actual_ip_types == expected_ip_types
+
     # Assert Subscription -> ContainerInstance relationships
     expected_rels = {
         (

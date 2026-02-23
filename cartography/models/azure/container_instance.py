@@ -24,6 +24,7 @@ class AzureContainerInstanceProperties(CartographyNodeProperties):
     type: PropertyRef = PropertyRef("type")
     provisioning_state: PropertyRef = PropertyRef("provisioning_state")
     ip_address: PropertyRef = PropertyRef("ip_address")
+    ip_address_type: PropertyRef = PropertyRef("ip_address_type")
     os_type: PropertyRef = PropertyRef("os_type")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
