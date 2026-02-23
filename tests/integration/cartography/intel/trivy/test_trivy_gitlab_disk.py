@@ -31,7 +31,7 @@ TEST_UPDATE_TAG = 123456789
 def _cleanup_trivy_data(neo4j_session):
     """Clean up all Trivy-related nodes before test runs."""
     neo4j_session.run("MATCH (n:TrivyImageFinding) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:Package) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:TrivyPackage) DETACH DELETE n")
     neo4j_session.run("MATCH (n:TrivyFix) DETACH DELETE n")
 
 

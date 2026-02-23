@@ -530,13 +530,13 @@ Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/referen
 - Firewalls define rules that allow traffic
 
     ```
-    (GcpIpRule)-[ALLOWED_BY]->(GCPFirewall)
+    (GCPIpRule)-[ALLOWED_BY]->(GCPFirewall)
     ```
 
 - Firewalls define rules that deny traffic
 
     ```
-    (GcpIpRule)-[DENIED_BY]->(GCPFirewall)
+    (GCPIpRule)-[DENIED_BY]->(GCPFirewall)
     ```
 
 - GCP Firewalls can be labeled with tags to direct traffic to or deny traffic to labeled GCPInstances
@@ -648,9 +648,11 @@ Representation of a GCP [GKE Cluster](https://cloud.google.com/kubernetes-engine
     ```
 
 
-### IpRule::IpPermissionInbound::GCPIpRule
+### GCPIpRule::IpPermissionInbound::IpRule
 
-An IpPermissionInbound node is a specific type of IpRule.  It represents a generic inbound IP-based rules.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+A GCPIpRule node represents an inbound GCP firewall IP rule. It carries semantic labels for compatibility with generic inbound rule queries.
+
+> **Ontology Mapping**: This node has the extra labels `IpPermissionInbound` and `IpRule` to preserve semantic compatibility.
 
 | Field       | Description                                                 |
 | ----------- | ----------------------------------------------------------- |
@@ -663,27 +665,29 @@ An IpPermissionInbound node is a specific type of IpRule.  It represents a gener
 
 #### Relationships
 
-- GCP Firewall rules are defined on IpRange objects.
+- GCP firewall rules are defined on GCPIpRange objects.
 
 	```
-	(GCPIpRule, IpRule, IpPermissionInbound)<-[MEMBER_OF_IP_RULE)-(:IpRange)
+	(GCPIpRange)-[MEMBER_OF_IP_RULE]->(GCPIpRule)
 	```
 
 - Firewalls define rules that allow traffic
 
     ```
-    (GcpIpRule)-[ALLOWED_BY]->(GCPFirewall)
+    (GCPIpRule)-[ALLOWED_BY]->(GCPFirewall)
     ```
 
 - Firewalls define rules that deny traffic
 
     ```
-    (GcpIpRule)-[DENIED_BY]->(GCPFirewall)
+    (GCPIpRule)-[DENIED_BY]->(GCPFirewall)
     ```
 
-### IpRange
+### GCPIpRange::IpRange
 
 Representation of an IP range or subnet.
+
+> **Ontology Mapping**: This node has the extra label `IpRange` to preserve cross-platform semantics for generic IP ranges.
 
 | Field       | Description                                                              |
 | ----------- | ------------------------------------------------------------------------ |
@@ -693,10 +697,10 @@ Representation of an IP range or subnet.
 
 #### Relationships
 
-- GCP Firewall rules are defined on IpRange objects.
+- GCPIpRanges are members of GCPIpRules.
 
 	```
-	(GCPIpRule, IpRule, IpPermissionInbound)<-[MEMBER_OF_IP_RULE)-(:IpRange)
+	(GCPIpRange)-[MEMBER_OF_IP_RULE]->(GCPIpRule)
 	```
 
 ### GCPServiceAccount

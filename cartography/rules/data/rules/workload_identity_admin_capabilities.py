@@ -50,7 +50,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         // Step 4: Optional internet exposure context
         OPTIONAL MATCH (ec2 {exposed_internet: True})
             -[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)
-            <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:IpPermissionInbound)
+            <-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:AWSIpPermissionInbound)
         UNWIND effective_actions AS action
         WITH a, ec2, role, sg, ip, COLLECT(DISTINCT action) AS actions
         RETURN DISTINCT
@@ -82,7 +82,7 @@ _aws_service_account_manipulation_via_ec2 = Fact(
         )
         WITH p, p1, p2, p3, a, ec2
         // Include the SG and rules for the instances that are internet open
-        MATCH p4=(ec2{exposed_internet: true})-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:IpPermissionInbound)
+        MATCH p4=(ec2{exposed_internet: true})-[:MEMBER_OF_EC2_SECURITY_GROUP]->(sg:EC2SecurityGroup)<-[:MEMBER_OF_EC2_SECURITY_GROUP]-(ip:AWSIpPermissionInbound)
         RETURN *
     """,
     cypher_count_query="""
