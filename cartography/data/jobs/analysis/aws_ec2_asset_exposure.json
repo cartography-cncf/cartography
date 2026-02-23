@@ -25,7 +25,7 @@
     "iterative": false
   },
   {
-    "query": "MATCH (elbv2:LoadBalancerV2{scheme: 'internet-facing', type: 'network'})-->(:ELBV2Listener)\nSET elbv2.exposed_internet = true",
+    "query": "MATCH (elbv2:LoadBalancerV2{scheme: 'internet-facing', type: 'network'})-->(:ELBV2Listener)\nWITH DISTINCT elbv2\nSET elbv2.exposed_internet = true",
     "iterative": false
   },
   {
