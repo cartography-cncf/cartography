@@ -1756,7 +1756,7 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 | container_image | The container image for the service |
 | service_account_email | The email of the service account used by this service |
 | ingress | The ingress setting for the service. Values: `INGRESS_TRAFFIC_ALL`, `INGRESS_TRAFFIC_INTERNAL_ONLY`, `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`, `INGRESS_TRAFFIC_NONE`. |
-| exposed_internet | Set to `true` if `ingress` is `INGRESS_TRAFFIC_ALL`. Set by the `gcp_compute_exposure` scoped analysis job. |
+| exposed_internet | Set to `true` if `ingress` is `INGRESS_TRAFFIC_ALL`. Set to `false` if `ingress` is `INGRESS_TRAFFIC_INTERNAL_ONLY` or `INGRESS_TRAFFIC_NONE`. Other values are currently left unset because they may still be internet-reachable via load balancers. |
 | exposed_internet_type | Set to `'direct'` when the service allows all ingress traffic. |
 
 #### Relationships

@@ -73,18 +73,7 @@ def _get_instance_group_members(
 
     members: list[dict] = []
     while req is not None:
-        try:
-            res = gcp_api_execute_with_retry(req)
-        except HttpError as e:
-            reason = _get_error_reason(e)
-            if reason in {"backendError", "rateLimitExceeded", "internalError"}:
-                logger.warning(
-                    "Transient error listing members for instance group %s: %s; skipping.",
-                    instance_group_name,
-                    e,
-                )
-                return []
-            raise
+        res = gcp_api_execute_with_retry(req)
         members.extend(res.get("items", []))
         req = list_next_fn(previous_request=req, previous_response=res)
     return members
@@ -109,8 +98,6 @@ def get_gcp_zonal_instance_groups(
         items: list[dict] = []
         response_id = f"projects/{project_id}/zones/{zone['name']}/instanceGroups"
         req = compute.instanceGroups().list(project=project_id, zone=zone["name"])
-        # Track transient errors so we can skip the entire zone rather than ingesting partial data
-        skip_zone = False
         while req is not None:
             try:
                 res = gcp_api_execute_with_retry(req)
@@ -118,22 +105,18 @@ def get_gcp_zonal_instance_groups(
                 reason = _get_error_reason(e)
                 if reason in {"backendError", "rateLimitExceeded", "internalError"}:
                     logger.warning(
-                        "Transient error listing instance groups for project %s zone %s: %s; skipping.",
+                        "Transient error listing instance groups for project %s zone %s: %s; failing sync.",
                         project_id,
                         zone.get("name"),
                         e,
                     )
-                    skip_zone = True
-                    break
+                    raise
                 raise
             items.extend(res.get("items", []))
             response_id = res.get("id", response_id)
             req = compute.instanceGroups().list_next(
                 previous_request=req, previous_response=res
             )
-
-        if skip_zone:
-            continue
 
         for ig in items:
             ig["_members"] = _get_instance_group_members(

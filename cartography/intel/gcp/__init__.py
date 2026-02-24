@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from collections import namedtuple
 from typing import Dict
 from typing import List
@@ -159,16 +158,6 @@ def _sync_project_resources(
     )
 
     # Per-project sync across services
-    # TODO: Remove this filter after testing
-    _gcp_project_filter = os.environ.get("GCP_PROJECT_FILTER")
-    if _gcp_project_filter:
-        projects = [p for p in projects if p["projectId"] == _gcp_project_filter]
-        logger.info(
-            "Filtered to %d project(s) matching GCP_PROJECT_FILTER=%s",
-            len(projects),
-            _gcp_project_filter,
-        )
-
     for project in projects:
         project_id = project["projectId"]
         common_job_parameters["PROJECT_ID"] = project_id

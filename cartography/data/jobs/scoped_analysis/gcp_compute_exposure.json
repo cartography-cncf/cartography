@@ -77,8 +77,8 @@
       "iterative": false
     },
     {
-      "__comment__": "Mark remaining GCPCloudRunService nodes as not exposed",
-      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(svc:GCPCloudRunService) WHERE svc.exposed_internet IS NULL SET svc.exposed_internet = false",
+      "__comment__": "Mark GCPCloudRunService nodes with ingress that blocks internet as not exposed",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(svc:GCPCloudRunService) WHERE svc.exposed_internet IS NULL AND svc.ingress IN ['INGRESS_TRAFFIC_INTERNAL_ONLY', 'INGRESS_TRAFFIC_NONE'] SET svc.exposed_internet = false",
       "iterative": false
     }
   ]
