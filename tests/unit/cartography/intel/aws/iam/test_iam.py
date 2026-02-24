@@ -183,18 +183,19 @@ def test__get_group_tags_valid_tags(mocker):
             ],
         },
     )
-    mocker.patch("boto3.session.Session")
     mock_session = mocker.Mock()
     mock_client = mocker.Mock()
-    mock_group = mocker.Mock()
-    mock_group.tags = [
-        {
-            "Key": "k1",
-            "Value": "v1",
-        },
-    ]
-    mock_client.Group.return_value = mock_group
-    mock_session.resource.return_value = mock_client
+    mock_client.meta.service_model.operation_names = ["ListGroupTags"]
+    mock_client.list_group_tags.return_value = {
+        "Tags": [
+            {
+                "Key": "k1",
+                "Value": "v1",
+            },
+        ],
+        "IsTruncated": False,
+    }
+    mock_session.client.return_value = mock_client
 
     result = iam.get_group_tags(mock_session)
 
@@ -223,17 +224,41 @@ def test__get_group_tags_no_tags(mocker):
             ],
         },
     )
-    mocker.patch("boto3.session.Session")
     mock_session = mocker.Mock()
     mock_client = mocker.Mock()
-    mock_group = mocker.Mock()
-    mock_group.tags = []
-    mock_client.Group.return_value = mock_group
-    mock_session.resource.return_value = mock_client
+    mock_client.meta.service_model.operation_names = ["ListGroupTags"]
+    mock_client.list_group_tags.return_value = {
+        "Tags": [],
+        "IsTruncated": False,
+    }
+    mock_session.client.return_value = mock_client
 
     result = iam.get_group_tags(mock_session)
 
     assert result == []
+
+
+def test__get_group_tags_list_group_tags_unavailable(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_group_list_data",
+        return_value={
+            "Groups": [
+                {
+                    "GroupName": "test-group",
+                    "Arn": "test-group-arn",
+                },
+            ],
+        },
+    )
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+    mock_client.meta.service_model.operation_names = []
+    mock_session.client.return_value = mock_client
+
+    result = iam.get_group_tags(mock_session)
+
+    assert result == []
+    mock_client.list_group_tags.assert_not_called()
 
 
 def test_transform_policy_data_correctly_creates_lists_of_statements():
