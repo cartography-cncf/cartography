@@ -9,7 +9,9 @@ aws_eks_mapping = OntologyMapping(
             node_label="EKSCluster",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="arn", required=True,
+                    ontology_field="id",
+                    node_field="arn",
+                    required=True,
                 ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
@@ -28,10 +30,13 @@ aws_ecs_mapping = OntologyMapping(
             node_label="ECSCluster",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="clusterArn", required=True,
+                    ontology_field="id",
+                    node_field="arn",
+                    required=True,
                 ),
                 OntologyFieldMapping(
-                    ontology_field="name", node_field="clusterName",
+                    ontology_field="name",
+                    node_field="name",
                 ),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
                 # version: Not applicable for ECS clusters
@@ -49,12 +54,15 @@ aws_emr_mapping = OntologyMapping(
             node_label="EMRCluster",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="Id", required=True,
+                    ontology_field="id",
+                    node_field="id",
+                    required=True,
                 ),
-                OntologyFieldMapping(ontology_field="name", node_field="Name"),
+                OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(ontology_field="region", node_field="region"),
                 OntologyFieldMapping(
-                    ontology_field="version", node_field="ReleaseLabel",
+                    ontology_field="version",
+                    node_field="release_label",
                 ),
                 # endpoint: Not applicable for EMR clusters
                 # status: Not exposed as a direct field in EMRCluster node
@@ -70,18 +78,23 @@ azure_aks_mapping = OntologyMapping(
             node_label="AzureKubernetesCluster",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True,
+                    ontology_field="id",
+                    node_field="id",
+                    required=True,
                 ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(
-                    ontology_field="region", node_field="location",
+                    ontology_field="region",
+                    node_field="location",
                 ),
                 OntologyFieldMapping(
-                    ontology_field="version", node_field="kubernetes_version",
+                    ontology_field="version",
+                    node_field="kubernetes_version",
                 ),
                 OntologyFieldMapping(ontology_field="endpoint", node_field="fqdn"),
                 OntologyFieldMapping(
-                    ontology_field="status", node_field="provisioning_state",
+                    ontology_field="status",
+                    node_field="provisioning_state",
                 ),
             ],
         ),
@@ -95,17 +108,22 @@ gcp_gke_mapping = OntologyMapping(
             node_label="GKECluster",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True,
+                    ontology_field="id",
+                    node_field="id",
+                    required=True,
                 ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 OntologyFieldMapping(
-                    ontology_field="region", node_field="location",
+                    ontology_field="region",
+                    node_field="location",
                 ),
                 OntologyFieldMapping(
-                    ontology_field="version", node_field="current_master_version",
+                    ontology_field="version",
+                    node_field="current_master_version",
                 ),
                 OntologyFieldMapping(
-                    ontology_field="endpoint", node_field="endpoint",
+                    ontology_field="endpoint",
+                    node_field="endpoint",
                 ),
                 OntologyFieldMapping(ontology_field="status", node_field="status"),
             ],
@@ -120,12 +138,15 @@ kubernetes_mapping = OntologyMapping(
             node_label="KubernetesCluster",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="id", node_field="id", required=True,
+                    ontology_field="id",
+                    node_field="id",
+                    required=True,
                 ),
                 OntologyFieldMapping(ontology_field="name", node_field="name"),
                 # region: Not available in KubernetesCluster node
                 OntologyFieldMapping(
-                    ontology_field="version", node_field="version",
+                    ontology_field="version",
+                    node_field="version",
                 ),
                 # endpoint: Not available in KubernetesCluster node
                 # status: Not available in KubernetesCluster node
