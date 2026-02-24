@@ -30,7 +30,7 @@ MANIFEST_LIST_MEDIA_TYPES = {
     "application/vnd.oci.image.index.v1+json",
 }
 
-ECR_MAX_RESULTS = 1000
+ECR_LIST_PAGE_SIZE = 1000
 
 
 def _iter_in_batches(
@@ -70,7 +70,7 @@ async def _get_ecr_repositories_async(
         config=aio_config,
     ) as client:
         while True:
-            params: Dict[str, Any] = {"maxResults": ECR_MAX_RESULTS}
+            params: Dict[str, Any] = {"maxResults": ECR_LIST_PAGE_SIZE}
             if next_token:
                 params["nextToken"] = next_token
             response = await client.describe_repositories(**params)
@@ -304,7 +304,7 @@ async def _get_ecr_repository_images_async(
     while True:
         list_params: Dict[str, Any] = {
             "repositoryName": repository_name,
-            "maxResults": ECR_MAX_RESULTS,
+            "maxResults": ECR_LIST_PAGE_SIZE,
         }
         if list_next_token:
             list_params["nextToken"] = list_next_token
