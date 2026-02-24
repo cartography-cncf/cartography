@@ -9,7 +9,7 @@
     },
     {
       "__comment": "Mark ECS containers as exposed to the internet when they are behind an internet-facing load balancer",
-      "query": "MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(container:ECSContainer) WITH container WHERE (container.exposed_internet_type IS NULL) OR (NOT 'elbv2' IN container.exposed_internet_type) SET container.exposed_internet = true, container.exposed_internet_type = coalesce(container.exposed_internet_type, []) + 'elbv2'",
+      "query": "MATCH (lb:AWSLoadBalancerV2 {exposed_internet: true})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(container:ECSContainer) WITH DISTINCT container WHERE (container.exposed_internet_type IS NULL) OR (NOT 'elbv2' IN container.exposed_internet_type) SET container.exposed_internet = true, container.exposed_internet_type = coalesce(container.exposed_internet_type, []) + 'elbv2'",
       "iterative": false
     }
   ]
