@@ -2,7 +2,6 @@
 # https://cloud.google.com/compute/docs/concepts
 from __future__ import annotations
 
-import json
 import logging
 from collections import namedtuple
 from typing import Any
@@ -17,6 +16,7 @@ from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
 from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import get_error_reason
 from cartography.models.gcp.compute.firewall import GCPFirewallSchema
 from cartography.models.gcp.compute.firewall_target_tag import (
     GCPFirewallTargetTagSchema,
@@ -46,25 +46,9 @@ InstanceUriPrefix = namedtuple("InstanceUriPrefix", "zone_name project_id")
 
 def _get_error_reason(http_error: HttpError) -> str:
     """
-    Helper function to get an error reason out of the googleapiclient's HttpError object
-    This function copies the structure of
-    https://github.com/googleapis/google-api-python-client/blob/1d2e240a74d2bc0074dffbc57cf7d62b8146cb82/
-                                  googleapiclient/http.py#L111
-    At the moment this is the best way we know of to extract the HTTP failure reason.
-    Additionally, see https://github.com/googleapis/google-api-python-client/issues/662.
-    :param http_error: The googleapi HttpError object
-    :return: The error reason as a string
+    Backward-compatible wrapper around util.get_error_reason().
     """
-    try:
-        data = json.loads(http_error.content.decode("utf-8"))
-        if isinstance(data, dict):
-            reason = data["error"]["errors"][0]["reason"]
-        else:
-            reason = data[0]["error"]["errors"]["reason"]
-    except (UnicodeDecodeError, ValueError, KeyError):
-        logger.warning(f"HttpError: {data}")
-        return ""
-    return reason
+    return get_error_reason(http_error)
 
 
 @timeit
@@ -1405,6 +1389,8 @@ def sync(
             gcp_update_tag,
             common_job_parameters,
         )
+        # Cloud Armor policies must exist before backend services so PROTECTS rels
+        # can resolve in the same sync cycle.
         sync_gcp_cloud_armor(
             neo4j_session,
             compute,

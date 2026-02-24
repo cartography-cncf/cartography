@@ -561,7 +561,10 @@ def _sync_project_resources(
                 f"Skipping IAM cleanup for project {project_id} - IAM sync did not complete"
             )
 
-        # Scoped analysis jobs - run per project after all syncs
+        # Scoped analysis jobs - run per project after all syncs.
+        # `gcp_compute_exposure` computes node properties (exposed_internet flags).
+        # `gcp_lb_exposure` materializes EXPOSE edges for traversal/explanations.
+        # We keep them split because they serve different outputs and cleanup scopes.
         run_scoped_analysis_job(
             "gcp_compute_exposure.json",
             neo4j_session,

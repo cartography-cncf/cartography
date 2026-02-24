@@ -9,8 +9,8 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp import compute
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import get_error_reason
 from cartography.models.gcp.storage.bucket import GCPBucketLabelSchema
 from cartography.models.gcp.storage.bucket import GCPBucketSchema
 from cartography.util import timeit
@@ -37,7 +37,7 @@ def get_gcp_buckets(storage: Resource, project_id: str) -> Dict:
         res = gcp_api_execute_with_retry(req)
         return res
     except HttpError as e:
-        reason = compute._get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
                 (

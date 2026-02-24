@@ -3,7 +3,6 @@
 # https://cloud.google.com/compute/docs/reference/rest/v1/regionBackendServices
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -13,27 +12,13 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import compute_full_uri_to_partial_uri
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import get_error_reason
 from cartography.models.gcp.compute.backend_service import GCPBackendServiceSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-def _get_error_reason(http_error: HttpError) -> str:
-    """
-    Helper to extract the error reason from a googleapiclient HttpError.
-    """
-    try:
-        data = json.loads(http_error.content.decode("utf-8"))
-        if isinstance(data, dict):
-            reason = data["error"]["errors"][0]["reason"]
-        else:
-            reason = data[0]["error"]["errors"]["reason"]
-    except (UnicodeDecodeError, ValueError, KeyError):
-        logger.warning(f"HttpError: {http_error}")
-        return ""
-    return reason
 
 
 @timeit
@@ -81,7 +66,7 @@ def get_gcp_regional_backend_services(
         try:
             res = gcp_api_execute_with_retry(req)
         except HttpError as e:
-            reason = _get_error_reason(e)
+            reason = get_error_reason(e)
             if reason == "invalid":
                 logger.warning(
                     "GCP: Invalid region %s for project %s; skipping backend services sync for this region.",
@@ -126,7 +111,7 @@ def transform_gcp_backend_services(response: Resource, project_id: str) -> list[
         security_policy = bs.get("securityPolicy")
         backend_service["security_policy"] = security_policy
         backend_service["security_policy_partial_uri"] = (
-            security_policy.split("compute/v1/")[1] if security_policy else None
+            compute_full_uri_to_partial_uri(security_policy)
         )
         backend_service["creation_timestamp"] = bs.get("creationTimestamp")
 
@@ -136,7 +121,7 @@ def transform_gcp_backend_services(response: Resource, project_id: str) -> list[
         # Extract instance group partial URIs from backends[].group for HAS_BACKEND rel
         backend_groups = bs.get("backends", [])
         backend_service["backend_group_partial_uris"] = [
-            group_url.split("compute/v1/")[1]
+            compute_full_uri_to_partial_uri(group_url)
             for b in backend_groups
             if (group_url := b.get("group"))
         ]

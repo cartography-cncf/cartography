@@ -47,7 +47,7 @@
       "iterationsize": 1000
     },
     {
-      "__comment__": "Mark GCPInstance as directly exposed (TCP) - has public IP, open ingress firewall from 0.0.0.0/0, no blocking deny rule",
+      "__comment__": "Mark GCPInstance as directly exposed (TCP) - has public IP, open ingress firewall from 0.0.0.0/0, no blocking deny rule. This runs after LB exposure so exposed_internet_type='direct' intentionally takes precedence when both are true.",
       "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(n:GCPInstance)<-[:FIREWALL_INGRESS]-(firewall_a:GCPFirewall)<-[:ALLOWED_BY]-(allow_rule:GCPIpRule{protocol:'tcp'})<-[:MEMBER_OF_IP_RULE]-(:GCPIpRange{id:\"0.0.0.0/0\"}) MATCH (n)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(ac:GCPNicAccessConfig) WHERE ac.public_ip IS NOT NULL OPTIONAL MATCH (n)<-[:FIREWALL_INGRESS]-(firewall_b:GCPFirewall)<-[:DENIED_BY]-(deny_rule:GCPIpRule{protocol:'tcp'}) WITH n, firewall_a, allow_rule, deny_rule, firewall_b WHERE deny_rule IS NULL OR firewall_b.priority > firewall_a.priority OR NOT allow_rule.fromport IN RANGE(deny_rule.fromport, deny_rule.toport) OR NOT allow_rule.toport IN RANGE(deny_rule.fromport, deny_rule.toport) SET n.exposed_internet = true, n.exposed_internet_type = 'direct'",
       "iterative": false
     },
