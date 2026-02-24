@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Any
 from typing import Dict
+from typing import Generator
 from typing import List
 
 import aioboto3
@@ -30,6 +31,14 @@ MANIFEST_LIST_MEDIA_TYPES = {
 }
 
 ECR_MAX_RESULTS = 1000
+
+
+def _iter_in_batches(
+    items: List[Dict[str, Any]],
+    batch_size: int,
+) -> Generator[List[Dict[str, Any]], None, None]:
+    for i in range(0, len(items), batch_size):
+        yield items[i : i + batch_size]
 
 
 @timeit
@@ -565,7 +574,7 @@ def _get_image_data_sync(
             region,
             repo["repositoryName"],
         )
-    return image_data
+    return dict(sorted(image_data.items()))
 
 
 @timeit
@@ -590,17 +599,10 @@ def sync(
             repositories = run_async(
                 _get_ecr_repositories_async(aioboto3_session, region, tuning),
             )
-            image_data = run_async(
-                _get_image_data_async(
-                    aioboto3_session,
-                    region,
-                    sorted(repositories, key=lambda x: x["repositoryName"]),
-                    tuning,
-                )
-            )
         else:
             repositories = get_ecr_repositories(boto3_session, region)
-            image_data = _get_image_data_sync(boto3_session, region, repositories)
+
+        sorted_repositories = sorted(repositories, key=lambda x: x["repositoryName"])
         # len here should be 1!
         load_ecr_repositories(
             neo4j_session,
@@ -609,13 +611,39 @@ def sync(
             current_aws_account_id,
             update_tag,
         )
-        repo_images_list, ecr_images_list = transform_ecr_repository_images(image_data)
-        load_ecr_repository_images(
-            neo4j_session,
-            repo_images_list,
-            ecr_images_list,
-            region,
-            current_aws_account_id,
-            update_tag,
-        )
+        seen_image_digests: set[str] = set()
+        for repo_batch in _iter_in_batches(
+            sorted_repositories,
+            tuning.max_concurrent_repositories,
+        ):
+            if use_async:
+                image_data = run_async(
+                    _get_image_data_async(
+                        aioboto3_session,
+                        region,
+                        repo_batch,
+                        tuning,
+                    )
+                )
+            else:
+                image_data = _get_image_data_sync(boto3_session, region, repo_batch)
+
+            repo_images_list, ecr_images_list = transform_ecr_repository_images(
+                image_data
+            )
+            new_ecr_images = []
+            for image in ecr_images_list:
+                digest = image["imageDigest"]
+                if digest in seen_image_digests:
+                    continue
+                seen_image_digests.add(digest)
+                new_ecr_images.append(image)
+            load_ecr_repository_images(
+                neo4j_session,
+                repo_images_list,
+                new_ecr_images,
+                region,
+                current_aws_account_id,
+                update_tag,
+            )
     cleanup(neo4j_session, common_job_parameters)

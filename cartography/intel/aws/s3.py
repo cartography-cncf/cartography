@@ -67,6 +67,17 @@ FETCH_FAILED = _FetchFailed()
 
 # Type alias for values that may be FETCH_FAILED
 MaybeFailed = Union[Optional[Dict], _FetchFailed]
+BucketDetail = Tuple[
+    str,
+    MaybeFailed,
+    MaybeFailed,
+    MaybeFailed,
+    MaybeFailed,
+    MaybeFailed,
+    MaybeFailed,
+    MaybeFailed,
+]
+BucketDetails = List[BucketDetail]
 
 
 @timeit
@@ -241,18 +252,7 @@ async def _get_s3_bucket_details_async(
     aioboto3_session: aioboto3.Session,
     bucket_data: Dict,
     tuning: AwsAsyncTuning,
-) -> List[
-    Tuple[
-        str,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-    ]
-]:
+) -> BucketDetails:
     aio_config = build_aio_config(tuning)
     regions = {bucket.get("Region") for bucket in bucket_data["Buckets"]}
     semaphore = asyncio.Semaphore(tuning.max_concurrent_buckets)
@@ -269,16 +269,7 @@ async def _get_s3_bucket_details_async(
 
         async def _get_bucket_detail(
             bucket: Dict[str, Any],
-        ) -> Tuple[
-            str,
-            MaybeFailed,
-            MaybeFailed,
-            MaybeFailed,
-            MaybeFailed,
-            MaybeFailed,
-            MaybeFailed,
-            MaybeFailed,
-        ]:
+        ) -> BucketDetail:
             async with semaphore:
                 client = clients_by_region[bucket["Region"]]
                 (
@@ -309,18 +300,7 @@ async def _get_s3_bucket_details_async(
                     bucket_logging,
                 )
 
-        details: List[
-            Tuple[
-                str,
-                MaybeFailed,
-                MaybeFailed,
-                MaybeFailed,
-                MaybeFailed,
-                MaybeFailed,
-                MaybeFailed,
-                MaybeFailed,
-            ]
-        ] = []
+        details: BucketDetails = []
         for i in range(0, len(bucket_data["Buckets"]), tuning.max_concurrent_buckets):
             batch = bucket_data["Buckets"][i : i + tuning.max_concurrent_buckets]
             details.extend(
@@ -333,20 +313,7 @@ async def _get_s3_bucket_details_async(
 def get_s3_bucket_details(
     boto3_session: boto3.session.Session,
     bucket_data: Dict,
-) -> Generator[
-    Tuple[
-        str,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-    ],
-    None,
-    None,
-]:
+) -> Generator[BucketDetail, None, None]:
     """
     Iterates over all S3 buckets. Yields bucket name (string), S3 bucket policies (JSON), ACLs (JSON),
     default encryption policy (JSON), Versioning (JSON), Public Access Block (JSON), Ownership Controls (JSON),
@@ -359,17 +326,6 @@ def get_s3_bucket_details(
     """
     # a local store for s3 clients so that we may re-use clients for an AWS region
     s3_regional_clients: Dict[Any, Any] = {}
-
-    BucketDetail = Tuple[
-        str,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-    ]
 
     async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetail:
         # Note: bucket['Region'] is sometimes None because
