@@ -10,7 +10,6 @@ from typing import Tuple
 
 import boto3
 import neo4j
-from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
@@ -307,75 +306,6 @@ def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
         user_tag_data.append(tag_data)
 
     return user_tag_data
-
-
-@timeit
-@aws_handle_regions
-def get_group_tags(boto3_session: boto3.Session) -> List[Dict]:
-    group_list = get_group_list_data(boto3_session)["Groups"]
-    client = boto3_session.client("iam")
-    return _get_group_tags_for_groups(client, group_list)
-
-
-def _get_group_tags_for_groups(client: Any, group_list: List[Dict]) -> List[Dict]:
-    group_tag_data: List[Dict] = []
-    if "ListGroupTags" not in client.meta.service_model.operation_names:
-        logger.warning(
-            "IAM ListGroupTags API is unavailable in this boto3/botocore model. Skipping IAM group tags.",
-        )
-        return group_tag_data
-
-    for group in group_list:
-        name = group["GroupName"]
-        group_arn = group["Arn"]
-        group_tags: List[Dict] = []
-        marker = None
-        while True:
-            list_group_tags_kwargs: Dict[str, Any] = {"GroupName": name}
-            if marker:
-                list_group_tags_kwargs["Marker"] = marker
-            try:
-                response = client.list_group_tags(**list_group_tags_kwargs)
-            except client.exceptions.NoSuchEntityException:
-                logger.warning(
-                    "client.list_group_tags(GroupName='%s') failed with NoSuchEntityException; skipping.",
-                    name,
-                )
-                group_tags = []
-                break
-            except ClientError as e:
-                error_code = e.response.get("Error", {}).get("Code", "ClientError")
-                if error_code not in (
-                    "AccessDenied",
-                    "AccessDeniedException",
-                    "UnauthorizedOperation",
-                ):
-                    raise
-                logger.warning(
-                    "client.list_group_tags(GroupName='%s') failed with %s; skipping.",
-                    name,
-                    error_code,
-                )
-                group_tags = []
-                break
-
-            group_tags.extend(response.get("Tags", []))
-            if not response.get("IsTruncated"):
-                break
-            marker = response.get("Marker")
-            if not marker:
-                break
-
-        if not group_tags:
-            continue
-
-        tag_data = {
-            "ResourceARN": group_arn,
-            "Tags": group_tags,
-        }
-        group_tag_data.append(tag_data)
-
-    return group_tag_data
 
 
 @timeit
