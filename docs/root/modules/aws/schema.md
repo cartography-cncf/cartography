@@ -2038,6 +2038,11 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
     (EC2Instance)-[MEMBER_OF_EKS_CLUSTER]->(EKSCluster)
     ```
 
+- ECS Container Instances can be backed by EC2 Instances
+    ```
+    (ECSContainerInstance)-[IS_INSTANCE]->(EC2Instance)
+    ```
+
 ### EC2KeyPair
 
 Representation of an AWS [EC2 Key Pair](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html)
@@ -4743,6 +4748,11 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
 - ECSContainerInstances have ECSTasks
     ```
     (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
+    ```
+
+- ECSContainerInstances are backed by EC2 Instances
+    ```
+    (:ECSContainerInstance)-[:IS_INSTANCE]->(:EC2Instance)
     ```
 
 ### ECSService
