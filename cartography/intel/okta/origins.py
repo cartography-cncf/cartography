@@ -112,6 +112,7 @@ def sync_trusted_origins(
     okta_org_id: str,
     okta_update_tag: int,
     okta_api_key: str,
+    okta_base_domain: str = "okta.com",
 ) -> None:
     """
     Sync trusted origins
@@ -119,12 +120,15 @@ def sync_trusted_origins(
     :param okta_org_id: okta organization id
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :param okta_api_key: okta api key
+    :param okta_base_domain: Base domain for Okta API requests (default: okta.com)
     :return: Nothing
     """
 
     logger.info("Syncing Okta Trusted Origins")
 
-    api_client = create_api_client(okta_org_id, "/api/v1/trustedOrigins", okta_api_key)
+    api_client = create_api_client(
+        okta_org_id, "/api/v1/trustedOrigins", okta_api_key, okta_base_domain
+    )
 
     trusted_data = _get_trusted_origins(api_client)
     trusted_list = transform_trusted_origins(trusted_data)
