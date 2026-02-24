@@ -1,10 +1,16 @@
 import datetime
+from typing import Any
+from typing import cast
+
+from botocore.exceptions import ClientError
 
 from cartography.intel.aws import iam
 from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
 from tests.data.aws.iam.mfa_devices import LIST_MFA_DEVICES
 from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES_RESPONSE
+
+RAW_GET_GROUP_TAGS = cast(Any, cast(Any, iam.get_group_tags).__wrapped__).__wrapped__
 
 SINGLE_STATEMENT = {
     "Resource": "*",
@@ -259,6 +265,80 @@ def test__get_group_tags_list_group_tags_unavailable(mocker):
 
     assert result == []
     mock_client.list_group_tags.assert_not_called()
+
+
+def test__get_group_tags_access_denied_returns_empty(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_group_list_data",
+        return_value={
+            "Groups": [
+                {
+                    "GroupName": "test-group",
+                    "Arn": "test-group-arn",
+                },
+            ],
+        },
+    )
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+
+    class NoSuchEntityException(Exception):
+        pass
+
+    mock_client.exceptions.NoSuchEntityException = NoSuchEntityException
+    mock_client.meta.service_model.operation_names = ["ListGroupTags"]
+    mock_client.list_group_tags.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "AccessDenied",
+                "Message": "not authorized",
+            },
+        },
+        "ListGroupTags",
+    )
+    mock_session.client.return_value = mock_client
+
+    result = iam.get_group_tags(mock_session)
+
+    assert result == []
+
+
+def test__get_group_tags_non_access_denied_client_error_raises(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_group_list_data",
+        return_value={
+            "Groups": [
+                {
+                    "GroupName": "test-group",
+                    "Arn": "test-group-arn",
+                },
+            ],
+        },
+    )
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+
+    class NoSuchEntityException(Exception):
+        pass
+
+    mock_client.exceptions.NoSuchEntityException = NoSuchEntityException
+    mock_client.meta.service_model.operation_names = ["ListGroupTags"]
+    mock_client.list_group_tags.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "Throttling",
+                "Message": "rate exceeded",
+            },
+        },
+        "ListGroupTags",
+    )
+    mock_session.client.return_value = mock_client
+
+    try:
+        RAW_GET_GROUP_TAGS(mock_session)
+        assert False, "Expected ClientError to be raised for non-access-denied errors"
+    except ClientError as e:
+        assert e.response["Error"]["Code"] == "Throttling"
 
 
 def test_transform_policy_data_correctly_creates_lists_of_statements():

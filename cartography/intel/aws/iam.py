@@ -326,10 +326,17 @@ def get_group_tags(boto3_session: boto3.Session) -> List[Dict]:
                 group_tags = []
                 break
             except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "ClientError")
+                if error_code not in (
+                    "AccessDenied",
+                    "AccessDeniedException",
+                    "UnauthorizedOperation",
+                ):
+                    raise
                 logger.warning(
                     "client.list_group_tags(GroupName='%s') failed with %s; skipping.",
                     name,
-                    e.response.get("Error", {}).get("Code", "ClientError"),
+                    error_code,
                 )
                 group_tags = []
                 break
