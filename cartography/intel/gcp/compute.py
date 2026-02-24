@@ -2,7 +2,6 @@
 # https://cloud.google.com/compute/docs/concepts
 from __future__ import annotations
 
-import json
 import logging
 from collections import namedtuple
 from typing import Any
@@ -13,7 +12,12 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.backendservice import sync_gcp_backend_services
+from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
+from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import get_error_reason
+from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.models.gcp.compute.firewall import GCPFirewallSchema
 from cartography.models.gcp.compute.firewall_target_tag import (
     GCPFirewallTargetTagSchema,
@@ -41,29 +45,6 @@ logger = logging.getLogger(__name__)
 InstanceUriPrefix = namedtuple("InstanceUriPrefix", "zone_name project_id")
 
 
-def _get_error_reason(http_error: HttpError) -> str:
-    """
-    Helper function to get an error reason out of the googleapiclient's HttpError object
-    This function copies the structure of
-    https://github.com/googleapis/google-api-python-client/blob/1d2e240a74d2bc0074dffbc57cf7d62b8146cb82/
-                                  googleapiclient/http.py#L111
-    At the moment this is the best way we know of to extract the HTTP failure reason.
-    Additionally, see https://github.com/googleapis/google-api-python-client/issues/662.
-    :param http_error: The googleapi HttpError object
-    :return: The error reason as a string
-    """
-    try:
-        data = json.loads(http_error.content.decode("utf-8"))
-        if isinstance(data, dict):
-            reason = data["error"]["errors"][0]["reason"]
-        else:
-            reason = data[0]["error"]["errors"]["reason"]
-    except (UnicodeDecodeError, ValueError, KeyError):
-        logger.warning(f"HttpError: {data}")
-        return ""
-    return reason
-
-
 @timeit
 def get_zones_in_project(
     project_id: str,
@@ -86,7 +67,7 @@ def get_zones_in_project(
         res = gcp_api_execute_with_retry(req)
         return res["items"]
     except HttpError as e:
-        reason = _get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "accessNotConfigured":
             logger.info(
                 (
@@ -141,7 +122,7 @@ def get_gcp_instance_responses(
             res = gcp_api_execute_with_retry(req)
             response_objects.append(res)
         except HttpError as e:
-            reason = _get_error_reason(e)
+            reason = get_error_reason(e)
             if reason in {"backendError", "rateLimitExceeded", "internalError"}:
                 logger.warning(
                     "Transient error listing instances for project %s zone %s: %s; skipping this zone.",
@@ -168,7 +149,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> dict | No
     try:
         req = compute.subnetworks().list(project=projectid, region=region)
     except HttpError as e:
-        reason = _get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
                 "GCP: Invalid region %s for project %s; skipping subnet sync for this region.",
@@ -191,7 +172,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> dict | No
             )
             break
         except HttpError as e:
-            reason = _get_error_reason(e)
+            reason = get_error_reason(e)
             if reason == "invalid":
                 logger.warning(
                     "GCP: Invalid region %s for project %s; skipping subnet sync for this region.",
@@ -238,7 +219,7 @@ def get_gcp_regional_forwarding_rules(
     try:
         return gcp_api_execute_with_retry(req)
     except HttpError as e:
-        reason = _get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
                 "GCP: Invalid region %s for project %s; skipping forwarding rules sync for this region.",
@@ -327,7 +308,8 @@ def _parse_compute_full_uri_to_partial_uri(full_uri: str, version: str = "v1") -
     :param version: The version number; default to v1 since at the time of this writing v1 is the only Compute API.
     :return: Partial URI `{project}/{location specifier}/{subtype}/{resource name}`
     """
-    return full_uri.split(f"compute/{version}/")[1]
+    parsed = parse_compute_full_uri_to_partial_uri(full_uri, version=version)
+    return parsed if parsed is not None else full_uri
 
 
 def _create_gcp_network_tag_id(vpc_partial_uri: str, tag: str) -> str:
@@ -1386,6 +1368,32 @@ def sync(
             common_job_parameters,
         )
         sync_gcp_forwarding_rules(
+            neo4j_session,
+            compute,
+            project_id,
+            regions,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_instance_groups(
+            neo4j_session,
+            compute,
+            project_id,
+            zones,
+            regions,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        # Cloud Armor policies must exist before backend services so PROTECTS rels
+        # can resolve in the same sync cycle.
+        sync_gcp_cloud_armor(
+            neo4j_session,
+            compute,
+            project_id,
+            gcp_update_tag,
+            common_job_parameters,
+        )
+        sync_gcp_backend_services(
             neo4j_session,
             compute,
             project_id,
