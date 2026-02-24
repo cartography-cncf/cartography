@@ -58,4 +58,4 @@ class AWSGroupSchema(CartographyNodeSchema):
             AWSGroupToAWSUserRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal", "UserGroup"])

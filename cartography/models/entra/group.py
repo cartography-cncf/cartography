@@ -113,5 +113,6 @@ class EntraGroupSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
         [
             "EntraIdentity",
+            "UserGroup",
         ]
     )

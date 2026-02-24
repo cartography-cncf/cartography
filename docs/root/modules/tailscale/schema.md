@@ -168,6 +168,8 @@ A configured PostureIntegration.
 
 A group in Tailscale (either `group` or `autogroup`).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|-------------|
 | id | Group ID (eg. `group:example` or `autogroup:admin`) |

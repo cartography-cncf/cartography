@@ -54,6 +54,8 @@ Represents a Duo API Host to contain Duo resources.
 
 Represents a [group](https://duo.com/docs/adminapi#groups) in Duo.
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first discovered this node  |
