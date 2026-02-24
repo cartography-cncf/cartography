@@ -114,6 +114,9 @@ def test_sync_cloudrun(
     assert check_nodes(neo4j_session, "GCPCloudRunService", ["id"]) == {
         (TEST_SERVICE_ID,),
     }
+    assert check_nodes(neo4j_session, "GCPCloudRunService", ["id", "ingress"]) == {
+        (TEST_SERVICE_ID, "INGRESS_TRAFFIC_ALL"),
+    }
     assert check_nodes(neo4j_session, "GCPCloudRunRevision", ["id"]) == {
         (TEST_REVISION_ID,),
     }
