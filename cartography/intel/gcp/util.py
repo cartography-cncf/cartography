@@ -25,44 +25,6 @@ GCP_API_BACKOFF_MAX = 30
 GCP_API_NUM_RETRIES = 5
 
 
-def get_error_reason(http_error: HttpError) -> str:
-    """
-    Extract the `reason` field from a googleapiclient HttpError response body.
-
-    Returns an empty string if the body cannot be parsed or does not include
-    the expected error structure.
-    """
-    try:
-        data = json.loads(http_error.content.decode("utf-8"))
-        if isinstance(data, dict):
-            return data["error"]["errors"][0]["reason"]
-        return data[0]["error"]["errors"]["reason"]
-    except (UnicodeDecodeError, ValueError, KeyError, IndexError, TypeError):
-        logger.warning("HttpError: %s", http_error)
-        return ""
-
-
-def compute_full_uri_to_partial_uri(full_uri: str | None) -> str | None:
-    """
-    Convert a Compute API full URI to Cartography's partial URI form.
-
-    Examples:
-      - https://www.googleapis.com/compute/v1/projects/p/global/networks/default
-        -> projects/p/global/networks/default
-      - projects/p/global/networks/default
-        -> projects/p/global/networks/default
-    """
-    if not full_uri:
-        return None
-    if full_uri.startswith("projects/"):
-        return full_uri
-    _, sep, partial = full_uri.partition("compute/v1/")
-    if sep:
-        return partial
-    logger.debug("Unexpected Compute URI format; keeping original value: %s", full_uri)
-    return full_uri
-
-
 def is_retryable_gcp_http_error(exc: Exception) -> bool:
     """
     Check if the exception is a retryable GCP API error.
