@@ -29,8 +29,8 @@ def _create_test_project(neo4j_session, project_id: str, update_tag: int) -> Non
 
 def _seed_instances(neo4j_session, project_id: str, update_tag: int) -> None:
     instance_ids = [
-        "projects/test-cloud-run-483700/zones/us-central1-a/instances/vm-private-1",
-        "projects/test-cloud-run-483700/zones/us-central1-a/instances/vm-private-2",
+        "projects/sample-project-123456/zones/us-central1-a/instances/vm-private-1",
+        "projects/sample-project-123456/zones/us-central1-a/instances/vm-private-2",
     ]
     neo4j_session.run(
         """
@@ -115,7 +115,7 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         ["id", "name", "load_balancing_scheme"],
     ) == {
         (
-            "projects/test-cloud-run-483700/global/backendServices/test-backend-service",
+            "projects/sample-project-123456/global/backendServices/test-backend-service",
             "test-backend-service",
             "EXTERNAL",
         ),
@@ -127,7 +127,7 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         ["id", "name", "zone"],
     ) == {
         (
-            "projects/test-cloud-run-483700/zones/us-central1-a/instanceGroups/test-instance-group",
+            "projects/sample-project-123456/zones/us-central1-a/instanceGroups/test-instance-group",
             "test-instance-group",
             "us-central1-a",
         ),
@@ -139,7 +139,7 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         ["id", "name", "policy_type"],
     ) == {
         (
-            "projects/test-cloud-run-483700/global/securityPolicies/test-armor-policy",
+            "projects/sample-project-123456/global/securityPolicies/test-armor-policy",
             "test-armor-policy",
             "CLOUD_ARMOR",
         ),
@@ -155,8 +155,8 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         rel_direction_right=True,
     ) == {
         (
-            "projects/test-cloud-run-483700/global/backendServices/test-backend-service",
-            "projects/test-cloud-run-483700/zones/us-central1-a/instanceGroups/test-instance-group",
+            "projects/sample-project-123456/global/backendServices/test-backend-service",
+            "projects/sample-project-123456/zones/us-central1-a/instanceGroups/test-instance-group",
         ),
     }
 
@@ -170,12 +170,12 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         rel_direction_right=True,
     ) == {
         (
-            "projects/test-cloud-run-483700/zones/us-central1-a/instanceGroups/test-instance-group",
-            "projects/test-cloud-run-483700/zones/us-central1-a/instances/vm-private-1",
+            "projects/sample-project-123456/zones/us-central1-a/instanceGroups/test-instance-group",
+            "projects/sample-project-123456/zones/us-central1-a/instances/vm-private-1",
         ),
         (
-            "projects/test-cloud-run-483700/zones/us-central1-a/instanceGroups/test-instance-group",
-            "projects/test-cloud-run-483700/zones/us-central1-a/instances/vm-private-2",
+            "projects/sample-project-123456/zones/us-central1-a/instanceGroups/test-instance-group",
+            "projects/sample-project-123456/zones/us-central1-a/instances/vm-private-2",
         ),
     }
 
@@ -189,8 +189,8 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         rel_direction_right=True,
     ) == {
         (
-            "projects/test-cloud-run-483700/global/securityPolicies/test-armor-policy",
-            "projects/test-cloud-run-483700/global/backendServices/test-backend-service",
+            "projects/sample-project-123456/global/securityPolicies/test-armor-policy",
+            "projects/sample-project-123456/global/backendServices/test-backend-service",
         ),
     }
 
