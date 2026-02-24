@@ -312,9 +312,8 @@ def test__get_group_tags_list_group_tags_unavailable(mocker):
     mock_client.meta.service_model.operation_names = []
     mock_session.client.return_value = mock_client
 
-    result = iam.get_group_tags(mock_session)
-
-    assert result == []
+    with pytest.raises(RuntimeError, match="ListGroupTags API is unavailable"):
+        iam.get_group_tags(mock_session)
     mock_client.list_group_tags.assert_not_called()
 
 

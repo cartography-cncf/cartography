@@ -320,10 +320,9 @@ def get_group_tags(boto3_session: boto3.Session) -> List[Dict]:
 def _get_group_tags_for_groups(client: Any, group_list: List[Dict]) -> List[Dict]:
     group_tag_data: List[Dict] = []
     if "ListGroupTags" not in client.meta.service_model.operation_names:
-        logger.warning(
-            "IAM ListGroupTags API is unavailable in this boto3/botocore model. Skipping IAM group tags.",
+        raise RuntimeError(
+            "IAM ListGroupTags API is unavailable in this boto3/botocore model.",
         )
-        return group_tag_data
 
     for group in group_list:
         name = group["GroupName"]
