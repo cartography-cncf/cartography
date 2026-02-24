@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 from contextlib import AsyncExitStack
+from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Generator
@@ -67,7 +68,7 @@ FETCH_FAILED = _FetchFailed()
 
 # Type alias for values that may be FETCH_FAILED
 MaybeFailed = Union[Optional[Dict], _FetchFailed]
-BucketDetail = Tuple[
+BucketDetailTuple = Tuple[
     str,
     MaybeFailed,
     MaybeFailed,
@@ -77,7 +78,21 @@ BucketDetail = Tuple[
     MaybeFailed,
     MaybeFailed,
 ]
-BucketDetails = List[BucketDetail]
+
+
+@dataclass(frozen=True)
+class BucketDetailRecord:
+    bucket_name: str
+    acl: MaybeFailed
+    policy: MaybeFailed
+    encryption: MaybeFailed
+    versioning: MaybeFailed
+    public_access_block: MaybeFailed
+    bucket_ownership_controls: MaybeFailed
+    bucket_logging: MaybeFailed
+
+
+BucketDetails = List[BucketDetailRecord]
 
 
 @timeit
@@ -269,7 +284,7 @@ async def _get_s3_bucket_details_async(
 
         async def _get_bucket_detail(
             bucket: Dict[str, Any],
-        ) -> BucketDetail:
+        ) -> BucketDetailRecord:
             async with semaphore:
                 client = clients_by_region[bucket["Region"]]
                 (
@@ -289,15 +304,15 @@ async def _get_s3_bucket_details_async(
                     _get_bucket_ownership_controls_async(bucket, client),
                     _get_bucket_logging_async(bucket, client),
                 )
-                return (
-                    bucket["Name"],
-                    acl,
-                    policy,
-                    encryption,
-                    versioning,
-                    public_access_block,
-                    bucket_ownership_controls,
-                    bucket_logging,
+                return BucketDetailRecord(
+                    bucket_name=bucket["Name"],
+                    acl=acl,
+                    policy=policy,
+                    encryption=encryption,
+                    versioning=versioning,
+                    public_access_block=public_access_block,
+                    bucket_ownership_controls=bucket_ownership_controls,
+                    bucket_logging=bucket_logging,
                 )
 
         details: BucketDetails = []
@@ -313,7 +328,7 @@ async def _get_s3_bucket_details_async(
 def get_s3_bucket_details(
     boto3_session: boto3.session.Session,
     bucket_data: Dict,
-) -> Generator[BucketDetail, None, None]:
+) -> Generator[BucketDetailRecord, None, None]:
     """
     Iterates over all S3 buckets. Yields bucket name (string), S3 bucket policies (JSON), ACLs (JSON),
     default encryption policy (JSON), Versioning (JSON), Public Access Block (JSON), Ownership Controls (JSON),
@@ -327,7 +342,7 @@ def get_s3_bucket_details(
     # a local store for s3 clients so that we may re-use clients for an AWS region
     s3_regional_clients: Dict[Any, Any] = {}
 
-    async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetail:
+    async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetailRecord:
         # Note: bucket['Region'] is sometimes None because
         # client.get_bucket_location() does not return a location constraint for buckets
         # in us-east-1 region
@@ -352,15 +367,15 @@ def get_s3_bucket_details(
             to_asynchronous(get_bucket_ownership_controls, bucket, client),
             to_asynchronous(get_bucket_logging, bucket, client),
         )
-        return (
-            bucket["Name"],
-            acl,
-            policy,
-            encryption,
-            versioning,
-            public_access_block,
-            bucket_ownership_controls,
-            bucket_logging,
+        return BucketDetailRecord(
+            bucket_name=bucket["Name"],
+            acl=acl,
+            policy=policy,
+            encryption=encryption,
+            versioning=versioning,
+            public_access_block=public_access_block,
+            bucket_ownership_controls=bucket_ownership_controls,
+            bucket_logging=bucket_logging,
         )
 
     bucket_details = to_synchronous(
@@ -622,7 +637,7 @@ def _load_s3_policy_statements(
 
 def _merge_bucket_details(
     bucket_data: Dict,
-    s3_details_iter: Generator[Any, Any, Any],
+    s3_details_iter: Generator[Union[BucketDetailRecord, BucketDetailTuple], Any, Any],
     aws_account_id: str,
 ) -> Dict[str, Any]:
     """
@@ -663,16 +678,27 @@ def _merge_bucket_details(
     acls: List[Dict] = []
     statements: List[Dict] = []
 
-    for (
-        bucket_name,
-        acl,
-        policy,
-        encryption,
-        versioning,
-        public_access_block,
-        bucket_ownership_controls,
-        bucket_logging,
-    ) in s3_details_iter:
+    for detail in s3_details_iter:
+        if isinstance(detail, BucketDetailRecord):
+            bucket_name = detail.bucket_name
+            acl = detail.acl
+            policy = detail.policy
+            encryption = detail.encryption
+            versioning = detail.versioning
+            public_access_block = detail.public_access_block
+            bucket_ownership_controls = detail.bucket_ownership_controls
+            bucket_logging = detail.bucket_logging
+        else:
+            (
+                bucket_name,
+                acl,
+                policy,
+                encryption,
+                versioning,
+                public_access_block,
+                bucket_ownership_controls,
+                bucket_logging,
+            ) = detail
         bucket_dict = buckets_by_name.get(bucket_name)
         if not bucket_dict:
             continue
