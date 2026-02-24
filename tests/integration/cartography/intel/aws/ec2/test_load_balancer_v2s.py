@@ -346,26 +346,37 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
         {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
-    # Manually create the full traversal chain:
-    # LB -[:EXPOSE]-> EC2PrivateIp <-[:PRIVATE_IP_ADDRESS]- NetworkInterface
-    #   <-[:NETWORK_INTERFACE]- ECSTask -[:HAS_CONTAINER]-> ECSContainer
+    # Manually create the traversal chain using target group ARN join:
+    # LB -[e:EXPOSE{target_group_arn}]-> (any target)
+    # ECSService {target_group_arns} -[:HAS_TASK]-> ECSTask -[:HAS_CONTAINER]-> ECSContainer
     lb_id = "test-alb-1234567890.us-east-1.elb.amazonaws.com"
+    tg_arn = "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/test-ip-tg/abcdef1234567890"
+
+    # Create an EXPOSE rel from the LB with target_group_arn set (simulates what
+    # sync_load_balancer_v2_expose would create for IP targets via MatchLink)
     neo4j_session.run(
         "MERGE (ip:EC2PrivateIp{id: '10.0.0.50'}) SET ip.lastupdated = $tag",
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
         "MATCH (lb:AWSLoadBalancerV2{id: $lb_id}), (ip:EC2PrivateIp{id: '10.0.0.50'}) "
-        "MERGE (lb)-[:EXPOSE]->(ip)",
+        "MERGE (lb)-[e:EXPOSE]->(ip) SET e.target_group_arn = $tg_arn",
         lb_id=lb_id,
+        tg_arn=tg_arn,
     )
+
+    # Now create the ECS side: Service -> Task -> Container
     neo4j_session.run(
-        "MERGE (ni:NetworkInterface{id: 'eni-test123'}) SET ni.lastupdated = $tag",
+        "MERGE (svc:ECSService{id: 'arn:aws:ecs:us-east-1:000000000000:service/cluster/test-svc'}) "
+        "SET svc.lastupdated = $tag, svc.target_group_arns = [$tg_arn]",
         tag=TEST_UPDATE_TAG,
+        tg_arn=tg_arn,
     )
     neo4j_session.run(
-        "MATCH (ni:NetworkInterface{id: 'eni-test123'}), (ip:EC2PrivateIp{id: '10.0.0.50'}) "
-        "MERGE (ni)-[:PRIVATE_IP_ADDRESS]->(ip)",
+        "MATCH (aa:AWSAccount{id: $account_id}), "
+        "(svc:ECSService{id: 'arn:aws:ecs:us-east-1:000000000000:service/cluster/test-svc'}) "
+        "MERGE (aa)-[:RESOURCE]->(svc)",
+        account_id=TEST_ACCOUNT_ID,
     )
     neo4j_session.run(
         "MERGE (task:ECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}) "
@@ -373,9 +384,9 @@ def test_lb_expose_container_analysis(mock_get_loadbalancer_v2_data, neo4j_sessi
         tag=TEST_UPDATE_TAG,
     )
     neo4j_session.run(
-        "MATCH (task:ECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}), "
-        "(ni:NetworkInterface{id: 'eni-test123'}) "
-        "MERGE (task)-[:NETWORK_INTERFACE]->(ni)",
+        "MATCH (svc:ECSService{id: 'arn:aws:ecs:us-east-1:000000000000:service/cluster/test-svc'}), "
+        "(task:ECSTask{id: 'arn:aws:ecs:us-east-1:000000000000:task/cluster/task1'}) "
+        "MERGE (svc)-[:HAS_TASK]->(task)",
     )
     neo4j_session.run(
         "MERGE (c:ECSContainer{id: 'arn:aws:ecs:us-east-1:000000000000:container/cluster/task1/web'}) "
