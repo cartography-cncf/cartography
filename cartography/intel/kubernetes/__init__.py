@@ -13,6 +13,7 @@ from cartography.intel.kubernetes.rbac import sync_kubernetes_rbac
 from cartography.intel.kubernetes.secrets import sync_secrets
 from cartography.intel.kubernetes.services import sync_services
 from cartography.intel.kubernetes.util import get_k8s_clients
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 def get_region_from_arn(arn: str) -> str:
     """
     Extract AWS region from EKS cluster ARN.
-    Example: arn:aws:eks:us-east-1:205930638578:cluster/infra-test-eks → us-east-1
+    Example: arn:aws:eks:us-east-1:111122223333:cluster/example-eks-cluster → us-east-1
     """
     parts = arn.split(":")
     if len(parts) < 6 or parts[2] != "eks":
@@ -51,6 +52,9 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 common_job_parameters,
             )
             common_job_parameters["CLUSTER_ID"] = cluster_info.get("id")
+            cluster_external_ref = cluster_info.get("external_id") or cluster_info.get(
+                "name", ""
+            )
 
             sync_namespaces(session, client, config.update_tag, common_job_parameters)
             sync_kubernetes_rbac(
@@ -61,7 +65,7 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
             region: str | None = None
             if config.managed_kubernetes == "eks":
                 # EKS clusters always have a valid ARN — let ValueError propagate if not
-                region = get_region_from_arn(cluster_info.get("id", ""))
+                region = get_region_from_arn(cluster_external_ref)
                 boto3_session = boto3.Session()
                 sync_eks(
                     session,
@@ -70,11 +74,11 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                     region,
                     config.update_tag,
                     cluster_info.get("id", ""),
-                    cluster_info.get("name", ""),
+                    cluster_external_ref,
                 )
             else:
                 try:
-                    region = get_region_from_arn(cluster_info.get("id", ""))
+                    region = get_region_from_arn(cluster_external_ref)
                 except ValueError:
                     pass
             all_pods = sync_pods(
@@ -93,6 +97,17 @@ def start_k8s_ingestion(session: Session, config: Config) -> None:
                 common_job_parameters,
             )
             sync_ingress(session, client, config.update_tag, common_job_parameters)
+
+            run_scoped_analysis_job(
+                "k8s_compute_asset_exposure.json",
+                session,
+                common_job_parameters,
+            )
+            run_scoped_analysis_job(
+                "k8s_lb_exposure.json",
+                session,
+                common_job_parameters,
+            )
         except Exception:
             logger.exception(f"Failed to sync data for k8s cluster {client.name}...")
             raise

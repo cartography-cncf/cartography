@@ -351,6 +351,14 @@ def _perform_aws_analysis(
     """
     requested_syncs_as_set = set(requested_syncs)
 
+    run_analysis_and_ensure_deps(
+        "aws_ip_node_label_migration.json",
+        {"ec2:security_group"},
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
     ec2_asset_exposure_requirements = {
         "ec2:instance",
         "ec2:security_group",

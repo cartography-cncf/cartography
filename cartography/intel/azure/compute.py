@@ -36,8 +36,12 @@ def get_vm_list(credentials: Credentials, subscription_id: str) -> List[Dict]:
         vm_list = list(map(lambda x: x.as_dict(), client.virtual_machines.list_all()))
 
         for vm in vm_list:
+            # Normalize the VM id to lowercase to match references from other Azure APIs
+            # (e.g., NIC virtual_machine.id). list_all() returns uppercase resource group names
+            # while other APIs return lowercase, causing relationship mismatches.
+            vm["id"] = vm["id"].lower()
             x = vm["id"].split("/")
-            vm["resource_group"] = x[x.index("resourceGroups") + 1]
+            vm["resource_group"] = x[x.index("resourcegroups") + 1]
 
         return vm_list
 
