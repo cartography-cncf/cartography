@@ -145,6 +145,16 @@ def _sync_one_account(
                 update_tag,
                 common_job_parameters,
             )
+        elif func_name in {"ecr", "s3"}:
+            RESOURCE_FUNCTIONS[func_name](
+                neo4j_session,
+                boto3_session,
+                regions,
+                current_aws_account_id,
+                update_tag,
+                common_job_parameters,
+                aioboto3_session,
+            )
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue
         else:
