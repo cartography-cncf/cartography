@@ -37,7 +37,7 @@ def get(
     client: Cloudflare,
     account_id: str,
 ) -> List[Dict[str, Any]]:
-    return [zone.to_dict() for zone in client.zones.list(account=account_id)]
+    return [zone.to_dict() for zone in client.zones.list(account={"id": account_id})]
 
 
 def load_zones(
