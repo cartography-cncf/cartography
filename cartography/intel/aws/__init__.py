@@ -1,5 +1,6 @@
 import datetime
 import logging
+import os
 import traceback
 from typing import Any
 from typing import Dict
@@ -28,6 +29,11 @@ from .resources import RESOURCE_FUNCTIONS
 
 stat_handler = get_stats_client(__name__)
 logger = logging.getLogger(__name__)
+
+
+def _is_aws_async_enabled() -> bool:
+    value = os.getenv("CARTOGRAPHY_AWS_ASYNC_ENABLED", "true").strip().lower()
+    return value in {"1", "true", "yes", "on"}
 
 
 # DEPRECATED: this is for backward compatibility, will be removed in v1.0.0
@@ -95,6 +101,7 @@ def _sync_one_account(
     )
 
     aws_requested_syncs = _normalize_requested_syncs(aws_requested_syncs)
+    aws_async_enabled = _is_aws_async_enabled()
 
     # Validate that all requested syncs exist
     requested_syncs_set = set(aws_requested_syncs)
@@ -146,15 +153,29 @@ def _sync_one_account(
                 common_job_parameters,
             )
         elif func_name in {"ecr", "s3"}:
-            RESOURCE_FUNCTIONS[func_name](
-                neo4j_session,
-                boto3_session,
-                regions,
-                current_aws_account_id,
-                update_tag,
-                common_job_parameters,
-                aioboto3_session,
-            )
+            if aws_async_enabled:
+                RESOURCE_FUNCTIONS[func_name](
+                    neo4j_session,
+                    boto3_session,
+                    regions,
+                    current_aws_account_id,
+                    update_tag,
+                    common_job_parameters,
+                    aioboto3_session,
+                )
+            else:
+                logger.info(
+                    "AWS async disabled by CARTOGRAPHY_AWS_ASYNC_ENABLED; running %s in sync-compatible mode.",
+                    func_name,
+                )
+                RESOURCE_FUNCTIONS[func_name](
+                    neo4j_session,
+                    boto3_session,
+                    regions,
+                    current_aws_account_id,
+                    update_tag,
+                    common_job_parameters,
+                )
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue
         else:
