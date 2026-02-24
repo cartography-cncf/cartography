@@ -45,10 +45,6 @@ logger = logging.getLogger(__name__)
 InstanceUriPrefix = namedtuple("InstanceUriPrefix", "zone_name project_id")
 
 
-def _get_error_reason(http_error: HttpError) -> str:
-    return get_error_reason(http_error)
-
-
 @timeit
 def get_zones_in_project(
     project_id: str,
@@ -71,7 +67,7 @@ def get_zones_in_project(
         res = gcp_api_execute_with_retry(req)
         return res["items"]
     except HttpError as e:
-        reason = _get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "accessNotConfigured":
             logger.info(
                 (
@@ -126,7 +122,7 @@ def get_gcp_instance_responses(
             res = gcp_api_execute_with_retry(req)
             response_objects.append(res)
         except HttpError as e:
-            reason = _get_error_reason(e)
+            reason = get_error_reason(e)
             if reason in {"backendError", "rateLimitExceeded", "internalError"}:
                 logger.warning(
                     "Transient error listing instances for project %s zone %s: %s; skipping this zone.",
@@ -153,7 +149,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> dict | No
     try:
         req = compute.subnetworks().list(project=projectid, region=region)
     except HttpError as e:
-        reason = _get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
                 "GCP: Invalid region %s for project %s; skipping subnet sync for this region.",
@@ -176,7 +172,7 @@ def get_gcp_subnets(projectid: str, region: str, compute: Resource) -> dict | No
             )
             break
         except HttpError as e:
-            reason = _get_error_reason(e)
+            reason = get_error_reason(e)
             if reason == "invalid":
                 logger.warning(
                     "GCP: Invalid region %s for project %s; skipping subnet sync for this region.",
@@ -223,7 +219,7 @@ def get_gcp_regional_forwarding_rules(
     try:
         return gcp_api_execute_with_retry(req)
     except HttpError as e:
-        reason = _get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
                 "GCP: Invalid region %s for project %s; skipping forwarding rules sync for this region.",
