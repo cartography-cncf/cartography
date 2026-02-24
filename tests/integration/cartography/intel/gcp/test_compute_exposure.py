@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.gcp.backendservice
 import cartography.intel.gcp.cloud_armor
+import cartography.intel.gcp.compute
 import cartography.intel.gcp.instancegroup
 from cartography.graph.job import GraphJob
 from tests.data.gcp.compute_exposure import BACKEND_SERVICE_RESPONSE
@@ -12,7 +13,37 @@ from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
-TEST_PROJECT_ID = "project-abc"
+TEST_PROJECT_ID = "sample-project-123456"
+
+GLOBAL_FORWARDING_RULES_RESPONSE = {
+    "id": f"projects/{TEST_PROJECT_ID}/global/forwardingRules",
+    "items": [
+        {
+            "name": "ext-fr",
+            "IPAddress": "35.1.2.3",
+            "IPProtocol": "TCP",
+            "loadBalancingScheme": "EXTERNAL",
+            "network": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/global/networks/default",
+            "selfLink": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/global/forwardingRules/ext-fr",
+        },
+    ],
+}
+
+REGIONAL_FORWARDING_RULES_RESPONSE = {
+    "id": f"projects/{TEST_PROJECT_ID}/regions/us-central1/forwardingRules",
+    "items": [
+        {
+            "name": "int-fr",
+            "region": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/regions/us-central1",
+            "IPAddress": "10.0.0.10",
+            "IPProtocol": "TCP",
+            "loadBalancingScheme": "INTERNAL",
+            "network": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/global/networks/default",
+            "subnetwork": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/regions/us-central1/subnetworks/default",
+            "selfLink": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/regions/us-central1/forwardingRules/int-fr",
+        },
+    ],
+}
 
 
 def _create_test_project(neo4j_session, project_id: str, update_tag: int) -> None:
@@ -29,8 +60,8 @@ def _create_test_project(neo4j_session, project_id: str, update_tag: int) -> Non
 
 def _seed_instances(neo4j_session, project_id: str, update_tag: int) -> None:
     instance_ids = [
-        "projects/sample-project-123456/zones/us-central1-a/instances/vm-private-1",
-        "projects/sample-project-123456/zones/us-central1-a/instances/vm-private-2",
+        f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instances/vm-private-1",
+        f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instances/vm-private-2",
     ]
     neo4j_session.run(
         """
@@ -46,6 +77,33 @@ def _seed_instances(neo4j_session, project_id: str, update_tag: int) -> None:
         ProjectId=project_id,
         InstanceIds=instance_ids,
         gcp_update_tag=update_tag,
+    )
+
+
+def _sync_exposure_entities(neo4j_session, common_job_parameters: dict) -> None:
+    cartography.intel.gcp.instancegroup.sync_gcp_instance_groups(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        [],
+        [],
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    cartography.intel.gcp.cloud_armor.sync_gcp_cloud_armor(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+    cartography.intel.gcp.backendservice.sync_gcp_backend_services(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        [],
+        TEST_UPDATE_TAG,
+        common_job_parameters,
     )
 
 
@@ -76,6 +134,7 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
     mock_get_zonal_igs,
     neo4j_session,
 ):
+    # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
@@ -84,38 +143,17 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
     _seed_instances(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
 
-    cartography.intel.gcp.instancegroup.sync_gcp_instance_groups(
-        neo4j_session,
-        MagicMock(),
-        TEST_PROJECT_ID,
-        [],
-        [],
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-    cartography.intel.gcp.cloud_armor.sync_gcp_cloud_armor(
-        neo4j_session,
-        MagicMock(),
-        TEST_PROJECT_ID,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-    cartography.intel.gcp.backendservice.sync_gcp_backend_services(
-        neo4j_session,
-        MagicMock(),
-        TEST_PROJECT_ID,
-        [],
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
+    # Act
+    _sync_exposure_entities(neo4j_session, common_job_parameters)
 
+    # Assert
     assert check_nodes(
         neo4j_session,
         "GCPBackendService",
         ["id", "name", "load_balancing_scheme"],
     ) == {
         (
-            "projects/sample-project-123456/global/backendServices/test-backend-service",
+            f"projects/{TEST_PROJECT_ID}/global/backendServices/test-backend-service",
             "test-backend-service",
             "EXTERNAL",
         ),
@@ -127,7 +165,7 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         ["id", "name", "zone"],
     ) == {
         (
-            "projects/sample-project-123456/zones/us-central1-a/instanceGroups/test-instance-group",
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instanceGroups/test-instance-group",
             "test-instance-group",
             "us-central1-a",
         ),
@@ -139,7 +177,7 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         ["id", "name", "policy_type"],
     ) == {
         (
-            "projects/sample-project-123456/global/securityPolicies/test-armor-policy",
+            f"projects/{TEST_PROJECT_ID}/global/securityPolicies/test-armor-policy",
             "test-armor-policy",
             "CLOUD_ARMOR",
         ),
@@ -155,8 +193,8 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         rel_direction_right=True,
     ) == {
         (
-            "projects/sample-project-123456/global/backendServices/test-backend-service",
-            "projects/sample-project-123456/zones/us-central1-a/instanceGroups/test-instance-group",
+            f"projects/{TEST_PROJECT_ID}/global/backendServices/test-backend-service",
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instanceGroups/test-instance-group",
         ),
     }
 
@@ -170,12 +208,12 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         rel_direction_right=True,
     ) == {
         (
-            "projects/sample-project-123456/zones/us-central1-a/instanceGroups/test-instance-group",
-            "projects/sample-project-123456/zones/us-central1-a/instances/vm-private-1",
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instanceGroups/test-instance-group",
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instances/vm-private-1",
         ),
         (
-            "projects/sample-project-123456/zones/us-central1-a/instanceGroups/test-instance-group",
-            "projects/sample-project-123456/zones/us-central1-a/instances/vm-private-2",
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instanceGroups/test-instance-group",
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instances/vm-private-2",
         ),
     }
 
@@ -189,67 +227,71 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         rel_direction_right=True,
     ) == {
         (
-            "projects/sample-project-123456/global/securityPolicies/test-armor-policy",
-            "projects/sample-project-123456/global/backendServices/test-backend-service",
+            f"projects/{TEST_PROJECT_ID}/global/securityPolicies/test-armor-policy",
+            f"projects/{TEST_PROJECT_ID}/global/backendServices/test-backend-service",
         ),
     }
 
 
-def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(neo4j_session):
+@patch.object(
+    cartography.intel.gcp.instancegroup,
+    "get_gcp_zonal_instance_groups",
+    return_value=INSTANCE_GROUP_RESPONSES,
+)
+@patch.object(
+    cartography.intel.gcp.instancegroup,
+    "get_gcp_regional_instance_groups",
+    return_value=[],
+)
+@patch.object(
+    cartography.intel.gcp.cloud_armor,
+    "get_gcp_cloud_armor_policies",
+    return_value=CLOUD_ARMOR_RESPONSE,
+)
+@patch.object(
+    cartography.intel.gcp.backendservice,
+    "get_gcp_global_backend_services",
+    return_value=BACKEND_SERVICE_RESPONSE,
+)
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_global_forwarding_rules",
+    return_value=GLOBAL_FORWARDING_RULES_RESPONSE,
+)
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_regional_forwarding_rules",
+    return_value=REGIONAL_FORWARDING_RULES_RESPONSE,
+)
+def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(
+    mock_get_regional_forwarding_rules,
+    mock_get_global_forwarding_rules,
+    mock_get_backend_services,
+    mock_get_cloud_armor,
+    mock_get_regional_igs,
+    mock_get_zonal_igs,
+    neo4j_session,
+):
+    # Arrange
     neo4j_session.run("MATCH (n) DETACH DELETE n")
-
-    neo4j_session.run(
-        """
-        MERGE (p:GCPProject{id:$ProjectId})
-        ON CREATE SET p.firstseen = timestamp()
-        SET p.lastupdated = $update_tag
-        MERGE (fr_ext:GCPForwardingRule{id:'projects/project-abc/global/forwardingRules/ext-fr'})
-        ON CREATE SET fr_ext.firstseen = timestamp()
-        SET fr_ext.load_balancing_scheme = 'EXTERNAL', fr_ext.lastupdated = $update_tag
-        MERGE (fr_int:GCPForwardingRule{id:'projects/project-abc/regions/us-central1/forwardingRules/int-fr'})
-        ON CREATE SET fr_int.firstseen = timestamp()
-        SET fr_int.load_balancing_scheme = 'INTERNAL', fr_int.lastupdated = $update_tag
-        MERGE (bs:GCPBackendService{id:'projects/project-abc/global/backendServices/ext-bs'})
-        ON CREATE SET bs.firstseen = timestamp()
-        SET bs.load_balancing_scheme = 'EXTERNAL', bs.lastupdated = $update_tag
-        MERGE (ig:GCPInstanceGroup{id:'projects/project-abc/zones/us-central1-a/instanceGroups/ig-1'})
-        ON CREATE SET ig.firstseen = timestamp()
-        SET ig.lastupdated = $update_tag
-        MERGE (i:GCPInstance{id:'projects/project-abc/zones/us-central1-a/instances/vm-1'})
-        ON CREATE SET i.firstseen = timestamp()
-        SET i.lastupdated = $update_tag
-        MERGE (p)-[p_fr_ext:RESOURCE]->(fr_ext)
-        ON CREATE SET p_fr_ext.firstseen = timestamp()
-        SET p_fr_ext.lastupdated = $update_tag
-        MERGE (p)-[p_fr_int:RESOURCE]->(fr_int)
-        ON CREATE SET p_fr_int.firstseen = timestamp()
-        SET p_fr_int.lastupdated = $update_tag
-        MERGE (p)-[p_bs:RESOURCE]->(bs)
-        ON CREATE SET p_bs.firstseen = timestamp()
-        SET p_bs.lastupdated = $update_tag
-        MERGE (p)-[p_ig:RESOURCE]->(ig)
-        ON CREATE SET p_ig.firstseen = timestamp()
-        SET p_ig.lastupdated = $update_tag
-        MERGE (p)-[p_i:RESOURCE]->(i)
-        ON CREATE SET p_i.firstseen = timestamp()
-        SET p_i.lastupdated = $update_tag
-        MERGE (bs)-[routes:ROUTES_TO]->(ig)
-        ON CREATE SET routes.firstseen = timestamp()
-        SET routes.lastupdated = $update_tag
-        MERGE (ig)-[member:HAS_MEMBER]->(i)
-        ON CREATE SET member.firstseen = timestamp()
-        SET member.lastupdated = $update_tag
-        """,
-        ProjectId=TEST_PROJECT_ID,
-        update_tag=TEST_UPDATE_TAG,
-    )
-
     common_job_parameters = {
         "UPDATE_TAG": TEST_UPDATE_TAG,
         "PROJECT_ID": TEST_PROJECT_ID,
         "LIMIT_SIZE": 1000,
     }
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+    _seed_instances(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+    _sync_exposure_entities(neo4j_session, common_job_parameters)
+    cartography.intel.gcp.compute.sync_gcp_forwarding_rules(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        ["us-central1"],
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
 
+    # Act
     GraphJob.run_from_json_file(
         "cartography/data/jobs/scoped_analysis/gcp_compute_exposure.json",
         neo4j_session,
@@ -261,18 +303,19 @@ def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(neo4j_session):
         common_job_parameters,
     )
 
+    # Assert
     assert check_nodes(
         neo4j_session,
         "GCPForwardingRule",
         ["id", "exposed_internet", "exposed_internet_type"],
     ) == {
         (
-            "projects/project-abc/global/forwardingRules/ext-fr",
+            f"projects/{TEST_PROJECT_ID}/global/forwardingRules/ext-fr",
             True,
             "direct",
         ),
         (
-            "projects/project-abc/regions/us-central1/forwardingRules/int-fr",
+            f"projects/{TEST_PROJECT_ID}/regions/us-central1/forwardingRules/int-fr",
             False,
             None,
         ),
@@ -284,7 +327,12 @@ def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(neo4j_session):
         ["id", "exposed_internet", "exposed_internet_type"],
     ) == {
         (
-            "projects/project-abc/zones/us-central1-a/instances/vm-1",
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instances/vm-private-1",
+            True,
+            "gcp_lb",
+        ),
+        (
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instances/vm-private-2",
             True,
             "gcp_lb",
         ),
@@ -300,17 +348,22 @@ def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(neo4j_session):
         rel_direction_right=True,
     ) == {
         (
-            "projects/project-abc/global/backendServices/ext-bs",
-            "projects/project-abc/zones/us-central1-a/instances/vm-1",
+            f"projects/{TEST_PROJECT_ID}/global/backendServices/test-backend-service",
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instances/vm-private-1",
+        ),
+        (
+            f"projects/{TEST_PROJECT_ID}/global/backendServices/test-backend-service",
+            f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instances/vm-private-2",
         ),
     }
 
+    # Remove all members from the instance group to force stale EXPOSE cleanup.
     neo4j_session.run(
         """
-        MATCH (ig:GCPInstanceGroup{id:'projects/project-abc/zones/us-central1-a/instanceGroups/ig-1'})
-              -[r:HAS_MEMBER]->(:GCPInstance{id:'projects/project-abc/zones/us-central1-a/instances/vm-1'})
+        MATCH (ig:GCPInstanceGroup{id:$instance_group_id})-[r:HAS_MEMBER]->(:GCPInstance)
         DELETE r
         """,
+        instance_group_id=f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instanceGroups/test-instance-group",
     )
 
     GraphJob.run_from_json_file(
