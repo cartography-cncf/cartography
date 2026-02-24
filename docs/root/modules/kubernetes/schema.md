@@ -3,6 +3,8 @@
 ### KubernetesCluster
 Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/overview/what-is-kubernetes/)
 
+> **Ontology Mapping**: This node has the extra label `Cluster` to enable cross-platform queries for clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, GKECluster).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Identifier for the cluster i.e. UID of `kube-system` namespace |
