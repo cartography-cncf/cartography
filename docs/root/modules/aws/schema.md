@@ -163,7 +163,6 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
 - AWS Groups can be tagged with AWSTags.
 
     ```cypher
-    (AWSGroup)-[TAGGED]->(AWSTag)
     ```
 
 ### GuardDutyDetector
@@ -1122,7 +1121,7 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 #### Relationships
 -  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, S3 Buckets, AWS Roles, AWS Users, and AWS Groups can be tagged with AWSTags.
     ```
-    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket, AWSRole, AWSUser, AWSGroup)-[TAGGED]->(AWSTag)
+    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket, AWSRole, AWSUser)-[TAGGED]->(AWSTag)
     ```
 
 ### AccountAccessKey

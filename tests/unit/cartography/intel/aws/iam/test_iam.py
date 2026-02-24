@@ -106,6 +106,33 @@ def test__get_role_tags_no_tags(mocker):
     assert result == []
 
 
+def test__get_role_tags_no_such_entity(mocker):
+    mocker.patch(
+        "cartography.intel.aws.iam.get_role_list_data",
+        return_value={
+            "Roles": [
+                {
+                    "RoleName": "deleted-role",
+                    "Arn": "deleted-role-arn",
+                },
+            ],
+        },
+    )
+    mock_session = mocker.Mock()
+    mock_client = mocker.Mock()
+
+    class NoSuchEntityException(Exception):
+        pass
+
+    mock_client.meta.client.exceptions.NoSuchEntityException = NoSuchEntityException
+    mock_client.Role.side_effect = NoSuchEntityException()
+    mock_session.resource.return_value = mock_client
+
+    result = iam.get_role_tags(mock_session)
+
+    assert result == []
+
+
 def test__get_user_tags_valid_tags(mocker):
     mocker.patch(
         "cartography.intel.aws.iam.get_user_list_data",
@@ -171,67 +198,29 @@ def test__get_user_tags_no_tags(mocker):
     assert result == []
 
 
-def test__get_group_tags_valid_tags(mocker):
+def test__get_user_tags_no_such_entity(mocker):
     mocker.patch(
-        "cartography.intel.aws.iam.get_group_list_data",
+        "cartography.intel.aws.iam.get_user_list_data",
         return_value={
-            "Groups": [
+            "Users": [
                 {
-                    "GroupName": "test-group",
-                    "Arn": "test-group-arn",
+                    "UserName": "deleted-user",
+                    "Arn": "deleted-user-arn",
                 },
             ],
         },
     )
-    mocker.patch("boto3.session.Session")
     mock_session = mocker.Mock()
     mock_client = mocker.Mock()
-    mock_group = mocker.Mock()
-    mock_group.tags = [
-        {
-            "Key": "k1",
-            "Value": "v1",
-        },
-    ]
-    mock_client.Group.return_value = mock_group
+
+    class NoSuchEntityException(Exception):
+        pass
+
+    mock_client.meta.client.exceptions.NoSuchEntityException = NoSuchEntityException
+    mock_client.User.side_effect = NoSuchEntityException()
     mock_session.resource.return_value = mock_client
 
-    result = iam.get_group_tags(mock_session)
-
-    assert result == [
-        {
-            "ResourceARN": "test-group-arn",
-            "Tags": [
-                {
-                    "Key": "k1",
-                    "Value": "v1",
-                },
-            ],
-        },
-    ]
-
-
-def test__get_group_tags_no_tags(mocker):
-    mocker.patch(
-        "cartography.intel.aws.iam.get_group_list_data",
-        return_value={
-            "Groups": [
-                {
-                    "GroupName": "test-group",
-                    "Arn": "test-group-arn",
-                },
-            ],
-        },
-    )
-    mocker.patch("boto3.session.Session")
-    mock_session = mocker.Mock()
-    mock_client = mocker.Mock()
-    mock_group = mocker.Mock()
-    mock_group.tags = []
-    mock_client.Group.return_value = mock_group
-    mock_session.resource.return_value = mock_client
-
-    result = iam.get_group_tags(mock_session)
+    result = iam.get_user_tags(mock_session)
 
     assert result == []
 
