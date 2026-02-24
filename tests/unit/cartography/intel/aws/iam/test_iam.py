@@ -1,7 +1,6 @@
 import datetime
-from typing import Any
-from typing import cast
 
+import pytest
 from botocore.exceptions import ClientError
 
 from cartography.intel.aws import iam
@@ -9,8 +8,6 @@ from cartography.intel.aws.iam import PolicyType
 from cartography.intel.aws.iam import transform_policy_data
 from tests.data.aws.iam.mfa_devices import LIST_MFA_DEVICES
 from tests.data.aws.iam.server_certificates import LIST_SERVER_CERTIFICATES_RESPONSE
-
-RAW_GET_GROUP_TAGS = cast(Any, cast(Any, iam.get_group_tags).__wrapped__).__wrapped__
 
 SINGLE_STATEMENT = {
     "Resource": "*",
@@ -304,18 +301,6 @@ def test__get_group_tags_access_denied_returns_empty(mocker):
 
 
 def test__get_group_tags_non_access_denied_client_error_raises(mocker):
-    mocker.patch(
-        "cartography.intel.aws.iam.get_group_list_data",
-        return_value={
-            "Groups": [
-                {
-                    "GroupName": "test-group",
-                    "Arn": "test-group-arn",
-                },
-            ],
-        },
-    )
-    mock_session = mocker.Mock()
     mock_client = mocker.Mock()
 
     class NoSuchEntityException(Exception):
@@ -332,13 +317,11 @@ def test__get_group_tags_non_access_denied_client_error_raises(mocker):
         },
         "ListGroupTags",
     )
-    mock_session.client.return_value = mock_client
-
-    try:
-        RAW_GET_GROUP_TAGS(mock_session)
-        assert False, "Expected ClientError to be raised for non-access-denied errors"
-    except ClientError as e:
-        assert e.response["Error"]["Code"] == "Throttling"
+    with pytest.raises(ClientError, match="Throttling"):
+        iam._get_group_tags_for_groups(
+            mock_client,
+            [{"GroupName": "test-group", "Arn": "test-group-arn"}],
+        )
 
 
 def test_transform_policy_data_correctly_creates_lists_of_statements():

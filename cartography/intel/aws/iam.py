@@ -300,6 +300,10 @@ def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
 def get_group_tags(boto3_session: boto3.Session) -> List[Dict]:
     group_list = get_group_list_data(boto3_session)["Groups"]
     client = boto3_session.client("iam")
+    return _get_group_tags_for_groups(client, group_list)
+
+
+def _get_group_tags_for_groups(client: Any, group_list: List[Dict]) -> List[Dict]:
     group_tag_data: List[Dict] = []
     if "ListGroupTags" not in client.meta.service_model.operation_names:
         logger.warning(
