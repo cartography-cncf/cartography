@@ -46,6 +46,7 @@ class ECSServiceNodeProperties(CartographyNodeProperties):
     enable_ecs_managed_tags: PropertyRef = PropertyRef("enableECSManagedTags")
     propagate_tags: PropertyRef = PropertyRef("propagateTags")
     enable_execute_command: PropertyRef = PropertyRef("enableExecuteCommand")
+    target_group_arns: PropertyRef = PropertyRef("targetGroupArns")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 

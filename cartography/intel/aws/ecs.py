@@ -169,6 +169,20 @@ def _get_containers_from_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, An
     return containers
 
 
+def transform_ecs_services(services: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Extract target group ARNs from ECS service load balancer configuration.
+    """
+    for service in services:
+        target_group_arns = [
+            lb["targetGroupArn"]
+            for lb in service.get("loadBalancers", [])
+            if lb.get("targetGroupArn")
+        ]
+        service["targetGroupArns"] = target_group_arns if target_group_arns else None
+    return services
+
+
 def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Extract network interface ID from task attachments and service name from group.
@@ -405,6 +419,7 @@ def _sync_ecs_services(
         boto3_session,
         region,
     )
+    services = transform_ecs_services(services)
     load_ecs_services(
         neo4j_session,
         cluster_arn,
