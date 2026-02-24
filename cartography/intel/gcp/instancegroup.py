@@ -73,7 +73,18 @@ def _get_instance_group_members(
 
     members: list[dict] = []
     while req is not None:
-        res = gcp_api_execute_with_retry(req)
+        try:
+            res = gcp_api_execute_with_retry(req)
+        except HttpError as e:
+            reason = _get_error_reason(e)
+            if reason in {"backendError", "rateLimitExceeded", "internalError"}:
+                logger.warning(
+                    "Transient error listing members for instance group %s: %s; skipping.",
+                    instance_group_name,
+                    e,
+                )
+                return []
+            raise
         members.extend(res.get("items", []))
         req = list_next_fn(previous_request=req, previous_response=res)
     return members
@@ -105,18 +116,21 @@ def get_gcp_zonal_instance_groups(
                 reason = _get_error_reason(e)
                 if reason in {"backendError", "rateLimitExceeded", "internalError"}:
                     logger.warning(
-                        "Transient error listing instance groups for project %s zone %s: %s; failing sync.",
+                        "Transient error listing instance groups for project %s zone %s: %s; skipping.",
                         project_id,
                         zone.get("name"),
                         e,
                     )
-                    raise
+                    break
                 raise
             items.extend(res.get("items", []))
             response_id = res.get("id", response_id)
             req = compute.instanceGroups().list_next(
                 previous_request=req, previous_response=res
             )
+
+        if not items:
+            continue
 
         for ig in items:
             ig["_members"] = _get_instance_group_members(
