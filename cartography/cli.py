@@ -623,6 +623,16 @@ class CLI:
                     hidden=PANEL_OKTA not in visible_panels,
                 ),
             ] = None,
+            okta_base_domain: Annotated[
+                str,
+                typer.Option(
+                    "--okta-base-domain",
+                    help="Base domain for Okta API requests. Defaults to 'okta.com'. "
+                    "Set this if your organization uses a custom Okta domain.",
+                    rich_help_panel=PANEL_OKTA,
+                    hidden=PANEL_OKTA not in visible_panels,
+                ),
+            ] = "okta.com",
             okta_saml_role_regex: Annotated[
                 str,
                 typer.Option(
@@ -1964,6 +1974,7 @@ class CLI:
                 oci_sync_all_profiles=oci_sync_all_profiles,
                 okta_org_id=okta_org_id,
                 okta_api_key=okta_api_key,
+                okta_base_domain=okta_base_domain,
                 okta_saml_role_regex=okta_saml_role_regex,
                 github_config=github_config,
                 github_commit_lookback_days=github_commit_lookback_days,

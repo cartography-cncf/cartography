@@ -271,6 +271,7 @@ class Config:
         oci_sync_all_profiles=None,
         okta_org_id=None,
         okta_api_key=None,
+        okta_base_domain="okta.com",
         okta_saml_role_regex=None,
         github_config=None,
         github_commit_lookback_days=30,
@@ -391,6 +392,7 @@ class Config:
         self.oci_sync_all_profiles = oci_sync_all_profiles
         self.okta_org_id = okta_org_id
         self.okta_api_key = okta_api_key
+        self.okta_base_domain = okta_base_domain
         self.okta_saml_role_regex = okta_saml_role_regex
         self.github_config = github_config
         self.github_commit_lookback_days = github_commit_lookback_days
