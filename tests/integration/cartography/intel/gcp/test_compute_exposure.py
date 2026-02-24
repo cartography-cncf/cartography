@@ -8,42 +8,15 @@ import cartography.intel.gcp.instancegroup
 from cartography.graph.job import GraphJob
 from tests.data.gcp.compute_exposure import BACKEND_SERVICE_RESPONSE
 from tests.data.gcp.compute_exposure import CLOUD_ARMOR_RESPONSE
+from tests.data.gcp.compute_exposure import GLOBAL_FORWARDING_RULES_RESPONSE
 from tests.data.gcp.compute_exposure import INSTANCE_GROUP_RESPONSES
+from tests.data.gcp.compute_exposure import INSTANCE_RESPONSES
+from tests.data.gcp.compute_exposure import REGIONAL_FORWARDING_RULES_RESPONSE
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456789
 TEST_PROJECT_ID = "sample-project-123456"
-
-GLOBAL_FORWARDING_RULES_RESPONSE = {
-    "id": f"projects/{TEST_PROJECT_ID}/global/forwardingRules",
-    "items": [
-        {
-            "name": "ext-fr",
-            "IPAddress": "35.1.2.3",
-            "IPProtocol": "TCP",
-            "loadBalancingScheme": "EXTERNAL",
-            "network": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/global/networks/default",
-            "selfLink": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/global/forwardingRules/ext-fr",
-        },
-    ],
-}
-
-REGIONAL_FORWARDING_RULES_RESPONSE = {
-    "id": f"projects/{TEST_PROJECT_ID}/regions/us-central1/forwardingRules",
-    "items": [
-        {
-            "name": "int-fr",
-            "region": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/regions/us-central1",
-            "IPAddress": "10.0.0.10",
-            "IPProtocol": "TCP",
-            "loadBalancingScheme": "INTERNAL",
-            "network": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/global/networks/default",
-            "subnetwork": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/regions/us-central1/subnetworks/default",
-            "selfLink": f"https://www.googleapis.com/compute/v1/projects/{TEST_PROJECT_ID}/regions/us-central1/forwardingRules/int-fr",
-        },
-    ],
-}
 
 
 def _create_test_project(neo4j_session, project_id: str, update_tag: int) -> None:
@@ -54,28 +27,6 @@ def _create_test_project(neo4j_session, project_id: str, update_tag: int) -> Non
         SET p.lastupdated = $gcp_update_tag
         """,
         ProjectId=project_id,
-        gcp_update_tag=update_tag,
-    )
-
-
-def _seed_instances(neo4j_session, project_id: str, update_tag: int) -> None:
-    instance_ids = [
-        f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instances/vm-private-1",
-        f"projects/{TEST_PROJECT_ID}/zones/us-central1-a/instances/vm-private-2",
-    ]
-    neo4j_session.run(
-        """
-        MATCH (p:GCPProject{id:$ProjectId})
-        UNWIND $InstanceIds AS instance_id
-        MERGE (i:GCPInstance{id: instance_id})
-        ON CREATE SET i.firstseen = timestamp()
-        SET i.lastupdated = $gcp_update_tag
-        MERGE (p)-[r:RESOURCE]->(i)
-        ON CREATE SET r.firstseen = timestamp()
-        SET r.lastupdated = $gcp_update_tag
-        """,
-        ProjectId=project_id,
-        InstanceIds=instance_ids,
         gcp_update_tag=update_tag,
     )
 
@@ -127,7 +78,13 @@ def _sync_exposure_entities(neo4j_session, common_job_parameters: dict) -> None:
     "get_gcp_global_backend_services",
     return_value=BACKEND_SERVICE_RESPONSE,
 )
+@patch.object(
+    cartography.intel.gcp.compute,
+    "get_gcp_instance_responses",
+    return_value=INSTANCE_RESPONSES,
+)
 def test_sync_gcp_compute_exposure_entities_and_relationships(
+    mock_get_instances,
     mock_get_backend_services,
     mock_get_cloud_armor,
     mock_get_regional_igs,
@@ -141,7 +98,14 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
         "PROJECT_ID": TEST_PROJECT_ID,
     }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-    _seed_instances(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+    cartography.intel.gcp.compute.sync_gcp_instances(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        None,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
 
     # Act
     _sync_exposure_entities(neo4j_session, common_job_parameters)
@@ -255,6 +219,11 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
 )
 @patch.object(
     cartography.intel.gcp.compute,
+    "get_gcp_instance_responses",
+    return_value=INSTANCE_RESPONSES,
+)
+@patch.object(
+    cartography.intel.gcp.compute,
     "get_gcp_global_forwarding_rules",
     return_value=GLOBAL_FORWARDING_RULES_RESPONSE,
 )
@@ -266,6 +235,7 @@ def test_sync_gcp_compute_exposure_entities_and_relationships(
 def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(
     mock_get_regional_forwarding_rules,
     mock_get_global_forwarding_rules,
+    mock_get_instances,
     mock_get_backend_services,
     mock_get_cloud_armor,
     mock_get_regional_igs,
@@ -280,7 +250,14 @@ def test_scoped_gcp_compute_exposure_jobs_model_and_cleanup(
         "LIMIT_SIZE": 1000,
     }
     _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
-    _seed_instances(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+    cartography.intel.gcp.compute.sync_gcp_instances(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        None,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
     _sync_exposure_entities(neo4j_session, common_job_parameters)
     cartography.intel.gcp.compute.sync_gcp_forwarding_rules(
         neo4j_session,
