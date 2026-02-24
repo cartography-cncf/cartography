@@ -1,22 +1,25 @@
+import asyncio
 import json
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
+from typing import Generator
 
+import aioboto3
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.async_runtime import AwsAsyncTuning
+from cartography.intel.aws.util.async_runtime import build_aio_config
+from cartography.intel.aws.util.async_runtime import run_async
 from cartography.models.aws.ecr.image import ECRImageBaseSchema
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.repository import ECRRepositorySchema
 from cartography.models.aws.ecr.repository_image import ECRRepositoryImageSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-from cartography.util import to_asynchronous
-from cartography.util import to_synchronous
 
 logger = logging.getLogger(__name__)
 
@@ -26,25 +29,60 @@ MANIFEST_LIST_MEDIA_TYPES = {
     "application/vnd.oci.image.index.v1+json",
 }
 
+ECR_LIST_PAGE_SIZE = 1000
+
+
+def _iter_in_batches(
+    items: list[dict[str, Any]],
+    batch_size: int,
+) -> Generator[list[dict[str, Any]], None, None]:
+    for i in range(0, len(items), batch_size):
+        yield items[i : i + batch_size]
+
 
 @timeit
 @aws_handle_regions
 def get_ecr_repositories(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     logger.info("Getting ECR repositories for region '%s'.", region)
     client = boto3_session.client("ecr", region_name=region)
     paginator = client.get_paginator("describe_repositories")
-    ecr_repositories: List[Dict] = []
+    ecr_repositories: list[dict[str, Any]] = []
     for page in paginator.paginate():
         ecr_repositories.extend(page["repositories"])
     return ecr_repositories
 
 
+async def _get_ecr_repositories_async(
+    aioboto3_session: aioboto3.Session,
+    region: str,
+    tuning: AwsAsyncTuning,
+) -> list[dict[str, Any]]:
+    repositories: list[dict[str, Any]] = []
+    next_token: str | None = None
+    aio_config = build_aio_config(tuning)
+    async with aioboto3_session.client(
+        "ecr",
+        region_name=region,
+        config=aio_config,
+    ) as client:
+        while True:
+            params: dict[str, Any] = {"maxResults": ECR_LIST_PAGE_SIZE}
+            if next_token:
+                params["nextToken"] = next_token
+            response = await client.describe_repositories(**params)
+            repositories.extend(response.get("repositories", []))
+            next_token = response.get("nextToken")
+            if not next_token:
+                break
+    return repositories
+
+
 def _get_platform_specific_digests(
     client: Any, repository_name: str, manifest_list_digest: str
-) -> tuple[List[Dict[str, Any]], set[str]]:
+) -> tuple[list[dict[str, Any]], set[str]]:
     """
     Fetch manifest list and extract platform-specific image digests and attestations.
 
@@ -127,11 +165,87 @@ def _get_platform_specific_digests(
     return all_images, all_referenced_digests
 
 
+async def _get_platform_specific_digests_async(
+    client: Any,
+    repository_name: str,
+    manifest_list_digest: str,
+) -> tuple[list[dict[str, Any]], set[str]]:
+    try:
+        response = await client.batch_get_image(
+            repositoryName=repository_name,
+            imageIds=[{"imageDigest": manifest_list_digest}],
+            acceptedMediaTypes=list(MANIFEST_LIST_MEDIA_TYPES),
+        )
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code")
+        if error_code in {"AccessDenied", "AccessDeniedException"}:
+            logger.warning(
+                "Access denied getting ECR manifest list digest %s in repository %s. Skipping this manifest list.",
+                manifest_list_digest,
+                repository_name,
+            )
+            return [], set()
+        raise
+    if not response.get("images"):
+        logger.debug(
+            "Digest %s in repository %s is not a manifest list despite media type hint",
+            manifest_list_digest,
+            repository_name,
+        )
+        return [], set()
+
+    manifest_json = json.loads(response["images"][0]["imageManifest"])
+    manifests = manifest_json.get("manifests", [])
+    if not manifests:
+        raise ValueError(
+            f"Manifest list {manifest_list_digest} has no manifests in repository {repository_name}"
+        )
+
+    all_images: list[dict[str, Any]] = []
+    all_referenced_digests: set[str] = set()
+    for manifest_ref in manifests:
+        digest = manifest_ref.get("digest")
+        if not digest:
+            raise ValueError(
+                f"Manifest in list {manifest_list_digest} has no digest in repository {repository_name}"
+            )
+        all_referenced_digests.add(digest)
+        platform_info = manifest_ref.get("platform", {})
+        architecture = platform_info.get("architecture")
+        os_name = platform_info.get("os")
+        annotations = manifest_ref.get("annotations", {})
+        is_attestation = (
+            architecture == "unknown" and os_name == "unknown"
+        ) or annotations.get("vnd.docker.reference.type") == "attestation-manifest"
+        all_images.append(
+            {
+                "digest": digest,
+                "type": "attestation" if is_attestation else "image",
+                "architecture": architecture,
+                "os": os_name,
+                "variant": platform_info.get("variant"),
+                "attestation_type": (
+                    annotations.get("vnd.docker.reference.type")
+                    if is_attestation
+                    else None
+                ),
+                "attests_digest": (
+                    annotations.get("vnd.docker.reference.digest")
+                    if is_attestation
+                    else None
+                ),
+                "media_type": manifest_ref.get("mediaType"),
+                "artifact_media_type": manifest_ref.get("artifactType"),
+            }
+        )
+    return all_images, all_referenced_digests
+
+
 @timeit
 @aws_handle_regions
 def get_ecr_repository_images(
     boto3_session: boto3.session.Session, region: str, repository_name: str
-) -> List[Dict]:
+) -> list[dict[str, Any]]:
     logger.debug(
         "Getting ECR images in repository '%s' for region '%s'.",
         repository_name,
@@ -141,7 +255,7 @@ def get_ecr_repository_images(
     list_paginator = client.get_paginator("list_images")
 
     # First pass: Collect all image details and track manifest list referenced digests
-    all_image_details: List[Dict] = []
+    all_image_details: list[dict[str, Any]] = []
     manifest_list_referenced_digests: set[str] = set()
 
     for page in list_paginator.paginate(repositoryName=repository_name):
@@ -171,7 +285,7 @@ def get_ecr_repository_images(
                 all_image_details.append(detail)
 
     # Second pass: Only add images that should have ECRRepositoryImage nodes
-    ecr_repository_images: List[Dict] = []
+    ecr_repository_images: list[dict[str, Any]] = []
     for detail in all_image_details:
         tags = detail.get("imageTags") or []
         digest = detail.get("imageDigest")
@@ -189,10 +303,72 @@ def get_ecr_repository_images(
     return ecr_repository_images
 
 
+async def _get_ecr_repository_images_async(
+    client: Any,
+    repository_name: str,
+) -> list[dict[str, Any]]:
+    all_image_details: list[dict[str, Any]] = []
+    manifest_list_referenced_digests: set[str] = set()
+    list_next_token: str | None = None
+
+    while True:
+        list_params: dict[str, Any] = {
+            "repositoryName": repository_name,
+            "maxResults": ECR_LIST_PAGE_SIZE,
+        }
+        if list_next_token:
+            list_params["nextToken"] = list_next_token
+        page = await client.list_images(**list_params)
+        image_ids = page.get("imageIds", [])
+        list_next_token = page.get("nextToken")
+        if not image_ids:
+            if not list_next_token:
+                break
+            continue
+
+        for i in range(0, len(image_ids), 100):
+            batch_ids = image_ids[i : i + 100]
+            response = await client.describe_images(
+                repositoryName=repository_name,
+                imageIds=batch_ids,
+            )
+            image_details = response.get("imageDetails", [])
+            for detail in image_details:
+                media_type = detail.get("imageManifestMediaType")
+                if media_type in MANIFEST_LIST_MEDIA_TYPES:
+                    manifest_list_digest = detail["imageDigest"]
+                    manifest_images, all_digests = (
+                        await _get_platform_specific_digests_async(
+                            client,
+                            repository_name,
+                            manifest_list_digest,
+                        )
+                    )
+                    detail["_manifest_images"] = manifest_images
+                    manifest_list_referenced_digests.update(all_digests)
+                all_image_details.append(detail)
+
+        if not list_next_token:
+            break
+
+    ecr_repository_images: list[dict[str, Any]] = []
+    for detail in all_image_details:
+        tags = detail.get("imageTags") or []
+        digest = detail.get("imageDigest")
+        if tags:
+            for tag in tags:
+                image_detail = {**detail, "imageTag": tag}
+                image_detail.pop("imageTags", None)
+                ecr_repository_images.append(image_detail)
+        elif digest not in manifest_list_referenced_digests:
+            ecr_repository_images.append({**detail})
+    return ecr_repository_images
+
+
 @timeit
 def load_ecr_repositories(
     neo4j_session: neo4j.Session,
-    repos: List[Dict],
+    repos: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -211,7 +387,9 @@ def load_ecr_repositories(
 
 
 @timeit
-def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[Dict]]:
+def transform_ecr_repository_images(
+    repo_data: dict[str, list[dict[str, Any]]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Transform ECR repository images into repo image list and ECR image list.
     For manifest lists, creates ECR images for manifest list, platform-specific images, and attestations.
@@ -221,7 +399,7 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
         - ecr_images_list: List of ECRImage nodes with type, architecture, os, variant fields
     """
     repo_images_list = []
-    ecr_images_dict: Dict[str, Dict] = {}  # Deduplicate by digest
+    ecr_images_dict: dict[str, dict[str, Any]] = {}  # Deduplicate by digest
 
     # Sort repository URIs to ensure consistent processing order
     for repo_uri in sorted(repo_data.keys()):
@@ -313,8 +491,8 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
 @timeit
 def load_ecr_repository_images(
     neo4j_session: neo4j.Session,
-    repo_images_list: List[Dict],
-    ecr_images_list: List[Dict],
+    repo_images_list: list[dict[str, Any]],
+    ecr_images_list: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
@@ -343,7 +521,9 @@ def load_ecr_repository_images(
 
 
 @timeit
-def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
+def cleanup(
+    neo4j_session: neo4j.Session, common_job_parameters: dict[str, Any]
+) -> None:
     logger.debug("Running ECR cleanup job.")
     GraphJob.from_node_schema(ECRRepositorySchema(), common_job_parameters).run(
         neo4j_session
@@ -356,51 +536,88 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     )
 
 
-def _get_image_data(
-    boto3_session: boto3.session.Session,
+async def _get_image_data_async(
+    aioboto3_session: aioboto3.Session,
     region: str,
-    repositories: List[Dict[str, Any]],
-) -> Dict[str, Any]:
+    repositories: list[dict[str, Any]],
+    tuning: AwsAsyncTuning,
+) -> dict[str, list[dict[str, Any]]]:
     """
     Given a list of repositories, get the image data for each repository,
     return as a mapping from repositoryUri to image object
     """
-    image_data = {}
+    image_data: dict[str, list[dict[str, Any]]] = {}
+    semaphore = asyncio.Semaphore(tuning.max_concurrent_repositories)
+    aio_config = build_aio_config(tuning)
 
-    async def async_get_images(repo: Dict[str, Any]) -> None:
-        repo_image_obj = await to_asynchronous(
-            get_ecr_repository_images,
+    async with aioboto3_session.client(
+        "ecr",
+        region_name=region,
+        config=aio_config,
+    ) as client:
+
+        async def _fetch_one(
+            repo: dict[str, Any],
+        ) -> tuple[str, list[dict[str, Any]]]:
+            async with semaphore:
+                images = await _get_ecr_repository_images_async(
+                    client,
+                    repo["repositoryName"],
+                )
+            return repo["repositoryUri"], images
+
+        for i in range(0, len(repositories), tuning.max_concurrent_repositories):
+            batch = repositories[i : i + tuning.max_concurrent_repositories]
+            batch_results = await asyncio.gather(*[_fetch_one(repo) for repo in batch])
+            for repo_uri, repo_images in batch_results:
+                image_data[repo_uri] = repo_images
+    # Sort repositories by name to ensure consistent processing order
+    image_data = dict(sorted(image_data.items()))
+    return image_data
+
+
+def _get_image_data_sync(
+    boto3_session: boto3.session.Session,
+    region: str,
+    repositories: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    image_data: dict[str, list[dict[str, Any]]] = {}
+    sorted_repos = sorted(repositories, key=lambda x: x["repositoryName"])
+    for repo in sorted_repos:
+        image_data[repo["repositoryUri"]] = get_ecr_repository_images(
             boto3_session,
             region,
             repo["repositoryName"],
         )
-        image_data[repo["repositoryUri"]] = repo_image_obj
-
-    # Sort repositories by name to ensure consistent processing order
-    sorted_repos = sorted(repositories, key=lambda x: x["repositoryName"])
-    to_synchronous(*[async_get_images(repo) for repo in sorted_repos])
-
-    return image_data
+    return dict(sorted(image_data.items()))
 
 
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict[str, Any],
+    aioboto3_session: aioboto3.Session | None = None,
 ) -> None:
+    use_async = aioboto3_session is not None
+    tuning = AwsAsyncTuning.from_env()
     for region in regions:
         logger.info(
             "Syncing ECR for region '%s' in account '%s'.",
             region,
             current_aws_account_id,
         )
-        image_data = {}
-        repositories = get_ecr_repositories(boto3_session, region)
-        image_data = _get_image_data(boto3_session, region, repositories)
+        if use_async:
+            repositories = run_async(
+                _get_ecr_repositories_async(aioboto3_session, region, tuning),
+            )
+        else:
+            repositories = get_ecr_repositories(boto3_session, region)
+
+        sorted_repositories = sorted(repositories, key=lambda x: x["repositoryName"])
         # len here should be 1!
         load_ecr_repositories(
             neo4j_session,
@@ -409,13 +626,39 @@ def sync(
             current_aws_account_id,
             update_tag,
         )
-        repo_images_list, ecr_images_list = transform_ecr_repository_images(image_data)
-        load_ecr_repository_images(
-            neo4j_session,
-            repo_images_list,
-            ecr_images_list,
-            region,
-            current_aws_account_id,
-            update_tag,
-        )
+        seen_image_digests: set[str] = set()
+        for repo_batch in _iter_in_batches(
+            sorted_repositories,
+            tuning.max_concurrent_repositories,
+        ):
+            if use_async:
+                image_data = run_async(
+                    _get_image_data_async(
+                        aioboto3_session,
+                        region,
+                        repo_batch,
+                        tuning,
+                    )
+                )
+            else:
+                image_data = _get_image_data_sync(boto3_session, region, repo_batch)
+
+            repo_images_list, ecr_images_list = transform_ecr_repository_images(
+                image_data
+            )
+            new_ecr_images = []
+            for image in ecr_images_list:
+                digest = image["imageDigest"]
+                if digest in seen_image_digests:
+                    continue
+                seen_image_digests.add(digest)
+                new_ecr_images.append(image)
+            load_ecr_repository_images(
+                neo4j_session,
+                repo_images_list,
+                new_ecr_images,
+                region,
+                current_aws_account_id,
+                update_tag,
+            )
     cleanup(neo4j_session, common_job_parameters)

@@ -2,14 +2,16 @@ import asyncio
 import hashlib
 import json
 import logging
+from contextlib import AsyncExitStack
+from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Generator
 from typing import List
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
+import aioboto3
 import boto3
 import botocore
 import neo4j
@@ -20,6 +22,9 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.async_runtime import AwsAsyncTuning
+from cartography.intel.aws.util.async_runtime import build_aio_config
+from cartography.intel.aws.util.async_runtime import run_async
 from cartography.models.aws.s3.acl import S3AclSchema
 from cartography.models.aws.s3.bucket import S3BucketEncryptionSchema
 from cartography.models.aws.s3.bucket import S3BucketLoggingSchema
@@ -61,7 +66,22 @@ class _FetchFailed:
 FETCH_FAILED = _FetchFailed()
 
 # Type alias for values that may be FETCH_FAILED
-MaybeFailed = Union[Optional[Dict], _FetchFailed]
+MaybeFailed = dict[str, Any] | None | _FetchFailed
+
+
+@dataclass(frozen=True)
+class BucketDetailRecord:
+    bucket_name: str
+    acl: MaybeFailed
+    policy: MaybeFailed
+    encryption: MaybeFailed
+    versioning: MaybeFailed
+    public_access_block: MaybeFailed
+    bucket_ownership_controls: MaybeFailed
+    bucket_logging: MaybeFailed
+
+
+BucketDetails = list[BucketDetailRecord]
 
 
 @timeit
@@ -87,24 +107,219 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
     return buckets
 
 
+async def _get_s3_bucket_list_async(
+    aioboto3_session: aioboto3.Session,
+    tuning: AwsAsyncTuning,
+) -> dict[str, list[dict[str, Any]]]:
+    aio_config = build_aio_config(tuning)
+    async with aioboto3_session.client("s3", config=aio_config) as client:
+        buckets = await client.list_buckets()
+        semaphore = asyncio.Semaphore(tuning.max_concurrent_requests)
+
+        async def _populate_region(bucket: dict[str, Any]) -> None:
+            async with semaphore:
+                try:
+                    response = await client.get_bucket_location(Bucket=bucket["Name"])
+                    bucket["Region"] = response.get("LocationConstraint")
+                except ClientError as e:
+                    should_handle, _ = _is_common_exception(e, bucket["Name"])
+                    if should_handle:
+                        bucket["Region"] = None
+                        logger.warning(
+                            "skipping bucket='%s' due to exception.",
+                            bucket["Name"],
+                        )
+                        return
+                    raise
+
+        await asyncio.gather(
+            *[_populate_region(bucket) for bucket in buckets["Buckets"]]
+        )
+        return buckets
+
+
+async def _get_policy_async(bucket: dict[str, Any], client: Any) -> MaybeFailed:
+    try:
+        return await client.get_bucket_policy(Bucket=bucket["Name"])
+    except ClientError as e:
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
+        raise
+    except EndpointConnectionError:
+        logger.warning(
+            "Failed to retrieve S3 bucket policy for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
+        )
+        return FETCH_FAILED
+
+
+async def _get_acl_async(bucket: dict[str, Any], client: Any) -> MaybeFailed:
+    try:
+        return await client.get_bucket_acl(Bucket=bucket["Name"])
+    except ClientError as e:
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
+        raise
+    except EndpointConnectionError:
+        logger.warning(
+            "Failed to retrieve S3 bucket ACL for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
+        )
+        return FETCH_FAILED
+
+
+async def _get_encryption_async(bucket: dict[str, Any], client: Any) -> MaybeFailed:
+    try:
+        return await client.get_bucket_encryption(Bucket=bucket["Name"])
+    except ClientError as e:
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
+        raise
+    except EndpointConnectionError:
+        logger.warning(
+            "Failed to retrieve S3 bucket encryption for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
+        )
+        return FETCH_FAILED
+
+
+async def _get_versioning_async(bucket: dict[str, Any], client: Any) -> MaybeFailed:
+    try:
+        return await client.get_bucket_versioning(Bucket=bucket["Name"])
+    except ClientError as e:
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
+        raise
+    except EndpointConnectionError:
+        logger.warning(
+            "Failed to retrieve S3 bucket versioning for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
+        )
+        return FETCH_FAILED
+
+
+async def _get_public_access_block_async(
+    bucket: dict[str, Any], client: Any
+) -> MaybeFailed:
+    try:
+        return await client.get_public_access_block(Bucket=bucket["Name"])
+    except ClientError as e:
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
+        raise
+    except EndpointConnectionError:
+        logger.warning(
+            "Failed to retrieve S3 bucket public access block for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
+        )
+        return FETCH_FAILED
+
+
+async def _get_bucket_ownership_controls_async(
+    bucket: dict[str, Any], client: Any
+) -> MaybeFailed:
+    try:
+        return await client.get_bucket_ownership_controls(Bucket=bucket["Name"])
+    except ClientError as e:
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
+        raise
+    except EndpointConnectionError:
+        logger.warning(
+            "Failed to retrieve S3 bucket ownership controls for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
+        )
+        return FETCH_FAILED
+
+
+async def _get_bucket_logging_async(bucket: dict[str, Any], client: Any) -> MaybeFailed:
+    try:
+        return await client.get_bucket_logging(Bucket=bucket["Name"])
+    except ClientError as e:
+        should_handle, is_failure = _is_common_exception(e, bucket["Name"])
+        if should_handle:
+            return FETCH_FAILED if is_failure else None
+        raise
+    except EndpointConnectionError:
+        logger.warning(
+            "Failed to retrieve S3 bucket logging status for %s - Could not connect to the endpoint URL",
+            bucket["Name"],
+        )
+        return FETCH_FAILED
+
+
+async def _get_s3_bucket_details_async(
+    aioboto3_session: aioboto3.Session,
+    bucket_data: dict[str, list[dict[str, Any]]],
+    tuning: AwsAsyncTuning,
+) -> BucketDetails:
+    aio_config = build_aio_config(tuning)
+    regions = {bucket.get("Region") for bucket in bucket_data["Buckets"]}
+    semaphore = asyncio.Semaphore(tuning.max_concurrent_buckets)
+    async with AsyncExitStack() as stack:
+        clients_by_region: dict[str | None, Any] = {}
+        for region in regions:
+            clients_by_region[region] = await stack.enter_async_context(
+                aioboto3_session.client(
+                    "s3",
+                    region_name=region,
+                    config=aio_config,
+                )
+            )
+
+        async def _get_bucket_detail(
+            bucket: dict[str, Any],
+        ) -> BucketDetailRecord:
+            async with semaphore:
+                client = clients_by_region[bucket["Region"]]
+                (
+                    acl,
+                    policy,
+                    encryption,
+                    versioning,
+                    public_access_block,
+                    bucket_ownership_controls,
+                    bucket_logging,
+                ) = await asyncio.gather(
+                    _get_acl_async(bucket, client),
+                    _get_policy_async(bucket, client),
+                    _get_encryption_async(bucket, client),
+                    _get_versioning_async(bucket, client),
+                    _get_public_access_block_async(bucket, client),
+                    _get_bucket_ownership_controls_async(bucket, client),
+                    _get_bucket_logging_async(bucket, client),
+                )
+                return BucketDetailRecord(
+                    bucket_name=bucket["Name"],
+                    acl=acl,
+                    policy=policy,
+                    encryption=encryption,
+                    versioning=versioning,
+                    public_access_block=public_access_block,
+                    bucket_ownership_controls=bucket_ownership_controls,
+                    bucket_logging=bucket_logging,
+                )
+
+        details: BucketDetails = []
+        for i in range(0, len(bucket_data["Buckets"]), tuning.max_concurrent_buckets):
+            batch = bucket_data["Buckets"][i : i + tuning.max_concurrent_buckets]
+            details.extend(
+                await asyncio.gather(*[_get_bucket_detail(bucket) for bucket in batch])
+            )
+    return details
+
+
 @timeit
 def get_s3_bucket_details(
     boto3_session: boto3.session.Session,
-    bucket_data: Dict,
-) -> Generator[
-    Tuple[
-        str,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-    ],
-    None,
-    None,
-]:
+    bucket_data: dict[str, list[dict[str, Any]]],
+) -> Generator[BucketDetailRecord, None, None]:
     """
     Iterates over all S3 buckets. Yields bucket name (string), S3 bucket policies (JSON), ACLs (JSON),
     default encryption policy (JSON), Versioning (JSON), Public Access Block (JSON), Ownership Controls (JSON),
@@ -116,20 +331,9 @@ def get_s3_bucket_details(
     - FETCH_FAILED indicating the fetch failed and existing data should be preserved
     """
     # a local store for s3 clients so that we may re-use clients for an AWS region
-    s3_regional_clients: Dict[Any, Any] = {}
+    s3_regional_clients: dict[str | None, Any] = {}
 
-    BucketDetail = Tuple[
-        str,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-        MaybeFailed,
-    ]
-
-    async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetail:
+    async def _get_bucket_detail(bucket: dict[str, Any]) -> BucketDetailRecord:
         # Note: bucket['Region'] is sometimes None because
         # client.get_bucket_location() does not return a location constraint for buckets
         # in us-east-1 region
@@ -154,15 +358,15 @@ def get_s3_bucket_details(
             to_asynchronous(get_bucket_ownership_controls, bucket, client),
             to_asynchronous(get_bucket_logging, bucket, client),
         )
-        return (
-            bucket["Name"],
-            acl,
-            policy,
-            encryption,
-            versioning,
-            public_access_block,
-            bucket_ownership_controls,
-            bucket_logging,
+        return BucketDetailRecord(
+            bucket_name=bucket["Name"],
+            acl=acl,
+            policy=policy,
+            encryption=encryption,
+            versioning=versioning,
+            public_access_block=public_access_block,
+            bucket_ownership_controls=bucket_ownership_controls,
+            bucket_logging=bucket_logging,
         )
 
     bucket_details = to_synchronous(
@@ -424,7 +628,7 @@ def _load_s3_policy_statements(
 
 def _merge_bucket_details(
     bucket_data: Dict,
-    s3_details_iter: Generator[Any, Any, Any],
+    s3_details_iter: Generator[BucketDetailRecord, Any, Any],
     aws_account_id: str,
 ) -> Dict[str, Any]:
     """
@@ -465,16 +669,27 @@ def _merge_bucket_details(
     acls: List[Dict] = []
     statements: List[Dict] = []
 
-    for (
-        bucket_name,
-        acl,
-        policy,
-        encryption,
-        versioning,
-        public_access_block,
-        bucket_ownership_controls,
-        bucket_logging,
-    ) in s3_details_iter:
+    for detail in s3_details_iter:
+        if isinstance(detail, BucketDetailRecord):
+            bucket_name = detail.bucket_name
+            acl = detail.acl
+            policy = detail.policy
+            encryption = detail.encryption
+            versioning = detail.versioning
+            public_access_block = detail.public_access_block
+            bucket_ownership_controls = detail.bucket_ownership_controls
+            bucket_logging = detail.bucket_logging
+        else:
+            (
+                bucket_name,
+                acl,
+                policy,
+                encryption,
+                versioning,
+                public_access_block,
+                bucket_ownership_controls,
+                bucket_logging,
+            ) = detail
         bucket_dict = buckets_by_name.get(bucket_name)
         if not bucket_dict:
             continue
@@ -1274,6 +1489,53 @@ def _sync_s3_notifications(
     _load_s3_notifications(neo4j_session, notifications, update_tag)
 
 
+async def _sync_s3_notifications_async(
+    aioboto3_session: aioboto3.Session,
+    bucket_data: dict[str, list[dict[str, Any]]],
+    update_tag: int,
+    neo4j_session: neo4j.Session,
+    tuning: AwsAsyncTuning,
+) -> None:
+    logger.info("Syncing S3 bucket notifications")
+    aio_config = build_aio_config(tuning)
+    notifications: list[dict[str, Any]] = []
+    semaphore = asyncio.Semaphore(tuning.max_concurrent_buckets)
+    async with aioboto3_session.client("s3", config=aio_config) as client:
+
+        async def _fetch(
+            bucket: dict[str, Any],
+        ) -> list[dict[str, Any]] | _FetchFailed:
+            async with semaphore:
+                try:
+                    notification_config = (
+                        await client.get_bucket_notification_configuration(
+                            Bucket=bucket["Name"]
+                        )
+                    )
+                    return parse_notification_configuration(
+                        bucket["Name"], notification_config
+                    )
+                except ClientError as e:
+                    logger.warning(
+                        "Failed to retrieve notification configuration for bucket %s: %s",
+                        bucket["Name"],
+                        e,
+                    )
+                    return FETCH_FAILED
+
+        for i in range(0, len(bucket_data["Buckets"]), tuning.max_concurrent_buckets):
+            batch = bucket_data["Buckets"][i : i + tuning.max_concurrent_buckets]
+            batch_notifications = await asyncio.gather(
+                *[_fetch(bucket) for bucket in batch]
+            )
+            for notification_set in batch_notifications:
+                if notification_set is FETCH_FAILED:
+                    continue
+                notifications.extend(notification_set)
+    logger.debug("Loading %d S3 bucket notifications into Neo4j", len(notifications))
+    _load_s3_notifications(neo4j_session, notifications, update_tag)
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -1282,6 +1544,7 @@ def sync(
     current_aws_account_id: str,
     update_tag: int,
     common_job_parameters: Dict,
+    aioboto3_session: aioboto3.Session | None = None,
 ) -> None:
     """
     Sync S3 buckets and their configurations to Neo4j.
@@ -1291,9 +1554,21 @@ def sync(
     3. Notification configurations
     """
     logger.info("Syncing S3 for account '%s'", current_aws_account_id)
-
-    bucket_data = get_s3_bucket_list(boto3_session)
-    bucket_details_iter = get_s3_bucket_details(boto3_session, bucket_data)
+    if aioboto3_session is None:
+        bucket_data = get_s3_bucket_list(boto3_session)
+        bucket_details_iter = get_s3_bucket_details(boto3_session, bucket_data)
+    else:
+        tuning = AwsAsyncTuning.from_env()
+        bucket_data = run_async(_get_s3_bucket_list_async(aioboto3_session, tuning))
+        bucket_details_iter = iter(
+            run_async(
+                _get_s3_bucket_details_async(
+                    aioboto3_session,
+                    bucket_data,
+                    tuning,
+                )
+            )
+        )
 
     # Load buckets with all details merged, plus ACLs and policy statements
     load_s3_details(
@@ -1305,8 +1580,18 @@ def sync(
     )
     cleanup_s3_buckets(neo4j_session, common_job_parameters)
     cleanup_s3_bucket_acl_and_policy(neo4j_session, common_job_parameters)
-
-    _sync_s3_notifications(neo4j_session, boto3_session, bucket_data, update_tag)
+    if aioboto3_session is None:
+        _sync_s3_notifications(neo4j_session, boto3_session, bucket_data, update_tag)
+    else:
+        run_async(
+            _sync_s3_notifications_async(
+                aioboto3_session,
+                bucket_data,
+                update_tag,
+                neo4j_session,
+                tuning,
+            )
+        )
 
     merge_module_sync_metadata(
         neo4j_session,
