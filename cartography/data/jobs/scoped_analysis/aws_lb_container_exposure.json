@@ -1,0 +1,15 @@
+{
+  "name": "AWS LoadBalancer to ECS Container direct relationship",
+  "statements": [
+    {
+      "__comment": "Cleanup: Remove stale EXPOSE relationships between LBs and containers for this account",
+      "query": "MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(lb:AWSLoadBalancerV2)-[r:EXPOSE]->(:ECSContainer) WHERE r.lastupdated <> $UPDATE_TAG DELETE r",
+      "iterative": true
+    },
+    {
+      "__comment": "Create: EXPOSE relationships for private containers behind internet-facing load balancers",
+      "query": "MATCH (aa:AWSAccount{id: $AWS_ID})-[:RESOURCE]->(lb:AWSLoadBalancerV2 {scheme: 'internet-facing'})-[:EXPOSE]->(ip:EC2PrivateIp)<-[:PRIVATE_IP_ADDRESS]-(ni:NetworkInterface)<-[:NETWORK_INTERFACE]-(task:ECSTask)-[:HAS_CONTAINER]->(c:ECSContainer) WHERE ip.public_ip IS NULL MERGE (lb)-[r:EXPOSE]->(c) SET r.lastupdated = $UPDATE_TAG, r.exposure_type = 'via_lb_only'",
+      "iterative": false
+    }
+  ]
+}

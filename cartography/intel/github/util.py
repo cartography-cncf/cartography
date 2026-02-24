@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import time
@@ -12,6 +13,16 @@ import requests
 logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
+
+
+def _resolve_token(token: Any) -> str:
+    """Resolve a token string or GitHubCredential to a plain token string."""
+    if isinstance(token, str):
+        return token
+    result: str = token.get_token()
+    return result
+
+
 _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
 _REST_RATE_LIMIT_REMAINING_THRESHOLD = 100
 # Search API has a stricter rate limit (30 requests/minute for authenticated users)
@@ -30,7 +41,7 @@ def handle_rate_limit_sleep(token: str) -> None:
     """
     response = requests.get(
         "https://api.github.com/rate_limit",
-        headers={"Authorization": f"token {token}"},
+        headers={"Authorization": f"Bearer {_resolve_token(token)}"},
     )
     response.raise_for_status()
     response_json = response.json()
@@ -59,7 +70,7 @@ def call_github_api(query: str, variables: str, token: str, api_url: str) -> dic
     :param api_url: the URL to call for the API
     :return: query results json
     """
-    headers = {"Authorization": f"token {token}"}
+    headers = {"Authorization": f"Bearer {_resolve_token(token)}"}
     try:
         response = requests.post(
             api_url,
@@ -173,6 +184,9 @@ def fetch_all(
         except requests.exceptions.ChunkedEncodingError as err:
             retry += 1
             exc = err
+        except requests.exceptions.ConnectionError as err:
+            retry += 1
+            exc = err
 
         if retry >= retries:
             logger.error(
@@ -247,7 +261,7 @@ def handle_rest_rate_limit_sleep(token: str, base_url: str) -> None:
     rate_limit_url = f"{base_url}/rate_limit"
     response = requests.get(
         rate_limit_url,
-        headers={"Authorization": f"token {token}"},
+        headers={"Authorization": f"Bearer {_resolve_token(token)}"},
         timeout=_TIMEOUT,
     )
     response.raise_for_status()
@@ -287,14 +301,15 @@ def fetch_all_rest_api_pages(
     """
     results: list[dict[str, Any]] = []
     url: str | None = f"{base_url}{endpoint}"
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
     retry = 0
 
     while url:
+        # Resolve token each iteration so AppCredential can refresh expired tokens
+        headers = {
+            "Authorization": f"Bearer {_resolve_token(token)}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
         exc: Any = None
         try:
             handle_rest_rate_limit_sleep(token, base_url)
@@ -320,6 +335,9 @@ def fetch_all_rest_api_pages(
             retry += 1
             exc = err
         except requests.exceptions.ChunkedEncodingError as err:
+            retry += 1
+            exc = err
+        except requests.exceptions.ConnectionError as err:
             retry += 1
             exc = err
 
@@ -382,7 +400,7 @@ def call_github_rest_api(
     )
 
     headers = {
-        "Authorization": f"token {token}",
+        "Authorization": f"Bearer {_resolve_token(token)}",
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
@@ -422,3 +440,46 @@ def call_github_rest_api(
     response.raise_for_status()
     result: dict[str, Any] = response.json()
     return result
+
+
+def get_file_content(
+    token: str,
+    owner: str,
+    repo: str,
+    path: str,
+    ref: str = "HEAD",
+    base_url: str = "https://api.github.com",
+) -> str | None:
+    """
+    Download the content of a file from a GitHub repository using the Contents API.
+
+    :param token: The GitHub API token
+    :param owner: The repository owner
+    :param repo: The repository name
+    :param path: The path to the file within the repository
+    :param ref: The git reference (branch, tag, or commit SHA) to get the file from
+    :param base_url: The base URL for the GitHub API
+    :return: The file content as a string, or None if retrieval fails
+    """
+    endpoint = f"/repos/{owner}/{repo}/contents/{path}"
+    params: dict[str, Any] = {"ref": ref}
+
+    try:
+        response = call_github_rest_api(endpoint, token, base_url, params)
+
+        # The content is base64 encoded
+        if response.get("encoding") == "base64":
+            content_b64 = response.get("content", "")
+            # GitHub returns content with newlines for readability, remove them
+            content_b64 = content_b64.replace("\n", "")
+            content = base64.b64decode(content_b64).decode("utf-8")
+            return content
+
+        # If not base64 encoded, try to get raw content
+        return response.get("content")
+
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            logger.debug("File not found: %s/%s/%s", owner, repo, path)
+            return None
+        raise

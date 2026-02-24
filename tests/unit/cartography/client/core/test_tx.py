@@ -759,6 +759,8 @@ def test_load_matchlinks_emits_metrics_and_logs(
     mock_session = MagicMock()
     mock_rel_schema = MagicMock()
     mock_rel_schema.rel_label = "CONNECTED_TO"
+    mock_rel_schema.source_node_label = "EC2Instance"
+    mock_rel_schema.target_node_label = "AWSVpc"
     mock_build_query.return_value = "UNWIND ..."
 
     test_data = [
@@ -775,14 +777,18 @@ def test_load_matchlinks_emits_metrics_and_logs(
         _sub_resource_id="123456",
     )
 
-    # Verify metric was emitted with correct count
+    # Verify metric includes source and target labels for disambiguation
     mock_stat_handler.incr.assert_called_once_with(
-        "relationship.connected_to.loaded", 2
+        "relationship.ec2instance.connected_to.awsvpc.loaded", 2
     )
 
     # Verify info log was emitted
     mock_logger.info.assert_called_once_with(
-        "Loaded %d %s relationships", 2, "CONNECTED_TO"
+        "Loaded %d (%s)-[%s]->(%s) relationships",
+        2,
+        "EC2Instance",
+        "CONNECTED_TO",
+        "AWSVpc",
     )
 
 

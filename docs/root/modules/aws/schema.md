@@ -160,6 +160,11 @@ Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIRef
     (:AWSGroup)-[:POLICY]->(:AWSPolicy)
     ```
 
+- AWS Groups can be tagged with AWSTags.
+
+    ```cypher
+    ```
+
 ### GuardDutyDetector
 
 Representation of an AWS [GuardDuty Detector](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_GetDetector.html).
@@ -812,6 +817,12 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
     (AWSUser)-[:MFA_DEVICE]->(AWSMfaDevice)
     ```
 
+- AWS Users can be tagged with AWSTags.
+
+    ```cypher
+    (AWSUser)-[TAGGED]->(AWSTag)
+    ```
+
 
 ### AWSPrincipal::AWSRole
 
@@ -870,6 +881,12 @@ Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIRe
 
     ```cypher
     (:AWSAccount)-[:RESOURCE]->(:AWSRole)
+    ```
+
+- AWS Roles can be tagged with AWSTags.
+
+    ```cypher
+    (AWSRole)-[TAGGED]->(AWSTag)
     ```
 
 - ECSTaskDefinitions have task roles.
@@ -1102,9 +1119,9 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 | region | The region where this tag was discovered.|
 
 #### Relationships
--  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, and S3 Buckets can be tagged with AWSTags.
+-  AWS VPCs, DB Subnet Groups, EC2 Instances, EC2 SecurityGroups, EC2 Subnets, EC2 Network Interfaces, RDS Instances, S3 Buckets, AWS Roles, AWS Users, and AWS Groups can be tagged with AWSTags.
     ```
-    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket)-[TAGGED]->(AWSTag)
+    (AWSVpc, DBSubnetGroup, EC2Instance, EC2SecurityGroup, EC2Subnet, NetworkInterface, RDSInstance, S3Bucket, AWSRole, AWSUser)-[TAGGED]->(AWSTag)
     ```
 
 ### AccountAccessKey
@@ -2941,9 +2958,11 @@ Represents a generic IP address.
     ```
 
 
-### IpRule
+### AWSIpRule::IpRule
 
 Represents a generic IP rule.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+
+> **Ontology Mapping**: This node has the extra label `IpRule` to preserve cross-platform semantics for generic IP rules.
 
 | Field | Description |
 |-------|-------------|
@@ -2959,15 +2978,17 @@ Represents a generic IP rule.  The creation of this node is currently derived fr
 
 #### Relationships
 
-- IpRules are defined from EC2SecurityGroups.
+- AWSIpRules are defined from EC2SecurityGroups.
     ```
-    (IpRule, IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSIpRule)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
 
-### IpRule::IpPermissionInbound
+### AWSIpPermissionInbound::IpPermissionInbound::IpRule::AWSIpRule
 
-An IpPermissionInbound node is a specific type of IpRule.  It represents a generic inbound IP-based rules.  The creation of this node is currently derived from ingesting AWS [EC2 Security Group](#ec2securitygroup) rules.
+An AWSIpPermissionInbound node is a specific type of AWSIpRule. It represents inbound IP-based rules derived from AWS [EC2 Security Group](#ec2securitygroup) rules.
+
+> **Ontology Mapping**: This node has the extra labels `IpPermissionInbound`, `IpRule`, and `AWSIpRule` for backward compatibility and cross-platform semantics.
 
 | Field | Description |
 |-------|-------------|
@@ -2981,15 +3002,17 @@ An IpPermissionInbound node is a specific type of IpRule.  It represents a gener
 
 #### Relationships
 
-- IpPermissionInbound rules are defined from EC2SecurityGroups.
+- AWSIpPermissionInbound rules are defined from EC2SecurityGroups.
     ```
-    (IpRule, IpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
+    (AWSIpPermissionInbound)-[MEMBER_OF_EC2_SECURITY_GROUP]->(EC2SecurityGroup)
     ```
 
 
-### IpRange
+### AWSIpRange::IpRange
 
 Represents an IP address range (CIDR block) associated with an EC2 Security Group rule. IpRange nodes define the source or destination IP addresses that a security group rule applies to.
+
+> **Ontology Mapping**: This node has the extra label `IpRange` to preserve cross-platform semantics for generic IP ranges.
 
 | Field | Description |
 |-------|-------------|
@@ -3000,14 +3023,14 @@ Represents an IP address range (CIDR block) associated with an EC2 Security Grou
 
 #### Relationships
 
-- IpRanges belong to AWS Accounts.
+- AWSIpRanges belong to AWS Accounts.
     ```
-    (AWSAccount)-[RESOURCE]->(IpRange)
+    (AWSAccount)-[RESOURCE]->(AWSIpRange)
     ```
 
-- IpRanges are members of IpRules.
+- AWSIpRanges are members of AWSIpRules.
     ```
-    (IpRange)-[MEMBER_OF_IP_RULE]->(IpRule)
+    (AWSIpRange)-[MEMBER_OF_IP_RULE]->(AWSIpRule)
     ```
 
 
@@ -3104,7 +3127,7 @@ Represents an Elastic Load Balancer V2 ([Application Load Balancer](https://docs
 | scheme|  The type of load balancer.  If scheme is `internet-facing`, the load balancer has a public DNS name that resolves to a public IP address.  If scheme is `internal`, the load balancer has a public DNS name that resolves to a private IP address. |
 | name| The name of the load balancer|
 | **dnsname** | The DNS name of the load balancer. |
-| exposed_internet | The `exposed_internet` flag is set to `True` when the load balancer's `scheme` field is set to `internet-facing`.  This indicates that the load balancer has a public DNS name that resolves to a public IP address. |
+| exposed_internet | The `exposed_internet` flag is set to `True` by the `aws_ec2_asset_exposure` analysis job when internet reachability is inferred. For NLBs (`type='network'`), this is based on `scheme='internet-facing'` and listener presence. For ALBs, this requires `scheme='internet-facing'` plus a security group path open from `0.0.0.0/0` to a listener port. |
 | exposed\_internet\_type | A list indicating the type(s) of internet exposure. Set by the `aws_ec2_asset_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/aws_ec2_asset_exposure.json). |
 | **id** |  Currently set to the `dnsname` of the load balancer. |
 | arn | The Amazon Resource Name (ARN) of the load balancer. |
@@ -3157,6 +3180,22 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
 - AWSLoadBalancerV2's have [listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_Listener.html):
     ```
     (AWSLoadBalancerV2)-[ELBV2_LISTENER]->(ELBV2Listener)
+    ```
+
+- Internet-facing AWSLoadBalancerV2's can expose private ECS containers. Set by an analysis job.
+    ```
+    (AWSLoadBalancerV2)-[EXPOSE]->(ECSContainer)
+    ```
+
+- Internet-facing AWSLoadBalancerV2's can expose Kubernetes pods and containers. Set by the `k8s_lb_exposure` analysis job.
+    ```
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(KubernetesPod)
+    (AWSLoadBalancerV2)-[EXPOSE {exposure_type: 'via_lb_only'}]->(KubernetesContainer)
+    ```
+
+- EC2NetworkAcl's can protect AWSLoadBalancerV2's via subnet traversal. Set by an analysis job.
+    ```
+    (EC2NetworkAcl)-[PROTECTS]->(AWSLoadBalancerV2)
     ```
 
 ### Nameserver

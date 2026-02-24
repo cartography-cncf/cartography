@@ -167,6 +167,7 @@ def sync_roles(
     okta_update_tag: int,
     okta_api_key: str,
     sync_state: OktaSyncState,
+    okta_base_domain: str = "okta.com",
 ) -> None:
     """
     Sync okta roles
@@ -175,13 +176,16 @@ def sync_roles(
     :param okta_update_tag: Update tag
     :param okta_api_key: Okta API key
     :param sync_state: Okta sync state
+    :param okta_base_domain: Base domain for Okta API requests (default: okta.com)
     :return: None
     """
 
     logger.info("Syncing Okta Roles")
 
     # get API client
-    api_client = create_api_client(okta_org_id, "/api/v1/users", okta_api_key)
+    api_client = create_api_client(
+        okta_org_id, "/api/v1/users", okta_api_key, okta_base_domain
+    )
 
     if sync_state.users:
         for user_id in sync_state.users:

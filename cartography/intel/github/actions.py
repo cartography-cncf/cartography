@@ -18,6 +18,11 @@ from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.github.util import _get_rest_api_base_url
 from cartography.intel.github.util import fetch_all_rest_api_pages
+from cartography.intel.github.util import get_file_content
+from cartography.intel.github.workflow_parser import deduplicate_actions
+from cartography.intel.github.workflow_parser import parse_workflow_yaml
+from cartography.intel.github.workflow_parser import ParsedWorkflow
+from cartography.models.github.action import GitHubActionSchema
 from cartography.models.github.actions_secret import GitHubEnvActionsSecretSchema
 from cartography.models.github.actions_secret import GitHubOrgActionsSecretSchema
 from cartography.models.github.actions_secret import GitHubRepoActionsSecretSchema
@@ -354,6 +359,145 @@ def transform_env_variables(
 
 
 # =============================================================================
+# Workflow Content Fetching and Parsing
+# =============================================================================
+
+
+@timeit
+def get_workflow_content(
+    token: str,
+    api_url: str,
+    organization: str,
+    repo_name: str,
+    workflow_path: str,
+) -> str | None:
+    """
+    Fetch the content of a workflow file from GitHub.
+
+    :param token: The GitHub API token
+    :param api_url: The GitHub API URL
+    :param organization: The organization name
+    :param repo_name: The repository name
+    :param workflow_path: The path to the workflow file (e.g., .github/workflows/ci.yml)
+    :return: The workflow file content, or None if fetching fails
+    """
+    base_url = _get_rest_api_base_url(api_url)
+    return get_file_content(
+        token, organization, repo_name, workflow_path, base_url=base_url
+    )
+
+
+def enrich_workflow_with_parsed_content(
+    workflow: dict[str, Any],
+    parsed: ParsedWorkflow | None,
+    organization: str,
+    repo_name: str,
+) -> dict[str, Any]:
+    """
+    Enrich a workflow dict with parsed content from the YAML file.
+
+    :param workflow: The workflow dict from transform_workflows
+    :param parsed: The parsed workflow content, or None if parsing failed
+    :param organization: The organization name
+    :param repo_name: The repository name
+    :return: Enriched workflow dict with parsed fields
+    """
+    if parsed is None:
+        return {
+            **workflow,
+            "trigger_events": None,
+            "permissions_actions": None,
+            "permissions_contents": None,
+            "permissions_packages": None,
+            "permissions_pull_requests": None,
+            "permissions_issues": None,
+            "permissions_deployments": None,
+            "permissions_statuses": None,
+            "permissions_checks": None,
+            "permissions_id_token": None,
+            "permissions_security_events": None,
+            "env_vars": None,
+            "job_count": None,
+            "has_reusable_workflow_calls": None,
+            "secret_ids": [],
+        }
+
+    # Build secret IDs for both org-level and repo-level secrets
+    # The relationship will only be created if the secret exists
+    secret_ids = []
+    for secret_name in parsed.secret_refs:
+        # Add repo-level secret ID
+        secret_ids.append(
+            f"https://github.com/{organization}/{repo_name}/actions/secrets/{secret_name}"
+        )
+        # Add org-level secret ID
+        secret_ids.append(
+            f"https://github.com/{organization}/actions/secrets/{secret_name}"
+        )
+
+    return {
+        **workflow,
+        "trigger_events": parsed.trigger_events if parsed.trigger_events else None,
+        "permissions_actions": parsed.permissions.get("actions"),
+        "permissions_contents": parsed.permissions.get("contents"),
+        "permissions_packages": parsed.permissions.get("packages"),
+        "permissions_pull_requests": parsed.permissions.get("pull_requests"),
+        "permissions_issues": parsed.permissions.get("issues"),
+        "permissions_deployments": parsed.permissions.get("deployments"),
+        "permissions_statuses": parsed.permissions.get("statuses"),
+        "permissions_checks": parsed.permissions.get("checks"),
+        "permissions_id_token": parsed.permissions.get("id_token"),
+        "permissions_security_events": parsed.permissions.get("security_events"),
+        "env_vars": list(parsed.env_vars) if parsed.env_vars else None,
+        "job_count": parsed.job_count,
+        "has_reusable_workflow_calls": len(parsed.reusable_workflow_calls) > 0,
+        "secret_ids": secret_ids,
+    }
+
+
+def transform_actions(
+    parsed: ParsedWorkflow,
+    workflow_id: int,
+    organization: str,
+    repo_name: str,
+) -> list[dict[str, Any]]:
+    """
+    Transform parsed actions into data dicts for loading.
+
+    :param parsed: The parsed workflow content
+    :param workflow_id: The workflow ID (for relationship)
+    :param organization: The organization name
+    :param repo_name: The repository name
+    :return: List of action data dicts
+    """
+    actions = deduplicate_actions(parsed.actions)
+    result = []
+
+    for action in actions:
+        # Local actions (e.g., ./.github/actions/build) are repo-specific,
+        # so include repo_name to avoid cross-repo ID collisions.
+        if action.is_local:
+            action_id = f"{organization}/{repo_name}:{action.raw_uses}"
+        else:
+            action_id = f"{organization}:{action.raw_uses}"
+
+        result.append(
+            {
+                "id": action_id,
+                "owner": action.owner or None,
+                "name": action.name,
+                "version": action.version or None,
+                "is_pinned": action.is_pinned,
+                "is_local": action.is_local,
+                "full_name": action.full_name,
+                "workflow_id": workflow_id,
+            }
+        )
+
+    return result
+
+
+# =============================================================================
 # Load Functions
 # =============================================================================
 
@@ -498,6 +642,23 @@ def load_env_variables(
     )
 
 
+@timeit
+def load_actions(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    update_tag: int,
+    org_url: str,
+) -> None:
+    logger.info(f"Loading {len(data)} GitHub Actions to the graph")
+    load(
+        neo4j_session,
+        GitHubActionSchema(),
+        data,
+        lastupdated=update_tag,
+        org_url=org_url,
+    )
+
+
 # =============================================================================
 # Cleanup Functions
 # =============================================================================
@@ -512,7 +673,7 @@ def cleanup_org_level(
     Clean up stale GitHub Actions nodes scoped to the organization.
     Requires org_url in common_job_parameters.
 
-    All GitHub Actions resources (workflows, environments, secrets, variables)
+    All GitHub Actions resources (workflows, environments, secrets, variables, actions)
     use org as their sub_resource, so they are all cleaned up here. This ensures
     resources are properly cleaned up even when their parent repo/environment is deleted.
     """
@@ -521,6 +682,10 @@ def cleanup_org_level(
         neo4j_session,
     )
     GraphJob.from_node_schema(GitHubEnvironmentSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
+    # Actions used in workflows
+    GraphJob.from_node_schema(GitHubActionSchema(), common_job_parameters).run(
         neo4j_session,
     )
     # Org-level secrets and variables
@@ -646,8 +811,51 @@ def sync(
             transformed_workflows = transform_workflows(
                 workflows, organization, repo_name
             )
-            load_workflows(neo4j_session, transformed_workflows, update_tag, org_url)
-            all_workflows.extend(transformed_workflows)
+
+            # Fetch and parse workflow content for each workflow
+            repo_actions: list[dict[str, Any]] = []
+            enriched_workflows = []
+
+            for wf in transformed_workflows:
+                workflow_path = wf.get("path")
+                workflow_id = wf.get("id")
+
+                # Fetch workflow YAML content
+                content = None
+                if workflow_path:
+                    content = get_workflow_content(
+                        github_api_key,
+                        github_url,
+                        organization,
+                        repo_name,
+                        workflow_path,
+                    )
+
+                # Parse the workflow content
+                parsed = None
+                if content:
+                    parsed = parse_workflow_yaml(content)
+
+                # Enrich workflow with parsed data
+                enriched_wf = enrich_workflow_with_parsed_content(
+                    wf, parsed, organization, repo_name
+                )
+                enriched_workflows.append(enriched_wf)
+
+                # Extract actions for loading
+                if parsed and workflow_id is not None:
+                    actions = transform_actions(
+                        parsed, workflow_id, organization, repo_name
+                    )
+                    repo_actions.extend(actions)
+
+            # Load enriched workflows
+            load_workflows(neo4j_session, enriched_workflows, update_tag, org_url)
+            all_workflows.extend(enriched_workflows)
+
+            # Load actions
+            if repo_actions:
+                load_actions(neo4j_session, repo_actions, update_tag, org_url)
 
         # Sync environments (must come before env secrets/variables)
         environments = get_repo_environments(

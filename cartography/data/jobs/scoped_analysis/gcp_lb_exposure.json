@@ -1,0 +1,17 @@
+{
+  "name": "GCP BackendService to Instance EXPOSE relationship (scoped per project)",
+  "__comment__": "This job only creates EXPOSE relationships for graph traversal. Node-level exposed_internet properties are computed in gcp_compute_exposure.json.",
+  "statements": [
+    {
+      "__comment__": "Cleanup: Remove stale EXPOSE relationships between BackendServices and Instances for this project",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(bs:GCPBackendService)-[r:EXPOSE]->(:GCPInstance) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Create: EXPOSE relationships from external BackendServices to Instances behind them",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(bs:GCPBackendService)-[:ROUTES_TO]->(ig:GCPInstanceGroup)-[:HAS_MEMBER]->(i:GCPInstance) WHERE bs.load_balancing_scheme = 'EXTERNAL' OR bs.load_balancing_scheme = 'EXTERNAL_MANAGED' MERGE (bs)-[r:EXPOSE]->(i) SET r.lastupdated = $UPDATE_TAG, r.exposure_type = 'gcp_lb'",
+      "iterative": false
+    }
+  ]
+}

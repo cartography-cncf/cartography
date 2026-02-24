@@ -1,7 +1,7 @@
 from cartography.graph.cleanupbuilder import build_cleanup_queries
-from cartography.graph.querybuilder import _get_cartography_version
 from cartography.graph.querybuilder import _get_module_from_schema
 from cartography.graph.querybuilder import build_ingestion_query
+from cartography.version import get_cartography_version
 from tests.data.graph.querybuilder.sample_models.allow_unscoped import (
     UnscopedNodeSchema,
 )
@@ -28,7 +28,7 @@ def test_build_ingestion_query_unscoped():
     """
     Test creating a query for an unscoped node schema.
     """
-    module_version = _get_cartography_version()
+    module_version = get_cartography_version()
     module_name = _get_module_from_schema(UnscopedNodeSchema())
 
     # Act

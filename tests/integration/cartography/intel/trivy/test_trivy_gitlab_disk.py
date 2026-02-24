@@ -31,7 +31,7 @@ TEST_UPDATE_TAG = 123456789
 def _cleanup_trivy_data(neo4j_session):
     """Clean up all Trivy-related nodes before test runs."""
     neo4j_session.run("MATCH (n:TrivyImageFinding) DETACH DELETE n")
-    neo4j_session.run("MATCH (n:Package) DETACH DELETE n")
+    neo4j_session.run("MATCH (n:TrivyPackage) DETACH DELETE n")
     neo4j_session.run("MATCH (n:TrivyFix) DETACH DELETE n")
 
 
@@ -127,6 +127,10 @@ def test_sync_trivy_gitlab(
         ),
         (
             "7.88.1-10+deb12u5|curl",
+            "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
+        ),
+        (
+            "9.1-1|coreutils",
             "sha256:aaa111222333444555666777888999000aaabbbcccdddeeefff000111222333",
         ),
     }

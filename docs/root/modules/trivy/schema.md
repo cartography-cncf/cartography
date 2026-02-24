@@ -54,8 +54,8 @@ Representation of a vulnerability finding in a container image.
     (TrivyImageFinding)-[AFFECTS]->(GitLabContainerImage)
     ```
 
-### Package
-Representation of a package installed in a container image.
+### TrivyPackage
+Representation of a package installed in a container image, as detected by Trivy.
 
 | Field | Description |
 |-------|-------------|
@@ -67,37 +67,46 @@ Representation of a package installed in a container image.
 | version | Version of the package (same as installed_version) |
 | class_name | Class of the package (e.g. os, library) |
 | type | Type of the package |
+| purl | Package URL (e.g., `pkg:npm/express@4.18.2`) |
+| pkg_id | Package identifier from Trivy |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
 
 #### Relationships
 
-- A Package is deployed in an ECRImage.
+- A TrivyPackage is deployed in an ECRImage.
 
     ```
-    (Package)-[DEPLOYED]->(ECRImage)
+    (TrivyPackage)-[DEPLOYED]->(ECRImage)
     ```
 
-- A Package is deployed in a GCPArtifactRegistryContainerImage.
+- A TrivyPackage is deployed in a GCPArtifactRegistryContainerImage.
 
     ```
-    (Package)-[DEPLOYED]->(GCPArtifactRegistryContainerImage)
+    (TrivyPackage)-[DEPLOYED]->(GCPArtifactRegistryContainerImage)
     ```
 
-- A Package is deployed in a GCPArtifactRegistryPlatformImage.
+- A TrivyPackage is deployed in a GCPArtifactRegistryPlatformImage.
 
     ```
-    (Package)-[DEPLOYED]->(GCPArtifactRegistryPlatformImage)
+    (TrivyPackage)-[DEPLOYED]->(GCPArtifactRegistryPlatformImage)
     ```
 
-- A Package is deployed in a GitLabContainerImage.
+- A TrivyPackage is deployed in a GitLabContainerImage.
 
     ```
-    (Package)-[DEPLOYED]->(GitLabContainerImage)
+    (TrivyPackage)-[DEPLOYED]->(GitLabContainerImage)
     ```
 
-- A Package is affected by a TrivyImageFinding.
+- A TrivyPackage is affected by a TrivyImageFinding.
 
     ```
-    (Package)<-[AFFECTS]-(TrivyImageFinding)
+    (TrivyPackage)<-[AFFECTS]-(TrivyImageFinding)
+    ```
+
+- A canonical Package (ontology) is detected as a TrivyPackage.
+
+    ```
+    (Package)-[DETECTED_AS]->(TrivyPackage)
     ```
 
 ### TrivyFix
@@ -114,10 +123,10 @@ Representation of a fix for a vulnerability.
 
 #### Relationships
 
-- A Package should update to a TrivyFix.
+- A TrivyPackage should update to a TrivyFix.
 
     ```
-    (Package)-[SHOULD_UPDATE_TO]->(TrivyFix)
+    (TrivyPackage)-[SHOULD_UPDATE_TO]->(TrivyFix)
     ```
 
 - A TrivyFix applies to a TrivyImageFinding.

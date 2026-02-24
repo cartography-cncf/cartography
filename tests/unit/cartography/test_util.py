@@ -136,6 +136,15 @@ def test_aws_handle_regions(mocker):
     with pytest.raises(ZeroDivisionError):
         raises_unsupported_error(1, 2)
 
+    # regional connectivity timeouts should be skipped
+    @aws_handle_regions
+    def raises_connect_timeout_error(a, b):
+        raise botocore.exceptions.ConnectTimeoutError(
+            endpoint_url="https://codebuild.ca-west-1.amazonaws.com",
+        )
+
+    assert raises_connect_timeout_error(1, 2) == []
+
 
 def test_is_service_control_policy_explicit_deny():
     scp_error = botocore.exceptions.ClientError(

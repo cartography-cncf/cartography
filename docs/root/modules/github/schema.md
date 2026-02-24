@@ -7,6 +7,7 @@ O(GitHubOrganization) -- OWNER --> R(GitHubRepository)
 O -- RESOURCE --> T(GitHubTeam)
 O -- RESOURCE --> OS(GitHubActionsSecret)
 O -- RESOURCE --> OV(GitHubActionsVariable)
+O -- RESOURCE --> A(GitHubAction)
 U(GitHubUser) -- MEMBER_OF --> O
 U -- ADMIN_OF --> O
 U -- UNAFFILIATED --> O
@@ -23,6 +24,8 @@ R -- HAS_WORKFLOW --> W(GitHubWorkflow)
 R -- HAS_SECRET --> RS(GitHubActionsSecret)
 R -- HAS_VARIABLE --> RV(GitHubActionsVariable)
 R -- HAS_ENVIRONMENT --> E(GitHubEnvironment)
+W -- USES_ACTION --> A(GitHubAction)
+W -- REFERENCES_SECRET --> RS
 E -- HAS_SECRET --> ES(GitHubActionsSecret)
 E -- HAS_VARIABLE --> EV(GitHubActionsVariable)
 M -- HAS_DEP --> D
@@ -409,6 +412,10 @@ Represents a software dependency from GitHub's dependency graph manifests. This 
 | **ecosystem** | Package ecosystem (npm, pip, maven, etc.) |
 | **package_manager** | Package manager name (NPM, PIP, MAVEN, etc.) |
 | **manifest_file** | Manifest filename (package.json, requirements.txt, etc.) |
+| version | Exact version if pinned (e.g., `"18.2.0"`). `null` for ranges or unpinned dependencies. |
+| type | Package URL type (e.g., `npm`, `pypi`, `maven`). `null` if version is not exact. |
+| purl | Package URL (e.g., `"pkg:npm/react@18.2.0"`). `null` if version is not exact. |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. `null` if version is not exact. |
 
 #### Relationships
 
@@ -492,6 +499,20 @@ Represents a GitHub Actions workflow definition file in a repository.
 | **created_at** | Timestamp when the workflow was created |
 | **updated_at** | Timestamp when the workflow was last updated |
 | **repo_url** | URL of the repository containing this workflow (e.g., `https://github.com/org/repo`) |
+| **trigger_events** | List of events that trigger the workflow (e.g., `push`, `pull_request`, `schedule`) |
+| **permissions_actions** | Permission level for the `actions` scope |
+| **permissions_contents** | Permission level for the `contents` scope |
+| **permissions_packages** | Permission level for the `packages` scope |
+| **permissions_pull_requests** | Permission level for the `pull-requests` scope |
+| **permissions_issues** | Permission level for the `issues` scope |
+| **permissions_deployments** | Permission level for the `deployments` scope |
+| **permissions_statuses** | Permission level for the `statuses` scope |
+| **permissions_checks** | Permission level for the `checks` scope |
+| **permissions_id_token** | Permission level for the `id-token` scope |
+| **permissions_security_events** | Permission level for the `security-events` scope |
+| **env_vars** | List of top-level environment variable names defined in the workflow |
+| **job_count** | Number of jobs defined in the workflow |
+| **has_reusable_workflow_calls** | Whether the workflow calls reusable workflows |
 
 #### Relationships
 
@@ -501,6 +522,18 @@ Represents a GitHub Actions workflow definition file in a repository.
     (GitHubRepository)-[:HAS_WORKFLOW]->(GitHubWorkflow)
     ```
 
+- GitHubWorkflows use GitHubActions.
+
+    ```
+    (GitHubWorkflow)-[:USES_ACTION]->(GitHubAction)
+    ```
+
+- GitHubWorkflows reference GitHubActionsSecrets (detected via `${{ secrets.NAME }}` patterns in the YAML).
+
+    ```
+    (GitHubWorkflow)-[:REFERENCES_SECRET]->(GitHubActionsSecret)
+    ```
+
 - Container images may be packaged by a GitHubWorkflow (derived from SLSA provenance attestations).
 
     ```
@@ -508,6 +541,37 @@ Represents a GitHub Actions workflow definition file in a repository.
     ```
 
     Note: This relationship is created when SLSA provenance attestations specify the GitHub Actions workflow that built the container image. The `Image` label is a semantic label applied to container images across registries (ECR, GitLab, etc.).
+
+
+### GitHubAction
+
+Represents a third-party GitHub Action used in workflows, parsed from workflow YAML `uses` references.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier in the format `{org}:{raw_uses}` (e.g., `my-org:actions/checkout@v4`) |
+| **owner** | Owner of the action repository (e.g., `actions`, `docker`), or `None` for local actions |
+| **name** | Name of the action (e.g., `checkout`, `setup-node`, `./.github/actions/my-action`) |
+| **version** | Version reference (tag, branch, or SHA), or `None` for docker/local actions |
+| **is_pinned** | Whether the action is pinned to a full 40-character SHA commit hash |
+| **is_local** | Whether the action is a local action (path starting with `./`) |
+| **full_name** | Full name of the action (e.g., `actions/checkout`) |
+
+#### Relationships
+
+- GitHubWorkflows use GitHubActions.
+
+    ```
+    (GitHubWorkflow)-[:USES_ACTION]->(GitHubAction)
+    ```
+
+- GitHubOrganizations are sub-resources for GitHubActions (for cleanup scoping).
+
+    ```
+    (GitHubOrganization)-[:RESOURCE]->(GitHubAction)
+    ```
 
 
 ### GitHubEnvironment

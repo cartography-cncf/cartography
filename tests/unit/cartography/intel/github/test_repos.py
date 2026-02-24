@@ -1,4 +1,12 @@
+from copy import deepcopy
+from unittest.mock import patch
+
+import pytest
+
+import cartography.intel.github.repos
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
+from cartography.intel.github.repos import _merge_repos_with_privileged_details
+from cartography.intel.github.repos import _repos_need_privileged_details
 from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
@@ -238,3 +246,78 @@ def test_transform_uses_requirements_when_dependency_graph_missing():
     # No dependency graph data, so requirements parsing should run
     requirement_names = {req["name"] for req in result["python_requirements"]}
     assert {"cartography", "httplib2", "jinja2", "lxml"}.issubset(requirement_names)
+
+
+def test_merge_repos_with_privileged_details_merges_by_url():
+    base_repos = deepcopy(GET_REPOS[:2])
+    for repo in base_repos:
+        repo.pop("directCollaborators", None)
+        repo.pop("outsideCollaborators", None)
+        repo.pop("branchProtectionRules", None)
+
+    privileged_repo_data = {
+        base_repos[0]["url"]: {
+            "directCollaborators": {"totalCount": 0},
+            "outsideCollaborators": {"totalCount": 0},
+            "branchProtectionRules": {"nodes": []},
+        },
+        "https://github.com/simpsoncorp/non_matching_repo": {
+            "directCollaborators": {"totalCount": 99},
+            "outsideCollaborators": {"totalCount": 99},
+            "branchProtectionRules": {"nodes": []},
+        },
+    }
+
+    merged_repos, merged_repo_count, missing_repo_count = (
+        _merge_repos_with_privileged_details(base_repos, privileged_repo_data)
+    )
+
+    assert merged_repo_count == 1
+    assert missing_repo_count == 1
+    assert merged_repos[0]["directCollaborators"] == {"totalCount": 0}
+    assert merged_repos[0]["outsideCollaborators"] == {"totalCount": 0}
+    assert merged_repos[0]["branchProtectionRules"] == {"nodes": []}
+    assert "directCollaborators" not in merged_repos[1]
+    assert "outsideCollaborators" not in merged_repos[1]
+    assert "branchProtectionRules" not in merged_repos[1]
+    # Ensure input repos are not mutated by merge.
+    assert "directCollaborators" not in base_repos[0]
+
+
+def test_repos_need_privileged_details_when_fields_missing():
+    repo = deepcopy(GET_REPOS[0])
+    repo.pop("directCollaborators", None)
+    repo.pop("outsideCollaborators", None)
+    repo.pop("branchProtectionRules", None)
+
+    assert _repos_need_privileged_details([repo]) is True
+
+
+def test_repos_need_privileged_details_when_fields_present():
+    assert _repos_need_privileged_details([GET_REPOS[0], GET_REPOS[2]]) is False
+
+
+@patch.object(
+    cartography.intel.github.repos,
+    "get_repo_privileged_details_by_url",
+    side_effect=RuntimeError("privileged fetch failed"),
+)
+@patch.object(cartography.intel.github.repos, "get")
+def test_sync_raises_when_privileged_fetch_fails(
+    mock_get,
+    mock_get_privileged,
+):
+    repo = deepcopy(GET_REPOS[0])
+    repo.pop("directCollaborators", None)
+    repo.pop("outsideCollaborators", None)
+    repo.pop("branchProtectionRules", None)
+    mock_get.return_value = [repo]
+
+    with pytest.raises(RuntimeError, match="privileged fetch failed"):
+        cartography.intel.github.repos.sync(
+            None,
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+            "token",
+            "https://api.github.com/graphql",
+            "example-org",
+        )

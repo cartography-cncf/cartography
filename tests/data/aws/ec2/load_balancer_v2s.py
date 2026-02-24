@@ -47,6 +47,14 @@ GET_LOAD_BALANCER_V2_DATA = [
                 "TargetType": "instance",
                 "Targets": ["i-1234567890abcdef0", "i-0987654321fedcba0"],
             },
+            {
+                "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:000000000000:targetgroup/test-ip-tg/abcdef1234567890",
+                "TargetGroupName": "test-ip-tg",
+                "Protocol": "HTTP",
+                "Port": 8080,
+                "TargetType": "ip",
+                "Targets": ["10.0.0.50", "10.0.0.51"],
+            },
         ],
     },
     {

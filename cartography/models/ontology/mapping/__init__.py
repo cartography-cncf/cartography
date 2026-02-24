@@ -29,6 +29,7 @@ from cartography.models.ontology.mapping.data.loadbalancers import (
 from cartography.models.ontology.mapping.data.object_storage import (
     OBJECT_STORAGE_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.packages import PACKAGES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.publicips import (
     PUBLIC_IPS_ONTOLOGY_MAPPING,
 )
@@ -43,6 +44,7 @@ from cartography.models.ontology.mapping.data.useraccounts import (
 from cartography.models.ontology.mapping.data.users import USERS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
+from cartography.models.ontology.package import PackageSchema
 from cartography.models.ontology.publicip import PublicIPSchema
 from cartography.models.ontology.user import UserSchema
 
@@ -54,6 +56,7 @@ logger = logging.getLogger(__name__)
 ONTOLOGY_NODES_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "users": USERS_ONTOLOGY_MAPPING,
     "devices": DEVICES_ONTOLOGY_MAPPING,
+    "packages": PACKAGES_ONTOLOGY_MAPPING,
     "publicips": PUBLIC_IPS_ONTOLOGY_MAPPING,
 }
 
@@ -79,6 +82,7 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {
     "users": UserSchema,
     "devices": DeviceSchema,
+    "packages": PackageSchema,
     "publicips": PublicIPSchema,
 }
 

@@ -16,6 +16,9 @@ from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import fetch_registry_blob
 from cartography.intel.gitlab.util import fetch_registry_manifest
 from cartography.intel.gitlab.util import get_paginated
+from cartography.models.gitlab.container_image_layers import (
+    GitLabContainerImageLayerSchema,
+)
 from cartography.models.gitlab.container_images import GitLabContainerImageSchema
 from cartography.util import timeit
 
@@ -277,11 +280,18 @@ def transform_container_images(
         # Extract architecture, os, variant and layer diff IDs from config blob (for regular images)
         config = manifest.get("_config", {})
 
-        # Extract layer diff IDs from rootfs (used for Dockerfile matching)
+        # Extract layer diff IDs from rootfs (used for Dockerfile matching and layer relationships)
         layer_diff_ids = None
+        head_layer_diff_id = None
+        tail_layer_diff_id = None
         if not is_manifest_list:
             rootfs = config.get("rootfs", {})
-            layer_diff_ids = rootfs.get("diff_ids")
+            diff_ids = rootfs.get("diff_ids")
+            # Only set if there are actual layers, otherwise keep as None to skip relationship matching
+            if diff_ids and isinstance(diff_ids, list) and len(diff_ids) > 0:
+                layer_diff_ids = diff_ids
+                head_layer_diff_id = diff_ids[0]  # First layer
+                tail_layer_diff_id = diff_ids[-1]  # Last layer
 
         # Build URI from registry URL and repository name (e.g., registry.gitlab.com/group/project)
         registry_url = manifest.get("_registry_url", "")
@@ -306,11 +316,113 @@ def transform_container_images(
                 "variant": config.get("variant"),
                 "child_image_digests": child_image_digests,
                 "layer_diff_ids": layer_diff_ids,
+                "head_layer_diff_id": head_layer_diff_id,
+                "tail_layer_diff_id": tail_layer_diff_id,
             }
         )
 
     logger.info(f"Transformed {len(transformed)} container images")
     return transformed
+
+
+def transform_container_image_layers(
+    raw_manifests: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Transform raw manifest data into layer nodes with linked list structure.
+    Extracts layers from regular images (not manifest lists) and creates:
+    - NEXT relationships between consecutive layers (linked list)
+    - HEAD relationships from first layer to images
+    - TAIL relationships from last layer to images
+
+    This follows the ECR pattern for queryable layer ordering.
+    Layers are keyed by diff_id (uncompressed) for cross-provider deduplication.
+    """
+    layers_by_diff_id: dict[str, dict[str, Any]] = {}
+    skipped_layers_count = 0
+
+    for manifest in raw_manifests:
+        media_type = manifest.get("mediaType")
+        is_manifest_list = media_type in MANIFEST_LIST_MEDIA_TYPES
+
+        # Skip manifest lists - they don't have layers
+        if is_manifest_list:
+            continue
+
+        image_digest = manifest.get("_digest")
+        layers = manifest.get("layers", [])
+        config = manifest.get("_config", {})
+        diff_ids_raw = config.get("rootfs", {}).get("diff_ids", [])
+
+        # Ensure diff_ids is a list for type checking
+        diff_ids: list[Any] = diff_ids_raw if isinstance(diff_ids_raw, list) else []
+
+        # Process each layer in the chain
+        for i, layer in enumerate(layers):
+            layer_digest = layer.get("digest")
+            if not layer_digest:
+                logger.warning(
+                    f"Skipping layer at index {i} in image {image_digest}: missing compressed digest"
+                )
+                skipped_layers_count += 1
+                continue
+
+            # Get diff_id from config (uncompressed layer ID)
+            # diff_id is required for cross-provider deduplication
+            diff_id = diff_ids[i] if i < len(diff_ids) else None
+            if not diff_id:
+                # Type narrowing for mypy
+                layer_digest_str = str(layer_digest) if layer_digest else "unknown"
+                image_digest_str = str(image_digest) if image_digest else "unknown"
+                logger.warning(
+                    f"Skipping layer {layer_digest_str[:16]}... at index {i} in image {image_digest_str[:16]}...: "
+                    f"missing diff_id (config has {len(diff_ids)} diff_ids but manifest has {len(layers)} layers)"
+                )
+                skipped_layers_count += 1
+                continue
+
+            # Get or create layer entry keyed by diff_id for cross-provider deduplication
+            if diff_id not in layers_by_diff_id:
+                layers_by_diff_id[diff_id] = {
+                    "diff_id": diff_id,
+                    "digest": layer_digest,
+                    "media_type": layer.get("mediaType"),
+                    "size": layer.get("size"),
+                    "next_diff_ids": set(),
+                }
+
+            layer_entry = layers_by_diff_id[diff_id]
+
+            # Add NEXT relationship if not the last layer
+            if i < len(layers) - 1:
+                next_diff_id = diff_ids[i + 1] if i + 1 < len(diff_ids) else None
+                if next_diff_id:
+                    layer_entry["next_diff_ids"].add(next_diff_id)
+
+    # Convert sets to lists for Neo4j ingestion
+    all_layers = []
+    for layer in layers_by_diff_id.values():
+        layer_dict: dict[str, Any] = {
+            "diff_id": layer["diff_id"],
+            "digest": layer["digest"],
+            "media_type": layer["media_type"],
+            "size": layer["size"],
+        }
+        if layer["next_diff_ids"]:
+            layer_dict["next_diff_ids"] = list(layer["next_diff_ids"])
+        all_layers.append(layer_dict)
+
+    logger.info(
+        f"Transformed {len(all_layers)} container image layers with linked list structure"
+    )
+
+    if skipped_layers_count > 0:
+        logger.warning(
+            f"Skipped {skipped_layers_count} layer(s) due to missing digest or diff_id. "
+            f"These layers will not appear in the graph. Check config blob availability."
+        )
+
+    return all_layers
 
 
 @timeit
@@ -346,6 +458,38 @@ def cleanup_container_images(
 
 
 @timeit
+def load_container_image_layers(
+    neo4j_session: neo4j.Session,
+    layers: list[dict[str, Any]],
+    org_url: str,
+    update_tag: int,
+) -> None:
+    """
+    Load container image layers into the graph.
+    """
+    load(
+        neo4j_session,
+        GitLabContainerImageLayerSchema(),
+        layers,
+        lastupdated=update_tag,
+        org_url=org_url,
+    )
+
+
+@timeit
+def cleanup_container_image_layers(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """
+    Clean up stale container image layers using the GraphJob framework.
+    """
+    GraphJob.from_node_schema(
+        GitLabContainerImageLayerSchema(), common_job_parameters
+    ).run(neo4j_session)
+
+
+@timeit
 def sync_container_images(
     neo4j_session: neo4j.Session,
     gitlab_url: str,
@@ -363,7 +507,17 @@ def sync_container_images(
     raw_manifests, manifest_lists = get_container_images(
         gitlab_url, token, repositories
     )
+
+    # Transform images and layers
     images = transform_container_images(raw_manifests)
+    layers = transform_container_image_layers(raw_manifests)
+
+    # Load layers FIRST so they exist when image relationships are created
+    load_container_image_layers(neo4j_session, layers, org_url, update_tag)
+    cleanup_container_image_layers(neo4j_session, common_job_parameters)
+
+    # Load images (creates HAS_LAYER relationships to existing layer nodes)
     load_container_images(neo4j_session, images, org_url, update_tag)
     cleanup_container_images(neo4j_session, common_job_parameters)
+
     return raw_manifests, manifest_lists
