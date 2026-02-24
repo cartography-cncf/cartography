@@ -155,27 +155,15 @@ def _sync_one_account(
         elif func_name in {"ecr", "s3"}:
             if aws_async_enabled:
                 RESOURCE_FUNCTIONS[func_name](
-                    neo4j_session,
-                    boto3_session,
-                    regions,
-                    current_aws_account_id,
-                    update_tag,
-                    common_job_parameters,
-                    aioboto3_session,
+                    **sync_args,
+                    aioboto3_session=aioboto3_session,
                 )
             else:
                 logger.info(
                     "AWS async disabled by CARTOGRAPHY_AWS_ASYNC_ENABLED; running %s in sync-compatible mode.",
                     func_name,
                 )
-                RESOURCE_FUNCTIONS[func_name](
-                    neo4j_session,
-                    boto3_session,
-                    regions,
-                    current_aws_account_id,
-                    update_tag,
-                    common_job_parameters,
-                )
+                RESOURCE_FUNCTIONS[func_name](**sync_args)
         elif func_name in ["permission_relationships", "resourcegroupstaggingapi"]:
             continue
         else:

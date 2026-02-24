@@ -320,6 +320,11 @@ def test_sync_one_account_all_sync_functions(
                 TEST_UPDATE_TAG,
                 GRAPH_JOB_PARAMETERS,
             )
+        elif sync_name in {"ecr", "s3"}:
+            AWS_RESOURCE_FUNCTIONS_STUB[sync_name].assert_called_with(
+                **aws_sync_test_kwargs,
+                aioboto3_session=mock_aioboto3_session(),
+            )
         else:
             AWS_RESOURCE_FUNCTIONS_STUB[sync_name].assert_called_with(
                 **aws_sync_test_kwargs,

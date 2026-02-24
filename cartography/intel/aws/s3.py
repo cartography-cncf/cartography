@@ -10,7 +10,6 @@ from typing import Generator
 from typing import List
 from typing import Optional
 from typing import Tuple
-from typing import Union
 
 import aioboto3
 import boto3
@@ -67,17 +66,7 @@ class _FetchFailed:
 FETCH_FAILED = _FetchFailed()
 
 # Type alias for values that may be FETCH_FAILED
-MaybeFailed = Union[Optional[Dict], _FetchFailed]
-BucketDetailTuple = Tuple[
-    str,
-    MaybeFailed,
-    MaybeFailed,
-    MaybeFailed,
-    MaybeFailed,
-    MaybeFailed,
-    MaybeFailed,
-    MaybeFailed,
-]
+MaybeFailed = dict[str, Any] | None | _FetchFailed
 
 
 @dataclass(frozen=True)
@@ -92,7 +81,7 @@ class BucketDetailRecord:
     bucket_logging: MaybeFailed
 
 
-BucketDetails = List[BucketDetailRecord]
+BucketDetails = list[BucketDetailRecord]
 
 
 @timeit
@@ -121,13 +110,13 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
 async def _get_s3_bucket_list_async(
     aioboto3_session: aioboto3.Session,
     tuning: AwsAsyncTuning,
-) -> Dict[str, List[Dict[str, Any]]]:
+) -> dict[str, list[dict[str, Any]]]:
     aio_config = build_aio_config(tuning)
     async with aioboto3_session.client("s3", config=aio_config) as client:
         buckets = await client.list_buckets()
         semaphore = asyncio.Semaphore(tuning.max_concurrent_requests)
 
-        async def _populate_region(bucket: Dict[str, Any]) -> None:
+        async def _populate_region(bucket: dict[str, Any]) -> None:
             async with semaphore:
                 try:
                     response = await client.get_bucket_location(Bucket=bucket["Name"])
@@ -149,7 +138,7 @@ async def _get_s3_bucket_list_async(
         return buckets
 
 
-async def _get_policy_async(bucket: Dict, client: Any) -> MaybeFailed:
+async def _get_policy_async(bucket: dict[str, Any], client: Any) -> MaybeFailed:
     try:
         return await client.get_bucket_policy(Bucket=bucket["Name"])
     except ClientError as e:
@@ -165,7 +154,7 @@ async def _get_policy_async(bucket: Dict, client: Any) -> MaybeFailed:
         return FETCH_FAILED
 
 
-async def _get_acl_async(bucket: Dict, client: Any) -> MaybeFailed:
+async def _get_acl_async(bucket: dict[str, Any], client: Any) -> MaybeFailed:
     try:
         return await client.get_bucket_acl(Bucket=bucket["Name"])
     except ClientError as e:
@@ -181,7 +170,7 @@ async def _get_acl_async(bucket: Dict, client: Any) -> MaybeFailed:
         return FETCH_FAILED
 
 
-async def _get_encryption_async(bucket: Dict, client: Any) -> MaybeFailed:
+async def _get_encryption_async(bucket: dict[str, Any], client: Any) -> MaybeFailed:
     try:
         return await client.get_bucket_encryption(Bucket=bucket["Name"])
     except ClientError as e:
@@ -197,7 +186,7 @@ async def _get_encryption_async(bucket: Dict, client: Any) -> MaybeFailed:
         return FETCH_FAILED
 
 
-async def _get_versioning_async(bucket: Dict, client: Any) -> MaybeFailed:
+async def _get_versioning_async(bucket: dict[str, Any], client: Any) -> MaybeFailed:
     try:
         return await client.get_bucket_versioning(Bucket=bucket["Name"])
     except ClientError as e:
@@ -213,7 +202,9 @@ async def _get_versioning_async(bucket: Dict, client: Any) -> MaybeFailed:
         return FETCH_FAILED
 
 
-async def _get_public_access_block_async(bucket: Dict, client: Any) -> MaybeFailed:
+async def _get_public_access_block_async(
+    bucket: dict[str, Any], client: Any
+) -> MaybeFailed:
     try:
         return await client.get_public_access_block(Bucket=bucket["Name"])
     except ClientError as e:
@@ -230,7 +221,7 @@ async def _get_public_access_block_async(bucket: Dict, client: Any) -> MaybeFail
 
 
 async def _get_bucket_ownership_controls_async(
-    bucket: Dict, client: Any
+    bucket: dict[str, Any], client: Any
 ) -> MaybeFailed:
     try:
         return await client.get_bucket_ownership_controls(Bucket=bucket["Name"])
@@ -247,7 +238,7 @@ async def _get_bucket_ownership_controls_async(
         return FETCH_FAILED
 
 
-async def _get_bucket_logging_async(bucket: Dict, client: Any) -> MaybeFailed:
+async def _get_bucket_logging_async(bucket: dict[str, Any], client: Any) -> MaybeFailed:
     try:
         return await client.get_bucket_logging(Bucket=bucket["Name"])
     except ClientError as e:
@@ -265,14 +256,14 @@ async def _get_bucket_logging_async(bucket: Dict, client: Any) -> MaybeFailed:
 
 async def _get_s3_bucket_details_async(
     aioboto3_session: aioboto3.Session,
-    bucket_data: Dict,
+    bucket_data: dict[str, list[dict[str, Any]]],
     tuning: AwsAsyncTuning,
 ) -> BucketDetails:
     aio_config = build_aio_config(tuning)
     regions = {bucket.get("Region") for bucket in bucket_data["Buckets"]}
     semaphore = asyncio.Semaphore(tuning.max_concurrent_buckets)
     async with AsyncExitStack() as stack:
-        clients_by_region: Dict[Any, Any] = {}
+        clients_by_region: dict[str | None, Any] = {}
         for region in regions:
             clients_by_region[region] = await stack.enter_async_context(
                 aioboto3_session.client(
@@ -283,7 +274,7 @@ async def _get_s3_bucket_details_async(
             )
 
         async def _get_bucket_detail(
-            bucket: Dict[str, Any],
+            bucket: dict[str, Any],
         ) -> BucketDetailRecord:
             async with semaphore:
                 client = clients_by_region[bucket["Region"]]
@@ -327,7 +318,7 @@ async def _get_s3_bucket_details_async(
 @timeit
 def get_s3_bucket_details(
     boto3_session: boto3.session.Session,
-    bucket_data: Dict,
+    bucket_data: dict[str, list[dict[str, Any]]],
 ) -> Generator[BucketDetailRecord, None, None]:
     """
     Iterates over all S3 buckets. Yields bucket name (string), S3 bucket policies (JSON), ACLs (JSON),
@@ -340,9 +331,9 @@ def get_s3_bucket_details(
     - FETCH_FAILED indicating the fetch failed and existing data should be preserved
     """
     # a local store for s3 clients so that we may re-use clients for an AWS region
-    s3_regional_clients: Dict[Any, Any] = {}
+    s3_regional_clients: dict[str | None, Any] = {}
 
-    async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetailRecord:
+    async def _get_bucket_detail(bucket: dict[str, Any]) -> BucketDetailRecord:
         # Note: bucket['Region'] is sometimes None because
         # client.get_bucket_location() does not return a location constraint for buckets
         # in us-east-1 region
@@ -637,7 +628,7 @@ def _load_s3_policy_statements(
 
 def _merge_bucket_details(
     bucket_data: Dict,
-    s3_details_iter: Generator[Union[BucketDetailRecord, BucketDetailTuple], Any, Any],
+    s3_details_iter: Generator[BucketDetailRecord, Any, Any],
     aws_account_id: str,
 ) -> Dict[str, Any]:
     """
@@ -1500,18 +1491,20 @@ def _sync_s3_notifications(
 
 async def _sync_s3_notifications_async(
     aioboto3_session: aioboto3.Session,
-    bucket_data: Dict,
+    bucket_data: dict[str, list[dict[str, Any]]],
     update_tag: int,
     neo4j_session: neo4j.Session,
     tuning: AwsAsyncTuning,
 ) -> None:
     logger.info("Syncing S3 bucket notifications")
     aio_config = build_aio_config(tuning)
-    notifications: List[Dict[str, Any]] = []
+    notifications: list[dict[str, Any]] = []
     semaphore = asyncio.Semaphore(tuning.max_concurrent_buckets)
     async with aioboto3_session.client("s3", config=aio_config) as client:
 
-        async def _fetch(bucket: Dict[str, Any]) -> List[Dict]:
+        async def _fetch(
+            bucket: dict[str, Any],
+        ) -> list[dict[str, Any]] | _FetchFailed:
             async with semaphore:
                 try:
                     notification_config = (
@@ -1528,7 +1521,7 @@ async def _sync_s3_notifications_async(
                         bucket["Name"],
                         e,
                     )
-                    return []
+                    return FETCH_FAILED
 
         for i in range(0, len(bucket_data["Buckets"]), tuning.max_concurrent_buckets):
             batch = bucket_data["Buckets"][i : i + tuning.max_concurrent_buckets]
@@ -1536,8 +1529,10 @@ async def _sync_s3_notifications_async(
                 *[_fetch(bucket) for bucket in batch]
             )
             for notification_set in batch_notifications:
+                if notification_set is FETCH_FAILED:
+                    continue
                 notifications.extend(notification_set)
-    logger.info("Loading %d S3 bucket notifications into Neo4j", len(notifications))
+    logger.debug("Loading %d S3 bucket notifications into Neo4j", len(notifications))
     _load_s3_notifications(neo4j_session, notifications, update_tag)
 
 
