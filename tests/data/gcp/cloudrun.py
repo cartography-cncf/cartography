@@ -4,6 +4,7 @@ MOCK_SERVICES = {
             "name": "projects/test-project/locations/us-central1/services/test-service",
             "description": "Test Cloud Run service",
             "uri": "https://test-service-abc123-uc.a.run.app",
+            "ingress": "INGRESS_TRAFFIC_ALL",
             "latestReadyRevision": "projects/test-project/locations/us-central1/services/test-service/revisions/test-service-00001-abc",
         },
     ],
