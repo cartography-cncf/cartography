@@ -113,6 +113,48 @@ def gcp_api_execute_with_retry(request: Any) -> Any:
     return _gcp_execute(request)
 
 
+def get_error_reason(http_error: HttpError) -> str:
+    """
+    Extract the `reason` field from a googleapiclient HttpError response body.
+    """
+    try:
+        data = json.loads(http_error.content.decode("utf-8"))
+        if isinstance(data, dict):
+            return data["error"]["errors"][0]["reason"]
+        return data[0]["error"]["errors"]["reason"]
+    except (UnicodeDecodeError, ValueError, KeyError, IndexError, TypeError):
+        logger.warning("HttpError: %s", http_error)
+        return ""
+
+
+def parse_compute_full_uri_to_partial_uri(
+    full_uri: str | None,
+    version: str | None = None,
+) -> str | None:
+    """
+    Convert a Compute API full URI to Cartography's partial URI form.
+
+    If `version` is not provided, auto-detect v1/beta/alpha paths.
+    """
+    if not full_uri:
+        return None
+    if full_uri.startswith("projects/"):
+        return full_uri
+
+    versions = [version] if version else ["v1", "beta", "alpha"]
+    for v in versions:
+        marker = f"compute/{v}/"
+        _, sep, partial = full_uri.partition(marker)
+        if sep:
+            return partial
+
+    logger.debug(
+        "Unexpected Compute URI format; keeping original value: %s",
+        full_uri,
+    )
+    return full_uri
+
+
 def determine_role_type_and_scope(role_name: str) -> tuple[str, str]:
     """
     Determine the role type and scope based on the role name.

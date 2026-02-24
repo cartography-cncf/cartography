@@ -3,7 +3,6 @@
 # https://cloud.google.com/compute/docs/reference/rest/v1/regionInstanceGroups
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -14,26 +13,12 @@ from googleapiclient.errors import HttpError
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import get_error_reason
+from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.models.gcp.compute.instance_group import GCPInstanceGroupSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-def _get_error_reason(http_error: HttpError) -> str:
-    """
-    Helper to extract the error reason from a googleapiclient HttpError.
-    """
-    try:
-        data = json.loads(http_error.content.decode("utf-8"))
-        if isinstance(data, dict):
-            reason = data["error"]["errors"][0]["reason"]
-        else:
-            reason = data[0]["error"]["errors"]["reason"]
-    except (UnicodeDecodeError, ValueError, KeyError):
-        logger.warning(f"HttpError: {http_error}")
-        return ""
-    return reason
 
 
 def _get_instance_group_members(
@@ -76,7 +61,7 @@ def _get_instance_group_members(
         try:
             res = gcp_api_execute_with_retry(req)
         except HttpError as e:
-            reason = _get_error_reason(e)
+            reason = get_error_reason(e)
             if reason in {"backendError", "rateLimitExceeded", "internalError"}:
                 logger.warning(
                     "Transient error listing members for instance group %s: %s; skipping.",
@@ -113,7 +98,7 @@ def get_gcp_zonal_instance_groups(
             try:
                 res = gcp_api_execute_with_retry(req)
             except HttpError as e:
-                reason = _get_error_reason(e)
+                reason = get_error_reason(e)
                 if reason in {"backendError", "rateLimitExceeded", "internalError"}:
                     logger.warning(
                         "Transient error listing instance groups for project %s zone %s: %s; skipping.",
@@ -170,7 +155,7 @@ def get_gcp_regional_instance_groups(
             try:
                 res = gcp_api_execute_with_retry(req)
             except HttpError as e:
-                reason = _get_error_reason(e)
+                reason = get_error_reason(e)
                 if reason == "invalid":
                     logger.warning(
                         "GCP: Invalid region %s for project %s; skipping instance groups sync for this region.",
@@ -239,17 +224,17 @@ def transform_gcp_instance_groups(
 
             network = ig.get("network")
             instance_group["network_partial_uri"] = (
-                network.split("compute/v1/")[1] if network else None
+                parse_compute_full_uri_to_partial_uri(network)
             )
 
             subnetwork = ig.get("subnetwork")
             instance_group["subnetwork_partial_uri"] = (
-                subnetwork.split("compute/v1/")[1] if subnetwork else None
+                parse_compute_full_uri_to_partial_uri(subnetwork)
             )
 
             # Member instances from _members (populated by get functions)
             instance_group["member_instance_partial_uris"] = [
-                member_url.split("compute/v1/")[1]
+                parse_compute_full_uri_to_partial_uri(member_url)
                 for m in ig.get("_members", [])
                 if (member_url := m.get("instance"))
             ]
