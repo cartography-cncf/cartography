@@ -257,14 +257,21 @@ def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
     for role in role_list:
         name = role["RoleName"]
         role_arn = role["Arn"]
-        resource_role = resource_client.Role(name)
-        role_tags = resource_role.tags
+        try:
+            resource_role = resource_client.Role(name)
+            role_tags = resource_role.tags
+        except resource_client.meta.client.exceptions.NoSuchEntityException:
+            logger.warning(
+                "resource_client.Role('%s').tags failed with NoSuchEntityException; skipping.",
+                name,
+            )
+            continue
         if not role_tags:
             continue
 
         tag_data = {
             "ResourceARN": role_arn,
-            "Tags": resource_role.tags,
+            "Tags": role_tags,
         }
         role_tag_data.append(tag_data)
 
@@ -280,8 +287,15 @@ def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
     for user in user_list:
         name = user["UserName"]
         user_arn = user["Arn"]
-        resource_user = resource_client.User(name)
-        user_tags = resource_user.tags
+        try:
+            resource_user = resource_client.User(name)
+            user_tags = resource_user.tags
+        except resource_client.meta.client.exceptions.NoSuchEntityException:
+            logger.warning(
+                "resource_client.User('%s').tags failed with NoSuchEntityException; skipping.",
+                name,
+            )
+            continue
         if not user_tags:
             continue
 
@@ -292,29 +306,6 @@ def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
         user_tag_data.append(tag_data)
 
     return user_tag_data
-
-
-@timeit
-@aws_handle_regions
-def get_group_tags(boto3_session: boto3.Session) -> List[Dict]:
-    group_list = get_group_list_data(boto3_session)["Groups"]
-    resource_client = boto3_session.resource("iam")
-    group_tag_data: List[Dict] = []
-    for group in group_list:
-        name = group["GroupName"]
-        group_arn = group["Arn"]
-        resource_group = resource_client.Group(name)
-        group_tags = resource_group.tags
-        if not group_tags:
-            continue
-
-        tag_data = {
-            "ResourceARN": group_arn,
-            "Tags": group_tags,
-        }
-        group_tag_data.append(tag_data)
-
-    return group_tag_data
 
 
 @timeit
