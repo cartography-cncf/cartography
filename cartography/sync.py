@@ -45,8 +45,8 @@ import cartography.intel.snipeit
 import cartography.intel.spacelift
 import cartography.intel.syft
 import cartography.intel.tailscale
-import cartography.intel.ubuntu
 import cartography.intel.trivy
+import cartography.intel.ubuntu
 import cartography.intel.workday
 from cartography.config import Config
 from cartography.stats import set_stats_client

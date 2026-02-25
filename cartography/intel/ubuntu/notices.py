@@ -38,7 +38,7 @@ def get(api_url: str) -> list[dict[str, Any]]:
         logger.debug("Fetching Ubuntu Security Notices at offset %d", offset)
         response = session.get(
             f"{api_url}/security/notices.json",
-            params={"limit": _PAGE_SIZE, "offset": offset, "order": "oldest"},
+            params={"limit": str(_PAGE_SIZE), "offset": str(offset), "order": "oldest"},
             timeout=_TIMEOUT,
         )
         response.raise_for_status()

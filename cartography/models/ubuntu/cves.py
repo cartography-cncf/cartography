@@ -41,13 +41,16 @@ class UbuntuCVEToUbuntuCVEFeedRelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class UbuntuCVEToUbuntuCVEFeedRel(CartographyRelSchema):
     """(:UbuntuCVE)<-[:RESOURCE]-(:UbuntuCVEFeed)"""
+
     target_node_label: str = "UbuntuCVEFeed"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("FEED_ID", set_in_kwargs=True)},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: UbuntuCVEToUbuntuCVEFeedRelProperties = UbuntuCVEToUbuntuCVEFeedRelProperties()
+    properties: UbuntuCVEToUbuntuCVEFeedRelProperties = (
+        UbuntuCVEToUbuntuCVEFeedRelProperties()
+    )
 
 
 @dataclass(frozen=True)
@@ -55,4 +58,6 @@ class UbuntuCVESchema(CartographyNodeSchema):
     label: str = "UbuntuCVE"
     properties: UbuntuCVENodeProperties = UbuntuCVENodeProperties()
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["CVE"])
-    sub_resource_relationship: UbuntuCVEToUbuntuCVEFeedRel = UbuntuCVEToUbuntuCVEFeedRel()
+    sub_resource_relationship: UbuntuCVEToUbuntuCVEFeedRel = (
+        UbuntuCVEToUbuntuCVEFeedRel()
+    )

@@ -32,19 +32,24 @@ class UbuntuNoticeToUbuntuCVERelProperties(CartographyRelProperties):
 @dataclass(frozen=True)
 class UbuntuNoticeToUbuntuCVERel(CartographyRelSchema):
     """(:UbuntuSecurityNotice)-[:ADDRESSES]->(:UbuntuCVE)"""
+
     target_node_label: str = "UbuntuCVE"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("cves_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ADDRESSES"
-    properties: UbuntuNoticeToUbuntuCVERelProperties = UbuntuNoticeToUbuntuCVERelProperties()
+    properties: UbuntuNoticeToUbuntuCVERelProperties = (
+        UbuntuNoticeToUbuntuCVERelProperties()
+    )
 
 
 @dataclass(frozen=True)
 class UbuntuSecurityNoticeSchema(CartographyNodeSchema):
     label: str = "UbuntuSecurityNotice"
-    properties: UbuntuSecurityNoticeNodeProperties = UbuntuSecurityNoticeNodeProperties()
+    properties: UbuntuSecurityNoticeNodeProperties = (
+        UbuntuSecurityNoticeNodeProperties()
+    )
     sub_resource_relationship: None = None
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(

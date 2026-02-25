@@ -31,7 +31,10 @@ def test_sync_ubuntu_cves(mock_api, neo4j_session):
         ("CVE-2024-5678", "medium", 5.3),
         ("CVE-2024-9999", "low", 3.7),
     }
-    assert check_nodes(neo4j_session, "UbuntuCVE", ["id", "priority", "cvss3"]) == expected_nodes
+    assert (
+        check_nodes(neo4j_session, "UbuntuCVE", ["id", "priority", "cvss3"])
+        == expected_nodes
+    )
 
     # Assert CVE extra label
     expected_cve_label = {
