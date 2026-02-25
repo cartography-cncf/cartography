@@ -185,9 +185,6 @@ def _transform_branches(repo_url: str, repo: Dict, transformed_branches: List[Di
     default_branch = repo.get("defaultBranchRef", {}).get("name") if repo.get("defaultBranchRef") else None
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
     
-    total_branches = len(repo["refs"]["edges"])
-    filtered_count = 0
-    
     for edge in repo["refs"]["edges"]:
         node = edge["node"]
         branch_name = node["name"]
@@ -206,20 +203,8 @@ def _transform_branches(repo_url: str, repo: Dict, transformed_branches: List[Di
         
         # Filter by activity date
         if pushed_date_str:
-            try:
-                pushed_date = datetime.fromisoformat(pushed_date_str.replace('Z', '+00:00'))
-                if pushed_date >= cutoff_date:
-                    transformed_branches.append({
-                        "repo_id": repo_url,
-                        "branch_id": f"{repo_url}:{node['id']}",
-                        "name": branch_name,
-                        "last_commit_timestamp": pushed_date_str,
-                    })
-                else:
-                    filtered_count += 1
-            except (ValueError, AttributeError):
-                # If date parsing fails, include the branch
-                logger.warning(f"Failed to parse pushedDate for branch {branch_name} in {repo_url}")
+            pushed_date = datetime.fromisoformat(pushed_date_str.replace('Z', '+00:00'))
+            if pushed_date >= cutoff_date:
                 transformed_branches.append({
                     "repo_id": repo_url,
                     "branch_id": f"{repo_url}:{node['id']}",
@@ -234,12 +219,6 @@ def _transform_branches(repo_url: str, repo: Dict, transformed_branches: List[Di
                 "name": branch_name,
                 "last_commit_timestamp": pushed_date_str,
             })
-    
-    if filtered_count > 0:
-        logger.info(
-            f"GitHub repo {repo.get('name')}: Filtered {filtered_count} inactive branches "
-            f"out of {total_branches} total branches"
-        )
 
 
 def _create_default_branch_id(repo_url: str, default_branch_ref_id: str) -> str:

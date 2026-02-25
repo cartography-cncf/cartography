@@ -101,9 +101,6 @@ def transform_branches(branches: List[Dict], repo_id: str, default_branch: str =
     transformed_branches = []
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
     
-    total_branches = len(branches)
-    filtered_count = 0
-    
     for branch in branches:
         branch_name = branch["name"]
         target = branch.get("target", {})
@@ -121,20 +118,8 @@ def transform_branches(branches: List[Dict], repo_id: str, default_branch: str =
         
         # Filter by activity date
         if date_str:
-            try:
-                branch_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                if branch_date >= cutoff_date:
-                    transformed_branches.append({
-                        "repo_id": repo_id,
-                        "id": f"{repo_id}:{branch_name}",
-                        "name": branch_name,
-                        "date": date_str,
-                    })
-                else:
-                    filtered_count += 1
-            except (ValueError, AttributeError):
-                # If date parsing fails, include the branch
-                logger.warning(f"Failed to parse date for branch {branch_name} in repo {repo_id}")
+            branch_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            if branch_date >= cutoff_date:
                 transformed_branches.append({
                     "repo_id": repo_id,
                     "id": f"{repo_id}:{branch_name}",
@@ -149,12 +134,6 @@ def transform_branches(branches: List[Dict], repo_id: str, default_branch: str =
                 "name": branch_name,
                 "date": date_str,
             })
-    
-    if filtered_count > 0:
-        logger.info(
-            f"Bitbucket repo {repo_id}: Filtered {filtered_count} inactive branches "
-            f"out of {total_branches} total branches"
-        )
     
     return transformed_branches
 
