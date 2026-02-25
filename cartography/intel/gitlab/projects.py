@@ -1,5 +1,8 @@
 import logging
 import time
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from typing import Any
 from typing import Dict
 from typing import List
@@ -60,16 +63,73 @@ def transform_projects_data(projects: List[Dict]) -> List[Dict]:
     return projects
 
 
-def transform_branches_data(branches: List[Dict], project_id: int) -> List[Dict]:
+def transform_branches_data(branches: List[Dict], project_id: int, project_path: str, default_branch: str = None) -> List[Dict]:
+    """
+    Transform branch data and filter to include only:
+    - Branches active in the last 90 days
+    - Default branch (always included)
+    """
     transformed_branches = []
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
+    
+    total_branches = len(branches)
+    filtered_count = 0
+    
     for branch in branches:
+        branch_name = branch["name"]
         commit = branch.get("commit", {})
-        transformed_branches.append({
-            "project_id": project_id,
-            "id": f"{project_id}:{branch['name']}",
-            "name": branch["name"],
-            "committed_date": commit.get("committed_date"),
-        })
+        committed_date_str = commit.get("committed_date")
+        
+        # Always include default branch
+        if branch_name == default_branch:
+            transformed_branches.append({
+                "project_id": project_id,
+                "project_path": project_path,
+                "id": f"{project_id}:{branch_name}",
+                "name": branch_name,
+                "committed_date": committed_date_str,
+            })
+            continue
+        
+        # Filter by activity date
+        if committed_date_str:
+            try:
+                committed_date = datetime.fromisoformat(committed_date_str.replace('Z', '+00:00'))
+                if committed_date >= cutoff_date:
+                    transformed_branches.append({
+                        "project_id": project_id,
+                        "project_path": project_path,
+                        "id": f"{project_id}:{branch_name}",
+                        "name": branch_name,
+                        "committed_date": committed_date_str,
+                    })
+                else:
+                    filtered_count += 1
+            except (ValueError, AttributeError):
+                # If date parsing fails, include the branch
+                logger.warning(f"Failed to parse committed_date for branch {branch_name} in project {project_id}")
+                transformed_branches.append({
+                    "project_id": project_id,
+                    "project_path": project_path,
+                    "id": f"{project_id}:{branch_name}",
+                    "name": branch_name,
+                    "committed_date": committed_date_str,
+                })
+        else:
+            transformed_branches.append({
+                "project_id": project_id,
+                "project_path": project_path,
+                "id": f"{project_id}:{branch_name}",
+                "name": branch_name,
+                "committed_date": committed_date_str,
+            })
+    
+    if filtered_count > 0:
+        logger.info(
+            f"GitLab project {project_path}: Filtered {filtered_count} inactive branches "
+            f"out of {total_branches} total branches"
+        )
+    
     return transformed_branches
 
 
@@ -104,25 +164,33 @@ def _load_branches_data(
     branches_data: List[Dict],
     common_job_parameters: Dict,
 ) -> None:
+    logger.info(f"Loading {len(branches_data)} branches to Neo4j")
     ingest_branches = """
     UNWIND $branchesData as branch
     MERGE (br:GitLabBranch{id:branch.id})
     ON CREATE SET br.firstseen = timestamp()
     SET br.name = branch.name,
     br.committed_date = branch.committed_date,
+    br.projectid = branch.project_id,
     br.lastupdated = $UpdateTag
 
     WITH br, branch
-    MATCH (project:GitLabProject{id:branch.project_id})
+    MATCH (project:GitLabProject{path_with_namespace:branch.project_path})
     MERGE (project)-[r:BRANCH]->(br)
     ON CREATE SET r.firstseen = timestamp()
     SET r.lastupdated = $UpdateTag
     """
 
-    tx.run(
+    result = tx.run(
         ingest_branches,
         branchesData=branches_data,
         UpdateTag=common_job_parameters["UPDATE_TAG"],
+    )
+    summary = result.consume()
+    logger.info(
+        f"Branch load complete. Nodes created: {summary.counters.nodes_created}, "
+        f"Relationships created: {summary.counters.relationships_created}, "
+        f"Properties set: {summary.counters.properties_set}"
     )
 
 
@@ -147,6 +215,7 @@ def _load_projects_data(
         pro.web_url = project.web_url,
         pro.path = project.path,
         pro.id = project.id,
+        pro.projectid = project.id,
         pro.path_with_namespace = project.path_with_namespace,
         pro.description = project.description,
         pro.name_with_namespace = project.name_with_namespace,
@@ -218,7 +287,16 @@ def sync(
     # Sync branches for each project
     for project in group_projects:
         branches = get_project_branches(hosted_domain, access_token, project["id"])
-        transformed_branches = transform_branches_data(branches, project["id"])
+        logger.info(f"Fetched {len(branches)} branches for project {project['id']} ({project.get('path_with_namespace', project['path'])})")
+        transformed_branches = transform_branches_data(
+            branches, 
+            project["id"], 
+            project.get("path_with_namespace", project["path"]),  # FIXED: Use full path with namespace
+            project.get("default_branch")
+        )
+        logger.info(f"Transformed {len(transformed_branches)} branches for project {project['id']}")
+        if transformed_branches:
+            logger.debug(f"Sample branch data: {transformed_branches[0]}")
         load_branches_data(neo4j_session, transformed_branches, common_job_parameters)
 
     cleanup(neo4j_session, common_job_parameters)
