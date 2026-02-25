@@ -43,6 +43,16 @@ def test_load_ecs_container_instances(neo4j_session, *args):
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
     )
+    # Create EC2Instance node so the IS_INSTANCE relationship can be created
+    neo4j_session.run(
+        """
+        MERGE (i:EC2Instance{id: $InstanceId})
+        ON CREATE SET i.firstseen = timestamp()
+        SET i.lastupdated = $aws_update_tag
+        """,
+        InstanceId="i-00000000000000000",
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
     data = tests.data.aws.ecs.GET_ECS_CONTAINER_INSTANCES
     cartography.intel.aws.ecs.load_ecs_container_instances(
         neo4j_session,
@@ -78,6 +88,21 @@ def test_load_ecs_container_instances(neo4j_session, *args):
         (
             CLUSTER_ARN,
             "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
+        ),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "ECSContainerInstance",
+        "id",
+        "EC2Instance",
+        "id",
+        "IS_INSTANCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
+            "i-00000000000000000",
         ),
     }
 
@@ -367,6 +392,17 @@ def test_sync_ecs_comprehensive(
         aws_update_tag=TEST_UPDATE_TAG,
     )
 
+    # Create EC2Instance node for container instance relationship
+    neo4j_session.run(
+        """
+        MERGE (i:EC2Instance{id: $InstanceId})
+        ON CREATE SET i.firstseen = timestamp()
+        SET i.lastupdated = $aws_update_tag
+        """,
+        InstanceId="i-00000000000000000",
+        aws_update_tag=TEST_UPDATE_TAG,
+    )
+
     # Create ECRImage node for the container image
     neo4j_session.run(
         """
@@ -611,7 +647,23 @@ def test_sync_ecs_comprehensive(
         ),
     }, "ECSContainerInstances to AWSAccount"
 
-    # 15. ECSServices to AWSAccount (sub-resource relationship)
+    # 15. ECSContainerInstances to EC2Instance (IS_INSTANCE relationship)
+    assert check_rels(
+        neo4j_session,
+        "ECSContainerInstance",
+        "id",
+        "EC2Instance",
+        "id",
+        "IS_INSTANCE",
+        rel_direction_right=True,
+    ) == {
+        (
+            "arn:aws:ecs:us-east-1:000000000000:container-instance/test_instance/a0000000000000000000000000000000",
+            "i-00000000000000000",
+        ),
+    }, "ECSContainerInstances to EC2Instance"
+
+    # 16. ECSServices to AWSAccount (sub-resource relationship)
     assert check_rels(
         neo4j_session,
         "AWSAccount",

@@ -257,18 +257,55 @@ def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
     for role in role_list:
         name = role["RoleName"]
         role_arn = role["Arn"]
-        resource_role = resource_client.Role(name)
-        role_tags = resource_role.tags
+        try:
+            resource_role = resource_client.Role(name)
+            role_tags = resource_role.tags
+        except resource_client.meta.client.exceptions.NoSuchEntityException:
+            logger.warning(
+                "resource_client.Role('%s').tags failed with NoSuchEntityException; skipping.",
+                name,
+            )
+            continue
         if not role_tags:
             continue
 
         tag_data = {
             "ResourceARN": role_arn,
-            "Tags": resource_role.tags,
+            "Tags": role_tags,
         }
         role_tag_data.append(tag_data)
 
     return role_tag_data
+
+
+@timeit
+@aws_handle_regions
+def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
+    user_list = get_user_list_data(boto3_session)["Users"]
+    resource_client = boto3_session.resource("iam")
+    user_tag_data: List[Dict] = []
+    for user in user_list:
+        name = user["UserName"]
+        user_arn = user["Arn"]
+        try:
+            resource_user = resource_client.User(name)
+            user_tags = resource_user.tags
+        except resource_client.meta.client.exceptions.NoSuchEntityException:
+            logger.warning(
+                "resource_client.User('%s').tags failed with NoSuchEntityException; skipping.",
+                name,
+            )
+            continue
+        if not user_tags:
+            continue
+
+        tag_data = {
+            "ResourceARN": user_arn,
+            "Tags": user_tags,
+        }
+        user_tag_data.append(tag_data)
+
+    return user_tag_data
 
 
 @timeit

@@ -27,6 +27,9 @@ MANIFEST_LIST_MEDIA_TYPES = {
 }
 
 
+REPO_BATCH_SIZE = 100
+
+
 @timeit
 @aws_handle_regions
 def get_ecr_repositories(
@@ -378,7 +381,9 @@ def _get_image_data(
 
     # Sort repositories by name to ensure consistent processing order
     sorted_repos = sorted(repositories, key=lambda x: x["repositoryName"])
-    to_synchronous(*[async_get_images(repo) for repo in sorted_repos])
+    for i in range(0, len(sorted_repos), REPO_BATCH_SIZE):
+        batch = sorted_repos[i : i + REPO_BATCH_SIZE]
+        to_synchronous(*[async_get_images(repo) for repo in batch])
 
     return image_data
 

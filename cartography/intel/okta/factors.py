@@ -16,17 +16,20 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def _create_factor_client(okta_org: str, okta_api_key: str) -> FactorsClient:
+def _create_factor_client(
+    okta_org: str, okta_api_key: str, okta_base_domain: str = "okta.com"
+) -> FactorsClient:
     """
     Create Okta FactorsClient
     :param okta_org: Okta organization name
     :param okta_api_key: Okta API Key
+    :param okta_base_domain: Base domain for Okta API requests (default: okta.com)
     :return: Instance of FactorsClient
     """
 
     # https://github.com/okta/okta-sdk-python/blob/master/okta/FactorsClient.py
     factor_client = FactorsClient(
-        base_url=f"https://{okta_org}.okta.com/",
+        base_url=f"https://{okta_org}.{okta_base_domain}/",
         api_token=okta_api_key,
     )
 
@@ -147,6 +150,7 @@ def sync_users_factors(
     okta_update_tag: int,
     okta_api_key: str,
     sync_state: OktaSyncState,
+    okta_base_domain: str = "okta.com",
 ) -> None:
     """
     Sync user factors
@@ -155,12 +159,13 @@ def sync_users_factors(
     :param okta_update_tag: The timestamp value to set our new Neo4j resources with
     :param okta_api_key: Okta API key
     :param sync_state: Okta sync state
+    :param okta_base_domain: Base domain for Okta API requests (default: okta.com)
     :return: Nothing
     """
 
     logger.info("Syncing Okta User Factors")
 
-    factor_client = _create_factor_client(okta_org_id, okta_api_key)
+    factor_client = _create_factor_client(okta_org_id, okta_api_key, okta_base_domain)
 
     if sync_state.users:
         for user_id in sync_state.users:
