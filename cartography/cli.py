@@ -53,6 +53,7 @@ PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
+PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
@@ -94,6 +95,7 @@ MODULE_PANELS = {
     "airbyte": PANEL_AIRBYTE,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
+    "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentinelone": PANEL_SENTINELONE,
@@ -1246,6 +1248,27 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Ubuntu Security Options
+            # =================================================================
+            ubuntu_security_enabled: Annotated[
+                bool,
+                typer.Option(
+                    "--ubuntu-security-enabled",
+                    help="Enable Ubuntu Security CVE and Notice ingestion.",
+                    rich_help_panel=PANEL_UBUNTU,
+                    hidden=PANEL_UBUNTU not in visible_panels,
+                ),
+            ] = False,
+            ubuntu_security_api_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--ubuntu-security-api-url",
+                    help="Ubuntu Security API base URL. Defaults to https://ubuntu.com.",
+                    rich_help_panel=PANEL_UBUNTU,
+                    hidden=PANEL_UBUNTU not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Ontology Options
             # =================================================================
             ontology_users_source: Annotated[
@@ -2064,6 +2087,8 @@ class CLI:
                 slack_token=slack_token,
                 slack_teams=slack_teams,
                 slack_channels_memberships=slack_channels_memberships,
+                ubuntu_security_enabled=ubuntu_security_enabled,
+                ubuntu_security_api_url=ubuntu_security_api_url,
             )
 
             # Run the sync
