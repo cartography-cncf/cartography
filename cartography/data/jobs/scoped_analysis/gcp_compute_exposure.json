@@ -1,0 +1,85 @@
+{
+  "name": "GCP Compute Asset Internet Exposure (scoped per project)",
+  "__comment__": "This job consolidates all GCP compute internet exposure logic into a single scoped job. It replaces the former global analysis job (gcp_compute_asset_inet_exposure.json) which computed direct instance exposure via firewall rules. That global job ran after all per-project syncs and would reset exposed_internet on all GCPInstance nodes, wiping out values set by per-project scoped jobs. By merging both LB-based and firewall-based exposure into one scoped job, we avoid this ordering conflict and ensure all exposure paths are computed together per project.",
+  "statements": [
+    {
+      "__comment__": "Reset: Clear exposed_internet on GCPForwardingRule nodes for this project",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(n:GCPForwardingRule) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Reset: Clear exposed_internet on GCPInstance nodes for this project",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(n:GCPInstance) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Reset: Clear exposed_internet on GCPCloudRunService nodes for this project",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(n:GCPCloudRunService) WHERE n.exposed_internet IS NOT NULL WITH n LIMIT $LIMIT_SIZE REMOVE n.exposed_internet, n.exposed_internet_type",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Mark EXTERNAL forwarding rules as exposed_internet = true",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(fr:GCPForwardingRule) WHERE fr.load_balancing_scheme = 'EXTERNAL' OR fr.load_balancing_scheme = 'EXTERNAL_MANAGED' SET fr.exposed_internet = true, fr.exposed_internet_type = 'direct'",
+      "iterative": false
+    },
+    {
+      "__comment__": "Mark GCPInstance nodes as exposed via LB if they are behind an external BackendService through the InstanceGroup chain",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(bs:GCPBackendService)-[:ROUTES_TO]->(ig:GCPInstanceGroup)-[:HAS_MEMBER]->(i:GCPInstance) WHERE bs.load_balancing_scheme = 'EXTERNAL' OR bs.load_balancing_scheme = 'EXTERNAL_MANAGED' SET i.exposed_internet = true, i.exposed_internet_type = 'gcp_lb'",
+      "iterative": false
+    },
+    {
+      "__comment__": "Connect GCP ingress firewall rules to instances via target tags (scoped to project VPCs)",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(vpc:GCPVpc)<-[mem:MEMBER_OF_GCP_VPC]-(inst:GCPInstance)-[t:TAGGED]->(tag:GCPNetworkTag)-[tt:TARGET_TAG]-(fw:GCPFirewall{direction: 'INGRESS'})<-[res:RESOURCE]-(vpc) MERGE (fw)-[a:FIREWALL_INGRESS]->(inst) ON CREATE SET a.firstseen = timestamp() SET a.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment__": "Connect GCP ingress firewall rules that have no target tags and no target service accounts to all instances in the same VPC",
+      "query": "MATCH (fw:GCPFirewall{direction: 'INGRESS', has_target_service_accounts: False}) WHERE NOT (fw)-[:TARGET_TAG]->(:GCPNetworkTag) MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(vpc:GCPVpc)-[res:RESOURCE]->(fw) MATCH (inst:GCPInstance)-[mem:MEMBER_OF_GCP_VPC]->(vpc) MERGE (fw)-[a:FIREWALL_INGRESS]->(inst) ON CREATE SET a.firstseen = timestamp() SET a.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    },
+    {
+      "__comment__": "Delete stale FIREWALL_INGRESS relationships for this project",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(vpc:GCPVpc)-[:RESOURCE]->(fw:GCPFirewall)-[a:FIREWALL_INGRESS]->(inst:GCPInstance) WHERE a.lastupdated <> $UPDATE_TAG WITH a LIMIT $LIMIT_SIZE DELETE a",
+      "iterative": true,
+      "iterationsize": 1000
+    },
+    {
+      "__comment__": "Mark GCPInstance as directly exposed (TCP) - has public IP, open ingress firewall from 0.0.0.0/0, no blocking deny rule. This runs after LB exposure so exposed_internet_type='direct' intentionally takes precedence when both are true.",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(n:GCPInstance)<-[:FIREWALL_INGRESS]-(firewall_a:GCPFirewall)<-[:ALLOWED_BY]-(allow_rule:GCPIpRule{protocol:'tcp'})<-[:MEMBER_OF_IP_RULE]-(:GCPIpRange{id:\"0.0.0.0/0\"}) MATCH (n)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(ac:GCPNicAccessConfig) WHERE ac.public_ip IS NOT NULL OPTIONAL MATCH (n)<-[:FIREWALL_INGRESS]-(firewall_b:GCPFirewall)<-[:DENIED_BY]-(deny_rule:GCPIpRule{protocol:'tcp'}) WITH n, firewall_a, allow_rule, deny_rule, firewall_b WHERE deny_rule IS NULL OR firewall_b.priority > firewall_a.priority OR NOT allow_rule.fromport IN RANGE(deny_rule.fromport, deny_rule.toport) OR NOT allow_rule.toport IN RANGE(deny_rule.fromport, deny_rule.toport) SET n.exposed_internet = true, n.exposed_internet_type = 'direct'",
+      "iterative": false
+    },
+    {
+      "__comment__": "Mark GCPInstance as directly exposed (UDP) - has public IP, open ingress firewall from 0.0.0.0/0, no blocking deny rule",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(n:GCPInstance)<-[:FIREWALL_INGRESS]-(firewall_a:GCPFirewall)<-[:ALLOWED_BY]-(allow_rule:GCPIpRule{protocol:'udp'})<-[:MEMBER_OF_IP_RULE]-(:GCPIpRange{id:\"0.0.0.0/0\"}) MATCH (n)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(ac:GCPNicAccessConfig) WHERE ac.public_ip IS NOT NULL OPTIONAL MATCH (n)<-[:FIREWALL_INGRESS]-(firewall_b:GCPFirewall)<-[:DENIED_BY]-(deny_rule:GCPIpRule{protocol:'udp'}) WITH n, firewall_a, allow_rule, deny_rule, firewall_b WHERE deny_rule IS NULL OR firewall_b.priority > firewall_a.priority OR NOT allow_rule.fromport IN RANGE(deny_rule.fromport, deny_rule.toport) OR NOT allow_rule.toport IN RANGE(deny_rule.fromport, deny_rule.toport) SET n.exposed_internet = true, n.exposed_internet_type = 'direct'",
+      "iterative": false
+    },
+    {
+      "__comment__": "Mark GCPInstance as directly exposed (ALL protocols) - has public IP, open ingress firewall from 0.0.0.0/0, no blocking deny rule",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(n:GCPInstance)<-[:FIREWALL_INGRESS]-(firewall_a:GCPFirewall)<-[:ALLOWED_BY]-(allow_rule:GCPIpRule{protocol:'all'})<-[:MEMBER_OF_IP_RULE]-(:GCPIpRange{id:\"0.0.0.0/0\"}) MATCH (n)-[:NETWORK_INTERFACE]->(:GCPNetworkInterface)-[:RESOURCE]->(ac:GCPNicAccessConfig) WHERE ac.public_ip IS NOT NULL AND allow_rule.fromport IS NOT NULL AND allow_rule.toport IS NOT NULL OPTIONAL MATCH (n)<-[:FIREWALL_INGRESS]-(firewall_b:GCPFirewall)<-[:DENIED_BY]-(deny_rule:GCPIpRule{protocol:'all'}) WITH n, firewall_a, allow_rule, deny_rule, firewall_b WHERE deny_rule IS NULL OR firewall_b.priority > firewall_a.priority OR NOT allow_rule.fromport IN RANGE(deny_rule.fromport, deny_rule.toport) OR NOT allow_rule.toport IN RANGE(deny_rule.fromport, deny_rule.toport) SET n.exposed_internet = true, n.exposed_internet_type = 'direct'",
+      "iterative": false
+    },
+    {
+      "__comment__": "Mark GCPCloudRunService as exposed_internet = true if ingress allows all traffic",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(svc:GCPCloudRunService) WHERE svc.ingress = 'INGRESS_TRAFFIC_ALL' SET svc.exposed_internet = true, svc.exposed_internet_type = 'direct'",
+      "iterative": false
+    },
+    {
+      "__comment__": "Mark remaining GCPForwardingRule nodes as not exposed",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(fr:GCPForwardingRule) WHERE fr.exposed_internet IS NULL SET fr.exposed_internet = false",
+      "iterative": false
+    },
+    {
+      "__comment__": "Mark remaining GCPInstance nodes as not exposed",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(i:GCPInstance) WHERE i.exposed_internet IS NULL SET i.exposed_internet = false",
+      "iterative": false
+    },
+    {
+      "__comment__": "Mark GCPCloudRunService nodes with ingress that blocks internet as not exposed",
+      "query": "MATCH (p:GCPProject{id: $PROJECT_ID})-[:RESOURCE]->(svc:GCPCloudRunService) WHERE svc.exposed_internet IS NULL AND svc.ingress IN ['INGRESS_TRAFFIC_INTERNAL_ONLY', 'INGRESS_TRAFFIC_NONE'] SET svc.exposed_internet = false",
+      "iterative": false
+    }
+  ]
+}

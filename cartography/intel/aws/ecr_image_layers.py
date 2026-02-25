@@ -114,6 +114,14 @@ async def batch_get_manifest(
                 "Image %s:%s not found while fetching manifest", repo, image_ref
             )
             return {}, ""
+        if error_code in {"AccessDenied", "AccessDeniedException"}:
+            logger.warning(
+                "Skipping manifest fetch for %s:%s due to %s (missing ecr:BatchGetImage permission)",
+                repo,
+                image_ref,
+                error_code,
+            )
+            return {}, ""
         # Fail loudly on throttling or unexpected AWS errors
         logger.error(
             "Failed to get manifest for %s:%s due to AWS error %s",

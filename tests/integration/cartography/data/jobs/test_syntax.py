@@ -19,6 +19,7 @@ def test_analysis_jobs_cypher_syntax(neo4j_session):
         "DEPLOYMENT_ID": "my_deployment_id",
         "CLUSTER_ID": "my_cluster_id",
         "AZURE_SUBSCRIPTION_ID": "my_azure_subscription_id",
+        "PROJECT_ID": "my_gcp_project_id",
     }
 
     for job_name in contents("cartography.data.jobs.analysis"):
