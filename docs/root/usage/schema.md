@@ -132,5 +132,8 @@
 ```{include} ../modules/trivy/schema.md
 ```
 
+```{include} ../modules/ubuntu/schema.md
+```
+
 ```{include} ../modules/workday/schema.md
 ```

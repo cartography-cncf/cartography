@@ -51,7 +51,10 @@ def test_sync_ubuntu_notices(mock_api, neo4j_session):
         ("USN-6600-1", "libfoo vulnerability"),
         ("USN-6700-1", "libbar vulnerability"),
     }
-    assert check_nodes(neo4j_session, "UbuntuSecurityNotice", ["id", "title"]) == expected_nodes
+    assert (
+        check_nodes(neo4j_session, "UbuntuSecurityNotice", ["id", "title"])
+        == expected_nodes
+    )
 
 
 @patch.object(
