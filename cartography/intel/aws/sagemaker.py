@@ -1,6 +1,3 @@
-import copy
-import enum
-import json
 import logging
 import time
 from typing import Dict
@@ -10,8 +7,6 @@ import boto3
 import neo4j
 
 from cartography.intel.aws.ec2.util import get_botocore_config
-from cartography.intel.aws.iam import load_policy_data
-from cartography.intel.aws.iam import transform_policy_data
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
