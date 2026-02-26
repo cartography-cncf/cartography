@@ -13,10 +13,13 @@ from okta.framework.OktaError import OktaError
 from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
+from cartography.intel.okta.utils import get_next_url
 from cartography.intel.okta.utils import is_last_page
+from cartography.intel.pagination import get_pagination_limits
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+MAX_PAGINATION_PAGES, MAX_PAGINATION_ITEMS = get_pagination_limits(logger)
 
 
 @timeit
@@ -29,7 +32,15 @@ def _get_okta_applications(api_client: ApiClient) -> List[Dict]:
     app_list: List[Dict] = []
 
     next_url = None
+    page_count = 0
     while True:
+        if page_count >= MAX_PAGINATION_PAGES:
+            logger.warning(
+                "Okta applications: reached max pagination pages (%d). Stopping with %d apps.",
+                MAX_PAGINATION_PAGES,
+                len(app_list),
+            )
+            break
         try:
             # https://developer.okta.com/docs/reference/api/apps/#list-applications
             if next_url:
@@ -44,11 +55,25 @@ def _get_okta_applications(api_client: ApiClient) -> List[Dict]:
             break
 
         app_list.extend(json.loads(paged_response.text))
+        page_count += 1
+        if len(app_list) > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "Okta applications: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count,
+            )
+            break
 
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
+            next_url = get_next_url(paged_response)
+            if not next_url:
+                logger.warning(
+                    "Okta applications: missing next page URL; stopping after %d pages.",
+                    page_count,
+                )
+                break
         else:
             break
 
@@ -66,7 +91,16 @@ def _get_application_assigned_users(api_client: ApiClient, app_id: str) -> List[
     app_users: List[str] = []
 
     next_url = None
+    page_count = 0
+    item_count = 0
     while True:
+        if page_count >= MAX_PAGINATION_PAGES:
+            logger.warning(
+                "Okta application users: reached max pagination pages (%d). Stopping with %d pages.",
+                MAX_PAGINATION_PAGES,
+                len(app_users),
+            )
+            break
         try:
             # https://developer.okta.com/docs/reference/api/apps/#list-users-assigned-to-application
             if next_url:
@@ -82,12 +116,28 @@ def _get_application_assigned_users(api_client: ApiClient, app_id: str) -> List[
             )
             break
 
+        page_items = json.loads(paged_response.text)
+        item_count += len(page_items)
         app_users.append(paged_response.text)
+        page_count += 1
+        if item_count > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "Okta application users: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count,
+            )
+            break
 
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
+            next_url = get_next_url(paged_response)
+            if not next_url:
+                logger.warning(
+                    "Okta application users: missing next page URL; stopping after %d pages.",
+                    page_count,
+                )
+                break
         else:
             break
 
@@ -105,8 +155,17 @@ def _get_application_assigned_groups(api_client: ApiClient, app_id: str) -> List
     app_groups: List[str] = []
 
     next_url = None
+    page_count = 0
+    item_count = 0
 
     while True:
+        if page_count >= MAX_PAGINATION_PAGES:
+            logger.warning(
+                "Okta application groups: reached max pagination pages (%d). Stopping with %d pages.",
+                MAX_PAGINATION_PAGES,
+                len(app_groups),
+            )
+            break
         try:
             if next_url:
                 paged_response = api_client.get(next_url)
@@ -121,12 +180,28 @@ def _get_application_assigned_groups(api_client: ApiClient, app_id: str) -> List
             )
             break
 
+        page_items = json.loads(paged_response.text)
+        item_count += len(page_items)
         app_groups.append(paged_response.text)
+        page_count += 1
+        if item_count > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "Okta application groups: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count,
+            )
+            break
 
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
+            next_url = get_next_url(paged_response)
+            if not next_url:
+                logger.warning(
+                    "Okta application groups: missing next page URL; stopping after %d pages.",
+                    page_count,
+                )
+                break
         else:
             break
 
