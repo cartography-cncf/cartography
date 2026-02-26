@@ -66,32 +66,48 @@ def transform_ec2_security_group_data(
         # Collect referenced security groups for relationship loading
         source_group_ids: set[str] = set()
 
-        for rule_type, target in (
-            ("IpPermissions", inbound_rules),
-            ("IpPermissionsEgress", egress_rules),
-        ):
-            for rule in group.get(rule_type, []):
-                protocol = rule.get("IpProtocol", "all")
-                from_port = rule.get("FromPort")
-                to_port = rule.get("ToPort")
-                rule_id = (
-                    f"{group['GroupId']}/{rule_type}/{from_port}{to_port}{protocol}"
-                )
-                target.append(
-                    {
-                        "RuleId": rule_id,
-                        "GroupId": group["GroupId"],
-                        "Protocol": protocol,
-                        "FromPort": from_port,
-                        "ToPort": to_port,
-                    },
-                )
-                for ip_range in rule.get("IpRanges", []):
-                    ranges.append({"RangeId": ip_range["CidrIp"], "RuleId": rule_id})
-                for pair in rule.get("UserIdGroupPairs", []):
-                    sg_id = pair.get("GroupId")
-                    if sg_id:
-                        source_group_ids.add(sg_id)
+        # Inbound rules treat the current security group as the destination.
+        for rule in group.get("IpPermissions", []):
+            protocol = rule.get("IpProtocol", "all")
+            from_port = rule.get("FromPort")
+            to_port = rule.get("ToPort")
+            rule_id = f"{group['GroupId']}/IpPermissions/{from_port}{to_port}{protocol}"
+            inbound_rules.append(
+                {
+                    "RuleId": rule_id,
+                    "GroupId": group["GroupId"],
+                    "Protocol": protocol,
+                    "FromPort": from_port,
+                    "ToPort": to_port,
+                },
+            )
+            for ip_range in rule.get("IpRanges", []):
+                ranges.append({"RangeId": ip_range["CidrIp"], "RuleId": rule_id})
+            for pair in rule.get("UserIdGroupPairs", []):
+                sg_id = pair.get("GroupId")
+                if sg_id:
+                    source_group_ids.add(sg_id)
+
+        # Egress rules treat the current security group as the source.
+        for rule in group.get("IpPermissionsEgress", []):
+            protocol = rule.get("IpProtocol", "all")
+            from_port = rule.get("FromPort")
+            to_port = rule.get("ToPort")
+            rule_id = (
+                f"{group['GroupId']}/IpPermissionsEgress/{from_port}{to_port}{protocol}"
+            )
+            egress_rules.append(
+                {
+                    "RuleId": rule_id,
+                    "GroupId": group["GroupId"],
+                    "Protocol": protocol,
+                    "FromPort": from_port,
+                    "ToPort": to_port,
+                },
+            )
+            for ip_range in rule.get("IpRanges", []):
+                ranges.append({"RangeId": ip_range["CidrIp"], "RuleId": rule_id})
+            # Destination security groups are not currently modeled; skip for now.
 
         group_record["SOURCE_GROUP_IDS"] = list(source_group_ids)
         groups.append(group_record)
