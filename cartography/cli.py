@@ -59,6 +59,7 @@ PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SLACK = "Slack Options"
 PANEL_SPACELIFT = "Spacelift Options"
+PANEL_WORKOS = "WorkOS Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -100,6 +101,7 @@ MODULE_PANELS = {
     "keycloak": PANEL_KEYCLOAK,
     "slack": PANEL_SLACK,
     "spacelift": PANEL_SPACELIFT,
+    "workos": PANEL_WORKOS,
     "analysis": PANEL_ANALYSIS,
 }
 
@@ -1462,6 +1464,27 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # WorkOS Options
+            # =================================================================
+            workos_apikey_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--workos-apikey-env-var",
+                    help="Environment variable name containing WorkOS API key.",
+                    rich_help_panel=PANEL_WORKOS,
+                    hidden=PANEL_WORKOS not in visible_panels,
+                ),
+            ] = None,
+            workos_client_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--workos-client-id",
+                    help="WorkOS client ID.",
+                    rich_help_panel=PANEL_WORKOS,
+                    hidden=PANEL_WORKOS not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # StatsD Metrics Options
             # =================================================================
             statsd_enabled: Annotated[
@@ -1944,6 +1967,15 @@ class CLI:
                         spacelift_api_key_secret_env_var
                     )
 
+            # Read WorkOS API key
+            workos_api_key = None
+            if workos_apikey_env_var:
+                logger.debug(
+                    "Reading WorkOS API key from environment variable %s",
+                    workos_apikey_env_var,
+                )
+                workos_api_key = os.environ.get(workos_apikey_env_var)
+
             # Build the Config object
             config = Config(
                 neo4j_uri=neo4j_uri,
@@ -2064,6 +2096,8 @@ class CLI:
                 slack_token=slack_token,
                 slack_teams=slack_teams,
                 slack_channels_memberships=slack_channels_memberships,
+                workos_api_key=workos_api_key,
+                workos_client_id=workos_client_id,
             )
 
             # Run the sync

@@ -905,6 +905,7 @@ dependencies = [
     { name = "statsd" },
     { name = "typer" },
     { name = "types-aiobotocore-ecr" },
+    { name = "workos" },
     { name = "xmltodict" },
 ]
 
@@ -1012,6 +1013,7 @@ requires-dist = [
     { name = "statsd" },
     { name = "typer", specifier = ">=0.9.0" },
     { name = "types-aiobotocore-ecr" },
+    { name = "workos", specifier = ">=5.41.0" },
     { name = "xmltodict" },
 ]
 
@@ -4344,6 +4346,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/61/f1/ee81806690a87dab5f5653c1f146c92bc066d7f4cebc603ef88eb9e13957/werkzeug-3.1.6.tar.gz", hash = "sha256:210c6bede5a420a913956b4791a7f4d6843a43b6fcee4dfa08a65e93007d0d25", size = 864736, upload-time = "2026-02-19T15:17:18.884Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4d/ec/d58832f89ede95652fd01f4f24236af7d32b70cab2196dfcc2d2fd13c5c2/werkzeug-3.1.6-py3-none-any.whl", hash = "sha256:7ddf3357bb9564e407607f988f683d72038551200c704012bb9a4c523d42f131", size = 225166, upload-time = "2026-02-19T15:17:17.475Z" },
+]
+
+[[package]]
+name = "workos"
+version = "5.42.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pyjwt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fd/bf/d528624b963b8ad6109a83e0f74145c73a9e071d00209d1bba4d5e253142/workos-5.42.0.tar.gz", hash = "sha256:2092a0a8ab99138a6c0bdd8985ac5075c0f5106a0a60e0e68a6b13943e9b68e1", size = 60503, upload-time = "2026-02-17T17:27:46.122Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/18/1e85719c1c27f57d72c9c9fcefb2545a1e35cac27af971f4d0946508fd7e/workos-5.42.0-py3-none-any.whl", hash = "sha256:49b5950982ff703a5c28dd16cf03973afe77e642e67238194174341805a5bb7c", size = 111219, upload-time = "2026-02-17T17:27:45.123Z" },
 ]
 
 [[package]]

@@ -239,6 +239,10 @@ class Config:
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
     :param syft_s3_prefix: S3 prefix path containing Syft scan results. Optional.
+    :type workos_api_key: str
+    :param workos_api_key: WorkOS API key. Optional.
+    :type workos_client_id: str
+    :param workos_client_id: WorkOS client ID. Optional.
     """
 
     def __init__(
@@ -361,6 +365,8 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
+        workos_api_key=None,
+        workos_client_id=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -482,3 +488,5 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
+        self.workos_api_key = workos_api_key
+        self.workos_client_id = workos_client_id
