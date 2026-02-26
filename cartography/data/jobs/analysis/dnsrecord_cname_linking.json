@@ -1,0 +1,9 @@
+{
+  "name": "Links DNSRecords of type CNAME to the DNSRecords they point to",
+  "statements": [
+    {
+      "query": "MATCH (source:DNSRecord{type: \"CNAME\"}) WITH source MATCH (target:DNSRecord) WHERE source.value = target.name MERGE (source)-[r:DNS_POINTS_TO]->(target) ON CREATE SET r.firstseen = $UPDATE_TAG SET r.lastupdated = $UPDATE_TAG",
+      "iterative": false
+    }
+  ]
+}
