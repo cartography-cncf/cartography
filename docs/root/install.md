@@ -2,9 +2,121 @@
 
 Time to set up a test machine to run Cartography.
 
-## Option 1: Run docker-compose (preferred)
+## Option 1: Native install with uv (fastest)
 
-This is the quickest way to get started: you will run a cartography cron job and a Neo4j docker container on your
+This is the fastest way to get started if you already have Python 3.10+ and Neo4j running. Using [uv](https://docs.astral.sh/uv/), a fast Python package installer, you can install and run Cartography natively on your machine.
+
+![yourowntestmachine.png](images/yourowntestmachine.png)
+
+1. **Ensure that you have Python 3.10 set up on your machine.**
+
+    Older or newer versions of Python may work but are not explicitly supported. You will probably have more luck with newer versions.
+
+1. **Install [uv](https://docs.astral.sh/uv/)** if you don't already have it:
+
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+
+    Or follow the [official installation guide](https://docs.astral.sh/uv/getting-started/installation/).
+
+1. **Install and sync Cartography dependencies using uv:**
+
+    Clone the Cartography repo:
+
+    ```bash
+    git clone https://github.com/cartography-cncf/cartography
+    cd cartography
+    ```
+
+    Then sync the project dependencies using the lockfile (recommended for reproducibility):
+
+    ```bash
+    uv sync
+    ```
+
+    Or install cartography directly to your Python environment:
+
+    ```bash
+    uv pip install cartography
+    ```
+
+1. **Set up Neo4j graph database (version 4.4 or higher). 4.3 and lower will _not_ work.**
+
+    ⚠️ Neo4j 5.x will probably work since it's included in our test suite, but we do not explicitly support it yet.
+
+    We recommend running Neo4j as a Docker container:
+
+    ```bash
+    docker run \
+        --publish=7474:7474 \
+        --publish=7687:7687 \
+        -v data:/data \
+        --env=NEO4J_AUTH=none \
+        neo4j:4.4-community
+    ```
+
+    If you prefer to install Neo4j manually, see the instructions in [Option 4](#option-4-native-install-with-pip-alternative).
+
+1. **Configure your data sources.**
+
+    See the configuration section of [each relevant intel module](https://cartography-cncf.github.io/cartography/modules) for more details. In this example we will use [AWS](https://cartography-cncf.github.io/cartography/modules/aws/config.html).
+
+1. **Run cartography.**
+
+    - For a specific AWS account defined as a separate profile in your AWS config file, set the `AWS_PROFILE` environment variable:
+
+        ```bash
+        uv run cartography --neo4j-uri bolt://localhost:7687 --aws-profile 1234_testprofile --aws-region us-east-1
+        ```
+
+    - Or use environment variables:
+
+        ```bash
+        AWS_PROFILE=1234_testprofile AWS_DEFAULT_REGION=us-east-1 uv run cartography --neo4j-uri bolt://localhost:7687
+        ```
+
+    - For the default AWS profile:
+
+        ```bash
+        uv run cartography --neo4j-uri bolt://localhost:7687
+        ```
+
+    - For multiple AWS accounts:
+
+        ```bash
+        AWS_CONFIG_FILE=/path/to/your/aws/config uv run cartography --neo4j-uri bolt://localhost:7687 --aws-sync-all-profiles
+        ```
+
+    You can view a full list of Cartography's CLI arguments by running `uv run cartography --help`.
+
+    If everything worked, the sync will pull data from your configured accounts and ingest data to Neo4j! This process might take a long time if your account has a lot of assets.
+
+1. **Run security frameworks against your graph.**
+
+    ```bash
+    uv run cartography-rules run all
+    ```
+
+    Full docs [here](usage/rules).
+
+1. **View the graph.**
+
+    You can view the graph while it is still syncing by visiting http://localhost:7474. Try a query like
+
+    ```cypher
+    match (i:AWSRole)--(c:AWSAccount) return *
+    ```
+
+    It should look like this:
+
+    ![nativeinstall-run.png](images/nativeinstall-run.png)
+
+---
+
+## Option 2: Run docker-compose
+
+If you prefer to containerize everything, you can run a cartography cron job and a Neo4j docker container on your
 machine to pull data from AWS.
 
 ![dockercompose-flow.png](images/dockercompose-flow.png)
@@ -107,7 +219,7 @@ git ignored. neo4j config, logs, etc are all located at `.compose/neo4j/...`
 
 Read on to see [other things you can do with Cartography](#things-to-do-next).
 
-## Option 2: manually run 2 containers
+## Option 3: Manually run 2 containers
 
 1. **Run the Neo4j graph database container.**
 
@@ -183,9 +295,9 @@ Read on to see [other things you can do with Cartography](#things-to-do-next).
 
 Read on to see [other things you can do with Cartography](#things-to-do-next).
 
-## Option 3: Native install
+## Option 4: Native install with pip (alternative)
 
-Do this if you prefer to install and manage all the dependencies yourself. Cartography _should_ work on Linux, Mac, and Windows, but bear in mind we haven't tested much on Windows so far.
+This is an alternative to Option 1 if you prefer using traditional `pip` instead of `uv`. Do this if you prefer to install and manage all the dependencies yourself using pip. Cartography _should_ work on Linux, Mac, and Windows, but bear in mind we haven't tested much on Windows so far.
 
 ![yourowntestmachine.png](images/yourowntestmachine.png)
 
@@ -223,9 +335,15 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
             cartography --neo4j-uri bolt://localhost:7687 --neo4j-user neo4j --neo4j-password-env-var NEO4J_PASSWORD
             ```
 
-1. **Install cartography to the current Python virtual environment with `pip install cartography`.**
+1. **Install cartography using pip.**
 
     We recommend creating a separate venv for just Cartography and its dependencies. You can read about venvs [here](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#create-and-use-virtual-environments), and searching on how to use tools like pyenv and pyenv-virtualenv.
+
+    ```bash
+    pip install cartography
+    ```
+
+    💡 **Note:** We recommend using `uv` instead of `pip` for much faster installation. See [Option 1](#option-1-native-install-with-uv-fastest) for uv-based installation.
 
 1. **Configure your data sources.**
 
