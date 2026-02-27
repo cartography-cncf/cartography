@@ -672,17 +672,17 @@ _k8s_escalation_clusterroles = Fact(
     ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(cr:KubernetesClusterRole)
-    WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate'])
+    WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN
         cr.name AS role_name,
         'ClusterRole' AS role_type,
-        [v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate']] AS dangerous_verbs,
+        [v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*']] AS dangerous_verbs,
         cluster.name AS cluster_name
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(cr:KubernetesClusterRole)
-    WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate'])
+    WHERE any(v IN cr.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT cr.name STARTS WITH 'system:'
     RETURN *
     """,
@@ -704,17 +704,17 @@ _k8s_escalation_roles = Fact(
     ),
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(r:KubernetesRole)
-    WHERE any(v IN r.verbs WHERE v IN ['bind', 'impersonate', 'escalate'])
+    WHERE any(v IN r.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT r.name STARTS WITH 'system:'
     RETURN
         r.name AS role_name,
         'Role' AS role_type,
-        [v IN r.verbs WHERE v IN ['bind', 'impersonate', 'escalate']] AS dangerous_verbs,
+        [v IN r.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*']] AS dangerous_verbs,
         cluster.name AS cluster_name
     """,
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(r:KubernetesRole)
-    WHERE any(v IN r.verbs WHERE v IN ['bind', 'impersonate', 'escalate'])
+    WHERE any(v IN r.verbs WHERE v IN ['bind', 'impersonate', 'escalate', '*'])
       AND NOT r.name STARTS WITH 'system:'
     RETURN *
     """,
