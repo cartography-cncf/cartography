@@ -42,12 +42,12 @@ def get_bigquery_tables(
             )
         return tables
     except HttpError as e:
-        if is_api_disabled_error(e):
+        if is_api_disabled_error(e) or e.resp.status in (403, 404):
             logger.warning(
-                "Could not retrieve BigQuery tables for dataset %s:%s due to permissions "
-                "issues or API not enabled. Skipping.",
+                "Could not retrieve BigQuery tables for dataset %s:%s - %s. Skipping.",
                 project_id,
                 dataset_id,
+                e,
             )
             return None
         raise
@@ -82,13 +82,13 @@ def get_bigquery_table_detail(
         )
         return gcp_api_execute_with_retry(request)
     except HttpError as e:
-        if is_api_disabled_error(e):
+        if is_api_disabled_error(e) or e.resp.status in (403, 404):
             logger.warning(
-                "Could not retrieve BigQuery table detail for %s:%s.%s due to permissions "
-                "issues or API not enabled. Skipping.",
+                "Could not retrieve BigQuery table detail for %s:%s.%s - %s. Skipping.",
                 project_id,
                 dataset_id,
                 table_id,
+                e,
             )
             return None
         raise
@@ -101,8 +101,8 @@ def transform_tables(
 ) -> list[dict]:
     transformed: list[dict] = []
     for table in tables_data:
-        ref = table.get("tableReference", {})
-        table_id = ref.get("tableId", "")
+        ref = table["tableReference"]
+        table_id = ref["tableId"]
         ext_config = table.get("externalDataConfiguration", {}) or {}
         transformed.append(
             {
@@ -162,15 +162,15 @@ def sync_bigquery_tables(
     all_tables_raw: list[tuple[list[dict], str]] = []
 
     for dataset in datasets:
-        ref = dataset.get("datasetReference", {})
-        dataset_id = ref.get("datasetId", "")
+        ref = dataset["datasetReference"]
+        dataset_id = ref["datasetId"]
 
         tables_raw = get_bigquery_tables(client, project_id, dataset_id)
         if tables_raw is not None:
             # Enrich each table with details from tables.get
             for table in tables_raw:
-                table_ref = table.get("tableReference", {})
-                tid = table_ref.get("tableId", "")
+                table_ref = table["tableReference"]
+                tid = table_ref["tableId"]
                 detail = get_bigquery_table_detail(client, project_id, dataset_id, tid)
                 if detail is not None:
                     table.update(detail)

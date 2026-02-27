@@ -51,8 +51,8 @@ def get_bigquery_datasets(client: Resource, project_id: str) -> list[dict] | Non
 def transform_datasets(datasets_data: list[dict], project_id: str) -> list[dict]:
     transformed: list[dict] = []
     for dataset in datasets_data:
-        ref = dataset.get("datasetReference", {})
-        dataset_id = ref.get("datasetId", "")
+        ref = dataset["datasetReference"]
+        dataset_id = ref["datasetId"]
         transformed.append(
             {
                 "id": f"{project_id}:{dataset_id}",

@@ -42,12 +42,12 @@ def get_bigquery_routines(
             )
         return routines
     except HttpError as e:
-        if is_api_disabled_error(e):
+        if is_api_disabled_error(e) or e.resp.status in (403, 404):
             logger.warning(
-                "Could not retrieve BigQuery routines for dataset %s:%s due to permissions "
-                "issues or API not enabled. Skipping.",
+                "Could not retrieve BigQuery routines for dataset %s:%s - %s. Skipping.",
                 project_id,
                 dataset_id,
+                e,
             )
             return None
         raise
@@ -60,8 +60,8 @@ def transform_routines(
 ) -> list[dict]:
     transformed: list[dict] = []
     for routine in routines_data:
-        ref = routine.get("routineReference", {})
-        routine_id = ref.get("routineId", "")
+        ref = routine["routineReference"]
+        routine_id = ref["routineId"]
         remote_opts = routine.get("remoteFunctionOptions", {}) or {}
         transformed.append(
             {
@@ -117,8 +117,8 @@ def sync_bigquery_routines(
     all_routines_transformed: list[dict] = []
 
     for dataset in datasets:
-        ref = dataset.get("datasetReference", {})
-        dataset_id = ref.get("datasetId", "")
+        ref = dataset["datasetReference"]
+        dataset_id = ref["datasetId"]
         dataset_full_id = f"{project_id}:{dataset_id}"
 
         routines_raw = get_bigquery_routines(client, project_id, dataset_id)

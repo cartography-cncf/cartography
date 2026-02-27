@@ -84,7 +84,7 @@ def transform_connections(connections_data: list[dict], project_id: str) -> list
         cloud_resource = conn.get("cloudResource", {}) or {}
         transformed.append(
             {
-                "name": conn.get("name"),
+                "name": conn["name"],
                 "friendlyName": conn.get("friendlyName"),
                 "description": conn.get("description"),
                 "connection_type": connection_type,

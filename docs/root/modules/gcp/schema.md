@@ -2001,7 +2001,7 @@ Represents a GCP BigQuery Table, View, or Materialized View.
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The table identifier in `project_id:dataset_id.table_id` format |
 | table_id | The short table ID |
-| dataset_id | The parent dataset identifier |
+| dataset_id | The parent dataset identifier in `project_id:dataset_id` format |
 | type | Table type: TABLE, VIEW, MATERIALIZED_VIEW, or EXTERNAL |
 | creation_time | Creation time of the table |
 | expiration_time | Expiration time of the table, if set |
@@ -2037,7 +2037,7 @@ Represents a GCP BigQuery Routine (stored procedure, UDF, or table-valued functi
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The routine identifier in `project_id:dataset_id.routine_id` format |
 | routine_id | The short routine ID |
-| dataset_id | The parent dataset identifier |
+| dataset_id | The parent dataset identifier in `project_id:dataset_id` format |
 | routine_type | Type: SCALAR_FUNCTION, PROCEDURE, or TABLE_VALUED_FUNCTION |
 | language | Language of the routine (e.g., SQL, JAVASCRIPT) |
 | creation_time | Creation time of the routine |

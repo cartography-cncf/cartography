@@ -177,7 +177,7 @@ gcp_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(
                     ontology_field="name",
-                    node_field="friendly_name",
+                    node_field="dataset_id",
                     required=True,
                 ),
                 OntologyFieldMapping(
