@@ -2008,6 +2008,9 @@ Represents a GCP BigQuery Table, View, or Materialized View.
 | num_bytes | Size of the table in bytes |
 | num_long_term_bytes | Size of long-term storage in bytes |
 | num_rows | Number of rows in the table |
+| description | Description of the table |
+| friendly_name | User-friendly name for the table |
+| connection_id | The BigQuery connection resource name used by external tables |
 
 #### Relationships
 
@@ -2018,6 +2021,10 @@ Represents a GCP BigQuery Table, View, or Materialized View.
   - GCPBigQueryDatasets contain GCPBigQueryTables.
     ```
     (GCPBigQueryDataset)-[:HAS_TABLE]->(GCPBigQueryTable)
+    ```
+  - GCPBigQueryTables can use a GCPBigQueryConnection for external data.
+    ```
+    (GCPBigQueryTable)-[:USES_CONNECTION]->(GCPBigQueryConnection)
     ```
 
 ### GCPBigQueryRoutine
@@ -2035,6 +2042,7 @@ Represents a GCP BigQuery Routine (stored procedure, UDF, or table-valued functi
 | language | Language of the routine (e.g., SQL, JAVASCRIPT) |
 | creation_time | Creation time of the routine |
 | last_modified_time | Last modification time of the routine |
+| connection_id | The BigQuery connection resource name used by remote functions |
 
 #### Relationships
 
@@ -2045,6 +2053,10 @@ Represents a GCP BigQuery Routine (stored procedure, UDF, or table-valued functi
   - GCPBigQueryDatasets contain GCPBigQueryRoutines.
     ```
     (GCPBigQueryDataset)-[:HAS_ROUTINE]->(GCPBigQueryRoutine)
+    ```
+  - GCPBigQueryRoutines can use a GCPBigQueryConnection for remote functions.
+    ```
+    (GCPBigQueryRoutine)-[:USES_CONNECTION]->(GCPBigQueryConnection)
     ```
 
 ### GCPBigQueryConnection
@@ -2063,10 +2075,15 @@ Represents a GCP BigQuery Connection (external data source connection).
 | creation_time | Creation time of the connection |
 | last_modified_time | Last modification time of the connection |
 | has_credential | Whether the connection has a credential configured |
+| cloud_sql_instance_id | The Cloud SQL instance ID for cloudSql connections (format: `project:region:instance`) |
 
 #### Relationships
 
   - GCPBigQueryConnections are resources of GCPProjects.
     ```
     (GCPProject)-[:RESOURCE]->(GCPBigQueryConnection)
+    ```
+  - GCPBigQueryConnections of type cloudSql connect to GCPCloudSQLInstances.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_TO]->(GCPCloudSQLInstance)
     ```

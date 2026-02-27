@@ -7,6 +7,7 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -21,6 +22,7 @@ class GCPBigQueryConnectionProperties(CartographyNodeProperties):
     creation_time: PropertyRef = PropertyRef("creationTime")
     last_modified_time: PropertyRef = PropertyRef("lastModifiedTime")
     has_credential: PropertyRef = PropertyRef("hasCredential")
+    cloud_sql_instance_id: PropertyRef = PropertyRef("cloud_sql_instance_id")
 
 
 @dataclass(frozen=True)
@@ -40,7 +42,28 @@ class ProjectToConnectionRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ConnectionToCloudSQLRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ConnectionToCloudSQLRel(CartographyRelSchema):
+    target_node_label: str = "GCPCloudSQLInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"connection_name": PropertyRef("cloud_sql_instance_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONNECTS_TO"
+    properties: ConnectionToCloudSQLRelProperties = ConnectionToCloudSQLRelProperties()
+
+
+@dataclass(frozen=True)
 class GCPBigQueryConnectionSchema(CartographyNodeSchema):
     label: str = "GCPBigQueryConnection"
     properties: GCPBigQueryConnectionProperties = GCPBigQueryConnectionProperties()
     sub_resource_relationship: ProjectToConnectionRel = ProjectToConnectionRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [
+            ConnectionToCloudSQLRel(),
+        ],
+    )

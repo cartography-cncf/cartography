@@ -23,6 +23,9 @@ class GCPBigQueryTableProperties(CartographyNodeProperties):
     num_bytes: PropertyRef = PropertyRef("num_bytes")
     num_long_term_bytes: PropertyRef = PropertyRef("num_long_term_bytes")
     num_rows: PropertyRef = PropertyRef("num_rows")
+    description: PropertyRef = PropertyRef("description")
+    friendly_name: PropertyRef = PropertyRef("friendly_name")
+    connection_id: PropertyRef = PropertyRef("connection_id")
 
 
 @dataclass(frozen=True)
@@ -58,6 +61,22 @@ class DatasetToTableRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class TableToConnectionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class TableToConnectionRel(CartographyRelSchema):
+    target_node_label: str = "GCPBigQueryConnection"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("connection_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_CONNECTION"
+    properties: TableToConnectionRelProperties = TableToConnectionRelProperties()
+
+
+@dataclass(frozen=True)
 class GCPBigQueryTableSchema(CartographyNodeSchema):
     label: str = "GCPBigQueryTable"
     properties: GCPBigQueryTableProperties = GCPBigQueryTableProperties()
@@ -65,5 +84,6 @@ class GCPBigQueryTableSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             DatasetToTableRel(),
+            TableToConnectionRel(),
         ],
     )

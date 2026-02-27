@@ -78,6 +78,7 @@ def transform_connections(connections_data: list[dict], project_id: str) -> list
                 connection_type = type_key
                 break
 
+        cloud_sql = conn.get("cloudSql", {}) or {}
         transformed.append(
             {
                 "name": conn.get("name"),
@@ -87,8 +88,9 @@ def transform_connections(connections_data: list[dict], project_id: str) -> list
                 "creationTime": conn.get("creationTime"),
                 "lastModifiedTime": conn.get("lastModifiedTime"),
                 "hasCredential": conn.get("hasCredential"),
+                "cloud_sql_instance_id": cloud_sql.get("instanceId"),
                 "project_id": project_id,
-            }
+            },
         )
     return transformed
 

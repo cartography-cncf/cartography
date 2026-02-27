@@ -62,6 +62,7 @@ def transform_routines(
     for routine in routines_data:
         ref = routine.get("routineReference", {})
         routine_id = ref.get("routineId", "")
+        remote_opts = routine.get("remoteFunctionOptions", {}) or {}
         transformed.append(
             {
                 "id": f"{dataset_full_id}.{routine_id}",
@@ -71,7 +72,8 @@ def transform_routines(
                 "language": routine.get("language"),
                 "creation_time": routine.get("creationTime"),
                 "last_modified_time": routine.get("lastModifiedTime"),
-            }
+                "connection_id": remote_opts.get("connection"),
+            },
         )
     return transformed
 

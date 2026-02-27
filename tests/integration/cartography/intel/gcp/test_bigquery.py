@@ -9,6 +9,9 @@ from tests.data.gcp.bigquery import MOCK_CONNECTIONS
 from tests.data.gcp.bigquery import MOCK_DATASETS
 from tests.data.gcp.bigquery import MOCK_ROUTINES_MY_DATASET
 from tests.data.gcp.bigquery import MOCK_ROUTINES_OTHER_DATASET
+from tests.data.gcp.bigquery import MOCK_TABLE_DETAIL_EVENTS
+from tests.data.gcp.bigquery import MOCK_TABLE_DETAIL_USER_VIEW
+from tests.data.gcp.bigquery import MOCK_TABLE_DETAIL_USERS
 from tests.data.gcp.bigquery import MOCK_TABLES_MY_DATASET
 from tests.data.gcp.bigquery import MOCK_TABLES_OTHER_DATASET
 from tests.integration.util import check_nodes
@@ -24,15 +27,25 @@ def _create_prerequisite_nodes(neo4j_session):
         project_id=TEST_PROJECT_ID,
         tag=TEST_UPDATE_TAG,
     )
+    # Cloud SQL instance for connection -> Cloud SQL relationship testing
+    neo4j_session.run(
+        "MERGE (i:GCPCloudSQLInstance {id: $id}) "
+        "SET i.connection_name = $conn_name, i.lastupdated = $tag",
+        id="projects/test-project/instances/my-instance",
+        conn_name="test-project:us-central1:my-instance",
+        tag=TEST_UPDATE_TAG,
+    )
 
 
 @patch("cartography.intel.gcp.bigquery_connection.get_bigquery_connections")
 @patch("cartography.intel.gcp.bigquery_routine.get_bigquery_routines")
+@patch("cartography.intel.gcp.bigquery_table.get_bigquery_table_detail")
 @patch("cartography.intel.gcp.bigquery_table.get_bigquery_tables")
 @patch("cartography.intel.gcp.bigquery_dataset.get_bigquery_datasets")
 def test_sync_bigquery(
     mock_get_datasets,
     mock_get_tables,
+    mock_get_table_detail,
     mock_get_routines,
     mock_get_connections,
     neo4j_session,
@@ -51,6 +64,17 @@ def test_sync_bigquery(
         return []
 
     mock_get_tables.side_effect = _mock_get_tables
+
+    detail_map = {
+        ("test-project", "my_dataset", "users"): MOCK_TABLE_DETAIL_USERS,
+        ("test-project", "my_dataset", "user_view"): MOCK_TABLE_DETAIL_USER_VIEW,
+        ("test-project", "other_dataset", "events"): MOCK_TABLE_DETAIL_EVENTS,
+    }
+
+    def _mock_get_table_detail(client, project_id, dataset_id, table_id):
+        return detail_map.get((project_id, dataset_id, table_id))
+
+    mock_get_table_detail.side_effect = _mock_get_table_detail
 
     def _mock_get_routines(client, project_id, dataset_id):
         if dataset_id == "my_dataset":
@@ -71,7 +95,15 @@ def test_sync_bigquery(
     }
     mock_client = MagicMock()
 
-    # Act
+    # Act — sync connections first so they exist for table/routine relationships
+    bigquery_connection.sync_bigquery_connections(
+        neo4j_session,
+        mock_client,
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        common_job_parameters,
+    )
+
     datasets_raw = bigquery_dataset.sync_bigquery_datasets(
         neo4j_session,
         mock_client,
@@ -98,14 +130,6 @@ def test_sync_bigquery(
         common_job_parameters,
     )
 
-    bigquery_connection.sync_bigquery_connections(
-        neo4j_session,
-        mock_client,
-        TEST_PROJECT_ID,
-        TEST_UPDATE_TAG,
-        common_job_parameters,
-    )
-
     # Assert datasets
     assert check_nodes(
         neo4j_session,
@@ -122,15 +146,36 @@ def test_sync_bigquery(
     )
     assert result.single()["cnt"] == 2
 
-    # Assert tables
+    # Assert tables — now include fields from tables.get
     assert check_nodes(
         neo4j_session,
         "GCPBigQueryTable",
-        ["id", "table_id", "type"],
+        ["id", "table_id", "type", "num_bytes", "num_rows", "description"],
     ) == {
-        ("test-project:my_dataset.users", "users", "TABLE"),
-        ("test-project:my_dataset.user_view", "user_view", "VIEW"),
-        ("test-project:other_dataset.events", "events", "TABLE"),
+        (
+            "test-project:my_dataset.users",
+            "users",
+            "TABLE",
+            "1024",
+            "100",
+            "User accounts table",
+        ),
+        (
+            "test-project:my_dataset.user_view",
+            "user_view",
+            "VIEW",
+            None,
+            None,
+            "View over users table",
+        ),
+        (
+            "test-project:other_dataset.events",
+            "events",
+            "TABLE",
+            "2048",
+            "500",
+            "Event log table",
+        ),
     }
 
     # Assert routines
@@ -140,23 +185,26 @@ def test_sync_bigquery(
         ["id", "routine_id", "routine_type"],
     ) == {
         ("test-project:my_dataset.my_udf", "my_udf", "SCALAR_FUNCTION"),
+        ("test-project:my_dataset.my_remote_fn", "my_remote_fn", "SCALAR_FUNCTION"),
     }
 
     # Assert connections
     assert check_nodes(
         neo4j_session,
         "GCPBigQueryConnection",
-        ["id", "friendly_name", "connection_type"],
+        ["id", "friendly_name", "connection_type", "cloud_sql_instance_id"],
     ) == {
         (
             "projects/test-project/locations/us/connections/my-cloud-sql-conn",
             "My Cloud SQL Connection",
             "cloudSql",
+            "test-project:us-central1:my-instance",
         ),
         (
             "projects/test-project/locations/us/connections/my-spark-conn",
             "My Spark Connection",
             "spark",
+            None,
         ),
     }
 
@@ -211,6 +259,7 @@ def test_sync_bigquery(
         "RESOURCE",
     ) == {
         (TEST_PROJECT_ID, "test-project:my_dataset.my_udf"),
+        (TEST_PROJECT_ID, "test-project:my_dataset.my_remote_fn"),
     }
 
     # Assert dataset -> routine relationships
@@ -223,6 +272,7 @@ def test_sync_bigquery(
         "HAS_ROUTINE",
     ) == {
         ("test-project:my_dataset", "test-project:my_dataset.my_udf"),
+        ("test-project:my_dataset", "test-project:my_dataset.my_remote_fn"),
     }
 
     # Assert project -> connection relationships
@@ -241,5 +291,50 @@ def test_sync_bigquery(
         (
             TEST_PROJECT_ID,
             "projects/test-project/locations/us/connections/my-spark-conn",
+        ),
+    }
+
+    # Assert table -> connection relationships (events table uses cloud SQL connection)
+    assert check_rels(
+        neo4j_session,
+        "GCPBigQueryTable",
+        "id",
+        "GCPBigQueryConnection",
+        "id",
+        "USES_CONNECTION",
+    ) == {
+        (
+            "test-project:other_dataset.events",
+            "projects/test-project/locations/us/connections/my-cloud-sql-conn",
+        ),
+    }
+
+    # Assert routine -> connection relationships (remote function uses spark connection)
+    assert check_rels(
+        neo4j_session,
+        "GCPBigQueryRoutine",
+        "id",
+        "GCPBigQueryConnection",
+        "id",
+        "USES_CONNECTION",
+    ) == {
+        (
+            "test-project:my_dataset.my_remote_fn",
+            "projects/test-project/locations/us/connections/my-spark-conn",
+        ),
+    }
+
+    # Assert connection -> Cloud SQL instance relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPBigQueryConnection",
+        "id",
+        "GCPCloudSQLInstance",
+        "id",
+        "CONNECTS_TO",
+    ) == {
+        (
+            "projects/test-project/locations/us/connections/my-cloud-sql-conn",
+            "projects/test-project/instances/my-instance",
         ),
     }

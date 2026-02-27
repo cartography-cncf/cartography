@@ -21,6 +21,7 @@ class GCPBigQueryRoutineProperties(CartographyNodeProperties):
     language: PropertyRef = PropertyRef("language")
     creation_time: PropertyRef = PropertyRef("creation_time")
     last_modified_time: PropertyRef = PropertyRef("last_modified_time")
+    connection_id: PropertyRef = PropertyRef("connection_id")
 
 
 @dataclass(frozen=True)
@@ -56,6 +57,22 @@ class DatasetToRoutineRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class RoutineToConnectionRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class RoutineToConnectionRel(CartographyRelSchema):
+    target_node_label: str = "GCPBigQueryConnection"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("connection_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "USES_CONNECTION"
+    properties: RoutineToConnectionRelProperties = RoutineToConnectionRelProperties()
+
+
+@dataclass(frozen=True)
 class GCPBigQueryRoutineSchema(CartographyNodeSchema):
     label: str = "GCPBigQueryRoutine"
     properties: GCPBigQueryRoutineProperties = GCPBigQueryRoutineProperties()
@@ -63,5 +80,6 @@ class GCPBigQueryRoutineSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             DatasetToRoutineRel(),
+            RoutineToConnectionRel(),
         ],
     )
