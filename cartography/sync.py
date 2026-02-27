@@ -46,6 +46,7 @@ import cartography.intel.spacelift
 import cartography.intel.syft
 import cartography.intel.tailscale
 import cartography.intel.trivy
+import cartography.intel.ubuntu
 import cartography.intel.workday
 from cartography.config import Config
 from cartography.stats import set_stats_client
@@ -90,6 +91,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "syft": cartography.intel.syft.start_syft_ingestion,
+        "ubuntu": cartography.intel.ubuntu.start_ubuntu_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "slack": cartography.intel.slack.start_slack_ingestion,
         "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,

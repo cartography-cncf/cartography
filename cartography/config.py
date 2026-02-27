@@ -361,6 +361,8 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
+        ubuntu_security_enabled=False,
+        ubuntu_security_api_url=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -482,3 +484,5 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
+        self.ubuntu_security_enabled = ubuntu_security_enabled
+        self.ubuntu_security_api_url = ubuntu_security_api_url
