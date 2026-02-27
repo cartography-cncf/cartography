@@ -172,6 +172,27 @@ gcp_mapping = OntologyMapping(
                 # encrypted: not directly available in GCPCloudSQLInstance
             ],
         ),
+        OntologyNodeMapping(
+            node_label="GCPBigQueryDataset",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name",
+                    node_field="friendly_name",
+                    required=True,
+                ),
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="",
+                    special_handling="static_value",
+                    extra={"value": "bigquery"},
+                ),
+                OntologyFieldMapping(ontology_field="location", node_field="location"),
+                # _ont_db_version: Not applicable to managed BigQuery service
+                # _ont_db_endpoint: BigQuery uses project/dataset identifiers, not endpoints
+                # _ont_db_port: Not applicable (REST/gRPC API)
+                # _ont_db_encrypted: BigQuery is encrypted at rest by default, not exposed
+            ],
+        ),
     ],
 )
 

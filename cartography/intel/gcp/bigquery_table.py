@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_bigquery_tables(
-    client: Resource, project_id: str, dataset_id: str,
+    client: Resource,
+    project_id: str,
+    dataset_id: str,
 ) -> list[dict] | None:
     """
     Gets BigQuery tables for a dataset.
@@ -52,23 +54,27 @@ def get_bigquery_tables(
 
 
 def transform_tables(
-    tables_data: list[dict], project_id: str, dataset_full_id: str,
+    tables_data: list[dict],
+    project_id: str,
+    dataset_full_id: str,
 ) -> list[dict]:
     transformed: list[dict] = []
     for table in tables_data:
         ref = table.get("tableReference", {})
         table_id = ref.get("tableId", "")
-        transformed.append({
-            "id": f"{dataset_full_id}.{table_id}",
-            "table_id": table_id,
-            "dataset_id": dataset_full_id,
-            "type": table.get("type"),
-            "creation_time": table.get("creationTime"),
-            "expiration_time": table.get("expirationTime"),
-            "num_bytes": table.get("numBytes"),
-            "num_long_term_bytes": table.get("numLongTermBytes"),
-            "num_rows": table.get("numRows"),
-        })
+        transformed.append(
+            {
+                "id": f"{dataset_full_id}.{table_id}",
+                "table_id": table_id,
+                "dataset_id": dataset_full_id,
+                "type": table.get("type"),
+                "creation_time": table.get("creationTime"),
+                "expiration_time": table.get("expirationTime"),
+                "num_bytes": table.get("numBytes"),
+                "num_long_term_bytes": table.get("numLongTermBytes"),
+                "num_rows": table.get("numRows"),
+            }
+        )
     return transformed
 
 
@@ -90,7 +96,8 @@ def load_bigquery_tables(
 
 @timeit
 def cleanup_bigquery_tables(
-    neo4j_session: neo4j.Session, common_job_parameters: dict,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
 ) -> None:
     GraphJob.from_node_schema(GCPBigQueryTableSchema(), common_job_parameters).run(
         neo4j_session,

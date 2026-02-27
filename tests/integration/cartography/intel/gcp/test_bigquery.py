@@ -108,7 +108,9 @@ def test_sync_bigquery(
 
     # Assert datasets
     assert check_nodes(
-        neo4j_session, "GCPBigQueryDataset", ["id", "dataset_id", "location"],
+        neo4j_session,
+        "GCPBigQueryDataset",
+        ["id", "dataset_id", "location"],
     ) == {
         ("test-project:my_dataset", "my_dataset", "US"),
         ("test-project:other_dataset", "other_dataset", "EU"),
@@ -122,7 +124,9 @@ def test_sync_bigquery(
 
     # Assert tables
     assert check_nodes(
-        neo4j_session, "GCPBigQueryTable", ["id", "table_id", "type"],
+        neo4j_session,
+        "GCPBigQueryTable",
+        ["id", "table_id", "type"],
     ) == {
         ("test-project:my_dataset.users", "users", "TABLE"),
         ("test-project:my_dataset.user_view", "user_view", "VIEW"),
@@ -131,14 +135,18 @@ def test_sync_bigquery(
 
     # Assert routines
     assert check_nodes(
-        neo4j_session, "GCPBigQueryRoutine", ["id", "routine_id", "routine_type"],
+        neo4j_session,
+        "GCPBigQueryRoutine",
+        ["id", "routine_id", "routine_type"],
     ) == {
         ("test-project:my_dataset.my_udf", "my_udf", "SCALAR_FUNCTION"),
     }
 
     # Assert connections
     assert check_nodes(
-        neo4j_session, "GCPBigQueryConnection", ["id", "friendly_name", "connection_type"],
+        neo4j_session,
+        "GCPBigQueryConnection",
+        ["id", "friendly_name", "connection_type"],
     ) == {
         (
             "projects/test-project/locations/us/connections/my-cloud-sql-conn",
@@ -155,8 +163,10 @@ def test_sync_bigquery(
     # Assert project -> dataset relationships
     assert check_rels(
         neo4j_session,
-        "GCPProject", "id",
-        "GCPBigQueryDataset", "id",
+        "GCPProject",
+        "id",
+        "GCPBigQueryDataset",
+        "id",
         "RESOURCE",
     ) == {
         (TEST_PROJECT_ID, "test-project:my_dataset"),
@@ -166,8 +176,10 @@ def test_sync_bigquery(
     # Assert project -> table relationships
     assert check_rels(
         neo4j_session,
-        "GCPProject", "id",
-        "GCPBigQueryTable", "id",
+        "GCPProject",
+        "id",
+        "GCPBigQueryTable",
+        "id",
         "RESOURCE",
     ) == {
         (TEST_PROJECT_ID, "test-project:my_dataset.users"),
@@ -178,8 +190,10 @@ def test_sync_bigquery(
     # Assert dataset -> table relationships
     assert check_rels(
         neo4j_session,
-        "GCPBigQueryDataset", "id",
-        "GCPBigQueryTable", "id",
+        "GCPBigQueryDataset",
+        "id",
+        "GCPBigQueryTable",
+        "id",
         "HAS_TABLE",
     ) == {
         ("test-project:my_dataset", "test-project:my_dataset.users"),
@@ -190,8 +204,10 @@ def test_sync_bigquery(
     # Assert project -> routine relationships
     assert check_rels(
         neo4j_session,
-        "GCPProject", "id",
-        "GCPBigQueryRoutine", "id",
+        "GCPProject",
+        "id",
+        "GCPBigQueryRoutine",
+        "id",
         "RESOURCE",
     ) == {
         (TEST_PROJECT_ID, "test-project:my_dataset.my_udf"),
@@ -200,8 +216,10 @@ def test_sync_bigquery(
     # Assert dataset -> routine relationships
     assert check_rels(
         neo4j_session,
-        "GCPBigQueryDataset", "id",
-        "GCPBigQueryRoutine", "id",
+        "GCPBigQueryDataset",
+        "id",
+        "GCPBigQueryRoutine",
+        "id",
         "HAS_ROUTINE",
     ) == {
         ("test-project:my_dataset", "test-project:my_dataset.my_udf"),
@@ -210,8 +228,10 @@ def test_sync_bigquery(
     # Assert project -> connection relationships
     assert check_rels(
         neo4j_session,
-        "GCPProject", "id",
-        "GCPBigQueryConnection", "id",
+        "GCPProject",
+        "id",
+        "GCPBigQueryConnection",
+        "id",
         "RESOURCE",
     ) == {
         (

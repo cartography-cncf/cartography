@@ -21,8 +21,12 @@ class GCPBigQueryDatasetProperties(CartographyNodeProperties):
     location: PropertyRef = PropertyRef("location")
     creation_time: PropertyRef = PropertyRef("creation_time")
     last_modified_time: PropertyRef = PropertyRef("last_modified_time")
-    default_table_expiration_ms: PropertyRef = PropertyRef("default_table_expiration_ms")
-    default_partition_expiration_ms: PropertyRef = PropertyRef("default_partition_expiration_ms")
+    default_table_expiration_ms: PropertyRef = PropertyRef(
+        "default_table_expiration_ms"
+    )
+    default_partition_expiration_ms: PropertyRef = PropertyRef(
+        "default_partition_expiration_ms"
+    )
 
 
 @dataclass(frozen=True)

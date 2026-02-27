@@ -94,7 +94,7 @@ MOCK_ROUTINES_MY_DATASET = {
     ],
 }
 
-MOCK_ROUTINES_OTHER_DATASET = {
+MOCK_ROUTINES_OTHER_DATASET: dict[str, list] = {
     "routines": [],
 }
 

@@ -53,18 +53,22 @@ def transform_datasets(datasets_data: list[dict], project_id: str) -> list[dict]
     for dataset in datasets_data:
         ref = dataset.get("datasetReference", {})
         dataset_id = ref.get("datasetId", "")
-        transformed.append({
-            "id": f"{project_id}:{dataset_id}",
-            "dataset_id": dataset_id,
-            "friendly_name": dataset.get("friendlyName"),
-            "description": dataset.get("description"),
-            "location": dataset.get("location"),
-            "creation_time": dataset.get("creationTime"),
-            "last_modified_time": dataset.get("lastModifiedTime"),
-            "default_table_expiration_ms": dataset.get("defaultTableExpirationMs"),
-            "default_partition_expiration_ms": dataset.get("defaultPartitionExpirationMs"),
-            "project_id": project_id,
-        })
+        transformed.append(
+            {
+                "id": f"{project_id}:{dataset_id}",
+                "dataset_id": dataset_id,
+                "friendly_name": dataset.get("friendlyName"),
+                "description": dataset.get("description"),
+                "location": dataset.get("location"),
+                "creation_time": dataset.get("creationTime"),
+                "last_modified_time": dataset.get("lastModifiedTime"),
+                "default_table_expiration_ms": dataset.get("defaultTableExpirationMs"),
+                "default_partition_expiration_ms": dataset.get(
+                    "defaultPartitionExpirationMs"
+                ),
+                "project_id": project_id,
+            }
+        )
     return transformed
 
 
@@ -86,7 +90,8 @@ def load_bigquery_datasets(
 
 @timeit
 def cleanup_bigquery_datasets(
-    neo4j_session: neo4j.Session, common_job_parameters: dict,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
 ) -> None:
     GraphJob.from_node_schema(GCPBigQueryDatasetSchema(), common_job_parameters).run(
         neo4j_session,

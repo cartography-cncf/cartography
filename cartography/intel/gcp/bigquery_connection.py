@@ -20,7 +20,8 @@ _ALL_LOCATIONS = "-"
 
 @timeit
 def get_bigquery_connections(
-    client: Resource, project_id: str,
+    client: Resource,
+    project_id: str,
 ) -> list[dict] | None:
     """
     Gets BigQuery connections for a project across all locations.
@@ -40,7 +41,10 @@ def get_bigquery_connections(
             response = gcp_api_execute_with_retry(request)
             connections.extend(response.get("connections", []))
             request = (
-                client.projects().locations().connections().list_next(
+                client.projects()
+                .locations()
+                .connections()
+                .list_next(
                     previous_request=request,
                     previous_response=response,
                 )
@@ -63,22 +67,29 @@ def transform_connections(connections_data: list[dict], project_id: str) -> list
         # Determine connection type from the oneOf fields in the API response
         connection_type = None
         for type_key in (
-            "cloudSql", "aws", "azure", "cloudSpanner", "cloudResource", "spark",
+            "cloudSql",
+            "aws",
+            "azure",
+            "cloudSpanner",
+            "cloudResource",
+            "spark",
         ):
             if type_key in conn:
                 connection_type = type_key
                 break
 
-        transformed.append({
-            "name": conn.get("name"),
-            "friendlyName": conn.get("friendlyName"),
-            "description": conn.get("description"),
-            "connection_type": connection_type,
-            "creationTime": conn.get("creationTime"),
-            "lastModifiedTime": conn.get("lastModifiedTime"),
-            "hasCredential": conn.get("hasCredential"),
-            "project_id": project_id,
-        })
+        transformed.append(
+            {
+                "name": conn.get("name"),
+                "friendlyName": conn.get("friendlyName"),
+                "description": conn.get("description"),
+                "connection_type": connection_type,
+                "creationTime": conn.get("creationTime"),
+                "lastModifiedTime": conn.get("lastModifiedTime"),
+                "hasCredential": conn.get("hasCredential"),
+                "project_id": project_id,
+            }
+        )
     return transformed
 
 
@@ -100,10 +111,12 @@ def load_bigquery_connections(
 
 @timeit
 def cleanup_bigquery_connections(
-    neo4j_session: neo4j.Session, common_job_parameters: dict,
+    neo4j_session: neo4j.Session,
+    common_job_parameters: dict,
 ) -> None:
     GraphJob.from_node_schema(
-        GCPBigQueryConnectionSchema(), common_job_parameters,
+        GCPBigQueryConnectionSchema(),
+        common_job_parameters,
     ).run(neo4j_session)
 
 
