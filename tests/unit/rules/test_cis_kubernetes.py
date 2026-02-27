@@ -10,9 +10,7 @@ import pytest
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
     cis_k8s_5_1_1_cluster_admin_usage,
 )
-from cartography.rules.data.rules.cis_kubernetes_rbac import (
-    cis_k8s_5_1_2_secret_access,
-)
+from cartography.rules.data.rules.cis_kubernetes_rbac import cis_k8s_5_1_2_secret_access
 from cartography.rules.data.rules.cis_kubernetes_rbac import (
     cis_k8s_5_1_3_wildcard_roles,
 )
@@ -179,9 +177,7 @@ class TestCisKubernetesRuleRegistration:
     def test_rule_count(self):
         from cartography.rules.data.rules import RULES
 
-        k8s_rules = {
-            k: v for k, v in RULES.items() if k.startswith("cis_k8s_")
-        }
+        k8s_rules = {k: v for k, v in RULES.items() if k.startswith("cis_k8s_")}
         assert len(k8s_rules) == 14
 
 
