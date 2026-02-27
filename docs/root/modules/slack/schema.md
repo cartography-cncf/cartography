@@ -163,6 +163,8 @@ Representation of a single [Channel in Slack](https://api.slack.com/types/channe
 
 Representation of a single [Group in Slack](https://api.slack.com/types/usergroup).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first created this node  |

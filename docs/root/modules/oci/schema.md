@@ -67,6 +67,8 @@ Representation of an [OCI User](https://docs.cloud.oracle.com/iaas/api/#/en/iden
 
 Representation of an [OCI Group](https://docs.cloud.oracle.com/iaas/api/#/en/identity/20160918/Group).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |

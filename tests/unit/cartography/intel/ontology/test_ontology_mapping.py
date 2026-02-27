@@ -21,6 +21,7 @@ ALL_MAPPINGS = {
 OLD_FORMAT_NODES = [
     "OktaUser",
     "OktaApplication",
+    "OktaGroup",
     "OktaOrganization",
     "AWSAccount",
     "EntraTenant",  # main label is AzureTenant

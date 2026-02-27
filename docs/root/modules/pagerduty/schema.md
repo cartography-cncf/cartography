@@ -193,6 +193,8 @@ Representation of a [PagerDuty Integration](https://developer.pagerduty.com/api-
 
 Representation of a [PagerDuty Team](https://developer.pagerduty.com/api-reference/c2NoOjI3NDgwMTc-team)
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|--------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |

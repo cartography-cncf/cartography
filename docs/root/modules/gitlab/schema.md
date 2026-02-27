@@ -73,6 +73,8 @@ Representation of a GitLab top-level group (organization). In GitLab, organizati
 
 Representation of a GitLab nested subgroup. Groups can contain other groups (creating a hierarchy) and projects.
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|--------------|
 | firstseen | Timestamp of when a sync job first created this node |

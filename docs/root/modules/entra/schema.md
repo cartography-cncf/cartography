@@ -116,6 +116,8 @@ Representation of an Entra [OU](https://learn.microsoft.com/en-us/graph/api/admi
 ### EntraGroup
 Representation of an Entra [Group](https://learn.microsoft.com/en-us/graph/api/group-get?view=graph-rest-1.0&tabs=http).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 |Field | Description|
 |-------|-------------|
 |id | Entra Group ID (GUID)|
