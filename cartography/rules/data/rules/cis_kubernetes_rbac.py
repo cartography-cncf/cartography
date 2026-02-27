@@ -568,7 +568,7 @@ _k8s_system_masters_cluster_role_bindings = Fact(
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(crb:KubernetesClusterRoleBinding)
           -[:SUBJECT]->(g:KubernetesGroup)
-    WHERE g.name ENDS WITH 'system:masters'
+    WHERE g.name = 'system:masters'
     RETURN
         crb.name AS binding_name,
         'ClusterRoleBinding' AS binding_type,
@@ -578,7 +578,7 @@ _k8s_system_masters_cluster_role_bindings = Fact(
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(crb:KubernetesClusterRoleBinding)
           -[:SUBJECT]->(g:KubernetesGroup)
-    WHERE g.name ENDS WITH 'system:masters'
+    WHERE g.name = 'system:masters'
     RETURN *
     """,
     cypher_count_query="""
@@ -600,7 +600,7 @@ _k8s_system_masters_role_bindings = Fact(
     cypher_query="""
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(rb:KubernetesRoleBinding)
           -[:SUBJECT]->(g:KubernetesGroup)
-    WHERE g.name ENDS WITH 'system:masters'
+    WHERE g.name = 'system:masters'
     RETURN
         rb.name AS binding_name,
         'RoleBinding' AS binding_type,
@@ -610,7 +610,7 @@ _k8s_system_masters_role_bindings = Fact(
     cypher_visual_query="""
     MATCH p=(cluster:KubernetesCluster)-[:RESOURCE]->(rb:KubernetesRoleBinding)
           -[:SUBJECT]->(g:KubernetesGroup)
-    WHERE g.name ENDS WITH 'system:masters'
+    WHERE g.name = 'system:masters'
     RETURN *
     """,
     cypher_count_query="""
