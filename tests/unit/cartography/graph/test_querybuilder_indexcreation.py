@@ -29,4 +29,5 @@ def test_build_create_index_queries_for_emr():
         "CREATE INDEX IF NOT EXISTS FOR (n:EMRCluster) ON (n.lastupdated);",
         "CREATE INDEX IF NOT EXISTS FOR (n:AWSAccount) ON (n.id);",
         "CREATE INDEX IF NOT EXISTS FOR (n:EMRCluster) ON (n.arn);",
+        "CREATE INDEX IF NOT EXISTS FOR (n:Cluster) ON (n.id);",
     }

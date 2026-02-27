@@ -12,6 +12,7 @@ U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
+CL{{Cluster}}
 DB{{Database}}
 OS{{ObjectStorage}}
 TN{{Tenant}}
@@ -245,6 +246,25 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 | _ont_region | The region or zone where the container is running. |
 | _ont_namespace | Namespace for logical isolation (e.g., Kubernetes namespace). |
 | _ont_health_status | The health status of the container. |
+
+
+### Cluster
+
+```{note}
+Cluster is a semantic label.
+```
+
+A cluster represents a managed container orchestration or data processing environment across cloud providers.
+It generalizes concepts like AWS EKS clusters, AWS ECS clusters, AWS EMR clusters, Azure Kubernetes Service clusters, GCP GKE clusters, and native Kubernetes clusters.
+
+| Field | Description |
+|-------|-------------|
+| _ont_id | The unique identifier for the cluster. |
+| _ont_name | The name of the cluster. |
+| _ont_region | The region or location where the cluster is deployed. |
+| _ont_version | The version of the cluster engine (e.g., Kubernetes version, EMR release label). |
+| _ont_endpoint | The API endpoint or FQDN for the cluster. |
+| _ont_status | The current status of the cluster (e.g., ACTIVE, RUNNING, Succeeded). |
 
 
 ### ThirdPartyApp

@@ -612,6 +612,8 @@ Representation of GCP [Forwarding Rules](https://cloud.google.com/compute/docs/r
 
 Representation of a GCP [GKE Cluster](https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/).
 
+> **Ontology Mapping**: This node has the extra label `Cluster` to enable cross-platform queries for clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, KubernetesCluster).
+
 | Field                      | Description                                                                                                                                                                                                       |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | basic_auth                 | Set to `True` if both `masterauth_username` and `masterauth_password` are set                                                                                                                                     |

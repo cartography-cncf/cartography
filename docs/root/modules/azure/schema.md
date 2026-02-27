@@ -1837,6 +1837,8 @@ Representation of a [Certificate within an Azure Key Vault](https://learn.micros
 
 Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
 
+> **Ontology Mapping**: This node has the extra label `Cluster` to enable cross-platform queries for clusters across different systems (e.g., EKSCluster, ECSCluster, GKECluster, KubernetesCluster).
+
 | Field | Description |
 |---|---|
 |firstseen| Timestamp of when a sync job discovered this node|
