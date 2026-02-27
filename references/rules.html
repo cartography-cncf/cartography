@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Rules - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contact" href="../contact.html" /><link rel="prev" title="DriftDetect" href="driftdetect.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Rules"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#module-cartography.rules.cli">CLI</a><ul>
+<li><a class="reference internal" href="#cartography.rules.cli.OutputFormat"><code class="docutils literal notranslate"><span class="pre">OutputFormat</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.cli.OutputFormat.__format__"><code class="docutils literal notranslate">__format__()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.rules.cli.complete_facts"><code class="docutils literal notranslate"><span class="pre">complete_facts()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.cli.complete_frameworks"><code class="docutils literal notranslate"><span class="pre">complete_frameworks()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.cli.complete_rules"><code class="docutils literal notranslate"><span class="pre">complete_rules()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.cli.complete_rules_with_all"><code class="docutils literal notranslate"><span class="pre">complete_rules_with_all()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.cli.frameworks_cmd"><code class="docutils literal notranslate"><span class="pre">frameworks_cmd()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.cli.list_cmd"><code class="docutils literal notranslate"><span class="pre">list_cmd()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.cli.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.cli.run_cmd"><code class="docutils literal notranslate"><span class="pre">run_cmd()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-cartography.rules.runners">Runners</a><ul>
+<li><a class="reference internal" href="#cartography.rules.runners.filter_rules_by_framework"><code class="docutils literal notranslate"><span class="pre">filter_rules_by_framework()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.runners.get_all_frameworks"><code class="docutils literal notranslate"><span class="pre">get_all_frameworks()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.runners.run_rules"><code class="docutils literal notranslate"><span class="pre">run_rules()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-cartography.rules.formatters">Formatters</a><ul>
+<li><a class="reference internal" href="#cartography.rules.formatters.to_serializable"><code class="docutils literal notranslate"><span class="pre">to_serializable()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-cartography.rules.spec.model">Spec</a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact"><code class="docutils literal notranslate"><span class="pre">Fact</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact.asset_id_field"><code class="docutils literal notranslate">asset_id_field</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact.cypher_count_query"><code class="docutils literal notranslate">cypher_count_query</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact.cypher_query"><code class="docutils literal notranslate">cypher_query</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact.cypher_visual_query"><code class="docutils literal notranslate">cypher_visual_query</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact.description"><code class="docutils literal notranslate">description</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact.id"><code class="docutils literal notranslate">id</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact.maturity"><code class="docutils literal notranslate">maturity</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact.module"><code class="docutils literal notranslate">module</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Fact.name"><code class="docutils literal notranslate">name</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Finding"><code class="docutils literal notranslate"><span class="pre">Finding</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Finding.extra"><code class="docutils literal notranslate">extra</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Finding.model_config"><code class="docutils literal notranslate">model_config</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Finding.source"><code class="docutils literal notranslate">source</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Framework"><code class="docutils literal notranslate"><span class="pre">Framework</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Framework.name"><code class="docutils literal notranslate">name</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Framework.short_name"><code class="docutils literal notranslate">short_name</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Framework.requirement"><code class="docutils literal notranslate">requirement</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Framework.scope"><code class="docutils literal notranslate">scope</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Framework.revision"><code class="docutils literal notranslate">revision</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Framework.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Framework.matches"><code class="docutils literal notranslate">matches()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Maturity"><code class="docutils literal notranslate"><span class="pre">Maturity</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Maturity.__format__"><code class="docutils literal notranslate">__format__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Maturity.EXPERIMENTAL"><code class="docutils literal notranslate">EXPERIMENTAL</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Maturity.STABLE"><code class="docutils literal notranslate">STABLE</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module"><code class="docutils literal notranslate"><span class="pre">Module</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.__format__"><code class="docutils literal notranslate">__format__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.AIRBYTE"><code class="docutils literal notranslate">AIRBYTE</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.ANTHROPIC"><code class="docutils literal notranslate">ANTHROPIC</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.AWS"><code class="docutils literal notranslate">AWS</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.AZURE"><code class="docutils literal notranslate">AZURE</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.BIGFIX"><code class="docutils literal notranslate">BIGFIX</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.CLOUDFLARE"><code class="docutils literal notranslate">CLOUDFLARE</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.CROSS_CLOUD"><code class="docutils literal notranslate">CROSS_CLOUD</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.CROWDSTRIKE"><code class="docutils literal notranslate">CROWDSTRIKE</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.DIGITALOCEAN"><code class="docutils literal notranslate">DIGITALOCEAN</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.DUO"><code class="docutils literal notranslate">DUO</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.ENTRA"><code class="docutils literal notranslate">ENTRA</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.GCP"><code class="docutils literal notranslate">GCP</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.GITHUB"><code class="docutils literal notranslate">GITHUB</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.GITLAB"><code class="docutils literal notranslate">GITLAB</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.GOOGLEWORKSPACE"><code class="docutils literal notranslate">GOOGLEWORKSPACE</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.JAMF"><code class="docutils literal notranslate">JAMF</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.KANDJI"><code class="docutils literal notranslate">KANDJI</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.KEYCLOAK"><code class="docutils literal notranslate">KEYCLOAK</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.KUBERNETES"><code class="docutils literal notranslate">KUBERNETES</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.LASTPASS"><code class="docutils literal notranslate">LASTPASS</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.OCI"><code class="docutils literal notranslate">OCI</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.OKTA"><code class="docutils literal notranslate">OKTA</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.OPENAI"><code class="docutils literal notranslate">OPENAI</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.PAGERDUTY"><code class="docutils literal notranslate">PAGERDUTY</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.SCALEWAY"><code class="docutils literal notranslate">SCALEWAY</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.SEMGREP"><code class="docutils literal notranslate">SEMGREP</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.SENTINELONE"><code class="docutils literal notranslate">SENTINELONE</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.SNIPEIT"><code class="docutils literal notranslate">SNIPEIT</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.SPACELIFT"><code class="docutils literal notranslate">SPACELIFT</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.TAILSCALE"><code class="docutils literal notranslate">TAILSCALE</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Module.TRIVY"><code class="docutils literal notranslate">TRIVY</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule"><code class="docutils literal notranslate"><span class="pre">Rule</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.get_fact_by_id"><code class="docutils literal notranslate">get_fact_by_id()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.has_framework"><code class="docutils literal notranslate">has_framework()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.parse_results"><code class="docutils literal notranslate">parse_results()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.description"><code class="docutils literal notranslate">description</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.facts"><code class="docutils literal notranslate">facts</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.frameworks"><code class="docutils literal notranslate">frameworks</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.id"><code class="docutils literal notranslate">id</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.modules"><code class="docutils literal notranslate">modules</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.name"><code class="docutils literal notranslate">name</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.output_model"><code class="docutils literal notranslate">output_model</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.references"><code class="docutils literal notranslate">references</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.tags"><code class="docutils literal notranslate">tags</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.Rule.version"><code class="docutils literal notranslate">version</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.rules.spec.model.RuleReference"><code class="docutils literal notranslate"><span class="pre">RuleReference</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.model.RuleReference.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.CounterResult"><code class="docutils literal notranslate"><span class="pre">CounterResult</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.result.CounterResult.current_fact"><code class="docutils literal notranslate">current_fact</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.CounterResult.total_facts"><code class="docutils literal notranslate">total_facts</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.CounterResult.total_findings"><code class="docutils literal notranslate">total_findings</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.CounterResult.total_assets"><code class="docutils literal notranslate">total_assets</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.CounterResult.total_failing"><code class="docutils literal notranslate">total_failing</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.CounterResult.total_passing"><code class="docutils literal notranslate">total_passing</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.CounterResult.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.FactResult"><code class="docutils literal notranslate"><span class="pre">FactResult</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.result.FactResult.fact_id"><code class="docutils literal notranslate">fact_id</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.FactResult.fact_name"><code class="docutils literal notranslate">fact_name</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.FactResult.fact_description"><code class="docutils literal notranslate">fact_description</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.FactResult.fact_provider"><code class="docutils literal notranslate">fact_provider</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.FactResult.findings"><code class="docutils literal notranslate">findings</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.FactResult.total_assets"><code class="docutils literal notranslate">total_assets</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.FactResult.failing"><code class="docutils literal notranslate">failing</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.FactResult.passing"><code class="docutils literal notranslate">passing</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.FactResult.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.RuleResult"><code class="docutils literal notranslate"><span class="pre">RuleResult</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.rules.spec.result.RuleResult.rule_id"><code class="docutils literal notranslate">rule_id</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.RuleResult.rule_name"><code class="docutils literal notranslate">rule_name</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.RuleResult.rule_description"><code class="docutils literal notranslate">rule_description</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.RuleResult.counter"><code class="docutils literal notranslate">counter</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.RuleResult.facts"><code class="docutils literal notranslate">facts</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.RuleResult.rule_tags"><code class="docutils literal notranslate">rule_tags</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.RuleResult.rule_frameworks"><code class="docutils literal notranslate">rule_frameworks</span></code></a></li>
+<li><a class="reference internal" href="#cartography.rules.spec.result.RuleResult.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/references/rules.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">&lt;no title&gt;</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Rules</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/rules.md.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/rules.md.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/rules.md.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/rules.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/rules.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="rules">
+<h1>Rules<a class="headerlink" href="#rules" title="Link to this heading">¶</a></h1>
+<section id="module-cartography.rules.cli">
+<span id="cli"></span><h2>CLI<a class="headerlink" href="#module-cartography.rules.cli" title="Link to this heading">¶</a></h2>
+<p>Cartography RunRules CLI</p>
+<p>Execute security frameworks and present facts about your environment.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.cli.OutputFormat">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.cli.</span></span><span class="sig-name descname"><span class="pre">OutputFormat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.cli.OutputFormat" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>Output format options.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.cli.OutputFormat.__format__">
+<span class="sig-name descname"><span class="pre">__format__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">format_spec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.cli.OutputFormat.__format__" title="Link to this definition">¶</a></dt>
+<dd><p>Returns format using actual value type unless __str__ has been overridden.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.cli.complete_facts">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.cli.</span></span><span class="sig-name descname"><span class="pre">complete_facts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">incomplete</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Generator</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.rules.cli.complete_facts" title="Link to this definition">¶</a></dt>
+<dd><p>Autocomplete fact IDs with descriptions based on the selected rule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ctx</strong> (<em>typer.Context</em>) – The Typer context containing parsed parameters.</p></li>
+<li><p><strong>incomplete</strong> (<em>str</em>) – The partial fact ID typed by the user.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>tuple[str, str]</em> – A tuple of (fact_id, fact_name) for matching facts.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.cli.complete_frameworks">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.cli.</span></span><span class="sig-name descname"><span class="pre">complete_frameworks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">incomplete</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Generator</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.rules.cli.complete_frameworks" title="Link to this definition">¶</a></dt>
+<dd><p>Autocomplete framework filters for CLI tab completion.</p>
+<p>Supports formats: “CIS”, “CIS:aws”, “CIS:aws:5.0”</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>incomplete</strong> (<em>str</em>) – The partial framework filter typed by the user.</p>
+</dd>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>str</em> – Framework filter strings that start with the incomplete string.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.cli.complete_rules">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.cli.</span></span><span class="sig-name descname"><span class="pre">complete_rules</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">incomplete</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Generator</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.rules.cli.complete_rules" title="Link to this definition">¶</a></dt>
+<dd><p>Autocomplete rule names for CLI tab completion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>incomplete</strong> (<em>str</em>) – The partial rule name typed by the user.</p>
+</dd>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>str</em> – Rule names that start with the incomplete string.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.cli.complete_rules_with_all">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.cli.</span></span><span class="sig-name descname"><span class="pre">complete_rules_with_all</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">incomplete</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Generator</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.rules.cli.complete_rules_with_all" title="Link to this definition">¶</a></dt>
+<dd><p>Autocomplete rule names plus ‘all’ for CLI tab completion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>incomplete</strong> (<em>str</em>) – The partial rule name typed by the user.</p>
+</dd>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>str</em> – Rule names (plus ‘all’) that start with the incomplete string.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.cli.frameworks_cmd">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.cli.</span></span><span class="sig-name descname"><span class="pre">frameworks_cmd</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.cli.frameworks_cmd" title="Link to this definition">¶</a></dt>
+<dd><p>List all compliance frameworks referenced by rules.</p>
+<p>
+.. admonition:: Examples</p>
+<blockquote>
+<div><p>cartography-rules frameworks</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.cli.list_cmd">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.cli.</span></span><span class="sig-name descname"><span class="pre">list_cmd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rule:</span> <span class="pre">~types.Annotated[str</span> <span class="pre">|</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.ArgumentInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eec730&gt;]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">framework:</span> <span class="pre">~types.Annotated[str</span> <span class="pre">|</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.OptionInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eec7c0&gt;]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.cli.list_cmd" title="Link to this definition">¶</a></dt>
+<dd><p>List available rules and facts.</p>
+<p>
+.. admonition:: Examples</p>
+<blockquote>
+<div><p>cartography-rules list
+cartography-rules list –framework CIS
+cartography-rules list –framework CIS:aws
+cartography-rules list mfa-missing</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.cli.main">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.cli.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.cli.main" title="Link to this definition">¶</a></dt>
+<dd><p>Entrypoint for the cartography-rules CLI.</p>
+<p>This function initializes logging and launches the Typer application.
+It is the main entry point when running <code class="docutils literal notranslate"><span class="pre">cartography-rules</span></code> from the command line.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.cli.run_cmd">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.cli.</span></span><span class="sig-name descname"><span class="pre">run_cmd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rule:</span> <span class="pre">~types.Annotated[str</span> <span class="pre">|</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.ArgumentInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eee350&gt;]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fact:</span> <span class="pre">~types.Annotated[str</span> <span class="pre">|</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.ArgumentInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eef4c0&gt;]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uri:</span> <span class="pre">~typing.Annotated[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.OptionInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eef5b0&gt;]</span> <span class="pre">=</span> <span class="pre">'bolt://localhost:7687'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user:</span> <span class="pre">~typing.Annotated[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.OptionInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eefeb0&gt;]</span> <span class="pre">=</span> <span class="pre">'neo4j'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">database:</span> <span class="pre">~typing.Annotated[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.OptionInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eef340&gt;]</span> <span class="pre">=</span> <span class="pre">'neo4j'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neo4j_password_env_var:</span> <span class="pre">~types.Annotated[str</span> <span class="pre">|</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.OptionInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eed720&gt;]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neo4j_password_prompt:</span> <span class="pre">~typing.Annotated[bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.OptionInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eef7f0&gt;]</span> <span class="pre">=</span> <span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output:</span> <span class="pre">~cartography.rules.cli.Annotated[~cartography.rules.cli.OutputFormat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.OptionInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eee680&gt;]</span> <span class="pre">=</span> <span class="pre">OutputFormat.text</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">experimental:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">&lt;typer.models.OptionInfo</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">framework:</span> <span class="pre">~types.Annotated[str</span> <span class="pre">|</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;typer.models.OptionInfo</span> <span class="pre">object</span> <span class="pre">at</span> <span class="pre">0x7fb4c8eedab0&gt;]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.cli.run_cmd" title="Link to this definition">¶</a></dt>
+<dd><p>Execute a security framework.</p>
+<p>
+.. admonition:: Examples</p>
+<blockquote>
+<div><p>cartography-rules run all
+cartography-rules run all –framework CIS
+cartography-rules run all –framework CIS:aws:5.0
+cartography-rules run mfa-missing
+cartography-rules run mfa-missing missing-mfa-cloudflare</p>
+</div></blockquote>
+</dd></dl>
+
+</section>
+<section id="module-cartography.rules.runners">
+<span id="runners"></span><h2>Runners<a class="headerlink" href="#module-cartography.rules.runners" title="Link to this heading">¶</a></h2>
+<p>Framework and Fact execution logic for Cartography rules.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.runners.filter_rules_by_framework">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.runners.</span></span><span class="sig-name descname"><span class="pre">filter_rules_by_framework</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rule_names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">framework_filter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.rules.runners.filter_rules_by_framework" title="Link to this definition">¶</a></dt>
+<dd><p>Filter rules by framework specification.</p>
+<p>The framework filter supports the following formats (case-insensitive):
+- “CIS” - Match any rule with a CIS framework
+- “CIS:aws” - Match CIS frameworks with scope “aws”
+- “CIS:aws:5.0” - Match CIS frameworks with scope “aws” and revision “5.0”</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rule_names</strong> – List of rule names to filter.</p></li>
+<li><p><strong>framework_filter</strong> – Framework filter string.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of rule names that match the framework filter.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.runners.get_all_frameworks">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.runners.</span></span><span class="sig-name descname"><span class="pre">get_all_frameworks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cartography.rules.spec.model.Framework" title="cartography.rules.spec.model.Framework"><span class="pre">Framework</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.rules.runners.get_all_frameworks" title="Link to this definition">¶</a></dt>
+<dd><p>Get all unique frameworks from all rules, grouped by short_name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dictionary mapping framework short_name to list of unique Framework objects.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.runners.run_rules">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.runners.</span></span><span class="sig-name descname"><span class="pre">run_rules</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rule_names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neo4j_user</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neo4j_password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neo4j_database</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_format</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'text'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fact_filter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_experimental</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">framework_filter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.runners.run_rules" title="Link to this definition">¶</a></dt>
+<dd><p>Execute the specified rules and present results.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rule_names</strong> (<em>list</em><em>[</em><em>str</em><em>]</em>) – The names of the rules to execute.</p></li>
+<li><p><strong>uri</strong> (<em>str</em>) – The URI of the Neo4j database.
+E.g. “bolt://localhost:7687” or “neo4j+s://tenant123.databases.neo4j.io:7687”</p></li>
+<li><p><strong>neo4j_user</strong> (<em>str</em>) – The username for the Neo4j database.</p></li>
+<li><p><strong>neo4j_password</strong> (<em>str</em>) – The password for the Neo4j database.</p></li>
+<li><p><strong>neo4j_database</strong> (<em>str</em>) – The name of the Neo4j database.</p></li>
+<li><p><strong>output_format</strong> (<em>str</em>) – Either “text” or “json”. Defaults to “text”.</p></li>
+<li><p><strong>fact_filter</strong> (<em>str</em><em> | </em><em>None</em>) – Optional fact ID to filter execution (case-insensitive).</p></li>
+<li><p><strong>exclude_experimental</strong> (<em>bool</em>) – Whether to exclude experimental facts from execution.</p></li>
+<li><p><strong>framework_filter</strong> (<em>str</em><em> | </em><em>None</em>) – Optional framework filter (e.g., “CIS”, “CIS:aws”, “CIS:aws:5.0”).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The exit code (0 for success, 1 for failure).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-cartography.rules.formatters">
+<span id="formatters"></span><h2>Formatters<a class="headerlink" href="#module-cartography.rules.formatters" title="Link to this heading">¶</a></h2>
+<p>Output formatting utilities for Cartography rules.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.rules.formatters.to_serializable">
+<span class="sig-prename descclassname"><span class="pre">cartography.rules.formatters.</span></span><span class="sig-name descname"><span class="pre">to_serializable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.formatters.to_serializable" title="Link to this definition">¶</a></dt>
+<dd><p>Convert complex objects to JSON-serializable formats.</p>
+<p>This function recursively converts Pydantic models, Enums, dataclasses,
+and nested structures to basic Python types that can be serialized to JSON.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>obj</strong> – Any Python object to convert. Supports Pydantic BaseModel, Enum,
+dataclass, dict, list, tuple, set, and primitive types.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A JSON-serializable representation of the input object.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="k">class</span><span class="w"> </span><span class="nc">User</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span data-line="3"><span class="gp">... </span>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="4"><span class="gp">... </span>    <span class="n">age</span><span class="p">:</span> <span class="nb">int</span>
+</span><span data-line="5"><span class="gp">&gt;&gt;&gt; </span><span class="n">to_serializable</span><span class="p">(</span><span class="n">User</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Alice&quot;</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="mi">30</span><span class="p">))</span>
+</span><span data-line="6"><span class="go">{&#39;name&#39;: &#39;Alice&#39;, &#39;age&#39;: 30}</span>
+</span></pre></div>
+</div>
+</div>
+</dd></dl>
+
+</section>
+<section id="module-cartography.rules.spec.model">
+<span id="spec"></span><h2>Spec<a class="headerlink" href="#module-cartography.rules.spec.model" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.spec.model.</span></span><span class="sig-name descname"><span class="pre">Fact</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.rules.spec.model.Module" title="cartography.rules.spec.model.Module"><span class="pre">Module</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">maturity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.rules.spec.model.Maturity" title="cartography.rules.spec.model.Maturity"><span class="pre">Maturity</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">cypher_query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cypher_visual_query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cypher_count_query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">asset_id_field</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.model.Fact" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A Fact gathers information about the environment using a Cypher query.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">module</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.rules.spec.model.Module" title="cartography.rules.spec.model.Module"><span class="pre">Module</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">maturity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.rules.spec.model.Maturity" title="cartography.rules.spec.model.Maturity"><span class="pre">Maturity</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">cypher_query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cypher_visual_query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cypher_count_query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">asset_id_field</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.spec.model.Fact.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact.asset_id_field">
+<span class="sig-name descname"><span class="pre">asset_id_field</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#cartography.rules.spec.model.Fact.asset_id_field" title="Link to this definition">¶</a></dt>
+<dd><p>The field name in the output model that uniquely identifies an asset.
+When set, failing count is computed as the count of distinct values of this field
+rather than the total number of finding rows. This is needed when a single asset
+can produce multiple finding rows (e.g., one security group with multiple violating rules).</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact.cypher_count_query">
+<span class="sig-name descname"><span class="pre">cypher_count_query</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.rules.spec.model.Fact.cypher_count_query" title="Link to this definition">¶</a></dt>
+<dd><p>A query that returns the total count of assets of the type being evaluated by this Fact.
+This count includes all assets regardless of whether they match the Fact criteria.
+Should return a single value with <cite>RETURN COUNT(…) AS count</cite>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact.cypher_query">
+<span class="sig-name descname"><span class="pre">cypher_query</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.rules.spec.model.Fact.cypher_query" title="Link to this definition">¶</a></dt>
+<dd><p>The Cypher query to gather information about the environment. Returns data field by field e.g. <cite>RETURN node.prop1, node.prop2</cite>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact.cypher_visual_query">
+<span class="sig-name descname"><span class="pre">cypher_visual_query</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.rules.spec.model.Fact.cypher_visual_query" title="Link to this definition">¶</a></dt>
+<dd><p>Same as <cite>cypher_query</cite>, returns it in a visual format for the web interface with <cite>.. RETURN *</cite>.
+Often includes additional relationships to help give context.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact.description">
+<span class="sig-name descname"><span class="pre">description</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.rules.spec.model.Fact.description" title="Link to this definition">¶</a></dt>
+<dd><p>More details about the Fact. Information on details that we’re querying for.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact.id">
+<span class="sig-name descname"><span class="pre">id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.rules.spec.model.Fact.id" title="Link to this definition">¶</a></dt>
+<dd><p>A descriptive identifier for the Fact. By convention, should be lowercase and use underscores like <cite>rule-name-module</cite>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact.maturity">
+<span class="sig-name descname"><span class="pre">maturity</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.rules.spec.model.Maturity" title="cartography.rules.spec.model.Maturity"><span class="pre">Maturity</span></a></em><a class="headerlink" href="#cartography.rules.spec.model.Fact.maturity" title="Link to this definition">¶</a></dt>
+<dd><p>The maturity level of the Fact query.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact.module">
+<span class="sig-name descname"><span class="pre">module</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.rules.spec.model.Module" title="cartography.rules.spec.model.Module"><span class="pre">Module</span></a></em><a class="headerlink" href="#cartography.rules.spec.model.Fact.module" title="Link to this definition">¶</a></dt>
+<dd><p>The Module that the Fact is associated with e.g. AWS, Azure, GCP, etc.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Fact.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.rules.spec.model.Fact.name" title="Link to this definition">¶</a></dt>
+<dd><p>A descriptive name for the Fact.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Finding">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.spec.model.</span></span><span class="sig-name descname"><span class="pre">Finding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.model.Finding" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseModel</span></code></p>
+<p>Base class for Rule finding models.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Finding.extra">
+<span class="sig-name descname"><span class="pre">extra</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#cartography.rules.spec.model.Finding.extra" title="Link to this definition">¶</a></dt>
+<dd><p>A dictionary to hold any extra fields returned by the Fact query that are not explicitly defined in the output model.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Finding.model_config">
+<span class="sig-name descname"><span class="pre">model_config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">ConfigDict</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'coerce_numbers_to_str':</span> <span class="pre">True}</span></em><a class="headerlink" href="#cartography.rules.spec.model.Finding.model_config" title="Link to this definition">¶</a></dt>
+<dd><p>Configuration for the model, should be a dictionary conforming to [<cite>ConfigDict</cite>][pydantic.config.ConfigDict].</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Finding.source">
+<span class="sig-name descname"><span class="pre">source</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#cartography.rules.spec.model.Finding.source" title="Link to this definition">¶</a></dt>
+<dd><p>The source of the Fact data, e.g. the specific Cartography module that ingested the data. This field is useful especially for CROSS_CLOUD facts.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Framework">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.spec.model.</span></span><span class="sig-name descname"><span class="pre">Framework</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">short_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requirement</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">revision</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.model.Framework" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A reference to a compliance framework requirement.</p>
+<p>All fields are case-insensitive and normalized to lowercase on creation.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Framework.name">
+<span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#cartography.rules.spec.model.Framework.name" title="Link to this definition">¶</a></dt>
+<dd><p>Full name of the framework (e.g., “cis aws foundations benchmark”).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Framework.short_name">
+<span class="sig-name descname"><span class="pre">short_name</span></span><a class="headerlink" href="#cartography.rules.spec.model.Framework.short_name" title="Link to this definition">¶</a></dt>
+<dd><p>Abbreviated name for filtering (e.g., “cis”).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Framework.requirement">
+<span class="sig-name descname"><span class="pre">requirement</span></span><a class="headerlink" href="#cartography.rules.spec.model.Framework.requirement" title="Link to this definition">¶</a></dt>
+<dd><p>The specific requirement identifier (e.g., “1.14”).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Framework.scope">
+<span class="sig-name descname"><span class="pre">scope</span></span><a class="headerlink" href="#cartography.rules.spec.model.Framework.scope" title="Link to this definition">¶</a></dt>
+<dd><p>Optional platform or domain the framework applies to (e.g., “aws”, “gcp”).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Framework.revision">
+<span class="sig-name descname"><span class="pre">revision</span></span><a class="headerlink" href="#cartography.rules.spec.model.Framework.revision" title="Link to this definition">¶</a></dt>
+<dd><p>Optional version/revision of the framework (e.g., “5.0”).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Framework.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">short_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requirement</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">revision</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.spec.model.Framework.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Framework.matches">
+<span class="sig-name descname"><span class="pre">matches</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">short_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">revision</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#cartography.rules.spec.model.Framework.matches" title="Link to this definition">¶</a></dt>
+<dd><p>Check if this framework matches the given filter criteria.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>short_name</strong> – Filter by short name (case-insensitive).</p></li>
+<li><p><strong>scope</strong> – Filter by scope (case-insensitive).</p></li>
+<li><p><strong>revision</strong> – Filter by revision (case-insensitive).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if all provided criteria match, False otherwise.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Maturity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.spec.model.</span></span><span class="sig-name descname"><span class="pre">Maturity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.model.Maturity" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>Maturity levels for Facts.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Maturity.__format__">
+<span class="sig-name descname"><span class="pre">__format__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">format_spec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.model.Maturity.__format__" title="Link to this definition">¶</a></dt>
+<dd><p>Returns format using actual value type unless __str__ has been overridden.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Maturity.EXPERIMENTAL">
+<span class="sig-name descname"><span class="pre">EXPERIMENTAL</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'EXPERIMENTAL'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Maturity.EXPERIMENTAL" title="Link to this definition">¶</a></dt>
+<dd><p>Initial version, may be unstable or incomplete.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Experimental</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Maturity.STABLE">
+<span class="sig-name descname"><span class="pre">STABLE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'STABLE'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Maturity.STABLE" title="Link to this definition">¶</a></dt>
+<dd><p>Well-tested and reliable for production use.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Stable</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.spec.model.</span></span><span class="sig-name descname"><span class="pre">Module</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.model.Module" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>Services that can be monitored</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.__format__">
+<span class="sig-name descname"><span class="pre">__format__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">format_spec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.model.Module.__format__" title="Link to this definition">¶</a></dt>
+<dd><p>Returns format using actual value type unless __str__ has been overridden.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.AIRBYTE">
+<span class="sig-name descname"><span class="pre">AIRBYTE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Airbyte'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.AIRBYTE" title="Link to this definition">¶</a></dt>
+<dd><p>Airbyte data integration</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.ANTHROPIC">
+<span class="sig-name descname"><span class="pre">ANTHROPIC</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Anthropic'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.ANTHROPIC" title="Link to this definition">¶</a></dt>
+<dd><p>Anthropic AI</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.AWS">
+<span class="sig-name descname"><span class="pre">AWS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'AWS'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.AWS" title="Link to this definition">¶</a></dt>
+<dd><p>Amazon Web Services</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.AZURE">
+<span class="sig-name descname"><span class="pre">AZURE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Azure'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.AZURE" title="Link to this definition">¶</a></dt>
+<dd><p>Microsoft Azure</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.BIGFIX">
+<span class="sig-name descname"><span class="pre">BIGFIX</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'BigFix'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.BIGFIX" title="Link to this definition">¶</a></dt>
+<dd><p>BigFix patch management</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.CLOUDFLARE">
+<span class="sig-name descname"><span class="pre">CLOUDFLARE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Cloudflare'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.CLOUDFLARE" title="Link to this definition">¶</a></dt>
+<dd><p>Cloudflare services</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.CROSS_CLOUD">
+<span class="sig-name descname"><span class="pre">CROSS_CLOUD</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Cross-Cloud'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.CROSS_CLOUD" title="Link to this definition">¶</a></dt>
+<dd><p>Multi-cloud or provider-agnostic rules</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.CROWDSTRIKE">
+<span class="sig-name descname"><span class="pre">CROWDSTRIKE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'CrowdStrike'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.CROWDSTRIKE" title="Link to this definition">¶</a></dt>
+<dd><p>CrowdStrike endpoint security</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.DIGITALOCEAN">
+<span class="sig-name descname"><span class="pre">DIGITALOCEAN</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'DigitalOcean'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.DIGITALOCEAN" title="Link to this definition">¶</a></dt>
+<dd><p>DigitalOcean cloud services</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.DUO">
+<span class="sig-name descname"><span class="pre">DUO</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Duo'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.DUO" title="Link to this definition">¶</a></dt>
+<dd><p>Duo authentication</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.ENTRA">
+<span class="sig-name descname"><span class="pre">ENTRA</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Entra'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.ENTRA" title="Link to this definition">¶</a></dt>
+<dd><p>Entra identity and access management</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.GCP">
+<span class="sig-name descname"><span class="pre">GCP</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'GCP'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.GCP" title="Link to this definition">¶</a></dt>
+<dd><p>Google Cloud Platform</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.GITHUB">
+<span class="sig-name descname"><span class="pre">GITHUB</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'GitHub'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.GITHUB" title="Link to this definition">¶</a></dt>
+<dd><p>GitHub source code management</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.GITLAB">
+<span class="sig-name descname"><span class="pre">GITLAB</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'GitLab'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.GITLAB" title="Link to this definition">¶</a></dt>
+<dd><p>GitLab source code management</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.GOOGLEWORKSPACE">
+<span class="sig-name descname"><span class="pre">GOOGLEWORKSPACE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'GoogleWorkspace'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.GOOGLEWORKSPACE" title="Link to this definition">¶</a></dt>
+<dd><p>Google Workspace identity and access management</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.JAMF">
+<span class="sig-name descname"><span class="pre">JAMF</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Jamf'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.JAMF" title="Link to this definition">¶</a></dt>
+<dd><p>Jamf endpoint security</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.KANDJI">
+<span class="sig-name descname"><span class="pre">KANDJI</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Kandji'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.KANDJI" title="Link to this definition">¶</a></dt>
+<dd><p>Kandji endpoint security</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.KEYCLOAK">
+<span class="sig-name descname"><span class="pre">KEYCLOAK</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Keycloak'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.KEYCLOAK" title="Link to this definition">¶</a></dt>
+<dd><p>Keycloak identity and access management</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.KUBERNETES">
+<span class="sig-name descname"><span class="pre">KUBERNETES</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Kubernetes'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.KUBERNETES" title="Link to this definition">¶</a></dt>
+<dd><p>Kubernetes cluster security</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.LASTPASS">
+<span class="sig-name descname"><span class="pre">LASTPASS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'LastPass'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.LASTPASS" title="Link to this definition">¶</a></dt>
+<dd><p>LastPass password manager</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.OCI">
+<span class="sig-name descname"><span class="pre">OCI</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'OCI'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.OCI" title="Link to this definition">¶</a></dt>
+<dd><p>Oracle Cloud Infrastructure</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.OKTA">
+<span class="sig-name descname"><span class="pre">OKTA</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Okta'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.OKTA" title="Link to this definition">¶</a></dt>
+<dd><p>Okta identity and access management</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.OPENAI">
+<span class="sig-name descname"><span class="pre">OPENAI</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'OpenAI'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.OPENAI" title="Link to this definition">¶</a></dt>
+<dd><p>OpenAI</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.PAGERDUTY">
+<span class="sig-name descname"><span class="pre">PAGERDUTY</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'PagerDuty'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.PAGERDUTY" title="Link to this definition">¶</a></dt>
+<dd><p>PagerDuty incident response</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.SCALEWAY">
+<span class="sig-name descname"><span class="pre">SCALEWAY</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Scaleway'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.SCALEWAY" title="Link to this definition">¶</a></dt>
+<dd><p>Scaleway cloud services</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.SEMGREP">
+<span class="sig-name descname"><span class="pre">SEMGREP</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Semgrep'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.SEMGREP" title="Link to this definition">¶</a></dt>
+<dd><p>Semgrep code security</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.SENTINELONE">
+<span class="sig-name descname"><span class="pre">SENTINELONE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'SentinelOne'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.SENTINELONE" title="Link to this definition">¶</a></dt>
+<dd><p>SentinelOne endpoint security</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.SNIPEIT">
+<span class="sig-name descname"><span class="pre">SNIPEIT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Snipe-IT'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.SNIPEIT" title="Link to this definition">¶</a></dt>
+<dd><p>Snipe-IT asset management</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.SPACELIFT">
+<span class="sig-name descname"><span class="pre">SPACELIFT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'SpaceLift'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.SPACELIFT" title="Link to this definition">¶</a></dt>
+<dd><p>SpaceLift infrastructure as code</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.TAILSCALE">
+<span class="sig-name descname"><span class="pre">TAILSCALE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'TailScale'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.TAILSCALE" title="Link to this definition">¶</a></dt>
+<dd><p>TailScale VPN</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Module.TRIVY">
+<span class="sig-name descname"><span class="pre">TRIVY</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Trivy'</span></em><a class="headerlink" href="#cartography.rules.spec.model.Module.TRIVY" title="Link to this definition">¶</a></dt>
+<dd><p>Trivy vulnerability scanner</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.spec.model.</span></span><span class="sig-name descname"><span class="pre">Rule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">id:</span> <span class="pre">str,</span> <span class="pre">name:</span> <span class="pre">str,</span> <span class="pre">tags:</span> <span class="pre">tuple[str,</span> <span class="pre">...],</span> <span class="pre">description:</span> <span class="pre">str,</span> <span class="pre">version:</span> <span class="pre">str,</span> <span class="pre">facts:</span> <span class="pre">tuple[~cartography.rules.spec.model.Fact,</span> <span class="pre">...],</span> <span class="pre">output_model:</span> <span class="pre">type[~cartography.rules.spec.model.Finding],</span> <span class="pre">references:</span> <span class="pre">list[~cartography.rules.spec.model.RuleReference]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">frameworks:</span> <span class="pre">tuple[~cartography.rules.spec.model.Framework,</span> <span class="pre">...]</span> <span class="pre">=</span> <span class="pre">()</span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.model.Rule" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A Rule represents a security issue or misconfiguration detected in the environment.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">id:</span> <span class="pre">str,</span> <span class="pre">name:</span> <span class="pre">str,</span> <span class="pre">tags:</span> <span class="pre">tuple[str,</span> <span class="pre">...],</span> <span class="pre">description:</span> <span class="pre">str,</span> <span class="pre">version:</span> <span class="pre">str,</span> <span class="pre">facts:</span> <span class="pre">tuple[~cartography.rules.spec.model.Fact,</span> <span class="pre">...],</span> <span class="pre">output_model:</span> <span class="pre">type[~cartography.rules.spec.model.Finding],</span> <span class="pre">references:</span> <span class="pre">list[~cartography.rules.spec.model.RuleReference]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">frameworks:</span> <span class="pre">tuple[~cartography.rules.spec.model.Framework,</span> <span class="pre">...]</span> <span class="pre">=</span> <span class="pre">()</span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.spec.model.Rule.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.get_fact_by_id">
+<span class="sig-name descname"><span class="pre">get_fact_by_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fact_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#cartography.rules.spec.model.Fact" title="cartography.rules.spec.model.Fact"><span class="pre">Fact</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.spec.model.Rule.get_fact_by_id" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a fact by its ID, or None if not found.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>fact_id</strong> (<em>str</em>) – The ID of the Fact to find (case-insensitive).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The matching Fact, or None if not found.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#cartography.rules.spec.model.Fact" title="cartography.rules.spec.model.Fact">Fact</a> | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.has_framework">
+<span class="sig-name descname"><span class="pre">has_framework</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">short_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">revision</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#cartography.rules.spec.model.Rule.has_framework" title="Link to this definition">¶</a></dt>
+<dd><p>Check if this rule has a framework matching the given criteria.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>short_name</strong> – Filter by framework short name (case-insensitive).</p></li>
+<li><p><strong>scope</strong> – Filter by framework scope (case-insensitive).</p></li>
+<li><p><strong>revision</strong> – Filter by framework revision (case-insensitive).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if any framework matches all provided criteria.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.parse_results">
+<span class="sig-name descname"><span class="pre">parse_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fact</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.rules.spec.model.Fact" title="cartography.rules.spec.model.Fact"><span class="pre">Fact</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">fact_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cartography.rules.spec.model.Finding" title="cartography.rules.spec.model.Finding"><span class="pre">Finding</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.rules.spec.model.Rule.parse_results" title="Link to this definition">¶</a></dt>
+<dd><p>Parse raw query results into typed Finding objects.</p>
+<p>This method converts the raw dictionary results from a Cypher query
+into strongly-typed Finding objects using the Rule’s output_model.
+Fields not defined in the output model are stored in the <code class="docutils literal notranslate"><span class="pre">extra</span></code> dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fact</strong> (<a class="reference internal" href="#cartography.rules.spec.model.Fact" title="cartography.rules.spec.model.Fact"><em>Fact</em></a>) – The Fact that produced these results (used for source tracking).</p></li>
+<li><p><strong>fact_results</strong> (<em>list</em><em>[</em><em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>]</em>) – Raw results from the Cypher query.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A list of typed Finding objects.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[<a class="reference internal" href="#cartography.rules.spec.model.Finding" title="cartography.rules.spec.model.Finding">Finding</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.description">
+<span class="sig-name descname"><span class="pre">description</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.rules.spec.model.Rule.description" title="Link to this definition">¶</a></dt>
+<dd><p>A brief description of the Rule. Can include details about the security issue or misconfiguration.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.facts">
+<span class="sig-name descname"><span class="pre">facts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cartography.rules.spec.model.Fact" title="cartography.rules.spec.model.Fact"><span class="pre">Fact</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#cartography.rules.spec.model.Rule.facts" title="Link to this definition">¶</a></dt>
+<dd><p>The Facts that contribute to this Rule.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.frameworks">
+<span class="sig-name descname"><span class="pre">frameworks</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cartography.rules.spec.model.Framework" title="cartography.rules.spec.model.Framework"><span class="pre">Framework</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">()</span></em><a class="headerlink" href="#cartography.rules.spec.model.Rule.frameworks" title="Link to this definition">¶</a></dt>
+<dd><p>Compliance frameworks this rule maps to (e.g., CIS benchmarks).</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.id">
+<span class="sig-name descname"><span class="pre">id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.rules.spec.model.Rule.id" title="Link to this definition">¶</a></dt>
+<dd><p>A unique identifier for the Rule. Should be globally unique within Cartography.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.modules">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">modules</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">set</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cartography.rules.spec.model.Module" title="cartography.rules.spec.model.Module"><span class="pre">Module</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#cartography.rules.spec.model.Rule.modules" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the set of modules associated with this rule.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.rules.spec.model.Rule.name" title="Link to this definition">¶</a></dt>
+<dd><p>A brief name for the Rule.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.output_model">
+<span class="sig-name descname"><span class="pre">output_model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">type</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cartography.rules.spec.model.Finding" title="cartography.rules.spec.model.Finding"><span class="pre">Finding</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#cartography.rules.spec.model.Rule.output_model" title="Link to this definition">¶</a></dt>
+<dd><p>The output model class for the Rule.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.references">
+<span class="sig-name descname"><span class="pre">references</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cartography.rules.spec.model.RuleReference" title="cartography.rules.spec.model.RuleReference"><span class="pre">RuleReference</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#cartography.rules.spec.model.Rule.references" title="Link to this definition">¶</a></dt>
+<dd><p>References or links to external resources related to the Rule.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.tags">
+<span class="sig-name descname"><span class="pre">tags</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#cartography.rules.spec.model.Rule.tags" title="Link to this definition">¶</a></dt>
+<dd><p>Tags associated with the Rule for categorization and filtering.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.Rule.version">
+<span class="sig-name descname"><span class="pre">version</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.rules.spec.model.Rule.version" title="Link to this definition">¶</a></dt>
+<dd><p>The version of the Rule definition.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.RuleReference">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.spec.model.</span></span><span class="sig-name descname"><span class="pre">RuleReference</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.model.RuleReference" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A reference document for a Rule.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.model.RuleReference.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.spec.model.RuleReference.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<p id="module-cartography.rules.spec.result">Execution result classes for Cartography rules.</p>
+<p>This module defines the data structures used to represent the results
+of rule and fact execution.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.CounterResult">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.spec.result.</span></span><span class="sig-name descname"><span class="pre">CounterResult</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">current_fact</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_facts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_findings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_assets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_failing</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_passing</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.result.CounterResult" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Counter for tracking rule execution progress and aggregate metrics.</p>
+<p>This class maintains running totals during rule execution, including
+the current progress and aggregate compliance metrics across all facts.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.CounterResult.current_fact">
+<span class="sig-name descname"><span class="pre">current_fact</span></span><a class="headerlink" href="#cartography.rules.spec.result.CounterResult.current_fact" title="Link to this definition">¶</a></dt>
+<dd><p>The index of the currently executing fact.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.CounterResult.total_facts">
+<span class="sig-name descname"><span class="pre">total_facts</span></span><a class="headerlink" href="#cartography.rules.spec.result.CounterResult.total_facts" title="Link to this definition">¶</a></dt>
+<dd><p>The total number of facts to execute.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.CounterResult.total_findings">
+<span class="sig-name descname"><span class="pre">total_findings</span></span><a class="headerlink" href="#cartography.rules.spec.result.CounterResult.total_findings" title="Link to this definition">¶</a></dt>
+<dd><p>The cumulative count of findings across all facts.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.CounterResult.total_assets">
+<span class="sig-name descname"><span class="pre">total_assets</span></span><a class="headerlink" href="#cartography.rules.spec.result.CounterResult.total_assets" title="Link to this definition">¶</a></dt>
+<dd><p>Sum of total_assets across all facts (for compliance).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.CounterResult.total_failing">
+<span class="sig-name descname"><span class="pre">total_failing</span></span><a class="headerlink" href="#cartography.rules.spec.result.CounterResult.total_failing" title="Link to this definition">¶</a></dt>
+<dd><p>Sum of failing assets across all facts (for compliance).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.CounterResult.total_passing">
+<span class="sig-name descname"><span class="pre">total_passing</span></span><a class="headerlink" href="#cartography.rules.spec.result.CounterResult.total_passing" title="Link to this definition">¶</a></dt>
+<dd><p>Sum of passing assets across all facts (for compliance).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.CounterResult.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">current_fact</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_facts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_findings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_assets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_failing</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_passing</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.spec.result.CounterResult.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.FactResult">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.spec.result.</span></span><span class="sig-name descname"><span class="pre">FactResult</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fact_id:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fact_name:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fact_description:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fact_provider:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">findings:</span> <span class="pre">list[~cartography.rules.spec.model.Finding]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_assets:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">failing:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">passing:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.result.FactResult" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Results for a single Fact execution.</p>
+<p>Contains the findings from executing a Fact’s Cypher query along with
+optional compliance metrics when a count query is provided.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.FactResult.fact_id">
+<span class="sig-name descname"><span class="pre">fact_id</span></span><a class="headerlink" href="#cartography.rules.spec.result.FactResult.fact_id" title="Link to this definition">¶</a></dt>
+<dd><p>The unique identifier of the executed Fact.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.FactResult.fact_name">
+<span class="sig-name descname"><span class="pre">fact_name</span></span><a class="headerlink" href="#cartography.rules.spec.result.FactResult.fact_name" title="Link to this definition">¶</a></dt>
+<dd><p>The human-readable name of the Fact.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.FactResult.fact_description">
+<span class="sig-name descname"><span class="pre">fact_description</span></span><a class="headerlink" href="#cartography.rules.spec.result.FactResult.fact_description" title="Link to this definition">¶</a></dt>
+<dd><p>A description of what the Fact checks for.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.FactResult.fact_provider">
+<span class="sig-name descname"><span class="pre">fact_provider</span></span><a class="headerlink" href="#cartography.rules.spec.result.FactResult.fact_provider" title="Link to this definition">¶</a></dt>
+<dd><p>The cloud provider or module this Fact applies to.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.FactResult.findings">
+<span class="sig-name descname"><span class="pre">findings</span></span><a class="headerlink" href="#cartography.rules.spec.result.FactResult.findings" title="Link to this definition">¶</a></dt>
+<dd><p>The list of findings from the Fact query.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[<a class="reference internal" href="#cartography.rules.spec.model.Finding" title="cartography.rules.spec.model.Finding">Finding</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.FactResult.total_assets">
+<span class="sig-name descname"><span class="pre">total_assets</span></span><a class="headerlink" href="#cartography.rules.spec.result.FactResult.total_assets" title="Link to this definition">¶</a></dt>
+<dd><p>Total assets evaluated (from cypher_count_query).
+None if no count query was provided.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.FactResult.failing">
+<span class="sig-name descname"><span class="pre">failing</span></span><a class="headerlink" href="#cartography.rules.spec.result.FactResult.failing" title="Link to this definition">¶</a></dt>
+<dd><p>Number of assets that match the finding criteria.
+None if no count query was provided.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.FactResult.passing">
+<span class="sig-name descname"><span class="pre">passing</span></span><a class="headerlink" href="#cartography.rules.spec.result.FactResult.passing" title="Link to this definition">¶</a></dt>
+<dd><p>Number of assets that don’t match (total_assets - failing).
+None if no count query was provided.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.FactResult.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fact_id:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fact_name:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fact_description:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fact_provider:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">findings:</span> <span class="pre">list[~cartography.rules.spec.model.Finding]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">total_assets:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">failing:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">passing:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.spec.result.FactResult.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.RuleResult">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.rules.spec.result.</span></span><span class="sig-name descname"><span class="pre">RuleResult</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rule_id:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rule_name:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rule_description:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter:</span> <span class="pre">~cartography.rules.spec.result.CounterResult</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facts:</span> <span class="pre">list[~cartography.rules.spec.result.FactResult]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rule_tags:</span> <span class="pre">tuple[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">...]</span> <span class="pre">=</span> <span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rule_frameworks:</span> <span class="pre">tuple[~cartography.rules.spec.model.Framework</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">...]</span> <span class="pre">=</span> <span class="pre">()</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.rules.spec.result.RuleResult" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Results for a single Rule execution.</p>
+<p>Contains the aggregated results from executing all Facts within a Rule,
+along with execution counters and metadata.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.RuleResult.rule_id">
+<span class="sig-name descname"><span class="pre">rule_id</span></span><a class="headerlink" href="#cartography.rules.spec.result.RuleResult.rule_id" title="Link to this definition">¶</a></dt>
+<dd><p>The unique identifier of the executed Rule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.RuleResult.rule_name">
+<span class="sig-name descname"><span class="pre">rule_name</span></span><a class="headerlink" href="#cartography.rules.spec.result.RuleResult.rule_name" title="Link to this definition">¶</a></dt>
+<dd><p>The human-readable name of the Rule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.RuleResult.rule_description">
+<span class="sig-name descname"><span class="pre">rule_description</span></span><a class="headerlink" href="#cartography.rules.spec.result.RuleResult.rule_description" title="Link to this definition">¶</a></dt>
+<dd><p>A description of the security issue or misconfiguration.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.RuleResult.counter">
+<span class="sig-name descname"><span class="pre">counter</span></span><a class="headerlink" href="#cartography.rules.spec.result.RuleResult.counter" title="Link to this definition">¶</a></dt>
+<dd><p>Execution counters and aggregate metrics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#cartography.rules.spec.result.CounterResult" title="cartography.rules.spec.result.CounterResult">CounterResult</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.RuleResult.facts">
+<span class="sig-name descname"><span class="pre">facts</span></span><a class="headerlink" href="#cartography.rules.spec.result.RuleResult.facts" title="Link to this definition">¶</a></dt>
+<dd><p>Results from each Fact executed within this Rule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[<a class="reference internal" href="#cartography.rules.spec.result.FactResult" title="cartography.rules.spec.result.FactResult">FactResult</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.RuleResult.rule_tags">
+<span class="sig-name descname"><span class="pre">rule_tags</span></span><a class="headerlink" href="#cartography.rules.spec.result.RuleResult.rule_tags" title="Link to this definition">¶</a></dt>
+<dd><p>Tags associated with the Rule.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[str, …]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.RuleResult.rule_frameworks">
+<span class="sig-name descname"><span class="pre">rule_frameworks</span></span><a class="headerlink" href="#cartography.rules.spec.result.RuleResult.rule_frameworks" title="Link to this definition">¶</a></dt>
+<dd><p>Compliance frameworks this rule maps to.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[<a class="reference internal" href="#cartography.rules.spec.model.Framework" title="cartography.rules.spec.model.Framework">Framework</a>, …]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.rules.spec.result.RuleResult.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rule_id:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rule_name:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rule_description:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter:</span> <span class="pre">~cartography.rules.spec.result.CounterResult</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">facts:</span> <span class="pre">list[~cartography.rules.spec.result.FactResult]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rule_tags:</span> <span class="pre">tuple[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">...]</span> <span class="pre">=</span> <span class="pre">()</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rule_frameworks:</span> <span class="pre">tuple[~cartography.rules.spec.model.Framework</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">...]</span> <span class="pre">=</span> <span class="pre">()</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.rules.spec.result.RuleResult.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="driftdetect.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">DriftDetect</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../contact.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Contact</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

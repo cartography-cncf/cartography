@@ -1,0 +1,6 @@
+# Okta
+
+```{toctree}
+config
+schema
+```

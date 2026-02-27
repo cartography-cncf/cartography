@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Sync - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="AWS Client" href="aws_client.html" /><link rel="prev" title="ORM" href="orm.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Sync"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="orm.html">ORM</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#module-cartography.cli">CLI</a><ul>
+<li><a class="reference internal" href="#cartography.cli.CLI"><code class="docutils literal notranslate"><span class="pre">CLI</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.cli.CLI.sync"><code class="docutils literal notranslate">sync</span></code></a></li>
+<li><a class="reference internal" href="#cartography.cli.CLI.prog"><code class="docutils literal notranslate">prog</span></code></a></li>
+<li><a class="reference internal" href="#cartography.cli.CLI.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.cli.CLI.main"><code class="docutils literal notranslate">main()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.cli.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id1">Sync</a><ul>
+<li><a class="reference internal" href="#cartography.sync.Sync"><code class="docutils literal notranslate"><span class="pre">Sync</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.sync.Sync._stages"><code class="docutils literal notranslate">_stages</span></code></a></li>
+<li><a class="reference internal" href="#cartography.sync.Sync.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.sync.Sync.add_stage"><code class="docutils literal notranslate">add_stage()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.sync.Sync.add_stages"><code class="docutils literal notranslate">add_stages()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.sync.Sync.list_intel_modules"><code class="docutils literal notranslate">list_intel_modules()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.sync.Sync.run"><code class="docutils literal notranslate">run()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.sync.build_default_sync"><code class="docutils literal notranslate"><span class="pre">build_default_sync()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.sync.build_sync"><code class="docutils literal notranslate"><span class="pre">build_sync()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.sync.parse_and_validate_selected_modules"><code class="docutils literal notranslate"><span class="pre">parse_and_validate_selected_modules()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.sync.run_with_config"><code class="docutils literal notranslate"><span class="pre">run_with_config()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-cartography.util">Utils</a><ul>
+<li><a class="reference internal" href="#cartography.util.aws_handle_regions"><code class="docutils literal notranslate"><span class="pre">aws_handle_regions()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.aws_paginate"><code class="docutils literal notranslate"><span class="pre">aws_paginate()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.backoff_handler"><code class="docutils literal notranslate"><span class="pre">backoff_handler()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.batch"><code class="docutils literal notranslate"><span class="pre">batch()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.camel_to_snake"><code class="docutils literal notranslate"><span class="pre">camel_to_snake()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.dict_date_to_epoch"><code class="docutils literal notranslate"><span class="pre">dict_date_to_epoch()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.dict_value_to_str"><code class="docutils literal notranslate"><span class="pre">dict_value_to_str()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.is_service_control_policy_explicit_deny"><code class="docutils literal notranslate"><span class="pre">is_service_control_policy_explicit_deny()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.is_throttling_exception"><code class="docutils literal notranslate"><span class="pre">is_throttling_exception()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.load_resource_binary"><code class="docutils literal notranslate"><span class="pre">load_resource_binary()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.make_neo4j_datetime_validator"><code class="docutils literal notranslate"><span class="pre">make_neo4j_datetime_validator()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.merge_module_sync_metadata"><code class="docutils literal notranslate"><span class="pre">merge_module_sync_metadata()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.retries_with_backoff"><code class="docutils literal notranslate"><span class="pre">retries_with_backoff()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.run_analysis_and_ensure_deps"><code class="docutils literal notranslate"><span class="pre">run_analysis_and_ensure_deps()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.run_analysis_job"><code class="docutils literal notranslate"><span class="pre">run_analysis_job()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.run_cleanup_job"><code class="docutils literal notranslate"><span class="pre">run_cleanup_job()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.run_scoped_analysis_job"><code class="docutils literal notranslate"><span class="pre">run_scoped_analysis_job()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.timeit"><code class="docutils literal notranslate"><span class="pre">timeit()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.to_asynchronous"><code class="docutils literal notranslate"><span class="pre">to_asynchronous()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.to_datetime"><code class="docutils literal notranslate"><span class="pre">to_datetime()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.util.to_synchronous"><code class="docutils literal notranslate"><span class="pre">to_synchronous()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-cartography.stats">Stats</a><ul>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient"><code class="docutils literal notranslate"><span class="pre">ScopedStatsClient</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient._client"><code class="docutils literal notranslate">_client</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient._scope_prefix"><code class="docutils literal notranslate">_scope_prefix</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient._root"><code class="docutils literal notranslate">_root</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient.gauge"><code class="docutils literal notranslate">gauge()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient.get_root_client"><code class="docutils literal notranslate">get_root_client()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient.get_stats_client"><code class="docutils literal notranslate">get_stats_client()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient.incr"><code class="docutils literal notranslate">incr()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient.is_enabled"><code class="docutils literal notranslate">is_enabled()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient.set_stats_client"><code class="docutils literal notranslate">set_stats_client()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.ScopedStatsClient.timer"><code class="docutils literal notranslate">timer()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.stats.get_stats_client"><code class="docutils literal notranslate"><span class="pre">get_stats_client()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.stats.set_stats_client"><code class="docutils literal notranslate"><span class="pre">set_stats_client()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/references/sync.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">&lt;no title&gt;</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Sync</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/sync.md.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/sync.md.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/sync.md.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/sync.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/sync.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="sync">
+<h1>Sync<a class="headerlink" href="#sync" title="Link to this heading">¶</a></h1>
+<section id="module-cartography.cli">
+<span id="cli"></span><h2>CLI<a class="headerlink" href="#module-cartography.cli" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.cli.CLI">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.cli.</span></span><span class="sig-name descname"><span class="pre">CLI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sync</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.sync.Sync" title="cartography.sync.Sync"><span class="pre">Sync</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prog</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.cli.CLI" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Command Line Interface for cartography using Typer.</p>
+<p>This class provides the main command line interface for cartography, handling
+argument parsing, configuration, and execution of sync operations.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We maintain this class-based structure (rather than using module-level Typer
+functions like cartography-rules does) for backward compatibility. The existing
+codebase and tests rely on being able to:</p>
+<ol class="arabic simple">
+<li><p>Inject a custom Sync object: <cite>CLI(sync=my_custom_sync)</cite></p></li>
+<li><p>Set a custom program name: <cite>CLI(prog=”my-cartography”)</cite></p></li>
+<li><p>Call main() with explicit argv: <cite>cli.main([”–neo4j-uri”, “…”])</cite></p></li>
+</ol>
+<p>This allows users to create custom sync configurations and test the CLI
+with mock objects. See tests/integration/cartography/test_cli.py for examples.</p>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.cli.CLI.sync">
+<span class="sig-name descname"><span class="pre">sync</span></span><a class="headerlink" href="#cartography.cli.CLI.sync" title="Link to this definition">¶</a></dt>
+<dd><p>A cartography.sync.Sync object for executing sync operations.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.cli.CLI.prog">
+<span class="sig-name descname"><span class="pre">prog</span></span><a class="headerlink" href="#cartography.cli.CLI.prog" title="Link to this definition">¶</a></dt>
+<dd><p>The name of the command line program for display in help output.</p>
+</dd></dl>
+
+<div class="admonition-example admonition">
+<p class="admonition-title">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="n">sync</span> <span class="o">=</span> <span class="n">cartography</span><span class="o">.</span><span class="n">sync</span><span class="o">.</span><span class="n">build_default_sync</span><span class="p">()</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">cli</span> <span class="o">=</span> <span class="n">CLI</span><span class="p">(</span><span class="n">sync</span><span class="o">=</span><span class="n">sync</span><span class="p">,</span> <span class="n">prog</span><span class="o">=</span><span class="s2">&quot;cartography&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="gp">&gt;&gt;&gt; </span><span class="n">exit_code</span> <span class="o">=</span> <span class="n">cli</span><span class="o">.</span><span class="n">main</span><span class="p">([</span><span class="s2">&quot;--neo4j-uri&quot;</span><span class="p">,</span> <span class="s2">&quot;bolt://localhost:7687&quot;</span><span class="p">])</span>
+</span></pre></div>
+</div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.cli.CLI.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sync</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.sync.Sync" title="cartography.sync.Sync"><span class="pre">Sync</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prog</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.cli.CLI.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.cli.CLI.main">
+<span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">argv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#cartography.cli.CLI.main" title="Link to this definition">¶</a></dt>
+<dd><p>Main entrypoint for the command line interface.</p>
+<p>This method parses command line arguments, configures logging and various
+service connections, validates input parameters, and executes the cartography
+sync operation with the provided configuration.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>argv</strong> – The command line arguments to parse. Should be a list of strings
+representing the command line parameters (excluding the program name).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>An integer exit code. Returns 0 for successful execution, or a non-zero
+value for errors or keyboard interruption.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.cli.main">
+<span class="sig-prename descclassname"><span class="pre">cartography.cli.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">argv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.cli.main" title="Link to this definition">¶</a></dt>
+<dd><p>Default entrypoint for the cartography command line interface.</p>
+<p>This function sets up basic logging configuration and creates a CLI instance
+with the default cartography sync configuration. It serves as the main entry
+point when cartography is executed as a command line tool.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>argv</strong> – Optional command line arguments. If None, uses sys.argv[1:].
+Should be a list of strings representing command line parameters.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Does not return - calls sys.exit() with the appropriate exit code.
+Exit code 0 indicates successful execution, non-zero indicates errors.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="id1">
+<h2>Sync<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<dl class="py class" id="module-cartography.sync">
+<dt class="sig sig-object py" id="cartography.sync.Sync">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.sync.</span></span><span class="sig-name descname"><span class="pre">Sync</span></span><a class="headerlink" href="#cartography.sync.Sync" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A cartography synchronization task orchestrator.</p>
+<p>The Sync class is responsible for ensuring the data in the graph database
+accurately represents the current state of reality. It accomplishes this by
+executing a sequence of sync “modules” in a specific order. Each module is
+responsible for:</p>
+<ul class="simple">
+<li><p>Retrieving data from various sources (APIs, files, etc.)</p></li>
+<li><p>Pushing that data to Neo4j graph database</p></li>
+<li><p>Removing stale nodes and relationships from the graph</p></li>
+</ul>
+<p>The Sync instance can be configured to run any combination of available
+modules in a user-defined order, providing flexibility for different
+deployment scenarios.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.sync.Sync._stages">
+<span class="sig-name descname"><span class="pre">_stages</span></span><a class="headerlink" href="#cartography.sync.Sync._stages" title="Link to this definition">¶</a></dt>
+<dd><p>An OrderedDict containing module names mapped to their callable functions.</p>
+</dd></dl>
+
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Creating a custom sync with specific stages:
+&gt;&gt;&gt; sync = Sync()
+&gt;&gt;&gt; sync.add_stage(‘aws’, cartography.intel.aws.start_aws_ingestion)
+&gt;&gt;&gt; sync.add_stage(‘analysis’, cartography.intel.analysis.run)</p>
+<p>Running multiple stages:
+&gt;&gt;&gt; stages = [
+…     (‘create-indexes’, cartography.intel.create_indexes.run),
+…     (‘aws’, cartography.intel.aws.start_aws_ingestion),
+…     (‘analysis’, cartography.intel.analysis.run)
+… ]
+&gt;&gt;&gt; sync.add_stages(stages)
+&gt;&gt;&gt; exit_code = sync.run(neo4j_driver, config)</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Stages are executed in the order they are added. The ‘create-indexes’
+stage should typically be run first, and ‘analysis’ should be run last.
+Meta-stages for pre-sync, sync, and post-sync hooks may be added in
+future versions.</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.sync.Sync.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#cartography.sync.Sync.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.sync.Sync.add_stage">
+<span class="sig-name descname"><span class="pre">add_stage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.sync.Sync.add_stage" title="Link to this definition">¶</a></dt>
+<dd><p>Add a single stage to the sync task.</p>
+<p>This method registers a new stage with the sync task. Stages are executed
+in the order they are added, so the order of add_stage() calls determines
+the execution sequence.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – The unique name identifier for the stage. This name is used
+for logging and identification purposes.</p></li>
+<li><p><strong>func</strong> – The callable function to execute when this stage runs.
+The function should accept (neo4j_session, config) parameters.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The stage name should be unique within the sync task. If a stage
+with the same name already exists, it will be replaced. Stage
+functions must follow the standard signature (neo4j_session, config).</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.sync.Sync.add_stages">
+<span class="sig-name descname"><span class="pre">add_stages</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stages</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.sync.Sync.add_stages" title="Link to this definition">¶</a></dt>
+<dd><p>Add multiple stages to the sync task in batch.</p>
+<p>This method is a convenience function for adding multiple stages at once.
+It iterates through the provided list and calls add_stage() for each
+stage tuple.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>stages</strong> – A list of tuples where each tuple contains (stage_name, stage_function).
+The stage_name should be a unique string identifier, and stage_function
+should be a callable that accepts (neo4j_session, config) parameters.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Stages are added in the order they appear in the list, which determines
+their execution order. This method is equivalent to calling add_stage()
+for each tuple individually.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.sync.Sync.list_intel_modules">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">list_intel_modules</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">OrderedDict</span></span></span><a class="headerlink" href="#cartography.sync.Sync.list_intel_modules" title="Link to this definition">¶</a></dt>
+<dd><p>Discover and list all available modules.</p>
+<p>This class method dynamically discovers all modules in the cartography.intel
+package and returns a dictionary mapping module names to their callable
+ingestion functions. It automatically handles module loading and function
+discovery using naming conventions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>An OrderedDict where keys are module names and values are callable
+functions that follow the <cite>start_{module}_ingestion</cite> pattern.
+The ‘create-indexes’ module is always included first, and ‘analysis’
+is always included last.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Getting all available modules:
+&gt;&gt;&gt; modules = Sync.list_intel_modules()
+&gt;&gt;&gt; print(list(modules.keys()))
+[‘create-indexes’, ‘aws’, ‘gcp’, ‘github’, …, ‘analysis’]</p>
+<p>Creating sync with discovered modules:
+&gt;&gt;&gt; modules = Sync.list_intel_modules()
+&gt;&gt;&gt; sync = Sync()
+&gt;&gt;&gt; for name, func in modules.items():
+…     sync.add_stage(name, func)</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The method uses reflection to discover modules and their ingestion
+functions. It expects functions to follow the naming pattern
+<cite>start_{module_name}_ingestion</cite>. Modules that fail to import are
+logged as errors but don’t prevent discovery of other modules.</p>
+<p>The ‘create-indexes’ and ‘analysis’ modules are handled specially
+to ensure consistent ordering regardless of discovery order.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.sync.Sync.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">neo4j_driver</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Driver</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Config</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#cartography.sync.Sync.run" title="Link to this definition">¶</a></dt>
+<dd><p>Execute all configured stages in the sync task sequentially.</p>
+<p>This method is the main execution entry point for the sync task. It creates
+a Neo4j session and executes each configured stage in order, providing
+comprehensive logging and error handling.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>neo4j_driver</strong> – A Neo4j driver instance for database connectivity.</p></li>
+<li><p><strong>config</strong> – Configuration object containing sync parameters including
+update_tag, neo4j_database, and stage-specific settings.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>STATUS_SUCCESS (0) if all stages complete successfully.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>KeyboardInterrupt</strong> – If user interrupts execution during a stage.</p></li>
+<li><p><strong>SystemExit</strong> – If system exit is triggered during a stage.</p></li>
+<li><p><strong>Exception</strong> – Any unhandled exception from module execution.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="n">sync</span> <span class="o">=</span> <span class="n">build_default_sync</span><span class="p">()</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">driver</span> <span class="o">=</span> <span class="n">GraphDatabase</span><span class="o">.</span><span class="n">driver</span><span class="p">(</span><span class="s2">&quot;bolt://localhost:7687&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="gp">&gt;&gt;&gt; </span><span class="n">exit_code</span> <span class="o">=</span> <span class="n">sync</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">driver</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+</span><span data-line="4"><span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="n">exit_code</span> <span class="o">==</span> <span class="n">STATUS_SUCCESS</span><span class="p">:</span>
+</span><span data-line="5"><span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Sync completed successfully&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Each stage is executed within the same Neo4j session to maintain
+transaction context. Stages are responsible for their own error
+handling, but unhandled exceptions will terminate the sync process.</p>
+<p>The method logs the start and completion of each module for monitoring
+and debugging purposes.</p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.sync.build_default_sync">
+<span class="sig-prename descclassname"><span class="pre">cartography.sync.</span></span><span class="sig-name descname"><span class="pre">build_default_sync</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#cartography.sync.Sync" title="cartography.sync.Sync"><span class="pre">Sync</span></a></span></span><a class="headerlink" href="#cartography.sync.build_default_sync" title="Link to this definition">¶</a></dt>
+<dd><p>Build the default cartography sync with all available intelligence modules.</p>
+<p>This function creates a Sync instance configured with all intelligence
+modules shipped with cartography. The modules are added in a specific
+order to ensure proper execution sequence, with ‘create-indexes’ first
+and ‘analysis’ last.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A fully configured Sync instance with all available intelligence modules.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Creating and running default sync:
+&gt;&gt;&gt; sync = build_default_sync()
+&gt;&gt;&gt; exit_code = run_with_config(sync, config)</p>
+<p>Inspecting default stages:
+&gt;&gt;&gt; sync = build_default_sync()
+&gt;&gt;&gt; stage_names = list(sync._stages.keys())
+&gt;&gt;&gt; print(f”Default sync includes {len(stage_names)} stages”)</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The default sync includes all modules defined in TOP_LEVEL_MODULES,
+which encompasses cloud providers (AWS, GCP, Azure), security tools
+(CrowdStrike, Okta), development platforms (GitHub), and analysis
+capabilities. This provides comprehensive infrastructure mapping
+out of the box.</p>
+<p>For custom sync configurations with specific modules, use build_sync()
+with a selected modules string instead.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.sync.build_sync">
+<span class="sig-prename descclassname"><span class="pre">cartography.sync.</span></span><span class="sig-name descname"><span class="pre">build_sync</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">selected_modules_as_str</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#cartography.sync.Sync" title="cartography.sync.Sync"><span class="pre">Sync</span></a></span></span><a class="headerlink" href="#cartography.sync.build_sync" title="Link to this definition">¶</a></dt>
+<dd><p>Build a custom sync with user-specified modules.</p>
+<p>This function creates a Sync instance configured only with the modules
+specified in the comma-separated string. It provides a way to run a
+subset of available intelligence modules rather than the full default set.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>selected_modules_as_str</strong> – A comma-separated string of module names to include
+in the sync (e.g., “aws,gcp,analysis”).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A Sync instance configured with only the specified modules in the order
+they appear in the input string.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If any specified module is invalid (propagated from
+    parse_and_validate_selected_modules).</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Building sync with specific cloud providers:
+&gt;&gt;&gt; sync = build_sync(“aws,gcp,azure”)
+&gt;&gt;&gt; # Only AWS, GCP, and Azure modules will run</p>
+<p>Building minimal sync with just analysis:
+&gt;&gt;&gt; sync = build_sync(“create-indexes,analysis”)
+&gt;&gt;&gt; # Only index creation and analysis will run</p>
+<p>Building security-focused sync:
+&gt;&gt;&gt; sync = build_sync(“create-indexes,okta,crowdstrike,analysis”)
+&gt;&gt;&gt; # Focus on identity and security platforms</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The order of modules in the input string determines their execution
+order. It’s recommended to include ‘create-indexes’ first and ‘analysis’
+last for optimal results. The function validates all module names
+before creating the sync instance.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.sync.parse_and_validate_selected_modules">
+<span class="sig-prename descclassname"><span class="pre">cartography.sync.</span></span><span class="sig-name descname"><span class="pre">parse_and_validate_selected_modules</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">selected_modules</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.sync.parse_and_validate_selected_modules" title="Link to this definition">¶</a></dt>
+<dd><p>Parse and validate user-selected modules from comma-separated string.</p>
+<p>This function takes a comma-separated string of module names provided by
+the user and validates that each module exists in the available modules.
+It returns a clean list of validated module names.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>selected_modules</strong> – A comma-separated string of module names (e.g., “aws,gcp,analysis”).
+Module names will be stripped of whitespace.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A list of validated module names that exist in TOP_LEVEL_MODULES.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If any specified module is not found in the available modules.
+    The error message includes the invalid input and lists all valid options.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Module names are case-sensitive and must exactly match those defined
+in TOP_LEVEL_MODULES. The function is tolerant of whitespace around
+commas but requires exact name matches for validation.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.sync.run_with_config">
+<span class="sig-prename descclassname"><span class="pre">cartography.sync.</span></span><span class="sig-name descname"><span class="pre">run_with_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sync</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.sync.Sync" title="cartography.sync.Sync"><span class="pre">Sync</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Config</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#cartography.sync.run_with_config" title="Link to this definition">¶</a></dt>
+<dd><p>Execute a sync task with comprehensive configuration and error handling.</p>
+<p>This function serves as a high-level wrapper around Sync.run() that handles
+Neo4j driver creation, authentication, StatsD configuration, and provides
+comprehensive error handling for common connection and authentication issues.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sync</strong> – A configured Sync instance with stages to execute.</p></li>
+<li><p><strong>config</strong> – Configuration object containing Neo4j connection settings,
+authentication credentials, StatsD settings, and other parameters.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>STATUS_SUCCESS (0) if sync completes successfully.
+STATUS_FAILURE (1) if Neo4j connection or authentication fails.
+Other exit codes may be returned by the sync.run() method.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Running default sync with configuration:
+&gt;&gt;&gt; sync = build_default_sync()
+&gt;&gt;&gt; config.neo4j_uri = “bolt://localhost:7687”
+&gt;&gt;&gt; config.neo4j_user = “neo4j”
+&gt;&gt;&gt; config.neo4j_password = “password”
+&gt;&gt;&gt; exit_code = run_with_config(sync, config)</p>
+<p>Running with StatsD enabled:
+&gt;&gt;&gt; config.statsd_enabled = True
+&gt;&gt;&gt; config.statsd_host = “localhost”
+&gt;&gt;&gt; config.statsd_port = 8125
+&gt;&gt;&gt; exit_code = run_with_config(sync, config)</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The function automatically generates an update_tag based on current
+timestamp if one is not provided in the configuration. It handles
+Neo4j driver creation, authentication setup, and provides detailed
+error messages for connection and authentication failures.</p>
+<p>If StatsD is enabled in the configuration, it initializes the global
+StatsD client for metrics collection during the sync process.</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="module-cartography.util">
+<span id="utils"></span><h2>Utils<a class="headerlink" href="#module-cartography.util" title="Link to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.aws_handle_regions">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">aws_handle_regions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">AWSGetFunc</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">AWSGetFunc</span></span></span><a class="headerlink" href="#cartography.util.aws_handle_regions" title="Link to this definition">¶</a></dt>
+<dd><p>Decorator to handle AWS regional access errors and opt-in region limitations.</p>
+<p>This decorator wraps AWS API functions to gracefully handle client errors
+that occur when accessing regions that are disabled, require opt-in, or
+where the account lacks necessary permissions. Instead of failing, the
+decorated function returns an empty list when these specific errors occur.</p>
+<p>The decorator also includes exponential backoff retry logic to handle
+AWS TooManyRequestsException and other transient errors that may occur
+during API calls.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>func</strong> – An AWS API function that returns an iterable (typically a list)
+of resources. Should be a ‘<a href="#id2"><span class="problematic" id="id3">get_</span></a>’ function that queries AWS services.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The decorated function with error handling and retry logic applied.
+On handled errors, returns an empty list instead of raising exceptions.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Decorating an AWS resource getter function:
+&gt;&gt;&gt; &#64;aws_handle_regions
+… def get_ec2_instances(boto3_session, region):
+…     ec2 = boto3_session.client(‘ec2’, region_name=region)
+…     return ec2.describe_instances()[‘Reservations’]</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The decorator handles these specific AWS error codes:
+- AccessDenied / AccessDeniedException
+- AuthFailure
+- AuthorizationError / AuthorizationErrorException
+- InvalidClientTokenId
+- UnauthorizedOperation
+- UnrecognizedClientException
+- InternalServerErrorException</p>
+<p>For these errors, a warning is logged and an empty list is returned.
+Other errors are re-raised normally.</p>
+<p>The decorator includes retry logic with exponential backoff (max 600 seconds)
+for handling transient AWS API errors and rate limiting.</p>
+<p>This should be used on functions that return lists of AWS resources
+and need to work across multiple regions, including those that may
+be disabled or require special permissions.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.aws_paginate">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">aws_paginate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">client</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">object_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_pages</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10000</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.util.aws_paginate" title="Link to this definition">¶</a></dt>
+<dd><p>Helper function for handling AWS boto3 API pagination with progress logging.</p>
+<p>This function provides a convenient wrapper around boto3’s pagination
+functionality, with built-in progress logging and configurable page limits
+to prevent runaway API calls.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>client</strong> – The boto3 client instance to use for API calls.</p></li>
+<li><p><strong>method_name</strong> – The name of the boto3 client method to paginate.</p></li>
+<li><p><strong>object_name</strong> – The key in the API response containing the list of items.</p></li>
+<li><p><strong>max_pages</strong> – Maximum number of pages to fetch. None for unlimited.
+Defaults to DEFAULT_MAX_PAGES.</p></li>
+<li><p><strong>**kwargs</strong> – Additional keyword arguments to pass to the paginator.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p>Individual items from the paginated API response.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Paginating EC2 instances:
+&gt;&gt;&gt; ec2_client = boto3.client(‘ec2’)
+&gt;&gt;&gt; for instance in aws_paginate(
+…     ec2_client,
+…     ‘describe_instances’,
+…     ‘Reservations’
+… ):
+…     print(instance)</p>
+<p>Paginating with filters and limits:
+&gt;&gt;&gt; for bucket in aws_paginate(
+…     s3_client,
+…     ‘list_objects_v2’,
+…     ‘Contents’,
+…     max_pages=100,
+…     Bucket=’my-bucket’,
+…     Prefix=’logs/’
+… ):
+…     print(bucket)</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The function logs progress every 100 pages to help monitor long-running
+operations. If the specified object_name is not found in a response page,
+a warning is logged but iteration continues.</p>
+<p>The max_pages limit is enforced to prevent excessive API calls that
+could hit rate limits or take excessive time. A warning is logged
+when the limit is reached.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.backoff_handler">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">backoff_handler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">details</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.util.backoff_handler" title="Link to this definition">¶</a></dt>
+<dd><p>Log backoff retry attempts for monitoring and debugging.</p>
+<p>This handler function is called by the backoff decorator when retries
+are being performed. It provides visibility into retry patterns and
+helps with debugging API rate limiting or connectivity issues.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>details</strong> – Dictionary containing backoff information including:
+- wait: Number of seconds to wait before retry
+- tries: Number of attempts made so far
+- target: The function being retried</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>The function is typically used automatically by backoff decorators:
+&gt;&gt;&gt; &#64;backoff.on_exception(
+…     backoff.expo,
+…     Exception,
+…     on_backoff=backoff_handler
+… )
+… def api_call():
+…     # Make API call that might fail
+…     pass</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function logs at WARNING level to ensure visibility of retry
+operations in standard logging configurations. The message includes
+timing information and function identification for debugging.
+The backoff library may provide partial details (e.g. <code class="docutils literal notranslate"><span class="pre">wait</span></code> can be <code class="docutils literal notranslate"><span class="pre">None</span></code> when a retry is triggered immediately).
+Format the message defensively so logging never raises.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.batch">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">items</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.util.batch" title="Link to this definition">¶</a></dt>
+<dd><p>Split an iterable into batches of specified size.</p>
+<p>This utility function takes any iterable and yields lists of items
+in batches of the specified size. This is useful for processing
+large datasets in manageable chunks, especially when working with
+APIs that have limits on batch operations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>items</strong> – The iterable to split into batches.</p></li>
+<li><p><strong>size</strong> – The maximum size of each batch. Defaults to DEFAULT_BATCH_SIZE.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Yields<span class="colon">:</span></dt>
+<dd class="field-even"><p>Lists containing up to ‘size’ items from the original iterable.
+The last batch may contain fewer items if the total count is
+not evenly divisible by the batch size.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Basic batching:
+&gt;&gt;&gt; list(batch([1, 2, 3, 4, 5, 6, 7, 8], size=3))
+[[1, 2, 3], [4, 5, 6], [7, 8]]</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The function uses itertools.islice for memory-efficient processing
+of large iterables. It doesn’t load the entire iterable into memory
+at once, making it suitable for processing very large datasets.</p>
+<p>The DEFAULT_BATCH_SIZE is optimized for typical Neo4j operations
+but can be adjusted based on specific use cases and constraints.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.camel_to_snake">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">camel_to_snake</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#cartography.util.camel_to_snake" title="Link to this definition">¶</a></dt>
+<dd><p>Convert CamelCase strings to snake_case format.</p>
+<p>This utility function converts CamelCase identifiers (commonly used in
+APIs) to snake_case format (commonly used in Python). It’s useful for
+normalizing field names when processing API responses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> – The CamelCase string to convert.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The converted snake_case string.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.dict_date_to_epoch">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">dict_date_to_epoch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.util.dict_date_to_epoch" title="Link to this definition">¶</a></dt>
+<dd><p>Convert a dictionary date value to Unix epoch timestamp.</p>
+<div class="deprecated">
+<p><span class="versionmodified deprecated">Deprecated since version This: </span>method is deprecated. Neo4j can handle datetime ingestion directly,
+and the datetime format should be preferred over epoch timestamps for
+better readability and native time operations support.</p>
+</div>
+<p>This utility function retrieves a datetime object from a dictionary
+and converts it to a Unix epoch timestamp (seconds since 1970-01-01).
+This is useful for standardizing date representations in Neo4j.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>obj</strong> – The dictionary containing the date value.</p></li>
+<li><p><strong>key</strong> – The key to look up in the dictionary.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Unix epoch timestamp as integer if key exists and contains a datetime,
+None otherwise.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Converting datetime objects (deprecated approach):
+&gt;&gt;&gt; from datetime import datetime
+&gt;&gt;&gt; data = {
+…     “created”: datetime(2023, 1, 15, 10, 30, 0),
+…     “modified”: datetime(2023, 2, 20, 14, 45, 30)
+… }
+&gt;&gt;&gt; dict_date_to_epoch(data, “created”)
+1673779800
+&gt;&gt;&gt; dict_date_to_epoch(data, “modified”)
+1676902530</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The function expects the dictionary value to be a datetime object
+with a timestamp() method. This is commonly used when processing
+AWS API responses that return datetime objects for timestamps.</p>
+<p>Neo4j natively supports datetime objects and provides rich temporal
+functions for queries. Using datetime objects directly is preferred
+over epoch timestamps for better readability, timezone support, and
+access to Neo4j’s temporal functions like date(), time(), and duration().</p>
+<p>For new code, consider storing datetime objects directly in Neo4j
+rather than converting them to epoch timestamps.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.dict_value_to_str">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">dict_value_to_str</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.util.dict_value_to_str" title="Link to this definition">¶</a></dt>
+<dd><p>Safely convert a dictionary value to string representation.</p>
+<p>This utility function retrieves a value from a dictionary and converts
+it to a string if it exists, or returns None if the key doesn’t exist.
+This is useful for handling API responses where fields may be missing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>obj</strong> – The dictionary to search in.</p></li>
+<li><p><strong>key</strong> – The key to look up in the dictionary.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>String representation of the value if key exists, None otherwise.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.is_service_control_policy_explicit_deny">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">is_service_control_policy_explicit_deny</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">error</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ClientError</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#cartography.util.is_service_control_policy_explicit_deny" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the ClientError was caused by an explicit service control policy deny.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.is_throttling_exception">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">is_throttling_exception</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">exc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Exception</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#cartography.util.is_throttling_exception" title="Link to this definition">¶</a></dt>
+<dd><p>Determine if an exception is caused by API rate limiting or throttling.</p>
+<p>This function checks whether a given exception indicates that an API call
+was throttled or rate-limited by the service provider. It currently supports
+AWS boto3 throttling exceptions and can be extended to support other cloud
+providers’ throttling mechanisms.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>exc</strong> – The exception to check for throttling indicators.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if the exception indicates throttling/rate limiting, False otherwise.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Checking AWS boto3 exceptions:
+&gt;&gt;&gt; import botocore.exceptions
+&gt;&gt;&gt; try:
+…     # AWS API call that might be throttled
+…     s3_client.list_buckets()
+… except Exception as e:
+…     if is_throttling_exception(e):
+…         print(“Request was throttled, should retry”)
+…     else:
+…         print(“Different type of error occurred”)</p>
+<p>Integration with backoff decorators:
+&gt;&gt;&gt; &#64;backoff.on_exception(
+…     backoff.expo,
+…     lambda e: is_throttling_exception(e),
+…     max_tries=3
+… )
+… def resilient_api_call():
+…     return api_client.get_data()</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Currently supports these AWS error codes:
+- LimitExceededException: General rate limit exceeded
+- Throttling: Request rate too high</p>
+<p>The function can be extended to support other cloud providers like GCP
+(google.api_core.exceptions.TooManyRequests) or Azure as needed.</p>
+<p>This function is particularly useful in conjunction with retry decorators
+or custom retry logic to distinguish between transient throttling errors
+that should be retried and permanent errors that should not.</p>
+<p>See AWS documentation for more details on error handling:
+<a class="reference external" href="https://boto3.amazonaws.com/v1/documentation/api/latest/guide/error-handling.html">https://boto3.amazonaws.com/v1/documentation/api/latest/guide/error-handling.html</a></p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.load_resource_binary">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">load_resource_binary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">package</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resource_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">BinaryIO</span></span></span><a class="headerlink" href="#cartography.util.load_resource_binary" title="Link to this definition">¶</a></dt>
+<dd><p>Load a binary resource from a Python package.</p>
+<p>This function provides a convenient way to load binary files (like images,
+compiled data, etc.) that are packaged with cartography modules.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>package</strong> – The Python package name containing the resource.</p></li>
+<li><p><strong>resource_name</strong> – The filename of the binary resource to load.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A binary file-like object that can be read from.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Loading indexes for Neo4j:
+&gt;&gt;&gt; binary_data = load_resource_binary(
+…     “cartography.data”,
+…     “indexes.cypher”
+… )
+&gt;&gt;&gt; content = binary_data.read()</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function uses importlib.resources.open_binary() under the hood,
+which works with both traditional file-system packages and newer
+importlib-based resource systems. The returned file object should
+be properly closed after use.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.make_neo4j_datetime_validator">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">make_neo4j_datetime_validator</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.util.make_neo4j_datetime_validator" title="Link to this definition">¶</a></dt>
+<dd><p>Create a Pydantic BeforeValidator for neo4j.time.DateTime conversion.</p>
+<dl>
+<dt>Usage with Pydantic v2:</dt><dd><p>from typing import Annotated
+from pydantic import BeforeValidator
+from cartography.util import to_datetime</p>
+<p>Neo4jDateTime = Annotated[datetime, BeforeValidator(to_datetime)]</p>
+<dl class="simple">
+<dt>class MyModel(BaseModel):</dt><dd><p>created_at: Neo4jDateTime</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>Returns a lambda that can be used with BeforeValidator.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.merge_module_sync_metadata">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">merge_module_sync_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">neo4j_session</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Session</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">synced_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update_tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stat_handler</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.stats.ScopedStatsClient" title="cartography.stats.ScopedStatsClient"><span class="pre">ScopedStatsClient</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.util.merge_module_sync_metadata" title="Link to this definition">¶</a></dt>
+<dd><p>Create or update ModuleSyncMetadata nodes to track sync operations.</p>
+<p>This function creates ModuleSyncMetadata nodes that record when specific
+resource types were synchronized within a particular scope. This metadata
+is used for tracking sync completeness and data freshness.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>neo4j_session</strong> – Active Neo4j session for executing the metadata update.</p></li>
+<li><p><strong>group_type</strong> – The parent module’s node label (e.g., ‘AWSAccount’).</p></li>
+<li><p><strong>group_id</strong> – The unique identifier of the parent module instance.</p></li>
+<li><p><strong>synced_type</strong> – The sub-module’s node label that was synced (e.g., ‘S3Bucket’).</p></li>
+<li><p><strong>update_tag</strong> – Timestamp used to determine data freshness.</p></li>
+<li><p><strong>stat_handler</strong> – StatsD client for sending metrics about the sync operation.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Recording S3 bucket sync for an AWS account:
+&gt;&gt;&gt; merge_module_sync_metadata(
+…     neo4j_session,
+…     group_type=”AWSAccount”,
+…     group_id=”123456789012”,
+…     synced_type=”S3Bucket”,
+…     update_tag=1234567890,
+…     stat_handler=stats_client
+… )</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The function creates a unique ModuleSyncMetadata node with an ID
+constructed from the group_type, group_id, and synced_type. This
+ensures one metadata record per sync scope. The function also
+sends a StatsD metric with the update timestamp for monitoring.</p>
+<p>The ‘types’ used should be actual Neo4j node labels present in
+the graph schema.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.retries_with_backoff">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">retries_with_backoff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exception_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Type</span><span class="p"><span class="pre">[</span></span><span class="pre">Exception</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tries</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">on_backoff</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span></span></span><a class="headerlink" href="#cartography.util.retries_with_backoff" title="Link to this definition">¶</a></dt>
+<dd><p>Add exponential backoff retry logic to any function.</p>
+<p>This decorator function wraps any callable with retry logic that uses
+exponential backoff. When the specified exception type is raised, the
+function will be retried with increasing delays between attempts until
+the maximum number of tries is reached.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> – The function to wrap with retry logic. Can be any callable.</p></li>
+<li><p><strong>exception_type</strong> – The specific exception class that should trigger retries.
+Only this exception type (and its subclasses) will be retried.</p></li>
+<li><p><strong>max_tries</strong> – Maximum number of attempts before giving up. Includes the
+initial attempt, so max_tries=3 means 1 initial + 2 retries.</p></li>
+<li><p><strong>on_backoff</strong> – Callback function called before each retry attempt. Should
+accept a dictionary with backoff details (wait, tries, target).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The decorated function with retry logic applied. Preserves the original
+function’s signature and return type.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">boto3</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span><span class="w"> </span><span class="nf">get_s3_objects</span><span class="p">():</span>
+</span><span data-line="3"><span class="gp">... </span>    <span class="k">return</span> <span class="n">s3_client</span><span class="o">.</span><span class="n">list_objects_v2</span><span class="p">(</span><span class="n">Bucket</span><span class="o">=</span><span class="s1">&#39;my-bucket&#39;</span><span class="p">)</span>
+</span><span data-line="4"><span class="gp">&gt;&gt;&gt;</span>
+</span><span data-line="5"><span class="gp">&gt;&gt;&gt; </span><span class="n">resilient_s3_call</span> <span class="o">=</span> <span class="n">retries_with_backoff</span><span class="p">(</span>
+</span><span data-line="6"><span class="gp">... </span>    <span class="n">get_s3_objects</span><span class="p">,</span>
+</span><span data-line="7"><span class="gp">... </span>    <span class="n">botocore</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ClientError</span><span class="p">,</span>
+</span><span data-line="8"><span class="gp">... </span>    <span class="n">max_tries</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+</span><span data-line="9"><span class="gp">... </span>    <span class="n">on_backoff</span><span class="o">=</span><span class="n">backoff_handler</span>
+</span><span data-line="10"><span class="gp">... </span><span class="p">)</span>
+</span></pre></div>
+</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The function uses exponential backoff with jitter by default, meaning
+retry delays increase exponentially: ~1s, ~2s, ~4s, ~8s, etc. The
+exact timing may vary due to jitter to avoid thundering herd problems.</p>
+<p>Only the specified exception_type will trigger retries. Other exceptions
+will be raised immediately without retry attempts.</p>
+<p>The on_backoff callback receives a dictionary with keys:
+- ‘wait’: seconds to wait before next retry
+- ‘tries’: number of attempts made so far
+- ‘target’: the function being retried</p>
+<p>This is a general-purpose retry utility that can be applied to any
+function, not just AWS or API calls.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.run_analysis_and_ensure_deps">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">run_analysis_and_ensure_deps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">analysis_job_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resource_dependencies</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Set</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requested_syncs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Set</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">common_job_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neo4j_session</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Session</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.util.run_analysis_and_ensure_deps" title="Link to this definition">¶</a></dt>
+<dd><p>Conditionally run an analysis job based on resource dependency requirements.</p>
+<p>This function checks if all required resource dependencies have been included
+in the requested syncs before executing the analysis job. This ensures that
+analysis jobs only run when their prerequisite data is available in the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>analysis_job_name</strong> – The filename of the analysis job to run (e.g., “aws_foreign_accounts.json”).</p></li>
+<li><p><strong>resource_dependencies</strong> – Set of resource sync names that must be completed
+for this analysis job to run. Use empty set if no dependencies.</p></li>
+<li><p><strong>requested_syncs</strong> – Set of resource sync names that were requested in the
+current cartography execution.</p></li>
+<li><p><strong>common_job_parameters</strong> – Dictionary containing common job parameters used
+across cartography jobs.</p></li>
+<li><p><strong>neo4j_session</strong> – Active Neo4j session for executing the analysis queries.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Running analysis with AWS dependencies:
+&gt;&gt;&gt; run_analysis_and_ensure_deps(
+…     “aws_foreign_accounts.json”,
+…     {“aws:ec2”, “aws:iam”},
+…     {“aws:ec2”, “aws:iam”, “aws:s3”},
+…     common_params,
+…     neo4j_session
+… )
+# Will run because all dependencies are satisfied</p>
+<p>Skipping analysis due to missing dependencies:
+&gt;&gt;&gt; run_analysis_and_ensure_deps(
+…     “gcp_analysis.json”,
+…     {“gcp:compute”, “gcp:iam”},
+…     {“aws:ec2”},  # Missing GCP dependencies
+…     common_params,
+…     neo4j_session
+… )
+# Will skip and log warning</p>
+<p>Running analysis with no dependencies:
+&gt;&gt;&gt; run_analysis_and_ensure_deps(
+…     “general_analysis.json”,
+…     set(),  # No dependencies
+…     {“aws:ec2”},
+…     common_params,
+…     neo4j_session
+… )
+# Will always run</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If dependencies are not satisfied, the function logs an informational
+message and returns without executing the analysis job. This prevents
+analysis jobs from running on incomplete data which could produce
+misleading results.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.run_analysis_job">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">run_analysis_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neo4j_session</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Session</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">common_job_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">package</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'cartography.data.jobs.analysis'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.util.run_analysis_job" title="Link to this definition">¶</a></dt>
+<dd><p>Execute an analysis job to enrich existing graph data.</p>
+<p>This function is designed for use with the cartography.intel.analysis sync stage.
+It runs queries from the specified Python package directory to perform analysis
+operations on the complete graph data. Analysis jobs are intended to run at the
+end of a full graph sync and apply to all resources across all accounts/projects.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> – Name of the JSON file containing the analysis job queries.</p></li>
+<li><p><strong>neo4j_session</strong> – Active Neo4j session for executing the analysis queries.</p></li>
+<li><p><strong>common_job_parameters</strong> – Dictionary containing common parameters used across
+all cartography jobs (e.g., update_tag).</p></li>
+<li><p><strong>package</strong> – Python package containing the analysis job files.
+Defaults to “cartography.data.jobs.analysis”.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Running a standard analysis job:
+&gt;&gt;&gt; run_analysis_job(
+…     “aws_foreign_accounts.json”,
+…     neo4j_session,
+…     {“UPDATE_TAG”: 1234567890}
+… )</p>
+<p>Running analysis from custom package:
+&gt;&gt;&gt; run_analysis_job(
+…     “custom_analysis.json”,
+…     neo4j_session,
+…     common_params,
+…     package=”my_company.analysis_jobs”
+… )</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Analysis jobs are unscoped and apply to ALL resources in the graph
+(all AWS accounts, all GCP projects, all Okta organizations, etc.).
+For scoped analysis, use run_scoped_analysis_job() instead.</p>
+<p>The job file must be a valid JSON file containing GraphJob-compatible
+query definitions.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.run_cleanup_job">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">run_cleanup_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neo4j_session</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Session</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">common_job_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">package</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'cartography.data.jobs.cleanup'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.util.run_cleanup_job" title="Link to this definition">¶</a></dt>
+<dd><p>Execute a cleanup job to remove stale data from the graph.</p>
+<div class="deprecated">
+<p><span class="versionmodified deprecated">Deprecated since version This: </span>function is deprecated. For resources that have migrated to the new
+data model, use GraphJob directly instead of this wrapper function.</p>
+</div>
+<p>This function runs cleanup queries that identify and remove nodes and
+relationships that are no longer current based on update timestamps.
+Cleanup jobs are essential for maintaining data freshness and preventing
+the accumulation of stale data in the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> – Name of the JSON file containing the cleanup job queries.</p></li>
+<li><p><strong>neo4j_session</strong> – Active Neo4j session for executing the cleanup queries.</p></li>
+<li><p><strong>common_job_parameters</strong> – Dictionary containing common parameters including
+the update_tag used to identify stale data.</p></li>
+<li><p><strong>package</strong> – Python package containing the cleanup job files.
+Defaults to “cartography.data.jobs.cleanup”.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Running standard cleanup job:
+&gt;&gt;&gt; run_cleanup_job(
+…     “aws_ec2_cleanup.json”,
+…     neo4j_session,
+…     {“UPDATE_TAG”: 1234567890}
+… )</p>
+<p>Running cleanup from custom package:
+&gt;&gt;&gt; run_cleanup_job(
+…     “custom_cleanup.json”,
+…     neo4j_session,
+…     common_params,
+…     package=”my_company.cleanup_jobs”
+… )</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Cleanup jobs typically use the UPDATE_TAG parameter to identify
+nodes and relationships that haven’t been updated in the current
+sync cycle. These stale items are then removed to maintain data
+accuracy. Cleanup jobs should be run after all data ingestion
+stages are complete.</p>
+<p>For resources migrated to the new data model, prefer using GraphJob
+directly rather than this wrapper function to ensure compatibility
+with current cartography patterns and to avoid potential deprecation
+issues in future versions.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.run_scoped_analysis_job">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">run_scoped_analysis_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neo4j_session</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Session</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">common_job_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">package</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'cartography.data.jobs.scoped_analysis'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.util.run_scoped_analysis_job" title="Link to this definition">¶</a></dt>
+<dd><p>Execute a scoped analysis job on a specific sub-resource.</p>
+<p>This function runs analysis queries that are scoped to a particular sub-resource
+(e.g., a specific AWS account) rather than across the entire graph. This is
+useful for analysis that should be performed within the context of a single
+organizational unit or account.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> – Name of the JSON file containing the scoped analysis job queries.</p></li>
+<li><p><strong>neo4j_session</strong> – Active Neo4j session for executing the analysis queries.</p></li>
+<li><p><strong>common_job_parameters</strong> – Dictionary containing common parameters including
+scope-specific identifiers (e.g., AWS account ID).</p></li>
+<li><p><strong>package</strong> – Python package containing the scoped analysis job files.
+Defaults to “cartography.data.jobs.scoped_analysis”.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Running scoped analysis for AWS account:
+&gt;&gt;&gt; common_params = {
+…     “UPDATE_TAG”: 1234567890,
+…     “AWS_ID”: “123456789012”
+… }
+&gt;&gt;&gt; run_scoped_analysis_job(
+…     “aws_account_security.json”,
+…     neo4j_session,
+…     common_params
+… )</p>
+<p>Running scoped analysis from custom package:
+&gt;&gt;&gt; run_scoped_analysis_job(
+…     “gcp_project_analysis.json”,
+…     neo4j_session,
+…     common_params,
+…     package=”my_company.scoped_jobs”
+… )</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Scoped analysis jobs are limited to data within a specific scope
+(typically defined by parameters like AWS_ID, GCP_PROJECT_ID, etc.).
+This is in contrast to global analysis jobs that operate across
+all resources. See the queries in cartography.data.jobs.scoped_analysis
+for specific examples of scoped analysis patterns.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.timeit">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">timeit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">F</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">F</span></span></span><a class="headerlink" href="#cartography.util.timeit" title="Link to this definition">¶</a></dt>
+<dd><p>Decorator to measure and report function execution time via StatsD.</p>
+<p>This decorator automatically measures the execution time of the wrapped
+function and sends the timing data to a StatsD server if StatsD is enabled
+in the cartography configuration. The metric name is derived from the
+function’s module and name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>method</strong> – The function to be timed and measured.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The decorated function with timing instrumentation.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Decorating a function for timing:
+&gt;&gt;&gt; &#64;timeit
+… def expensive_operation():
+…     # Complex processing here
+…     return result</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The decorator only performs timing when StatsD is enabled in the
+cartography configuration. When disabled, it simply calls the
+original function without any overhead.</p>
+<p>The timing metric is sent with the pattern:
+{module_name}.{function_name}</p>
+<p>The decorator preserves the original function’s signature and
+metadata using functools.wraps, making it transparent to
+inspection tools and integration tests.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.to_asynchronous">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">to_asynchronous</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">R</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Awaitable</span><span class="p"><span class="pre">[</span></span><span class="pre">R</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.util.to_asynchronous" title="Link to this definition">¶</a></dt>
+<dd><p>Execute a synchronous function asynchronously in a threadpool with throttling protection.</p>
+<p>This function wraps any synchronous callable to run in the default asyncio threadpool,
+making it awaitable. It includes built-in protection against throttling errors through
+automatic retry with exponential backoff. This is a transitional helper until we migrate
+to Python 3.9’s asyncio.to_thread.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> – The synchronous function to execute asynchronously.</p></li>
+<li><p><strong>*args</strong> – Positional arguments to pass to the function.</p></li>
+<li><p><strong>**kwargs</strong> – Keyword arguments to pass to the function.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>An awaitable that resolves to the function’s return value when executed.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Converting a synchronous API call to async:
+&gt;&gt;&gt; def fetch_data(endpoint, timeout=30):
+…     return requests.get(endpoint, timeout=timeout).json()
+&gt;&gt;&gt;
+&gt;&gt;&gt; async def main():
+…     # Run synchronous function asynchronously
+…     future = to_asynchronous(fetch_data, “<a class="reference external" href="https://api.example.com/data">https://api.example.com/data</a>”, timeout=10)
+…     data = await future
+…     return data</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Once Python 3.9+ is adopted, consider migrating to asyncio.to_thread()
+for similar functionality with native asyncio support.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.to_datetime">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">to_datetime</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.util.to_datetime" title="Link to this definition">¶</a></dt>
+<dd><p>Convert a neo4j.time.DateTime object to a Python datetime object.</p>
+<p>Neo4j returns datetime fields as neo4j.time.DateTime objects, which are not
+compatible with standard Python datetime or Pydantic datetime validation.
+This function converts neo4j.time.DateTime to Python datetime.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>value</strong> – A neo4j.time.DateTime object, Python datetime, or None</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A Python datetime object or None</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>TypeError</strong> – If value is not a supported datetime type</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.util.to_synchronous">
+<span class="sig-prename descclassname"><span class="pre">cartography.util.</span></span><span class="sig-name descname"><span class="pre">to_synchronous</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">awaitables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Awaitable</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#cartography.util.to_synchronous" title="Link to this definition">¶</a></dt>
+<dd><p>Synchronously execute multiple awaitables and return their results.</p>
+<p>This function blocks the current thread until all provided awaitables complete,
+collecting their results into a list. It’s designed for use in synchronous code
+that needs to execute async functions or consume results from async operations
+without converting the calling code to async.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>*awaitables</strong> – Variable number of awaitable objects (Futures, coroutines, tasks).
+Each awaitable is provided as a separate argument, not as a list.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List containing the results of all awaitables in the same order they were
+provided. If any awaitable raises an exception, the entire operation fails.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Executing multiple async functions synchronously:
+&gt;&gt;&gt; async def fetch_user(user_id):
+…     # Simulate async API call
+…     await asyncio.sleep(0.1)
+…     return f”User {user_id}”
+&gt;&gt;&gt;
+&gt;&gt;&gt; async def fetch_posts(user_id):
+…     # Simulate another async API call
+…     await asyncio.sleep(0.1)
+…     return f”Posts for {user_id}”
+&gt;&gt;&gt;
+&gt;&gt;&gt; # Execute both async functions from sync code
+&gt;&gt;&gt; user_future = fetch_user(123)
+&gt;&gt;&gt; posts_future = fetch_posts(123)
+&gt;&gt;&gt; results = to_synchronous(user_future, posts_future)
+&gt;&gt;&gt; print(results)  # [‘User 123’, ‘Posts for 123’]</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function uses asyncio.gather() internally, which means:
+- All awaitables run concurrently
+- If any awaitable fails, the entire operation fails immediately
+- Results are returned in the same order as the input awaitables</p>
+<p>This is particularly useful for:
+- Legacy synchronous code that needs to call async functions
+- Testing async code in synchronous test frameworks
+- CLI scripts that need to orchestrate async operations
+- Bridge code between sync and async boundaries</p>
+<p>For error handling, consider using asyncio.gather(return_exceptions=True)
+if you need to handle individual failures gracefully. This function
+does not provide that option currently.</p>
+<p>Be aware that this function blocks the calling thread until all
+awaitables complete. For web applications or other async contexts,
+prefer using await directly with asyncio.gather().</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="module-cartography.stats">
+<span id="stats"></span><h2>Stats<a class="headerlink" href="#module-cartography.stats" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.stats.</span></span><span class="sig-name descname"><span class="pre">ScopedStatsClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.stats.ScopedStatsClient" title="cartography.stats.ScopedStatsClient"><span class="pre">ScopedStatsClient</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.stats.ScopedStatsClient" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A proxy wrapper for StatsD client with scoped metric prefixing capabilities.</p>
+<p>This class provides a hierarchical scoping mechanism for StatsD metrics, allowing
+metric names to be automatically prefixed based on the scope. This enables
+organized metric namespacing and nested scoping for better metric organization.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient._client">
+<span class="sig-name descname"><span class="pre">_client</span></span><a class="headerlink" href="#cartography.stats.ScopedStatsClient._client" title="Link to this definition">¶</a></dt>
+<dd><p>The underlying StatsClient instance (class-level).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>statsd.client.udp.StatsClient</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient._scope_prefix">
+<span class="sig-name descname"><span class="pre">_scope_prefix</span></span><a class="headerlink" href="#cartography.stats.ScopedStatsClient._scope_prefix" title="Link to this definition">¶</a></dt>
+<dd><p>The prefix string for this scope level.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient._root">
+<span class="sig-name descname"><span class="pre">_root</span></span><a class="headerlink" href="#cartography.stats.ScopedStatsClient._root" title="Link to this definition">¶</a></dt>
+<dd><p>Reference to the root ScopedStatsClient instance.</p>
+</dd></dl>
+
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Basic scoped client usage:
+&gt;&gt;&gt; root_client = ScopedStatsClient.get_root_client()
+&gt;&gt;&gt; aws_client = root_client.get_stats_client(‘aws’)
+&gt;&gt;&gt; aws_client.incr(‘ec2.instances’)  # Metric: aws.ec2.instances</p>
+<p>Nested scoping:
+&gt;&gt;&gt; root_client = ScopedStatsClient.get_root_client()
+&gt;&gt;&gt; aws_client = root_client.get_stats_client(‘aws’)
+&gt;&gt;&gt; ec2_client = aws_client.get_stats_client(‘ec2’)
+&gt;&gt;&gt; ec2_client.incr(‘instances’)  # Metric: aws.ec2.instances</p>
+<p>Timer usage:
+&gt;&gt;&gt; client = ScopedStatsClient.get_root_client()
+&gt;&gt;&gt; sync_client = client.get_stats_client(‘sync’)
+&gt;&gt;&gt; with sync_client.timer(‘duration’):
+…     # Timed operation
+…     pass  # Metric: sync.duration</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The class maintains a single shared StatsClient instance at the root level.
+All scoped instances are proxies that prefix metrics before forwarding
+to the root client. The client must be enabled via set_stats_client()
+before metrics will be sent.</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#cartography.stats.ScopedStatsClient" title="cartography.stats.ScopedStatsClient"><span class="pre">ScopedStatsClient</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.stats.ScopedStatsClient.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient.gauge">
+<span class="sig-name descname"><span class="pre">gauge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.stats.ScopedStatsClient.gauge" title="Link to this definition">¶</a></dt>
+<dd><p>Report a StatsD gauge metric value.</p>
+<p>This method reports a gauge value using the underlying StatsD client.
+Gauges represent a snapshot value that can go up or down. The metric
+name is automatically prefixed with the current scope prefix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stat</strong> – The name of the gauge metric to report.</p></li>
+<li><p><strong>value</strong> – The gauge value to report.</p></li>
+<li><p><strong>rate</strong> – The sample rate (0.0 to 1.0). Only sends data this percentage
+of the time. Defaults to 1.0 (always send).</p></li>
+<li><p><strong>delta</strong> – If True, the value is added to the current gauge value
+instead of replacing it. Defaults to False (set absolute value).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The result from the underlying StatsD client, or None if not enabled.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Setting absolute gauge value:
+&gt;&gt;&gt; client = ScopedStatsClient.get_root_client()
+&gt;&gt;&gt; aws_client = client.get_stats_client(‘aws’)
+&gt;&gt;&gt; aws_client.gauge(‘active.connections’, 42)  # Metric: aws.active.connections</p>
+<p>Delta gauge update:
+&gt;&gt;&gt; aws_client.gauge(‘queue.size’, 5, delta=True)  # Add 5 to current value</p>
+<p>Using sample rate:
+&gt;&gt;&gt; aws_client.gauge(‘memory.usage’, 1024, rate=0.5)  # Sample 50%</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If the client is not enabled, returns None. When delta=True, the
+value is added to the existing gauge value rather than replacing it.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient.get_root_client">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_root_client</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#cartography.stats.ScopedStatsClient" title="cartography.stats.ScopedStatsClient"><span class="pre">ScopedStatsClient</span></a></span></span><a class="headerlink" href="#cartography.stats.ScopedStatsClient.get_root_client" title="Link to this definition">¶</a></dt>
+<dd><p>Create and return the root ScopedStatsClient instance.</p>
+<p>This static method creates a root client with no prefix that serves
+as the base for all scoped clients. The root client maintains the
+actual StatsClient instance and serves as the entry point for the
+scoped client hierarchy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A root ScopedStatsClient instance with no prefix.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient.get_stats_client">
+<span class="sig-name descname"><span class="pre">get_stats_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scope</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#cartography.stats.ScopedStatsClient" title="cartography.stats.ScopedStatsClient"><span class="pre">ScopedStatsClient</span></a></span></span><a class="headerlink" href="#cartography.stats.ScopedStatsClient.get_stats_client" title="Link to this definition">¶</a></dt>
+<dd><p>Create a new scoped StatsD client with additional prefix.</p>
+<p>This method returns a new ScopedStatsClient proxy that automatically
+prefixes all metric names with the provided scope, in addition to any
+existing prefix from the current client.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>scope</strong> – The scope prefix to add to metric names. Will be appended
+to any existing prefix with a dot separator.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A new ScopedStatsClient instance with the combined prefix.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient.incr">
+<span class="sig-name descname"><span class="pre">incr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">count</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.stats.ScopedStatsClient.incr" title="Link to this definition">¶</a></dt>
+<dd><p>Increment a StatsD counter metric.</p>
+<p>This method increments a counter metric using the underlying StatsD client.
+The metric name is automatically prefixed with the current scope prefix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stat</strong> – The name of the counter metric to increment.</p></li>
+<li><p><strong>count</strong> – The amount to increment by. May be negative for decrementing.
+Defaults to 1.</p></li>
+<li><p><strong>rate</strong> – The sample rate (0.0 to 1.0). Only sends data this percentage
+of the time. The StatsD server accounts for the sample rate.
+Defaults to 1.0 (always send).</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Basic counter increment:
+&gt;&gt;&gt; client = ScopedStatsClient.get_root_client()
+&gt;&gt;&gt; sync_client = client.get_stats_client(‘sync’)
+&gt;&gt;&gt; sync_client.incr(‘aws.accounts’)  # Metric: sync.aws.accounts</p>
+<p>Increment by custom amount:
+&gt;&gt;&gt; client.incr(‘processed.items’, count=5)</p>
+<p>Using sample rate:
+&gt;&gt;&gt; client.incr(‘high.volume.metric’, rate=0.1)  # Sample 10%</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient.is_enabled">
+<span class="sig-name descname"><span class="pre">is_enabled</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#cartography.stats.ScopedStatsClient.is_enabled" title="Link to this definition">¶</a></dt>
+<dd><p>Check if the StatsD client is enabled and configured.</p>
+<p>This method determines whether the underlying StatsD client has been
+properly configured and is ready to send metrics. It checks if the
+root client has a valid StatsClient instance set.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if the StatsD client is configured and ready to send metrics,
+False if no client has been set or the client is None.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient.set_stats_client">
+<span class="sig-name descname"><span class="pre">set_stats_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stats_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">StatsClient</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.stats.ScopedStatsClient.set_stats_client" title="Link to this definition">¶</a></dt>
+<dd><p>Set the underlying StatsD client for this scoped client hierarchy.</p>
+<p>This method configures the actual StatsClient instance that will be used
+by this scoped client and all other scoped clients in the hierarchy.
+The client is set at the root level, making it available to all scoped
+instances derived from this hierarchy.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.stats.ScopedStatsClient.timer">
+<span class="sig-name descname"><span class="pre">timer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.stats.ScopedStatsClient.timer" title="Link to this definition">¶</a></dt>
+<dd><p>Create a StatsD timer context manager for measuring execution time.</p>
+<p>This method returns a timer object that can be used as a context manager
+to measure and report execution time. The metric name is automatically
+prefixed with the current scope prefix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stat</strong> – The name of the timer metric to report.</p></li>
+<li><p><strong>rate</strong> – The sample rate (0.0 to 1.0). Only sends data this percentage
+of the time. The StatsD server accounts for the sample rate.
+Defaults to 1.0 (always send).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A timer context manager object, or None if the client is not enabled.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Using as context manager:
+&gt;&gt;&gt; client = ScopedStatsClient.get_root_client()
+&gt;&gt;&gt; sync_client = client.get_stats_client(‘sync’)
+&gt;&gt;&gt; with sync_client.timer(‘aws.duration’):
+…     # Timed operation here
+…     time.sleep(1)  # Metric: sync.aws.duration</p>
+<p>Manual timer usage:
+&gt;&gt;&gt; timer = client.timer(‘operation.time’)
+&gt;&gt;&gt; if timer:
+…     timer.start()
+…     # Do work
+…     timer.stop()  # Sends timing metric</p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.stats.get_stats_client">
+<span class="sig-prename descclassname"><span class="pre">cartography.stats.</span></span><span class="sig-name descname"><span class="pre">get_stats_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#cartography.stats.ScopedStatsClient" title="cartography.stats.ScopedStatsClient"><span class="pre">ScopedStatsClient</span></a></span></span><a class="headerlink" href="#cartography.stats.get_stats_client" title="Link to this definition">¶</a></dt>
+<dd><p>Get a scoped StatsD client with the specified prefix.</p>
+<p>This function returns a ScopedStatsClient instance that automatically
+prefixes all metrics with the provided prefix string. It uses the global
+_scoped_stats_client as the root client.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.stats.set_stats_client">
+<span class="sig-prename descclassname"><span class="pre">cartography.stats.</span></span><span class="sig-name descname"><span class="pre">set_stats_client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stats_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">StatsClient</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.stats.set_stats_client" title="Link to this definition">¶</a></dt>
+<dd><p>Configure the global StatsD client for cartography metrics.</p>
+<p>This function sets the underlying StatsClient instance that will be used
+by all ScopedStatsClient instances for sending metrics to the StatsD server.
+This should be called once during application initialization when StatsD
+is enabled.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>stats_client</strong> – A configured StatsClient instance that will handle
+the actual communication with the StatsD server.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This function modifies the global _scoped_stats_client instance.
+Once set, all subsequent metric operations through ScopedStatsClient
+instances will use this client to send metrics to StatsD.</p>
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="orm.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">ORM</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="aws_client.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">AWS Client</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

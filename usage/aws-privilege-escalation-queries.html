@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>AWS IAM Privilege Escalation Methods and Mitigation - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Cartography Production Operations" href="../ops.html" /><link rel="prev" title="Cartography Schema" href="schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="AWS IAM Privilege Escalation Methods and Mitigation"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Usage</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema.html">Cartography Schema</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#creating-a-new-policy-version">1. Creating a New Policy Version</a></li>
+<li><a class="reference internal" href="#setting-the-default-policy-version-to-an-existing-version">2. Setting the Default Policy Version to an Existing Version</a></li>
+<li><a class="reference internal" href="#creating-an-ec2-instance-with-an-existing-instance-profile">3. Creating an EC2 Instance with an Existing Instance Profile</a></li>
+<li><a class="reference internal" href="#creating-a-new-user-access-key">4. Creating a New User Access Key</a></li>
+<li><a class="reference internal" href="#creating-a-new-login-profile">5. Creating a New Login Profile</a></li>
+<li><a class="reference internal" href="#updating-an-existing-login-profile">6. Updating an Existing Login Profile</a></li>
+<li><a class="reference internal" href="#attaching-a-policy-to-a-user">7. Attaching a Policy to a User</a></li>
+<li><a class="reference internal" href="#attaching-a-policy-to-a-group">8. Attaching a Policy to a Group</a></li>
+<li><a class="reference internal" href="#attaching-a-policy-to-a-role">9. Attaching a Policy to a Role</a></li>
+<li><a class="reference internal" href="#creating-updating-an-inline-policy-for-a-user">10. Creating/Updating an Inline Policy for a User</a></li>
+<li><a class="reference internal" href="#creating-updating-an-inline-policy-for-a-group">11. Creating/Updating an Inline Policy for a Group</a></li>
+<li><a class="reference internal" href="#creating-updating-an-inline-policy-for-a-role">12. Creating/Updating an Inline Policy for a Role</a></li>
+<li><a class="reference internal" href="#adding-a-user-to-a-group">13. Adding a User to a Group</a></li>
+<li><a class="reference internal" href="#updating-the-assumerolepolicydocument-of-a-role">14. Updating the AssumeRolePolicyDocument of a Role</a></li>
+<li><a class="reference internal" href="#passing-a-role-to-a-new-lambda-function-then-invoking-it">15. Passing a Role to a New Lambda Function, Then Invoking It</a></li>
+<li><a class="reference internal" href="#passing-a-role-to-a-new-lambda-function-then-invoking-it-cross-account">16. Passing a Role to a New Lambda Function, Then Invoking It Cross-Account</a></li>
+<li><a class="reference internal" href="#passing-a-role-to-a-new-lambda-function-then-triggering-it-with-dynamodb">17. Passing a Role to a New Lambda Function, Then Triggering It with DynamoDB</a></li>
+<li><a class="reference internal" href="#updating-the-code-of-an-existing-lambda-function">18. Updating the Code of an Existing Lambda Function</a></li>
+<li><a class="reference internal" href="#passing-a-role-to-a-glue-development-endpoint">19. Passing a Role to a Glue Development Endpoint</a></li>
+<li><a class="reference internal" href="#updating-an-existing-glue-dev-endpoint">20. Updating an Existing Glue Dev Endpoint</a></li>
+<li><a class="reference internal" href="#passing-a-role-to-cloudformation">21. Passing a Role to CloudFormation</a></li>
+<li><a class="reference internal" href="#passing-a-role-to-data-pipeline">22. Passing a Role to Data Pipeline</a></li>
+<li><a class="reference internal" href="#creating-a-codestar-project-from-a-template">23. Creating a CodeStar Project from a Template</a></li>
+<li><a class="reference internal" href="#passing-a-role-to-a-new-codestar-project">24. Passing a Role to a New CodeStar Project</a></li>
+<li><a class="reference internal" href="#creating-a-new-codestar-project-and-associating-a-team-member">25. Creating a New CodeStar Project and Associating a Team Member</a></li>
+<li><a class="reference internal" href="#adding-a-malicious-lambda-layer-to-an-existing-lambda-function">26. Adding a Malicious Lambda Layer to an Existing Lambda Function</a></li>
+<li><a class="reference internal" href="#passing-a-role-to-a-new-sagemaker-jupyter-notebook">27. Passing a Role to a New SageMaker Jupyter Notebook</a></li>
+<li><a class="reference internal" href="#gaining-access-to-an-existing-sagemaker-jupyter-notebook">28. Gaining Access to an Existing SageMaker Jupyter Notebook</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/usage/aws-privilege-escalation-queries.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Usage</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">AWS IAM Privilege Escalation Methods and Mitigation</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/usage/aws-privilege-escalation-queries.md.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/usage/aws-privilege-escalation-queries.md.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/usage/aws-privilege-escalation-queries.md.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/usage/aws-privilege-escalation-queries.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/usage/aws-privilege-escalation-queries.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="aws-iam-privilege-escalation-methods-and-mitigation">
+<h1>AWS IAM Privilege Escalation Methods and Mitigation<a class="headerlink" href="#aws-iam-privilege-escalation-methods-and-mitigation" title="Link to this heading">¶</a></h1>
+<p>This document outlines various methods for privilege escalation in AWS IAM environments, along with required permissions, potential impact, and Cartography queries for detection.</p>
+<section id="creating-a-new-policy-version">
+<h2>1. Creating a New Policy Version<a class="headerlink" href="#creating-a-new-policy-version" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:CreatePolicyVersion</span></code> permission can create a new version of an IAM policy that they have access to. This allows them to define their own custom permissions. When creating a new policy version, it needs to be set as the default version to take effect, which you would think would require the <code class="docutils literal notranslate"><span class="pre">iam:SetDefaultPolicyVersion</span></code> permission, but when creating a new policy version, it is possible to include a flag (<code class="docutils literal notranslate"><span class="pre">--set-as-default</span></code>) that will automatically create it as the new default version. That flag does not require the <code class="docutils literal notranslate"><span class="pre">iam:SetDefaultPolicyVersion</span></code> permission to use.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:CreatePolicyVersion</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This privilege escalation method could allow a user to gain full administrator access of the AWS account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:CreatePolicyVersion&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="setting-the-default-policy-version-to-an-existing-version">
+<h2>2. Setting the Default Policy Version to an Existing Version<a class="headerlink" href="#setting-the-default-policy-version-to-an-existing-version" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:SetDefaultPolicyVersion</span></code> permission may be able to escalate privileges through existing policy versions that are not currently in use. If a policy that they have access to has versions that are not the default, they would be able to change the default version to any other existing version.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:SetDefaultPolicyVersion</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+The potential impact is associated with the level of permissions that the inactive policy version has. This could range from no privilege escalation at all to gaining full administrator access to the AWS account, depending on what the inactive policy versions have access to.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:SetDefaultPolicyVersion&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="creating-an-ec2-instance-with-an-existing-instance-profile">
+<h2>3. Creating an EC2 Instance with an Existing Instance Profile<a class="headerlink" href="#creating-an-ec2-instance-with-an-existing-instance-profile" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code> and <code class="docutils literal notranslate"><span class="pre">ec2:RunInstances</span></code> permissions can create a new EC2 instance that they will have operating system access to and pass an existing EC2 instance profile/role to it. They can then login to the instance and request the associated AWS keys from the EC2 instance meta data, which gives them access to all the permissions that the associated instance profile/role has.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ec2:RunInstances</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This attack would give an attacker access to the set of permissions that the instance profile/role has, which again could range from no privilege escalation to full administrator access of the AWS account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PassRole&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;ec2:RunInstances&quot;</span><span class="p">))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="creating-a-new-user-access-key">
+<h2>4. Creating a New User Access Key<a class="headerlink" href="#creating-a-new-user-access-key" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:CreateAccessKey</span></code> permission on other users can create an access key ID and secret access key belonging to another user in the AWS environment, if they don’t already have two sets associated with them (which best practice says they shouldn’t).</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:CreateAccessKey</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This method would give an attacker the same level of permissions as any user they were able to create an access key for, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:CreateAccessKey&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="creating-a-new-login-profile">
+<h2>5. Creating a New Login Profile<a class="headerlink" href="#creating-a-new-login-profile" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:CreateLoginProfile</span></code> permission on other users can create a password to use to login to the AWS console on any user that does not already have a login profile setup.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:CreateLoginProfile</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This method would give an attacker the same level of permissions as any user they were able to create a login profile for, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:CreateLoginProfile&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="updating-an-existing-login-profile">
+<h2>6. Updating an Existing Login Profile<a class="headerlink" href="#updating-an-existing-login-profile" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:UpdateLoginProfile</span></code> permission on other users can change the password used to login to the AWS console on any user that already has a login profile setup.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:UpdateLoginProfile</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This method would give an attacker the same level of permissions as any user they were able to update the login profile for, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:UpdateLoginProfile&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="attaching-a-policy-to-a-user">
+<h2>7. Attaching a Policy to a User<a class="headerlink" href="#attaching-a-policy-to-a-user" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:AttachUserPolicy</span></code> permission can escalate privileges by attaching a policy to a user that they have access to, adding the permissions of that policy to the attacker.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:AttachUserPolicy</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+An attacker would be able to use this method to attach the AdministratorAccess AWS managed policy to a user, giving them full administrator access to the AWS environment.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:AttachUserPolicy&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="attaching-a-policy-to-a-group">
+<h2>8. Attaching a Policy to a Group<a class="headerlink" href="#attaching-a-policy-to-a-group" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:AttachGroupPolicy</span></code> permission can escalate privileges by attaching a policy to a group that they are a part of, adding the permissions of that policy to the attacker.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:AttachGroupPolicy</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+An attacker would be able to use this method to attach the AdministratorAccess AWS managed policy to a group, giving them full administrator access to the AWS environment.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:AttachGroupPolicy&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="attaching-a-policy-to-a-role">
+<h2>9. Attaching a Policy to a Role<a class="headerlink" href="#attaching-a-policy-to-a-role" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:AttachRolePolicy</span></code> permission can escalate privileges by attaching a policy to a role that they have access to, adding the permissions of that policy to the attacker.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:AttachRolePolicy</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+An attacker would be able to use this method to attach the AdministratorAccess AWS managed policy to a role, giving them full administrator access to the AWS environment.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:AttachRolePolicy&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="creating-updating-an-inline-policy-for-a-user">
+<h2>10. Creating/Updating an Inline Policy for a User<a class="headerlink" href="#creating-updating-an-inline-policy-for-a-user" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:PutUserPolicy</span></code> permission can escalate privileges by creating or updating an inline policy for a user that they have access to, adding the permissions of that policy to the attacker.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PutUserPolicy</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+Due to the ability to specify an arbitrary policy document with this method, the attacker could specify a policy that gives permission to perform any action on any resource, ultimately escalating to full administrator privileges in the AWS environment.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PutUserPolicy&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="creating-updating-an-inline-policy-for-a-group">
+<h2>11. Creating/Updating an Inline Policy for a Group<a class="headerlink" href="#creating-updating-an-inline-policy-for-a-group" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:PutGroupPolicy</span></code> permission can escalate privileges by creating or updating an inline policy for a group that they are a part of, adding the permissions of that policy to the attacker.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PutGroupPolicy</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+Due to the ability to specify an arbitrary policy document with this method, the attacker could specify a policy that gives permission to perform any action on any resource, ultimately escalating to full administrator privileges in the AWS environment.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PutGroupPolicy&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="creating-updating-an-inline-policy-for-a-role">
+<h2>12. Creating/Updating an Inline Policy for a Role<a class="headerlink" href="#creating-updating-an-inline-policy-for-a-role" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:PutRolePolicy</span></code> permission can escalate privileges by creating or updating an inline policy for a role that they have access to, adding the permissions of that policy to the attacker.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PutRolePolicy</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+Due to the ability to specify an arbitrary policy document with this method, the attacker could specify a policy that gives permission to perform any action on any resource, ultimately escalating to full administrator privileges in the AWS environment.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PutRolePolicy&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="adding-a-user-to-a-group">
+<h2>13. Adding a User to a Group<a class="headerlink" href="#adding-a-user-to-a-group" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:AddUserToGroup</span></code> permission can use it to add themselves to an existing IAM Group in the AWS account.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:AddUserToGroup</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+The attacker would be able to gain privileges of any existing group in the account, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:AddUserToGroup&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="updating-the-assumerolepolicydocument-of-a-role">
+<h2>14. Updating the AssumeRolePolicyDocument of a Role<a class="headerlink" href="#updating-the-assumerolepolicydocument-of-a-role" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:UpdateAssumeRolePolicy</span></code> and <code class="docutils literal notranslate"><span class="pre">sts:AssumeRole</span></code> permissions would be able to change the assume role policy document of any existing role to allow them to assume that role.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:UpdateAssumeRolePolicy</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sts:AssumeRole</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give the attacker the privileges that are attached to any role in the account, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:UpdateAssumeRolePolicy&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;sts:AssumeRole&quot;</span><span class="p">))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="passing-a-role-to-a-new-lambda-function-then-invoking-it">
+<h2>15. Passing a Role to a New Lambda Function, Then Invoking It<a class="headerlink" href="#passing-a-role-to-a-new-lambda-function-then-invoking-it" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+A user with the <code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code>, <code class="docutils literal notranslate"><span class="pre">lambda:CreateFunction</span></code>, and <code class="docutils literal notranslate"><span class="pre">lambda:InvokeFunction</span></code> permissions can escalate privileges by passing an existing IAM role to a new Lambda function that includes code to import the relevant AWS library to their programming language of choice, then using it perform actions of their choice. The code could then be run by invoking the function through the AWS API.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda:CreateFunction</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda:InvokeFunction</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give a user access to the privileges associated with any Lambda service role that exists in the account, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PassRole&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;lambda:CreateFunction&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;lambda:InvokeFunction&quot;</span><span class="p">))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="passing-a-role-to-a-new-lambda-function-then-invoking-it-cross-account">
+<h2>16. Passing a Role to a New Lambda Function, Then Invoking It Cross-Account<a class="headerlink" href="#passing-a-role-to-a-new-lambda-function-then-invoking-it-cross-account" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> None</p>
+<p><strong>Description:</strong>
+A user with the <code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code>, <code class="docutils literal notranslate"><span class="pre">lambda:CreateFunction</span></code>, and <code class="docutils literal notranslate"><span class="pre">lambda:AddPermission</span></code> permissions can escalate privileges by passing an existing IAM role to a new Lambda function that includes code to import the relevant AWS library to their programming language of choice, then using it perform actions of their choice. The code could then be run by using <code class="docutils literal notranslate"><span class="pre">lambda:AddPermission</span></code> to allow cross-account invocation, then invoking it cross-account with their own attacker account.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda:CreateFunction</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda:AddPermission</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give a user access to the privileges associated with any Lambda service role that exists in the account, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PassRole&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;lambda:AddPermission&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;lambda:InvokeFunction&quot;</span><span class="p">))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="passing-a-role-to-a-new-lambda-function-then-triggering-it-with-dynamodb">
+<h2>17. Passing a Role to a New Lambda Function, Then Triggering It with DynamoDB<a class="headerlink" href="#passing-a-role-to-a-new-lambda-function-then-triggering-it-with-dynamodb" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+A user with the <code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code>, <code class="docutils literal notranslate"><span class="pre">lambda:CreateFunction</span></code>, and <code class="docutils literal notranslate"><span class="pre">lambda:CreateEventSourceMapping</span></code> (and possibly <code class="docutils literal notranslate"><span class="pre">dynamodb:PutItem</span></code> and <code class="docutils literal notranslate"><span class="pre">dynamodb:CreateTable</span></code>) permissions, but without the <code class="docutils literal notranslate"><span class="pre">lambda:InvokeFunction</span></code> permission, can escalate privileges by passing an existing IAM role to a new Lambda function that includes code to import the relevant AWS library to their programming language of choice, then using it perform actions of their choice. They then would need to either create a DynamoDB table or use an existing one, to create an event source mapping for the Lambda function pointing to that DynamoDB table. Then they would need to either put an item into the table or wait for another method to do so that the Lambda function will be invoked.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda:CreateFunction</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda:CreateEventSourceMapping</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dynamodb:PutItem</span></code> (possibly)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dynamodb:CreateTable</span></code> (possibly)</p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give an attacker access to the privileges associated with any Lambda service role that exists in the account, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PassRole&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;lambda:CreateEventSourceMapping&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;lambda:InvokeFunction&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;dynamodb:PutItem&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;dynamodb:CreateTable&quot;</span><span class="p">)))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="updating-the-code-of-an-existing-lambda-function">
+<h2>18. Updating the Code of an Existing Lambda Function<a class="headerlink" href="#updating-the-code-of-an-existing-lambda-function" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">lambda:UpdateFunctionCode</span></code> permission could update the code in an existing Lambda function with an IAM role attached so that it would import the relevant AWS library in that programming language and use it to perform actions on behalf of that role. They would then need to wait for it to be invoked if they were not able to do so directly, but if it already exists, there is likely some way that it will be invoked.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda:UpdateFunctionCode</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give an attacker access to the privileges associated with the Lambda service role that is attached to that function, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;lambda:UpdateFunctionCode&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="passing-a-role-to-a-glue-development-endpoint">
+<h2>19. Passing a Role to a Glue Development Endpoint<a class="headerlink" href="#passing-a-role-to-a-glue-development-endpoint" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code> and <code class="docutils literal notranslate"><span class="pre">glue:CreateDevEndpoint</span></code> permissions could create a new AWS Glue development endpoint and pass an existing service role to it. They then could SSH into the instance and use the AWS CLI to have access of the permissions the role has access to.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">glue:CreateDevEndpoint</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give an attacker access to the privileges associated with any Glue service role that exists in the account, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PassRole&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;glue:CreateDevEndpoint&quot;</span><span class="p">))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="updating-an-existing-glue-dev-endpoint">
+<h2>20. Updating an Existing Glue Dev Endpoint<a class="headerlink" href="#updating-an-existing-glue-dev-endpoint" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">glue:UpdateDevEndpoint</span></code> permission would be able to update the associated SSH public key of an existing Glue development endpoint, to then SSH into it and have access to the permissions the attached role has access to.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">glue:UpdateDevEndpoint</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give an attacker access to the privileges associated with the role attached to the specific Glue development endpoint, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;glue:UpdateDevEndpoint&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="passing-a-role-to-cloudformation">
+<h2>21. Passing a Role to CloudFormation<a class="headerlink" href="#passing-a-role-to-cloudformation" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code> and <code class="docutils literal notranslate"><span class="pre">cloudformation:CreateStack</span></code> permissions would be able to escalate privileges by creating a CloudFormation template that will perform actions and create resources using the permissions of the role that was passed when creating a CloudFormation stack.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cloudformation:CreateStack</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give an attacker access to the privileges associated with the role that was passed when creating the CloudFormation stack, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PassRole&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;cloudformation:CreateStack&quot;</span><span class="p">))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="passing-a-role-to-data-pipeline">
+<h2>22. Passing a Role to Data Pipeline<a class="headerlink" href="#passing-a-role-to-data-pipeline" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation/">AWS IAM Privilege Escalation – Methods and Mitigation</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code>, <code class="docutils literal notranslate"><span class="pre">datapipeline:CreatePipeline</span></code>, and <code class="docutils literal notranslate"><span class="pre">datapipeline:PutPipelineDefinition</span></code> permissions would be able to escalate privileges by creating a pipeline and updating it to run an arbitrary AWS CLI command or create other resources, either once or on an interval with the permissions of the role that was passed in.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">datapipeline:CreatePipeline</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">datapipeline:PutPipelineDefinition</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give the attacker access to the privileges associated with the role that was passed when creating the pipeline, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PassRole&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;datapipeline:CreatePipeline&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;datapipeline:PutPipelineDefinition&quot;</span><span class="p">))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="creating-a-codestar-project-from-a-template">
+<h2>23. Creating a CodeStar Project from a Template<a class="headerlink" href="#creating-a-codestar-project-from-a-template" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://rhinosecuritylabs.com/aws/escalating-aws-iam-privileges-undocumented-codestar-api/">Escalating AWS IAM Privileges with an Undocumented CodeStar API</a></p></li>
+<li><p><a class="reference external" href="https://github.com/RhinoSecurityLabs/Cloud-Security-Research/blob/master/AWS/codestar_createprojectfromtemplate_privesc/CodeStarPrivEsc.py">CodeStar Privilege Escalation Script</a></p></li>
+</ul>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">codestar:CreateProjectFromTemplate</span></code> permission can leverage an undocumented CodeStar API to escalate privileges by creating a new CodeStar project from a built-in template. This method also allows arbitrary CloudFormation resource creation under a different set of privileges.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">codestar:CreateProjectFromTemplate</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give the attacker access to the privileges associated with the CodeStar project template that was chosen, along with the permissions granted to the CloudFormation role created along with the project. This results in a reasonable amount of privilege escalation, with a chance to full-administrator, depending on other resources/permissions in the environment. More information can be found in the references section.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;codestar:CreateProjectFromTemplate&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="passing-a-role-to-a-new-codestar-project">
+<h2>24. Passing a Role to a New CodeStar Project<a class="headerlink" href="#passing-a-role-to-a-new-codestar-project" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/escalating-aws-iam-privileges-undocumented-codestar-api/">Escalating AWS IAM Privileges with an Undocumented CodeStar API</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">codestar:CreateProject</span></code> and <code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code> permissions can escalate privileges by creating a new CodeStar project and passing a role to it, where the role will then be used to deploy the resources specified in the CodeStar project.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">codestar:CreateProject</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give the attacker the ability to escalate to a full administrator, because the default CodeStar service role has permission to escalate privileges to an administrator. If a custom CodeStar service role has been created, the impact of this privilege escalation method may vary.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;codestar:CreateProject&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PassRole&quot;</span><span class="p">))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="creating-a-new-codestar-project-and-associating-a-team-member">
+<h2>25. Creating a New CodeStar Project and Associating a Team Member<a class="headerlink" href="#creating-a-new-codestar-project-and-associating-a-team-member" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/escalating-aws-iam-privileges-undocumented-codestar-api/">Escalating AWS IAM Privileges with an Undocumented CodeStar API</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">codestar:CreateProject</span></code> and <code class="docutils literal notranslate"><span class="pre">codestar:AssociateTeamMember</span></code> permissions can escalate privileges by creating a new CodeStar project, then associating themselves as the Owner of the project, which will attach an IAM policy to them.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">codestar:CreateProject</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">codestar:AssociateTeamMember</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give the attacker read-only access to multiple different AWS services and full CodeStar access on the project they are now an Owner of.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;codestar:CreateProject&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;codestar:AssociateTeamMember&quot;</span><span class="p">))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="adding-a-malicious-lambda-layer-to-an-existing-lambda-function">
+<h2>26. Adding a Malicious Lambda Layer to an Existing Lambda Function<a class="headerlink" href="#adding-a-malicious-lambda-layer-to-an-existing-lambda-function" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation-part-2/">AWS IAM Privilege Escalation - Methods and Mitigation - Part 2</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">lambda:UpdateFunctionConfiguration</span></code> permission can escalate permissions by attaching a Lambda layer to an existing function to override a library that is in use by the function, where their malicious code could utilize the function’s IAM role for AWS API calls.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda:UpdateFunctionConfiguration</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give an attacker access to the privileges associated with the Lambda service role that is attached to that function, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;lambda:UpdateFunctionConfiguration&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="passing-a-role-to-a-new-sagemaker-jupyter-notebook">
+<h2>27. Passing a Role to a New SageMaker Jupyter Notebook<a class="headerlink" href="#passing-a-role-to-a-new-sagemaker-jupyter-notebook" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation-part-2/">AWS IAM Privilege Escalation - Methods and Mitigation - Part 2</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">sagemaker:CreateNotebookInstance</span></code>, <code class="docutils literal notranslate"><span class="pre">sagemaker:CreatePresignedNotebookInstanceUrl</span></code>, and <code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code> permissions can escalate privileges by passing a role to a new SageMaker Jupyter notebook. Then, through the Jupyter UI, they can access the credentials belonging to the notebook for further exploitation.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sagemaker:CreateNotebookInstance</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sagemaker:CreatePresignedNotebookInstanceUrl</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">iam:PassRole</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give an attacker access to the privileges associated with the SageMaker service role that is attached to that Jupyter notebook, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="p">(</span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;sagemaker:CreateNotebookInstance&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;sagemaker:CreatePresignedNotebookInstanceUrl&quot;</span><span class="p">)</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;iam:PassRole&quot;</span><span class="p">))</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="gaining-access-to-an-existing-sagemaker-jupyter-notebook">
+<h2>28. Gaining Access to an Existing SageMaker Jupyter Notebook<a class="headerlink" href="#gaining-access-to-an-existing-sagemaker-jupyter-notebook" title="Link to this heading">¶</a></h2>
+<p><strong>How-To/Exploit Link(s):</strong> <a class="reference external" href="https://rhinosecuritylabs.com/aws/aws-privilege-escalation-methods-mitigation-part-2/">AWS IAM Privilege Escalation - Methods and Mitigation - Part 2</a></p>
+<p><strong>Description:</strong>
+An attacker with the <code class="docutils literal notranslate"><span class="pre">sagemaker:CreatePresignedNotebookInstanceUrl</span></code> permission can escalate privileges by creating a signed URL for an existing SageMaker Jupyter notebook. Then, through the Jupyter UI, they can access the credentials belonging to the notebook for further exploitation.</p>
+<p><strong>Required Permission(s):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sagemaker:CreatePresignedNotebookInstanceUrl</span></code></p></li>
+</ul>
+<p><strong>Potential Impact:</strong>
+This would give an attacker access to the privileges associated with the SageMaker service role that is attached to that Jupyter notebook, which could range from no privilege escalation to full administrator access to the account.</p>
+<p><strong>Cartography Query:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">stmt</span><span class="p">:</span><span class="n">AWSPolicyStatement</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">pol</span><span class="p">:</span><span class="n">AWSPolicy</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">principal</span><span class="p">:</span><span class="n">AWSPrincipal</span><span class="p">)</span><span class="err">--</span><span class="p">(</span><span class="n">a</span><span class="p">:</span><span class="n">AWSAccount</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">effect</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;Allow&quot;</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="k">any</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">stmt</span><span class="p">.</span><span class="n">action</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;sagemaker:CreatePresignedNotebookInstanceUrl&quot;</span><span class="p">)</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">p</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="schema.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Cartography Schema</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../ops.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Cartography Production Operations</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

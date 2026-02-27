@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Ontology Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="OpenAI" href="../openai/index.html" /><link rel="prev" title="Ontology Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Ontology Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Ontology in Cartography</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Ontology Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#ontology-properties-on-nodes">Ontology Properties on Nodes</a><ul>
+<li><a class="reference internal" href="#abstract-ontology-nodes">1. Abstract Ontology Nodes</a></li>
+<li><a class="reference internal" href="#semantic-labels-extra-labels">2. Semantic Labels (Extra Labels)</a></li>
+<li><a class="reference internal" href="#ontology-properties-ont">Ontology Properties (<code class="docutils literal notranslate"><span class="pre">_ont_*</span></code>)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#user">User</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#useraccount">UserAccount</a></li>
+<li><a class="reference internal" href="#device">Device</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#apikey">APIKey</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#secret">Secret</a></li>
+<li><a class="reference internal" href="#computeinstance">ComputeInstance</a></li>
+<li><a class="reference internal" href="#container">Container</a></li>
+<li><a class="reference internal" href="#thirdpartyapp">ThirdPartyApp</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#database">Database</a></li>
+<li><a class="reference internal" href="#objectstorage">ObjectStorage</a></li>
+<li><a class="reference internal" href="#tenant">Tenant</a></li>
+<li><a class="reference internal" href="#function">Function</a></li>
+<li><a class="reference internal" href="#coderepository">CodeRepository</a></li>
+<li><a class="reference internal" href="#loadbalancer">LoadBalancer</a><ul>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#publicip">PublicIP</a><ul>
+<li><a class="reference internal" href="#id5">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#package">Package</a><ul>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#containerregistry">ContainerRegistry</a></li>
+<li><a class="reference internal" href="#imagetag">ImageTag</a><ul>
+<li><a class="reference internal" href="#id7">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#image">Image</a></li>
+<li><a class="reference internal" href="#imageattestation">ImageAttestation</a><ul>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#imagemanifestlist">ImageManifestList</a><ul>
+<li><a class="reference internal" href="#id9">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#imagelayer">ImageLayer</a><ul>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/ontology/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Ontology in Cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Ontology Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/ontology/schema.md.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/ontology/schema.md.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/ontology/schema.md.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/ontology/schema.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/ontology/schema.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="ontology-schema">
+<h1>Ontology Schema<a class="headerlink" href="#ontology-schema" title="Link to this heading">¶</a></h1>
+<pre  class="mermaid">
+        graph LR
+
+U(User) -- HAS_ACCOUNT --&gt; UA{{UserAccount}}
+U -- OWNS --&gt; CC(Device)
+U -- OWNS --&gt; AK{{APIKey}}
+U -- AUTHORIZED --&gt; OA{{ThirdPartyApp}}
+LB{{LoadBalancer}} -- EXPOSE --&gt; CI{{ComputeInstance}}
+LB{{LoadBalancer}} -- EXPOSE --&gt; CT{{Container}}
+DB{{Database}}
+OS{{ObjectStorage}}
+TN{{Tenant}}
+FN{{Function}}
+REPO{{CodeRepository}}
+SC{{Secret}}
+PIP(PublicIP) -- POINTS_TO --&gt; LB
+PIP -- POINTS_TO --&gt; CI
+PKG(Package) -- DEPLOYED --&gt; IM{{Image}}
+PKG -- DEPENDS_ON --&gt; PKG
+F[TrivyImageFinding] -- AFFECTS --&gt; PKG
+CR{{ContainerRegistry}} -- REPO_IMAGE --&gt; IT{{ImageTag}}
+IT -- IMAGE --&gt; IM
+IML{{ImageManifestList}} -- CONTAINS_IMAGE --&gt; IM
+IA{{ImageAttestation}} -- ATTESTS --&gt; IM
+IM -- HAS_LAYER --&gt; IL{{ImageLayer}}
+    </pre><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In this schema, <code class="docutils literal notranslate"><span class="pre">squares</span></code> represent <code class="docutils literal notranslate"><span class="pre">Abstract</span> <span class="pre">Nodes</span></code> and <code class="docutils literal notranslate"><span class="pre">hexagons</span></code> represent <code class="docutils literal notranslate"><span class="pre">Semantic</span> <span class="pre">Labels</span></code> (on module nodes).</p>
+</div>
+<section id="ontology-properties-on-nodes">
+<h2>Ontology Properties on Nodes<a class="headerlink" href="#ontology-properties-on-nodes" title="Link to this heading">¶</a></h2>
+<p>Cartography’s ontology system supports two distinct patterns for organizing and querying data across modules:</p>
+<section id="abstract-ontology-nodes">
+<h3>1. Abstract Ontology Nodes<a class="headerlink" href="#abstract-ontology-nodes" title="Link to this heading">¶</a></h3>
+<p>Abstract ontology nodes (e.g., <code class="docutils literal notranslate"><span class="pre">User</span></code>, <code class="docutils literal notranslate"><span class="pre">Device</span></code>) are <strong>dedicated nodes created separately</strong> from module-specific nodes. They serve as unified, cross-module representations of entities.</p>
+<p><strong>How it works:</strong></p>
+<ul class="simple">
+<li><p>Cartography creates new ontology nodes (<code class="docutils literal notranslate"><span class="pre">:User</span></code>, <code class="docutils literal notranslate"><span class="pre">:Device</span></code>) based on mappings from multiple source modules</p></li>
+<li><p>These nodes aggregate and normalize data from module-specific nodes</p></li>
+<li><p>Relationships link ontology nodes to their source nodes (e.g., <code class="docutils literal notranslate"><span class="pre">(:User)-[:HAS_ACCOUNT]-&gt;(:EntraUser)</span></code>)</p></li>
+</ul>
+</section>
+<section id="semantic-labels-extra-labels">
+<h3>2. Semantic Labels (Extra Labels)<a class="headerlink" href="#semantic-labels-extra-labels" title="Link to this heading">¶</a></h3>
+<p>Semantic labels (e.g., <code class="docutils literal notranslate"><span class="pre">UserAccount</span></code>, <code class="docutils literal notranslate"><span class="pre">APIKey</span></code>) are <strong>extra labels added directly</strong> to module-specific nodes. They enable unified querying without creating separate nodes.</p>
+<p><strong>How it works:</strong></p>
+<ul class="simple">
+<li><p>Module nodes receive an additional label (e.g., <code class="docutils literal notranslate"><span class="pre">:EntraUser:UserAccount</span></code>, <code class="docutils literal notranslate"><span class="pre">:AnthropicApiKey:APIKey</span></code>)</p></li>
+<li><p>Ontology mappings add normalized <code class="docutils literal notranslate"><span class="pre">_ont_*</span></code> properties to these nodes</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">_ont_source</span></code> property tracks which module provided the data</p></li>
+<li><p>No separate ontology nodes are created; the module node itself carries the semantic label</p></li>
+</ul>
+</section>
+<section id="ontology-properties-ont">
+<h3>Ontology Properties (<code class="docutils literal notranslate"><span class="pre">_ont_*</span></code>)<a class="headerlink" href="#ontology-properties-ont" title="Link to this heading">¶</a></h3>
+<p>When mappings are applied, nodes automatically receive <code class="docutils literal notranslate"><span class="pre">_ont_*</span></code> properties with normalized ontology field values:</p>
+<ul class="simple">
+<li><p><strong>Cross-module querying</strong>: Use consistent field names across different modules</p></li>
+<li><p><strong>Data normalization</strong>: Access standardized field values regardless of source format</p></li>
+<li><p><strong>Source tracking</strong>: The <code class="docutils literal notranslate"><span class="pre">_ont_source</span></code> property indicates which module provided the data</p></li>
+</ul>
+</section>
+</section>
+<section id="user">
+<h2>User<a class="headerlink" href="#user" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>User is an abstract ontology node.</p>
+</div>
+<p>A user is a person (or agent) who uses a computer or network service.
+A user often has one or many user accounts.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>If field <code class="docutils literal notranslate"><span class="pre">active</span></code> is null, it should not be considered as <code class="docutils literal notranslate"><span class="pre">true</span></code> or <code class="docutils literal notranslate"><span class="pre">false</span></code>, only as unknown.</p>
+</div>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique identifier for the user.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>email</p></td>
+<td><p>User’s primary email.</p></td>
+</tr>
+<tr class="row-even"><td><p>username</p></td>
+<td><p>Login of the user in the main IDP.</p></td>
+</tr>
+<tr class="row-odd"><td><p>fullname</p></td>
+<td><p>User’s full name.</p></td>
+</tr>
+<tr class="row-even"><td><p>firstname</p></td>
+<td><p>User’s first name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastname</p></td>
+<td><p>User’s last name.</p></td>
+</tr>
+<tr class="row-even"><td><p>active</p></td>
+<td><p>Boolean indicating if the user is active (e.g. disabled in the IDP).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> has one or many <code class="docutils literal notranslate"><span class="pre">UserAccount</span></code> (semantic label):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">User</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_ACCOUNT</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">UserAccount</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> can own one or many <code class="docutils literal notranslate"><span class="pre">Device</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">User</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OWNS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">Device</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> can own one or many <code class="docutils literal notranslate"><span class="pre">APIKey</span></code> (semantic label):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">User</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OWNS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">APIKey</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="useraccount">
+<h2>UserAccount<a class="headerlink" href="#useraccount" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>UserAccount is a semantic label.</p>
+</div>
+<p>A user account represents an identity on a specific system or service.
+Unlike the abstract <code class="docutils literal notranslate"><span class="pre">User</span></code> node, <code class="docutils literal notranslate"><span class="pre">UserAccount</span></code> is a semantic label applied to concrete user nodes from different modules, enabling unified queries across platforms.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_email</p></td>
+<td><p>User’s email address (often used as primary identifier).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_username</p></td>
+<td><p>User’s login name or username.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_fullname</p></td>
+<td><p>User’s full name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_firstname</p></td>
+<td><p>User’s first name.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_lastname</p></td>
+<td><p>User’s last name.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_has_mfa</p></td>
+<td><p>Whether multi-factor authentication is enabled for this account.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_inactive</p></td>
+<td><p>Whether the account is inactive, disabled, suspended, or locked.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_lastactivity</p></td>
+<td><p>Timestamp of the last activity or login for this account.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_source</p></td>
+<td><p>Source of the data.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="device">
+<h2>Device<a class="headerlink" href="#device" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Device is an abstract ontology node.</p>
+</div>
+<p>A client computer is a host that accesses a service made available by a server or a third party provider.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique identifier for the user.</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>hostname</p></td>
+<td><p>Hostname of the device.</p></td>
+</tr>
+<tr class="row-even"><td><p>os</p></td>
+<td><p>OS running on the device.</p></td>
+</tr>
+<tr class="row-odd"><td><p>os_version</p></td>
+<td><p>Version of the OS running on the device.</p></td>
+</tr>
+<tr class="row-even"><td><p>model</p></td>
+<td><p>Device model (e.g. ThinkPad Carbon X1 G11)</p></td>
+</tr>
+<tr class="row-odd"><td><p>platform</p></td>
+<td><p>CPU architecture</p></td>
+</tr>
+<tr class="row-even"><td><p>serial_number</p></td>
+<td><p>Device serial number.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Device</span></code> is linked to one or many nodes that implements the notion into a module</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">User</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_REPRESENTATION</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="o">*</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> can own one or many <code class="docutils literal notranslate"><span class="pre">Device</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">User</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OWNS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">Device</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="apikey">
+<h2>APIKey<a class="headerlink" href="#apikey" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>APIKey is a semantic label.</p>
+</div>
+<p>An API key (or access key) is a credential used for programmatic access to services and APIs.
+API keys are used across different cloud providers and SaaS platforms for authentication and authorization.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_name</p></td>
+<td><p>A human-readable name or description for the API key.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_created_at</p></td>
+<td><p>Timestamp when the API key was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_updated_at</p></td>
+<td><p>Timestamp when the API key was last updated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_expires_at</p></td>
+<td><p>Timestamp when the API key expires (if applicable).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_last_used_at</p></td>
+<td><p>Timestamp when the API key was last used.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> can own one or many <code class="docutils literal notranslate"><span class="pre">APIKey</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">User</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">OWNS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">APIKey</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="secret">
+<h2>Secret<a class="headerlink" href="#secret" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Secret is a semantic label.</p>
+</div>
+<p>A secret represents sensitive data stored in a secrets management service across different cloud providers and platforms.
+Secrets can include database credentials, API keys, certificates, and other sensitive configuration data.
+They are managed by dedicated services like AWS Secrets Manager, GCP Secret Manager, Azure Key Vault, GitHub Actions Secrets, and Kubernetes Secrets.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_name</p></td>
+<td><p>The name or identifier of the secret (REQUIRED).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_created_at</p></td>
+<td><p>Timestamp when the secret was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_updated_at</p></td>
+<td><p>Timestamp when the secret was last updated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_rotation_enabled</p></td>
+<td><p>Whether automatic rotation is enabled for the secret.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="computeinstance">
+<h2>ComputeInstance<a class="headerlink" href="#computeinstance" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>ComputeInstance is a semantic label.</p>
+</div>
+<p>A compute instance represents a virtual machine or server instance running in a cloud environment.
+It generalizes concepts like EC2 Instances, DigitalOcean Droplets, and Scaleway Instances.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_id</p></td>
+<td><p>The unique identifier for the instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_name</p></td>
+<td><p>The name of the instance.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_region</p></td>
+<td><p>The region or zone where the instance is located.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_public_ip_address</p></td>
+<td><p>The public IP address of the instance.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_private_ip_address</p></td>
+<td><p>The private IP address of the instance.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_state</p></td>
+<td><p>The current state of the instance (e.g., running, stopped).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_type</p></td>
+<td><p>The type or size of the instance (e.g., t2.micro, s-1vcpu-1gb).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_created_at</p></td>
+<td><p>Timestamp when the instance was created.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="container">
+<h2>Container<a class="headerlink" href="#container" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Container is a semantic label.</p>
+</div>
+<p>A container represents a lightweight, standalone executable package that includes everything needed to run an application.
+It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Container Instances.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_id</p></td>
+<td><p>The unique identifier for the container.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_name</p></td>
+<td><p>The name of the container.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_image</p></td>
+<td><p>The container image (e.g., nginx:latest).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_image_digest</p></td>
+<td><p>The digest/SHA256 of the container image.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_state</p></td>
+<td><p>The current state of the container (e.g., running, stopped, waiting).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_cpu</p></td>
+<td><p>CPU allocated to the container.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_memory</p></td>
+<td><p>Memory allocated to the container (in MB).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_region</p></td>
+<td><p>The region or zone where the container is running.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_namespace</p></td>
+<td><p>Namespace for logical isolation (e.g., Kubernetes namespace).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_health_status</p></td>
+<td><p>The health status of the container.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="thirdpartyapp">
+<h2>ThirdPartyApp<a class="headerlink" href="#thirdpartyapp" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>ThirdPartyApp is a semantic label.</p>
+</div>
+<p>An OAuth application (or OAuth client) represents a third-party application that has been authorized to access user data via OAuth 2.0, OpenID Connect, or SAML protocols.
+OAuth apps span across identity providers (Google Workspace, Okta, Entra, Keycloak) and represent potential security risks when users grant excessive permissions.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_client_id</p></td>
+<td><p>The OAuth client ID - unique identifier for the application (REQUIRED).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_name</p></td>
+<td><p>Human-readable display name of the OAuth application (REQUIRED).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_enabled</p></td>
+<td><p>Whether the OAuth application is currently enabled/active.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_native_app</p></td>
+<td><p>Whether this is a native/mobile application (vs web application).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_protocol</p></td>
+<td><p>The authentication protocol used (e.g., oauth2, openid-connect, saml).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_source</p></td>
+<td><p>Source module of the data (e.g., googleworkspace, keycloak, entra, okta).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h3>Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">User</span></code> can authorize <code class="docutils literal notranslate"><span class="pre">ThirdPartyApp</span></code> (for modules that track user-level OAuth authorizations):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">User</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">AUTHORIZED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">ThirdPartyApp</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="database">
+<h2>Database<a class="headerlink" href="#database" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Database is a semantic label.</p>
+</div>
+<p>A database represents a managed data storage system across different cloud providers and database technologies.
+It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure SQL databases, Azure CosmosDB databases, and GCP Bigtable instances.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_db_name</p></td>
+<td><p>The name/identifier of the database (REQUIRED).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_db_type</p></td>
+<td><p>The database engine/type (e.g., “mysql”, “postgres”, “dynamodb”, “mongodb”, “cassandra”, “cosmosdb-sql”, “bigtable”).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_db_version</p></td>
+<td><p>The database engine version.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_db_endpoint</p></td>
+<td><p>The connection endpoint/address for the database.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_db_port</p></td>
+<td><p>The port number the database listens on.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_db_encrypted</p></td>
+<td><p>Whether the database storage is encrypted.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_db_location</p></td>
+<td><p>The physical location/region of the database.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="objectstorage">
+<h2>ObjectStorage<a class="headerlink" href="#objectstorage" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>ObjectStorage is a semantic label.</p>
+</div>
+<p>An object storage represents a managed blob/object storage system across different cloud providers.
+It generalizes concepts like AWS S3 buckets, GCP Cloud Storage buckets, and Azure Blob Containers.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_name</p></td>
+<td><p>The name/identifier of the storage bucket/container (REQUIRED).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_location</p></td>
+<td><p>The region/location of the storage.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_encrypted</p></td>
+<td><p>Whether the storage is encrypted.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_versioning</p></td>
+<td><p>Whether versioning is enabled.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_public</p></td>
+<td><p>Whether the storage has public access (not available for all providers).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="tenant">
+<h2>Tenant<a class="headerlink" href="#tenant" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Tenant is a semantic label.</p>
+</div>
+<p>A tenant represents the top-level organizational boundary or billing entity within a cloud provider or SaaS platform.
+Tenants serve as the root container for all resources, users, and configurations within a given service.
+We add a Tenant semantic label to all nodes that have outward ‘RESOURCE’ relationships.</p>
+<p>Common tenant concepts across platforms include:</p>
+<ul class="simple">
+<li><p><strong>Cloud Providers</strong>: AWS Accounts, Azure Tenants, GCP Organizations/Projects</p></li>
+<li><p><strong>Identity Providers</strong>: Entra Tenants, Okta Organizations, Keycloak Organizations</p></li>
+<li><p><strong>SaaS Platforms</strong>: GitHub Organizations, Anthropic Workspaces, OpenAI Projects, Cloudflare Accounts</p></li>
+<li><p><strong>MDM/Security</strong>: Kandji Tenants, SentinelOne Accounts, LastPass Tenants</p></li>
+</ul>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_name</p></td>
+<td><p>Display name or friendly name of the tenant/organization (REQUIRED for most modules).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_status</p></td>
+<td><p>Current status/state of the tenant (e.g., active, suspended, archived).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_domain</p></td>
+<td><p>Primary domain name associated with the tenant (for workspace/domain-based services).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="function">
+<h2>Function<a class="headerlink" href="#function" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Function is a semantic label.</p>
+</div>
+<p>A function represents a serverless compute unit that runs code or containers in response to events without managing servers.
+It generalizes concepts like AWS Lambda functions, GCP Cloud Functions, GCP Cloud Run services/jobs, and Azure Function Apps.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_name</p></td>
+<td><p>The name of the function (REQUIRED).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_runtime</p></td>
+<td><p>The runtime environment (e.g., python3.9, nodejs18.x, dotnet6). Only applicable for code-based functions.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_memory</p></td>
+<td><p>Memory allocated to the function (in MB).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_timeout</p></td>
+<td><p>Timeout for function execution (in seconds).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_deployment_type</p></td>
+<td><p>The deployment type: <code class="docutils literal notranslate"><span class="pre">code</span></code> for source code functions (Lambda, Cloud Functions, Azure Functions), <code class="docutils literal notranslate"><span class="pre">container</span></code> for container-based functions (Cloud Run).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="coderepository">
+<h2>CodeRepository<a class="headerlink" href="#coderepository" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>CodeRepository is a semantic label.</p>
+</div>
+<p>A code repository represents a source code repository containing software projects and their version history.
+Code repositories are critical assets for supply chain security as they contain intellectual property and often secrets.
+It generalizes concepts like GitHub Repositories and GitLab Projects.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_name</p></td>
+<td><p>The name of the repository (REQUIRED).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_fullname</p></td>
+<td><p>The full path including namespace (e.g., “org/repo”, “group/subgroup/project”).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_description</p></td>
+<td><p>Description of the repository.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_url</p></td>
+<td><p>Web URL to access the repository.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_default_branch</p></td>
+<td><p>The default branch name (e.g., “main”, “master”).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_public</p></td>
+<td><p>Whether the repository is publicly accessible.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_archived</p></td>
+<td><p>Whether the repository is archived (read-only).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="loadbalancer">
+<h2>LoadBalancer<a class="headerlink" href="#loadbalancer" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>LoadBalancer is a semantic label.</p>
+</div>
+<p>A load balancer distributes incoming network traffic across multiple targets to ensure high availability and reliability.
+It generalizes concepts like AWS Application/Network Load Balancers (ALB/NLB), AWS Classic ELBs, GCP Forwarding Rules, and Azure Load Balancers.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_name</p></td>
+<td><p>The name of the load balancer (REQUIRED).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_lb_type</p></td>
+<td><p>The type of load balancer (e.g., “application”, “network”, “classic”, “Standard”, “Basic”).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_scheme</p></td>
+<td><p>The load balancing scheme (e.g., “internet-facing”, “internal”, “EXTERNAL”, “INTERNAL”).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_dns_name</p></td>
+<td><p>The DNS name or endpoint for the load balancer.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_region</p></td>
+<td><p>The region or location where the load balancer is deployed.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">LoadBalancer</span></code> can expose one or many <code class="docutils literal notranslate"><span class="pre">ComputeInstance</span></code> (semantic label):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">LoadBalancer</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">EXPOSE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">ComputeInstance</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LoadBalancer</span></code> can expose one or many <code class="docutils literal notranslate"><span class="pre">Container</span></code> (semantic label):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">LoadBalancer</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">EXPOSE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">Container</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="publicip">
+<h2>PublicIP<a class="headerlink" href="#publicip" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>PublicIP is an abstract ontology node.</p>
+</div>
+<p>A public IP address represents a unique numerical identifier assigned to a device that is routable on the internet.
+Public IP addresses can be either IPv4 or IPv6.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>If field <code class="docutils literal notranslate"><span class="pre">ip_version</span></code> is null, it should not be considered as <code class="docutils literal notranslate"><span class="pre">4</span></code> or <code class="docutils literal notranslate"><span class="pre">6</span></code>, only as unknown.</p>
+</div>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>The unique identifier for the IP address (the IP address value itself).</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ip_address</p></td>
+<td><p>The IP address value (e.g., “203.0.113.1” or “2001:db8::1”).</p></td>
+</tr>
+<tr class="row-even"><td><p>ip_version</p></td>
+<td><p>Integer indicating the IP version: <code class="docutils literal notranslate"><span class="pre">4</span></code> for IPv4, <code class="docutils literal notranslate"><span class="pre">6</span></code> for IPv6, or <code class="docutils literal notranslate"><span class="pre">null</span></code> if unknown.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id5">
+<h3>Relationships<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">PublicIP</span></code> is linked to one or many nodes that represent the IP in a module:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">PublicIP</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">RESERVED_BY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="o">*</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PublicIP</span></code> can point to one or many <code class="docutils literal notranslate"><span class="pre">LoadBalancer</span></code> (semantic label) that use this IP:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">PublicIP</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">POINTS_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">LoadBalancer</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PublicIP</span></code> can point to one or many <code class="docutils literal notranslate"><span class="pre">ComputeInstance</span></code> (semantic label) that have this IP:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">PublicIP</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">POINTS_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">ComputeInstance</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="package">
+<h2>Package<a class="headerlink" href="#package" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Package is an abstract ontology node.</p>
+</div>
+<p>A package represents a software package (library, dependency, or system package) discovered across different scanning tools.
+Package nodes are deduplicated by their <code class="docutils literal notranslate"><span class="pre">id</span></code>, which uses the format <code class="docutils literal notranslate"><span class="pre">{type}|{namespace/}{name}|{version}</span></code> for cross-tool matching.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>id</strong></p></td>
+<td><p>Normalized ID for cross-tool matching (format: <code class="docutils literal notranslate"><span class="pre">{type}|{namespace/}{name}|{version}</span></code>).</p></td>
+</tr>
+<tr class="row-odd"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node.</p></td>
+</tr>
+<tr class="row-even"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated.</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>Name of the package.</p></td>
+</tr>
+<tr class="row-even"><td><p>version</p></td>
+<td><p>Version of the package.</p></td>
+</tr>
+<tr class="row-odd"><td><p>type</p></td>
+<td><p>Package ecosystem type (e.g., npm, pypi, deb).</p></td>
+</tr>
+<tr class="row-even"><td><p>purl</p></td>
+<td><p>Package URL (e.g., <code class="docutils literal notranslate"><span class="pre">pkg:npm/express&#64;4.18.2</span></code>).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Package</span></code> is linked to one or many source nodes that detected it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">Package</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DETECTED_AS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TrivyPackage</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">Package</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DETECTED_AS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">SyftPackage</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Package</span></code> can be deployed in one or many container images (propagated from TrivyPackage):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">Package</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DEPLOYED</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">Image</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Package</span></code> can be affected by one or many vulnerability findings (propagated from TrivyPackage):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">TrivyImageFinding</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">AFFECTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">Package</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Package</span></code> can have one or many recommended fix versions (propagated from TrivyPackage):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">Package</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">SHOULD_UPDATE_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">TrivyFix</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Package</span></code> can depend on other packages (propagated from SyftPackage):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">Package</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DEPENDS_ON</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">Package</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="containerregistry">
+<h2>ContainerRegistry<a class="headerlink" href="#containerregistry" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>ContainerRegistry is a semantic label.</p>
+</div>
+<p>A container registry represents a storage and distribution system for container images.
+It generalizes concepts like AWS ECR repositories, GCP Artifact Registry repositories, and GitLab Container Registries.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_name</p></td>
+<td><p>The name of the container registry/repository (REQUIRED).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_uri</p></td>
+<td><p>The registry URI/endpoint for pulling images.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_location</p></td>
+<td><p>The region/location where the registry is hosted.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_created_at</p></td>
+<td><p>Timestamp when the registry was created.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_size_bytes</p></td>
+<td><p>Storage size in bytes.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="imagetag">
+<h2>ImageTag<a class="headerlink" href="#imagetag" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>ImageTag is a semantic label.</p>
+</div>
+<p>An image tag represents a human-readable reference to a container image within a registry.
+It generalizes concepts like AWS ECRRepositoryImage, GCP Artifact Registry image tags, and GitLab Container Registry tags.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_tag</p></td>
+<td><p>The tag name (e.g., “latest”, “v1.0.0”).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_uri</p></td>
+<td><p>The full URI to the tagged image.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id7">
+<h3>Relationships<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">ImageTag</span></code> points to one or many <code class="docutils literal notranslate"><span class="pre">Image</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">ImageTag</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">Image</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="image">
+<h2>Image<a class="headerlink" href="#image" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Image is a conditional semantic label applied to container image nodes when <code class="docutils literal notranslate"><span class="pre">type=&quot;image&quot;</span></code>.</p>
+</div>
+<p>An image represents a runnable container image (single-architecture or platform-specific).
+It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, and GitLab Container Images.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_digest</p></td>
+<td><p>The content-addressable digest (SHA256) of the image.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_architecture</p></td>
+<td><p>CPU architecture (e.g., “amd64”, “arm64”).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_os</p></td>
+<td><p>Operating system (e.g., “linux”, “windows”).</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_variant</p></td>
+<td><p>Architecture variant (e.g., “v8” for ARM).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="imageattestation">
+<h2>ImageAttestation<a class="headerlink" href="#imageattestation" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>ImageAttestation is a conditional semantic label applied to container image nodes when <code class="docutils literal notranslate"><span class="pre">type=&quot;attestation&quot;</span></code>.</p>
+</div>
+<p>An image attestation represents cryptographic metadata that validates or provides provenance information about a container image.
+It generalizes concepts like AWS ECRImage attestations and OCI attestation manifests.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_digest</p></td>
+<td><p>The content-addressable digest (SHA256) of the attestation.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_attestation_type</p></td>
+<td><p>The type of attestation (e.g., “attestation-manifest”).</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_attests_digest</p></td>
+<td><p>The digest of the image this attestation validates.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">ImageAttestation</span></code> attests an <code class="docutils literal notranslate"><span class="pre">Image</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">ImageAttestation</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">ATTESTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">Image</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="imagemanifestlist">
+<h2>ImageManifestList<a class="headerlink" href="#imagemanifestlist" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>ImageManifestList is a conditional semantic label applied to container image nodes when <code class="docutils literal notranslate"><span class="pre">type=&quot;manifest_list&quot;</span></code>.</p>
+</div>
+<p>An image manifest list (also known as an image index) represents a multi-architecture container image that contains references to platform-specific images.
+It generalizes concepts like AWS ECRImage manifest lists and OCI image indexes.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_digest</p></td>
+<td><p>The content-addressable digest (SHA256) of the manifest list.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_child_image_digests</p></td>
+<td><p>List of platform-specific image digests contained in this manifest list.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id9">
+<h3>Relationships<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">ImageManifestList</span></code> contains platform-specific <code class="docutils literal notranslate"><span class="pre">Image</span></code> nodes:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">ImageManifestList</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">CONTAINS_IMAGE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">Image</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="imagelayer">
+<h2>ImageLayer<a class="headerlink" href="#imagelayer" title="Link to this heading">¶</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>ImageLayer is a semantic label.</p>
+</div>
+<p>An image layer represents an individual filesystem layer within a container image.
+Layers are de-duplicated by their content-addressable digest, so multiple images may reference the same layer node.
+It generalizes concepts like AWS ECRImageLayer and OCI image layers.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>_ont_diff_id</p></td>
+<td><p>The uncompressed (DiffID) SHA-256 digest of the layer.</p></td>
+</tr>
+<tr class="row-odd"><td><p>_ont_is_empty</p></td>
+<td><p>Boolean flag identifying Docker’s canonical empty layer.</p></td>
+</tr>
+<tr class="row-even"><td><p>_ont_history</p></td>
+<td><p>The shell command that created this layer (for Dockerfile matching).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">Image</span></code> has layers:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">Image</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_LAYER</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">ImageLayer</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Layers point to the next layer in sequence:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">ImageLayer</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">NEXT</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">ImageLayer</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Ontology Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="../openai/index.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">OpenAI</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=cac61aee"></script>
+      <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}`;
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        all_mermaids.forEach((el) => {
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+        await mermaid.run();
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+const load = async () => {
+    initStyles();
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...JSON.parse(
+                    `{"startOnLoad": false}`
+                ),
+                ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...JSON.parse(
+        `{"startOnLoad": false}`
+    ),
+    ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+    }
+);
+
+window.addEventListener("load", load);</script></body>
+</html>

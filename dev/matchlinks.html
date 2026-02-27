@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>MatchLinks - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="MatchLinks"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#important-use-matchlinks-sparingly">Important: Use MatchLinks Sparingly</a><ul>
+<li><a class="reference internal" href="#when-to-use-matchlinks">When to Use MatchLinks</a></li>
+<li><a class="reference internal" href="#when-not-to-use-matchlinks">When NOT to Use MatchLinks</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#example">Example</a></li>
+<li><a class="reference internal" href="#example-2-adding-extended-properties-to-relationships">Example 2: Adding Extended Properties to Relationships</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/dev/matchlinks.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">MatchLinks</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/dev/matchlinks.md.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/dev/matchlinks.md.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/dev/matchlinks.md.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/dev/matchlinks.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/dev/matchlinks.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="matchlinks">
+<h1>MatchLinks<a class="headerlink" href="#matchlinks" title="Link to this heading">¶</a></h1>
+<p>MatchLinks are a way to create relationships between two existing nodes in the graph.</p>
+<section id="important-use-matchlinks-sparingly">
+<h2>Important: Use MatchLinks Sparingly<a class="headerlink" href="#important-use-matchlinks-sparingly" title="Link to this heading">¶</a></h2>
+<p><strong>WARNING: MatchLinks can have significant performance impact and should be used only in specific scenarios.</strong></p>
+<p>MatchLinks require a 5-step process that makes them expensive:</p>
+<ol class="arabic simple">
+<li><p>Call API A, write Node A to the graph</p></li>
+<li><p>Call API B, write Node B to the graph</p></li>
+<li><p>Read Node A from graph</p></li>
+<li><p>Read Node B from graph</p></li>
+<li><p>Write relationship between A and B to graph</p></li>
+</ol>
+<p><strong>Prefer standard node schemas + relationship schemas</strong> whenever possible. Only use MatchLinks in these two specific scenarios:</p>
+<section id="when-to-use-matchlinks">
+<h3>When to Use MatchLinks<a class="headerlink" href="#when-to-use-matchlinks" title="Link to this heading">¶</a></h3>
+<p><strong>Scenario 1: Connecting Two Existing Node Types</strong>
+When you need to connect two different types of nodes that already exist in the graph, and the relationship data comes from a separate API call or data source.</p>
+<p><strong>Scenario 2: Rich Relationship Properties</strong>
+When you need to store detailed metadata on relationships and it doesn’t make sense to break out that data to separate nodes.</p>
+</section>
+<section id="when-not-to-use-matchlinks">
+<h3>When NOT to Use MatchLinks<a class="headerlink" href="#when-not-to-use-matchlinks" title="Link to this heading">¶</a></h3>
+<p><strong>Don’t use MatchLinks for:</strong></p>
+<ul class="simple">
+<li><p>Standard parent-child relationships (use <code class="docutils literal notranslate"><span class="pre">other_relationships</span></code> in node schema)</p></li>
+<li><p>Simple one-to-many relationships (use <code class="docutils literal notranslate"><span class="pre">one_to_many=True</span></code> in standard relationships)</p></li>
+<li><p>When you can define the relationship in the node schema</p></li>
+<li><p>Performance-critical scenarios</p></li>
+</ul>
+<p><strong>Use MatchLinks only for:</strong></p>
+<ul class="simple">
+<li><p>Connecting two existing node types from separate data sources where it is impractical to connect them using standard node schemas and relationships</p></li>
+<li><p>Relationships with rich metadata where it doesn’t make sense to break out that data to separate nodes</p></li>
+</ul>
+</section>
+</section>
+<section id="example">
+<h2>Example<a class="headerlink" href="#example" title="Link to this heading">¶</a></h2>
+<p>Suppose we have a graph that has AWSPrincipals and S3Buckets. We want to create a relationship between an AWSPrincipal and an S3Bucket if the AWSPrincipal has access to the S3Bucket.</p>
+<p>Let’s say we have the following data that maps principals with the S3Buckets they can read from:</p>
+<ol class="arabic">
+<li><p>Define the mapping data</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">mapping_data</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="2">    <span class="p">{</span>
+</span><span data-line="3">        <span class="s2">&quot;principal_arn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:iam::123456789012:role/Alice&quot;</span><span class="p">,</span>
+</span><span data-line="4">        <span class="s2">&quot;bucket_name&quot;</span><span class="p">:</span> <span class="s2">&quot;bucket1&quot;</span><span class="p">,</span>
+</span><span data-line="5">        <span class="s2">&quot;permission_action&quot;</span><span class="p">:</span> <span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span>
+</span><span data-line="6">    <span class="p">},</span>
+</span><span data-line="7">    <span class="p">{</span>
+</span><span data-line="8">        <span class="s2">&quot;principal_arn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:iam::123456789012:role/Bob&quot;</span><span class="p">,</span>
+</span><span data-line="9">        <span class="s2">&quot;bucket_name&quot;</span><span class="p">:</span> <span class="s2">&quot;bucket2&quot;</span><span class="p">,</span>
+</span><span data-line="10">        <span class="s2">&quot;permission_action&quot;</span><span class="p">:</span> <span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span>
+</span><span data-line="11">    <span class="p">}</span>
+</span><span data-line="12"><span class="p">]</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Define the MatchLink relationship between the AWSPrincipal and the S3Bucket</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">S3AccessMatchLink</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="3">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;CAN_ACCESS&quot;</span>
+</span><span data-line="4">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">OUTWARD</span>
+</span><span data-line="5">    <span class="n">properties</span><span class="p">:</span> <span class="n">S3AccessRelProps</span> <span class="o">=</span> <span class="n">S3AccessRelProps</span><span class="p">()</span>
+</span><span data-line="6">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;S3Bucket&quot;</span>
+</span><span data-line="7">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">(</span>
+</span><span data-line="8">        <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;bucket_name&#39;</span><span class="p">)},</span>
+</span><span data-line="9">    <span class="p">)</span>
+</span><span data-line="10">
+</span><span data-line="11">    <span class="c1"># These are the additional fields that we need to define for a MatchLink</span>
+</span><span data-line="12">    <span class="n">source_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;AWSPrincipal&quot;</span>
+</span><span data-line="13">    <span class="n">source_node_matcher</span><span class="p">:</span> <span class="n">SourceNodeMatcher</span> <span class="o">=</span> <span class="n">make_source_node_matcher</span><span class="p">(</span>
+</span><span data-line="14">        <span class="p">{</span><span class="s1">&#39;principal_arn&#39;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;principal_arn&#39;</span><span class="p">)},</span>
+</span><span data-line="15">    <span class="p">)</span>
+</span></pre></div>
+</div>
+<p>This is a standard <code class="docutils literal notranslate"><span class="pre">CartographyRelSchema</span></code> object as described in the <a class="reference internal" href="#writing-intel-modules#defining-relationships"><span class="xref myst">intel module guide</span></a>, <strong>except</strong> that now we have defined a <code class="docutils literal notranslate"><span class="pre">source_node_label</span></code> and a <code class="docutils literal notranslate"><span class="pre">source_node_matcher</span></code>.</p>
+</li>
+<li><p>Define a <code class="docutils literal notranslate"><span class="pre">CartographyRelProperties</span></code> object with some additional fields:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">S3AccessRelProps</span><span class="p">(</span><span class="n">CartographyRelProperties</span><span class="p">):</span>
+</span><span data-line="3">    <span class="c1"># &lt;Mandatory fields for MatchLinks&gt;</span>
+</span><span data-line="4">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="5">
+</span><span data-line="6">    <span class="c1"># Cartography syncs objects account-by-account (or &quot;sub-resource&quot;-by-&quot;sub-resource&quot;)</span>
+</span><span data-line="7">    <span class="c1"># We store the sub-resource label and id on the relationship itself so that we can</span>
+</span><span data-line="8">    <span class="c1"># clean up stale relationships without deleting relationships defined in other accounts.</span>
+</span><span data-line="9">    <span class="n">_sub_resource_label</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_sub_resource_label&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="10">    <span class="n">_sub_resource_id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_sub_resource_id&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="11">    <span class="c1"># &lt;/Mandatory fields for MatchLinks&gt;</span>
+</span><span data-line="12">
+</span><span data-line="13">    <span class="c1"># Add in extra properties that we want to define for the relationship</span>
+</span><span data-line="14">    <span class="c1"># For example, we can add a `permission_action` property to the relationship to track the action that the principal has on the bucket, e.g. &#39;s3:GetObject&#39;</span>
+</span><span data-line="15">    <span class="n">permission_action</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;permission_action&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ol>
+<p><strong>Note: All MatchLink relationship properties must include these mandatory fields:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lastupdated</span></code>: PropertyRef = PropertyRef(“UPDATE_TAG”, set_in_kwargs=True)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_sub_resource_label</span></code>: PropertyRef = PropertyRef(“_sub_resource_label”, set_in_kwargs=True)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_sub_resource_id</span></code>: PropertyRef = PropertyRef(“_sub_resource_id”, set_in_kwargs=True)</p></li>
+</ul>
+<ol class="arabic">
+<li><p>Load the matchlinks to the graph</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">load_matchlinks</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">S3AccessMatchLink</span><span class="p">(),</span>
+</span><span data-line="4">    <span class="n">mapping_data</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">UPDATE_TAG</span><span class="o">=</span><span class="n">UPDATE_TAG</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">_sub_resource_label</span><span class="o">=</span><span class="s2">&quot;AWSAccount&quot;</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">_sub_resource_id</span><span class="o">=</span><span class="n">ACCOUNT_ID</span><span class="p">,</span>
+</span><span data-line="8"><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>This function automatically creates indexes for the nodes involved, as well for the relationship between
+them (specifically, on the update tag, the sub-resource label, and the sub-resource id fields).</p>
+</li>
+<li><p>Run the cleanup to remove stale matchlinks</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">cleanup_job</span> <span class="o">=</span> <span class="n">GraphJob</span><span class="o">.</span><span class="n">from_matchlink</span><span class="p">(</span><span class="n">matchlink</span><span class="p">,</span> <span class="s2">&quot;AWSAccount&quot;</span><span class="p">,</span> <span class="n">ACCOUNT_ID</span><span class="p">,</span> <span class="n">UPDATE_TAG</span><span class="p">)</span>
+</span><span data-line="2"><span class="n">cleanup_job</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ol>
+<p><strong>Important: Always implement cleanup for MatchLinks to remove stale relationships.</strong></p>
+<ol class="arabic simple">
+<li><p>Enjoy!
+<img alt="matchlinks" src="../_images/alice-bob-matchlinks.png" /></p></li>
+</ol>
+<p>A fully working (non-production!) test example is here:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+</span><span data-line="2"><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="kn">from</span><span class="w"> </span><span class="nn">neo4j</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphDatabase</span>
+</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.client.core.tx</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_matchlinks</span>
+</span><span data-line="6"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.graph.job</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphJob</span>
+</span><span data-line="7"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.common</span><span class="w"> </span><span class="kn">import</span> <span class="n">PropertyRef</span>
+</span><span data-line="8"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.models.core.relationships</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span data-line="9">        <span class="n">CartographyRelProperties</span><span class="p">,</span>
+</span><span data-line="10">        <span class="n">CartographyRelSchema</span><span class="p">,</span>
+</span><span data-line="11">        <span class="n">LinkDirection</span><span class="p">,</span>
+</span><span data-line="12">        <span class="n">SourceNodeMatcher</span><span class="p">,</span>
+</span><span data-line="13">        <span class="n">TargetNodeMatcher</span><span class="p">,</span>
+</span><span data-line="14">        <span class="n">make_source_node_matcher</span><span class="p">,</span>
+</span><span data-line="15">        <span class="n">make_target_node_matcher</span><span class="p">,</span>
+</span><span data-line="16">    <span class="p">)</span>
+</span><span data-line="17">
+</span><span data-line="18">
+</span><span data-line="19"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="20"><span class="k">class</span><span class="w"> </span><span class="nc">S3AccessRelProps</span><span class="p">(</span><span class="n">CartographyRelProperties</span><span class="p">):</span>
+</span><span data-line="21">    <span class="c1"># &lt;Mandatory fields for MatchLinks&gt;</span>
+</span><span data-line="22">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;UPDATE_TAG&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="23">    <span class="n">_sub_resource_label</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_sub_resource_label&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="24">    <span class="n">_sub_resource_id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_sub_resource_id&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="25">    <span class="c1"># &lt;/Mandatory fields for MatchLinks&gt;</span>
+</span><span data-line="26">
+</span><span data-line="27">    <span class="n">permission_action</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;permission_action&quot;</span><span class="p">)</span>
+</span><span data-line="28">
+</span><span data-line="29"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="30"><span class="k">class</span><span class="w"> </span><span class="nc">S3AccessMatchLink</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="31">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;CAN_ACCESS&quot;</span>
+</span><span data-line="32">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">OUTWARD</span>
+</span><span data-line="33">    <span class="n">properties</span><span class="p">:</span> <span class="n">S3AccessRelProps</span> <span class="o">=</span> <span class="n">S3AccessRelProps</span><span class="p">()</span>
+</span><span data-line="34">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;S3Bucket&quot;</span>
+</span><span data-line="35">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">(</span>
+</span><span data-line="36">        <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;bucket_name&#39;</span><span class="p">)},</span>
+</span><span data-line="37">    <span class="p">)</span>
+</span><span data-line="38">    <span class="n">source_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;AWSPrincipal&quot;</span>
+</span><span data-line="39">    <span class="n">source_node_matcher</span><span class="p">:</span> <span class="n">SourceNodeMatcher</span> <span class="o">=</span> <span class="n">make_source_node_matcher</span><span class="p">(</span>
+</span><span data-line="40">        <span class="p">{</span><span class="s1">&#39;principal_arn&#39;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;principal_arn&#39;</span><span class="p">)},</span>
+</span><span data-line="41">    <span class="p">)</span>
+</span><span data-line="42">
+</span><span data-line="43"><span class="n">mapping_data</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="44">    <span class="p">{</span>
+</span><span data-line="45">        <span class="s2">&quot;principal_arn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:iam::123456789012:role/Alice&quot;</span><span class="p">,</span>
+</span><span data-line="46">        <span class="s2">&quot;bucket_name&quot;</span><span class="p">:</span> <span class="s2">&quot;bucket1&quot;</span><span class="p">,</span>
+</span><span data-line="47">        <span class="s2">&quot;permission_action&quot;</span><span class="p">:</span> <span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span>
+</span><span data-line="48">    <span class="p">},</span>
+</span><span data-line="49">    <span class="p">{</span>
+</span><span data-line="50">        <span class="s2">&quot;principal_arn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:iam::123456789012:role/Bob&quot;</span><span class="p">,</span>
+</span><span data-line="51">        <span class="s2">&quot;bucket_name&quot;</span><span class="p">:</span> <span class="s2">&quot;bucket2&quot;</span><span class="p">,</span>
+</span><span data-line="52">        <span class="s2">&quot;permission_action&quot;</span><span class="p">:</span> <span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span>
+</span><span data-line="53">    <span class="p">}</span>
+</span><span data-line="54"><span class="p">]</span>
+</span><span data-line="55">
+</span><span data-line="56">
+</span><span data-line="57"><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+</span><span data-line="58">    <span class="n">UPDATE_TAG</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+</span><span data-line="59">    <span class="n">ACCOUNT_ID</span> <span class="o">=</span> <span class="s2">&quot;123456789012&quot;</span>
+</span><span data-line="60">
+</span><span data-line="61">    <span class="n">driver</span> <span class="o">=</span> <span class="n">GraphDatabase</span><span class="o">.</span><span class="n">driver</span><span class="p">(</span><span class="s2">&quot;bolt://localhost:7687&quot;</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</span><span data-line="62">    <span class="k">with</span> <span class="n">driver</span><span class="o">.</span><span class="n">session</span><span class="p">()</span> <span class="k">as</span> <span class="n">neo4j_session</span><span class="p">:</span>
+</span><span data-line="63">        <span class="n">neo4j_session</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;MATCH (n) DETACH DELETE n&quot;</span><span class="p">)</span>
+</span><span data-line="64">
+</span><span data-line="65">        <span class="c1"># Account 123456789012 has principals p1 and p2, and buckets b1, b2, b3.</span>
+</span><span data-line="66">        <span class="n">neo4j_session</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="67"><span class="s2">        MERGE (acc:AWSAccount {id: $account_id, lastupdated: $update_tag})</span>
+</span><span data-line="68"><span class="s2">        MERGE (p1:AWSPrincipal {principal_arn: &quot;arn:aws:iam::123456789012:role/Alice&quot;, name:&quot;Alice&quot;, lastupdated: $update_tag})</span>
+</span><span data-line="69"><span class="s2">        MERGE (acc)-[res1:RESOURCE]-&gt;(p1)</span>
+</span><span data-line="70">
+</span><span data-line="71"><span class="s2">        MERGE (p2:AWSPrincipal {principal_arn: &quot;arn:aws:iam::123456789012:role/Bob&quot;, name:&quot;Bob&quot;, lastupdated: $update_tag})</span>
+</span><span data-line="72"><span class="s2">        MERGE (acc)-[res2:RESOURCE]-&gt;(p2)</span>
+</span><span data-line="73">
+</span><span data-line="74"><span class="s2">        MERGE (b1:S3Bucket {name: &quot;bucket1&quot;, lastupdated: $update_tag})</span>
+</span><span data-line="75"><span class="s2">        MERGE (acc)-[res3:RESOURCE]-&gt;(b1)</span>
+</span><span data-line="76">
+</span><span data-line="77"><span class="s2">        MERGE (b2:S3Bucket {name: &quot;bucket2&quot;, lastupdated: $update_tag})</span>
+</span><span data-line="78"><span class="s2">        MERGE (acc)-[res4:RESOURCE]-&gt;(b2)</span>
+</span><span data-line="79"><span class="s2">        SET res1.lastupdated = $update_tag, res2.lastupdated = $update_tag, res3.lastupdated = $update_tag, res4.lastupdated = $update_tag</span>
+</span><span data-line="80"><span class="s2">        &quot;&quot;&quot;</span><span class="p">,</span> <span class="n">update_tag</span><span class="o">=</span><span class="n">UPDATE_TAG</span><span class="p">,</span> <span class="n">account_id</span><span class="o">=</span><span class="n">ACCOUNT_ID</span><span class="p">)</span>
+</span><span data-line="81">
+</span><span data-line="82">        <span class="n">load_matchlinks</span><span class="p">(</span>
+</span><span data-line="83">            <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="84">            <span class="n">S3AccessMatchLink</span><span class="p">(),</span>
+</span><span data-line="85">            <span class="n">mapping_data</span><span class="p">,</span>
+</span><span data-line="86">            <span class="n">UPDATE_TAG</span><span class="o">=</span><span class="n">UPDATE_TAG</span><span class="p">,</span>
+</span><span data-line="87">            <span class="n">_sub_resource_label</span><span class="o">=</span><span class="s2">&quot;AWSAccount&quot;</span><span class="p">,</span>
+</span><span data-line="88">            <span class="n">_sub_resource_id</span><span class="o">=</span><span class="n">ACCOUNT_ID</span><span class="p">,</span>
+</span><span data-line="89">        <span class="p">)</span>
+</span><span data-line="90">        <span class="n">cleanup_job</span> <span class="o">=</span> <span class="n">GraphJob</span><span class="o">.</span><span class="n">from_matchlink</span><span class="p">(</span><span class="n">S3AccessMatchLink</span><span class="p">(),</span> <span class="s2">&quot;AWSAccount&quot;</span><span class="p">,</span> <span class="n">ACCOUNT_ID</span><span class="p">,</span> <span class="n">UPDATE_TAG</span><span class="p">)</span>
+</span><span data-line="91">        <span class="n">cleanup_job</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="example-2-adding-extended-properties-to-relationships">
+<h2>Example 2: Adding Extended Properties to Relationships<a class="headerlink" href="#example-2-adding-extended-properties-to-relationships" title="Link to this heading">¶</a></h2>
+<p>This example shows how to use MatchLinks to add rich properties to relationships between nodes. We’ll use AWS Inspector findings and packages as an example, where the relationship includes important metadata like remediation information, fixed versions, and file paths.</p>
+<ol class="arabic simple">
+<li><p>Define the mapping data with properties</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">finding_to_package_mapping</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="2">    <span class="p">{</span>
+</span><span data-line="3">        <span class="s2">&quot;findingarn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:inspector2:us-east-1:123456789012:finding/abc123&quot;</span><span class="p">,</span>
+</span><span data-line="4">        <span class="s2">&quot;packageid&quot;</span><span class="p">:</span> <span class="s2">&quot;openssl|0:1.1.1k-1.el8.x86_64&quot;</span><span class="p">,</span>
+</span><span data-line="5">        <span class="s2">&quot;filePath&quot;</span><span class="p">:</span> <span class="s2">&quot;/usr/lib64/libssl.so.1.1&quot;</span><span class="p">,</span>
+</span><span data-line="6">        <span class="s2">&quot;fixedInVersion&quot;</span><span class="p">:</span> <span class="s2">&quot;0:1.1.1l-1.el8&quot;</span><span class="p">,</span>
+</span><span data-line="7">        <span class="s2">&quot;remediation&quot;</span><span class="p">:</span> <span class="s2">&quot;Update OpenSSL to version 1.1.1l or later&quot;</span><span class="p">,</span>
+</span><span data-line="8">        <span class="s2">&quot;sourceLayerHash&quot;</span><span class="p">:</span> <span class="s2">&quot;sha256:abc123...&quot;</span><span class="p">,</span>
+</span><span data-line="9">        <span class="s2">&quot;sourceLambdaLayerArn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:lambda:us-east-1:123456789012:layer:my-layer:1&quot;</span><span class="p">,</span>
+</span><span data-line="10">    <span class="p">},</span>
+</span><span data-line="11">    <span class="p">{</span>
+</span><span data-line="12">        <span class="s2">&quot;findingarn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:inspector2:us-east-1:123456789012:finding/def456&quot;</span><span class="p">,</span>
+</span><span data-line="13">        <span class="s2">&quot;packageid&quot;</span><span class="p">:</span> <span class="s2">&quot;openssl|0:1.1.1k-1.el8.x86_64&quot;</span><span class="p">,</span>
+</span><span data-line="14">        <span class="s2">&quot;filePath&quot;</span><span class="p">:</span> <span class="s2">&quot;/usr/lib64/libssl.so.1.1&quot;</span><span class="p">,</span>
+</span><span data-line="15">        <span class="s2">&quot;fixedInVersion&quot;</span><span class="p">:</span> <span class="s2">&quot;0:1.1.1l-1.el8&quot;</span><span class="p">,</span>
+</span><span data-line="16">        <span class="s2">&quot;remediation&quot;</span><span class="p">:</span> <span class="s2">&quot;Update OpenSSL to version 1.1.1l or later&quot;</span><span class="p">,</span>
+</span><span data-line="17">        <span class="s2">&quot;sourceLayerHash&quot;</span><span class="p">:</span> <span class="s2">&quot;sha256:abc123...&quot;</span><span class="p">,</span>
+</span><span data-line="18">        <span class="s2">&quot;sourceLambdaLayerArn&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="19">    <span class="p">},</span>
+</span><span data-line="20">    <span class="p">{</span>
+</span><span data-line="21">        <span class="s2">&quot;findingarn&quot;</span><span class="p">:</span> <span class="s2">&quot;arn:aws:inspector2:us-east-1:123456789012:finding/abc123&quot;</span><span class="p">,</span>
+</span><span data-line="22">        <span class="s2">&quot;packageid&quot;</span><span class="p">:</span> <span class="s2">&quot;curl|7.61.1-12.el8.x86_64&quot;</span><span class="p">,</span>
+</span><span data-line="23">        <span class="s2">&quot;filePath&quot;</span><span class="p">:</span> <span class="s2">&quot;/usr/bin/curl&quot;</span><span class="p">,</span>
+</span><span data-line="24">        <span class="s2">&quot;fixedInVersion&quot;</span><span class="p">:</span> <span class="s2">&quot;7.61.1-14.el8&quot;</span><span class="p">,</span>
+</span><span data-line="25">        <span class="s2">&quot;remediation&quot;</span><span class="p">:</span> <span class="s2">&quot;Update curl to version 7.61.1-14.el8 or later&quot;</span><span class="p">,</span>
+</span><span data-line="26">        <span class="s2">&quot;sourceLayerHash&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="27">        <span class="s2">&quot;sourceLambdaLayerArn&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="28">    <span class="p">}</span>
+</span><span data-line="29"><span class="p">]</span>
+</span></pre></div>
+</div>
+<ol class="arabic simple">
+<li><p>Define the relationship properties with multiple fields</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">InspectorFindingToPackageRelProperties</span><span class="p">(</span><span class="n">CartographyRelProperties</span><span class="p">):</span>
+</span><span data-line="3">    <span class="c1"># Mandatory fields for MatchLinks</span>
+</span><span data-line="4">    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;lastupdated&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="5">    <span class="n">_sub_resource_label</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_sub_resource_label&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="6">    <span class="n">_sub_resource_id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;_sub_resource_id&quot;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="7">
+</span><span data-line="8">    <span class="c1"># Business properties from the vulnerable package data</span>
+</span><span data-line="9">    <span class="n">filepath</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;filePath&quot;</span><span class="p">)</span>
+</span><span data-line="10">    <span class="n">fixedinversion</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;fixedInVersion&quot;</span><span class="p">)</span>
+</span><span data-line="11">    <span class="n">remediation</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;remediation&quot;</span><span class="p">)</span>
+</span><span data-line="12">    <span class="n">sourcelayerhash</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;sourceLayerHash&quot;</span><span class="p">)</span>
+</span><span data-line="13">    <span class="n">sourcelambdalayerarn</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;sourceLambdaLayerArn&quot;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<ol class="arabic simple">
+<li><p>Define the MatchLink relationship schema</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">class</span><span class="w"> </span><span class="nc">InspectorFindingToPackageMatchLink</span><span class="p">(</span><span class="n">CartographyRelSchema</span><span class="p">):</span>
+</span><span data-line="3">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;AWSInspectorPackage&quot;</span>
+</span><span data-line="4">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">(</span>
+</span><span data-line="5">        <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;packageid&quot;</span><span class="p">)},</span>
+</span><span data-line="6">    <span class="p">)</span>
+</span><span data-line="7">    <span class="n">source_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;AWSInspectorFinding&quot;</span>
+</span><span data-line="8">    <span class="n">source_node_matcher</span><span class="p">:</span> <span class="n">SourceNodeMatcher</span> <span class="o">=</span> <span class="n">make_source_node_matcher</span><span class="p">(</span>
+</span><span data-line="9">        <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s2">&quot;findingarn&quot;</span><span class="p">)},</span>
+</span><span data-line="10">    <span class="p">)</span>
+</span><span data-line="11">    <span class="n">properties</span><span class="p">:</span> <span class="n">InspectorFindingToPackageRelProperties</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="12">        <span class="n">InspectorFindingToPackageRelProperties</span><span class="p">()</span>
+</span><span data-line="13">    <span class="p">)</span>
+</span><span data-line="14">    <span class="n">direction</span><span class="p">:</span> <span class="n">LinkDirection</span> <span class="o">=</span> <span class="n">LinkDirection</span><span class="o">.</span><span class="n">OUTWARD</span>
+</span><span data-line="15">    <span class="n">rel_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;HAS_VULNERABLE_PACKAGE&quot;</span>
+</span></pre></div>
+</div>
+<ol class="arabic simple">
+<li><p>Load the matchlinks with properties</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">load_matchlinks</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">neo4j_session</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">InspectorFindingToPackageMatchLink</span><span class="p">(),</span>
+</span><span data-line="4">    <span class="n">finding_to_package_mapping</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">lastupdated</span><span class="o">=</span><span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">_sub_resource_label</span><span class="o">=</span><span class="s2">&quot;AWSAccount&quot;</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">_sub_resource_id</span><span class="o">=</span><span class="n">account_id</span><span class="p">,</span>
+</span><span data-line="8"><span class="p">)</span>
+</span></pre></div>
+</div>
+<ol class="arabic simple">
+<li><p>Cleanup stale relationships</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">cleanup_job</span> <span class="o">=</span> <span class="n">GraphJob</span><span class="o">.</span><span class="n">from_matchlink</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">InspectorFindingToPackageMatchLink</span><span class="p">(),</span>
+</span><span data-line="3">    <span class="s2">&quot;AWSAccount&quot;</span><span class="p">,</span> <span class="c1"># _sub_resource_label</span>
+</span><span data-line="4">    <span class="n">account_id</span><span class="p">,</span> <span class="c1"># _sub_resource_id</span>
+</span><span data-line="5">    <span class="n">update_tag</span><span class="p">,</span>
+</span><span data-line="6"><span class="p">)</span>
+</span><span data-line="7"><span class="n">cleanup_job</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">neo4j_session</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

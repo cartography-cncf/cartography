@@ -1,0 +1,2113 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Keycloak Schema - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Keycloak Built-In Analysis" href="analysis.html" /><link rel="prev" title="Keycloak Configuration" href="config.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Keycloak Schema"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Keycloak</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#keycloakrealm">KeycloakRealm</a><ul>
+<li><a class="reference internal" href="#relationships">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#keycloakclient">KeycloakClient</a><ul>
+<li><a class="reference internal" href="#id1">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#keycloakgroup">KeycloakGroup</a><ul>
+<li><a class="reference internal" href="#id2">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#keycloakuser">KeycloakUser</a><ul>
+<li><a class="reference internal" href="#id3">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#keycloakrole">KeycloakRole</a><ul>
+<li><a class="reference internal" href="#id4">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#keycloakscope">KeycloakScope</a><ul>
+<li><a class="reference internal" href="#id5">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#keycloakidentityprovider">KeycloakIdentityProvider</a><ul>
+<li><a class="reference internal" href="#id6">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#keycloakorganization">KeycloakOrganization</a><ul>
+<li><a class="reference internal" href="#id7">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#keycloakorganizationdomain">KeycloakOrganizationDomain</a><ul>
+<li><a class="reference internal" href="#id8">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#keycloakauthenticationflow">KeycloakAuthenticationFlow</a><ul>
+<li><a class="reference internal" href="#id9">Relationships</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#keycloakauthenticationexecution">KeycloakAuthenticationExecution</a><ul>
+<li><a class="reference internal" href="#id10">Relationships</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/keycloak/schema.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Keycloak</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Keycloak Schema</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/keycloak/schema.md.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/keycloak/schema.md.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/keycloak/schema.md.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/keycloak/schema.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/keycloak/schema.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="keycloak-schema">
+<h1>Keycloak Schema<a class="headerlink" href="#keycloak-schema" title="Link to this heading">¶</a></h1>
+<pre  class="mermaid">
+        graph LR
+R(KeycloakRealm) -- RESOURCE --&gt; C(KeycloakClient)
+R -- RESOURCE --&gt; G(KeycloakGroup)
+R -- RESOURCE --&gt; U(KeycloakUser)
+R -- RESOURCE --&gt; ROLE(KeycloakRole)
+R -- RESOURCE --&gt; S(KeycloakScope)
+R -- RESOURCE --&gt; IDP(KeycloakIdentityProvider)
+R -- RESOURCE --&gt; O(KeycloakOrganization)
+R -- RESOURCE --&gt; OD(KeycloakOrganizationDomain)
+R -- RESOURCE --&gt; AF(KeycloakAuthenticationFlow)
+R -- RESOURCE --&gt; AE(KeycloakAuthenticationExecution)
+C -- HAS_DEFAULT_SCOPE --&gt; S
+C -- HAS_OPTIONAL_SCOPE --&gt; S
+C -- DEFINES --&gt; ROLE
+C -- HAS_SERVICE_ACCOUNT --&gt; U
+C -- USES --&gt; AF
+G -- SUBGROUP_OF --&gt; G
+U -- MEMBER_OF --&gt; G
+U ==&gt; INHERITED_MEMBER_OF ==&gt; G
+G -- GRANTS --&gt; ROLE
+ROLE -- GRANTS --&gt; S
+ROLE -- INCLUDES --&gt; ROLE
+U -- HAS_IDENTITY --&gt; IDP
+U -- MANAGED_MEMBER_OF --&gt; O
+U -- UNMANAGED_MEMBER_OF --&gt; O
+U == ASSUME_ROLE ==&gt; ROLE
+U == ASSUME_SCOPE ==&gt; S
+O -- ENFORCES --&gt; IDP
+OD -- BELONGS_TO --&gt; O
+AF -- HAS_STEP --&gt; AE
+AE -- HAS_STEP --&gt; AE
+AF == NEXT_STEP ==&gt; AE
+AE == NEXT_STEP ==&gt; AE
+    </pre><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Regular links shows relationships pulled from Keycloak API, think links are infered by Cartography.</p>
+</div>
+<section id="keycloakrealm">
+<h2>KeycloakRealm<a class="headerlink" href="#keycloakrealm" title="Link to this heading">¶</a></h2>
+<p>Represents a Keycloak realm, which is a security domain where users, groups, roles, and other entities are managed.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">Tenant</span></code> to enable cross-platform queries for organizational tenants across different systems (e.g., OktaOrganization, AWSAccount).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier of the realm</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The realm name (indexed for queries)</p></td>
+</tr>
+<tr class="row-even"><td><p>display_name</p></td>
+<td><p>The display name of the realm</p></td>
+</tr>
+<tr class="row-odd"><td><p>enabled</p></td>
+<td><p>Whether the realm is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>not_before</p></td>
+<td><p>Not before timestamp for security</p></td>
+</tr>
+<tr class="row-odd"><td><p>default_signature_algorithm</p></td>
+<td><p>Default signature algorithm for the realm</p></td>
+</tr>
+<tr class="row-even"><td><p>revoke_refresh_token</p></td>
+<td><p>Whether refresh tokens should be revoked</p></td>
+</tr>
+<tr class="row-odd"><td><p>refresh_token_max_reuse</p></td>
+<td><p>Maximum reuse count for refresh tokens</p></td>
+</tr>
+<tr class="row-even"><td><p>access_token_lifespan</p></td>
+<td><p>Lifespan of access tokens in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>access_token_lifespan_for_implicit_flow</p></td>
+<td><p>Access token lifespan for implicit flow</p></td>
+</tr>
+<tr class="row-even"><td><p>sso_session_idle_timeout</p></td>
+<td><p>SSO session idle timeout in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>sso_session_max_lifespan</p></td>
+<td><p>Maximum SSO session lifespan in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>sso_session_idle_timeout_remember_me</p></td>
+<td><p>SSO session idle timeout when remember me is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>sso_session_max_lifespan_remember_me</p></td>
+<td><p>Maximum SSO session lifespan when remember me is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>offline_session_idle_timeout</p></td>
+<td><p>Offline session idle timeout in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>offline_session_max_lifespan_enabled</p></td>
+<td><p>Whether offline session max lifespan is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>offline_session_max_lifespan</p></td>
+<td><p>Maximum offline session lifespan in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_session_idle_timeout</p></td>
+<td><p>Client session idle timeout in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>client_session_max_lifespan</p></td>
+<td><p>Maximum client session lifespan in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_offline_session_idle_timeout</p></td>
+<td><p>Client offline session idle timeout in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>client_offline_session_max_lifespan</p></td>
+<td><p>Maximum client offline session lifespan in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>access_code_lifespan</p></td>
+<td><p>Access code lifespan in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>access_code_lifespan_user_action</p></td>
+<td><p>Access code lifespan for user actions in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>access_code_lifespan_login</p></td>
+<td><p>Access code lifespan for login in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>action_token_generated_by_admin_lifespan</p></td>
+<td><p>Action token lifespan when generated by admin</p></td>
+</tr>
+<tr class="row-odd"><td><p>action_token_generated_by_user_lifespan</p></td>
+<td><p>Action token lifespan when generated by user</p></td>
+</tr>
+<tr class="row-even"><td><p>oauth2_device_code_lifespan</p></td>
+<td><p>OAuth2 device code lifespan in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>oauth2_device_polling_interval</p></td>
+<td><p>OAuth2 device polling interval in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>ssl_required</p></td>
+<td><p>SSL requirement level for the realm</p></td>
+</tr>
+<tr class="row-odd"><td><p>password_credential_grant_allowed</p></td>
+<td><p>Whether password credential grant is allowed</p></td>
+</tr>
+<tr class="row-even"><td><p>registration_allowed</p></td>
+<td><p>Whether user registration is allowed</p></td>
+</tr>
+<tr class="row-odd"><td><p>registration_email_as_username</p></td>
+<td><p>Whether email is used as username during registration</p></td>
+</tr>
+<tr class="row-even"><td><p>remember_me</p></td>
+<td><p>Whether remember me functionality is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>verify_email</p></td>
+<td><p>Whether email verification is required</p></td>
+</tr>
+<tr class="row-even"><td><p>login_with_email_allowed</p></td>
+<td><p>Whether login with email is allowed</p></td>
+</tr>
+<tr class="row-odd"><td><p>duplicate_emails_allowed</p></td>
+<td><p>Whether duplicate emails are allowed</p></td>
+</tr>
+<tr class="row-even"><td><p>reset_password_allowed</p></td>
+<td><p>Whether password reset is allowed</p></td>
+</tr>
+<tr class="row-odd"><td><p>edit_username_allowed</p></td>
+<td><p>Whether username editing is allowed</p></td>
+</tr>
+<tr class="row-even"><td><p>user_cache_enabled</p></td>
+<td><p>Whether user cache is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>realm_cache_enabled</p></td>
+<td><p>Whether realm cache is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>brute_force_protected</p></td>
+<td><p>Whether brute force protection is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>permanent_lockout</p></td>
+<td><p>Whether permanent lockout is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>max_temporary_lockouts</p></td>
+<td><p>Maximum number of temporary lockouts</p></td>
+</tr>
+<tr class="row-odd"><td><p>max_failure_wait_seconds</p></td>
+<td><p>Maximum failure wait time in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>minimum_quick_login_wait_seconds</p></td>
+<td><p>Minimum quick login wait time in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>wait_increment_seconds</p></td>
+<td><p>Wait increment in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>quick_login_check_milli_seconds</p></td>
+<td><p>Quick login check time in milliseconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>max_delta_time_seconds</p></td>
+<td><p>Maximum delta time in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>failure_factor</p></td>
+<td><p>Failure factor for brute force protection</p></td>
+</tr>
+<tr class="row-odd"><td><p>events_enabled</p></td>
+<td><p>Whether events are enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>events_expiration</p></td>
+<td><p>Events expiration time</p></td>
+</tr>
+<tr class="row-odd"><td><p>admin_events_enabled</p></td>
+<td><p>Whether admin events are enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>admin_events_details_enabled</p></td>
+<td><p>Whether admin event details are enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>internationalization_enabled</p></td>
+<td><p>Whether internationalization is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>default_locale</p></td>
+<td><p>Default locale for the realm</p></td>
+</tr>
+<tr class="row-odd"><td><p>password_policy</p></td>
+<td><p>Password policy configuration</p></td>
+</tr>
+<tr class="row-even"><td><p>otp_policy_type</p></td>
+<td><p>OTP policy type</p></td>
+</tr>
+<tr class="row-odd"><td><p>otp_policy_algorithm</p></td>
+<td><p>OTP policy algorithm</p></td>
+</tr>
+<tr class="row-even"><td><p>otp_policy_initial_counter</p></td>
+<td><p>OTP policy initial counter</p></td>
+</tr>
+<tr class="row-odd"><td><p>otp_policy_digits</p></td>
+<td><p>Number of digits in OTP</p></td>
+</tr>
+<tr class="row-even"><td><p>otp_policy_look_ahead_window</p></td>
+<td><p>OTP policy look ahead window</p></td>
+</tr>
+<tr class="row-odd"><td><p>otp_policy_period</p></td>
+<td><p>OTP policy period</p></td>
+</tr>
+<tr class="row-even"><td><p>otp_policy_code_reusable</p></td>
+<td><p>Whether OTP codes are reusable</p></td>
+</tr>
+<tr class="row-odd"><td><p>web_authn_policy_rp_entity_name</p></td>
+<td><p>WebAuthn relying party entity name</p></td>
+</tr>
+<tr class="row-even"><td><p>web_authn_policy_rp_id</p></td>
+<td><p>WebAuthn relying party ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>web_authn_policy_attestation_conveyance_preference</p></td>
+<td><p>WebAuthn attestation conveyance preference</p></td>
+</tr>
+<tr class="row-even"><td><p>web_authn_policy_authenticator_attachment</p></td>
+<td><p>WebAuthn authenticator attachment</p></td>
+</tr>
+<tr class="row-odd"><td><p>web_authn_policy_require_resident_key</p></td>
+<td><p>Whether WebAuthn requires resident key</p></td>
+</tr>
+<tr class="row-even"><td><p>web_authn_policy_user_verification_requirement</p></td>
+<td><p>WebAuthn user verification requirement</p></td>
+</tr>
+<tr class="row-odd"><td><p>web_authn_policy_create_timeout</p></td>
+<td><p>WebAuthn create timeout</p></td>
+</tr>
+<tr class="row-even"><td><p>web_authn_policy_avoid_same_authenticator_register</p></td>
+<td><p>Whether to avoid same authenticator registration</p></td>
+</tr>
+<tr class="row-odd"><td><p>web_authn_policy_passwordless_rp_entity_name</p></td>
+<td><p>WebAuthn passwordless relying party entity name</p></td>
+</tr>
+<tr class="row-even"><td><p>web_authn_policy_passwordless_rp_id</p></td>
+<td><p>WebAuthn passwordless relying party ID</p></td>
+</tr>
+<tr class="row-odd"><td><p>web_authn_policy_passwordless_attestation_conveyance_preference</p></td>
+<td><p>WebAuthn passwordless attestation conveyance preference</p></td>
+</tr>
+<tr class="row-even"><td><p>web_authn_policy_passwordless_authenticator_attachment</p></td>
+<td><p>WebAuthn passwordless authenticator attachment</p></td>
+</tr>
+<tr class="row-odd"><td><p>web_authn_policy_passwordless_require_resident_key</p></td>
+<td><p>Whether WebAuthn passwordless requires resident key</p></td>
+</tr>
+<tr class="row-even"><td><p>web_authn_policy_passwordless_user_verification_requirement</p></td>
+<td><p>WebAuthn passwordless user verification requirement</p></td>
+</tr>
+<tr class="row-odd"><td><p>web_authn_policy_passwordless_create_timeout</p></td>
+<td><p>WebAuthn passwordless create timeout</p></td>
+</tr>
+<tr class="row-even"><td><p>web_authn_policy_passwordless_avoid_same_authenticator_register</p></td>
+<td><p>Whether to avoid same authenticator registration for passwordless</p></td>
+</tr>
+<tr class="row-odd"><td><p>keycloak_version</p></td>
+<td><p>Version of Keycloak</p></td>
+</tr>
+<tr class="row-even"><td><p>user_managed_access_allowed</p></td>
+<td><p>Whether user managed access is allowed</p></td>
+</tr>
+<tr class="row-odd"><td><p>organizations_enabled</p></td>
+<td><p>Whether organizations are enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>verifiable_credentials_enabled</p></td>
+<td><p>Whether verifiable credentials are enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>admin_permissions_enabled</p></td>
+<td><p>Whether admin permissions are enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>social</p></td>
+<td><p>Social login configuration</p></td>
+</tr>
+<tr class="row-odd"><td><p>update_profile_on_initial_social_login</p></td>
+<td><p>Whether to update profile on initial social login</p></td>
+</tr>
+<tr class="row-even"><td><p>o_auth2_device_code_lifespan</p></td>
+<td><p>OAuth2 device code lifespan</p></td>
+</tr>
+<tr class="row-odd"><td><p>o_auth2_device_polling_interval</p></td>
+<td><p>OAuth2 device polling interval</p></td>
+</tr>
+<tr class="row-even"><td><p>bruteForceStrategy</p></td>
+<td><p>Brute force protection strategy</p></td>
+</tr>
+<tr class="row-odd"><td><p>default_role_id</p></td>
+<td><p>ID of the default role</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="relationships">
+<h3>Relationships<a class="headerlink" href="#relationships" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code> is the parent container for other Keycloak entities</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(</span>
+</span><span data-line="2">    <span class="p">:</span><span class="n">KeycloakClient</span><span class="p">,</span>
+</span><span data-line="3">    <span class="p">:</span><span class="n">KeycloakGroup</span><span class="p">,</span>
+</span><span data-line="4">    <span class="p">:</span><span class="n">KeycloakUser</span><span class="p">,</span>
+</span><span data-line="5">    <span class="p">:</span><span class="n">KeycloakRole</span><span class="p">,</span>
+</span><span data-line="6">    <span class="p">:</span><span class="n">KeycloakScope</span><span class="p">,</span>
+</span><span data-line="7">    <span class="p">:</span><span class="n">KeycloakIdentityProvider</span><span class="p">,</span>
+</span><span data-line="8"><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="keycloakclient">
+<h2>KeycloakClient<a class="headerlink" href="#keycloakclient" title="Link to this heading">¶</a></h2>
+<p>Represents a Keycloak client application that can request authentication and authorization services from the realm.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">ThirdPartyApp</span></code> to enable cross-platform queries for client applications across different systems (e.g., OktaApplication, EntraApplication).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier of the client</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_id</p></td>
+<td><p>The client identifier used in protocols</p></td>
+</tr>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The name of the client</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>The description of the client</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>The type of the client</p></td>
+</tr>
+<tr class="row-odd"><td><p>root_url</p></td>
+<td><p>The root URL of the client</p></td>
+</tr>
+<tr class="row-even"><td><p>admin_url</p></td>
+<td><p>The admin URL of the client</p></td>
+</tr>
+<tr class="row-odd"><td><p>base_url</p></td>
+<td><p>The base URL of the client</p></td>
+</tr>
+<tr class="row-even"><td><p>surrogate_auth_required</p></td>
+<td><p>Whether surrogate authentication is required</p></td>
+</tr>
+<tr class="row-odd"><td><p>enabled</p></td>
+<td><p>Whether the client is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>always_display_in_console</p></td>
+<td><p>Whether to always display in console</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_authenticator_type</p></td>
+<td><p>The client authenticator type</p></td>
+</tr>
+<tr class="row-even"><td><p>registration_access_token</p></td>
+<td><p>Registration access token</p></td>
+</tr>
+<tr class="row-odd"><td><p>not_before</p></td>
+<td><p>Not before timestamp for security</p></td>
+</tr>
+<tr class="row-even"><td><p>bearer_only</p></td>
+<td><p>Whether this is a bearer-only client</p></td>
+</tr>
+<tr class="row-odd"><td><p>consent_required</p></td>
+<td><p>Whether user consent is required</p></td>
+</tr>
+<tr class="row-even"><td><p>standard_flow_enabled</p></td>
+<td><p>Whether standard flow is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>implicit_flow_enabled</p></td>
+<td><p>Whether implicit flow is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>direct_access_grants_enabled</p></td>
+<td><p>Whether direct access grants are enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>service_accounts_enabled</p></td>
+<td><p>Whether service accounts are enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>authorization_services_enabled</p></td>
+<td><p>Whether authorization services are enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>direct_grants_only</p></td>
+<td><p>Whether only direct grants are allowed</p></td>
+</tr>
+<tr class="row-even"><td><p>public_client</p></td>
+<td><p>Whether this is a public client</p></td>
+</tr>
+<tr class="row-odd"><td><p>frontchannel_logout</p></td>
+<td><p>Whether frontchannel logout is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>protocol</p></td>
+<td><p>The protocol used by the client</p></td>
+</tr>
+<tr class="row-odd"><td><p>full_scope_allowed</p></td>
+<td><p>Whether full scope is allowed</p></td>
+</tr>
+<tr class="row-even"><td><p>node_re_registration_timeout</p></td>
+<td><p>Node re-registration timeout</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_template</p></td>
+<td><p>Client template reference</p></td>
+</tr>
+<tr class="row-even"><td><p>use_template_config</p></td>
+<td><p>Whether to use template config</p></td>
+</tr>
+<tr class="row-odd"><td><p>use_template_scope</p></td>
+<td><p>Whether to use template scope</p></td>
+</tr>
+<tr class="row-even"><td><p>use_template_mappers</p></td>
+<td><p>Whether to use template mappers</p></td>
+</tr>
+<tr class="row-odd"><td><p>origin</p></td>
+<td><p>Origin of the client</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h3>Relationships<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakClient</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakClient</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakClient</span></code> has default and optional scopes</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakClient</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_DEFAULT_SCOPE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakScope</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">KeycloakClient</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_OPTIONAL_SCOPE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakScope</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloackClient</span></code> can have service account</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakClient</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_SERVICE_ACCOUNT</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakClient</span></code> uses Authentication flows</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakClient</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">USES</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakAuthenticationFlow</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="keycloakgroup">
+<h2>KeycloakGroup<a class="headerlink" href="#keycloakgroup" title="Link to this heading">¶</a></h2>
+<p>Represents a group of users in Keycloak that can be used for organizing users and assigning roles.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier of the group</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the group</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>The description of the group</p></td>
+</tr>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>The hierarchical path of the group</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id2">
+<h3>Relationships<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakGroup</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakGroup</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakGroup</span></code> can be a member of another group (hierarchical structure)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakGroup</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">SUBGROUP_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> can be a member of groups</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> can be an inherited member of groups (drawn by analysis job)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">INHERITED_MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakGroup</span></code> can grant roles</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakGroup</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">GRANTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="keycloakuser">
+<h2>KeycloakUser<a class="headerlink" href="#keycloakuser" title="Link to this heading">¶</a></h2>
+<p>Represents a user in the Keycloak realm with authentication and profile information.</p>
+<blockquote>
+<div><p><strong>Ontology Mapping</strong>: This node has the extra label <code class="docutils literal notranslate"><span class="pre">UserAccount</span></code> to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, AWSSSOUser).</p>
+</div></blockquote>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>username</p></td>
+<td><p>The username for authentication</p></td>
+</tr>
+<tr class="row-even"><td><p>first_name</p></td>
+<td><p>The first name of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>last_name</p></td>
+<td><p>The last name of the user</p></td>
+</tr>
+<tr class="row-even"><td><p>email</p></td>
+<td><p>The email address of the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>email_verified</p></td>
+<td><p>Whether the email address is verified</p></td>
+</tr>
+<tr class="row-even"><td><p>self</p></td>
+<td><p>Self reference field</p></td>
+</tr>
+<tr class="row-odd"><td><p>origin</p></td>
+<td><p>Origin of the user account</p></td>
+</tr>
+<tr class="row-even"><td><p>created_timestamp</p></td>
+<td><p>Timestamp when the user was created</p></td>
+</tr>
+<tr class="row-odd"><td><p>enabled</p></td>
+<td><p>Whether the user account is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>totp</p></td>
+<td><p>Whether TOTP is enabled for the user</p></td>
+</tr>
+<tr class="row-odd"><td><p>federation_link</p></td>
+<td><p>Federation link information</p></td>
+</tr>
+<tr class="row-even"><td><p>service_account_client_id</p></td>
+<td><p>Client ID if this is a service account</p></td>
+</tr>
+<tr class="row-odd"><td><p>not_before</p></td>
+<td><p>Not before timestamp for security</p></td>
+</tr>
+<tr class="row-even"><td><p>user_profile_metadata_id</p></td>
+<td><p>User profile metadata reference</p></td>
+</tr>
+<tr class="row-odd"><td><p>credentials_id</p></td>
+<td><p>Credentials reference</p></td>
+</tr>
+<tr class="row-even"><td><p>federated_identities_id</p></td>
+<td><p>Federated identities reference</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_consents_id</p></td>
+<td><p>Client consents reference</p></td>
+</tr>
+<tr class="row-even"><td><p>social_links_id</p></td>
+<td><p>Social links reference</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id3">
+<h3>Relationships<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> can be a member of groups</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> can be an inherited member of groups (drawn by analysis job)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">INHERITED_MEMBER_OF</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakGroup</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> can have identity providers</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IDENTITY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakIdentityProvider</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> can assume Role (this can be direct definition or inherited from groups)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">ASSUME_ROLE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> can assume Scope (drawn by analysis job)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">ASSUME_SCOPE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakScope</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloackClient</span></code> can have service account</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakClient</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_SERVICE_ACCOUNT</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="keycloakrole">
+<h2>KeycloakRole<a class="headerlink" href="#keycloakrole" title="Link to this heading">¶</a></h2>
+<p>Represents a role in Keycloak that defines permissions and can be assigned to users or groups.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier of the role</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the role (indexed for queries)</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>The description of the role</p></td>
+</tr>
+<tr class="row-odd"><td><p>scope_param_required</p></td>
+<td><p>Whether scope parameter is required</p></td>
+</tr>
+<tr class="row-even"><td><p>composite</p></td>
+<td><p>Whether this is a composite role</p></td>
+</tr>
+<tr class="row-odd"><td><p>client_role</p></td>
+<td><p>Whether this is a client-specific role</p></td>
+</tr>
+<tr class="row-even"><td><p>container_id</p></td>
+<td><p>The container ID (realm or client)</p></td>
+</tr>
+<tr class="row-odd"><td><p>realm</p></td>
+<td><p>The realm name for role lookup (indexed)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id4">
+<h3>Relationships<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakRole</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakRole</span></code> can be defined by a client</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakClient</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">DEFINES</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakGroup</span></code> can grant roles</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakGroup</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">GRANTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakRole</span></code> can grant scopes</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">GRANTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakScope</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakRole</span></code> can includes an other Role (composite roles)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">INCLUDES</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakRole</span></code> can indirectly grant scopes through composite role relationships (drawn by <a class="reference external" href="https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/keycloak_inheritance.json">analysis job</a>)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">INDIRECT_GRANTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakScope</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> can assume Role (this can be direct definition or inherited from groups)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">ASSUME_ROLE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="keycloakscope">
+<h2>KeycloakScope<a class="headerlink" href="#keycloakscope" title="Link to this heading">¶</a></h2>
+<p>Represents a client scope in Keycloak that defines what access is requested or granted.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier of the scope</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the scope (indexed for queries)</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>The description of the scope</p></td>
+</tr>
+<tr class="row-odd"><td><p>protocol</p></td>
+<td><p>The protocol associated with the scope</p></td>
+</tr>
+<tr class="row-even"><td><p>include_in_token_scope</p></td>
+<td><p>Whether to include in token scope</p></td>
+</tr>
+<tr class="row-odd"><td><p>display_on_consent_screen</p></td>
+<td><p>Whether to display on consent screen</p></td>
+</tr>
+<tr class="row-even"><td><p>realm</p></td>
+<td><p>The realm name for scope lookup (indexed)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id5">
+<h3>Relationships<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakScope</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakScope</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakClient</span></code> has default and optional scopes</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakClient</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_DEFAULT_SCOPE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakScope</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">KeycloakClient</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_OPTIONAL_SCOPE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakScope</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakScope</span></code> can be granted by roles</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakRole</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">GRANTS</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakScope</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> can assume Scope (drawn by analysis job)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">ASSUME_SCOPE</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakScope</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="keycloakidentityprovider">
+<h2>KeycloakIdentityProvider<a class="headerlink" href="#keycloakidentityprovider" title="Link to this heading">¶</a></h2>
+<p>Represents an external identity provider configured in Keycloak for federated authentication.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The internal unique identifier</p></td>
+</tr>
+<tr class="row-odd"><td><p>alias</p></td>
+<td><p>The alias of the identity provider (indexed for queries)</p></td>
+</tr>
+<tr class="row-even"><td><p>display_name</p></td>
+<td><p>The display name of the identity provider</p></td>
+</tr>
+<tr class="row-odd"><td><p>provider_id</p></td>
+<td><p>The provider type identifier</p></td>
+</tr>
+<tr class="row-even"><td><p>enabled</p></td>
+<td><p>Whether the identity provider is enabled</p></td>
+</tr>
+<tr class="row-odd"><td><p>update_profile_first_login_mode</p></td>
+<td><p>Profile update mode on first login</p></td>
+</tr>
+<tr class="row-even"><td><p>trust_email</p></td>
+<td><p>Whether to trust email from the provider</p></td>
+</tr>
+<tr class="row-odd"><td><p>store_token</p></td>
+<td><p>Whether to store tokens from the provider</p></td>
+</tr>
+<tr class="row-even"><td><p>add_read_token_role_on_create</p></td>
+<td><p>Whether to add read token role on create</p></td>
+</tr>
+<tr class="row-odd"><td><p>authenticate_by_default</p></td>
+<td><p>Whether to authenticate by default</p></td>
+</tr>
+<tr class="row-even"><td><p>link_only</p></td>
+<td><p>Whether this provider is for linking only</p></td>
+</tr>
+<tr class="row-odd"><td><p>hide_on_login</p></td>
+<td><p>Whether to hide on login page</p></td>
+</tr>
+<tr class="row-even"><td><p>first_broker_login_flow_alias</p></td>
+<td><p>First broker login flow alias</p></td>
+</tr>
+<tr class="row-odd"><td><p>post_broker_login_flow_alias</p></td>
+<td><p>Post broker login flow alias</p></td>
+</tr>
+<tr class="row-even"><td><p>organization_id</p></td>
+<td><p>Organization ID if applicable</p></td>
+</tr>
+<tr class="row-odd"><td><p>update_profile_first_login</p></td>
+<td><p>Whether to update profile on first login</p></td>
+</tr>
+<tr class="row-even"><td><p>config_sync_mode</p></td>
+<td><p>Configuration sync mode</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id6">
+<h3>Relationships<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakIdentityProvider</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakIdentityProvider</span><span class="p">)</span><span class="o">&lt;&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakUser</span></code> can have identity providers</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_IDENTITY</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakIdentityProvider</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="keycloakorganization">
+<h2>KeycloakOrganization<a class="headerlink" href="#keycloakorganization" title="Link to this heading">¶</a></h2>
+<p>Represents a Keycloak organization, which is a logical grouping of users, domains, and identity providers within a realm. Organizations provide a way to isolate and manage different business entities or departments within the same Keycloak realm.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier of the organization</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The name of the organization</p></td>
+</tr>
+<tr class="row-even"><td><p>alias</p></td>
+<td><p>The alias of the organization</p></td>
+</tr>
+<tr class="row-odd"><td><p>enabled</p></td>
+<td><p>Whether the organization is enabled</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>The description of the organization</p></td>
+</tr>
+<tr class="row-odd"><td><p>redirect_url</p></td>
+<td><p>The redirect URL for the organization</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id7">
+<h3>Relationships<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakOrganization</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakOrganization</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakOrganization</span></code> can have managed and unmanaged user members</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">MANAGED_MEMBER_OF</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakOrganization</span><span class="p">)</span>
+</span><span data-line="2"><span class="p">(:</span><span class="n">KeycloakUser</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">UNMANAGED_MEMBER_OF</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakOrganization</span></code> can enforce identity providers</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakOrganization</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">ENFORCES</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakIdentityProvider</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="keycloakorganizationdomain">
+<h2>KeycloakOrganizationDomain<a class="headerlink" href="#keycloakorganizationdomain" title="Link to this heading">¶</a></h2>
+<p>Represents a domain that belongs to a Keycloak organization. Organization domains define which email domains are associated with an organization, and can be verified to ensure proper domain ownership.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier of the organization domain</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>The domain name (indexed for queries)</p></td>
+</tr>
+<tr class="row-even"><td><p>verified</p></td>
+<td><p>Whether the domain has been verified</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id8">
+<h3>Relationships<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakOrganizationDomain</span></code> is a sub resource of a <code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakOrganizationDomain</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakOrganizationDomain</span></code> belongs to an organization</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakOrganizationDomain</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">BELONGS_TO</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakOrganization</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="keycloakauthenticationflow">
+<h2>KeycloakAuthenticationFlow<a class="headerlink" href="#keycloakauthenticationflow" title="Link to this heading">¶</a></h2>
+<p>Represents an authentication flow in Keycloak that defines the sequence of authentication steps and requirements for user authentication. Authentication flows control how users authenticate to the realm and can include various authentication mechanisms and requirements.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Only <code class="docutils literal notranslate"><span class="pre">root</span></code> flows are modeled as a <code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationFlow</span></code>. In Keycloak, there’s also the concept of a <code class="docutils literal notranslate"><span class="pre">subflow</span></code>, which is tied one-to-one to an Execution. For simplicity in Cartography, these subflows are represented solely by a <code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationExecution</span></code> node. However, the subflow ID is still preserved as a field on the node.</p>
+</div>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier of the authentication flow</p></td>
+</tr>
+<tr class="row-odd"><td><p>alias</p></td>
+<td><p>The alias of the authentication flow (indexed for queries)</p></td>
+</tr>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>The description of the authentication flow</p></td>
+</tr>
+<tr class="row-odd"><td><p>provider_id</p></td>
+<td><p>The provider identifier for the authentication flow</p></td>
+</tr>
+<tr class="row-even"><td><p>top_level</p></td>
+<td><p>Whether this is a top-level authentication flow</p></td>
+</tr>
+<tr class="row-odd"><td><p>built_in</p></td>
+<td><p>Whether this is a built-in authentication flow</p></td>
+</tr>
+<tr class="row-even"><td><p>realm</p></td>
+<td><p>The realm name for flow lookup (indexed)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id9">
+<h3>Relationships<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationFlow</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakAuthenticationFlow</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationFlow</span></code> has authentication execution steps</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakAuthenticationFlow</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_STEP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakAuthenticationExecution</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationFlow</span></code> is the starting point of an autentication flow</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakAuthenticationFlow</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">NEXT_STEP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakAuthenticationExecution</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakClient</span></code> uses <code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationFlow</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakClient</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">USES</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakAuthenticationFlow</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Cartography uses two distinct relationship types between Flows and Executions:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">HAS_STEP</span></code> is used to describe the composition as defined in Keycloak (e.g., a subflow will be linked to its two REQUIRED executions).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">NEXT_STEP</span></code> is used to describe the possible authentication flows. These are relationships inferred by Cartography (e.g., the subflow will only be connected to the first REQUIRED execution, which will in turn be connected to the third).</p></li>
+</ul>
+</div>
+<pre  class="mermaid">
+        graph LR
+F(KeycloakAuthenticationFlow) -- HAS_STEP --&gt; E1(KeycloakAuthetiationExecution::REQUIRED_1)
+F -- HAS_STEP --&gt; E2(KeycloakAuthetiationExecution::REQUIRED_2)
+F == NEXT_STEP ==&gt; E1 == NEXT_STEP ==&gt; E2
+    </pre></section>
+</section>
+<section id="keycloakauthenticationexecution">
+<h2>KeycloakAuthenticationExecution<a class="headerlink" href="#keycloakauthenticationexecution" title="Link to this heading">¶</a></h2>
+<p>Represents an individual authentication execution step within a Keycloak authentication flow. Authentication executions define specific authentication mechanisms, requirements, and their order within an authentication flow.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>firstseen</p></td>
+<td><p>Timestamp of when a sync job first created this node</p></td>
+</tr>
+<tr class="row-odd"><td><p>lastupdated</p></td>
+<td><p>Timestamp of the last time the node was updated</p></td>
+</tr>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>The unique identifier of the authentication execution</p></td>
+</tr>
+<tr class="row-odd"><td><p>display_name</p></td>
+<td><p>The display name of the authentication execution</p></td>
+</tr>
+<tr class="row-even"><td><p>requirement</p></td>
+<td><p>The requirement level (REQUIRED, OPTIONAL, ALTERNATIVE, DISABLED)</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>The description of the authentication execution</p></td>
+</tr>
+<tr class="row-even"><td><p>configurable</p></td>
+<td><p>Whether this execution is configurable</p></td>
+</tr>
+<tr class="row-odd"><td><p>authentication_flow</p></td>
+<td><p>Whether this execution references an authentication flow</p></td>
+</tr>
+<tr class="row-even"><td><p>provider_id</p></td>
+<td><p>The provider identifier for the authentication execution</p></td>
+</tr>
+<tr class="row-odd"><td><p>flow_id</p></td>
+<td><p>The flow identifier if this execution references a flow</p></td>
+</tr>
+<tr class="row-even"><td><p>level</p></td>
+<td><p>The nesting level of the execution</p></td>
+</tr>
+<tr class="row-odd"><td><p>index</p></td>
+<td><p>The index position within the flow</p></td>
+</tr>
+<tr class="row-even"><td><p>priority</p></td>
+<td><p>The priority order of the execution</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_terminal_step</p></td>
+<td><p>Flag to indicate if the Execution can be a terminal step in the workflow execution (this is infered by Cartography)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id10">
+<h3>Relationships<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationExecution</span></code> belongs to a <code class="docutils literal notranslate"><span class="pre">KeycloakRealm</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakAuthenticationExecution</span><span class="p">)</span><span class="o">&lt;-</span><span class="p">[:</span><span class="n">RESOURCE</span><span class="p">]</span><span class="o">-</span><span class="p">(:</span><span class="n">KeycloakRealm</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationExecution</span></code> is a part of an <code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationFlow</span></code></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakAuthenticationFlow</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_STEP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakAuthenticationExecution</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationExecution</span></code> can have sub-executions (for sub flows)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakAuthenticationExecution</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">HAS_STEP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakAuthenticationExecution</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">KeycloakAuthenticationExecution</span></code> is an element of an autentication flow</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">(:</span><span class="n">KeycloakAuthenticationExecution</span><span class="o">|</span><span class="n">KeycloakAuthenticationFlow</span><span class="p">)</span><span class="o">-</span><span class="p">[:</span><span class="n">NEXT_STEP</span><span class="p">]</span><span class="o">-&gt;</span><span class="p">(:</span><span class="n">KeycloakAuthenticationExecution</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="config.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Keycloak Configuration</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="analysis.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Keycloak Built-In Analysis</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=cac61aee"></script>
+      <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}`;
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        all_mermaids.forEach((el) => {
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+        await mermaid.run();
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+const load = async () => {
+    initStyles();
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...JSON.parse(
+                    `{"startOnLoad": false}`
+                ),
+                ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...JSON.parse(
+        `{"startOnLoad": false}`
+    ),
+    ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+    }
+);
+
+window.addEventListener("load", load);</script></body>
+</html>

@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Model - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="ORM" href="orm.html" /><link rel="prev" title="&lt;no title&gt;" href="index.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Model"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#module-cartography.models.core.nodes">Nodes</a><ul>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeProperties"><code class="docutils literal notranslate"><span class="pre">CartographyNodeProperties</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeProperties.id"><code class="docutils literal notranslate">id</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeProperties.lastupdated"><code class="docutils literal notranslate">lastupdated</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeProperties.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeProperties.__post_init__"><code class="docutils literal notranslate">__post_init__()</span></code></a></li>
+<li><a class="reference internal" href="#id0"><code class="docutils literal notranslate">id</span></code></a></li>
+<li><a class="reference internal" href="#id1"><code class="docutils literal notranslate">lastupdated</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeSchema"><code class="docutils literal notranslate"><span class="pre">CartographyNodeSchema</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeSchema.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeSchema.extra_node_labels"><code class="docutils literal notranslate">extra_node_labels</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeSchema.label"><code class="docutils literal notranslate">label</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeSchema.other_relationships"><code class="docutils literal notranslate">other_relationships</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeSchema.properties"><code class="docutils literal notranslate">properties</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeSchema.scoped_cleanup"><code class="docutils literal notranslate">scoped_cleanup</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeSchema.sub_resource_relationship"><code class="docutils literal notranslate">sub_resource_relationship</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.ConditionalNodeLabel"><code class="docutils literal notranslate"><span class="pre">ConditionalNodeLabel</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.nodes.ConditionalNodeLabel.label"><code class="docutils literal notranslate">label</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.ConditionalNodeLabel.conditions"><code class="docutils literal notranslate">conditions</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.ConditionalNodeLabel.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#id2"><code class="docutils literal notranslate">conditions</span></code></a></li>
+<li><a class="reference internal" href="#id3"><code class="docutils literal notranslate">label</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.ExtraNodeLabels"><code class="docutils literal notranslate"><span class="pre">ExtraNodeLabels</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.nodes.ExtraNodeLabels.labels"><code class="docutils literal notranslate">labels</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.nodes.ExtraNodeLabels.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#id4"><code class="docutils literal notranslate">labels</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-cartography.models.core.relationships">Relationships</a><ul>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelProperties"><code class="docutils literal notranslate"><span class="pre">CartographyRelProperties</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelProperties.lastupdated"><code class="docutils literal notranslate">lastupdated</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelProperties.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelProperties.__post_init__"><code class="docutils literal notranslate">__post_init__()</span></code></a></li>
+<li><a class="reference internal" href="#id5"><code class="docutils literal notranslate">lastupdated</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema"><code class="docutils literal notranslate"><span class="pre">CartographyRelSchema</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema.direction"><code class="docutils literal notranslate">direction</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema.properties"><code class="docutils literal notranslate">properties</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema.rel_label"><code class="docutils literal notranslate">rel_label</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema.source_node_label"><code class="docutils literal notranslate">source_node_label</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema.source_node_matcher"><code class="docutils literal notranslate">source_node_matcher</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema.target_node_label"><code class="docutils literal notranslate">target_node_label</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema.target_node_matcher"><code class="docutils literal notranslate">target_node_matcher</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.LinkDirection"><code class="docutils literal notranslate"><span class="pre">LinkDirection</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.relationships.LinkDirection.INWARD"><code class="docutils literal notranslate">INWARD</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.LinkDirection.OUTWARD"><code class="docutils literal notranslate">OUTWARD</span></code></a></li>
+<li><a class="reference internal" href="#id6"><code class="docutils literal notranslate">INWARD</span></code></a></li>
+<li><a class="reference internal" href="#id7"><code class="docutils literal notranslate">OUTWARD</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.OtherRelationships"><code class="docutils literal notranslate"><span class="pre">OtherRelationships</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.relationships.OtherRelationships.rels"><code class="docutils literal notranslate">rels</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.OtherRelationships.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#id8"><code class="docutils literal notranslate">rels</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.SourceNodeMatcher"><code class="docutils literal notranslate"><span class="pre">SourceNodeMatcher</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.relationships.SourceNodeMatcher.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.TargetNodeMatcher"><code class="docutils literal notranslate"><span class="pre">TargetNodeMatcher</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.relationships.TargetNodeMatcher.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.make_source_node_matcher"><code class="docutils literal notranslate"><span class="pre">make_source_node_matcher()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.relationships.make_target_node_matcher"><code class="docutils literal notranslate"><span class="pre">make_target_node_matcher()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-cartography.models.core.common">Common</a><ul>
+<li><a class="reference internal" href="#cartography.models.core.common.PropertyRef"><code class="docutils literal notranslate"><span class="pre">PropertyRef</span></code></a><ul>
+<li><a class="reference internal" href="#cartography.models.core.common.PropertyRef.__init__"><code class="docutils literal notranslate">__init__()</span></code></a></li>
+<li><a class="reference internal" href="#cartography.models.core.common.PropertyRef.__repr__"><code class="docutils literal notranslate">__repr__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/references/model.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">&lt;no title&gt;</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Model</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/model.md.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/model.md.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/model.md.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/model.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/references/model.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="model">
+<h1>Model<a class="headerlink" href="#model" title="Link to this heading">¶</a></h1>
+<section id="module-cartography.models.core.nodes">
+<span id="nodes"></span><h2>Nodes<a class="headerlink" href="#module-cartography.models.core.nodes" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeProperties">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.nodes.</span></span><span class="sig-name descname"><span class="pre">CartographyNodeProperties</span></span><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeProperties" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Abstract base dataclass that represents the properties on a CartographyNodeSchema.</p>
+<p>This class is abstract to enforce that all subclasses have an id and a lastupdated field.
+These fields are assigned to the node in the <cite>SET</cite> clause during Neo4j ingestion.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeProperties.id">
+<span class="sig-name descname"><span class="pre">id</span></span><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeProperties.id" title="Link to this definition">¶</a></dt>
+<dd><p>The unique identifier for the node, set automatically.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#cartography.models.core.common.PropertyRef" title="cartography.models.core.common.PropertyRef">PropertyRef</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeProperties.lastupdated">
+<span class="sig-name descname"><span class="pre">lastupdated</span></span><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeProperties.lastupdated" title="Link to this definition">¶</a></dt>
+<dd><p>The timestamp of the last update, set automatically.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#cartography.models.core.common.PropertyRef" title="cartography.models.core.common.PropertyRef">PropertyRef</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="gp">... </span><span class="k">class</span><span class="w"> </span><span class="nc">AWSUserProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+</span><span data-line="3"><span class="gp">... </span>    <span class="nb">id</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;Arn&#39;</span><span class="p">)</span>
+</span><span data-line="4"><span class="gp">... </span>    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;lastupdated&#39;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="5"><span class="gp">... </span>    <span class="n">name</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;UserName&#39;</span><span class="p">)</span>
+</span><span data-line="6"><span class="gp">... </span>    <span class="n">path</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;Path&#39;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Cannot instantiate abstract class directly</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">CartographyNodeProperties</span><span class="p">()</span>  <span class="c1"># Raises TypeError</span>
+</span></pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Cannot use reserved word &#39;firstseen&#39;</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="3"><span class="gp">... </span><span class="k">class</span><span class="w"> </span><span class="nc">BadProperties</span><span class="p">(</span><span class="n">CartographyNodeProperties</span><span class="p">):</span>
+</span><span data-line="4"><span class="gp">... </span>    <span class="n">firstseen</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;firstseen&#39;</span><span class="p">)</span>  <span class="c1"># Raises TypeError</span>
+</span></pre></div>
+</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p>The <cite>firstseen</cite> attribute is reserved and automatically set by the querybuilder</p></li>
+<li><p>All subclasses must define both <cite>id</cite> and <cite>lastupdated</cite> fields</p></li>
+<li><p>This class cannot be instantiated directly</p></li>
+</ul>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeProperties.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeProperties.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeProperties.__post_init__">
+<span class="sig-name descname"><span class="pre">__post_init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeProperties.__post_init__" title="Link to this definition">¶</a></dt>
+<dd><p>Perform data validation on the CartographyNodeProperties instance.</p>
+<p>This method enforces important constraints to ensure proper usage of the
+CartographyNodeProperties class and prevent common errors.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>TypeError</strong> – If attempting to instantiate the abstract class directly.</p></li>
+<li><p><strong>TypeError</strong> – If the reserved word ‘firstseen’ is used as an attribute name.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.common.PropertyRef" title="cartography.models.core.common.PropertyRef"><span class="pre">PropertyRef</span></a></em><a class="headerlink" href="#id0" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">lastupdated</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.common.PropertyRef" title="cartography.models.core.common.PropertyRef"><span class="pre">PropertyRef</span></a></em><a class="headerlink" href="#id1" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeSchema">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.nodes.</span></span><span class="sig-name descname"><span class="pre">CartographyNodeSchema</span></span><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeSchema" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Abstract base dataclass that represents a graph node in cartography.</p>
+<p>This class is used to dynamically generate graph ingestion queries for Neo4j.
+It defines the structure and relationships of nodes in the cartography graph,
+providing a declarative way to specify how data should be ingested.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p>Subclasses must implement the abstract properties: <cite>label</cite> and <cite>properties</cite></p></li>
+<li><p>Optional properties can be overridden to specify relationships and labels</p></li>
+</ul>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeSchema.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeSchema.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeSchema.extra_node_labels">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">extra_node_labels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.nodes.ExtraNodeLabels" title="cartography.models.core.nodes.ExtraNodeLabels"><span class="pre">ExtraNodeLabels</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeSchema.extra_node_labels" title="Link to this definition">¶</a></dt>
+<dd><p>Optional extra labels to be applied to the node.</p>
+<p>Allows specifying additional Neo4j labels beyond the primary label.
+This is useful for creating taxonomies or adding classification labels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>The extra labels for the node,</dt><dd><p>or None if no extra labels are defined.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Optional[<a class="reference internal" href="#cartography.models.core.nodes.ExtraNodeLabels" title="cartography.models.core.nodes.ExtraNodeLabels">ExtraNodeLabels</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeSchema.label">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">label</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeSchema.label" title="Link to this definition">¶</a></dt>
+<dd><p>Primary string label of the node.</p>
+<p>This property defines the main Neo4j label that will be applied to nodes
+of this type. It’s used in the MERGE clause during ingestion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The primary label for the node (e.g., ‘AWSUser’, ‘EC2Instance’).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeSchema.other_relationships">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">other_relationships</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.relationships.OtherRelationships" title="cartography.models.core.relationships.OtherRelationships"><span class="pre">OtherRelationships</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeSchema.other_relationships" title="Link to this definition">¶</a></dt>
+<dd><p>Optional additional cartography relationships on the node.</p>
+<p>Allows subclasses to specify additional relationships beyond the sub resource
+relationship. These relationships connect the node to other nodes in the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>The additional relationships for the node,</dt><dd><p>or None if no additional relationships are defined.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Optional[<a class="reference internal" href="#cartography.models.core.relationships.OtherRelationships" title="cartography.models.core.relationships.OtherRelationships">OtherRelationships</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeSchema.properties">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">properties</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeProperties" title="cartography.models.core.nodes.CartographyNodeProperties"><span class="pre">CartographyNodeProperties</span></a></em><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeSchema.properties" title="Link to this definition">¶</a></dt>
+<dd><p>Properties of the node.</p>
+<p>This property defines all the properties that will be set on the node
+during ingestion, including how they map to the source data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The properties definition for the node.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#cartography.models.core.nodes.CartographyNodeProperties" title="cartography.models.core.nodes.CartographyNodeProperties">CartographyNodeProperties</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeSchema.scoped_cleanup">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">scoped_cleanup</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeSchema.scoped_cleanup" title="Link to this definition">¶</a></dt>
+<dd><p>Whether cleanups of this node must be scoped to the sub resource relationship.</p>
+<p>This property controls the cleanup behavior for nodes of this type during
+synchronization operations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>True if cleanups should be scoped to the sub resource (default),</dt><dd><p>False if cleanups should be global.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p>If True (default): Only delete stale nodes in the current sub resource
+(e.g., only clean up EC2 instances in the current AWS account)</p></li>
+<li><p>If False: Delete all stale nodes globally (designed for resource types
+that don’t have a “tenant”-like entity)</p></li>
+<li><p>This affects how the cleanup queries are generated</p></li>
+</ul>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.CartographyNodeSchema.sub_resource_relationship">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">sub_resource_relationship</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema" title="cartography.models.core.relationships.CartographyRelSchema"><span class="pre">CartographyRelSchema</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#cartography.models.core.nodes.CartographyNodeSchema.sub_resource_relationship" title="Link to this definition">¶</a></dt>
+<dd><p>The optional sub resource relationship for the node.</p>
+<p>Allows subclasses to specify a subresource relationship for the given node.
+“Sub resource” is a cartography term for the billing or organizational unit
+that contains the resource.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>The sub resource relationship schema,</dt><dd><p>or None if no sub resource relationship is defined.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Optional[<a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema" title="cartography.models.core.relationships.CartographyRelSchema">CartographyRelSchema</a>]</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Sub resource examples by cloud provider:
+- AWS: AWSAccount
+- Azure: Subscription
+- GCP: GCPProject
+- Okta: OktaOrganization</p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.ConditionalNodeLabel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.nodes.</span></span><span class="sig-name descname"><span class="pre">ConditionalNodeLabel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">conditions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.models.core.nodes.ConditionalNodeLabel" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A conditional label that is applied to nodes only when specific field conditions are met.</p>
+<p>Conditional labels allow you to dynamically apply labels to nodes based on their property values.
+During ingestion, after the main node creation/update, a separate query is run to match nodes
+that meet the specified conditions and apply the label.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.ConditionalNodeLabel.label">
+<span class="sig-name descname"><span class="pre">label</span></span><a class="headerlink" href="#cartography.models.core.nodes.ConditionalNodeLabel.label" title="Link to this definition">¶</a></dt>
+<dd><p>The label to apply to matching nodes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.ConditionalNodeLabel.conditions">
+<span class="sig-name descname"><span class="pre">conditions</span></span><a class="headerlink" href="#cartography.models.core.nodes.ConditionalNodeLabel.conditions" title="Link to this definition">¶</a></dt>
+<dd><p>A dictionary of field_name -&gt; value pairs that must all match
+for the label to be applied. All conditions must be satisfied (AND logic).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict[str, str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Apply &#39;Critical&#39; label to nodes where severity is &#39;high&#39;</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">conditional</span> <span class="o">=</span> <span class="n">ConditionalNodeLabel</span><span class="p">(</span>
+</span><span data-line="3"><span class="gp">... </span>    <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Critical&#39;</span><span class="p">,</span>
+</span><span data-line="4"><span class="gp">... </span>    <span class="n">conditions</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;severity&#39;</span><span class="p">:</span> <span class="s1">&#39;high&#39;</span><span class="p">}</span>
+</span><span data-line="5"><span class="gp">... </span><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Apply &#39;PublicResource&#39; label to nodes matching multiple conditions</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">conditional</span> <span class="o">=</span> <span class="n">ConditionalNodeLabel</span><span class="p">(</span>
+</span><span data-line="3"><span class="gp">... </span>    <span class="n">label</span><span class="o">=</span><span class="s1">&#39;PublicResource&#39;</span><span class="p">,</span>
+</span><span data-line="4"><span class="gp">... </span>    <span class="n">conditions</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;is_public&#39;</span><span class="p">:</span> <span class="s1">&#39;true&#39;</span><span class="p">,</span> <span class="s1">&#39;exposed_to_internet&#39;</span><span class="p">:</span> <span class="s1">&#39;true&#39;</span><span class="p">}</span>
+</span><span data-line="5"><span class="gp">... </span><span class="p">)</span>
+</span></pre></div>
+</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p>The conditions are matched using exact string equality</p></li>
+<li><p>All conditions must be met for the label to be applied (AND logic)</p></li>
+<li><p>The query generated is: MATCH (n:&lt;primary_label&gt; {field: value, …}) SET n:&lt;conditional_label&gt;</p></li>
+</ul>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.ConditionalNodeLabel.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">conditions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.models.core.nodes.ConditionalNodeLabel.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">conditions</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#id2" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">label</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#id3" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.ExtraNodeLabels">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.nodes.</span></span><span class="sig-name descname"><span class="pre">ExtraNodeLabels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.nodes.ConditionalNodeLabel" title="cartography.models.core.nodes.ConditionalNodeLabel"><span class="pre">ConditionalNodeLabel</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.models.core.nodes.ExtraNodeLabels" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Encapsulates a list of labels for the CartographyNodeSchema.</p>
+<p>This wrapper class is used to ensure dataclass immutability for the CartographyNodeSchema
+while providing additional Neo4j labels beyond the primary node label.</p>
+<p>Labels can be either:
+- Simple strings: Applied unconditionally to all nodes
+- ConditionalNodeLabel objects: Applied only to nodes matching specific conditions</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.ExtraNodeLabels.labels">
+<span class="sig-name descname"><span class="pre">labels</span></span><a class="headerlink" href="#cartography.models.core.nodes.ExtraNodeLabels.labels" title="Link to this definition">¶</a></dt>
+<dd><p>A list of labels to be applied to the node.
+String labels are applied unconditionally, ConditionalNodeLabel objects are applied
+only when their conditions are met.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[Union[str, <a class="reference internal" href="#cartography.models.core.nodes.ConditionalNodeLabel" title="cartography.models.core.nodes.ConditionalNodeLabel">ConditionalNodeLabel</a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Simple string labels (applied to all nodes)</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">extra_labels</span> <span class="o">=</span> <span class="n">ExtraNodeLabels</span><span class="p">([</span><span class="s1">&#39;Resource&#39;</span><span class="p">,</span> <span class="s1">&#39;AWSResource&#39;</span><span class="p">])</span>
+</span></pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Mix of simple and conditional labels</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">extra_labels</span> <span class="o">=</span> <span class="n">ExtraNodeLabels</span><span class="p">([</span>
+</span><span data-line="3"><span class="gp">... </span>    <span class="s1">&#39;Resource&#39;</span><span class="p">,</span>
+</span><span data-line="4"><span class="gp">... </span>    <span class="s1">&#39;AWSResource&#39;</span><span class="p">,</span>
+</span><span data-line="5"><span class="gp">... </span>    <span class="n">ConditionalNodeLabel</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;Critical&#39;</span><span class="p">,</span> <span class="n">conditions</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;severity&#39;</span><span class="p">:</span> <span class="s1">&#39;high&#39;</span><span class="p">}),</span>
+</span><span data-line="6"><span class="gp">... </span><span class="p">])</span>
+</span></pre></div>
+</div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.nodes.ExtraNodeLabels.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.nodes.ConditionalNodeLabel" title="cartography.models.core.nodes.ConditionalNodeLabel"><span class="pre">ConditionalNodeLabel</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.models.core.nodes.ExtraNodeLabels.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id4">
+<span class="sig-name descname"><span class="pre">labels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.nodes.ConditionalNodeLabel" title="cartography.models.core.nodes.ConditionalNodeLabel"><span class="pre">ConditionalNodeLabel</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#id4" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-cartography.models.core.relationships">
+<span id="relationships"></span><h2>Relationships<a class="headerlink" href="#module-cartography.models.core.relationships" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelProperties">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.relationships.</span></span><span class="sig-name descname"><span class="pre">CartographyRelProperties</span></span><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelProperties" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Abstract base class representing properties on a CartographyRelSchema.</p>
+<p>This abstract class enforces that all subclasses will have a lastupdated field
+defined on their resulting relationships. These fields are assigned to the
+relationship in the Neo4j SET clause during graph operations.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelProperties.lastupdated">
+<span class="sig-name descname"><span class="pre">lastupdated</span></span><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelProperties.lastupdated" title="Link to this definition">¶</a></dt>
+<dd><p>A PropertyRef to the update tag of the relationship.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#cartography.models.core.common.PropertyRef" title="cartography.models.core.common.PropertyRef">cartography.models.core.common.PropertyRef</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="simple">
+<dt>Required Properties for MatchLink Usage:</dt><dd><p>When the CartographyRelSchema is used as a MatchLink, the following
+properties must be defined in subclasses:</p>
+<ul class="simple">
+<li><p>lastupdated: A PropertyRef to the update tag of the relationship.</p></li>
+<li><p>_sub_resource_label: A PropertyRef to the label of the sub-resource
+that the relationship is associated with.</p></li>
+<li><p>_sub_resource_id: A PropertyRef to the id of the sub-resource that
+the relationship is associated with.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="2"><span class="gp">... </span><span class="k">class</span><span class="w"> </span><span class="nc">MyRelProperties</span><span class="p">(</span><span class="n">CartographyRelProperties</span><span class="p">):</span>
+</span><span data-line="3"><span class="gp">... </span>    <span class="n">lastupdated</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;lastupdated&#39;</span><span class="p">)</span>
+</span><span data-line="4"><span class="gp">... </span>    <span class="n">custom_field</span><span class="p">:</span> <span class="n">PropertyRef</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;custom_field&#39;</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This class cannot be instantiated directly. It must be subclassed.
+The <cite>firstseen</cite> attribute is reserved and automatically set by the
+querybuilder, so it cannot be used as a custom attribute name.</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelProperties.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelProperties.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelProperties.__post_init__">
+<span class="sig-name descname"><span class="pre">__post_init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelProperties.__post_init__" title="Link to this definition">¶</a></dt>
+<dd><p>Perform data validation on CartographyRelProperties instances.</p>
+<p>This method enforces two important validation rules:
+1. Prevents direct instantiation of the abstract base class
+2. Prevents use of reserved attribute names</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>TypeError</strong> – If attempting to instantiate the abstract base class directly,
+    or if using reserved attribute names like ‘firstseen’.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This workaround is needed since this is both a dataclass and an abstract
+class without an abstract method defined. See <a class="reference external" href="https://stackoverflow.com/q/60590442">https://stackoverflow.com/q/60590442</a>.</p>
+<p>The <cite>firstseen</cite> attribute is reserved because it’s automatically set by
+the querybuilder on cartography relationships.</p>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id5">
+<span class="sig-name descname"><span class="pre">lastupdated</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.common.PropertyRef" title="cartography.models.core.common.PropertyRef"><span class="pre">PropertyRef</span></a></em><a class="headerlink" href="#id5" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelSchema">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.relationships.</span></span><span class="sig-name descname"><span class="pre">CartographyRelSchema</span></span><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelSchema" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Abstract base class representing a cartography relationship schema.</p>
+<p>This class defines the structure and behavior of relationships in the cartography
+data model. It contains all the necessary properties to connect a CartographyNodeSchema
+to other existing nodes in the Neo4j graph database.</p>
+<p>The CartographyRelSchema is used to define how nodes should be connected,
+including the direction of the relationship, the target node criteria,
+and the properties to be set on the relationship.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This is an abstract base class and cannot be instantiated directly.
+All abstract properties must be implemented by concrete subclasses.</p>
+<p>The dataclass is frozen to ensure immutability when used in
+CartographyNodeSchema objects.</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelSchema.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelSchema.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelSchema.direction">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">direction</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.relationships.LinkDirection" title="cartography.models.core.relationships.LinkDirection"><span class="pre">LinkDirection</span></a></em><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelSchema.direction" title="Link to this definition">¶</a></dt>
+<dd><p>Direction of the relationship.</p>
+<p>This property defines the LinkDirection that determines whether the
+relationship arrow points toward the source node (INWARD) or away
+from the source node (OUTWARD).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A LinkDirection enum value specifying the relationship direction.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Please see the LinkDirection enum documentation for detailed explanations
+of how direction affects the resulting Neo4j relationship patterns.</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelSchema.properties">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">properties</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelProperties" title="cartography.models.core.relationships.CartographyRelProperties"><span class="pre">CartographyRelProperties</span></a></em><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelSchema.properties" title="Link to this definition">¶</a></dt>
+<dd><p>Properties to be set on the relationship.</p>
+<p>This property defines the CartographyRelProperties instance that contains
+all the attributes to be assigned to the relationship in the Neo4j SET clause.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A CartographyRelProperties instance containing the relationship properties.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelSchema.rel_label">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">rel_label</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelSchema.rel_label" title="Link to this definition">¶</a></dt>
+<dd><p>Label of the relationship.</p>
+<p>This property defines the Neo4j relationship type that will be created
+between the source and target nodes. The label appears in the Neo4j
+relationship syntax as [:LABEL].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The string label of the relationship type.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelSchema.source_node_label">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">source_node_label</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelSchema.source_node_label" title="Link to this definition">¶</a></dt>
+<dd><p>Source node label for load_matchlinks() operations.</p>
+<p>This optional property is only used with load_matchlinks() operations
+where relationships are created between existing nodes. It specifies
+the Neo4j node label of the source node for the relationship.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The string label of the source node type, or None if not applicable.
+Default implementation returns None.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This property does not affect CartographyRelSchema objects that are
+included in CartographyNodeSchema objects. It is only relevant for
+standalone relationship creation using load_matchlinks().</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelSchema.source_node_matcher">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">source_node_matcher</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.relationships.SourceNodeMatcher" title="cartography.models.core.relationships.SourceNodeMatcher"><span class="pre">SourceNodeMatcher</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelSchema.source_node_matcher" title="Link to this definition">¶</a></dt>
+<dd><p>Source node matcher for load_matchlinks() operations.</p>
+<p>This optional property is only used with load_matchlinks() operations
+where relationships are created between existing nodes. It specifies
+the SourceNodeMatcher that defines how to identify the source nodes
+for the relationship.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This property does not affect CartographyRelSchema objects that are
+included in CartographyNodeSchema objects. It is only relevant for
+standalone relationship creation using load_matchlinks().</p>
+<p>Use <cite>make_source_node_matcher()</cite> to create the matcher with the
+appropriate key-value pairs for your specific use case.</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelSchema.target_node_label">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">target_node_label</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelSchema.target_node_label" title="Link to this definition">¶</a></dt>
+<dd><p>Label of the target node for this relationship.</p>
+<p>This property defines the Neo4j node label that this relationship will
+connect to. The target node must already exist in the graph database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The string label of the target node type.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.CartographyRelSchema.target_node_matcher">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">target_node_matcher</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.relationships.TargetNodeMatcher" title="cartography.models.core.relationships.TargetNodeMatcher"><span class="pre">TargetNodeMatcher</span></a></em><a class="headerlink" href="#cartography.models.core.relationships.CartographyRelSchema.target_node_matcher" title="Link to this definition">¶</a></dt>
+<dd><p>Matcher used to identify target nodes for this relationship.</p>
+<p>This property defines the TargetNodeMatcher that specifies how to find
+the target nodes that this relationship should connect to. The matcher
+contains the keys and PropertyRef values used to identify unique target nodes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A TargetNodeMatcher instance with the matching criteria.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Use <cite>make_target_node_matcher()</cite> to create the matcher with the appropriate
+key-value pairs for your specific use case.</p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.LinkDirection">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.relationships.</span></span><span class="sig-name descname"><span class="pre">LinkDirection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.models.core.relationships.LinkDirection" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Enum</span></code></p>
+<p>Enum defining the direction of relationships in CartographyRelSchema.</p>
+<p>Each CartographyRelSchema has a LinkDirection that determines whether the relationship
+points toward the original node (“INWARD”) or away from the original node (“OUTWARD”).
+This controls the directionality of the Neo4j relationship arrows.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.LinkDirection.INWARD">
+<span class="sig-name descname"><span class="pre">INWARD</span></span><a class="headerlink" href="#cartography.models.core.relationships.LinkDirection.INWARD" title="Link to this definition">¶</a></dt>
+<dd><p>The relationship points toward the original node (incoming).</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.LinkDirection.OUTWARD">
+<span class="sig-name descname"><span class="pre">OUTWARD</span></span><a class="headerlink" href="#cartography.models.core.relationships.LinkDirection.OUTWARD" title="Link to this definition">¶</a></dt>
+<dd><p>The relationship points away from the original node (outgoing).</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id6">
+<span class="sig-name descname"><span class="pre">INWARD</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#id6" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id7">
+<span class="sig-name descname"><span class="pre">OUTWARD</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#id7" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.OtherRelationships">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.relationships.</span></span><span class="sig-name descname"><span class="pre">OtherRelationships</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema" title="cartography.models.core.relationships.CartographyRelSchema"><span class="pre">CartographyRelSchema</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.models.core.relationships.OtherRelationships" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Encapsulates a list of CartographyRelSchema objects for additional relationships.</p>
+<p>This dataclass is used to group multiple CartographyRelSchema objects together
+while ensuring dataclass immutability when composed as part of a CartographyNodeSchema
+object. It allows a node schema to define multiple additional relationships
+beyond the primary sub_resource_relationship.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.OtherRelationships.rels">
+<span class="sig-name descname"><span class="pre">rels</span></span><a class="headerlink" href="#cartography.models.core.relationships.OtherRelationships.rels" title="Link to this definition">¶</a></dt>
+<dd><p>A list of CartographyRelSchema objects representing additional relationships.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[<a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema" title="cartography.models.core.relationships.CartographyRelSchema">cartography.models.core.relationships.CartographyRelSchema</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Creating additional relationships for an EC2 instance:
+&gt;&gt;&gt; other_rels = OtherRelationships(rels=[
+…     EC2InstanceToVPCRel(),
+…     EC2InstanceToSecurityGroupRel(),
+…     EC2InstanceToSubnetRel()
+… ])</p>
+<p>Using in a CartographyNodeSchema:
+&gt;&gt;&gt; class EC2InstanceSchema(CartographyNodeSchema):
+…     other_relationships: OtherRelationships = other_rels</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.OtherRelationships.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema" title="cartography.models.core.relationships.CartographyRelSchema"><span class="pre">CartographyRelSchema</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.models.core.relationships.OtherRelationships.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id8">
+<span class="sig-name descname"><span class="pre">rels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cartography.models.core.relationships.CartographyRelSchema" title="cartography.models.core.relationships.CartographyRelSchema"><span class="pre">CartographyRelSchema</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#id8" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.SourceNodeMatcher">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.relationships.</span></span><span class="sig-name descname"><span class="pre">SourceNodeMatcher</span></span><a class="headerlink" href="#cartography.models.core.relationships.SourceNodeMatcher" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Encapsulates node matching criteria for source nodes in relationships.</p>
+<p>This dataclass is identical to TargetNodeMatcher but specifically designed
+for matching source nodes. It is used exclusively with load_matchlinks()
+operations where relationships are created between existing nodes.</p>
+<p>The class serves as a base template that is dynamically extended by
+<cite>make_source_node_matcher()</cite> to create specific matching criteria.</p>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Creating a matcher for EC2 instance source nodes:
+&gt;&gt;&gt; from cartography.models.core.common import PropertyRef
+&gt;&gt;&gt; matcher = make_source_node_matcher({
+…     ‘instanceid’: PropertyRef(‘InstanceId’),
+…     ‘account_id’: PropertyRef(‘AccountId’)
+… })</p>
+<p>The resulting matcher will have <cite>instanceid</cite> and <cite>account_id</cite> attributes
+with the corresponding PropertyRef values.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This class is only used for load_matchlinks() operations where we match
+on and connect existing nodes. It has no effect on CartographyRelSchema
+objects that are included in CartographyNodeSchema.</p>
+<p>Use <cite>make_source_node_matcher()</cite> to create instances with the required
+attributes for specific use cases.</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.SourceNodeMatcher.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.models.core.relationships.SourceNodeMatcher.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.TargetNodeMatcher">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.relationships.</span></span><span class="sig-name descname"><span class="pre">TargetNodeMatcher</span></span><a class="headerlink" href="#cartography.models.core.relationships.TargetNodeMatcher" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Encapsulates node matching criteria for target nodes in relationships.</p>
+<p>This dataclass is used to define the mapping between attribute names on the
+target node and their corresponding PropertyRef values. It ensures immutability
+when composed as part of a CartographyNodeSchema object.</p>
+<p>The class serves as a base template that is dynamically extended by
+<cite>make_target_node_matcher()</cite> to create specific matching criteria.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Dynamically</span> <span class="pre">created</span> <span class="pre">by</span> <span class="pre">`make_target_node_matcher()`</span> <span class="pre">based</span> <span class="pre">on</span> <span class="pre">the</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">key_ref_dict</span> <span class="pre">parameter.</span> <span class="pre">Each</span> <span class="pre">key</span> <span class="pre">becomes</span> <span class="pre">an</span> <span class="pre">attribute</span> <span class="pre">with</span> <span class="pre">a</span> <span class="pre">PropertyRef</span> <span class="pre">value.</span></span></dt>
+<dd></dd></dl>
+
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Creating a matcher for AWS Account nodes:
+&gt;&gt;&gt; from cartography.models.core.common import PropertyRef
+&gt;&gt;&gt; matcher = make_target_node_matcher({
+…     ‘id’: PropertyRef(‘AccountId’),
+…     ‘arn’: PropertyRef(‘Arn’)
+… })</p>
+<p>The resulting matcher will have <cite>id</cite> and <cite>arn</cite> attributes with
+the corresponding PropertyRef values.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This class is not meant to be instantiated directly. Use
+<cite>make_target_node_matcher()</cite> to create instances with the required
+attributes for specific use cases.</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.TargetNodeMatcher.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#cartography.models.core.relationships.TargetNodeMatcher.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.make_source_node_matcher">
+<span class="sig-prename descclassname"><span class="pre">cartography.models.core.relationships.</span></span><span class="sig-name descname"><span class="pre">make_source_node_matcher</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key_ref_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.common.PropertyRef" title="cartography.models.core.common.PropertyRef"><span class="pre">PropertyRef</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#cartography.models.core.relationships.SourceNodeMatcher" title="cartography.models.core.relationships.SourceNodeMatcher"><span class="pre">SourceNodeMatcher</span></a></span></span><a class="headerlink" href="#cartography.models.core.relationships.make_source_node_matcher" title="Link to this definition">¶</a></dt>
+<dd><p>Create a SourceNodeMatcher with dynamically generated attributes.</p>
+<p>This function creates a specialized SourceNodeMatcher dataclass with attributes
+corresponding to the keys in the provided dictionary. Each attribute is
+initialized with its corresponding PropertyRef value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key_ref_dict</strong> – A dictionary mapping attribute names to PropertyRef objects.
+The keys become attribute names on the source node, and the
+values are PropertyRef objects that define how to extract
+the matching values from the data.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A SourceNodeMatcher instance with dynamically created attributes
+corresponding to the provided key_ref_dict.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cartography.models.core.relationships.make_target_node_matcher">
+<span class="sig-prename descclassname"><span class="pre">cartography.models.core.relationships.</span></span><span class="sig-name descname"><span class="pre">make_target_node_matcher</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key_ref_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#cartography.models.core.common.PropertyRef" title="cartography.models.core.common.PropertyRef"><span class="pre">PropertyRef</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#cartography.models.core.relationships.TargetNodeMatcher" title="cartography.models.core.relationships.TargetNodeMatcher"><span class="pre">TargetNodeMatcher</span></a></span></span><a class="headerlink" href="#cartography.models.core.relationships.make_target_node_matcher" title="Link to this definition">¶</a></dt>
+<dd><p>Create a TargetNodeMatcher with dynamically generated attributes.</p>
+<p>This function creates a specialized TargetNodeMatcher dataclass with attributes
+corresponding to the keys in the provided dictionary. Each attribute is
+initialized with its corresponding PropertyRef value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key_ref_dict</strong> – A dictionary mapping attribute names to PropertyRef objects.
+The keys become attribute names on the target node, and the
+values are PropertyRef objects that define how to extract
+the matching values from the data.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A TargetNodeMatcher instance with dynamically created attributes
+corresponding to the provided key_ref_dict.</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<p>Creating a matcher for AWS EC2 instances:
+&gt;&gt;&gt; from cartography.models.core.common import PropertyRef
+&gt;&gt;&gt; matcher = make_target_node_matcher({
+…     ‘instanceid’: PropertyRef(‘InstanceId’),
+…     ‘region’: PropertyRef(‘Region’)
+… })
+&gt;&gt;&gt; # The resulting matcher has instanceid and region attributes</p>
+<p>Creating a matcher for a single key:
+&gt;&gt;&gt; matcher = make_target_node_matcher({
+…     ‘id’: PropertyRef(‘Id’)
+… })
+&gt;&gt;&gt; # The resulting matcher has an id attribute</p>
+</div>
+</dd></dl>
+
+</section>
+<section id="module-cartography.models.core.common">
+<span id="common"></span><h2>Common<a class="headerlink" href="#module-cartography.models.core.common" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="cartography.models.core.common.PropertyRef">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cartography.models.core.common.</span></span><span class="sig-name descname"><span class="pre">PropertyRef</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">set_in_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_case</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fuzzy_and_ignore_case</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">one_to_many</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.models.core.common.PropertyRef" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Represents properties on cartography nodes and relationships.</p>
+<p>PropertyRefs allow dynamically generated Neo4j ingestion queries to set values for node or
+relationship properties from either:</p>
+<ol class="upperalpha simple">
+<li><p>A field on the dict being processed (<code class="docutils literal notranslate"><span class="pre">set_in_kwargs=False</span></code>; default)</p></li>
+<li><p>A single variable provided by a keyword argument (<code class="docutils literal notranslate"><span class="pre">set_in_kwargs=True</span></code>)</p></li>
+</ol>
+<p>Cartography takes lists of Python dicts and loads them to Neo4j using these property references
+to map data appropriately.</p>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Basic property reference from data dict</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">prop_ref</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span>
+</span><span data-line="3"><span class="gp">&gt;&gt;&gt; </span><span class="nb">str</span><span class="p">(</span><span class="n">prop_ref</span><span class="p">)</span>  <span class="c1"># Returns: &#39;item.name&#39;</span>
+</span></pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Property reference from kwargs</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">prop_ref</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;lastupdated&#39;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="3"><span class="gp">&gt;&gt;&gt; </span><span class="nb">str</span><span class="p">(</span><span class="n">prop_ref</span><span class="p">)</span>  <span class="c1"># Returns: &#39;$lastupdated&#39;</span>
+</span></pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Property with extra index for frequent queries</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">prop_ref</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;arn&#39;</span><span class="p">,</span> <span class="n">extra_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Case-insensitive matching</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">prop_ref</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;username&#39;</span><span class="p">,</span> <span class="n">ignore_case</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># One-to-many relationship</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">prop_ref</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;role_arns&#39;</span><span class="p">,</span> <span class="n">one_to_many</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>PropertyRef instances are typically used within CartographyNodeSchema and
+CartographyRelSchema definitions to specify how data should be mapped
+from source dictionaries to Neo4j graph properties.</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.common.PropertyRef.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">set_in_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_case</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fuzzy_and_ignore_case</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">one_to_many</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cartography.models.core.common.PropertyRef.__init__" title="Link to this definition">¶</a></dt>
+<dd><p>Initialize a PropertyRef instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>) – The name of the property.</p></li>
+<li><p><strong>set_in_kwargs</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, the property is not defined on the data dict,
+and we expect to find the property in the kwargs. If False, looks for the property
+in the data dict. Defaults to False.</p></li>
+<li><p><strong>extra_index</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, creates an index for this property name.
+Available for properties that are queried frequently. Defaults to False.</p></li>
+<li><p><strong>ignore_case</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, performs a case-insensitive match when comparing
+the value of this property during relationship creation. Only has effect as part of
+a TargetNodeMatcher, and is not supported for sub resource relationships.
+Defaults to False.</p></li>
+<li><p><strong>fuzzy_and_ignore_case</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, performs a fuzzy + case-insensitive
+match when comparing the value of this property using the <code class="docutils literal notranslate"><span class="pre">CONTAINS</span></code> operator.
+Only has effect as part of a TargetNodeMatcher and is not supported for sub
+resource relationships. Defaults to False.</p></li>
+<li><p><strong>one_to_many</strong> (<em>bool</em><em>, </em><em>optional</em>) – Indicates that this property creates one-to-many
+associations. If True, this property ref points to a list stored on the data dict
+where each item is an ID. Only has effect as part of a TargetNodeMatcher and is
+not supported for sub resource relationships. Defaults to False.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<dl>
+<dt>Case-insensitive matching for GitHub usernames:</dt><dd><p>GitHub usernames can have both uppercase and lowercase characters, but GitHub
+treats usernames as case-insensitive. If your company’s internal personnel
+database stores GitHub usernames all as lowercase, you would need to perform
+a case-insensitive match between your company’s record and your cartography
+catalog of GitHubUser nodes:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;username&#39;</span><span class="p">,</span> <span class="n">ignore_case</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</dd>
+<dt>One-to-many associations for AWS IAM instance profiles:</dt><dd><p>AWS IAM instance profiles can be associated with one or more roles. When calling
+describe-iam-instance-profiles, the <code class="docutils literal notranslate"><span class="pre">Roles</span></code> field contains a list of all roles
+that the profile is associated with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">class</span><span class="w"> </span><span class="nc">InstanceProfileSchema</span><span class="p">(</span><span class="n">Schema</span><span class="p">):</span>
+</span><span data-line="2">    <span class="n">target_node_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;AWSRole&#39;</span>
+</span><span data-line="3">    <span class="n">target_node_matcher</span><span class="p">:</span> <span class="n">TargetNodeMatcher</span> <span class="o">=</span> <span class="n">make_target_node_matcher</span><span class="p">({</span>
+</span><span data-line="4">        <span class="s1">&#39;arn&#39;</span><span class="p">:</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;Roles&#39;</span><span class="p">,</span> <span class="n">one_to_many</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+</span><span data-line="5">    <span class="p">})</span>
+</span></pre></div>
+</div>
+<p>This searches for AWSRoles to attach by checking if each role’s <code class="docutils literal notranslate"><span class="pre">arn</span></code> field
+is in the <code class="docutils literal notranslate"><span class="pre">Roles</span></code> list of the data dict.</p>
+</dd>
+</dl>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">one_to_many</span></code> has no effect on matchlinks.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">extra_index</span></code> is available for properties that will be queried frequently.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">id</span></code> and <code class="docutils literal notranslate"><span class="pre">lastupdated</span></code> properties automatically have indexes created by
+<code class="docutils literal notranslate"><span class="pre">ensure_indexes()</span></code>.</p></li>
+<li><p>All properties included in target node matchers automatically have indexes created.</p></li>
+</ul>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">ignore_case</span></code> is used together with <code class="docutils literal notranslate"><span class="pre">fuzzy_and_ignore_case</span></code>.</p></li>
+<li><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">one_to_many</span></code> is used together with <code class="docutils literal notranslate"><span class="pre">ignore_case</span></code> or
+    <code class="docutils literal notranslate"><span class="pre">fuzzy_and_ignore_case</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cartography.models.core.common.PropertyRef.__repr__">
+<span class="sig-name descname"><span class="pre">__repr__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#cartography.models.core.common.PropertyRef.__repr__" title="Link to this definition">¶</a></dt>
+<dd><p>Return the string representation used in Neo4j query building.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">querybuilder.build_ingestion_query()</span></code> generates a Neo4j batched ingestion query
+of the form <code class="docutils literal notranslate"><span class="pre">UNWIND</span> <span class="pre">$DictList</span> <span class="pre">AS</span> <span class="pre">item</span> <span class="pre">[...]</span></code>. This method provides the appropriate
+property reference format based on whether the property value comes from the data
+dictionary or from keyword arguments.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>Either <code class="docutils literal notranslate"><span class="pre">item.&lt;property_name&gt;</span></code> if <code class="docutils literal notranslate"><span class="pre">set_in_kwargs</span></code> is False, or</dt><dd><p><code class="docutils literal notranslate"><span class="pre">$&lt;property_name&gt;</span></code> if <code class="docutils literal notranslate"><span class="pre">set_in_kwargs</span></code> is True.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>str</p>
+</dd>
+</dl>
+<div class="admonition-examples admonition">
+<p class="admonition-title">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Property from data dictionary</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">prop_ref</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span>
+</span><span data-line="3"><span class="gp">&gt;&gt;&gt; </span><span class="nb">str</span><span class="p">(</span><span class="n">prop_ref</span><span class="p">)</span>
+</span><span data-line="4"><span class="go">&#39;item.name&#39;</span>
+</span></pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Property from keyword arguments</span>
+</span><span data-line="2"><span class="gp">&gt;&gt;&gt; </span><span class="n">prop_ref</span> <span class="o">=</span> <span class="n">PropertyRef</span><span class="p">(</span><span class="s1">&#39;lastupdated&#39;</span><span class="p">,</span> <span class="n">set_in_kwargs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="3"><span class="gp">&gt;&gt;&gt; </span><span class="nb">str</span><span class="p">(</span><span class="n">prop_ref</span><span class="p">)</span>
+</span><span data-line="4"><span class="go">&#39;$lastupdated&#39;</span>
+</span></pre></div>
+</div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="index.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">&lt;no title&gt;</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="orm.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">ORM</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

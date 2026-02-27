@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Ontology in Cartography - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Ontology Configuration" href="config.html" /><link rel="prev" title="Okta Schema" href="../okta/schema.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Ontology in Cartography"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#what-is-an-ontology">What is an Ontology?</a><ul>
+<li><a class="reference internal" href="#implementation-in-cartography">Implementation in Cartography</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#how-ontology-works-in-cartography">How Ontology Works in Cartography</a></li>
+<li><a class="reference internal" href="#ontology-field-mappings">Ontology Field Mappings</a><ul>
+<li><a class="reference internal" href="#required-fields">Required Fields</a></li>
+<li><a class="reference internal" href="#special-field-handling">Special Field Handling</a><ul>
+<li><a class="reference internal" href="#invert-boolean"><code class="docutils literal notranslate"><span class="pre">invert_boolean</span></code></a></li>
+<li><a class="reference internal" href="#to-boolean"><code class="docutils literal notranslate"><span class="pre">to_boolean</span></code></a></li>
+<li><a class="reference internal" href="#or-boolean"><code class="docutils literal notranslate"><span class="pre">or_boolean</span></code></a></li>
+<li><a class="reference internal" href="#equal-boolean"><code class="docutils literal notranslate"><span class="pre">equal_boolean</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#node-eligibility">Node Eligibility</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ontology-mapping-structure">Ontology Mapping Structure</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/ontology/index.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Ontology in Cartography</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/ontology/index.md.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/ontology/index.md.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/ontology/index.md.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/ontology/index.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/ontology/index.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="ontology-in-cartography">
+<h1>Ontology in Cartography<a class="headerlink" href="#ontology-in-cartography" title="Link to this heading">¶</a></h1>
+<section id="what-is-an-ontology">
+<h2>What is an Ontology?<a class="headerlink" href="#what-is-an-ontology" title="Link to this heading">¶</a></h2>
+<p>An ontology is a structured representation of concepts and relationships within a given domain. It enables semantic modeling of knowledge, making it easier to organize, analyze, and query data. In Cartography, the ontology defines entity (node) types and their relationships, using semantic labels and abstract nodes for better interoperability and extensibility.</p>
+<p>A key benefit of this approach is that it enables cross-module queries and the export of data in a unified format. By providing a common semantic layer, different modules can interact seamlessly, and data from various sources can be normalized and exported consistently.</p>
+<section id="implementation-in-cartography">
+<h3>Implementation in Cartography<a class="headerlink" href="#implementation-in-cartography" title="Link to this heading">¶</a></h3>
+<p>Cartography implements ontology using two main concepts:</p>
+<ul class="simple">
+<li><p><strong>Semantic Label</strong>: Each graph node can have one or more semantic labels describing its nature (e.g., <code class="docutils literal notranslate"><span class="pre">UserAccount</span></code>, <code class="docutils literal notranslate"><span class="pre">DNSRecord</span></code>).</p></li>
+<li><p><strong>Abstract Nodes</strong>: Some nodes serve as abstract concepts to group similar entities or define common behaviors. This allows logic to be factored and ensures model consistency.</p></li>
+</ul>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>For more background and design rationale, see:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://medium.com/&#64;jychp/unifying-the-graph-why-we-introduced-an-ontology-in-cartography-33b9301de22d">Unifying the Graph: Why We Introduced an Ontology in Cartography</a></p></li>
+<li><p><a class="reference external" href="https://github.com/cartography-cncf/cartography/discussions/1579">RFC: Cartography Ontology Schema</a></p></li>
+</ul>
+</div>
+</section>
+</section>
+<section id="how-ontology-works-in-cartography">
+<h2>How Ontology Works in Cartography<a class="headerlink" href="#how-ontology-works-in-cartography" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">intel.ontology</span></code> module in Cartography manages ontology logic. It allows:</p>
+<ul class="simple">
+<li><p>Loading ontology definitions from JSON files</p></li>
+<li><p>Validating the consistency of entities and relationships</p></li>
+<li><p>Ensuring mapping between collected data and the defined semantic model</p></li>
+</ul>
+<p>The module provides functions to traverse, enrich, and leverage the ontology during data ingestion. It plays a key role in normalizing entities from heterogeneous sources.</p>
+<p>By default, nodes are created in the ontology based on data observed in various modules. For some node, such as User, Device, etc., you can specify “sources of truth” modules that will exclusively create those nodes. This allows for more controlled and accurate representation of certain entities.</p>
+<p><strong>Example: User Nodes and Source of Truth</strong></p>
+<p>If you set the <code class="docutils literal notranslate"><span class="pre">--ontology-users-source</span></code> parameter to <code class="docutils literal notranslate"><span class="pre">duo</span></code>, then a <code class="docutils literal notranslate"><span class="pre">User</span></code> node will be created for every account found in Duo. In contrast, for other integrations like Tailscale, only existing <code class="docutils literal notranslate"><span class="pre">User</span></code> nodes (those created by the source of truth) will be linked to Tailscale accounts. No new <code class="docutils literal notranslate"><span class="pre">User</span></code> nodes will be created from Tailscale data alone.</p>
+</section>
+<section id="ontology-field-mappings">
+<h2>Ontology Field Mappings<a class="headerlink" href="#ontology-field-mappings" title="Link to this heading">¶</a></h2>
+<p>Ontology mappings are defined in Python using the <code class="docutils literal notranslate"><span class="pre">OntologyFieldMapping</span></code> class, which maps fields from source nodes to ontology nodes. Each mapping specifies:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ontology_field</span></code>: The field name in the ontology node (e.g., “email”, “hostname”)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">node_field</span></code>: The corresponding field name in the source node (e.g., “email_address”, “device_name”)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">required</span></code>: Whether this field is required for ontology node creation (defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>)</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">OntologyFieldMapping</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">ontology_field</span><span class="o">=</span><span class="s2">&quot;email&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">node_field</span><span class="o">=</span><span class="s2">&quot;email_address&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">required</span><span class="o">=</span><span class="kc">True</span>
+</span><span data-line="5"><span class="p">)</span>
+</span></pre></div>
+</div>
+<section id="required-fields">
+<h3>Required Fields<a class="headerlink" href="#required-fields" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">required</span></code> flag serves two critical purposes:</p>
+<ol class="arabic simple">
+<li><p><strong>Data Quality Control</strong>: If a source node lacks a required field (i.e., the field is <code class="docutils literal notranslate"><span class="pre">None</span></code> or missing), the entire ontology node creation is skipped for that record. This ensures only complete, usable data creates ontology nodes.</p></li>
+<li><p><strong>Primary Identifier Validation</strong>: Fields that serve as primary identifiers must be marked as required. For example:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">email</span></code> should be required for User ontology nodes</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hostname</span></code> should be required for Device ontology nodes</p></li>
+</ul>
+</li>
+</ol>
+<p>This prevents creating ontology nodes that cannot be properly identified or matched across different data sources.</p>
+<p><strong>Example with Required Field:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># If a source DuoUser has no email, no User ontology node is created</span>
+</span><span data-line="2"><span class="n">OntologyFieldMapping</span><span class="p">(</span><span class="n">ontology_field</span><span class="o">=</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="n">node_field</span><span class="o">=</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="special-field-handling">
+<h3>Special Field Handling<a class="headerlink" href="#special-field-handling" title="Link to this heading">¶</a></h3>
+<p>Ontology field mappings support special handling for complex data transformations using the <code class="docutils literal notranslate"><span class="pre">special_handling</span></code> parameter:</p>
+<section id="invert-boolean">
+<h4><code class="docutils literal notranslate"><span class="pre">invert_boolean</span></code><a class="headerlink" href="#invert-boolean" title="Link to this heading">¶</a></h4>
+<p>Inverts boolean values - useful when a source field represents the opposite of the ontology field:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">OntologyFieldMapping</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">ontology_field</span><span class="o">=</span><span class="s2">&quot;inactive&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">node_field</span><span class="o">=</span><span class="s2">&quot;account_enabled&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">special_handling</span><span class="o">=</span><span class="s2">&quot;invert_boolean&quot;</span><span class="p">,</span>
+</span><span data-line="5"><span class="p">)</span>
+</span><span data-line="6"><span class="c1"># account_enabled=True becomes inactive=False</span>
+</span></pre></div>
+</div>
+</section>
+<section id="to-boolean">
+<h4><code class="docutils literal notranslate"><span class="pre">to_boolean</span></code><a class="headerlink" href="#to-boolean" title="Link to this heading">¶</a></h4>
+<p>Converts any non-null value to <code class="docutils literal notranslate"><span class="pre">True</span></code>, null/missing values to <code class="docutils literal notranslate"><span class="pre">False</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">OntologyFieldMapping</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">ontology_field</span><span class="o">=</span><span class="s2">&quot;has_mfa&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">node_field</span><span class="o">=</span><span class="s2">&quot;multifactor&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">special_handling</span><span class="o">=</span><span class="s2">&quot;to_boolean&quot;</span><span class="p">,</span>
+</span><span data-line="5"><span class="p">)</span>
+</span><span data-line="6"><span class="c1"># Any non-null multifactor value becomes has_mfa=True</span>
+</span></pre></div>
+</div>
+</section>
+<section id="or-boolean">
+<h4><code class="docutils literal notranslate"><span class="pre">or_boolean</span></code><a class="headerlink" href="#or-boolean" title="Link to this heading">¶</a></h4>
+<p>Combines multiple boolean fields using logical OR - useful when a concept spans multiple source fields:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">OntologyFieldMapping</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">ontology_field</span><span class="o">=</span><span class="s2">&quot;inactive&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">node_field</span><span class="o">=</span><span class="s2">&quot;suspended&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">special_handling</span><span class="o">=</span><span class="s2">&quot;or_boolean&quot;</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">extra</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;fields&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;archived&quot;</span><span class="p">]},</span>
+</span><span data-line="6"><span class="p">)</span>
+</span><span data-line="7"><span class="c1"># inactive = suspended OR archived</span>
+</span></pre></div>
+</div>
+</section>
+<section id="equal-boolean">
+<h4><code class="docutils literal notranslate"><span class="pre">equal_boolean</span></code><a class="headerlink" href="#equal-boolean" title="Link to this heading">¶</a></h4>
+<p>Checks if the field value equals any of the specified values:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">OntologyFieldMapping</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">ontology_field</span><span class="o">=</span><span class="s2">&quot;inactive&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">node_field</span><span class="o">=</span><span class="s2">&quot;status&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">special_handling</span><span class="o">=</span><span class="s2">&quot;equal_boolean&quot;</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">extra</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;values&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;disabled&quot;</span><span class="p">,</span> <span class="s2">&quot;locked out&quot;</span><span class="p">,</span> <span class="s2">&quot;pending deletion&quot;</span><span class="p">]},</span>
+</span><span data-line="6"><span class="p">)</span>
+</span><span data-line="7"><span class="c1"># inactive=True if status is &quot;disabled&quot;, &quot;locked out&quot;, or &quot;pending deletion&quot;</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="node-eligibility">
+<h3>Node Eligibility<a class="headerlink" href="#node-eligibility" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">eligible_for_source</span></code> parameter in <code class="docutils literal notranslate"><span class="pre">OntologyNodeMapping</span></code> controls whether a node mapping can create new ontology nodes (default: <code class="docutils literal notranslate"><span class="pre">True</span></code>).</p>
+<p>Set <code class="docutils literal notranslate"><span class="pre">eligible_for_source=False</span></code> when:</p>
+<ul class="simple">
+<li><p>A node type lacks sufficient data to create meaningful ontology nodes</p></li>
+<li><p>The node serves only as a connection point to existing ontology nodes</p></li>
+<li><p>Required fields are not available or reliable enough for primary node creation</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">OntologyNodeMapping</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">node_label</span><span class="o">=</span><span class="s2">&quot;AWSUser&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">eligible_for_source</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># Cannot create User ontology nodes</span>
+</span><span data-line="4">    <span class="n">fields</span><span class="o">=</span><span class="p">[</span>
+</span><span data-line="5">        <span class="n">OntologyFieldMapping</span><span class="p">(</span><span class="n">ontology_field</span><span class="o">=</span><span class="s2">&quot;username&quot;</span><span class="p">,</span> <span class="n">node_field</span><span class="o">=</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+</span><span data-line="6">    <span class="p">],</span>
+</span><span data-line="7"><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>In this example, AWS IAM users don’t have email addresses (required for User ontology nodes), so they’re marked as ineligible for creating new User nodes. They can still be linked to existing User nodes through relationships.</p>
+</section>
+</section>
+<section id="ontology-mapping-structure">
+<h2>Ontology Mapping Structure<a class="headerlink" href="#ontology-mapping-structure" title="Link to this heading">¶</a></h2>
+<p>Ontology mappings are defined in <code class="docutils literal notranslate"><span class="pre">cartography/models/ontology/mapping/data/</span></code> using Python dataclasses:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">your_service_mapping</span> <span class="o">=</span> <span class="n">OntologyMapping</span><span class="p">(</span>
+</span><span data-line="2">    <span class="n">module_name</span><span class="o">=</span><span class="s2">&quot;your_service&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">nodes</span><span class="o">=</span><span class="p">[</span>
+</span><span data-line="4">        <span class="n">OntologyNodeMapping</span><span class="p">(</span>
+</span><span data-line="5">            <span class="n">node_label</span><span class="o">=</span><span class="s2">&quot;YourServiceUser&quot;</span><span class="p">,</span>
+</span><span data-line="6">            <span class="n">fields</span><span class="o">=</span><span class="p">[</span>
+</span><span data-line="7">                <span class="n">OntologyFieldMapping</span><span class="p">(</span><span class="n">ontology_field</span><span class="o">=</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="n">node_field</span><span class="o">=</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+</span><span data-line="8">                <span class="n">OntologyFieldMapping</span><span class="p">(</span><span class="n">ontology_field</span><span class="o">=</span><span class="s2">&quot;username&quot;</span><span class="p">,</span> <span class="n">node_field</span><span class="o">=</span><span class="s2">&quot;username&quot;</span><span class="p">),</span>
+</span><span data-line="9">                <span class="n">OntologyFieldMapping</span><span class="p">(</span><span class="n">ontology_field</span><span class="o">=</span><span class="s2">&quot;fullname&quot;</span><span class="p">,</span> <span class="n">node_field</span><span class="o">=</span><span class="s2">&quot;display_name&quot;</span><span class="p">),</span>
+</span><span data-line="10">            <span class="p">],</span>
+</span><span data-line="11">        <span class="p">),</span>
+</span><span data-line="12">    <span class="p">],</span>
+</span><span data-line="13">    <span class="n">rels</span><span class="o">=</span><span class="p">[</span>
+</span><span data-line="14">        <span class="n">OntologyRelMapping</span><span class="p">(</span>
+</span><span data-line="15">            <span class="n">__comment__</span><span class="o">=</span><span class="s2">&quot;Link User to Device based on observed relationships&quot;</span><span class="p">,</span>
+</span><span data-line="16">            <span class="n">query</span><span class="o">=</span><span class="s2">&quot;MATCH (u:User)-[:HAS_ACCOUNT]-&gt;(:YourServiceUser)-[:OWNS]-&gt;(:YourServiceDevice)&lt;-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]-&gt;(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG&quot;</span><span class="p">,</span>
+</span><span data-line="17">            <span class="n">iterative</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span data-line="18">        <span class="p">),</span>
+</span><span data-line="19">    <span class="p">],</span>
+</span><span data-line="20"><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>This structure allows Cartography to flexibly describe how to map and relate entities from specific integrations into the unified ontology graph.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Ontology Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="schema.html">Ontology Schema</a></li>
+</ul>
+</div>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="../okta/schema.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Okta Schema</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="config.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Ontology Configuration</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

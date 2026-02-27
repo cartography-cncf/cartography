@@ -1,0 +1,6 @@
+# Scaleway
+
+```{toctree}
+config
+schema
+```

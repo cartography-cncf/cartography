@@ -1,0 +1,6 @@
+# Lastpass
+
+```{toctree}
+config
+schema
+```

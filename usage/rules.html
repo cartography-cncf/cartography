@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Cartography Rules - cartography documentation</title><link rel="shortcut icon" href="../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Usage Tutorial" href="tutorial.html" /><link rel="prev" title="Command Line Interface" href="cli.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="Cartography Rules"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      <img class="light-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Usage</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cli.html">Command Line Interface</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/github/index.html">Github</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/config.html">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/github/schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#architecture">Architecture</a></li>
+<li><a class="reference internal" href="#design-philosophy">Design Philosophy</a></li>
+<li><a class="reference internal" href="#rationale">Rationale</a></li>
+<li><a class="reference internal" href="#rules-lifecycle">Rules Lifecycle</a><ul>
+<li><a class="reference internal" href="#rule-versioning">Rule Versioning</a></li>
+<li><a class="reference internal" href="#fact-maturity-levels">Fact Maturity Levels</a><ul>
+<li><a class="reference internal" href="#experimental"><code class="docutils literal notranslate"><span class="pre">EXPERIMENTAL</span></code></a></li>
+<li><a class="reference internal" href="#stable"><code class="docutils literal notranslate"><span class="pre">STABLE</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filtering-by-maturity">Filtering by Maturity</a></li>
+<li><a class="reference internal" href="#typical-fact-lifecycle">Typical Fact Lifecycle</a></li>
+<li><a class="reference internal" href="#version-and-maturity-together">Version and Maturity Together</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#setup">Setup</a></li>
+<li><a class="reference internal" href="#quick-start">Quick start</a></li>
+<li><a class="reference internal" href="#usage">Usage</a><ul>
+<li><a class="reference internal" href="#list"><code class="docutils literal notranslate"><span class="pre">list</span></code></a><ul>
+<li><a class="reference internal" href="#see-all-available-rules">See all available rules</a></li>
+<li><a class="reference internal" href="#see-details-of-a-specific-rule">See details of a specific rule</a></li>
+<li><a class="reference internal" href="#see-details-of-a-specific-fact">See details of a specific fact</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#run"><code class="docutils literal notranslate"><span class="pre">run</span></code></a><ul>
+<li><a class="reference internal" href="#run-all-rules-in-text-mode">Run all rules in text mode</a></li>
+<li><a class="reference internal" href="#run-all-rules-in-json-mode">Run all rules in JSON mode</a></li>
+<li><a class="reference internal" href="#run-a-specific-rule">Run a specific rule</a></li>
+<li><a class="reference internal" href="#run-a-specific-fact-within-a-rule">Run a specific fact within a rule</a></li>
+<li><a class="reference internal" href="#exclude-experimental-facts">Exclude experimental facts</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#authentication-options">Authentication Options</a><ul>
+<li><a class="reference internal" href="#use-a-custom-environment-variable-for-the-password">Use a custom environment variable for the password:</a></li>
+<li><a class="reference internal" href="#use-interactive-password-prompt">Use interactive password prompt:</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tab-completion">Tab completion</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#contributing-new-rules">Contributing New Rules</a><ul>
+<li><a class="reference internal" href="#query-structure-cypher-query-cypher-visual-query-and-cypher-count-query">Query Structure: cypher_query, cypher_visual_query, and cypher_count_query</a><ul>
+<li><a class="reference internal" href="#cypher-query-data-query"><code class="docutils literal notranslate"><span class="pre">cypher_query</span></code> - Data Query</a></li>
+<li><a class="reference internal" href="#cypher-visual-query-visualization-query"><code class="docutils literal notranslate"><span class="pre">cypher_visual_query</span></code> - Visualization Query</a></li>
+<li><a class="reference internal" href="#cypher-count-query-total-asset-count-query"><code class="docutils literal notranslate"><span class="pre">cypher_count_query</span></code> - Total Asset Count Query</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#general-query-guidelines">General Query Guidelines</a></li>
+<li><a class="reference internal" href="#output-models-with-pydantic">Output Models with Pydantic</a><ul>
+<li><a class="reference internal" href="#creating-an-output-model">Creating an Output Model</a></li>
+<li><a class="reference internal" href="#key-points">Key Points</a></li>
+<li><a class="reference internal" href="#example-from-object-storage-public">Example from object_storage_public</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#steps-to-add-a-new-rule">Steps to add a new rule</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#next-steps">Next steps</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/usage/rules.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Usage</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Cartography Rules</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/usage/rules.md.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/usage/rules.md.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/usage/rules.md.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/usage/rules.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/usage/rules.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="cartography-rules">
+<h1>Cartography Rules<a class="headerlink" href="#cartography-rules" title="Link to this heading">¶</a></h1>
+<p>Cartography Rules is a security query library for your Cartography graph.</p>
+<p>With the <code class="docutils literal notranslate"><span class="pre">cartography-rules</span></code> CLI, you can:</p>
+<ul class="simple">
+<li><p>Run pre-defined security queries across your infrastructure</p></li>
+<li><p>Identify potential attack surfaces and security gaps</p></li>
+<li><p>Explore and contribute community rules</p></li>
+<li><p>Build custom queries for your own environment</p></li>
+</ul>
+<section id="architecture">
+<h2>Architecture<a class="headerlink" href="#architecture" title="Link to this heading">¶</a></h2>
+<p>The rules system uses a simple two-level hierarchy:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1">Rule (e.g., mfa-missing, object_storage_public)
+</span><span data-line="2">  └─ Fact (e.g., aws_s3_public, missing-mfa-cloudflare)
+</span></pre></div>
+</div>
+<p><strong>Rules</strong> represent security issues or attack surfaces you want to detect (e.g., “Public Object Storage exposed on internet”).</p>
+<p><strong>Facts</strong> are individual Cypher queries that gather evidence about your environment across different cloud providers and services.</p>
+<p>This flat structure makes it easy to understand, maintain, and extend the rules library.</p>
+</section>
+<section id="design-philosophy">
+<h2>Design Philosophy<a class="headerlink" href="#design-philosophy" title="Link to this heading">¶</a></h2>
+<p>These rules are designed from an attacker’s perspective. We ask: “What does an attacker actually need to exploit this weakness or gain access?”</p>
+<p>The queries surface opportunities across the entire attack lifecycle: initial access, lateral movement, privilege escalation, data exfiltration, and persistence.</p>
+<p>We don’t impose arbitrary thresholds like “no more than 5 admins” because every organization has different risk tolerances. Instead, we surface facts:</p>
+<ul class="simple">
+<li><p>If a query returns no findings, you’ve eliminated obvious attack paths</p></li>
+<li><p>If it returns findings, you now have a clear list of potential attacker targets and security gaps</p></li>
+</ul>
+</section>
+<section id="rationale">
+<h2>Rationale<a class="headerlink" href="#rationale" title="Link to this heading">¶</a></h2>
+<p>Security isn’t one-size-fits-all. For example:</p>
+<ul class="simple">
+<li><p>An EC2 security group open to the internet may be risky for some orgs even if it isn’t attached to an instance (someone could attach one later). For other orgs, that’s irrelevant noise.</p></li>
+<li><p>IAM roles trusted across multiple accounts or S3 buckets with public access may or may not be material risks depending on your use case.</p></li>
+<li><p>User accounts without MFA might be acceptable in development environments but critical in production.</p></li>
+</ul>
+<p>Our goal is to surface facts in context so you can decide what matters for your environment.</p>
+<p>You can list all available rules and their details from the CLI, see <a class="reference internal" href="#list"><span class="xref myst">below</span></a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Rules query against the existing Cartography graph. They don’t write data; they return results you can view in text, JSON, or the Neo4j Browser.</p>
+</div>
+</section>
+<section id="rules-lifecycle">
+<h2>Rules Lifecycle<a class="headerlink" href="#rules-lifecycle" title="Link to this heading">¶</a></h2>
+<section id="rule-versioning">
+<h3>Rule Versioning<a class="headerlink" href="#rule-versioning" title="Link to this heading">¶</a></h3>
+<p>Each rule has a semantic version number (e.g., <code class="docutils literal notranslate"><span class="pre">0.1.0</span></code>, <code class="docutils literal notranslate"><span class="pre">1.0.0</span></code>) that helps track changes over time:</p>
+<ul class="simple">
+<li><p><strong>Major version</strong> (X.0.0): Breaking changes - query structure significantly altered, findings format changed</p></li>
+<li><p><strong>Minor version</strong> (0.X.0): Additive changes - new facts added, expanded coverage to additional providers</p></li>
+<li><p><strong>Patch version</strong> (0.0.X): Bug fixes - query improvements, description updates</p></li>
+</ul>
+<p><strong>Example lifecycle:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1">0.1.0 → Initial release with AWS support
+</span><span data-line="2">0.2.0 → Added Azure and GCP facts
+</span><span data-line="3">0.2.1 → Fixed query performance issue
+</span><span data-line="4">1.0.0 → Promoted to stable, all facts tested in production
+</span></pre></div>
+</div>
+<p>When a rule’s version changes, you can review the changes in the git history to understand what was modified and assess impact on your existing workflows.</p>
+</section>
+<section id="fact-maturity-levels">
+<h3>Fact Maturity Levels<a class="headerlink" href="#fact-maturity-levels" title="Link to this heading">¶</a></h3>
+<p>Each fact has a maturity level that indicates its stability and production-readiness:</p>
+<section id="experimental">
+<h4><code class="docutils literal notranslate"><span class="pre">EXPERIMENTAL</span></code><a class="headerlink" href="#experimental" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p><strong>Use case</strong>: New facts, recently added, or covering new security patterns</p></li>
+<li><p><strong>Stability</strong>: May have bugs, query performance not optimized, output format may change</p></li>
+<li><p><strong>Testing</strong>: Limited production testing</p></li>
+<li><p><strong>What to expect</strong>:</p>
+<ul>
+<li><p>False positives/negatives possible</p></li>
+<li><p>Query might be slow on large graphs</p></li>
+<li><p>Results format may evolve</p></li>
+</ul>
+</li>
+<li><p><strong>When to use</strong>: Early adopters, testing new detection capabilities, non-critical analysis</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">_new_attack_surface</span> <span class="o">=</span> <span class="n">Fact</span><span class="p">(</span>
+</span><span data-line="2">    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;aws_new_vulnerability_check&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;New AWS Vulnerability Pattern&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Recently discovered attack pattern&quot;</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">cypher_query</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">cypher_visual_query</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">cypher_count_query</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span data-line="8">    <span class="n">module</span><span class="o">=</span><span class="n">Module</span><span class="o">.</span><span class="n">AWS</span><span class="p">,</span>
+</span><span data-line="9">    <span class="n">maturity</span><span class="o">=</span><span class="n">Maturity</span><span class="o">.</span><span class="n">EXPERIMENTAL</span><span class="p">,</span>  <span class="c1"># New, needs testing</span>
+</span><span data-line="10"><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+<section id="stable">
+<h4><code class="docutils literal notranslate"><span class="pre">STABLE</span></code><a class="headerlink" href="#stable" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p><strong>Use case</strong>: Production-ready facts with proven accuracy</p></li>
+<li><p><strong>Stability</strong>: Well-tested, optimized queries, consistent results</p></li>
+<li><p><strong>Testing</strong>: Extensively tested across multiple environments</p></li>
+<li><p><strong>What to expect</strong>:</p>
+<ul>
+<li><p>Reliable results with minimal false positives</p></li>
+<li><p>Good query performance</p></li>
+<li><p>Stable output format</p></li>
+</ul>
+</li>
+<li><p><strong>When to use</strong>: Production security monitoring, compliance reporting, automated alerting</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">_proven_check</span> <span class="o">=</span> <span class="n">Fact</span><span class="p">(</span>
+</span><span data-line="2">    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;aws_s3_public&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Internet-Accessible S3 Storage Attack Surface&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;AWS S3 buckets accessible from the internet&quot;</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">cypher_query</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">cypher_visual_query</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">cypher_count_query</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span data-line="8">    <span class="n">module</span><span class="o">=</span><span class="n">Module</span><span class="o">.</span><span class="n">AWS</span><span class="p">,</span>
+</span><span data-line="9">    <span class="n">maturity</span><span class="o">=</span><span class="n">Maturity</span><span class="o">.</span><span class="n">STABLE</span><span class="p">,</span>  <span class="c1"># Battle-tested in production</span>
+</span><span data-line="10"><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="filtering-by-maturity">
+<h3>Filtering by Maturity<a class="headerlink" href="#filtering-by-maturity" title="Link to this heading">¶</a></h3>
+<p>You can exclude experimental facts from your analysis:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Only run stable facts</span>
+</span><span data-line="2">cartography-rules<span class="w"> </span>run<span class="w"> </span>object_storage_public<span class="w"> </span>--no-experimental
+</span><span data-line="3">
+</span><span data-line="4"><span class="c1"># Run all (including experimental) - default behavior</span>
+</span><span data-line="5">cartography-rules<span class="w"> </span>run<span class="w"> </span>object_storage_public
+</span></pre></div>
+</div>
+</section>
+<section id="typical-fact-lifecycle">
+<h3>Typical Fact Lifecycle<a class="headerlink" href="#typical-fact-lifecycle" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Initial Development</strong> (<code class="docutils literal notranslate"><span class="pre">EXPERIMENTAL</span></code>)</p>
+<ul class="simple">
+<li><p>New fact created to detect a security issue</p></li>
+<li><p>Basic testing in development environment</p></li>
+<li><p>Community feedback gathered</p></li>
+</ul>
+</li>
+<li><p><strong>Refinement</strong> (<code class="docutils literal notranslate"><span class="pre">EXPERIMENTAL</span></code>)</p>
+<ul class="simple">
+<li><p>Query optimization based on performance testing</p></li>
+<li><p>False positive reduction</p></li>
+<li><p>Documentation improvements</p></li>
+<li><p>Tested across diverse environments</p></li>
+</ul>
+</li>
+<li><p><strong>Promotion</strong> (<code class="docutils literal notranslate"><span class="pre">STABLE</span></code>)</p>
+<ul class="simple">
+<li><p>Proven accuracy across multiple production deployments</p></li>
+<li><p>Query performance optimized</p></li>
+<li><p>Output format finalized</p></li>
+<li><p>Comprehensive test coverage</p></li>
+</ul>
+</li>
+<li><p><strong>Maintenance</strong> (<code class="docutils literal notranslate"><span class="pre">STABLE</span></code>)</p>
+<ul class="simple">
+<li><p>Bug fixes as needed</p></li>
+<li><p>Query updates to handle new Cartography schema changes</p></li>
+<li><p>Description clarifications</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="version-and-maturity-together">
+<h3>Version and Maturity Together<a class="headerlink" href="#version-and-maturity-together" title="Link to this heading">¶</a></h3>
+<p>Rules evolve over time. Here’s how versioning and maturity work together:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="c1"># Version 0.1.0 - Initial release</span>
+</span><span data-line="2"><span class="n">object_storage_public</span> <span class="o">=</span> <span class="n">Rule</span><span class="p">(</span>
+</span><span data-line="3">    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;object_storage_public&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Public Object Storage Attack Surface&quot;</span><span class="p">,</span>
+</span><span data-line="5">    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Publicly accessible object storage services such as AWS S3 buckets and Azure Storage Blob Containers&quot;</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">tags</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;infrastructure&quot;</span><span class="p">,</span> <span class="s2">&quot;attack_surface&quot;</span><span class="p">),</span>
+</span><span data-line="7">    <span class="n">output_model</span><span class="o">=</span><span class="n">ObjectStoragePublic</span><span class="p">,</span>
+</span><span data-line="8">    <span class="n">facts</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="9">        <span class="n">_aws_s3_public</span><span class="p">,</span>        <span class="c1"># EXPERIMENTAL - new query</span>
+</span><span data-line="10">    <span class="p">),</span>
+</span><span data-line="11">    <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.1.0&quot;</span><span class="p">,</span>
+</span><span data-line="12"><span class="p">)</span>
+</span><span data-line="13">
+</span><span data-line="14"><span class="c1"># Version 0.2.0 - Added Azure support</span>
+</span><span data-line="15"><span class="n">object_storage_public</span> <span class="o">=</span> <span class="n">Rule</span><span class="p">(</span>
+</span><span data-line="16">    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;object_storage_public&quot;</span><span class="p">,</span>
+</span><span data-line="17">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Public Object Storage Attack Surface&quot;</span><span class="p">,</span>
+</span><span data-line="18">    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Publicly accessible object storage services such as AWS S3 buckets and Azure Storage Blob Containers&quot;</span><span class="p">,</span>
+</span><span data-line="19">    <span class="n">tags</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;infrastructure&quot;</span><span class="p">,</span> <span class="s2">&quot;attack_surface&quot;</span><span class="p">),</span>
+</span><span data-line="20">    <span class="n">output_model</span><span class="o">=</span><span class="n">ObjectStoragePublic</span><span class="p">,</span>
+</span><span data-line="21">    <span class="n">facts</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="22">        <span class="n">_aws_s3_public</span><span class="p">,</span>        <span class="c1"># EXPERIMENTAL</span>
+</span><span data-line="23">        <span class="n">_azure_storage_public</span><span class="p">,</span> <span class="c1"># EXPERIMENTAL - newly added</span>
+</span><span data-line="24">    <span class="p">),</span>
+</span><span data-line="25">    <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.2.0&quot;</span><span class="p">,</span>
+</span><span data-line="26"><span class="p">)</span>
+</span><span data-line="27">
+</span><span data-line="28"><span class="c1"># Version 0.2.1 - Bug fix</span>
+</span><span data-line="29"><span class="c1"># AWS query fixed, no version bump for facts themselves</span>
+</span><span data-line="30">
+</span><span data-line="31"><span class="c1"># Version 1.0.0 - Production ready</span>
+</span><span data-line="32"><span class="n">object_storage_public</span> <span class="o">=</span> <span class="n">Rule</span><span class="p">(</span>
+</span><span data-line="33">    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;object_storage_public&quot;</span><span class="p">,</span>
+</span><span data-line="34">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Public Object Storage Attack Surface&quot;</span><span class="p">,</span>
+</span><span data-line="35">    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Publicly accessible object storage services such as AWS S3 buckets and Azure Storage Blob Containers&quot;</span><span class="p">,</span>
+</span><span data-line="36">    <span class="n">tags</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;infrastructure&quot;</span><span class="p">,</span> <span class="s2">&quot;attack_surface&quot;</span><span class="p">),</span>
+</span><span data-line="37">    <span class="n">output_model</span><span class="o">=</span><span class="n">ObjectStoragePublic</span><span class="p">,</span>
+</span><span data-line="38">    <span class="n">facts</span><span class="o">=</span><span class="p">(</span>
+</span><span data-line="39">        <span class="n">_aws_s3_public</span><span class="p">,</span>        <span class="c1"># STABLE - promoted after extensive testing</span>
+</span><span data-line="40">        <span class="n">_azure_storage_public</span><span class="p">,</span> <span class="c1"># STABLE - promoted after extensive testing</span>
+</span><span data-line="41">    <span class="p">),</span>
+</span><span data-line="42">    <span class="n">version</span><span class="o">=</span><span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span>
+</span><span data-line="43"><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Link to this heading">¶</a></h2>
+<p>Make sure you’ve run Cartography and have data in Neo4j.</p>
+<p>Then configure your Neo4j connection:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">export</span><span class="w"> </span><span class="nv">NEO4J_URI</span><span class="o">=</span>bolt://localhost:7687<span class="w"> </span><span class="c1"># or your Neo4j URI</span>
+</span><span data-line="2"><span class="nb">export</span><span class="w"> </span><span class="nv">NEO4J_USER</span><span class="o">=</span>neo4j<span class="w"> </span><span class="c1"># or your username</span>
+</span><span data-line="3"><span class="nb">export</span><span class="w"> </span><span class="nv">NEO4J_DATABASE</span><span class="o">=</span>neo4j<span class="w"> </span><span class="c1"># or your database name</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="c1"># Store the Neo4j password in an environment variable. You can name this anything you want.</span>
+</span><span data-line="6">
+</span><span data-line="7"><span class="nb">set</span><span class="w"> </span>+o<span class="w"> </span><span class="nb">history</span><span class="w"> </span><span class="c1"># avoid storing the password in the shell history; can also use something like 1password CLI.</span>
+</span><span data-line="8"><span class="nb">export</span><span class="w"> </span><span class="nv">NEO4J_PASSWORD</span><span class="o">=</span>password
+</span><span data-line="9"><span class="nb">set</span><span class="w"> </span>-o<span class="w"> </span><span class="nb">history</span><span class="w"> </span><span class="c1"># turn shell history back on</span>
+</span></pre></div>
+</div>
+</section>
+<section id="quick-start">
+<h2>Quick start<a class="headerlink" href="#quick-start" title="Link to this heading">¶</a></h2>
+<ol class="arabic">
+<li><p>List all available rules</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list
+</span></pre></div>
+</div>
+</li>
+<li><p>View details of a specific rule</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list<span class="w"> </span>object_storage_public
+</span></pre></div>
+</div>
+</li>
+<li><p>Run a specific rule</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>object_storage_public
+</span></pre></div>
+</div>
+<p>Sample output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1">Executing object_storage_public rule
+</span><span data-line="2">Total facts: 2
+</span><span data-line="3">
+</span><span data-line="4">Fact 1/2: Internet-Accessible S3 Storage Attack Surface
+</span><span data-line="5">Rule:     object_storage_public - Public Object Storage Attack Surface
+</span><span data-line="6">Fact ID:     aws_s3_public
+</span><span data-line="7">Description: AWS S3 buckets accessible from the internet
+</span><span data-line="8">Provider:    AWS
+</span><span data-line="9">Neo4j Query: http://localhost:7474/browser/?cmd=play&amp;arg=&lt;encoded-query&gt;
+</span><span data-line="10">Results:     3 item(s) found
+</span><span data-line="11">    Sample findings:
+</span><span data-line="12">    1. bucket=cdn.example.com, region=us-east-1, anonymous_access=True
+</span><span data-line="13">    2. bucket=mybucket.example.com, region=us-east-1, anonymous_actions=[&#39;s3:ListBucket&#39;, &#39;s3:ListBucketVersions&#39;]
+</span><span data-line="14">    3. bucket=static.example.com, region=us-east-1, public_access=True
+</span><span data-line="15">    ... (use --output json to see all)
+</span><span data-line="16">
+</span><span data-line="17">Fact 2/2: Azure Storage Public Blob Access
+</span><span data-line="18">Rule:     object_storage_public - Public Object Storage Attack Surface
+</span><span data-line="19">Fact ID:     azure_storage_public_blob_access
+</span><span data-line="20">Description: Azure Storage accounts with public blob access
+</span><span data-line="21">Provider:    Azure
+</span><span data-line="22">Neo4j Query: http://localhost:7474/browser/?cmd=play&amp;arg=&lt;encoded-query&gt;
+</span><span data-line="23">Results:     No items found
+</span><span data-line="24">
+</span><span data-line="25">============================================================
+</span><span data-line="26">EXECUTION SUMMARY
+</span><span data-line="27">============================================================
+</span><span data-line="28">Total facts: 2
+</span><span data-line="29">Total findings: 3
+</span><span data-line="30">
+</span><span data-line="31">Rule execution completed with 3 total findings
+</span></pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h2>
+<section id="list">
+<h3><code class="docutils literal notranslate"><span class="pre">list</span></code><a class="headerlink" href="#list" title="Link to this heading">¶</a></h3>
+<section id="see-all-available-rules">
+<h4>See all available rules<a class="headerlink" href="#see-all-available-rules" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list
+</span></pre></div>
+</div>
+<p>Output shows all rules with their IDs, names, and fact counts:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">Available</span> <span class="n">rules</span><span class="p">:</span>
+</span><span data-line="2">  <span class="o">-</span> <span class="n">compute_instance_exposed</span> <span class="p">(</span><span class="mi">3</span> <span class="n">facts</span><span class="p">)</span>
+</span><span data-line="3">  <span class="o">-</span> <span class="n">database_instance_exposed</span> <span class="p">(</span><span class="mi">2</span> <span class="n">facts</span><span class="p">)</span>
+</span><span data-line="4">  <span class="o">-</span> <span class="n">mfa</span><span class="o">-</span><span class="n">missing</span> <span class="p">(</span><span class="mi">1</span> <span class="n">fact</span><span class="p">)</span>
+</span><span data-line="5">  <span class="o">-</span> <span class="n">object_storage_public</span> <span class="p">(</span><span class="mi">2</span> <span class="n">facts</span><span class="p">)</span>
+</span><span data-line="6">  <span class="o">...</span>
+</span></pre></div>
+</div>
+</section>
+<section id="see-details-of-a-specific-rule">
+<h4>See details of a specific rule<a class="headerlink" href="#see-details-of-a-specific-rule" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list<span class="w"> </span>mfa-missing
+</span></pre></div>
+</div>
+<p>Output shows rule metadata and all associated facts:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">Rule</span><span class="p">:</span> <span class="n">mfa</span><span class="o">-</span><span class="n">missing</span>
+</span><span data-line="2"><span class="n">Name</span><span class="p">:</span> <span class="n">User</span> <span class="n">accounts</span> <span class="n">missing</span> <span class="n">MFA</span>
+</span><span data-line="3"><span class="n">Description</span><span class="p">:</span> <span class="n">Detects</span> <span class="n">user</span> <span class="n">accounts</span> <span class="n">without</span> <span class="n">multi</span><span class="o">-</span><span class="n">factor</span> <span class="n">authentication</span>
+</span><span data-line="4"><span class="n">Facts</span><span class="p">:</span> <span class="mi">1</span>
+</span><span data-line="5"><span class="n">Version</span><span class="p">:</span> <span class="mf">0.1.0</span>
+</span><span data-line="6">
+</span><span data-line="7"><span class="n">Facts</span><span class="p">:</span>
+</span><span data-line="8">  <span class="mf">1.</span> <span class="n">missing</span><span class="o">-</span><span class="n">mfa</span><span class="o">-</span><span class="n">cloudflare</span> <span class="p">(</span><span class="n">Cloudflare</span><span class="p">)</span>
+</span><span data-line="9">     <span class="n">Finds</span> <span class="n">Cloudflare</span> <span class="n">member</span> <span class="n">accounts</span> <span class="n">that</span> <span class="n">have</span> <span class="n">MFA</span> <span class="n">disabled</span>
+</span><span data-line="10">     <span class="n">Maturity</span><span class="p">:</span> <span class="n">STABLE</span>
+</span></pre></div>
+</div>
+</section>
+<section id="see-details-of-a-specific-fact">
+<h4>See details of a specific fact<a class="headerlink" href="#see-details-of-a-specific-fact" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list<span class="w"> </span>mfa-missing<span class="w"> </span>missing-mfa-cloudflare
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="run">
+<h3><code class="docutils literal notranslate"><span class="pre">run</span></code><a class="headerlink" href="#run" title="Link to this heading">¶</a></h3>
+<section id="run-all-rules-in-text-mode">
+<h4>Run all rules in text mode<a class="headerlink" href="#run-all-rules-in-text-mode" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>all
+</span><span data-line="2"><span class="c1"># or</span>
+</span><span data-line="3">cartography-rules<span class="w"> </span>run<span class="w"> </span>all<span class="w"> </span>--output<span class="w"> </span>text
+</span></pre></div>
+</div>
+<p><img alt="cartography-rules-run-all-text.png" src="../_images/rules-text-output.png" /></p>
+</section>
+<section id="run-all-rules-in-json-mode">
+<h4>Run all rules in JSON mode<a class="headerlink" href="#run-all-rules-in-json-mode" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>all<span class="w"> </span>--output<span class="w"> </span>json
+</span></pre></div>
+</div>
+<p><img alt="cartography-rules-run-all-json.png" src="../_images/rules-json-output.png" /></p>
+</section>
+<section id="run-a-specific-rule">
+<h4>Run a specific rule<a class="headerlink" href="#run-a-specific-rule" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>mfa-missing
+</span></pre></div>
+</div>
+</section>
+<section id="run-a-specific-fact-within-a-rule">
+<h4>Run a specific fact within a rule<a class="headerlink" href="#run-a-specific-fact-within-a-rule" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>object_storage_public<span class="w"> </span>aws_s3_public
+</span></pre></div>
+</div>
+</section>
+<section id="exclude-experimental-facts">
+<h4>Exclude experimental facts<a class="headerlink" href="#exclude-experimental-facts" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>object_storage_public<span class="w"> </span>--no-experimental
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="authentication-options">
+<h3>Authentication Options<a class="headerlink" href="#authentication-options" title="Link to this heading">¶</a></h3>
+<section id="use-a-custom-environment-variable-for-the-password">
+<h4>Use a custom environment variable for the password:<a class="headerlink" href="#use-a-custom-environment-variable-for-the-password" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>mfa-missing<span class="w"> </span>--neo4j-password-env-var<span class="w"> </span>MY_NEO4J_PASSWORD
+</span></pre></div>
+</div>
+</section>
+<section id="use-interactive-password-prompt">
+<h4>Use interactive password prompt:<a class="headerlink" href="#use-interactive-password-prompt" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>run<span class="w"> </span>mfa-missing<span class="w"> </span>--neo4j-password-prompt
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="tab-completion">
+<h3>Tab completion<a class="headerlink" href="#tab-completion" title="Link to this heading">¶</a></h3>
+<p>Note that you can TAB complete. Install it with</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>--install-completion
+</span></pre></div>
+</div>
+<p>and then restart your shell and then you can get TAB completion like:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list<span class="w"> </span>&lt;TAB&gt;
+</span><span data-line="2">cartography-rules<span class="w"> </span>run<span class="w"> </span>&lt;TAB&gt;
+</span></pre></div>
+</div>
+<p>This will show you all available rules and facts.</p>
+</section>
+</section>
+<section id="contributing-new-rules">
+<h2>Contributing New Rules<a class="headerlink" href="#contributing-new-rules" title="Link to this heading">¶</a></h2>
+<p>Want to add your own security rules? Here’s how:</p>
+<section id="query-structure-cypher-query-cypher-visual-query-and-cypher-count-query">
+<h3>Query Structure: cypher_query, cypher_visual_query, and cypher_count_query<a class="headerlink" href="#query-structure-cypher-query-cypher-visual-query-and-cypher-count-query" title="Link to this heading">¶</a></h3>
+<p>Each Fact requires three distinct Cypher queries:</p>
+<section id="cypher-query-data-query">
+<h4><code class="docutils literal notranslate"><span class="pre">cypher_query</span></code> - Data Query<a class="headerlink" href="#cypher-query-data-query" title="Link to this heading">¶</a></h4>
+<p>Returns specific fields used to populate the output model. This query should:</p>
+<ul class="simple">
+<li><p>Use explicit field selection with aliases (e.g., <code class="docutils literal notranslate"><span class="pre">RETURN</span> <span class="pre">n.id</span> <span class="pre">AS</span> <span class="pre">id,</span> <span class="pre">n.name</span> <span class="pre">AS</span> <span class="pre">name</span></code>)</p></li>
+<li><p>Return only the data fields needed for the rule’s output model</p></li>
+<li><p>Be optimized for data extraction and processing</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">m</span><span class="p">:</span><span class="n">CloudflareMember</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">m</span><span class="p">.</span><span class="n">two_factor_authentication_enabled</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">false</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">m</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">m</span><span class="p">.</span><span class="n">email</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">email</span><span class="p">,</span><span class="w"> </span><span class="n">m</span><span class="p">.</span><span class="n">firstname</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">firstname</span>
+</span></pre></div>
+</div>
+</section>
+<section id="cypher-visual-query-visualization-query">
+<h4><code class="docutils literal notranslate"><span class="pre">cypher_visual_query</span></code> - Visualization Query<a class="headerlink" href="#cypher-visual-query-visualization-query" title="Link to this heading">¶</a></h4>
+<p>Returns nodes and relationships for Neo4j Browser visualization. This query should:</p>
+<ul class="simple">
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">RETURN</span> <span class="pre">*</span></code> or explicit node/relationship returns (e.g., <code class="docutils literal notranslate"><span class="pre">RETURN</span> <span class="pre">m</span></code> or <code class="docutils literal notranslate"><span class="pre">RETURN</span> <span class="pre">*</span></code>)</p></li>
+<li><p>Include relevant relationships and context for visual exploration</p></li>
+<li><p>Help users understand the graph structure and connections</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">m</span><span class="p">:</span><span class="n">CloudflareMember</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">m</span><span class="p">.</span><span class="n">two_factor_authentication_enabled</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">false</span>
+</span><span data-line="3"><span class="k">RETURN</span><span class="w"> </span><span class="n">m</span>
+</span></pre></div>
+</div>
+<p>Or with relationships:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">b</span><span class="p">:</span><span class="n">S3Bucket</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">WHERE</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">anonymous_access</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">true</span>
+</span><span data-line="3"><span class="k">WITH</span><span class="w"> </span><span class="n">b</span>
+</span><span data-line="4"><span class="k">OPTIONAL</span><span class="w"> </span><span class="k">MATCH</span><span class="w"> </span><span class="n">p</span><span class="p">=(</span><span class="n">b</span><span class="p">)</span><span class="o">-[</span><span class="p">:</span><span class="n">POLICY_STATEMENT</span><span class="o">]-&gt;</span><span class="p">(:</span><span class="n">S3PolicyStatement</span><span class="p">)</span>
+</span><span data-line="5"><span class="k">RETURN</span><span class="w"> </span><span class="p">*</span>
+</span></pre></div>
+</div>
+</section>
+<section id="cypher-count-query-total-asset-count-query">
+<h4><code class="docutils literal notranslate"><span class="pre">cypher_count_query</span></code> - Total Asset Count Query<a class="headerlink" href="#cypher-count-query-total-asset-count-query" title="Link to this heading">¶</a></h4>
+<p>Returns the total count of assets of the type being evaluated by the Fact. This query should:</p>
+<ul class="simple">
+<li><p>Count <strong>all</strong> assets of the relevant type, regardless of whether they match the Fact criteria</p></li>
+<li><p>Return a single value with <code class="docutils literal notranslate"><span class="pre">RETURN</span> <span class="pre">COUNT(...)</span> <span class="pre">AS</span> <span class="pre">count</span></code></p></li>
+<li><p>Enable calculation of compliance ratios (e.g., “10 public buckets out of 100 total”)</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">m</span><span class="p">:</span><span class="n">CloudflareMember</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">COUNT</span><span class="p">(</span><span class="n">m</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">count</span>
+</span></pre></div>
+</div>
+<p>Or for S3 buckets:</p>
+<div class="highlight-cypher notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">MATCH</span><span class="w"> </span><span class="p">(</span><span class="n">b</span><span class="p">:</span><span class="n">S3Bucket</span><span class="p">)</span>
+</span><span data-line="2"><span class="k">RETURN</span><span class="w"> </span><span class="n">COUNT</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">count</span>
+</span></pre></div>
+</div>
+<p>This count query allows users to understand the scope of their environment and calculate what percentage of assets are affected by a security finding.</p>
+</section>
+</section>
+<section id="general-query-guidelines">
+<h3>General Query Guidelines<a class="headerlink" href="#general-query-guidelines" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Ensure your queries are efficient and optimized for performance on large graphs.</p></li>
+<li><p>Test your queries against realistic datasets to minimize false positives/negatives.</p></li>
+<li><p>Follow existing code style and conventions for consistency.</p></li>
+</ul>
+</section>
+<section id="output-models-with-pydantic">
+<h3>Output Models with Pydantic<a class="headerlink" href="#output-models-with-pydantic" title="Link to this heading">¶</a></h3>
+<p>Each Rule must define an output model that extends <code class="docutils literal notranslate"><span class="pre">Finding</span></code>. This Pydantic model defines the structure of the data returned by the rule’s facts.</p>
+<section id="creating-an-output-model">
+<h4>Creating an Output Model<a class="headerlink" href="#creating-an-output-model" title="Link to this heading">¶</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.rules.spec.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Finding</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="k">class</span><span class="w"> </span><span class="nc">MyRuleOutput</span><span class="p">(</span><span class="n">Finding</span><span class="p">):</span>
+</span><span data-line="4"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Output model for my custom rule.&quot;&quot;&quot;</span>
+</span><span data-line="5">
+</span><span data-line="6">    <span class="c1"># Define the fields that will be populated from cypher_query results</span>
+</span><span data-line="7">    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>           <span class="c1"># Resource identifier</span>
+</span><span data-line="8">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>         <span class="c1"># Resource name</span>
+</span><span data-line="9">    <span class="n">email</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>        <span class="c1"># User email (if applicable)</span>
+</span><span data-line="10">    <span class="n">region</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>       <span class="c1"># Cloud region</span>
+</span><span data-line="11">    <span class="n">public_access</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Access level</span>
+</span><span data-line="12">
+</span><span data-line="13">    <span class="c1"># Add any other fields relevant to your rule</span>
+</span></pre></div>
+</div>
+</section>
+<section id="key-points">
+<h4>Key Points<a class="headerlink" href="#key-points" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p><strong>Inherit from <code class="docutils literal notranslate"><span class="pre">Finding</span></code></strong>: Your model must extend the base <code class="docutils literal notranslate"><span class="pre">Finding</span></code> class</p></li>
+<li><p><strong>Use Optional Fields</strong>: All fields should be optional (<code class="docutils literal notranslate"><span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></code>) as different facts may return different subsets of data</p></li>
+<li><p><strong>Match Query Aliases</strong>: Field names should match the aliases used in your <code class="docutils literal notranslate"><span class="pre">cypher_query</span></code> (e.g., if query returns <code class="docutils literal notranslate"><span class="pre">n.id</span> <span class="pre">AS</span> <span class="pre">id</span></code>, model should have <code class="docutils literal notranslate"><span class="pre">id</span></code> field)</p></li>
+<li><p><strong>Automatic Handling</strong>:</p>
+<ul>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">source</span></code> field is automatically populated with the module name (e.g., “AWS”, “Azure”)</p></li>
+<li><p>Fields not defined in the model are stored in the <code class="docutils literal notranslate"><span class="pre">extra</span></code> dictionary</p></li>
+<li><p>Number values are automatically coerced to strings</p></li>
+<li><p>Lists, tuples, and sets are joined into comma-separated strings</p></li>
+<li><p>Dictionaries are serialized to JSON strings</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="example-from-object-storage-public">
+<h4>Example from object_storage_public<a class="headerlink" href="#example-from-object-storage-public" title="Link to this heading">¶</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="k">class</span><span class="w"> </span><span class="nc">ObjectStoragePublic</span><span class="p">(</span><span class="n">Finding</span><span class="p">):</span>
+</span><span data-line="2">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="3">    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="4">    <span class="n">region</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="5">    <span class="n">public_access</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="6">    <span class="n">account</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># For Azure storage accounts</span>
+</span><span data-line="7">
+</span><span data-line="8"><span class="n">object_storage_public</span> <span class="o">=</span> <span class="n">Rule</span><span class="p">(</span>
+</span><span data-line="9">    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;object_storage_public&quot;</span><span class="p">,</span>
+</span><span data-line="10">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Public Object Storage Attack Surface&quot;</span><span class="p">,</span>
+</span><span data-line="11">    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Publicly accessible object storage services&quot;</span><span class="p">,</span>
+</span><span data-line="12">    <span class="n">output_model</span><span class="o">=</span><span class="n">ObjectStoragePublic</span><span class="p">,</span>  <span class="c1"># Reference the output model class</span>
+</span><span data-line="13">    <span class="n">facts</span><span class="o">=</span><span class="p">(</span><span class="o">...</span><span class="p">),</span>
+</span><span data-line="14">    <span class="n">tags</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;infrastructure&quot;</span><span class="p">,</span> <span class="s2">&quot;attack_surface&quot;</span><span class="p">),</span>
+</span><span data-line="15">    <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.1.0&quot;</span><span class="p">,</span>
+</span><span data-line="16"><span class="p">)</span>
+</span></pre></div>
+</div>
+</section>
+</section>
+<section id="steps-to-add-a-new-rule">
+<h3>Steps to add a new rule<a class="headerlink" href="#steps-to-add-a-new-rule" title="Link to this heading">¶</a></h3>
+<ol class="arabic">
+<li><p><strong>Create a new rule file</strong> in <code class="docutils literal notranslate"><span class="pre">cartography/rules/data/rules/</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.rules.spec.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Fact</span><span class="p">,</span> <span class="n">Rule</span><span class="p">,</span> <span class="n">Finding</span><span class="p">,</span> <span class="n">Maturity</span><span class="p">,</span> <span class="n">Module</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="c1"># Define facts with data, visualization, and count queries</span>
+</span><span data-line="4"><span class="n">_my_aws_check</span> <span class="o">=</span> <span class="n">Fact</span><span class="p">(</span>
+</span><span data-line="5">    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;my_aws_security_check&quot;</span><span class="p">,</span>
+</span><span data-line="6">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My AWS Security Check&quot;</span><span class="p">,</span>
+</span><span data-line="7">    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;What this checks for&quot;</span><span class="p">,</span>
+</span><span data-line="8">    <span class="n">cypher_query</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="9"><span class="s2">    MATCH (n:SomeNode)</span>
+</span><span data-line="10"><span class="s2">    WHERE &lt;condition&gt;</span>
+</span><span data-line="11"><span class="s2">    RETURN n.id AS id, n.name AS name, n.region AS region</span>
+</span><span data-line="12"><span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span>
+</span><span data-line="13">    <span class="n">cypher_visual_query</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="14"><span class="s2">    MATCH (n:SomeNode)</span>
+</span><span data-line="15"><span class="s2">    WHERE &lt;condition&gt;</span>
+</span><span data-line="16"><span class="s2">    RETURN n</span>
+</span><span data-line="17"><span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span>
+</span><span data-line="18">    <span class="n">cypher_count_query</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="19"><span class="s2">    MATCH (n:SomeNode)</span>
+</span><span data-line="20"><span class="s2">    RETURN COUNT(n) AS count</span>
+</span><span data-line="21"><span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span>
+</span><span data-line="22">    <span class="n">module</span><span class="o">=</span><span class="n">Module</span><span class="o">.</span><span class="n">AWS</span><span class="p">,</span>
+</span><span data-line="23">    <span class="n">maturity</span><span class="o">=</span><span class="n">Maturity</span><span class="o">.</span><span class="n">EXPERIMENTAL</span><span class="p">,</span>
+</span><span data-line="24"><span class="p">)</span>
+</span><span data-line="25">
+</span><span data-line="26"><span class="n">_my_azure_check</span> <span class="o">=</span> <span class="n">Fact</span><span class="p">(</span>
+</span><span data-line="27">    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;my_azure_security_check&quot;</span><span class="p">,</span>
+</span><span data-line="28">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My Azure Security Check&quot;</span><span class="p">,</span>
+</span><span data-line="29">    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;What this checks for in Azure&quot;</span><span class="p">,</span>
+</span><span data-line="30">    <span class="n">cypher_query</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="31"><span class="s2">    MATCH (n:SomeAzureNode)</span>
+</span><span data-line="32"><span class="s2">    WHERE &lt;condition&gt;</span>
+</span><span data-line="33"><span class="s2">    RETURN n.id AS id, n.name AS name, n.location AS region</span>
+</span><span data-line="34"><span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span>
+</span><span data-line="35">    <span class="n">cypher_visual_query</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="36"><span class="s2">    MATCH (n:SomeAzureNode)</span>
+</span><span data-line="37"><span class="s2">    WHERE &lt;condition&gt;</span>
+</span><span data-line="38"><span class="s2">    RETURN n</span>
+</span><span data-line="39"><span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span>
+</span><span data-line="40">    <span class="n">cypher_count_query</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span data-line="41"><span class="s2">    MATCH (n:SomeAzureNode)</span>
+</span><span data-line="42"><span class="s2">    RETURN COUNT(n) AS count</span>
+</span><span data-line="43"><span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span>
+</span><span data-line="44">    <span class="n">module</span><span class="o">=</span><span class="n">Module</span><span class="o">.</span><span class="n">AZURE</span><span class="p">,</span>
+</span><span data-line="45">    <span class="n">maturity</span><span class="o">=</span><span class="n">Maturity</span><span class="o">.</span><span class="n">EXPERIMENTAL</span><span class="p">,</span>
+</span><span data-line="46"><span class="p">)</span>
+</span><span data-line="47">
+</span><span data-line="48"><span class="c1"># Define output model</span>
+</span><span data-line="49"><span class="k">class</span><span class="w"> </span><span class="nc">MyRuleOutput</span><span class="p">(</span><span class="n">Finding</span><span class="p">):</span>
+</span><span data-line="50"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Output model for my custom rule.&quot;&quot;&quot;</span>
+</span><span data-line="51">    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="52">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="53">    <span class="n">region</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="54">
+</span><span data-line="55"><span class="c1"># Define rule</span>
+</span><span data-line="56"><span class="n">my_rule</span> <span class="o">=</span> <span class="n">Rule</span><span class="p">(</span>
+</span><span data-line="57">    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;my-finding&quot;</span><span class="p">,</span>
+</span><span data-line="58">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My Security Rule&quot;</span><span class="p">,</span>
+</span><span data-line="59">    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Detects a security issue&quot;</span><span class="p">,</span>
+</span><span data-line="60">    <span class="n">output_model</span><span class="o">=</span><span class="n">MyRuleOutput</span><span class="p">,</span>
+</span><span data-line="61">    <span class="n">facts</span><span class="o">=</span><span class="p">(</span><span class="n">_my_aws_check</span><span class="p">,</span> <span class="n">_my_azure_check</span><span class="p">),</span>
+</span><span data-line="62">    <span class="n">tags</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">,),</span>
+</span><span data-line="63">    <span class="n">version</span><span class="o">=</span><span class="s2">&quot;0.1.0&quot;</span><span class="p">,</span>
+</span><span data-line="64"><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><strong>Register your rule</strong> in <code class="docutils literal notranslate"><span class="pre">cartography/rules/data/rules/__init__.py</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">from</span><span class="w"> </span><span class="nn">cartography.rules.data.rules.my_rule</span><span class="w"> </span><span class="kn">import</span> <span class="n">my_rule</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="n">RULES</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="4">    <span class="c1"># ... existing rules</span>
+</span><span data-line="5">    <span class="n">my_rule</span><span class="o">.</span><span class="n">id</span><span class="p">:</span> <span class="n">my_rule</span><span class="p">,</span>
+</span><span data-line="6"><span class="p">}</span>
+</span></pre></div>
+</div>
+</li>
+<li><p><strong>Test it</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography-rules<span class="w"> </span>list<span class="w"> </span>my-rule
+</span><span data-line="2">cartography-rules<span class="w"> </span>run<span class="w"> </span>my-rule
+</span></pre></div>
+</div>
+</li>
+<li><p><strong>Submit a PR</strong> - PRs welcome! ❤️</p></li>
+</ol>
+</section>
+</section>
+<section id="next-steps">
+<h2>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Explore the findings against your graph</p></li>
+<li><p>Create custom findings for your environment-specific risks</p></li>
+<li><p>Use JSON output (<code class="docutils literal notranslate"><span class="pre">--output</span> <span class="pre">json</span></code>) to integrate with your existing security tools</p></li>
+<li><p>Contribute your findings back to the community via pull requests</p></li>
+</ul>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="cli.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Command Line Interface</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="tutorial.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Usage Tutorial</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script src="../_static/shibuya.js?v=cac61aee"></script></body>
+</html>

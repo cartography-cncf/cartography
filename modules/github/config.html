@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="cyan" data-content_root="../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>GitHub Configuration - cartography documentation</title><link rel="shortcut icon" href="../../_static/logo-vertical.svg"/><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Github Schema" href="schema.html" /><link rel="prev" title="Github" href="index.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../_static/shibuya.css?v=44020203" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=1da16d3f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-heading: 'Inter', var(--sy-f-sys), sans-serif;
+}
+</style>
+    <meta property="og:type" content="website"/><meta property="og:title" content="GitHub Configuration"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../index.html">
+      <img class="light-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <img class="dark-logo" src="../../_static/logo-vertical.svg" alt="cartography" height="28" loading="lazy" />
+      <strong>cartography</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a>
+  <a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+    <iconify-icon icon="simple-icons:slack"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Basic Use</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../install.html">Quick start: Install and Run Cartography On Test Machine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/cli.html">Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/rules.html">Cartography Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/tutorial.html">Usage Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/drift-detect.html">How to use Drift-Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/applications.html">Building around Cartography</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/samplequeries.html">Sample queries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/schema.html">Cartography Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/aws-privilege-escalation-queries.html">AWS IAM Privilege Escalation Methods and Mitigation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../ops.html">Cartography Production Operations</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Intel Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../airbyte/index.html">Airbyte</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/config.html">Airbyte Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../airbyte/schema.html">Airbyte Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../anthropic/index.html">Anthropic</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/config.html">Anthropic Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../anthropic/schema.html">Anthropic Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../aws/index.html">Amazon Web Services (AWS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../aws/config.html">AWS Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/permissions-mapping.html">Permissions Mapping</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../aws/schema.html">AWS Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../azure/index.html">Microsoft Azure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../azure/config.html">Azure Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../azure/schema.html">Azure Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bigfix/index.html">BigFix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/config.html">BigFix Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../bigfix/schema.html">BigFix Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cloudflare/index.html">Cloudflare</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/config.html">Cloudflare Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cloudflare/schema.html">Cloudflare Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../crowdstrike/index.html">Crowdstrike</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/config.html">Crowdstrike Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../crowdstrike/schema.html">Crowdstrike Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../cve/index.html">CVE</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../cve/config.html">CVE Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../cve/schema.html">CVE Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../digitalocean/index.html">DigitalOcean</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/config.html">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../digitalocean/schema.html">DigitalOcean Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../duo/index.html">Duo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../duo/config.html">Duo Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../duo/schema.html">Duo Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../entra/index.html">Microsoft Entra (formerly Azure AD)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../entra/config.html">Entra Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/schema.html">Entra Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entra/examples.html">Example Queries</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gcp/index.html">Google Cloud Platform (GCP)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/config.html">GCP Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gcp/schema.html">GCP Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Github</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">GitHub Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="schema.html">Github Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gitlab/index.html">GitLab</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/config.html">GitLab Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gitlab/schema.html">GitLab Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../googleworkspace/index.html">Google Workspace</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/config.html">Google Workspace Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../googleworkspace/schema.html">Google Workspace Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../gsuite/index.html">Google GSuite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html">GSuite Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/config.html#method-2-using-oauth">Method 2: Using OAuth</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../gsuite/schema.html">GSuite Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../jamf/index.html">Jamf</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../jamf/schema.html">Jamf Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kandji/index.html">Kandji</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/config.html">Kandji Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kandji/schema.html">Kandji Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../keycloak/index.html">Keycloak</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/config.html">Keycloak Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/schema.html">Keycloak Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../keycloak/analysis.html">Keycloak Built-In Analysis</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../kubernetes/index.html">Kubernetes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/config.html">Kubernetes Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../kubernetes/schema.html">Kubernetes Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../lastpass/index.html">Lastpass</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/config.html">Lastpass Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lastpass/schema.html">Lastpass Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../oci/index.html">Oracle Cloud Infrastructure</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../oci/config.html">OCI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../oci/schema.html">OCI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../okta/index.html">Okta</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../okta/config.html">Okta Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../okta/schema.html">Okta Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology/index.html">Ontology in Cartography</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/config.html">Ontology Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../ontology/schema.html">Ontology Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../openai/index.html">OpenAI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../openai/config.html">OpenAI Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../openai/schema.html">OpenAI Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../pagerduty/index.html">PagerDuty</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/config.html">Pagerduty Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pagerduty/schema.html">Pagerduty Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../scaleway/index.html">Scaleway</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/config.html">Scaleway Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../scaleway/schema.html">Scaleway Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../semgrep/index.html">Semgrep</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/config.html">Semgrep Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../semgrep/schema.html">Semgrep Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../sentinelone/index.html">SentinelOne</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html">SentinelOne Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/config.html#required-permissions">Required Permissions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../sentinelone/schema.html">SentinelOne Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../slack/index.html">Slack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../slack/config.html">Slack Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../slack/schema.html">Slack Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../snipeit/index.html">SnipeIT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/config.html">SnipeIT Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../snipeit/schema.html">SnipeIT Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../spacelift/index.html">Spacelift</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/config.html">Spacelift Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spacelift/schema.html">Spacelift Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../syft/index.html">Syft Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tailscale/index.html">Tailscale</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/config.html">Tailscale Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tailscale/schema.html">Tailscale Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../trivy/index.html">Trivy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html">Trivy Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/config.html#notes-on-running-trivy">Notes on running Trivy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../trivy/schema.html">Trivy Schema</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../workday/index.html">Workday</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../workday/config.html">Workday Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/schema.html">Workday Schema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../workday/examples.html">Sample Cypher Queries</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Development Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/developer-guide.html">Cartography Developer Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-intel-modules.html">How to write a new intel module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev/writing-analysis-jobs.html">How to extend Cartography with Analysis Jobs</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">References</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../references/model.html">Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/orm.html">ORM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/sync.html">Sync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/aws_client.html">AWS Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/driftdetect.html">DriftDetect</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references/rules.html">Rules</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Get In Touch</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html#community-meeting">Community Meeting</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#step-1-create-a-personal-access-token">Step 1: Create a Personal Access Token</a><ul>
+<li><a class="reference internal" href="#option-a-fine-grained-pat-recommended">Option A: Fine-grained PAT (Recommended)</a></li>
+<li><a class="reference internal" href="#option-b-classic-pat">Option B: Classic PAT</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#optional-additional-permissions-for-full-data-access">Optional: Additional Permissions for Full Data Access</a></li>
+<li><a class="reference internal" href="#alternative-github-app-authentication">Alternative: GitHub App Authentication</a></li>
+<li><a class="reference internal" href="#step-2-configure-cartography">Step 2: Configure Cartography</a></li>
+<li><a class="reference internal" href="#configuration-options">Configuration Options</a></li>
+<li><a class="reference internal" href="#github-enterprise">GitHub Enterprise</a></li>
+<li><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/cartography-cncf/cartography"
+  data-type="github" data-user="cartography-cncf" data-repo="cartography">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cartography</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/cartography-cncf/cartography/blob/master/docs/root/modules/github/config.md">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">cartography</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">Github</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">GitHub Configuration</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/github/config.md.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/github/config.md.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/github/config.md.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:markdown"></iconify-icon>
+            <span>View as Markdown</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/github/config.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//raw.githubusercontent.com/cartography-cncf/cartography/refs/heads/master/docs/root/modules/github/config.md.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue" role="main">
+          <section id="github-configuration">
+<h1>GitHub Configuration<a class="headerlink" href="#github-configuration" title="Link to this heading">¶</a></h1>
+<p>Follow these steps to analyze GitHub repos and other objects with Cartography.</p>
+<section id="step-1-create-a-personal-access-token">
+<h2>Step 1: Create a Personal Access Token<a class="headerlink" href="#step-1-create-a-personal-access-token" title="Link to this heading">¶</a></h2>
+<p>GitHub supports two types of Personal Access Tokens (PATs). <strong>We recommend using Fine-grained PATs</strong> as they provide more granular control and can be scoped to specific organizations.</p>
+<section id="option-a-fine-grained-pat-recommended">
+<h3>Option A: Fine-grained PAT (Recommended)<a class="headerlink" href="#option-a-fine-grained-pat-recommended" title="Link to this heading">¶</a></h3>
+<p>Fine-grained PATs offer better security through minimal permissions and organization-level scoping.</p>
+<ol class="arabic">
+<li><p>Go to <strong>GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens</strong></p></li>
+<li><p>Click <strong>Generate new token</strong></p></li>
+<li><p>Configure the token:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Setting</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Token name</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cartography-ingest</span></code> (or your preference)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Expiration</strong></p></td>
+<td><p>Per your security policy (90 days recommended)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Resource owner</strong></p></td>
+<td><p>Select your <strong>organization</strong> (recommended)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Repository access</strong></p></td>
+<td><p><strong>All repositories</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+<li><p>Set the following permissions:</p>
+<p><strong>Repository permissions:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Permission</p></th>
+<th class="head"><p>Access</p></th>
+<th class="head"><p>Required</p></th>
+<th class="head"><p>Why</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Actions</strong></p></td>
+<td><p>Read</p></td>
+<td><p>Optional</p></td>
+<td><p>GitHub Actions workflows, runs, and artifacts.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Administration</strong></p></td>
+<td><p>Read</p></td>
+<td><p>Yes (for collaborator/branch protection coverage)</p></td>
+<td><p>Collaborators and branch protection rules. Without this, Cartography logs warnings and skips this data.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Contents</strong></p></td>
+<td><p>Read</p></td>
+<td><p>Yes</p></td>
+<td><p>Repository files, commit history, dependency manifests.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Environments</strong></p></td>
+<td><p>Read</p></td>
+<td><p>Optional</p></td>
+<td><p>Deployment environments configuration.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Metadata</strong></p></td>
+<td><p>Read</p></td>
+<td><p>Yes</p></td>
+<td><p>Auto-added. Repository discovery and basic info.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Secrets</strong></p></td>
+<td><p>Read</p></td>
+<td><p>Optional</p></td>
+<td><p>Repository secrets metadata (names, creation dates).</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Variables</strong></p></td>
+<td><p>Read</p></td>
+<td><p>Optional</p></td>
+<td><p>Repository variables for Actions workflows.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Organization permissions:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Permission</p></th>
+<th class="head"><p>Access</p></th>
+<th class="head"><p>Required</p></th>
+<th class="head"><p>Why</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Members</strong></p></td>
+<td><p>Read</p></td>
+<td><p>Yes</p></td>
+<td><p>Organization members, teams, team membership, user profiles/emails.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Secrets</strong></p></td>
+<td><p>Read</p></td>
+<td><p>Optional</p></td>
+<td><p>Organization secrets metadata (names, creation dates).</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Variables</strong></p></td>
+<td><p>Read</p></td>
+<td><p>Optional</p></td>
+<td><p>Organization variables for Actions workflows.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<blockquote>
+<div><p><strong>Note:</strong> The Secrets permission only provides access to secret <strong>metadata</strong> (name, creation date, update date). GitHub never exposes the actual secret values through its API—they are encrypted and cannot be retrieved.</p>
+</div></blockquote>
+</li>
+<li><p>Click <strong>Generate token</strong> and copy it immediately.</p></li>
+</ol>
+<blockquote>
+<div><p><strong>Note:</strong> When the token’s resource owner is an organization, user emails and profiles are retrieved from organization membership data. No account-level permissions are required.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Note:</strong> For collaborator and branch protection data, the token owner must also be an <strong>Organization Owner</strong> or have <strong>Admin access</strong> on repositories. The <code class="docutils literal notranslate"><span class="pre">Administration:</span> <span class="pre">Read</span></code> permission alone is not sufficient—the user must already have these rights.</p>
+</div></blockquote>
+</section>
+<section id="option-b-classic-pat">
+<h3>Option B: Classic PAT<a class="headerlink" href="#option-b-classic-pat" title="Link to this heading">¶</a></h3>
+<p>Classic PATs use broader OAuth scopes. Use this option if fine-grained PATs are not available (e.g., some GitHub Enterprise configurations).</p>
+<ol class="arabic">
+<li><p>Go to <strong>GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)</strong></p></li>
+<li><p>Click <strong>Generate new token</strong></p></li>
+<li><p>Select the following scopes:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Scope</p></th>
+<th class="head"><p>Why</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">repo</span></code></p></td>
+<td><p>Repository access (use <code class="docutils literal notranslate"><span class="pre">public_repo</span></code> for public repos only)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">read:org</span></code></p></td>
+<td><p>Organization membership and team data</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">read:user</span></code></p></td>
+<td><p>User profile information</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">user:email</span></code></p></td>
+<td><p>User email addresses</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+<li><p>Click <strong>Generate token</strong> and copy it immediately.</p></li>
+</ol>
+</section>
+</section>
+<section id="optional-additional-permissions-for-full-data-access">
+<h2>Optional: Additional Permissions for Full Data Access<a class="headerlink" href="#optional-additional-permissions-for-full-data-access" title="Link to this heading">¶</a></h2>
+<p>Some data requires elevated permissions. Without these, Cartography will log warnings and continue ingestion, skipping the unavailable data.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Data</p></th>
+<th class="head"><p>Requirement</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Collaborators</strong></p></td>
+<td><p>For fine-grained PATs, both are required: <code class="docutils literal notranslate"><span class="pre">Repository</span> <span class="pre">-&gt;</span> <span class="pre">Administration:</span> <span class="pre">Read</span></code> on the token and token-owner rights as an <strong>Organization Owner</strong> or <strong>Admin</strong> on the repositories.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Branch protection rules</strong></p></td>
+<td><p>Same as collaborators: both <code class="docutils literal notranslate"><span class="pre">Repository</span> <span class="pre">-&gt;</span> <span class="pre">Administration:</span> <span class="pre">Read</span></code> and owner/admin-equivalent rights are required.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Two-factor authentication status</strong></p></td>
+<td><p>Visible only to Organization Owners.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Enterprise owners</strong></p></td>
+<td><p>Requires GitHub Enterprise with appropriate enterprise-level permissions.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="alternative-github-app-authentication">
+<h2>Alternative: GitHub App Authentication<a class="headerlink" href="#alternative-github-app-authentication" title="Link to this heading">¶</a></h2>
+<p>GitHub App authentication provides better security through short-lived tokens and granular, installation-scoped permissions. Use this instead of PATs when you need app-level (not user-level) access.</p>
+<ol class="arabic simple">
+<li><p><a class="reference external" href="https://docs.github.com/en/apps/creating-github-apps">Create a GitHub App</a> with the same repository and organization permissions listed above.</p></li>
+<li><p>Install the App on your target organization(s).</p></li>
+<li><p>Note the <strong>Client ID</strong> (from the App’s settings page) and the <strong>Installation ID</strong> (from the URL when viewing the installation: <code class="docutils literal notranslate"><span class="pre">https://github.com/organizations/{org}/settings/installations/{installation_id}</span></code>).</p></li>
+<li><p>Generate and download a <strong>private key</strong> from the App’s settings page.</p></li>
+</ol>
+<p>Then configure Cartography with the App credentials instead of a PAT (see Step 2 below).</p>
+</section>
+<section id="step-2-configure-cartography">
+<h2>Step 2: Configure Cartography<a class="headerlink" href="#step-2-configure-cartography" title="Link to this heading">¶</a></h2>
+<p>Cartography accepts GitHub credentials as a base64-encoded JSON configuration. This format supports multiple GitHub instances (e.g., public GitHub and GitHub Enterprise).</p>
+<ol class="arabic">
+<li><p>Create your configuration object:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+</span><span data-line="2"><span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
+</span><span data-line="3">
+</span><span data-line="4"><span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="5">    <span class="s2">&quot;organization&quot;</span><span class="p">:</span> <span class="p">[</span>
+</span><span data-line="6">        <span class="p">{</span>
+</span><span data-line="7">            <span class="s2">&quot;token&quot;</span><span class="p">:</span> <span class="s2">&quot;ghp_your_token_here&quot;</span><span class="p">,</span>
+</span><span data-line="8">            <span class="s2">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;https://api.github.com/graphql&quot;</span><span class="p">,</span>
+</span><span data-line="9">            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;your-org-name&quot;</span><span class="p">,</span>
+</span><span data-line="10">        <span class="p">},</span>
+</span><span data-line="11">        <span class="c1"># Optional: Add additional orgs or GitHub Enterprise instances</span>
+</span><span data-line="12">        <span class="c1"># {</span>
+</span><span data-line="13">        <span class="c1">#     &quot;token&quot;: &quot;ghp_enterprise_token&quot;,</span>
+</span><span data-line="14">        <span class="c1">#     &quot;url&quot;: &quot;https://github.example.com/api/graphql&quot;,</span>
+</span><span data-line="15">        <span class="c1">#     &quot;name&quot;: &quot;enterprise-org-name&quot;,</span>
+</span><span data-line="16">        <span class="c1"># },</span>
+</span><span data-line="17">    <span class="p">]</span>
+</span><span data-line="18"><span class="p">}</span>
+</span><span data-line="19">
+</span><span data-line="20"><span class="c1"># Encode the configuration</span>
+</span><span data-line="21"><span class="n">encoded</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+</span><span data-line="22"><span class="nb">print</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
+</span></pre></div>
+</div>
+</li>
+</ol>
+<p>For <strong>GitHub App authentication</strong>, use this format instead:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span><span data-line="1">```python
+</span><span data-line="2">config = {
+</span><span data-line="3">    &quot;organization&quot;: [
+</span><span data-line="4">        {
+</span><span data-line="5">            &quot;client_id&quot;: &quot;Iv1.abc123def456&quot;,
+</span><span data-line="6">            &quot;private_key&quot;: open(&quot;your-app.private-key.pem&quot;).read(),
+</span><span data-line="7">            &quot;installation_id&quot;: &quot;12345678&quot;,
+</span><span data-line="8">            &quot;url&quot;: &quot;https://api.github.com/graphql&quot;,
+</span><span data-line="9">            &quot;name&quot;: &quot;your-org-name&quot;,
+</span><span data-line="10">        },
+</span><span data-line="11">    ]
+</span><span data-line="12">}
+</span><span data-line="13">```
+</span></pre></div>
+</div>
+<p>You can mix PAT and App authentication across organizations in the same config.</p>
+<ol class="arabic" start="2">
+<li><p>Set the encoded value as an environment variable:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">export</span><span class="w"> </span><span class="nv">GITHUB_CONFIG</span><span class="o">=</span><span class="s2">&quot;eyJvcmdhbml6YXRpb24iOi...&quot;</span>
+</span></pre></div>
+</div>
+</li>
+<li><p>Run Cartography with the GitHub module:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cartography<span class="w"> </span>--github-config-env-var<span class="w"> </span>GITHUB_CONFIG
+</span></pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="configuration-options">
+<h2>Configuration Options<a class="headerlink" href="#configuration-options" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>CLI Flag</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">--github-config-env-var</span></code></p></td>
+<td><p>Environment variable containing the base64-encoded config</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">--github-commit-lookback-days</span></code></p></td>
+<td><p>Number of days of commit history to ingest (default: 30)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="github-enterprise">
+<h2>GitHub Enterprise<a class="headerlink" href="#github-enterprise" title="Link to this heading">¶</a></h2>
+<p>For GitHub Enterprise, use the same token scopes/permissions as above. Set the <code class="docutils literal notranslate"><span class="pre">url</span></code> field in your configuration to your enterprise GraphQL endpoint:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="p">{</span>
+</span><span data-line="2">    <span class="s2">&quot;token&quot;</span><span class="p">:</span> <span class="s2">&quot;your_enterprise_token&quot;</span><span class="p">,</span>
+</span><span data-line="3">    <span class="s2">&quot;url&quot;</span><span class="p">:</span> <span class="s2">&quot;https://github.your-company.com/api/graphql&quot;</span><span class="p">,</span>
+</span><span data-line="4">    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;your-enterprise-org&quot;</span><span class="p">,</span>
+</span><span data-line="5"><span class="p">}</span>
+</span></pre></div>
+</div>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Issue</p></th>
+<th class="head"><p>Solution</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">FORBIDDEN</span></code> warnings for collaborators/branch protection rules</p></td>
+<td><p>Ensure fine-grained PAT includes <code class="docutils literal notranslate"><span class="pre">Repository</span> <span class="pre">-&gt;</span> <span class="pre">Administration:</span> <span class="pre">Read</span></code> and the token owner has Organization Owner or repository Admin rights; otherwise Cartography will skip this enrichment and continue.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Empty dependency data</p></td>
+<td><p>Ensure the <a class="reference external" href="https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph">dependency graph</a> is enabled on your repositories.</p></td>
+</tr>
+<tr class="row-even"><td><p>Missing 2FA status</p></td>
+<td><p>Only visible to Organization Owners.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Rate limiting</p></td>
+<td><p>Cartography handles rate limits automatically by sleeping until the quota resets.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="index.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Github</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="schema.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">Github Schema</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2021-2026, The Linux Foundation</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/cartography-cncf/cartography" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a>
+<a href="https://communityinviter.com/apps/cloud-native/cncf" aria-label="Slack">
+  <iconify-icon icon="simple-icons:slack"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../_static/copybutton.js?v=f281be69"></script>
+      <script src="../../_static/shibuya.js?v=cac61aee"></script></body>
+</html>
