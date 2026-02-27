@@ -35,6 +35,25 @@ def _create_prerequisite_nodes(neo4j_session):
         conn_name="test-project:us-central1:my-instance",
         tag=TEST_UPDATE_TAG,
     )
+    # AWS role for connection -> AWSRole relationship testing
+    neo4j_session.run(
+        "MERGE (r:AWSRole {id: $id}) SET r.arn = $id, r.lastupdated = $tag",
+        id="arn:aws:iam::123456789012:role/bq-omni-role",
+        tag=TEST_UPDATE_TAG,
+    )
+    # Entra service principal for connection -> EntraServicePrincipal relationship testing
+    neo4j_session.run(
+        "MERGE (sp:EntraServicePrincipal {id: $id}) SET sp.lastupdated = $tag",
+        id="a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        tag=TEST_UPDATE_TAG,
+    )
+    # GCP service account for connection -> GCPServiceAccount relationship testing
+    neo4j_session.run(
+        "MERGE (sa:GCPServiceAccount {id: $id}) SET sa.email = $email, sa.lastupdated = $tag",
+        id="bq-conn@test-project.iam.gserviceaccount.com",
+        email="bq-conn@test-project.iam.gserviceaccount.com",
+        tag=TEST_UPDATE_TAG,
+    )
 
 
 @patch("cartography.intel.gcp.bigquery_connection.get_bigquery_connections")
@@ -203,7 +222,19 @@ def test_sync_bigquery(
         (
             "projects/test-project/locations/us/connections/my-spark-conn",
             "My Spark Connection",
-            "spark",
+            "cloudResource",
+            None,
+        ),
+        (
+            "projects/test-project/locations/us/connections/my-aws-conn",
+            "My AWS Connection",
+            "aws",
+            None,
+        ),
+        (
+            "projects/test-project/locations/us/connections/my-azure-conn",
+            "My Azure Connection",
+            "azure",
             None,
         ),
     }
@@ -292,6 +323,14 @@ def test_sync_bigquery(
             TEST_PROJECT_ID,
             "projects/test-project/locations/us/connections/my-spark-conn",
         ),
+        (
+            TEST_PROJECT_ID,
+            "projects/test-project/locations/us/connections/my-aws-conn",
+        ),
+        (
+            TEST_PROJECT_ID,
+            "projects/test-project/locations/us/connections/my-azure-conn",
+        ),
     }
 
     # Assert table -> connection relationships (events table uses cloud SQL connection)
@@ -336,5 +375,53 @@ def test_sync_bigquery(
         (
             "projects/test-project/locations/us/connections/my-cloud-sql-conn",
             "projects/test-project/instances/my-instance",
+        ),
+    }
+
+    # Assert connection -> AWS role relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPBigQueryConnection",
+        "id",
+        "AWSRole",
+        "id",
+        "CONNECTS_WITH",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/test-project/locations/us/connections/my-aws-conn",
+            "arn:aws:iam::123456789012:role/bq-omni-role",
+        ),
+    }
+
+    # Assert connection -> Entra service principal relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPBigQueryConnection",
+        "id",
+        "EntraServicePrincipal",
+        "id",
+        "CONNECTS_WITH",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/test-project/locations/us/connections/my-azure-conn",
+            "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        ),
+    }
+
+    # Assert connection -> GCP service account relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPBigQueryConnection",
+        "id",
+        "GCPServiceAccount",
+        "id",
+        "CONNECTS_WITH",
+        rel_direction_right=True,
+    ) == {
+        (
+            "projects/test-project/locations/us/connections/my-spark-conn",
+            "bq-conn@test-project.iam.gserviceaccount.com",
         ),
     }

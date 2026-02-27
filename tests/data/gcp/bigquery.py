@@ -180,7 +180,33 @@ MOCK_CONNECTIONS = {
             "creationTime": "1640200000000",
             "lastModifiedTime": "1640300000000",
             "hasCredential": False,
-            "spark": {},
+            "cloudResource": {
+                "serviceAccountId": "bq-conn@test-project.iam.gserviceaccount.com",
+            },
+        },
+        {
+            "name": "projects/test-project/locations/us/connections/my-aws-conn",
+            "friendlyName": "My AWS Connection",
+            "description": "Connection to AWS",
+            "creationTime": "1640300000000",
+            "lastModifiedTime": "1640400000000",
+            "hasCredential": True,
+            "aws": {
+                "accessRole": {
+                    "iamRoleId": "arn:aws:iam::123456789012:role/bq-omni-role",
+                },
+            },
+        },
+        {
+            "name": "projects/test-project/locations/us/connections/my-azure-conn",
+            "friendlyName": "My Azure Connection",
+            "description": "Connection to Azure",
+            "creationTime": "1640400000000",
+            "lastModifiedTime": "1640500000000",
+            "hasCredential": True,
+            "azure": {
+                "federatedApplicationClientId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            },
         },
     ],
 }

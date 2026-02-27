@@ -23,6 +23,9 @@ class GCPBigQueryConnectionProperties(CartographyNodeProperties):
     last_modified_time: PropertyRef = PropertyRef("lastModifiedTime")
     has_credential: PropertyRef = PropertyRef("hasCredential")
     cloud_sql_instance_id: PropertyRef = PropertyRef("cloud_sql_instance_id")
+    aws_role_arn: PropertyRef = PropertyRef("aws_role_arn")
+    azure_app_client_id: PropertyRef = PropertyRef("azure_app_client_id")
+    service_account_id: PropertyRef = PropertyRef("service_account_id")
 
 
 @dataclass(frozen=True)
@@ -58,6 +61,56 @@ class ConnectionToCloudSQLRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class ConnectionToAWSRoleRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ConnectionToAWSRoleRel(CartographyRelSchema):
+    target_node_label: str = "AWSRole"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("aws_role_arn")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONNECTS_WITH"
+    properties: ConnectionToAWSRoleRelProperties = ConnectionToAWSRoleRelProperties()
+
+
+@dataclass(frozen=True)
+class ConnectionToEntraSPRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ConnectionToEntraSPRel(CartographyRelSchema):
+    target_node_label: str = "EntraServicePrincipal"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("azure_app_client_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONNECTS_WITH"
+    properties: ConnectionToEntraSPRelProperties = ConnectionToEntraSPRelProperties()
+
+
+@dataclass(frozen=True)
+class ConnectionToGCPServiceAccountRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class ConnectionToGCPServiceAccountRel(CartographyRelSchema):
+    target_node_label: str = "GCPServiceAccount"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"email": PropertyRef("service_account_id")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "CONNECTS_WITH"
+    properties: ConnectionToGCPServiceAccountRelProperties = (
+        ConnectionToGCPServiceAccountRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class GCPBigQueryConnectionSchema(CartographyNodeSchema):
     label: str = "GCPBigQueryConnection"
     properties: GCPBigQueryConnectionProperties = GCPBigQueryConnectionProperties()
@@ -65,5 +118,8 @@ class GCPBigQueryConnectionSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ConnectionToCloudSQLRel(),
+            ConnectionToAWSRoleRel(),
+            ConnectionToEntraSPRel(),
+            ConnectionToGCPServiceAccountRel(),
         ],
     )

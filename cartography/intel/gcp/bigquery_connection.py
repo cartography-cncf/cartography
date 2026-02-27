@@ -79,6 +79,9 @@ def transform_connections(connections_data: list[dict], project_id: str) -> list
                 break
 
         cloud_sql = conn.get("cloudSql", {}) or {}
+        aws = conn.get("aws", {}) or {}
+        azure = conn.get("azure", {}) or {}
+        cloud_resource = conn.get("cloudResource", {}) or {}
         transformed.append(
             {
                 "name": conn.get("name"),
@@ -89,6 +92,9 @@ def transform_connections(connections_data: list[dict], project_id: str) -> list
                 "lastModifiedTime": conn.get("lastModifiedTime"),
                 "hasCredential": conn.get("hasCredential"),
                 "cloud_sql_instance_id": cloud_sql.get("instanceId"),
+                "aws_role_arn": aws.get("accessRole", {}).get("iamRoleId"),
+                "azure_app_client_id": azure.get("federatedApplicationClientId"),
+                "service_account_id": cloud_resource.get("serviceAccountId"),
                 "project_id": project_id,
             },
         )

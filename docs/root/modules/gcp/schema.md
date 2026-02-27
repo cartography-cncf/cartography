@@ -2076,6 +2076,9 @@ Represents a GCP BigQuery Connection (external data source connection).
 | last_modified_time | Last modification time of the connection |
 | has_credential | Whether the connection has a credential configured |
 | cloud_sql_instance_id | The Cloud SQL instance ID for cloudSql connections (format: `project:region:instance`) |
+| aws_role_arn | The IAM role ARN for aws connections |
+| azure_app_client_id | The federated application client ID for azure connections |
+| service_account_id | The service account email for cloudResource connections |
 
 #### Relationships
 
@@ -2086,4 +2089,16 @@ Represents a GCP BigQuery Connection (external data source connection).
   - GCPBigQueryConnections of type cloudSql connect to GCPCloudSQLInstances.
     ```
     (GCPBigQueryConnection)-[:CONNECTS_TO]->(GCPCloudSQLInstance)
+    ```
+  - GCPBigQueryConnections of type aws connect with AWSRoles.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_WITH]->(AWSRole)
+    ```
+  - GCPBigQueryConnections of type azure connect with EntraServicePrincipals.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_WITH]->(EntraServicePrincipal)
+    ```
+  - GCPBigQueryConnections of type cloudResource connect with GCPServiceAccounts.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_WITH]->(GCPServiceAccount)
     ```
