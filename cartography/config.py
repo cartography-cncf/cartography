@@ -205,6 +205,16 @@ class Config:
     :param sentinelone_api_token: SentinelOne API token for authentication. Optional.
     :type sentinelone_account_ids: list[str]
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
+    :type santa_base_url: string
+    :param santa_base_url: Zentral API base URL for Santa data export. Optional.
+    :type santa_token: string
+    :param santa_token: Zentral API token used for Santa export endpoints. Optional.
+    :type santa_source_name: string
+    :param santa_source_name: Inventory source name to filter Santa exports. Defaults to "Santa".
+    :type santa_event_lookback_days: int
+    :param santa_event_lookback_days: Number of days of Santa execution events to process. Defaults to 30.
+    :type santa_request_timeout: int
+    :param santa_request_timeout: Request timeout (seconds) used for Zentral Santa API calls. Defaults to 60.
     :type spacelift_api_endpoint: string
     :param spacelift_api_endpoint: Spacelift GraphQL API endpoint. Optional.
     :type spacelift_api_token: string
@@ -344,6 +354,11 @@ class Config:
         sentinelone_api_url=None,
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
+        santa_base_url=None,
+        santa_token=None,
+        santa_source_name="Santa",
+        santa_event_lookback_days=30,
+        santa_request_timeout=60,
         spacelift_api_endpoint=None,
         spacelift_api_token=None,
         spacelift_api_key_id=None,
@@ -465,6 +480,11 @@ class Config:
         self.sentinelone_api_url = sentinelone_api_url
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
+        self.santa_base_url = santa_base_url
+        self.santa_token = santa_token
+        self.santa_source_name = santa_source_name
+        self.santa_event_lookback_days = santa_event_lookback_days
+        self.santa_request_timeout = santa_request_timeout
         self.spacelift_api_endpoint = spacelift_api_endpoint
         self.spacelift_api_token = spacelift_api_token
         self.spacelift_api_key_id = spacelift_api_key_id

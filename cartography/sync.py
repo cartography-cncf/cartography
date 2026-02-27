@@ -37,6 +37,7 @@ import cartography.intel.okta
 import cartography.intel.ontology
 import cartography.intel.openai
 import cartography.intel.pagerduty
+import cartography.intel.santa
 import cartography.intel.scaleway
 import cartography.intel.semgrep
 import cartography.intel.sentinelone
@@ -83,6 +84,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "duo": cartography.intel.duo.start_duo_ingestion,
         "workday": cartography.intel.workday.start_workday_ingestion,
         "scaleway": cartography.intel.scaleway.start_scaleway_ingestion,
+        "santa": cartography.intel.santa.start_santa_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
