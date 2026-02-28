@@ -15,6 +15,10 @@ from googleapiclient.discovery import Resource
 from cartography.config import Config
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp import artifact_registry
+from cartography.intel.gcp import bigquery_connection
+from cartography.intel.gcp import bigquery_dataset
+from cartography.intel.gcp import bigquery_routine
+from cartography.intel.gcp import bigquery_table
 from cartography.intel.gcp import bigtable_app_profile
 from cartography.intel.gcp import bigtable_backup
 from cartography.intel.gcp import bigtable_cluster
@@ -65,7 +69,7 @@ logger = logging.getLogger(__name__)
 # and https://cloud.google.com/service-usage/docs/reference/rest/v1/services#ServiceConfig
 Services = namedtuple(
     "Services",
-    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager artifact_registry cloud_run",
+    "compute storage gke dns iam kms bigtable cai aiplatform cloud_sql gcf secretsmanager artifact_registry cloud_run bigquery bigquery_connection",
 )
 service_names = Services(
     compute="compute.googleapis.com",
@@ -82,6 +86,8 @@ service_names = Services(
     secretsmanager="secretmanager.googleapis.com",
     artifact_registry="artifactregistry.googleapis.com",
     cloud_run="run.googleapis.com",
+    bigquery="bigquery.googleapis.com",
+    bigquery_connection="bigqueryconnection.googleapis.com",
 )
 
 
@@ -548,6 +554,61 @@ def _sync_project_resources(
                 gcp_update_tag,
                 common_job_parameters,
             )
+
+        # Build the BigQuery v2 client once — used for datasets/tables/routines
+        # and also for location discovery when syncing connections.
+        bigquery_client = None
+        if service_names.bigquery in enabled_services:
+            bigquery_client = build_client(
+                "bigquery",
+                "v2",
+                credentials=credentials,
+            )
+
+        if service_names.bigquery_connection in enabled_services:
+            logger.info("Syncing GCP project %s for BigQuery connections.", project_id)
+            bigquery_conn_client = build_client(
+                "bigqueryconnection",
+                "v1",
+                credentials=credentials,
+            )
+            bigquery_connection.sync_bigquery_connections(
+                neo4j_session,
+                bigquery_conn_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+                bigquery_client=bigquery_client,
+            )
+
+        if bigquery_client is not None:
+            logger.info("Syncing GCP project %s for BigQuery.", project_id)
+            datasets_raw = bigquery_dataset.sync_bigquery_datasets(
+                neo4j_session,
+                bigquery_client,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
+
+            if datasets_raw is not None:
+                bigquery_table.sync_bigquery_tables(
+                    neo4j_session,
+                    bigquery_client,
+                    datasets_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
+
+                bigquery_routine.sync_bigquery_routines(
+                    neo4j_session,
+                    bigquery_client,
+                    datasets_raw,
+                    project_id,
+                    gcp_update_tag,
+                    common_job_parameters,
+                )
 
         # Clean up project-level IAM resources (service accounts and project roles)
         # Only run cleanup if IAM sync succeeded to avoid deleting valid data

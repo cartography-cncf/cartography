@@ -15,6 +15,8 @@ Grant the following roles to the identity at the **organization level**. This en
 | `roles/iam.securityReviewer` | List/get IAM roles and service accounts | Yes |
 | `roles/resourcemanager.organizationViewer` | List/get GCP Organizations | Yes |
 | `roles/resourcemanager.folderViewer` | List/get GCP Folders | Yes |
+| `roles/bigquery.dataViewer` | List/get BigQuery datasets, tables, and routines | Optional |
+| `roles/bigquery.connectionUser` | List BigQuery connections | Optional |
 | `roles/cloudasset.viewer` | Sync IAM policy bindings (effective policies across org hierarchy) | Optional |
 | `roles/artifactregistry.reader` | List/get Artifact Registry repositories and artifacts | Optional |
 
@@ -59,6 +61,8 @@ gcloud services enable dns.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable cloudkms.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable bigtableadmin.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable sqladmin.googleapis.com --project=YOUR_HOST_PROJECT
+gcloud services enable bigquery.googleapis.com --project=YOUR_HOST_PROJECT
+gcloud services enable bigqueryconnection.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable cloudfunctions.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable secretmanager.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable artifactregistry.googleapis.com --project=YOUR_HOST_PROJECT

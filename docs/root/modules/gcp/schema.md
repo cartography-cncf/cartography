@@ -1963,3 +1963,142 @@ Representation of a GCP [Cloud Armor Security Policy](https://cloud.google.com/c
     ```
     (GCPCloudArmorPolicy)-[:PROTECTS]->(GCPBackendService)
     ```
+
+### GCPBigQueryDataset
+
+Represents a GCP BigQuery Dataset.
+
+> **Ontology Mapping**: This node has the extra label `Database` to enable cross-platform queries for database resources across different systems.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The dataset identifier in `project_id:dataset_id` format |
+| dataset_id | The short dataset ID |
+| friendly_name | User-friendly name for the dataset |
+| description | Description of the dataset |
+| location | Geographic location of the dataset (e.g., US, EU) |
+| creation_time | Creation time of the dataset |
+| last_modified_time | Last modification time of the dataset |
+| default_table_expiration_ms | Default expiration time for tables in milliseconds |
+| default_partition_expiration_ms | Default expiration time for partitions in milliseconds |
+
+#### Relationships
+
+  - GCPBigQueryDatasets are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigQueryDataset)
+    ```
+
+### GCPBigQueryTable
+
+Represents a GCP BigQuery Table, View, or Materialized View.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The table identifier in `project_id:dataset_id.table_id` format |
+| table_id | The short table ID |
+| dataset_id | The parent dataset identifier in `project_id:dataset_id` format |
+| type | Table type: TABLE, VIEW, MATERIALIZED_VIEW, or EXTERNAL |
+| creation_time | Creation time of the table |
+| expiration_time | Expiration time of the table, if set |
+| num_bytes | Size of the table in bytes |
+| num_long_term_bytes | Size of long-term storage in bytes |
+| num_rows | Number of rows in the table |
+| description | Description of the table |
+| friendly_name | User-friendly name for the table |
+| connection_id | The BigQuery connection resource name used by external tables |
+
+#### Relationships
+
+  - GCPBigQueryTables are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigQueryTable)
+    ```
+  - GCPBigQueryDatasets contain GCPBigQueryTables.
+    ```
+    (GCPBigQueryDataset)-[:HAS_TABLE]->(GCPBigQueryTable)
+    ```
+  - GCPBigQueryTables can use a GCPBigQueryConnection for external data.
+    ```
+    (GCPBigQueryTable)-[:USES_CONNECTION]->(GCPBigQueryConnection)
+    ```
+
+### GCPBigQueryRoutine
+
+Represents a GCP BigQuery Routine (stored procedure, UDF, or table-valued function).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The routine identifier in `project_id:dataset_id.routine_id` format |
+| routine_id | The short routine ID |
+| dataset_id | The parent dataset identifier in `project_id:dataset_id` format |
+| routine_type | Type: SCALAR_FUNCTION, PROCEDURE, or TABLE_VALUED_FUNCTION |
+| language | Language of the routine (e.g., SQL, JAVASCRIPT) |
+| creation_time | Creation time of the routine |
+| last_modified_time | Last modification time of the routine |
+| connection_id | The BigQuery connection resource name used by remote functions |
+
+#### Relationships
+
+  - GCPBigQueryRoutines are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigQueryRoutine)
+    ```
+  - GCPBigQueryDatasets contain GCPBigQueryRoutines.
+    ```
+    (GCPBigQueryDataset)-[:HAS_ROUTINE]->(GCPBigQueryRoutine)
+    ```
+  - GCPBigQueryRoutines can use a GCPBigQueryConnection for remote functions.
+    ```
+    (GCPBigQueryRoutine)-[:USES_CONNECTION]->(GCPBigQueryConnection)
+    ```
+
+### GCPBigQueryConnection
+
+Represents a GCP BigQuery Connection (external data source connection).
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The connection resource name |
+| name | The full resource name of the connection |
+| friendly_name | User-friendly name for the connection |
+| description | Description of the connection |
+| connection_type | Type of connection (e.g., cloudSql, spark, aws, azure) |
+| creation_time | Creation time of the connection |
+| last_modified_time | Last modification time of the connection |
+| has_credential | Whether the connection has a credential configured |
+| cloud_sql_instance_id | The Cloud SQL instance ID for cloudSql connections (format: `project:region:instance`) |
+| aws_role_arn | The IAM role ARN for aws connections |
+| azure_app_client_id | The federated application client ID for azure connections |
+| service_account_id | The service account email for cloudResource connections |
+
+#### Relationships
+
+  - GCPBigQueryConnections are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBigQueryConnection)
+    ```
+  - GCPBigQueryConnections of type cloudSql connect to GCPCloudSQLInstances.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_TO]->(GCPCloudSQLInstance)
+    ```
+  - GCPBigQueryConnections of type aws connect with AWSRoles.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_WITH]->(AWSRole)
+    ```
+  - GCPBigQueryConnections of type azure connect with EntraServicePrincipals.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_WITH]->(EntraServicePrincipal)
+    ```
+  - GCPBigQueryConnections of type cloudResource connect with GCPServiceAccounts.
+    ```
+    (GCPBigQueryConnection)-[:CONNECTS_WITH]->(GCPServiceAccount)
+    ```
