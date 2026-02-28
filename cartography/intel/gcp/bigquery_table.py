@@ -14,6 +14,25 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+def _normalize_connection_id(connection_id: str | None) -> str | None:
+    """
+    Normalize a BigQuery connection ID to the full resource name format.
+
+    The API may return connection IDs in either short form
+    (``project_number.location.connection_name``) or full resource name form
+    (``projects/…/locations/…/connections/…``).  This function ensures we
+    always store the full resource name so that relationship matching works.
+    """
+    if connection_id is None:
+        return None
+    if connection_id.startswith("projects/"):
+        return connection_id
+    parts = connection_id.split(".")
+    if len(parts) == 3:
+        return f"projects/{parts[0]}/locations/{parts[1]}/connections/{parts[2]}"
+    return connection_id
+
+
 @timeit
 def get_bigquery_tables(
     client: Resource,
@@ -104,6 +123,7 @@ def transform_tables(
         ref = table["tableReference"]
         table_id = ref["tableId"]
         ext_config = table.get("externalDataConfiguration", {}) or {}
+        connection_id = _normalize_connection_id(ext_config.get("connectionId"))
         transformed.append(
             {
                 "id": f"{dataset_full_id}.{table_id}",
@@ -117,7 +137,7 @@ def transform_tables(
                 "num_rows": table.get("numRows"),
                 "description": table.get("description"),
                 "friendly_name": table.get("friendlyName"),
-                "connection_id": ext_config.get("connectionId"),
+                "connection_id": connection_id,
             },
         )
     return transformed

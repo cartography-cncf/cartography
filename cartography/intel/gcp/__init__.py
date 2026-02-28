@@ -555,6 +555,16 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
+        # Build the BigQuery v2 client once — used for datasets/tables/routines
+        # and also for location discovery when syncing connections.
+        bigquery_client = None
+        if service_names.bigquery in enabled_services:
+            bigquery_client = build_client(
+                "bigquery",
+                "v2",
+                credentials=credentials,
+            )
+
         if service_names.bigquery_connection in enabled_services:
             logger.info("Syncing GCP project %s for BigQuery connections.", project_id)
             bigquery_conn_client = build_client(
@@ -568,15 +578,11 @@ def _sync_project_resources(
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                bigquery_client=bigquery_client,
             )
 
-        if service_names.bigquery in enabled_services:
+        if bigquery_client is not None:
             logger.info("Syncing GCP project %s for BigQuery.", project_id)
-            bigquery_client = build_client(
-                "bigquery",
-                "v2",
-                credentials=credentials,
-            )
             datasets_raw = bigquery_dataset.sync_bigquery_datasets(
                 neo4j_session,
                 bigquery_client,
