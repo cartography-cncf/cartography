@@ -38,11 +38,12 @@ def get_bigquery_datasets(client: Resource, project_id: str) -> list[dict] | Non
             )
         return datasets
     except HttpError as e:
-        if is_api_disabled_error(e):
+        if is_api_disabled_error(e) or e.resp.status in (403, 404):
             logger.warning(
-                "Could not retrieve BigQuery datasets on project %s due to permissions "
-                "issues or API not enabled. Skipping sync to preserve existing data.",
+                "Could not retrieve BigQuery datasets on project %s - %s. "
+                "Skipping sync to preserve existing data.",
                 project_id,
+                e,
             )
             return None
         raise
