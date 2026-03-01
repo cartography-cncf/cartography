@@ -25,6 +25,43 @@ class EKSClusterNodeProperties(CartographyNodeProperties):
     platform_version: PropertyRef = PropertyRef("platformVersion")
     status: PropertyRef = PropertyRef("status")
     audit_logging: PropertyRef = PropertyRef("ClusterLogging")
+    certificate_authority_data_present: PropertyRef = PropertyRef(
+        "certificate_authority_data_present",
+    )
+    certificate_authority_parse_status: PropertyRef = PropertyRef(
+        "certificate_authority_parse_status",
+    )
+    certificate_authority_parse_error: PropertyRef = PropertyRef(
+        "certificate_authority_parse_error",
+    )
+    certificate_authority_sha256_fingerprint: PropertyRef = PropertyRef(
+        "certificate_authority_sha256_fingerprint",
+        extra_index=True,
+    )
+    certificate_authority_subject: PropertyRef = PropertyRef(
+        "certificate_authority_subject",
+    )
+    certificate_authority_issuer: PropertyRef = PropertyRef(
+        "certificate_authority_issuer",
+    )
+    certificate_authority_not_before: PropertyRef = PropertyRef(
+        "certificate_authority_not_before",
+    )
+    certificate_authority_not_after: PropertyRef = PropertyRef(
+        "certificate_authority_not_after",
+    )
+    certificate_authority_subject_key_identifier: PropertyRef = PropertyRef(
+        "certificate_authority_subject_key_identifier",
+    )
+    certificate_authority_authority_key_identifier: PropertyRef = PropertyRef(
+        "certificate_authority_authority_key_identifier",
+    )
+    certificate_authority_expired: PropertyRef = PropertyRef(
+        "certificate_authority_expired",
+    )
+    certificate_authority_days_until_expiry: PropertyRef = PropertyRef(
+        "certificate_authority_days_until_expiry",
+    )
 
 
 @dataclass(frozen=True)

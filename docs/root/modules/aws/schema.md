@@ -2738,6 +2738,18 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 | platform_version | Version of EKS |
 | status | Status of the cluster. Valid Values: creating, active, deleting, failed, updating |
 | audit_logging | Whether audit logging is enabled |
+| certificate_authority_data_present | Whether the EKS API server certificate authority data was returned by AWS |
+| certificate_authority_parse_status | Parse status of the certificate authority data (`parsed`, `missing`, `invalid_base64`, `invalid_certificate`) |
+| certificate_authority_parse_error | Parse/decode error message when certificate authority data cannot be parsed |
+| certificate_authority_sha256_fingerprint | SHA256 fingerprint of the decoded EKS API server certificate authority certificate |
+| certificate_authority_subject | Subject DN of the EKS API server certificate authority certificate |
+| certificate_authority_issuer | Issuer DN of the EKS API server certificate authority certificate |
+| certificate_authority_not_before | Certificate validity start time (ISO-8601) |
+| certificate_authority_not_after | Certificate validity end time (ISO-8601) |
+| certificate_authority_subject_key_identifier | Subject Key Identifier (SKI) extension value in hex if present |
+| certificate_authority_authority_key_identifier | Authority Key Identifier (AKI) extension key identifier value in hex if present |
+| certificate_authority_expired | Set to true when the parsed certificate authority certificate is currently expired |
+| certificate_authority_days_until_expiry | Integer day delta until certificate expiry (negative means already expired) |
 
 #### Relationships
 
@@ -2746,6 +2758,28 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
     (AWSAccount)-[RESOURCE]->(EKSCluster)
     ```
 
+#### Example queries
+
+- Compare EKS API server certificate authority metadata across clusters:
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(c:EKSCluster)
+    RETURN a.id, c.name, c.region, c.endpoint,
+           c.certificate_authority_sha256_fingerprint,
+           c.certificate_authority_subject,
+           c.certificate_authority_issuer,
+           c.certificate_authority_authority_key_identifier
+    ORDER BY a.id, c.region, c.name;
+    ```
+
+- Identify EKS clusters where certificate authority parsing failed:
+    ```cypher
+    MATCH (:AWSAccount)-[:RESOURCE]->(c:EKSCluster)
+    WHERE c.certificate_authority_parse_status <> "parsed"
+    RETURN c.name, c.arn, c.status,
+           c.certificate_authority_parse_status,
+           c.certificate_authority_parse_error
+    ORDER BY c.certificate_authority_parse_status, c.name;
+    ```
 ### EMRCluster
 
 Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html).

@@ -1,10 +1,18 @@
+import base64
+import binascii
 import logging
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 from typing import Dict
 from typing import List
 
 import boto3
 import neo4j
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
+from cryptography.x509.extensions import ExtensionNotFound
+from cryptography.x509.oid import ExtensionOID
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -67,6 +75,130 @@ def _process_logging(cluster: Dict) -> bool:
     return logging
 
 
+def _ensure_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _format_datetime_iso(value: datetime) -> str:
+    return _ensure_utc(value).isoformat()
+
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _parse_certificate_authority_metadata(cluster: Dict[str, Any]) -> Dict[str, Any]:
+    cert_data = cluster.get("certificateAuthority", {}).get("data")
+    cert_metadata: Dict[str, Any] = {
+        "certificate_authority_data_present": bool(cert_data),
+        "certificate_authority_parse_status": "missing",
+        "certificate_authority_parse_error": None,
+        "certificate_authority_sha256_fingerprint": None,
+        "certificate_authority_subject": None,
+        "certificate_authority_issuer": None,
+        "certificate_authority_not_before": None,
+        "certificate_authority_not_after": None,
+        "certificate_authority_subject_key_identifier": None,
+        "certificate_authority_authority_key_identifier": None,
+        "certificate_authority_expired": None,
+        "certificate_authority_days_until_expiry": None,
+    }
+
+    if not cert_data:
+        return cert_metadata
+
+    cluster_name = cluster.get("name", "<unknown>")
+    cluster_arn = cluster.get("arn", "<unknown>")
+
+    try:
+        cert_bytes = base64.b64decode(cert_data, validate=True)
+    except (ValueError, binascii.Error) as err:
+        cert_metadata["certificate_authority_parse_status"] = "invalid_base64"
+        cert_metadata["certificate_authority_parse_error"] = str(err)
+        logger.warning(
+            "Failed to decode EKS cluster certificate authority data for cluster %s (%s): "
+            "status=%s error=%s",
+            cluster_name,
+            cluster_arn,
+            cert_metadata["certificate_authority_parse_status"],
+            cert_metadata["certificate_authority_parse_error"],
+        )
+        return cert_metadata
+
+    cert: x509.Certificate
+    try:
+        cert = x509.load_der_x509_certificate(cert_bytes)
+    except ValueError:
+        try:
+            cert = x509.load_pem_x509_certificate(cert_bytes)
+        except ValueError as err:
+            cert_metadata["certificate_authority_parse_status"] = "invalid_certificate"
+            cert_metadata["certificate_authority_parse_error"] = str(err)
+            logger.warning(
+                "Failed to parse EKS cluster certificate authority certificate for cluster %s (%s): "
+                "status=%s error=%s",
+                cluster_name,
+                cluster_arn,
+                cert_metadata["certificate_authority_parse_status"],
+                cert_metadata["certificate_authority_parse_error"],
+            )
+            return cert_metadata
+
+    cert_metadata["certificate_authority_parse_status"] = "parsed"
+    cert_metadata["certificate_authority_sha256_fingerprint"] = cert.fingerprint(
+        hashes.SHA256(),
+    ).hex()
+    cert_metadata["certificate_authority_subject"] = cert.subject.rfc4514_string()
+    cert_metadata["certificate_authority_issuer"] = cert.issuer.rfc4514_string()
+
+    not_before_utc = (
+        cert.not_valid_before_utc
+        if hasattr(cert, "not_valid_before_utc")
+        else cert.not_valid_before
+    )
+    not_after_utc = (
+        cert.not_valid_after_utc
+        if hasattr(cert, "not_valid_after_utc")
+        else cert.not_valid_after
+    )
+    not_before_utc = _ensure_utc(not_before_utc)
+    not_after_utc = _ensure_utc(not_after_utc)
+    cert_metadata["certificate_authority_not_before"] = _format_datetime_iso(
+        not_before_utc,
+    )
+    cert_metadata["certificate_authority_not_after"] = _format_datetime_iso(
+        not_after_utc,
+    )
+
+    now = _now_utc()
+    cert_metadata["certificate_authority_expired"] = not_after_utc < now
+    cert_metadata["certificate_authority_days_until_expiry"] = (
+        not_after_utc - now
+    ).days
+    try:
+        ski = cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_KEY_IDENTIFIER)
+        cert_metadata["certificate_authority_subject_key_identifier"] = (
+            ski.value.digest.hex()
+        )
+    except ExtensionNotFound:
+        pass
+
+    try:
+        aki = cert.extensions.get_extension_for_oid(
+            ExtensionOID.AUTHORITY_KEY_IDENTIFIER
+        )
+        if aki.value.key_identifier:
+            cert_metadata["certificate_authority_authority_key_identifier"] = (
+                aki.value.key_identifier.hex()
+            )
+    except ExtensionNotFound:
+        pass
+
+    return cert_metadata
+
+
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
@@ -91,6 +223,7 @@ def transform(cluster_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         )
         if "createdAt" in transformed_dict:
             transformed_dict["created_at"] = str(transformed_dict["createdAt"])
+        transformed_dict.update(_parse_certificate_authority_metadata(cluster_dict))
         transformed_list.append(transformed_dict)
     return transformed_list
 

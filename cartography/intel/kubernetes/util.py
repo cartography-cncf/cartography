@@ -10,6 +10,7 @@ from kubernetes.client import NetworkingV1Api
 from kubernetes.client import RbacAuthorizationV1Api
 from kubernetes.client import VersionApi
 from kubernetes.client.exceptions import ApiException
+from kubernetes.config.kube_config import KubeConfigMerger
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +111,86 @@ def get_k8s_clients(kubeconfig: str) -> list[K8sClient]:
             ),
         )
     return clients
+
+
+def _get_kubeconfig_merger(kubeconfig: str) -> KubeConfigMerger:
+    return KubeConfigMerger(kubeconfig)
+
+
+def get_kubeconfig_tls_diagnostics(
+    context_name: str, kubeconfig: str
+) -> dict[str, Any]:
+    diagnostics: dict[str, Any] = {
+        "api_server_url": None,
+        "kubeconfig_insecure_skip_tls_verify": None,
+        "kubeconfig_has_certificate_authority_data": False,
+        "kubeconfig_has_certificate_authority_file": False,
+        "kubeconfig_ca_file_path": None,
+        "kubeconfig_has_client_certificate": False,
+        "kubeconfig_has_client_key": False,
+        "kubeconfig_tls_configuration_status": "unknown",
+    }
+
+    try:
+        merged_config = _get_kubeconfig_merger(kubeconfig).config
+    except Exception as err:
+        logger.warning(
+            "Unable to parse kubeconfig '%s' for context '%s': %s",
+            kubeconfig,
+            context_name,
+            err,
+        )
+        return diagnostics
+
+    context = merged_config["contexts"].get_with_name(context_name, safe=True)
+    if context is None:
+        return diagnostics
+
+    context_details = context.safe_get("context") or {}
+    cluster_name = context_details.get("cluster")
+    user_name = context_details.get("user")
+    if not cluster_name:
+        return diagnostics
+
+    cluster = merged_config["clusters"].get_with_name(cluster_name, safe=True)
+    if cluster is None:
+        return diagnostics
+
+    cluster_details = cluster.safe_get("cluster") or {}
+    diagnostics["api_server_url"] = cluster_details.get("server")
+
+    insecure_skip_tls_verify = cluster_details.get("insecure-skip-tls-verify")
+    diagnostics["kubeconfig_insecure_skip_tls_verify"] = insecure_skip_tls_verify
+    diagnostics["kubeconfig_has_certificate_authority_data"] = bool(
+        cluster_details.get("certificate-authority-data"),
+    )
+    ca_file_path = cluster_details.get("certificate-authority")
+    diagnostics["kubeconfig_has_certificate_authority_file"] = bool(ca_file_path)
+    diagnostics["kubeconfig_ca_file_path"] = ca_file_path
+
+    if user_name:
+        user = merged_config["users"].get_with_name(user_name, safe=True)
+        if user is not None:
+            user_details = user.safe_get("user") or {}
+            diagnostics["kubeconfig_has_client_certificate"] = bool(
+                user_details.get("client-certificate")
+                or user_details.get("client-certificate-data"),
+            )
+            diagnostics["kubeconfig_has_client_key"] = bool(
+                user_details.get("client-key") or user_details.get("client-key-data"),
+            )
+
+    if insecure_skip_tls_verify is True:
+        diagnostics["kubeconfig_tls_configuration_status"] = "insecure_skip_tls"
+    elif (
+        diagnostics["kubeconfig_has_certificate_authority_data"]
+        or diagnostics["kubeconfig_has_certificate_authority_file"]
+    ):
+        diagnostics["kubeconfig_tls_configuration_status"] = "valid_config"
+    else:
+        diagnostics["kubeconfig_tls_configuration_status"] = "missing_ca_material"
+
+    return diagnostics
 
 
 def get_epoch(date: datetime | None) -> int | None:
