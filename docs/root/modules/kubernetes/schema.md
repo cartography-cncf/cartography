@@ -15,6 +15,14 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
 | go_version | Version of Go used to compile Kubernetes (e.g. go1.20.5) |
 | compiler | Compiler used to build Kubernetes (e.g. gc) |
 | platform | Operating system and architecture the cluster is running on (e.g. linux/amd64) |
+| api_server_url | Kubernetes API server URL from kubeconfig |
+| kubeconfig_insecure_skip_tls_verify | Whether kubeconfig is configured to skip API server TLS verification |
+| kubeconfig_has_certificate_authority_data | True when kubeconfig has inline `certificate-authority-data` for this cluster |
+| kubeconfig_has_certificate_authority_file | True when kubeconfig has a `certificate-authority` file path for this cluster |
+| kubeconfig_ca_file_path | CA file path from kubeconfig when `certificate-authority` is configured |
+| kubeconfig_has_client_certificate | True when kubeconfig user has a client cert (`client-certificate` or `client-certificate-data`) |
+| kubeconfig_has_client_key | True when kubeconfig user has a client key (`client-key` or `client-key-data`) |
+| kubeconfig_tls_configuration_status | Derived kubeconfig TLS posture (`valid_config`, `insecure_skip_tls`, `missing_ca_material`, `unknown`) |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 

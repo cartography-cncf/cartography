@@ -28,8 +28,15 @@ class EKSClusterNodeProperties(CartographyNodeProperties):
     certificate_authority_data_present: PropertyRef = PropertyRef(
         "certificate_authority_data_present",
     )
+    certificate_authority_parse_status: PropertyRef = PropertyRef(
+        "certificate_authority_parse_status",
+    )
+    certificate_authority_parse_error: PropertyRef = PropertyRef(
+        "certificate_authority_parse_error",
+    )
     certificate_authority_sha256_fingerprint: PropertyRef = PropertyRef(
         "certificate_authority_sha256_fingerprint",
+        extra_index=True,
     )
     certificate_authority_subject: PropertyRef = PropertyRef(
         "certificate_authority_subject",
@@ -48,6 +55,12 @@ class EKSClusterNodeProperties(CartographyNodeProperties):
     )
     certificate_authority_authority_key_identifier: PropertyRef = PropertyRef(
         "certificate_authority_authority_key_identifier",
+    )
+    certificate_authority_expired: PropertyRef = PropertyRef(
+        "certificate_authority_expired",
+    )
+    certificate_authority_days_until_expiry: PropertyRef = PropertyRef(
+        "certificate_authority_days_until_expiry",
     )
 
 

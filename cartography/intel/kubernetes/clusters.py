@@ -7,6 +7,7 @@ from kubernetes.client.models import VersionInfo
 
 from cartography.client.core.tx import load
 from cartography.intel.kubernetes.util import get_epoch
+from cartography.intel.kubernetes.util import get_kubeconfig_tls_diagnostics
 from cartography.intel.kubernetes.util import K8sClient
 from cartography.models.kubernetes.clusters import KubernetesClusterSchema
 from cartography.util import timeit
@@ -29,6 +30,7 @@ def transform_kubernetes_cluster(
     namespace: V1Namespace,
     version: VersionInfo,
 ) -> list[dict[str, Any]]:
+    tls_diagnostics = get_kubeconfig_tls_diagnostics(client.name, client.config_file)
     cluster = {
         "id": namespace.metadata.uid,
         "creation_timestamp": get_epoch(namespace.metadata.creation_timestamp),
@@ -41,6 +43,7 @@ def transform_kubernetes_cluster(
         "compiler": version.compiler,
         "platform": version.platform,
     }
+    cluster.update(tls_diagnostics)
 
     return [cluster]
 
