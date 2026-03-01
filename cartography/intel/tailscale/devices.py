@@ -9,6 +9,9 @@ import requests
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.models.tailscale.device import TailscaleDeviceSchema
+from cartography.models.tailscale.devicepostureattribute import (
+    TailscaleDevicePostureAttributeSchema,
+)
 from cartography.models.tailscale.tag import TailscaleTagSchema
 from cartography.util import timeit
 
@@ -42,6 +45,17 @@ def sync(
         org,
         common_job_parameters["UPDATE_TAG"],
     )
+    posture_attributes = get_posture_attributes(
+        api_session,
+        common_job_parameters["BASE_URL"],
+        devices,
+    )
+    load_posture_attributes(
+        neo4j_session,
+        posture_attributes,
+        org,
+        common_job_parameters["UPDATE_TAG"],
+    )
     cleanup(neo4j_session, common_job_parameters)
     return devices
 
@@ -59,6 +73,51 @@ def get(
     )
     req.raise_for_status()
     results = req.json()["devices"]
+    return results
+
+
+@timeit
+def get_posture_attributes(
+    api_session: requests.Session,
+    base_url: str,
+    devices: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Fetch posture attributes for devices from the Tailscale API."""
+    results: List[Dict[str, Any]] = []
+
+    for device in devices:
+        device_id = device.get("nodeId")
+        if not device_id:
+            logger.warning("Device missing nodeId, skipping posture attributes")
+            continue
+
+        try:
+            req = api_session.get(
+                f"{base_url}/device/{device_id}/attributes",
+                timeout=_TIMEOUT,
+            )
+            req.raise_for_status()
+            attributes_data = req.json()
+
+            for key, attr_info in attributes_data.get("attributes", {}).items():
+                attribute = {
+                    "id": f"{device_id}:{key}",
+                    "device_id": device_id,
+                    "key": key,
+                    "value": attr_info.get("value"),
+                    "updated": attr_info.get("updated"),
+                }
+                results.append(attribute)
+
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.debug(f"No posture attributes found for device {device_id}")
+            else:
+                logger.error(
+                    f"HTTP error fetching posture attributes for device {device_id}: {e}"
+                )
+                raise
+
     return results
 
 
@@ -116,6 +175,23 @@ def load_tags(
 
 
 @timeit
+def load_posture_attributes(
+    neo4j_session: neo4j.Session,
+    data: List[Dict[str, Any]],
+    org: str,
+    update_tag: int,
+) -> None:
+    logger.info(f"Loading {len(data)} Tailscale Device Posture Attributes to the graph")
+    load(
+        neo4j_session,
+        TailscaleDevicePostureAttributeSchema(),
+        data,
+        lastupdated=update_tag,
+        org=org,
+    )
+
+
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session, common_job_parameters: Dict[str, Any]
 ) -> None:
@@ -125,3 +201,6 @@ def cleanup(
     GraphJob.from_node_schema(TailscaleTagSchema(), common_job_parameters).run(
         neo4j_session
     )
+    GraphJob.from_node_schema(
+        TailscaleDevicePostureAttributeSchema(), common_job_parameters
+    ).run(neo4j_session)
