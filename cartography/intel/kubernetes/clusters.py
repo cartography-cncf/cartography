@@ -25,12 +25,17 @@ def get_kubernetes_cluster_version(client: K8sClient) -> VersionInfo:
     return client.version.get_code()
 
 
+@timeit
+def get_kubernetes_cluster_tls_diagnostics(client: K8sClient) -> dict[str, Any]:
+    return get_kubeconfig_tls_diagnostics(client.name, client.config_file)
+
+
 def transform_kubernetes_cluster(
     client: K8sClient,
     namespace: V1Namespace,
     version: VersionInfo,
+    tls_diagnostics: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    tls_diagnostics = get_kubeconfig_tls_diagnostics(client.name, client.config_file)
     cluster = {
         "id": namespace.metadata.uid,
         "creation_timestamp": get_epoch(namespace.metadata.creation_timestamp),
@@ -83,7 +88,13 @@ def sync_kubernetes_cluster(
 ) -> dict[str, Any]:
     namespace = get_kubernetes_cluster_namespace(client)
     version = get_kubernetes_cluster_version(client)
-    cluster_info = transform_kubernetes_cluster(client, namespace, version)
+    tls_diagnostics = get_kubernetes_cluster_tls_diagnostics(client)
+    cluster_info = transform_kubernetes_cluster(
+        client,
+        namespace,
+        version,
+        tls_diagnostics,
+    )
 
     load_kubernetes_cluster(neo4j_session, cluster_info, update_tag)
     return cluster_info[0]

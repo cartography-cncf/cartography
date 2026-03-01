@@ -192,10 +192,6 @@ def test_transform_kubernetes_cluster_merges_tls_diagnostics(monkeypatch):
         "kubeconfig_has_client_key": True,
         "kubeconfig_tls_configuration_status": "valid_config",
     }
-    monkeypatch.setattr(
-        "cartography.intel.kubernetes.clusters.get_kubeconfig_tls_diagnostics",
-        lambda context_name, kubeconfig: fake_diagnostics,
-    )
     client = SimpleNamespace(
         name="context-1",
         config_file="/tmp/kubeconfig",
@@ -216,7 +212,12 @@ def test_transform_kubernetes_cluster_merges_tls_diagnostics(monkeypatch):
         platform="linux/amd64",
     )
 
-    transformed = transform_kubernetes_cluster(client, namespace, version)
+    transformed = transform_kubernetes_cluster(
+        client,
+        namespace,
+        version,
+        fake_diagnostics,
+    )
 
     assert len(transformed) == 1
     cluster = transformed[0]
