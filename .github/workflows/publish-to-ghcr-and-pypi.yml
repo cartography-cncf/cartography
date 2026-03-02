@@ -102,8 +102,9 @@ jobs:
       - name: Extract version and verify PyPI availability
         id: version
         env:
-          VERSION: ${{ github.event.release.tag_name }}
+          VERSION: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
+          VERSION="${VERSION#v}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Waiting for cartography==$VERSION to be available on PyPI..."
 
@@ -111,7 +112,7 @@ jobs:
           MAX_ATTEMPTS=30
           ATTEMPT=0
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            if pip index versions cartography 2>&1 | grep -q "$VERSION"; then
+            if curl --fail --silent --show-error "https://pypi.org/pypi/cartography/$VERSION/json" > /dev/null; then
               echo "✅ cartography==$VERSION is now available on PyPI"
               exit 0
             fi
