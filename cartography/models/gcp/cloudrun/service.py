@@ -20,6 +20,7 @@ class GCPCloudRunServiceProperties(CartographyNodeProperties):
     uri: PropertyRef = PropertyRef("uri")
     latest_ready_revision: PropertyRef = PropertyRef("latest_ready_revision")
     project_id: PropertyRef = PropertyRef("project_id")
+    ingress: PropertyRef = PropertyRef("ingress")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

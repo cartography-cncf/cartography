@@ -119,6 +119,8 @@ type for `AWSIpv4CidrBlock` and `AWSIpv6CidrBlock`
 
 Representation of AWS [IAM Groups](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Group.html).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job first discovered this node  |
@@ -2036,6 +2038,11 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 - EC2Instances can be members of EKS Clusters
     ```
     (EC2Instance)-[MEMBER_OF_EKS_CLUSTER]->(EKSCluster)
+    ```
+
+- ECS Container Instances can be backed by EC2 Instances
+    ```
+    (ECSContainerInstance)-[IS_INSTANCE]->(EC2Instance)
     ```
 
 ### EC2KeyPair
@@ -4751,6 +4758,11 @@ Representation of an AWS ECS [Container Instance](https://docs.aws.amazon.com/Am
     (:ECSContainerInstance)-[:HAS_TASK]->(:ECSTask)
     ```
 
+- ECSContainerInstances are backed by EC2 Instances
+    ```
+    (:ECSContainerInstance)-[:IS_INSTANCE]->(:EC2Instance)
+    ```
+
 ### ECSService
 
 Representation of an AWS ECS [Service](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Service.html)
@@ -5368,6 +5380,8 @@ Representation of an AWS SSO User.
 ### AWSSSOGroup
 
 Representation of an AWS SSO Group.
+
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|-------------|

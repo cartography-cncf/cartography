@@ -10,8 +10,8 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp import compute
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import get_error_reason
 from cartography.models.gcp.secretsmanager.secret import GCPSecretManagerSecretSchema
 from cartography.models.gcp.secretsmanager.secret_version import (
     GCPSecretManagerSecretVersionSchema,
@@ -43,7 +43,7 @@ def get_secrets(secretmanager: Resource, project_id: str) -> List[Dict]:
             )
         return secrets
     except HttpError as e:
-        reason = compute._get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
                 (
@@ -93,7 +93,7 @@ def get_secret_versions(
             )
         return versions
     except HttpError as e:
-        reason = compute._get_error_reason(e)
+        reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
                 (

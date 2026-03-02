@@ -52,6 +52,9 @@ class Module(str, Enum):
     GITHUB = "GitHub"
     """GitHub source code management"""
 
+    GITLAB = "GitLab"
+    """GitLab source code management"""
+
     GOOGLEWORKSPACE = "GoogleWorkspace"
     """Google Workspace identity and access management"""
 
@@ -130,6 +133,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.ENTRA: "entra",
     Module.GCP: "gcp",
     Module.GITHUB: "github",
+    Module.GITLAB: "gitlab",
     Module.GOOGLEWORKSPACE: "googleworkspace",
     Module.JAMF: "jamf",
     Module.KANDJI: "kandji",
