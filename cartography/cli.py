@@ -58,6 +58,7 @@ PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SLACK = "Slack Options"
+PANEL_SENTRY = "Sentry Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
@@ -96,6 +97,7 @@ MODULE_PANELS = {
     "syft": PANEL_SYFT,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
+    "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
     "keycloak": PANEL_KEYCLOAK,
     "slack": PANEL_SLACK,
@@ -1156,6 +1158,27 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Sentry Options
+            # =================================================================
+            sentry_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--sentry-api-key-env-var",
+                    help="Environment variable name containing Sentry API auth token.",
+                    rich_help_panel=PANEL_SENTRY,
+                    hidden=PANEL_SENTRY not in visible_panels,
+                ),
+            ] = None,
+            sentry_host: Annotated[
+                str,
+                typer.Option(
+                    "--sentry-host",
+                    help="Sentry host URL (default: https://sentry.io). Use for self-hosted instances.",
+                    rich_help_panel=PANEL_SENTRY,
+                    hidden=PANEL_SENTRY not in visible_panels,
+                ),
+            ] = "https://sentry.io",
+            # =================================================================
             # Airbyte Options
             # =================================================================
             airbyte_client_id: Annotated[
@@ -1837,6 +1860,15 @@ class CLI:
                 )
                 anthropic_apikey = os.environ.get(anthropic_apikey_env_var)
 
+            # Read Sentry API key
+            sentry_api_key = None
+            if sentry_api_key_env_var:
+                logger.debug(
+                    "Reading Sentry API key from environment variable %s",
+                    sentry_api_key_env_var,
+                )
+                sentry_api_key = os.environ.get(sentry_api_key_env_var)
+
             # Read Airbyte client secret
             airbyte_client_secret = None
             if airbyte_client_id and airbyte_client_secret_env_var:
@@ -2033,6 +2065,8 @@ class CLI:
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
                 anthropic_apikey=anthropic_apikey,
+                sentry_api_key=sentry_api_key,
+                sentry_host=sentry_host,
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
