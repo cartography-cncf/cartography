@@ -168,6 +168,7 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
 A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/objects#team).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|--------------|
