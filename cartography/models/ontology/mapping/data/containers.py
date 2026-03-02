@@ -1,6 +1,7 @@
 from cartography.models.ontology.mapping.specs import OntologyFieldMapping
 from cartography.models.ontology.mapping.specs import OntologyMapping
 from cartography.models.ontology.mapping.specs import OntologyNodeMapping
+from cartography.models.ontology.mapping.specs import OntologyRelMapping
 
 aws_ecs_container_mapping = OntologyMapping(
     module_name="aws",
@@ -25,6 +26,29 @@ aws_ecs_container_mapping = OntologyMapping(
                     ontology_field="health_status", node_field="health_status"
                 ),
             ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link ECSContainer to Image directly via HAS_IMAGE",
+            query=(
+                "MATCH (c:ECSContainer {lastupdated: $UPDATE_TAG})-[:HAS_IMAGE]->(img:Image) "
+                "MERGE (c)-[r:RESOLVED_IMAGE]->(img) "
+                "ON CREATE SET r.firstseen = timestamp() "
+                "SET r.lastupdated = $UPDATE_TAG"
+            ),
+            iterative=False,
+        ),
+        OntologyRelMapping(
+            __comment__="Link ECSContainer to Image via ImageManifestList",
+            query=(
+                "MATCH (c:ECSContainer {lastupdated: $UPDATE_TAG})-[:HAS_IMAGE]->"
+                "(:ImageManifestList)-[:CONTAINS_IMAGE]->(img:Image) "
+                "MERGE (c)-[r:RESOLVED_IMAGE]->(img) "
+                "ON CREATE SET r.firstseen = timestamp() "
+                "SET r.lastupdated = $UPDATE_TAG"
+            ),
+            iterative=False,
         ),
     ],
 )
@@ -52,6 +76,29 @@ kubernetes_mapping = OntologyMapping(
                 ),
                 # health_status: Kubernetes uses status_ready and status_started separately, not a unified health_status field
             ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link KubernetesContainer to Image directly via HAS_IMAGE",
+            query=(
+                "MATCH (c:KubernetesContainer {lastupdated: $UPDATE_TAG})-[:HAS_IMAGE]->(img:Image) "
+                "MERGE (c)-[r:RESOLVED_IMAGE]->(img) "
+                "ON CREATE SET r.firstseen = timestamp() "
+                "SET r.lastupdated = $UPDATE_TAG"
+            ),
+            iterative=False,
+        ),
+        OntologyRelMapping(
+            __comment__="Link KubernetesContainer to Image via ImageManifestList",
+            query=(
+                "MATCH (c:KubernetesContainer {lastupdated: $UPDATE_TAG})-[:HAS_IMAGE]->"
+                "(:ImageManifestList)-[:CONTAINS_IMAGE]->(img:Image) "
+                "MERGE (c)-[r:RESOLVED_IMAGE]->(img) "
+                "ON CREATE SET r.firstseen = timestamp() "
+                "SET r.lastupdated = $UPDATE_TAG"
+            ),
+            iterative=False,
         ),
     ],
 )
