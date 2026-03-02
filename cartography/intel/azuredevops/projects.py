@@ -84,7 +84,9 @@ def load_projects(
         p.state = project.state,
         p.revision = project.revision,
         p.visibility = project.visibility,
+        p.is_private = CASE WHEN project.visibility = 'private' THEN true ELSE false END,
         p.lastupdatetime = project.lastUpdateTime,
+        p.last_activity_at = project.lastUpdateTime,
         p.description = project.description,
         p.capabilities = project.capabilities
 

@@ -114,6 +114,7 @@ def load_repositories(
         r.weburl = repo.webUrl,
         r.project = repo.project,
         r.visibility = repo.project_visibility,
+        r.is_private = CASE WHEN repo.project_visibility = 'private' THEN true ELSE false END,
         r.primary_language = repo.primary_language,
         r.lastupdated = $UpdateTag
     WITH r
