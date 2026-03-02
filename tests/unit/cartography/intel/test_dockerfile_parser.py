@@ -132,6 +132,37 @@ def test_parse_to_dict():
     assert data["final_base_image"] == "python"
 
 
+def test_parse_multiline_continuation():
+    content = """
+FROM python:3.11
+RUN apt-get update \\
+    && apt-get install -y curl
+COPY . /app
+"""
+    df = parse(content)
+
+    assert df.stage_count == 1
+    assert df.layer_creating_instruction_count == 2  # RUN + COPY
+    run_instruction = next(i for i in df.final_stage.instructions if i.cmd == "RUN")
+    assert "apt-get install -y curl" in run_instruction.value
+
+
+def test_parse_skips_heredoc_body_when_parsing_instructions():
+    content = """
+FROM python:3.11
+RUN <<EOF
+FROM alpine
+echo hello
+EOF
+COPY . /app
+"""
+    df = parse(content)
+
+    assert df.stage_count == 1
+    assert df.final_base_image == "python"
+    assert df.layer_creating_instruction_count == 2  # RUN + COPY
+
+
 # =============================================================================
 # parse_file tests
 # =============================================================================
