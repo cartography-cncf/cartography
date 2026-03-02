@@ -170,3 +170,36 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
         ("project-abc", "GCPBucket_label_key_1"),
         ("project-abc", "GCPBucket_label_key_2"),
     }
+
+    # Assert - unified GCPLabel nodes also created by sync_labels
+    assert check_nodes(
+        neo4j_session,
+        "GCPLabel",
+        ["id", "key", "value", "resource_type"],
+    ) == {
+        (
+            "bucket_name:label_key_1:label_value_1",
+            "label_key_1",
+            "label_value_1",
+            "GCPBucket",
+        ),
+        (
+            "bucket_name:label_key_2:label_value_2",
+            "label_key_2",
+            "label_value_2",
+            "GCPBucket",
+        ),
+    }
+    # Assert - LABELED relationships from bucket to GCPLabel
+    assert check_rels(
+        neo4j_session,
+        "GCPBucket",
+        "id",
+        "GCPLabel",
+        "id",
+        "LABELED",
+        rel_direction_right=True,
+    ) == {
+        ("bucket_name", "bucket_name:label_key_1:label_value_1"),
+        ("bucket_name", "bucket_name:label_key_2:label_value_2"),
+    }
