@@ -345,10 +345,18 @@ _gw_nist_ai_admin_app_authorizations = Fact(
       )
     RETURN *
     """,
-    cypher_count_query="""
-    MATCH (u:GoogleWorkspaceUser)
-    WHERE u.is_admin = true
-    RETURN COUNT(u) AS count
+    cypher_count_query=f"""
+    MATCH (app:ThirdPartyApp)
+    WITH
+        toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
+        toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
+    WHERE
+        ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
+            WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
+        )
+        OR normalized_name =~ '{AI_HEURISTIC_REGEX}'
+        OR normalized_client_id =~ '{AI_HEURISTIC_REGEX}'
+    RETURN COUNT(app) AS count
     """,
     asset_id_field="app_client_id",
     module=Module.GOOGLEWORKSPACE,
