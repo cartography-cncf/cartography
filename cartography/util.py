@@ -1038,7 +1038,11 @@ def to_asynchronous(func: Callable[..., R], *args: Any, **kwargs: Any) -> Awaita
             raise
 
     # don't use @backoff as decorator, to preserve typing
-    wrapped = backoff.on_exception(backoff.expo, CartographyThrottlingException)(
+    wrapped = backoff.on_exception(
+        backoff.expo,
+        CartographyThrottlingException,
+        max_time=300,
+    )(
         wrapper,
     )
     call = partial(wrapped, *args, **kwargs)

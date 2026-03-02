@@ -56,6 +56,7 @@ from cartography.models.gcp.crm.folders import GCPFolderSchema
 from cartography.models.gcp.crm.organizations import GCPOrganizationSchema
 from cartography.models.gcp.crm.projects import GCPProjectSchema
 from cartography.util import run_analysis_job
+from cartography.util import run_scoped_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -560,6 +561,21 @@ def _sync_project_resources(
                 f"Skipping IAM cleanup for project {project_id} - IAM sync did not complete"
             )
 
+        # Scoped analysis jobs - run per project after all syncs.
+        # `gcp_compute_exposure` computes node properties (exposed_internet flags).
+        # `gcp_lb_exposure` materializes EXPOSE edges for traversal/explanations.
+        # We keep them split because they serve different outputs and cleanup scopes.
+        run_scoped_analysis_job(
+            "gcp_compute_exposure.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+        run_scoped_analysis_job(
+            "gcp_lb_exposure.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+
         del common_job_parameters["PROJECT_ID"]
 
 
@@ -704,12 +720,6 @@ def start_gcp_ingestion(
 
     run_analysis_job(
         "gcp_ip_node_label_migration.json",
-        neo4j_session,
-        common_job_parameters,
-    )
-
-    run_analysis_job(
-        "gcp_compute_asset_inet_exposure.json",
         neo4j_session,
         common_job_parameters,
     )

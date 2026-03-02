@@ -240,8 +240,8 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
 | instancename     | The name of the instance, e.g. "my-instance" |
 | zone_name        | The zone that the instance is installed on |
 | hostname         | If present, the hostname of the instance |
-| exposed_internet | Set to True  with `exposed_internet_type = 'direct'` if there is an 'allow' IPRule attached to one of the instance's ingress firewalls with the following conditions:  The 'allow' IpRule allows traffic from one or more TCP ports, and the 'allow' IpRule is not superceded by a 'deny' IPRule (in GCP, a firewall rule of priority 1 gets applied ahead of a firewall rule of priority 100, and 'deny' rules of the same priority are applied ahead of 'allow' rules) |
-| exposed_internet_type | A string indicating the type of internet exposure. Currently only `'direct'` is supported (exposed via firewall rules). Set by the `gcp_compute_asset_inet_exposure` [analysis job](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/analysis/gcp_compute_asset_inet_exposure.json). |
+| exposed_internet | Set to `true` if the instance is internet-exposed via either path: (1) `'direct'` — the instance has a public IP and an ingress firewall rule allowing traffic from 0.0.0.0/0 with no higher-priority deny rule blocking it, or (2) `'gcp_lb'` — the instance is behind an external-facing GCPBackendService via the InstanceGroup chain. Set by the `gcp_compute_exposure` scoped analysis job. |
+| exposed_internet_type | A string indicating the type of internet exposure: `'direct'` (exposed via firewall rules + public IP) or `'gcp_lb'` (exposed via an external load balancer). |
 | status           | The [GCP Instance Lifecycle](https://cloud.google.com/compute/docs/instances/instance-life-cycle) state of the instance |
 #### Relationships
 
@@ -293,6 +293,11 @@ Representation of a GCP [Instance](https://cloud.google.com/compute/docs/referen
     MATCH (fw:GCPFirewall{direction: 'INGRESS', has_target_service_accounts: False}})
     WHERE NOT (fw)-[TARGET_TAG]->(GCPNetworkTag)
     MATCH (GCPInstance)-[MEMBER_OF_GCP_VPC]->(GCPVpc)-[RESOURCE]->(fw)
+    ```
+
+- GCPBackendServices expose GCPInstances. Created by the `gcp_lb_exposure` scoped analysis job when the backend service is external-facing.
+    ```
+    (GCPBackendService)-[:EXPOSE]->(GCPInstance)
     ```
 
 ### GCPNetworkTag
@@ -586,6 +591,8 @@ Representation of GCP [Forwarding Rules](https://cloud.google.com/compute/docs/r
 | self_link             | Server-defined URL for the resource                                                                                                                  |
 | subnetwork            | A partial resource URI of the subnetwork this Forwarding Rule belongs to                                                                             |
 | target                | A partial resource URI of the target resource to receive the traffic                                                                                 |
+| exposed_internet      | Set to `true` if `load_balancing_scheme` is `EXTERNAL` or `EXTERNAL_MANAGED`. Set by the `gcp_compute_exposure` scoped analysis job.                 |
+| exposed_internet_type | Set to `'direct'` when the forwarding rule is external-facing.                                                                                       |
 
 #### Relationships
 
@@ -1748,6 +1755,9 @@ Representation of a GCP [Cloud Run Service](https://cloud.google.com/run/docs/re
 | location | The GCP location where the service is deployed |
 | container_image | The container image for the service |
 | service_account_email | The email of the service account used by this service |
+| ingress | The ingress setting for the service. Values: `INGRESS_TRAFFIC_ALL`, `INGRESS_TRAFFIC_INTERNAL_ONLY`, `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER`, `INGRESS_TRAFFIC_NONE`. |
+| exposed_internet | Set to `true` if `ingress` is `INGRESS_TRAFFIC_ALL`. Set to `false` if `ingress` is `INGRESS_TRAFFIC_INTERNAL_ONLY` or `INGRESS_TRAFFIC_NONE`. Other values are currently left unset because they may still be internet-reachable via load balancers. |
+| exposed_internet_type | Set to `'direct'` when the service allows all ingress traffic. |
 
 #### Relationships
 
@@ -1846,4 +1856,110 @@ Representation of a GCP [Cloud Run Execution](https://cloud.google.com/run/docs/
   - GCPCloudRunJobs have GCPCloudRunExecutions.
     ```
     (GCPCloudRunJob)-[:HAS_EXECUTION]->(GCPCloudRunExecution)
+    ```
+
+### GCPBackendService
+
+Representation of a GCP [Backend Service](https://cloud.google.com/compute/docs/reference/rest/v1/backendServices). Backend services direct traffic to backend instance groups or other backends, and are a core component of the GCP load balancing stack.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The partial resource URI representing this backend service (e.g., `projects/{project}/global/backendServices/{name}`) |
+| partial_uri | Same as `id` |
+| name | The name of the backend service |
+| self_link | Server-defined URL for the resource |
+| project_id | The project ID that this backend service belongs to |
+| region | The region of this backend service, or `null` for global backend services |
+| description | An optional description of this backend service |
+| load_balancing_scheme | The load balancing scheme (e.g., `EXTERNAL`, `EXTERNAL_MANAGED`, `INTERNAL`, `INTERNAL_MANAGED`) |
+| protocol | The protocol this backend service uses (e.g., `HTTP`, `HTTPS`, `TCP`, `SSL`) |
+| port | The port for the backend service |
+| port_name | A named port on a backend instance group |
+| timeout_sec | Backend service timeout in seconds |
+| security_policy | The full URL of the Cloud Armor security policy attached to this backend service |
+| creation_timestamp | Creation timestamp of the resource |
+
+#### Relationships
+
+  - GCPBackendServices are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPBackendService)
+    ```
+  - GCPBackendServices route traffic to GCPInstanceGroups.
+    ```
+    (GCPBackendService)-[:ROUTES_TO]->(GCPInstanceGroup)
+    ```
+  - GCPCloudArmorPolicies protect GCPBackendServices.
+    ```
+    (GCPCloudArmorPolicy)-[:PROTECTS]->(GCPBackendService)
+    ```
+  - GCPBackendServices expose GCPInstances. Created by the `gcp_lb_exposure` scoped analysis job.
+    ```
+    (GCPBackendService)-[:EXPOSE]->(GCPInstance)
+    ```
+
+### GCPInstanceGroup
+
+Representation of a GCP [Instance Group](https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroups). Instance groups are collections of VM instances that can be managed together and serve as backends for load balancing.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The partial resource URI representing this instance group (e.g., `projects/{project}/zones/{zone}/instanceGroups/{name}`) |
+| partial_uri | Same as `id` |
+| **name** | The name of the instance group (indexed) |
+| self_link | Server-defined URL for the resource |
+| project_id | The project ID that this instance group belongs to |
+| zone | The zone of this instance group |
+| region | The region of this instance group (for regional instance groups) |
+| description | An optional description of this instance group |
+| network | The partial URI of the VPC network this instance group belongs to |
+| subnetwork | The partial URI of the subnet this instance group belongs to |
+| size | The number of instances in this instance group |
+| creation_timestamp | Creation timestamp of the resource |
+
+#### Relationships
+
+  - GCPInstanceGroups are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPInstanceGroup)
+    ```
+  - GCPInstanceGroups have member GCPInstances.
+    ```
+    (GCPInstanceGroup)-[:HAS_MEMBER]->(GCPInstance)
+    ```
+  - GCPBackendServices route traffic to GCPInstanceGroups.
+    ```
+    (GCPBackendService)-[:ROUTES_TO]->(GCPInstanceGroup)
+    ```
+
+### GCPCloudArmorPolicy
+
+Representation of a GCP [Cloud Armor Security Policy](https://cloud.google.com/compute/docs/reference/rest/v1/securityPolicies). Cloud Armor policies provide DDoS protection and WAF capabilities for backend services.
+
+| Field | Description |
+|---|---|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The partial resource URI representing this policy (e.g., `projects/{project}/global/securityPolicies/{name}`) |
+| partial_uri | Same as `id` |
+| name | The name of the security policy |
+| self_link | Server-defined URL for the resource |
+| project_id | The project ID that this policy belongs to |
+| description | An optional description of this security policy |
+| policy_type | The type of the security policy (e.g., `CLOUD_ARMOR`) |
+| creation_timestamp | Creation timestamp of the resource |
+
+#### Relationships
+
+  - GCPCloudArmorPolicies are resources of GCPProjects.
+    ```
+    (GCPProject)-[:RESOURCE]->(GCPCloudArmorPolicy)
+    ```
+  - GCPCloudArmorPolicies protect GCPBackendServices.
+    ```
+    (GCPCloudArmorPolicy)-[:PROTECTS]->(GCPBackendService)
     ```
