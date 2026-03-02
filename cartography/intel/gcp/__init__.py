@@ -581,6 +581,7 @@ def _sync_project_resources(
                 bigquery_client=bigquery_client,
             )
 
+        datasets_raw = None
         if bigquery_client is not None:
             logger.info("Syncing GCP project %s for BigQuery.", project_id)
             datasets_raw = bigquery_dataset.sync_bigquery_datasets(
@@ -591,24 +592,24 @@ def _sync_project_resources(
                 common_job_parameters,
             )
 
-            if datasets_raw is not None:
-                bigquery_table.sync_bigquery_tables(
-                    neo4j_session,
-                    bigquery_client,
-                    datasets_raw,
-                    project_id,
-                    gcp_update_tag,
-                    common_job_parameters,
-                )
+        if bigquery_client is not None and datasets_raw is not None:
+            bigquery_table.sync_bigquery_tables(
+                neo4j_session,
+                bigquery_client,
+                datasets_raw,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
 
-                bigquery_routine.sync_bigquery_routines(
-                    neo4j_session,
-                    bigquery_client,
-                    datasets_raw,
-                    project_id,
-                    gcp_update_tag,
-                    common_job_parameters,
-                )
+            bigquery_routine.sync_bigquery_routines(
+                neo4j_session,
+                bigquery_client,
+                datasets_raw,
+                project_id,
+                gcp_update_tag,
+                common_job_parameters,
+            )
 
         # Clean up project-level IAM resources (service accounts and project roles)
         # Only run cleanup if IAM sync succeeded to avoid deleting valid data

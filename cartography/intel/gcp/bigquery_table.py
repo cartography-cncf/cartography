@@ -188,12 +188,20 @@ def sync_bigquery_tables(
         tables_raw = get_bigquery_tables(client, project_id, dataset_id)
         if tables_raw is not None:
             # Enrich each table with details from tables.get
-            for table in tables_raw:
+            for i, table in enumerate(tables_raw):
                 table_ref = table["tableReference"]
                 tid = table_ref["tableId"]
                 detail = get_bigquery_table_detail(client, project_id, dataset_id, tid)
                 if detail is not None:
                     table.update(detail)
+                if (i + 1) % 100 == 0:
+                    logger.debug(
+                        "Fetched details for %d/%d tables in dataset %s:%s.",
+                        i + 1,
+                        len(tables_raw),
+                        project_id,
+                        dataset_id,
+                    )
             all_tables_raw.append((tables_raw, dataset_id))
 
     all_tables_transformed: list[dict] = []
