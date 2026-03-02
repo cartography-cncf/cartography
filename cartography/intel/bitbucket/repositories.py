@@ -1,5 +1,8 @@
 import logging
 import time
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from typing import Any
 from typing import Dict
 from typing import List
@@ -89,16 +92,49 @@ def transform_repos(workspace_repos: List[Dict], workspace: str) -> Dict:
     }
 
 
-def transform_branches(branches: List[Dict], repo_id: str) -> List[Dict]:
+def transform_branches(branches: List[Dict], repo_id: str, default_branch: str = None) -> List[Dict]:
+    """
+    Transform branch data and filter to include only:
+    - Branches active in the last 90 days
+    - Default branch (always included)
+    """
     transformed_branches = []
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
+    
     for branch in branches:
+        branch_name = branch["name"]
         target = branch.get("target", {})
-        transformed_branches.append({
-            "repo_id": repo_id,
-            "id": f"{repo_id}:{branch['name']}",
-            "name": branch["name"],
-            "date": target.get("date"),
-        })
+        date_str = target.get("date")
+        
+        # Always include default branch
+        if branch_name == default_branch:
+            transformed_branches.append({
+                "repo_id": repo_id,
+                "id": f"{repo_id}:{branch_name}",
+                "name": branch_name,
+                "date": date_str,
+            })
+            continue
+        
+        # Filter by activity date
+        if date_str:
+            branch_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            if branch_date >= cutoff_date:
+                transformed_branches.append({
+                    "repo_id": repo_id,
+                    "id": f"{repo_id}:{branch_name}",
+                    "name": branch_name,
+                    "date": date_str,
+                })
+        else:
+            # No date available, include the branch
+            transformed_branches.append({
+                "repo_id": repo_id,
+                "id": f"{repo_id}:{branch_name}",
+                "name": branch_name,
+                "date": date_str,
+            })
+    
     return transformed_branches
 
 
@@ -236,7 +272,8 @@ def sync(
         repo_slug = repo.get("slug")
         if repo_slug:
             branches = get_branches(bitbucket_access_token, workspace_name, repo_slug)
-            transformed_branches = transform_branches(branches, repo["uuid"])
+            default_branch = repo.get("default_branch")
+            transformed_branches = transform_branches(branches, repo["uuid"], default_branch)
             load_branches(neo4j_session, transformed_branches, common_job_parameters)
 
     # Load languages

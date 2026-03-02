@@ -1,4 +1,7 @@
 import logging
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from typing import Any
 from typing import Dict
 from typing import List
@@ -126,17 +129,50 @@ def load_repositories(
     )
 
 
-def transform_branches_data(branches: List[Dict], repo_id: str) -> List[Dict]:
+def transform_branches_data(branches: List[Dict], repo_id: str, default_branch: str = None) -> List[Dict]:
+    """
+    Transform branch data and filter to include only:
+    - Branches active in the last 90 days
+    - Default branch (always included)
+    """
     transformed_branches = []
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
+    
     for branch in branches:
+        branch_name = branch["name"]
         commit = branch.get("commit", {})
         committer = commit.get("committer", {})
-        transformed_branches.append({
-            "repo_id": repo_id,
-            "id": f"{repo_id}:{branch['name']}",
-            "name": branch["name"],
-            "commitDate": committer.get("date"),
-        })
+        commit_date_str = committer.get("date")
+        
+        # Always include default branch
+        if default_branch and branch_name == default_branch:
+            transformed_branches.append({
+                "repo_id": repo_id,
+                "id": f"{repo_id}:{branch_name}",
+                "name": branch_name,
+                "commitDate": commit_date_str,
+            })
+            continue
+        
+        # Filter by activity date
+        if commit_date_str:
+            commit_date = datetime.fromisoformat(commit_date_str.replace('Z', '+00:00'))
+            if commit_date >= cutoff_date:
+                transformed_branches.append({
+                    "repo_id": repo_id,
+                    "id": f"{repo_id}:{branch_name}",
+                    "name": branch_name,
+                    "commitDate": commit_date_str,
+                })
+        else:
+            # No date available, include the branch
+            transformed_branches.append({
+                "repo_id": repo_id,
+                "id": f"{repo_id}:{branch_name}",
+                "name": branch_name,
+                "commitDate": commit_date_str,
+            })
+    
     return transformed_branches
 
 
@@ -217,7 +253,11 @@ def sync(
                     access_token,
                 )
                 if branches:
-                    transformed_branches = transform_branches_data(branches, repo["id"])
+                    default_branch = repo.get("defaultBranch")
+                    # Remove 'refs/heads/' prefix if present
+                    if default_branch and default_branch.startswith("refs/heads/"):
+                        default_branch = default_branch.replace("refs/heads/", "")
+                    transformed_branches = transform_branches_data(branches, repo["id"], default_branch)
                     load_branches_data(neo4j_session, transformed_branches, common_job_parameters)
 
     cleanup(neo4j_session, common_job_parameters)
