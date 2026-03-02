@@ -79,6 +79,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.update_tag,
         config.okta_api_key,
         state,
+        config.okta_base_domain,
     )
     groups.sync_okta_groups(
         neo4j_session,
@@ -86,12 +87,14 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.update_tag,
         config.okta_api_key,
         state,
+        config.okta_base_domain,
     )
     applications.sync_okta_applications(
         neo4j_session,
         config.okta_org_id,
         config.update_tag,
         config.okta_api_key,
+        config.okta_base_domain,
     )
     factors.sync_users_factors(
         neo4j_session,
@@ -99,12 +102,14 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         config.update_tag,
         config.okta_api_key,
         state,
+        config.okta_base_domain,
     )
     origins.sync_trusted_origins(
         neo4j_session,
         config.okta_org_id,
         config.update_tag,
         config.okta_api_key,
+        config.okta_base_domain,
     )
     awssaml.sync_okta_aws_saml(
         neo4j_session,
@@ -124,6 +129,7 @@ def start_okta_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             config.update_tag,
             config.okta_api_key,
             state,
+            config.okta_base_domain,
         )
     except OktaError as okta_error:
         logger.warning(f"Unable to pull admin roles got {okta_error}")

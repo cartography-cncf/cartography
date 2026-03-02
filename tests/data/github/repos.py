@@ -14,11 +14,13 @@ DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
                 "nodes": [
                     {
                         "packageName": "react",
+                        "packageUrl": "pkg:npm/react@18.2.0",
                         "requirements": "18.2.0",
                         "packageManager": "NPM",
                     },
                     {
                         "packageName": "lodash",
+                        "packageUrl": "",
                         "requirements": "",
                         "packageManager": "NPM",
                     },
@@ -31,6 +33,7 @@ DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
                 "nodes": [
                     {
                         "packageName": "Django",
+                        "packageUrl": "pkg:pypi/django@4.2.0",
                         "requirements": "= 4.2.0",
                         "packageManager": "PIP",
                     },
@@ -43,6 +46,7 @@ DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS = {
                 "nodes": [
                     {
                         "packageName": "org.springframework:spring-core",
+                        "packageUrl": "pkg:maven/org.springframework/spring-core@5.3.21",
                         "requirements": "5.3.21",
                         "packageManager": "MAVEN",
                     },

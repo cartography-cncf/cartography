@@ -116,6 +116,8 @@ def _sync_one_account(
             "ec2:network_interface",
         ],
         "ec2:route_table": ["ec2:vpc_endpoint"],
+        # `ecs` creates IS_INSTANCE relationships from ECSContainerInstance to EC2Instance
+        "ecs": ["ec2:instance"],
         "dynamodb": ["kms"],
     }
     for module, dependencies in module_dependencies.items():
@@ -351,6 +353,14 @@ def _perform_aws_analysis(
     """
     requested_syncs_as_set = set(requested_syncs)
 
+    run_analysis_and_ensure_deps(
+        "aws_ip_node_label_migration.json",
+        {"ec2:security_group"},
+        requested_syncs_as_set,
+        common_job_parameters,
+        neo4j_session,
+    )
+
     ec2_asset_exposure_requirements = {
         "ec2:instance",
         "ec2:security_group",
@@ -406,6 +416,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "aws_guardduty_severity_threshold": config.aws_guardduty_severity_threshold,
         "aws_cloudtrail_management_events_lookback_hours": config.aws_cloudtrail_management_events_lookback_hours,
         "experimental_aws_inspector_batch": config.experimental_aws_inspector_batch,
+        "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,
     }
     try:
         boto3_session = boto3.Session()

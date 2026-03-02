@@ -85,6 +85,7 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
                 "location": location,
                 "uri": service.get("uri"),
                 "latest_ready_revision": latest_ready_revision,
+                "ingress": service.get("ingress"),
                 "project_id": project_id,
             },
         )

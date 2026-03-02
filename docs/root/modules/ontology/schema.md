@@ -10,6 +10,7 @@ U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
+UG{{UserGroup}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
 DB{{Database}}
@@ -20,8 +21,11 @@ REPO{{CodeRepository}}
 SC{{Secret}}
 PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
+PKG(Package) -- DEPLOYED --> IM{{Image}}
+PKG -- DEPENDS_ON --> PKG
+F[TrivyImageFinding] -- AFFECTS --> PKG
 CR{{ContainerRegistry}} -- REPO_IMAGE --> IT{{ImageTag}}
-IT -- IMAGE --> IM{{Image}}
+IT -- IMAGE --> IM
 IML{{ImageManifestList}} -- CONTAINS_IMAGE --> IM
 IA{{ImageAttestation}} -- ATTESTS --> IM
 IM -- HAS_LAYER --> IL{{ImageLayer}}
@@ -121,6 +125,30 @@ Unlike the abstract `User` node, `UserAccount` is a semantic label applied to co
 | _ont_has_mfa | Whether multi-factor authentication is enabled for this account. |
 | _ont_inactive | Whether the account is inactive, disabled, suspended, or locked. |
 | _ont_lastactivity | Timestamp of the last activity or login for this account. |
+| _ont_source | Source of the data. |
+
+
+### UserGroup
+
+```{note}
+UserGroup is a semantic label.
+```
+
+A user group represents a logical grouping of users or resources within a cloud provider or SaaS platform.
+Groups are a key part of the identity graph and enable attack path analysis through group membership relationships.
+Unlike the abstract `User` node, `UserGroup` is a semantic label applied to concrete group nodes from different modules, enabling unified queries across platforms.
+
+Common group concepts across platforms include:
+- **Cloud IAM**: AWS IAM Groups, AWS SSO Groups, OCI Groups, Scaleway Groups
+- **Identity Providers**: Entra Groups, Okta Groups, Keycloak Groups, Google Workspace Groups, GSuite Groups
+- **Collaboration**: GitHub Teams, GitLab Groups, Slack Groups, PagerDuty Teams
+- **Network/Device**: Duo Groups, Tailscale Groups
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name of the group (REQUIRED). |
+| _ont_description | Description of the group. |
+| _ont_email | Email address associated with the group (for mail-enabled groups). |
 | _ont_source | Source of the data. |
 
 
@@ -437,6 +465,49 @@ If field `ip_version` is null, it should not be considered as `4` or `6`, only a
     (:PublicIP)-[:POINTS_TO]->(:ComputeInstance)
     ```
 
+
+### Package
+
+```{note}
+Package is an abstract ontology node.
+```
+
+A package represents a software package (library, dependency, or system package) discovered across different scanning tools.
+Package nodes are deduplicated by their `id`, which uses the format `{type}|{namespace/}{name}|{version}` for cross-tool matching.
+
+| Field | Description |
+|-------|-------------|
+| **id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). |
+| firstseen | Timestamp of when a sync job first created this node. |
+| lastupdated | Timestamp of the last time the node was updated. |
+| name | Name of the package. |
+| version | Version of the package. |
+| type | Package ecosystem type (e.g., npm, pypi, deb). |
+| purl | Package URL (e.g., `pkg:npm/express@4.18.2`). |
+
+#### Relationships
+
+- `Package` is linked to one or many source nodes that detected it:
+    ```
+    (:Package)-[:DETECTED_AS]->(:TrivyPackage)
+    (:Package)-[:DETECTED_AS]->(:SyftPackage)
+    ```
+- `Package` can be deployed in one or many container images (propagated from TrivyPackage):
+    ```
+    (:Package)-[:DEPLOYED]->(:Image)
+    ```
+- `Package` can be affected by one or many vulnerability findings (propagated from TrivyPackage):
+    ```
+    (:TrivyImageFinding)-[:AFFECTS]->(:Package)
+    ```
+- `Package` can have one or many recommended fix versions (propagated from TrivyPackage):
+    ```
+    (:Package)-[:SHOULD_UPDATE_TO]->(:TrivyFix)
+    ```
+- `Package` can depend on other packages (propagated from SyftPackage):
+    ```
+    (:Package)-[:DEPENDS_ON]->(:Package)
+    ```
 
 ### ContainerRegistry
 

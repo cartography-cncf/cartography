@@ -30,7 +30,7 @@ from .util import get_botocore_config
 logger = logging.getLogger(__name__)
 
 
-# TODO: Remove this migration function when releasing v1
+# DEPRECATED: Remove this migration function when releasing v1
 def _migrate_legacy_loadbalancerv2_labels(neo4j_session: neo4j.Session) -> None:
     """One-time migration: relabel LoadBalancerV2 → AWSLoadBalancerV2."""
     check_query = """

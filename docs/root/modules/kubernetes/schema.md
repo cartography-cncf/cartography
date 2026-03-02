@@ -86,6 +86,8 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | labels | Labels are key-value pairs contained in the `PodSpec` and fetched from `pod.metadata.labels`. Stored as a JSON-encoded string. |
 | **cluster\_name** | Name of the Kubernetes cluster where this pod is deployed |
 | node | Name of the Kubernetes node where this pod is currently scheduled and running. Fetched from `pod.spec.node_name`. |
+| exposed\_internet | Set by analysis job. `true` if this pod is reachable from an internet-facing load balancer. |
+| exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 
@@ -93,6 +95,11 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 - `KubernetesPod` has `KubernetesContainer`.
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
+    ```
+
+- An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesPod`. Created by the `k8s_lb_exposure` analysis job.
+    ```
+    (:AWSLoadBalancerV2)-[:EXPOSE {exposure_type: 'via_lb_only'}]->(:KubernetesPod)
     ```
 
 ### KubernetesContainer
@@ -117,6 +124,8 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | cpu\_request | Minimum amount of CPU guaranteed to be available to the container (e.g. "100m", "1") |
 | memory\_limit | Maximum amount of memory the container is allowed to use (e.g. "256Mi", "2Gi") |
 | cpu\_limit | Maximum amount of CPU the container is allowed to use (e.g. "500m", "2") |
+| exposed\_internet | Set by analysis job. `true` if this container is reachable from an internet-facing load balancer. |
+| exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 
@@ -131,6 +140,11 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
     ```
     (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    ```
+
+- An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesContainer`. Created by the `k8s_lb_exposure` analysis job.
+    ```
+    (:AWSLoadBalancerV2)-[:EXPOSE {exposure_type: 'via_lb_only'}]->(:KubernetesContainer)
     ```
 
 ### KubernetesService
@@ -149,6 +163,8 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 | load\_balancer\_ip | IP of the load balancer when service type is `LoadBalancer` |
 | load\_balancer\_ingress | The list of load balancer ingress points, typically containing the hostname and IP. Stored as a JSON-encoded string. |
 | **cluster\_name** | Name of the Kubernetes cluster where this service is deployed |
+| exposed\_internet | Set by analysis job. `true` if this service is backed by an internet-facing load balancer. |
+| exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 

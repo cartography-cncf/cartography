@@ -365,6 +365,26 @@ def test_sync_github_dependencies(mock_get_collabs, mock_get_repos, neo4j_sessio
         actual_repo_dependency_relationships
     )
 
+    # Assert - Verify new ontology fields (normalized_id, version, type, purl)
+    expected_ontology_fields = {
+        (react_id, "npm|react|18.2.0", "18.2.0", "npm", "pkg:npm/react@18.2.0"),
+        (lodash_id, None, None, None, None),
+        (django_id, "pypi|django|4.2.0", "4.2.0", "pypi", "pkg:pypi/django@4.2.0"),
+        (
+            spring_core_id,
+            "maven|org.springframework/spring-core|5.3.21",
+            "5.3.21",
+            "maven",
+            "pkg:maven/org.springframework/spring-core@5.3.21",
+        ),
+    }
+    actual_ontology_fields = check_nodes(
+        neo4j_session,
+        "Dependency",
+        ["id", "normalized_id", "version", "type", "purl"],
+    )
+    assert expected_ontology_fields.issubset(actual_ontology_fields)
+
 
 @patch.object(
     cartography.intel.github.repos,

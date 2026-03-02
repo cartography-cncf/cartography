@@ -1,5 +1,10 @@
-import pytest
+import asyncio
+from unittest.mock import AsyncMock
 
+import pytest
+from botocore.exceptions import ClientError
+
+from cartography.intel.aws.ecr_image_layers import batch_get_manifest
 from cartography.intel.aws.ecr_image_layers import extract_repo_uri_from_image_uri
 from cartography.intel.aws.ecr_image_layers import transform_ecr_image_layers
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
@@ -73,6 +78,33 @@ def test_transform_ecr_image_layers_empty_input():
 
     assert layers == []
     assert memberships == []
+
+
+@pytest.mark.parametrize("error_code", ["AccessDenied", "AccessDeniedException"])
+def test_batch_get_manifest_access_denied_returns_empty_result(error_code):
+    """Test that access-denied errors are non-fatal when fetching manifests."""
+    mock_ecr_client = AsyncMock()
+    mock_ecr_client.batch_get_image.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": error_code,
+                "Message": "Not authorized to perform ecr:BatchGetImage",
+            }
+        },
+        "BatchGetImage",
+    )
+
+    manifest, media_type = asyncio.run(
+        batch_get_manifest(
+            mock_ecr_client,
+            "example/repository",
+            "sha256:12345",
+            ["application/vnd.oci.image.manifest.v1+json"],
+        )
+    )
+
+    assert manifest == {}
+    assert media_type == ""
 
 
 def test_transform_layers_creates_graph_structure():
