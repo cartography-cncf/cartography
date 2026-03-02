@@ -10,6 +10,7 @@ import neo4j
 
 from .util import call_azure_devops_api_pagination
 from .util import validate_repository_data
+from cartography.util import normalize_datetime
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -242,10 +243,12 @@ def _update_repo_last_activity(
         last_activity_at = max(all_dates) if all_dates else None
 
     if last_activity_at is not None:
+        iso_str, ts_ms = normalize_datetime(last_activity_at)
         neo4j_session.run(
-            "MATCH (r:AzureDevOpsRepo{id: $RepoId}) SET r.last_activity_at = $LastActivity",
+            "MATCH (r:AzureDevOpsRepo{id: $RepoId}) SET r.last_activity_at = $LastActivity, r.last_activity_at_timestamp = $LastActivityTs",
             RepoId=repo_id,
-            LastActivity=last_activity_at,
+            LastActivity=iso_str,
+            LastActivityTs=ts_ms,
         )
 
 

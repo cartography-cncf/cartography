@@ -12,6 +12,7 @@ import neo4j
 
 from cartography.intel.gitlab.pagination import paginate_request
 from cartography.util import make_requests_url
+from cartography.util import normalize_datetime
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -59,6 +60,9 @@ def transform_projects_data(projects: List[Dict]) -> List[Dict]:
     for project in projects:
         project["is_private"] = project["visibility"] == "private"
         project["archived"] = project.get("archived", False)
+        iso_str, ts_ms = normalize_datetime(project.get("last_activity_at"))
+        project["last_activity_at"] = iso_str
+        project["last_activity_at_timestamp"] = ts_ms
 
     return projects
 
@@ -194,6 +198,7 @@ def _load_projects_data(
         pro.is_private = project.is_private,
         pro.namespace= project.namespace.path,
         pro.last_activity_at = project.last_activity_at,
+        pro.last_activity_at_timestamp = project.last_activity_at_timestamp,
         pro.default_branch = project.default_branch,
         pro.primary_language = project.primary_language,
         pro.lastupdated = $UpdateTag

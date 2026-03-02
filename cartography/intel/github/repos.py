@@ -17,6 +17,7 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 from cartography.intel.github.util import fetch_all
+from cartography.util import normalize_datetime
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
 
@@ -183,7 +184,9 @@ def transform(repos_json: List[Dict]) -> Dict:
             all_dates = [b["last_commit_timestamp"] for b in repo_branches if b.get("last_commit_timestamp")]
             last_activity_at = max(all_dates) if all_dates else None
 
-        repo["last_activity_at"] = last_activity_at
+        iso_str, ts_ms = normalize_datetime(last_activity_at)
+        repo["last_activity_at"] = iso_str
+        repo["last_activity_at_timestamp"] = ts_ms
 
     results = {
         "repos": transformed_repo_list,
@@ -509,6 +512,7 @@ def load_github_repos(neo4j_session: neo4j.Session, update_tag: int, repo_data: 
     repo.sshurl = repository.sshurl,
     repo.updatedat = repository.updatedat,
     repo.last_activity_at = repository.last_activity_at,
+    repo.last_activity_at_timestamp = repository.last_activity_at_timestamp,
     repo.lastupdated = $UpdateTag
 
     WITH repo

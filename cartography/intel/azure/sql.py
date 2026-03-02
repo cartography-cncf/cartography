@@ -112,6 +112,7 @@ def get_server_list(credentials: Credentials, subscription_id: str, regions: lis
     # Filter by region if specified
     return _filter_servers_by_region(server_data, regions)
 
+
 def _get_sql_database_servers(credentials: Credentials, subscription_id: str) -> List[Dict]:
     """
     Get Azure SQL Database servers.
@@ -244,9 +245,6 @@ def _filter_servers_by_region(servers: List[Dict], regions: list) -> List[Dict]:
     if regions is None:
         return servers
     return [s for s in servers if s.get('location') in regions or s.get('location') == 'global']
-
-
-
 
 
 @timeit

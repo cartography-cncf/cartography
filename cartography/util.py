@@ -2,6 +2,8 @@ import asyncio
 import logging
 import re
 import sys
+from datetime import datetime
+from datetime import timezone
 from functools import partial
 from functools import wraps
 from string import Template
@@ -345,6 +347,29 @@ def dict_date_to_epoch(obj: Dict, key: str) -> Optional[int]:
 
 def camel_to_snake(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
+def normalize_datetime(date_str: Optional[str]):
+    """
+    Normalize an ISO 8601 datetime string to a standard UTC format and compute its timestamp.
+
+    Returns a tuple (iso_str, timestamp_ms):
+      - iso_str: "YYYY-MM-DDTHH:MM:SSZ" normalized to UTC, no sub-second precision
+      - timestamp_ms: integer milliseconds since Unix epoch
+
+    Returns (None, None) if the input is None, empty, or cannot be parsed.
+    """
+    if not date_str:
+        return None, None
+    try:
+        # fromisoformat in Python < 3.11 does not handle 'Z' suffix
+        dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        dt_utc = dt.astimezone(timezone.utc)
+        iso_str = dt_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+        timestamp_ms = int(dt_utc.timestamp() * 1000)
+        return iso_str, timestamp_ms
+    except (ValueError, TypeError):
+        return None, None
 
 
 def batch(items: Iterable, size: int = DEFAULT_BATCH_SIZE) -> List[List]:
