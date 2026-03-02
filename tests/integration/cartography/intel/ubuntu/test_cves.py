@@ -10,14 +10,19 @@ TEST_API_URL = "https://fake-ubuntu-api.example.com"
 
 @patch.object(
     cartography.intel.ubuntu.cves,
-    "get",
+    "get_updated_since",
     return_value=tests.data.ubuntu.cves.UBUNTU_CVES_RESPONSE,
 )
-def test_sync_ubuntu_cves(mock_api, neo4j_session):
+@patch.object(
+    cartography.intel.ubuntu.cves,
+    "get_last_sync_timestamp",
+    return_value=None,
+)
+def test_sync_ubuntu_cves(mock_ts, mock_api, neo4j_session):
     """
-    Ensure that Ubuntu CVEs are loaded correctly into the graph.
+    Ensure that CVE nodes are created with correct properties, the extra CVE label,
+    and CVSS v3 fields are populated from nested impact data.
     """
-    # Act
     cartography.intel.ubuntu.cves.sync(
         neo4j_session,
         TEST_API_URL,
@@ -25,7 +30,7 @@ def test_sync_ubuntu_cves(mock_api, neo4j_session):
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Assert CVE nodes exist with expected properties
+    # Nodes exist with key business properties
     expected_nodes = {
         ("CVE-2024-1234", "high", 8.1),
         ("CVE-2024-5678", "medium", 5.3),
@@ -36,66 +41,55 @@ def test_sync_ubuntu_cves(mock_api, neo4j_session):
         == expected_nodes
     )
 
-    # Assert CVE extra label
-    expected_cve_label = {
+    # Extra CVE label is applied
+    assert check_nodes(neo4j_session, "CVE", ["id"]) == {
         ("CVE-2024-1234",),
         ("CVE-2024-5678",),
         ("CVE-2024-9999",),
     }
-    assert check_nodes(neo4j_session, "CVE", ["id"]) == expected_cve_label
 
-    # Assert CVSS v3 fields are populated for CVE-2024-1234
-    result = neo4j_session.run(
+    # CVSS v3 fields populated from nested impact data
+    record = neo4j_session.run(
         "MATCH (n:UbuntuCVE {id: 'CVE-2024-1234'}) "
         "RETURN n.attack_vector, n.attack_complexity, n.base_score, n.base_severity",
-    )
-    record = result.single()
+    ).single()
     assert record["n.attack_vector"] == "NETWORK"
     assert record["n.attack_complexity"] == "LOW"
     assert record["n.base_score"] == 8.1
     assert record["n.base_severity"] == "HIGH"
 
-    # Assert CVE with no impact data has null CVSS fields
-    result = neo4j_session.run(
+    # CVE with empty impact has null CVSS fields
+    record = neo4j_session.run(
         "MATCH (n:UbuntuCVE {id: 'CVE-2024-9999'}) RETURN n.attack_vector, n.base_score",
-    )
-    record = result.single()
+    ).single()
     assert record["n.attack_vector"] is None
     assert record["n.base_score"] is None
 
 
 @patch.object(
     cartography.intel.ubuntu.cves,
-    "get",
+    "get_updated_since",
     return_value=tests.data.ubuntu.cves.UBUNTU_CVES_RESPONSE,
 )
-def test_sync_ubuntu_cves_cleanup(mock_api, neo4j_session):
+@patch.object(
+    cartography.intel.ubuntu.cves,
+    "get_last_sync_timestamp",
+    return_value=None,
+)
+def test_sync_metadata_written(mock_ts, mock_api, neo4j_session):
     """
-    Ensure that stale CVE nodes are cleaned up on subsequent syncs.
+    Ensure that a SyncMetadata node is created with the correct watermark
+    so that subsequent syncs can run incrementally.
     """
-    # Arrange: first sync
     cartography.intel.ubuntu.cves.sync(
         neo4j_session,
         TEST_API_URL,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
-    assert len(check_nodes(neo4j_session, "UbuntuCVE", ["id"])) == 3
 
-    # Act: second sync with only one CVE
-    new_update_tag = TEST_UPDATE_TAG + 1
-    with patch.object(
-        cartography.intel.ubuntu.cves,
-        "get",
-        return_value=[tests.data.ubuntu.cves.UBUNTU_CVES_RESPONSE[0]],
-    ):
-        cartography.intel.ubuntu.cves.sync(
-            neo4j_session,
-            TEST_API_URL,
-            new_update_tag,
-            {"UPDATE_TAG": new_update_tag},
-        )
-
-    # Assert only the one CVE remains
-    expected_nodes = {("CVE-2024-1234",)}
-    assert check_nodes(neo4j_session, "UbuntuCVE", ["id"]) == expected_nodes
+    record = neo4j_session.run(
+        "MATCH (s:UbuntuSyncMetadata {id: 'UbuntuCVE_sync_metadata'}) "
+        "RETURN s.last_updated_at AS last_updated_at",
+    ).single()
+    assert record["last_updated_at"] == "2024-03-25T12:00:00"
