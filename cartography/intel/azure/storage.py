@@ -58,6 +58,7 @@ def get_storage_account_list(credentials: Credentials, subscription_id: str, reg
         storage_account['consolelink'] = azure_console_link.get_console_link(
             id=storage_account['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
         )
+        storage_account['location'] = storage_account.get('location', '').replace(" ", "").lower()
         if regions is None:
             account_list.append(storage_account)
         else:
@@ -94,7 +95,8 @@ def load_storage_account_data(
     s.statusofprimary = account.status_of_primary,
     s.statusofsecondary = account.status_of_secondary,
     s.supportshttpstrafficonly = account.enable_https_traffic_only,
-    s.networkRuleDefaultAction = account.network_rule_set.default_action
+    s.networkRuleDefaultAction = account.network_rule_set.default_action,
+    s.region = account.location
     WITH s
     MATCH (owner:AzureSubscription{id: $AZURE_SUBSCRIPTION_ID})
     MERGE (owner)-[r:RESOURCE]->(s)
@@ -333,7 +335,7 @@ def _load_queue_services(
     ingest_queue_services = """
     UNWIND $queue_services_list as qservice
     MERGE (qs:AzureStorageQueueService{id: qservice.id})
-    ON CREATE SET qs.firstseen = timestamp(), qs.type = qservice.type
+    ON CREATE SET qs.firstseen = timestamp(), qs.type = qservice.type, qs.region = $region
     SET qs.name = qservice.name,
     qs.consolelink = qservice.consolelink,
     qs.region = $region,
@@ -383,7 +385,7 @@ def _load_table_services(
     ingest_table_services = """
     UNWIND $table_services_list as tservice
     MERGE (ts:AzureStorageTableService{id: tservice.id})
-    ON CREATE SET ts.firstseen = timestamp(), ts.type = tservice.type
+    ON CREATE SET ts.firstseen = timestamp(), ts.type = tservice.type, ts.region = $region
     SET ts.name = tservice.name,
     ts.consolelink = tservice.consolelink,
     ts.region = $region,
@@ -434,7 +436,7 @@ def _load_file_services(
     ingest_file_services = """
     UNWIND $file_services_list as fservice
     MERGE (fs:AzureStorageFileService{id: fservice.id})
-    ON CREATE SET fs.firstseen = timestamp(), fs.type = fservice.type
+    ON CREATE SET fs.firstseen = timestamp(), fs.type = fservice.type, fs.region = $region
     SET fs.name = fservice.name,
     fs.consolelink = fservice.consolelink,
     fs.region = $region,
@@ -484,7 +486,7 @@ def _load_blob_services(
     ingest_blob_services = """
     UNWIND $blob_services_list as bservice
     MERGE (bs:AzureStorageBlobService{id: bservice.id})
-    ON CREATE SET bs.firstseen = timestamp(), bs.type = bservice.type
+    ON CREATE SET bs.firstseen = timestamp(), bs.type = bservice.type, bs.region = $region
     SET bs.name = bservice.name,
     bs.consolelink = bservice.consolelink,
     bs.region = $region,
@@ -604,7 +606,7 @@ def _load_queues(neo4j_session: neo4j.Session, queues: List[Dict], update_tag: i
     ingest_queues = """
     UNWIND $queues_list as queue
     MERGE (q:AzureStorageQueue{id: queue.id})
-    ON CREATE SET q.firstseen = timestamp(), q.type = queue.type
+    ON CREATE SET q.firstseen = timestamp(), q.type = queue.type, q.region = $region
     SET q.name = queue.name,
     q.region = $region,
     q.consolelink = queue.consolelink,
@@ -725,7 +727,7 @@ def _load_tables(neo4j_session: neo4j.Session, tables: List[Dict], update_tag: i
     ingest_tables = """
     UNWIND $tables_list as table
     MERGE (t:AzureStorageTable{id: table.id})
-    ON CREATE SET t.firstseen = timestamp(), t.type = table.type
+    ON CREATE SET t.firstseen = timestamp(), t.type = table.type, t.region = $region
     SET t.name = table.name,
     t.region = $region,
     t.consolelink = table.consolelink,
@@ -850,7 +852,7 @@ def _load_shares(neo4j_session: neo4j.Session, shares: List[Dict], update_tag: i
     ingest_shares = """
     UNWIND $shares_list as s
     MERGE (share:AzureStorageFileShare{id: s.id})
-    ON CREATE SET share.firstseen = timestamp(), share.type = s.type
+    ON CREATE SET share.firstseen = timestamp(), share.type = s.type, share.region = $region
     SET share.name = s.name,
     share.lastupdated = $azure_update_tag,
     share.lastmodifiedtime = s.last_modified_time,
@@ -985,7 +987,7 @@ def _load_blob_containers(
     ingest_blob_containers = """
     UNWIND $blob_containers_list as blob
     MERGE (bc:AzureStorageBlobContainer{id: blob.id})
-    ON CREATE SET bc.firstseen = timestamp(), bc.type = blob.type
+    ON CREATE SET bc.firstseen = timestamp(), bc.type = blob.type, bc.region = $region
     SET bc.name = blob.name,
     bc.lastupdated = $azure_update_tag,
     bc.deleted = blob.deleted,

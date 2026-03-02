@@ -60,6 +60,7 @@ def get_database_account_list(credentials: Credentials, subscription_id: str, re
         database_account['consolelink'] = azure_console_link.get_console_link(
             id=database_account['id'], primary_ad_domain_name=common_job_parameters['Azure_Primary_AD_Domain_Name'],
         )
+        database_account['location'] = database_account.get('location', '').replace(" ", "").lower()
         if regions is None:
             account_list.append(database_account)
         else:
@@ -237,6 +238,7 @@ def _load_database_account_write_locations(
         write_locations = database_account['write_locations']
         for location in write_locations:
             location["id"] = f'{database_account_id}/writeLocations/{location["id"]}'
+            location["location_name"] = location.get("location_name", "").replace(" ", "").lower()
 
         ingest_write_location = """
         UNWIND $write_locations_list as wl
@@ -276,6 +278,7 @@ def _load_database_account_read_locations(
         read_locations = database_account['read_locations']
         for location in read_locations:
             location["id"] = f'{database_account_id}/readLocations/{location["id"]}'
+            location["location_name"] = location.get("location_name", "").replace(" ", "").lower()
 
         ingest_read_location = """
         UNWIND $read_locations_list as rl
@@ -315,6 +318,7 @@ def _load_database_account_associated_locations(
         associated_locations = database_account['locations']
         for location in associated_locations:
             location["id"] = f'{database_account_id}/locations/{location["id"]}'
+            location["location_name"] = location.get("location_name", "").replace(" ", "").lower()
 
         ingest_associated_location = """
         UNWIND $associated_locations_list as al
