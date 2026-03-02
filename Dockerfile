@@ -14,14 +14,6 @@ ENV HOME=/var/cartography
 
 # Intermediate image to build the venv
 FROM base AS builder
-# Required to build dockerfile (Cartography dependency) from sdist on linux/arm64.
-ARG uid=10001
-ARG gid=10001
-USER root
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends golang-go build-essential \
-    && rm -rf /var/lib/apt/lists/*
-USER ${uid}:${gid}
 # Install uv version 0.7.3
 COPY --from=ghcr.io/astral-sh/uv@sha256:87a04222b228501907f487b338ca6fc1514a93369bfce6930eb06c8d576e58a4 /uv /uvx /bin/
 # Install cartography
