@@ -73,10 +73,11 @@ def transform_repos(workspace_repos: List[Dict], workspace: str) -> Dict:
                 {
                     "repo_id": repo["uuid"],
                     "primary_language": repo["primary_language"],
-                }
+                },
             )
 
         repo["archived"] = repo.get("is_archived", repo.get("archived", False))
+        repo["visibility"] = "private" if repo.get("is_private") else "public"
         data = {
             "workspace": workspace,
             "project": cleanse_string(repo["project"]["name"]),
@@ -100,12 +101,12 @@ def transform_branches(branches: List[Dict], repo_id: str, default_branch: str =
     """
     transformed_branches = []
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
-    
+
     for branch in branches:
         branch_name = branch["name"]
         target = branch.get("target", {})
         date_str = target.get("date")
-        
+
         # Always include default branch
         if branch_name == default_branch:
             transformed_branches.append({
@@ -115,7 +116,7 @@ def transform_branches(branches: List[Dict], repo_id: str, default_branch: str =
                 "date": date_str,
             })
             continue
-        
+
         # Filter by activity date
         if date_str:
             branch_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
@@ -134,7 +135,7 @@ def transform_branches(branches: List[Dict], repo_id: str, default_branch: str =
                 "name": branch_name,
                 "date": date_str,
             })
-    
+
     return transformed_branches
 
 
@@ -222,6 +223,7 @@ def _load_repositories_data(tx: neo4j.Transaction, repos_data: List[Dict], commo
     re.default_branch = repo.default_branch,
     re.archived = repo.archived,
     re.updated_on = repo.updated_on,
+    re.visibility = repo.visibility,
     re.lastupdated = $UpdateTag,
     re.console_link = repo.console_link
 
@@ -237,6 +239,37 @@ def _load_repositories_data(tx: neo4j.Transaction, repos_data: List[Dict], commo
         reposData=repos_data,
         UpdateTag=common_job_parameters["UPDATE_TAG"],
     )
+
+
+def _update_repo_last_activity(
+    neo4j_session: neo4j.Session,
+    repo_id: str,
+    branches: List[Dict],
+    default_branch: str,
+) -> None:
+    """
+    Compute and store last_activity_at for a Bitbucket repository from its branch commit dates.
+    Priority: (1) default branch commit date, (2) max commit date across all branches.
+    """
+    last_activity_at = None
+    # Priority 1: default branch commit date
+    if default_branch:
+        for b in branches:
+            if b["name"] == default_branch and b.get("date"):
+                last_activity_at = b["date"]
+                break
+
+    # Priority 2: max across all branches
+    if last_activity_at is None:
+        all_dates = [b["date"] for b in branches if b.get("date")]
+        last_activity_at = max(all_dates) if all_dates else None
+
+    if last_activity_at is not None:
+        neo4j_session.run(
+            "MATCH (r:BitbucketRepository{id: $RepoId}) SET r.last_activity_at = $LastActivity",
+            RepoId=repo_id,
+            LastActivity=last_activity_at,
+        )
 
 
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
@@ -271,11 +304,14 @@ def sync(
     # Sync branches for each repository
     for repo in transformed_data["repos"]:
         repo_slug = repo.get("slug")
-        if repo_slug:
-            branches = get_branches(bitbucket_access_token, workspace_name, repo_slug)
-            default_branch = repo.get("default_branch")
-            transformed_branches = transform_branches(branches, repo["uuid"], default_branch)
-            load_branches(neo4j_session, transformed_branches, common_job_parameters)
+        if not repo_slug:
+            next
+
+        branches = get_branches(bitbucket_access_token, workspace_name, repo_slug)
+        default_branch = repo.get("default_branch")
+        transformed_branches = transform_branches(branches, repo["uuid"], default_branch)
+        load_branches(neo4j_session, transformed_branches, common_job_parameters)
+        _update_repo_last_activity(neo4j_session, repo["uuid"], transformed_branches, default_branch)
 
     # Load languages
     load_languages(neo4j_session, common_job_parameters["UPDATE_TAG"], transformed_data["repo_primary_language"])

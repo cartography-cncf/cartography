@@ -108,11 +108,13 @@ def load_repositories(
         r.remoteurl = repo.remoteUrl,
         r.state = repo.state,
         r.size = repo.size,
-        r.defaultbranch = repo.defaultBranch,
+        r.default_branch = repo.defaultBranch,
         r.isdisabled = repo.isDisabled,
         r.archived = repo.isDisabled,
         r.weburl = repo.webUrl,
         r.project = repo.project,
+        r.visibility = repo.project_visibility,
+        r.primary_language = repo.primary_language,
         r.lastupdated = $UpdateTag
     WITH r
 
@@ -137,13 +139,13 @@ def transform_branches_data(branches: List[Dict], repo_id: str, default_branch: 
     """
     transformed_branches = []
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
-    
+
     for branch in branches:
         branch_name = branch["name"]
         commit = branch.get("commit", {})
         committer = commit.get("committer", {})
         commit_date_str = committer.get("date")
-        
+
         # Always include default branch
         if default_branch and branch_name == default_branch:
             transformed_branches.append({
@@ -153,7 +155,7 @@ def transform_branches_data(branches: List[Dict], repo_id: str, default_branch: 
                 "commitDate": commit_date_str,
             })
             continue
-        
+
         # Filter by activity date
         if commit_date_str:
             commit_date = datetime.fromisoformat(commit_date_str.replace('Z', '+00:00'))
@@ -172,7 +174,7 @@ def transform_branches_data(branches: List[Dict], repo_id: str, default_branch: 
                 "name": branch_name,
                 "commitDate": commit_date_str,
             })
-    
+
     return transformed_branches
 
 
@@ -216,11 +218,29 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
 
 
 def _update_repo_last_activity(
-    neo4j_session: neo4j.Session, repo_id: str, branches: List[Dict],
+    neo4j_session: neo4j.Session,
+    repo_id: str,
+    branches: List[Dict],
+    default_branch: str = None,
 ) -> None:
-    commit_dates = [b["commitDate"] for b in branches if b.get("commitDate")]
-    if commit_dates:
-        last_activity_at = max(commit_dates)
+    """
+    Compute and store last_activity_at for an Azure DevOps repository from its branch commit dates.
+    Priority: (1) default branch commit date, (2) max commit date across all branches.
+    """
+    last_activity_at = None
+    # Priority 1: default branch commit date
+    if default_branch:
+        for b in branches:
+            if b["name"] == default_branch and b.get("commitDate"):
+                last_activity_at = b["commitDate"]
+                break
+
+    # Priority 2: max across all branches
+    if last_activity_at is None:
+        all_dates = [b["commitDate"] for b in branches if b.get("commitDate")]
+        last_activity_at = max(all_dates) if all_dates else None
+
+    if last_activity_at is not None:
         neo4j_session.run(
             "MATCH (r:AzureDevOpsRepo{id: $RepoId}) SET r.last_activity_at = $LastActivity",
             RepoId=repo_id,
@@ -254,6 +274,16 @@ def sync(
             access_token,
         )
         if repos:
+            project_visibility = project.get("visibility")
+            for repo in repos:
+                # Normalize defaultBranch: strip refs/heads/ prefix
+                raw_db = repo.get("defaultBranch") or ""
+                repo["defaultBranch"] = raw_db.replace("refs/heads/", "") if raw_db.startswith("refs/heads/") else raw_db
+                # Inherit visibility from project (not available on repo API response)
+                repo["project_visibility"] = project_visibility
+                # primary_language not available in Azure DevOps API
+                repo["primary_language"] = None
+
             load_repositories(neo4j_session, repos, project_id, common_job_parameters)
 
             # Sync branches for each repository and compute last activity date
@@ -266,12 +296,9 @@ def sync(
                     access_token,
                 )
                 if branches:
-                    default_branch = repo.get("defaultBranch")
-                    # Remove 'refs/heads/' prefix if present
-                    if default_branch and default_branch.startswith("refs/heads/"):
-                        default_branch = default_branch.replace("refs/heads/", "")
+                    default_branch = repo.get("defaultBranch")  # already normalized above
                     transformed_branches = transform_branches_data(branches, repo["id"], default_branch)
                     load_branches_data(neo4j_session, transformed_branches, common_job_parameters)
-                    _update_repo_last_activity(neo4j_session, repo["id"], transformed_branches)
+                    _update_repo_last_activity(neo4j_session, repo["id"], transformed_branches, default_branch)
 
     cleanup(neo4j_session, common_job_parameters)

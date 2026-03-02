@@ -162,6 +162,29 @@ def transform(repos_json: List[Dict]) -> Dict:
         _transform_branches(repo_object["url"], repo_object, transformed_branches)
         # _transform_requirements_txt(repo_object["requirements"], repo_object["url"], transformed_requirements_files)
         # _transform_setup_cfg_requirements(repo_object["setupCfg"], repo_object["url"], transformed_requirements_files)
+
+    # Compute last_activity_at per repo from branch commit timestamps
+    # Priority: (1) default branch commit date, (2) max across all branches
+    branches_by_repo: Dict[str, List[Dict]] = {}
+    for b in transformed_branches:
+        branches_by_repo.setdefault(b["repo_id"], []).append(b)
+
+    for repo in transformed_repo_list:
+        default_branch_name = repo.get("default_branch")
+        repo_branches = branches_by_repo.get(repo["id"], [])
+        last_activity_at = None
+        if default_branch_name:
+            for b in repo_branches:
+                if b["name"] == default_branch_name and b.get("last_commit_timestamp"):
+                    last_activity_at = b["last_commit_timestamp"]
+                    break
+
+        if last_activity_at is None:
+            all_dates = [b["last_commit_timestamp"] for b in repo_branches if b.get("last_commit_timestamp")]
+            last_activity_at = max(all_dates) if all_dates else None
+
+        repo["last_activity_at"] = last_activity_at
+
     results = {
         "repos": transformed_repo_list,
         "repo_languages": transformed_repo_languages,
@@ -181,16 +204,16 @@ def _transform_branches(repo_url: str, repo: Dict, transformed_branches: List[Di
     """
     if not repo.get("refs"):
         return
-    
+
     default_branch = repo.get("defaultBranchRef", {}).get("name") if repo.get("defaultBranchRef") else None
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
-    
+
     for edge in repo["refs"]["edges"]:
         node = edge["node"]
         branch_name = node["name"]
         target = node.get("target")
         pushed_date_str = target.get("pushedDate") if target else None
-        
+
         # Always include default branch
         if branch_name == default_branch:
             transformed_branches.append({
@@ -200,7 +223,7 @@ def _transform_branches(repo_url: str, repo: Dict, transformed_branches: List[Di
                 "last_commit_timestamp": pushed_date_str,
             })
             continue
-        
+
         # Filter by activity date
         if pushed_date_str:
             pushed_date = datetime.fromisoformat(pushed_date_str.replace('Z', '+00:00'))
@@ -260,11 +283,12 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "name": input_repo_object["name"],
             "fullname": input_repo_object["nameWithOwner"],
             "description": input_repo_object["description"],
-            "primarylanguage": input_repo_object["primaryLanguage"],
+            "primary_language": input_repo_object["primaryLanguage"]["name"] if input_repo_object.get("primaryLanguage") else None,
             "homepage": input_repo_object["homepageUrl"],
-            "defaultbranch": default_branch_name,
+            "default_branch": default_branch_name,
             "defaultbranchid": default_branch_id,
-            "private": input_repo_object["isPrivate"],
+            "is_private": input_repo_object["isPrivate"],
+            "visibility": "private" if input_repo_object["isPrivate"] else "public",
             "disabled": input_repo_object["isDisabled"],
             "archived": input_repo_object["isArchived"],
             "locked": input_repo_object["isLocked"],
@@ -471,11 +495,12 @@ def load_github_repos(neo4j_session: neo4j.Session, update_tag: int, repo_data: 
     SET repo.name = repository.name,
     repo.fullname = repository.fullname,
     repo.description = repository.description,
-    repo.primarylanguage = repository.primarylanguage.name,
+    repo.primary_language = repository.primary_language,
     repo.homepage = repository.homepage,
-    repo.defaultbranch = repository.defaultbranch,
+    repo.default_branch = repository.default_branch,
     repo.defaultbranchid = repository.defaultbranchid,
-    repo.private = repository.private,
+    repo.is_private = repository.private,
+    repo.visibility = repository.visibility,
     repo.disabled = repository.disabled,
     repo.archived = repository.archived,
     repo.locked = repository.locked,
@@ -483,13 +508,14 @@ def load_github_repos(neo4j_session: neo4j.Session, update_tag: int, repo_data: 
     repo.url = repository.url,
     repo.sshurl = repository.sshurl,
     repo.updatedat = repository.updatedat,
+    repo.last_activity_at = repository.last_activity_at,
     repo.lastupdated = $UpdateTag
 
     WITH repo
-    WHERE repo.defaultbranch IS NOT NULL AND repo.defaultbranchid IS NOT NULL
+    WHERE repo.default_branch IS NOT NULL AND repo.defaultbranchid IS NOT NULL
     MERGE (branch:GitHubBranch{id: repo.defaultbranchid})
     ON CREATE SET branch.firstseen = timestamp()
-    SET branch.name = repo.defaultbranch,
+    SET branch.name = repo.default_branch,
     branch.lastupdated = $UpdateTag
 
     MERGE (repo)-[r:BRANCH]->(branch)

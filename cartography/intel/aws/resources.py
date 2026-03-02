@@ -1,6 +1,7 @@
 from typing import Dict
 
 from . import apigateway
+from . import bedrock
 from . import cloudformation
 from . import cloudfront
 from . import cloudtrail
@@ -24,10 +25,9 @@ from . import redshift
 from . import resourcegroupstaggingapi
 from . import route53
 from . import s3
+from . import sagemaker
 from . import secretsmanager
 from . import securityhub
-from . import sagemaker
-from . import bedrock
 from . import ses
 from . import sns
 from . import sqs

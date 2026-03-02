@@ -205,7 +205,6 @@ def is_user_created_backend_service(service):
         ("gcf-", "Cloud Functions NEG"),
     ]
 
-
     # E. Check backend groups for GCP managed NEGs
     for idx, backend in enumerate(backends):
         group = backend.get("group", "").lower()

@@ -71,12 +71,12 @@ def transform_branches_data(branches: List[Dict], project_id: int, project_path:
     """
     transformed_branches = []
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
-    
+
     for branch in branches:
         branch_name = branch["name"]
         commit = branch.get("commit", {})
         committed_date_str = commit.get("committed_date")
-        
+
         # Always include default branch
         if branch_name == default_branch:
             transformed_branches.append({
@@ -87,7 +87,7 @@ def transform_branches_data(branches: List[Dict], project_id: int, project_path:
                 "committed_date": committed_date_str,
             })
             continue
-        
+
         # Filter by activity date
         if committed_date_str:
             committed_date = datetime.fromisoformat(committed_date_str.replace('Z', '+00:00'))
@@ -107,7 +107,7 @@ def transform_branches_data(branches: List[Dict], project_id: int, project_path:
                 "name": branch_name,
                 "committed_date": committed_date_str,
             })
-    
+
     return transformed_branches
 
 
@@ -195,7 +195,7 @@ def _load_projects_data(
         pro.namespace= project.namespace.path,
         pro.last_activity_at = project.last_activity_at,
         pro.default_branch = project.default_branch,
-        pro.language = project.language,
+        pro.primary_language = project.primary_language,
         pro.lastupdated = $UpdateTag
 
     WITH pro, project
@@ -249,7 +249,7 @@ def sync(
         )
         if project_languages:
             primary_language = max(project_languages, key=project_languages.get)
-            project["language"] = primary_language
+            project["primary_language"] = primary_language
 
     group_projects = transform_projects_data(group_projects)
 
@@ -259,10 +259,10 @@ def sync(
     for project in group_projects:
         branches = get_project_branches(hosted_domain, access_token, project["id"])
         transformed_branches = transform_branches_data(
-            branches, 
-            project["id"], 
+            branches,
+            project["id"],
             project.get("path_with_namespace", project["path"]),
-            project.get("default_branch")
+            project.get("default_branch"),
         )
         load_branches_data(neo4j_session, transformed_branches, common_job_parameters)
 

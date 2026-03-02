@@ -10,13 +10,13 @@ import neo4j
 from azure.core.exceptions import ClientAuthenticationError
 from azure.core.exceptions import HttpResponseError
 from azure.core.exceptions import ResourceNotFoundError
+from azure.mgmt.rdbms.mysql import MySQLManagementClient
+from azure.mgmt.rdbms.mysql_flexibleservers import MySQLManagementClient as MySQLFlexibleServersManagementClient
+from azure.mgmt.rdbms.postgresql import PostgreSQLManagementClient
+from azure.mgmt.rdbms.postgresql_flexibleservers import PostgreSQLManagementClient as PostgreSQLFlexibleServersManagementClient
 from azure.mgmt.sql import SqlManagementClient
 from azure.mgmt.sql.models import SecurityAlertPolicyName
 from azure.mgmt.sql.models import TransparentDataEncryptionName
-from azure.mgmt.rdbms.postgresql_flexibleservers import PostgreSQLManagementClient as PostgreSQLFlexibleServersManagementClient
-from azure.mgmt.rdbms.mysql_flexibleservers import MySQLManagementClient as MySQLFlexibleServersManagementClient
-from azure.mgmt.rdbms.postgresql import PostgreSQLManagementClient
-from azure.mgmt.rdbms.mysql import MySQLManagementClient
 from cloudconsolelink.clouds.azure import AzureLinker
 from msrestazure.azure_exceptions import CloudError
 from netaddr import *
@@ -70,7 +70,7 @@ def _extract_engine_info(server: Dict) -> Tuple[str, str, int]:
     # Log the extraction for debugging
     logger.debug(
         f"Extracted engine info for {server.get('name')}: "
-        f"engine={engine}, version={version}, port={port}"
+        f"engine={engine}, version={version}, port={port}",
     )
 
     return engine, version, port
@@ -79,7 +79,7 @@ def _extract_engine_info(server: Dict) -> Tuple[str, str, int]:
 def _extract_endpoint_info(
     server: Dict,
     credentials: Credentials,
-    subscription_id: str
+    subscription_id: str,
 ) -> Dict:
     endpoint_info = {
         'public_endpoint': None,
@@ -261,7 +261,7 @@ def load_server_data(
     UNWIND $server_list as server
     MERGE (s:AzureSQLServer{id: server.id})
     ON CREATE SET s.firstseen = timestamp(),
-    s.resourcegroup = server.resourceGroup, 
+    s.resourcegroup = server.resourceGroup,
     s.location = server.location,
     s.region = server.location
     SET s.lastupdated = $azure_update_tag,
