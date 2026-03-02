@@ -32,6 +32,7 @@ def test_guess_architecture_from_image_ref() -> None:
     assert guess_architecture_from_image_ref("repo/app:linux/arm/v7") == "arm"
     assert guess_architecture_from_image_ref("registry/myapp-amd64:latest") == "amd64"
     assert guess_architecture_from_image_ref("registry/repo/worker-arm64:v1") == "arm64"
+    assert guess_architecture_from_image_ref("registry/myapp-x86_64:latest") == "amd64"
     assert guess_architecture_from_image_ref("repo/app:latest") == "unknown"
 
 
