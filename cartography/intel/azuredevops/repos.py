@@ -215,6 +215,19 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     )
 
 
+def _update_repo_last_activity(
+    neo4j_session: neo4j.Session, repo_id: str, branches: List[Dict],
+) -> None:
+    commit_dates = [b["commitDate"] for b in branches if b.get("commitDate")]
+    if commit_dates:
+        last_activity_at = max(commit_dates)
+        neo4j_session.run(
+            "MATCH (r:AzureDevOpsRepo{id: $RepoId}) SET r.last_activity_at = $LastActivity",
+            RepoId=repo_id,
+            LastActivity=last_activity_at,
+        )
+
+
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
@@ -243,7 +256,7 @@ def sync(
         if repos:
             load_repositories(neo4j_session, repos, project_id, common_job_parameters)
 
-            # Sync branches for each repository
+            # Sync branches for each repository and compute last activity date
             for repo in repos:
                 branches = get_branches_for_repository(
                     azure_devops_url,
@@ -259,5 +272,6 @@ def sync(
                         default_branch = default_branch.replace("refs/heads/", "")
                     transformed_branches = transform_branches_data(branches, repo["id"], default_branch)
                     load_branches_data(neo4j_session, transformed_branches, common_job_parameters)
+                    _update_repo_last_activity(neo4j_session, repo["id"], transformed_branches)
 
     cleanup(neo4j_session, common_job_parameters)

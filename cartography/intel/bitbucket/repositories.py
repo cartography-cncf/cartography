@@ -221,6 +221,7 @@ def _load_repositories_data(tx: neo4j.Transaction, repos_data: List[Dict], commo
     re.parent = repo.parent.name,
     re.default_branch = repo.default_branch,
     re.archived = repo.archived,
+    re.updated_on = repo.updated_on,
     re.lastupdated = $UpdateTag,
     re.console_link = repo.console_link
 
