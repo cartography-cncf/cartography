@@ -26,6 +26,8 @@ from . import route53
 from . import s3
 from . import secretsmanager
 from . import securityhub
+from . import sagemaker
+from . import bedrock
 from . import ses
 from . import sns
 from . import sqs
@@ -67,6 +69,8 @@ RESOURCE_FUNCTIONS: Dict = {
     'sqs': sqs.sync,
     'sns': sns.sync,
     'ses': ses.sync,
+    'sagemaker': sagemaker.sync,
+    'bedrock': bedrock.sync,
     'cloudwatch': cloudwatch.sync,
     'cloudfront': cloudfront.sync,
     'cloudformation': cloudformation.sync,
