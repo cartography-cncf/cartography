@@ -10,6 +10,7 @@ U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
+UG{{UserGroup}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
 DB{{Database}}
@@ -124,6 +125,30 @@ Unlike the abstract `User` node, `UserAccount` is a semantic label applied to co
 | _ont_has_mfa | Whether multi-factor authentication is enabled for this account. |
 | _ont_inactive | Whether the account is inactive, disabled, suspended, or locked. |
 | _ont_lastactivity | Timestamp of the last activity or login for this account. |
+| _ont_source | Source of the data. |
+
+
+### UserGroup
+
+```{note}
+UserGroup is a semantic label.
+```
+
+A user group represents a logical grouping of users or resources within a cloud provider or SaaS platform.
+Groups are a key part of the identity graph and enable attack path analysis through group membership relationships.
+Unlike the abstract `User` node, `UserGroup` is a semantic label applied to concrete group nodes from different modules, enabling unified queries across platforms.
+
+Common group concepts across platforms include:
+- **Cloud IAM**: AWS IAM Groups, AWS SSO Groups, OCI Groups, Scaleway Groups
+- **Identity Providers**: Entra Groups, Okta Groups, Keycloak Groups, Google Workspace Groups, GSuite Groups
+- **Collaboration**: GitHub Teams, GitLab Groups, Slack Groups, PagerDuty Teams
+- **Network/Device**: Duo Groups, Tailscale Groups
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name of the group (REQUIRED). |
+| _ont_description | Description of the group. |
+| _ont_email | Email address associated with the group (for mail-enabled groups). |
 | _ont_source | Source of the data. |
 
 
