@@ -24,5 +24,5 @@ class KubernetesClusterNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class KubernetesClusterSchema(CartographyNodeSchema):
     label: str = "KubernetesCluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Cluster"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
     properties: KubernetesClusterNodeProperties = KubernetesClusterNodeProperties()

@@ -59,6 +59,6 @@ class EMRClusterToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class EMRClusterSchema(CartographyNodeSchema):
     label: str = "EMRCluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Cluster"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
     properties: EMRClusterNodeProperties = EMRClusterNodeProperties()
     sub_resource_relationship: EMRClusterToAWSAccountRel = EMRClusterToAWSAccountRel()

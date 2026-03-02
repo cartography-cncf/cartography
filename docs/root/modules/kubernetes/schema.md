@@ -3,7 +3,7 @@
 ### KubernetesCluster
 Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/overview/what-is-kubernetes/)
 
-> **Ontology Mapping**: This node has the extra label `Cluster` to enable cross-platform queries for clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, GKECluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, GKECluster).
 
 | Field | Description |
 |-------|-------------|

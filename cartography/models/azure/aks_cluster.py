@@ -49,7 +49,7 @@ class AzureKubernetesClusterToSubscriptionRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class AzureKubernetesClusterSchema(CartographyNodeSchema):
     label: str = "AzureKubernetesCluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Cluster"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
     properties: AzureKubernetesClusterProperties = AzureKubernetesClusterProperties()
     sub_resource_relationship: AzureKubernetesClusterToSubscriptionRel = (
         AzureKubernetesClusterToSubscriptionRel()

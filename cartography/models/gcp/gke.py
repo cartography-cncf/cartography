@@ -66,6 +66,6 @@ class GCPGKEClusterToProjectRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class GCPGKEClusterSchema(CartographyNodeSchema):
     label: str = "GKECluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Cluster"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
     properties: GCPGKEClusterNodeProperties = GCPGKEClusterNodeProperties()
     sub_resource_relationship: GCPGKEClusterToProjectRel = GCPGKEClusterToProjectRel()

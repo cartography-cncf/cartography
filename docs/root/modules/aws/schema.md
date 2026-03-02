@@ -2716,7 +2716,7 @@ Representation of a software package, as found by an AWS ECR vulnerability scan.
 
 Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/APIReference/API_Cluster.html).
 
-> **Ontology Mapping**: This node has the extra label `Cluster` to enable cross-platform queries for clusters across different systems (e.g., ECSCluster, AzureKubernetesCluster, GKECluster, KubernetesCluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., ECSCluster, AzureKubernetesCluster, GKECluster, KubernetesCluster).
 
 | Field | Description |
 |-------|-------------|
@@ -2747,7 +2747,7 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 
 Representation of an AWS [EMR Cluster](https://docs.aws.amazon.com/emr/latest/APIReference/API_Cluster.html).
 
-> **Ontology Mapping**: This node has the extra label `Cluster` to enable cross-platform queries for clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, GKECluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, GKECluster).
 
 | Field | Description |
 |-------|-------------|
@@ -4687,7 +4687,7 @@ Representation of an AWS EC2 [Elastic IP address](https://docs.aws.amazon.com/AW
 
 Representation of an AWS ECS [Cluster](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Cluster.html)
 
-> **Ontology Mapping**: This node has the extra label `Cluster` to enable cross-platform queries for clusters across different systems (e.g., EKSCluster, AzureKubernetesCluster, GKECluster, KubernetesCluster).
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, AzureKubernetesCluster, GKECluster, KubernetesCluster).
 
 | Field | Description |
 |-------|-------------|

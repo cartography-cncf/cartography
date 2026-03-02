@@ -61,6 +61,6 @@ class ECSClusterToAWSAccountRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class ECSClusterSchema(CartographyNodeSchema):
     label: str = "ECSCluster"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Cluster"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
     properties: ECSClusterNodeProperties = ECSClusterNodeProperties()
     sub_resource_relationship: ECSClusterToAWSAccountRel = ECSClusterToAWSAccountRel()

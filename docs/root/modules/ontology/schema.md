@@ -12,7 +12,7 @@ U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
-CL{{Cluster}}
+CL{{ComputeCluster}}
 DB{{Database}}
 OS{{ObjectStorage}}
 TN{{Tenant}}
@@ -248,13 +248,13 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 | _ont_health_status | The health status of the container. |
 
 
-### Cluster
+### ComputeCluster
 
 ```{note}
-Cluster is a semantic label.
+ComputeCluster is a semantic label.
 ```
 
-A cluster represents a managed container orchestration or data processing environment across cloud providers.
+A compute cluster represents a managed container orchestration or data processing environment across cloud providers.
 It generalizes concepts like AWS EKS clusters, AWS ECS clusters, AWS EMR clusters, Azure Kubernetes Service clusters, GCP GKE clusters, and native Kubernetes clusters.
 
 | Field | Description |
