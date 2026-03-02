@@ -222,6 +222,8 @@ Represents a Keycloak client application that can request authentication and aut
 
 Represents a group of users in Keycloak that can be used for organizing users and assigning roles.
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |

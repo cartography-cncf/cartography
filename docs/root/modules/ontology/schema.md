@@ -10,8 +10,10 @@ U(User) -- HAS_ACCOUNT --> UA{{UserAccount}}
 U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
+UG{{UserGroup}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
+CL{{ComputeCluster}}
 DB{{Database}}
 OS{{ObjectStorage}}
 TN{{Tenant}}
@@ -124,6 +126,30 @@ Unlike the abstract `User` node, `UserAccount` is a semantic label applied to co
 | _ont_has_mfa | Whether multi-factor authentication is enabled for this account. |
 | _ont_inactive | Whether the account is inactive, disabled, suspended, or locked. |
 | _ont_lastactivity | Timestamp of the last activity or login for this account. |
+| _ont_source | Source of the data. |
+
+
+### UserGroup
+
+```{note}
+UserGroup is a semantic label.
+```
+
+A user group represents a logical grouping of users or resources within a cloud provider or SaaS platform.
+Groups are a key part of the identity graph and enable attack path analysis through group membership relationships.
+Unlike the abstract `User` node, `UserGroup` is a semantic label applied to concrete group nodes from different modules, enabling unified queries across platforms.
+
+Common group concepts across platforms include:
+- **Cloud IAM**: AWS IAM Groups, AWS SSO Groups, OCI Groups, Scaleway Groups
+- **Identity Providers**: Entra Groups, Okta Groups, Keycloak Groups, Google Workspace Groups, GSuite Groups
+- **Collaboration**: GitHub Teams, GitLab Groups, Slack Groups, PagerDuty Teams
+- **Network/Device**: Duo Groups, Tailscale Groups
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name of the group (REQUIRED). |
+| _ont_description | Description of the group. |
+| _ont_email | Email address associated with the group (for mail-enabled groups). |
 | _ont_source | Source of the data. |
 
 
@@ -245,6 +271,25 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 | _ont_region | The region or zone where the container is running. |
 | _ont_namespace | Namespace for logical isolation (e.g., Kubernetes namespace). |
 | _ont_health_status | The health status of the container. |
+
+
+### ComputeCluster
+
+```{note}
+ComputeCluster is a semantic label.
+```
+
+A compute cluster represents a managed container orchestration or data processing environment across cloud providers.
+It generalizes concepts like AWS EKS clusters, AWS ECS clusters, AWS EMR clusters, Azure Kubernetes Service clusters, GCP GKE clusters, and native Kubernetes clusters.
+
+| Field | Description |
+|-------|-------------|
+| _ont_id | The unique identifier for the cluster. |
+| _ont_name | The name of the cluster. |
+| _ont_region | The region or location where the cluster is deployed. |
+| _ont_version | The version of the cluster engine (e.g., Kubernetes version, EMR release label). |
+| _ont_endpoint | The API endpoint or FQDN for the cluster. |
+| _ont_status | The current status of the cluster (e.g., ACTIVE, RUNNING, Succeeded). |
 
 
 ### ThirdPartyApp
