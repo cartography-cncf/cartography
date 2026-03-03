@@ -127,7 +127,7 @@ def sync(
         queue_urls = get_sqs_queue_list(boto3_session, region)
         if not queue_urls:
             continue
-        queue_attributes = get_sqs_queue_attributes(boto3_session,region, queue_urls)
+        queue_attributes = get_sqs_queue_attributes(boto3_session, region, queue_urls)
         transformed = transform_sqs_queues(queue_attributes)
         load_sqs_queues(
             neo4j_session,
