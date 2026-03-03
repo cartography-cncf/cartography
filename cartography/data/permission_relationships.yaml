@@ -27,3 +27,18 @@
   - redshift:GetClusterCredentials
   - redshift:JoinGroup
   relationship_name: CAN_ADMINISTER
+# Map principals that can query RDS instances via IAM database authentication.
+- target_label: RDSInstance
+  permissions:
+  - rds-db:connect
+  relationship_name: CAN_QUERY
+# Map principals that can administer RDS instances.
+- target_label: RDSInstance
+  permissions:
+  - rds:*
+  - rds:ModifyDBInstance
+  - rds:DeleteDBInstance
+  - rds:RebootDBInstance
+  - rds:StopDBInstance
+  - rds:StartDBInstance
+  relationship_name: CAN_ADMINISTER
