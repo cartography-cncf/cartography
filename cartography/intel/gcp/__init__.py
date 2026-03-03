@@ -785,6 +785,12 @@ def start_gcp_ingestion(
         neo4j_session,
         common_job_parameters,
     )
+    # DEPRECATED: compatibility migration for legacy role edges. Remove in v1.0.0.
+    run_analysis_job(
+        "gcp_role_resource_edge_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
 
     run_analysis_job(
         "gcp_gke_asset_exposure.json",
