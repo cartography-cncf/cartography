@@ -306,14 +306,10 @@ def _parse_base_image_reference(from_value: str) -> tuple[str, str | None, str |
 
 
 def _parse_instructions(content: str) -> list[DockerfileInstruction]:
-    """Parse Dockerfile content into a list of instructions."""
-    return _parse_with_dockerfile_package(content)
-
-
-def _parse_with_dockerfile_package(content: str) -> list[DockerfileInstruction]:
     """Parse Dockerfile instructions using a lightweight in-repo parser.
 
-    :raises Exception: If parsing fails (e.g., invalid Dockerfile syntax)
+    This parser intentionally focuses on extracting instruction/value pairs needed
+    for supply-chain matching instead of fully implementing Dockerfile grammar.
     """
     lines = content.splitlines()
     instructions: list[DockerfileInstruction] = []
@@ -335,6 +331,8 @@ def _parse_with_dockerfile_package(content: str) -> list[DockerfileInstruction]:
         while _has_line_continuation(logical_line) and i + 1 < len(lines):
             logical_line = logical_line.rstrip()[:-1].strip()
             i += 1
+            # NOTE: We currently keep comment-only continuation lines in the value.
+            # This is a known simplification vs Docker's full parser behavior.
             logical_line = f"{logical_line} {lines[i].strip()}"
 
         cmd, value = _split_instruction(logical_line)
@@ -345,12 +343,19 @@ def _parse_with_dockerfile_package(content: str) -> list[DockerfileInstruction]:
         heredoc_delimiter = _extract_heredoc_delimiter(value)
         if heredoc_delimiter:
             i += 1
+            found_terminator = False
             while i < len(lines):
                 line = lines[i]
                 if line.strip() == heredoc_delimiter:
+                    found_terminator = True
                     break
                 value = f"{value}\n{line}"
                 i += 1
+            if not found_terminator:
+                logger.warning(
+                    "Unterminated Dockerfile heredoc delimiter '%s' while parsing.",
+                    heredoc_delimiter,
+                )
 
         instructions.append(
             DockerfileInstruction(
