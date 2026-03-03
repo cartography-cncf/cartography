@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 
 
 @dataclass(frozen=True)
@@ -41,4 +42,5 @@ class KubernetesClusterNodeProperties(CartographyNodeProperties):
 @dataclass(frozen=True)
 class KubernetesClusterSchema(CartographyNodeSchema):
     label: str = "KubernetesCluster"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ComputeCluster"])
     properties: KubernetesClusterNodeProperties = KubernetesClusterNodeProperties()
