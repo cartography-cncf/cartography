@@ -109,8 +109,10 @@ def get_workbench_api_locations(
             locations.append(location_id)
 
     logger.info(
-        f"Found {len(locations)} supported Notebooks API locations "
-        f"(filtered from {len(all_locations)} total) for project {project_id}"
+        "Found %s supported Notebooks API locations (filtered from %s total) for project %s",
+        len(locations),
+        len(all_locations),
+        project_id,
     )
     return locations
 
@@ -186,7 +188,8 @@ def transform_workbench_instances(instances: List[Dict]) -> List[Dict]:
         transformed_instances.append(transformed_instance)
 
     logger.info(
-        f"Transformed {len(transformed_instances)} Vertex AI Workbench instances"
+        "Transformed %s Vertex AI Workbench instances",
+        len(transformed_instances),
     )
     return transformed_instances
 
