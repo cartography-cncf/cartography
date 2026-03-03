@@ -81,10 +81,6 @@ def _ensure_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
-def _now_utc() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 def _parse_certificate_authority_metadata(cluster: Dict[str, Any]) -> Dict[str, Any]:
     cert_data = cluster.get("certificateAuthority", {}).get("data")
     cert_metadata: Dict[str, Any] = {
@@ -98,8 +94,6 @@ def _parse_certificate_authority_metadata(cluster: Dict[str, Any]) -> Dict[str, 
         "certificate_authority_not_after": None,
         "certificate_authority_subject_key_identifier": None,
         "certificate_authority_authority_key_identifier": None,
-        "certificate_authority_expired": None,
-        "certificate_authority_days_until_expiry": None,
     }
 
     if not cert_data:
@@ -164,11 +158,6 @@ def _parse_certificate_authority_metadata(cluster: Dict[str, Any]) -> Dict[str, 
     cert_metadata["certificate_authority_not_before"] = not_before_utc
     cert_metadata["certificate_authority_not_after"] = not_after_utc
 
-    now = _now_utc()
-    cert_metadata["certificate_authority_expired"] = not_after_utc < now
-    cert_metadata["certificate_authority_days_until_expiry"] = (
-        not_after_utc - now
-    ).days
     try:
         ski = cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_KEY_IDENTIFIER)
         cert_metadata["certificate_authority_subject_key_identifier"] = (

@@ -54,9 +54,8 @@ def _build_cert_base64(
     return base64.b64encode(cert_bytes).decode("utf-8")
 
 
-def test_transform_eks_clusters_valid_der_certificate_authority_data(monkeypatch):
+def test_transform_eks_clusters_valid_der_certificate_authority_data():
     fake_now = datetime(2025, 1, 1, tzinfo=timezone.utc)
-    monkeypatch.setattr(eks, "_now_utc", lambda: fake_now)
     ca_data = _build_cert_base64(
         include_ski=True,
         include_aki=True,
@@ -91,13 +90,10 @@ def test_transform_eks_clusters_valid_der_certificate_authority_data(monkeypatch
     assert cluster["certificate_authority_not_after"].tzinfo == timezone.utc
     assert cluster["certificate_authority_subject_key_identifier"] is not None
     assert cluster["certificate_authority_authority_key_identifier"] is not None
-    assert cluster["certificate_authority_expired"] is False
-    assert cluster["certificate_authority_days_until_expiry"] == 365
 
 
-def test_transform_eks_clusters_valid_pem_certificate_authority_data(monkeypatch):
+def test_transform_eks_clusters_valid_pem_certificate_authority_data():
     fake_now = datetime(2025, 1, 1, tzinfo=timezone.utc)
-    monkeypatch.setattr(eks, "_now_utc", lambda: fake_now)
     ca_data = _build_cert_base64(
         include_ski=False,
         include_aki=False,
@@ -124,8 +120,6 @@ def test_transform_eks_clusters_valid_pem_certificate_authority_data(monkeypatch
     assert cluster["certificate_authority_sha256_fingerprint"] is not None
     assert cluster["certificate_authority_subject_key_identifier"] is None
     assert cluster["certificate_authority_authority_key_identifier"] is None
-    assert cluster["certificate_authority_expired"] is True
-    assert cluster["certificate_authority_days_until_expiry"] == -2
 
 
 def test_transform_eks_clusters_missing_certificate_authority_data():
@@ -146,8 +140,6 @@ def test_transform_eks_clusters_missing_certificate_authority_data():
     assert cluster["certificate_authority_parse_status"] == "missing"
     assert cluster["certificate_authority_parse_error"] is None
     assert cluster["certificate_authority_sha256_fingerprint"] is None
-    assert cluster["certificate_authority_expired"] is None
-    assert cluster["certificate_authority_days_until_expiry"] is None
 
 
 def test_transform_eks_clusters_invalid_base64_logs_warning(caplog):

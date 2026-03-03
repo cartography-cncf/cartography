@@ -56,12 +56,6 @@ class EKSClusterNodeProperties(CartographyNodeProperties):
     certificate_authority_authority_key_identifier: PropertyRef = PropertyRef(
         "certificate_authority_authority_key_identifier",
     )
-    certificate_authority_expired: PropertyRef = PropertyRef(
-        "certificate_authority_expired",
-    )
-    certificate_authority_days_until_expiry: PropertyRef = PropertyRef(
-        "certificate_authority_days_until_expiry",
-    )
 
 
 @dataclass(frozen=True)
