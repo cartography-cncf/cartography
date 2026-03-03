@@ -33,8 +33,6 @@ from a resource provider API, which is GCP in this particular example.
 `get` should be "dumb" in the sense that it should not handle retry logic or data
 manipulation. It should also raise an exception if it's not able to complete successfully.
 
-For provider/API access failures, there is no one-size-fits-all rule for cleanup. Some modules may preserve existing data on partial-access failures, while others may prefer to treat lost access as authoritative absence and allow cleanup. Whichever strategy you choose, make it explicit in code comments and tests so behavior is predictable.
-
 ### Transform
 
 The `transform` function [manipulates the list of dicts](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L193)
