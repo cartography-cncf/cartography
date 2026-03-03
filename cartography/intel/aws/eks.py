@@ -81,10 +81,6 @@ def _ensure_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
-def _format_datetime_iso(value: datetime) -> str:
-    return _ensure_utc(value).isoformat()
-
-
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -165,12 +161,8 @@ def _parse_certificate_authority_metadata(cluster: Dict[str, Any]) -> Dict[str, 
     )
     not_before_utc = _ensure_utc(not_before_utc)
     not_after_utc = _ensure_utc(not_after_utc)
-    cert_metadata["certificate_authority_not_before"] = _format_datetime_iso(
-        not_before_utc,
-    )
-    cert_metadata["certificate_authority_not_after"] = _format_datetime_iso(
-        not_after_utc,
-    )
+    cert_metadata["certificate_authority_not_before"] = not_before_utc
+    cert_metadata["certificate_authority_not_after"] = not_after_utc
 
     now = _now_utc()
     cert_metadata["certificate_authority_expired"] = not_after_utc < now

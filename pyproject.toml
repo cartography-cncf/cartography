@@ -48,6 +48,7 @@ dependencies = [
     "oci>=2.71.0",
     "okta<1.0.0",
     "PyJWT[crypto]>=2.0.0",
+    "cryptography",
     "pyyaml>=5.3.1",
     "requests>=2.22.0",
     "statsd",

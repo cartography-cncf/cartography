@@ -85,8 +85,10 @@ def test_transform_eks_clusters_valid_der_certificate_authority_data(monkeypatch
     assert cluster["certificate_authority_sha256_fingerprint"] is not None
     assert cluster["certificate_authority_subject"] is not None
     assert cluster["certificate_authority_issuer"] is not None
-    assert cluster["certificate_authority_not_before"] is not None
-    assert cluster["certificate_authority_not_after"] is not None
+    assert isinstance(cluster["certificate_authority_not_before"], datetime)
+    assert isinstance(cluster["certificate_authority_not_after"], datetime)
+    assert cluster["certificate_authority_not_before"].tzinfo == timezone.utc
+    assert cluster["certificate_authority_not_after"].tzinfo == timezone.utc
     assert cluster["certificate_authority_subject_key_identifier"] is not None
     assert cluster["certificate_authority_authority_key_identifier"] is not None
     assert cluster["certificate_authority_expired"] is False

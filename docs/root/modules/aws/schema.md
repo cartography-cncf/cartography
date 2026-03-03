@@ -2746,12 +2746,12 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 | certificate_authority_sha256_fingerprint | SHA256 fingerprint of the decoded EKS API server certificate authority certificate |
 | certificate_authority_subject | Subject DN of the EKS API server certificate authority certificate |
 | certificate_authority_issuer | Issuer DN of the EKS API server certificate authority certificate |
-| certificate_authority_not_before | Certificate validity start time (ISO-8601) |
-| certificate_authority_not_after | Certificate validity end time (ISO-8601) |
+| certificate_authority_not_before | Certificate validity start time (Neo4j datetime) |
+| certificate_authority_not_after | Certificate validity end time (Neo4j datetime) |
 | certificate_authority_subject_key_identifier | Subject Key Identifier (SKI) extension value in hex if present |
 | certificate_authority_authority_key_identifier | Authority Key Identifier (AKI) extension key identifier value in hex if present |
-| certificate_authority_expired | Set to true when the parsed certificate authority certificate is currently expired |
-| certificate_authority_days_until_expiry | Integer day delta until certificate expiry (negative means already expired) |
+| certificate_authority_expired | Set to true when the parsed certificate authority certificate is currently expired (sync-time snapshot) |
+| certificate_authority_days_until_expiry | Integer day delta until certificate expiry (negative means already expired; sync-time snapshot) |
 
 #### Relationships
 
@@ -2770,6 +2770,19 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
            c.certificate_authority_subject,
            c.certificate_authority_issuer,
            c.certificate_authority_authority_key_identifier
+    ORDER BY a.id, c.region, c.name;
+    ```
+
+- Compute expiry freshness at query time (instead of using sync-time snapshot fields):
+    ```cypher
+    MATCH (a:AWSAccount)-[:RESOURCE]->(c:EKSCluster)
+    WHERE c.certificate_authority_not_after IS NOT NULL
+    RETURN a.id,
+           c.name,
+           c.region,
+           c.certificate_authority_not_after,
+           c.certificate_authority_not_after < datetime() AS certificate_authority_expired_now,
+           duration.between(datetime(), c.certificate_authority_not_after).days AS certificate_authority_days_until_expiry_now
     ORDER BY a.id, c.region, c.name;
     ```
 
