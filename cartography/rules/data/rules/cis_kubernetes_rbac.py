@@ -35,6 +35,7 @@ CIS_REFERENCES = [
 class ClusterAdminUsageOutput(Finding):
     """Output model for cluster-admin role usage check."""
 
+    binding_id: str | None = None
     binding_name: str | None = None
     subject_type: str | None = None
     subject_name: str | None = None
@@ -64,6 +65,7 @@ _k8s_cluster_admin_usage = Fact(
         [g IN groups | {subject_type: 'Group', subject_name: g.name}]
     ) AS subject
     RETURN
+        crb.id AS binding_id,
         crb.name AS binding_name,
         subject.subject_type AS subject_type,
         subject.subject_name AS subject_name,
@@ -79,7 +81,7 @@ _k8s_cluster_admin_usage = Fact(
     MATCH (crb:KubernetesClusterRoleBinding)
     RETURN COUNT(crb) AS count
     """,
-    asset_id_field="binding_name",
+    asset_id_field="binding_id",
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -197,7 +199,8 @@ cis_k8s_5_1_2_secret_access = Rule(
     name="CIS K8s 5.1.2: Roles Granting Access to Secrets",
     description=(
         "Access to secrets stored within the Kubernetes cluster should be restricted "
-        "to the smallest possible group of users to reduce the risk of privilege escalation."
+        "to the smallest possible group of users to reduce the risk of privilege escalation. "
+        "Note: this rule checks role definitions; unbound roles may also be flagged."
     ),
     output_model=SecretAccessOutput,
     facts=(_k8s_secret_access_clusterroles, _k8s_secret_access_roles),
@@ -440,6 +443,7 @@ cis_k8s_5_1_4_pod_create_access = Rule(
 class DefaultSaBindingsOutput(Finding):
     """Output model for default service account bindings check."""
 
+    binding_id: str | None = None
     service_account_name: str | None = None
     namespace: str | None = None
     binding_name: str | None = None
@@ -461,6 +465,7 @@ _k8s_default_sa_cluster_role_bindings = Fact(
           -[:SUBJECT]->(sa:KubernetesServiceAccount)
     WHERE sa.name = 'default'
     RETURN
+        crb.id AS binding_id,
         sa.name AS service_account_name,
         sa.namespace AS namespace,
         crb.name AS binding_name,
@@ -479,6 +484,7 @@ _k8s_default_sa_cluster_role_bindings = Fact(
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
+    asset_id_field="binding_id",
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -496,6 +502,7 @@ _k8s_default_sa_role_bindings = Fact(
           -[:SUBJECT]->(sa:KubernetesServiceAccount)
     WHERE sa.name = 'default'
     RETURN
+        rb.id AS binding_id,
         sa.name AS service_account_name,
         sa.namespace AS namespace,
         rb.name AS binding_name,
@@ -514,18 +521,21 @@ _k8s_default_sa_role_bindings = Fact(
     WHERE sa.name = 'default'
     RETURN COUNT(sa) AS count
     """,
+    asset_id_field="binding_id",
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
 
 cis_k8s_5_1_5_default_sa_bindings = Rule(
     id="cis_k8s_5_1_5_default_sa_bindings",
-    name="CIS K8s 5.1.5: Default Service Accounts Actively Used",
+    name="CIS K8s 5.1.5: Default Service Account Bindings",
     description=(
         "The default service account should not be used to ensure that rights "
         "granted to applications can be more easily audited and reviewed. "
-        "Note: this rule checks for role bindings to the default SA but cannot "
-        "verify automountServiceAccountToken settings (not ingested)."
+        "This rule detects role bindings to the default service account, which "
+        "indicate it has been granted extra privileges beyond its defaults. "
+        "Note: this rule cannot verify automountServiceAccountToken settings "
+        "or active pod usage of the default SA (not ingested)."
     ),
     output_model=DefaultSaBindingsOutput,
     facts=(_k8s_default_sa_cluster_role_bindings, _k8s_default_sa_role_bindings),
@@ -551,6 +561,7 @@ cis_k8s_5_1_5_default_sa_bindings = Rule(
 class SystemMastersGroupOutput(Finding):
     """Output model for system:masters group usage check."""
 
+    binding_id: str | None = None
     binding_name: str | None = None
     binding_type: str | None = None
     role_name: str | None = None
@@ -570,6 +581,7 @@ _k8s_system_masters_cluster_role_bindings = Fact(
           -[:SUBJECT]->(g:KubernetesGroup)
     WHERE g.name = 'system:masters'
     RETURN
+        crb.id AS binding_id,
         crb.name AS binding_name,
         'ClusterRoleBinding' AS binding_type,
         crb.role_name AS role_name,
@@ -585,7 +597,7 @@ _k8s_system_masters_cluster_role_bindings = Fact(
     MATCH (crb:KubernetesClusterRoleBinding)
     RETURN COUNT(crb) AS count
     """,
-    asset_id_field="binding_name",
+    asset_id_field="binding_id",
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -602,6 +614,7 @@ _k8s_system_masters_role_bindings = Fact(
           -[:SUBJECT]->(g:KubernetesGroup)
     WHERE g.name = 'system:masters'
     RETURN
+        rb.id AS binding_id,
         rb.name AS binding_name,
         'RoleBinding' AS binding_type,
         rb.role_name AS role_name,
@@ -617,7 +630,7 @@ _k8s_system_masters_role_bindings = Fact(
     MATCH (rb:KubernetesRoleBinding)
     RETURN COUNT(rb) AS count
     """,
-    asset_id_field="binding_name",
+    asset_id_field="binding_id",
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )

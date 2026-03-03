@@ -35,9 +35,10 @@ CIS_REFERENCES = [
 class SecretsInEnvVarsOutput(Finding):
     """Output model for secrets in environment variables check."""
 
+    pod_id: str | None = None
     pod_name: str | None = None
     namespace: str | None = None
-    secret_name: str | None = None
+    secret_names: str | None = None
     cluster_name: str | None = None
 
 
@@ -54,9 +55,10 @@ _k8s_secrets_in_env_vars = Fact(
     MATCH (cluster:KubernetesCluster)-[:RESOURCE]->(pod:KubernetesPod)
           -[:USES_SECRET_ENV]->(secret:KubernetesSecret)
     RETURN
+        pod.id AS pod_id,
         pod.name AS pod_name,
         pod.namespace AS namespace,
-        secret.name AS secret_name,
+        collect(DISTINCT secret.name) AS secret_names,
         cluster.name AS cluster_name
     """,
     cypher_visual_query="""
@@ -68,7 +70,7 @@ _k8s_secrets_in_env_vars = Fact(
     MATCH (pod:KubernetesPod)
     RETURN COUNT(pod) AS count
     """,
-    asset_id_field="pod_name",
+    asset_id_field="pod_id",
     module=Module.KUBERNETES,
     maturity=Maturity.EXPERIMENTAL,
 )
@@ -142,11 +144,13 @@ _k8s_pods_in_default_namespace = Fact(
 
 cis_k8s_5_6_4_default_namespace = Rule(
     id="cis_k8s_5_6_4_default_namespace",
-    name="CIS K8s 5.6.4: Default Namespace Usage",
+    name="CIS K8s 5.6.4: Pods Running in Default Namespace",
     description=(
         "Kubernetes resources should not use the default namespace. "
         "Using dedicated namespaces allows for resource quota management, "
-        "network policy enforcement, and access control separation."
+        "network policy enforcement, and access control separation. "
+        "This rule checks for pods in the default namespace; other resource types "
+        "(services, secrets, etc.) are not currently covered."
     ),
     output_model=DefaultNamespaceOutput,
     facts=(_k8s_pods_in_default_namespace,),
