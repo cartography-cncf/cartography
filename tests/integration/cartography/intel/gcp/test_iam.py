@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import cartography.intel.gcp.iam
 import tests.data.gcp.iam
+from cartography.graph.job import GraphJob
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -383,3 +384,69 @@ def test_sync_project_role_scope_property(
     # Custom project roles should have PROJECT scope and CUSTOM type
     assert roles["projects/project-abc/roles/customRole1"] == ("PROJECT", "CUSTOM")
     assert roles["projects/project-abc/roles/customRole2"] == ("PROJECT", "CUSTOM")
+
+
+def test_gcp_role_resource_edge_migration_cleans_legacy_project_role_links(
+    neo4j_session,
+):
+    """
+    Ensure migration removes legacy project->role links for global/org roles
+    while preserving legitimate project custom role relationships.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+    _create_test_organization(neo4j_session, TEST_ORG_ID, TEST_UPDATE_TAG)
+
+    neo4j_session.run(
+        """
+        CREATE (global_role:GCPRole {
+            id: 'roles/compute.admin',
+            name: 'roles/compute.admin',
+            scope: 'GLOBAL',
+            lastupdated: $update_tag
+        })
+        CREATE (org_role:GCPRole {
+            id: 'organizations/123456789012/roles/customOrgRole1',
+            name: 'organizations/123456789012/roles/customOrgRole1',
+            scope: 'ORGANIZATION',
+            lastupdated: $update_tag
+        })
+        CREATE (legacy_role:GCPRole {
+            id: 'roles/storage.objectViewer',
+            name: 'roles/storage.objectViewer',
+            lastupdated: $update_tag
+        })
+        CREATE (project_role:GCPRole {
+            id: 'projects/project-abc/roles/customRole1',
+            name: 'projects/project-abc/roles/customRole1',
+            scope: 'PROJECT',
+            lastupdated: $update_tag
+        })
+        WITH global_role, org_role, legacy_role, project_role
+        MATCH (p:GCPProject {id: $project_id})
+        CREATE (p)-[:RESOURCE {lastupdated: $update_tag}]->(global_role)
+        CREATE (p)-[:RESOURCE {lastupdated: $update_tag}]->(org_role)
+        CREATE (p)-[:RESOURCE {lastupdated: $update_tag}]->(legacy_role)
+        CREATE (p)-[:RESOURCE {lastupdated: $update_tag}]->(project_role)
+        """,
+        project_id=TEST_PROJECT_ID,
+        update_tag=TEST_UPDATE_TAG,
+    )
+
+    GraphJob.run_from_json_file(
+        "cartography/data/jobs/analysis/gcp_role_resource_edge_migration.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPRole",
+        "name",
+        "RESOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_PROJECT_ID, "projects/project-abc/roles/customRole1"),
+    }
