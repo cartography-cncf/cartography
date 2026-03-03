@@ -877,7 +877,6 @@ dependencies = [
     { name = "cloudflare" },
     { name = "crowdstrike-falconpy" },
     { name = "dnspython" },
-    { name = "dockerfile" },
     { name = "duo-client" },
     { name = "google-api-python-client" },
     { name = "google-auth" },
@@ -984,7 +983,6 @@ requires-dist = [
     { name = "cloudflare", specifier = ">=4.1.0,<5.0.0" },
     { name = "crowdstrike-falconpy", specifier = ">=0.5.1" },
     { name = "dnspython", specifier = ">=1.15.0" },
-    { name = "dockerfile", specifier = ">=3.0.0" },
     { name = "duo-client" },
     { name = "google-api-python-client", specifier = ">=1.7.8" },
     { name = "google-auth", specifier = ">=2.37.0" },
@@ -1507,18 +1505,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/91/9b/4a2ea29aeba62471211598dac5d96825bb49348fa07e906ea930394a83ce/docker-7.1.0.tar.gz", hash = "sha256:ad8c70e6e3f8926cb8a92619b832b4ea5299e2831c14284663184e200546fa6c", size = 117834, upload-time = "2024-05-23T11:13:57.216Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e3/26/57c6fb270950d476074c087527a558ccb6f4436657314bfb6cdf484114c4/docker-7.1.0-py3-none-any.whl", hash = "sha256:c96b93b7f0a746f9e77d325bcfb87422a3d8bd4f03136ae8a85b37f1898d5fc0", size = 147774, upload-time = "2024-05-23T11:13:55.01Z" },
-]
-
-[[package]]
-name = "dockerfile"
-version = "3.4.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/de/c9/2cdd6060f8f476c41a1638a9e1b28923fb0d9c075dffc41b13137199e207/dockerfile-3.4.0.tar.gz", hash = "sha256:238bb950985c55a525daef8bbfe994a0230aa0978c419f4caa4d9ce0a37343f1", size = 7729, upload-time = "2025-01-04T20:40:55.952Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a1/2a/553b099124685f00c4cc06cda6496db02e43ca51d7b7b5dc68814c6b48be/dockerfile-3.4.0-cp39-abi3-macosx_13_0_x86_64.whl", hash = "sha256:ed33446a76007cbb3f28c247f189cc06db34667d4f59a398a5c44912d7c13f36", size = 1740573, upload-time = "2025-01-04T20:49:37.128Z" },
-    { url = "https://files.pythonhosted.org/packages/8e/bf/246a02d803318131d809b13d285244e4047def667df906ad123e7d8405b2/dockerfile-3.4.0-cp39-abi3-macosx_14_0_arm64.whl", hash = "sha256:a4549d4f038483c25906d4fec56bb6ffe82ae26e0f80a15f2c0fedbb50712053", size = 1639801, upload-time = "2025-01-04T20:49:41.173Z" },
-    { url = "https://files.pythonhosted.org/packages/0b/35/2cb27f4a0a68bacde1bdbc2cd4ba8d0d5be95fca04010c7bd83caa96cd20/dockerfile-3.4.0-cp39-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:b95102bd82e6f67c836186b51c13114aa586a20e8cb6441bde24d4070542009d", size = 1663209, upload-time = "2025-01-04T20:49:42.667Z" },
-    { url = "https://files.pythonhosted.org/packages/81/5d/3d3b83501e62f6f319db884113bab89fc02b6c29ca7004049a8144eec01e/dockerfile-3.4.0-cp39-abi3-win_amd64.whl", hash = "sha256:30202187f1885f99ac839fd41ca8150b2fd0a66fac12db0166361d0c4622e71a", size = 1809411, upload-time = "2025-01-04T20:49:44.239Z" },
 ]
 
 [[package]]
