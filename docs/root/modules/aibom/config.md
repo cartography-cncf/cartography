@@ -1,0 +1,78 @@
+## AIBOM Configuration
+
+The AIBOM module ingests pre-generated [Cisco AI BOM](https://github.com/cisco-ai-defense/aibom) JSON reports and catalogs AI components discovered in container codebases.
+
+Cartography does not run the scanner in this module. It only ingests JSON artifacts from local disk or S3.
+
+### Why this module exists
+
+Container vulnerability inventory tells you what software is present. It does not tell you whether an image contains AI agent logic, tool usage, or related AI workflows.
+
+This module adds that missing layer by mapping AIBOM detections to container images already present in the graph.
+
+### ECR-first linking behavior
+
+AIBOM detections are linked only to `ECRImage` nodes where `type = "manifest_list"`.
+
+This intentionally avoids duplicating detections across platform-specific child images (`amd64`, `arm64`) for the same logical image tag.
+
+### Supported input formats
+
+1. Raw AIBOM JSON output.
+1. Envelope JSON with `image_uri` and `report` wrapper.
+
+Recommended envelope format:
+
+```json
+{
+  "image_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:v1.0",
+  "scan_scope": "/app/app",
+  "scanner": {
+    "name": "cisco-aibom",
+    "version": "0.4.0"
+  },
+  "report": {
+    "aibom_analysis": {
+      "...": "native report"
+    }
+  }
+}
+```
+
+Resolution rules:
+
+1. If envelope fields exist, Cartography uses `image_uri` and `report`.
+1. Otherwise Cartography uses raw `aibom_analysis` and infers source image URI from `aibom_analysis.sources` keys.
+1. If inferred source looks like a local path and no envelope `image_uri` is provided, that source is skipped.
+
+### Prerequisite
+
+Run ECR ingestion before AIBOM ingestion so `ECRRepositoryImage` and `ECRImage` nodes exist.
+
+### Run with local files
+
+```bash
+cartography \
+  --selected-modules aibom \
+  --aibom-results-dir /path/to/aibom-results
+```
+
+### Run with S3
+
+```bash
+cartography \
+  --selected-modules aibom \
+  --aibom-s3-bucket my-aibom-bucket \
+  --aibom-s3-prefix reports/
+```
+
+`--aibom-s3-prefix` is optional and defaults to an empty prefix.
+
+### Observability counters
+
+- `aibom_reports_processed`
+- `aibom_sources_total`
+- `aibom_sources_matched_manifest_list`
+- `aibom_sources_unmatched`
+- `aibom_sources_skipped_incomplete`
+- `aibom_components_loaded_<category>`

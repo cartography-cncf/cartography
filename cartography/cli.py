@@ -53,6 +53,7 @@ PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
+PANEL_AIBOM = "AIBOM Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
@@ -94,6 +95,7 @@ MODULE_PANELS = {
     "airbyte": PANEL_AIRBYTE,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
+    "aibom": PANEL_AIBOM,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentinelone": PANEL_SENTINELONE,
@@ -1246,6 +1248,36 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # AIBOM Options
+            # =================================================================
+            aibom_s3_bucket: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-s3-bucket",
+                    help="S3 bucket name containing AIBOM scan results.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            aibom_s3_prefix: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-s3-prefix",
+                    help="S3 prefix path for AIBOM scan results.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            aibom_results_dir: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-results-dir",
+                    help="Local directory containing AIBOM JSON results.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Ontology Options
             # =================================================================
             ontology_users_source: Annotated[
@@ -1862,6 +1894,14 @@ class CLI:
             if syft_results_dir:
                 logger.debug("Syft results dir: %s", syft_results_dir)
 
+            # Log AIBOM config
+            if aibom_s3_bucket:
+                logger.debug("AIBOM S3 bucket: %s", aibom_s3_bucket)
+            if aibom_s3_prefix:
+                logger.debug("AIBOM S3 prefix: %s", aibom_s3_prefix)
+            if aibom_results_dir:
+                logger.debug("AIBOM results dir: %s", aibom_results_dir)
+
             # Read Scaleway secret key
             scaleway_secret_key = None
             if scaleway_secret_key_env_var:
@@ -2041,6 +2081,9 @@ class CLI:
                 syft_s3_bucket=syft_s3_bucket,
                 syft_s3_prefix=syft_s3_prefix,
                 syft_results_dir=syft_results_dir,
+                aibom_s3_bucket=aibom_s3_bucket,
+                aibom_s3_prefix=aibom_s3_prefix,
+                aibom_results_dir=aibom_results_dir,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 trivy_results_dir=trivy_results_dir,
