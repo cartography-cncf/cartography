@@ -1,6 +1,7 @@
 import logging
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import neo4j
 import requests
@@ -15,7 +16,10 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_workbench_api_locations(aiplatform: Resource, project_id: str) -> List[str]:
+def get_workbench_api_locations(
+    aiplatform: Resource,
+    project_id: str,
+) -> Optional[List[str]]:
     """
     Gets all available Workbench (In Notebooks API) API locations for a project.
     The Notebooks API uses both zones and regions, unlike Vertex AI which primarily uses regions.
@@ -38,21 +42,21 @@ def get_workbench_api_locations(aiplatform: Resource, project_id: str) -> List[s
             "Notebooks API is enabled on the host/quota project.",
             project_id,
         )
-        return []
+        return None
     if response.status_code == 403:
         logger.warning(
             "Access forbidden when trying to get Notebooks API locations for project %s. "
             "Ensure the Notebooks API is enabled and you have the necessary permissions.",
             project_id,
         )
-        return []
+        return None
     if response.status_code == 404:
         logger.warning(
             "Notebooks API locations not found for project %s. "
             "The Notebooks API may not be enabled.",
             project_id,
         )
-        return []
+        return None
 
     try:
         response.raise_for_status()
@@ -232,6 +236,12 @@ def sync_workbench_instances(
     # Note: We use the Notebooks API location list, not Vertex AI locations, because
     # Workbench Instances can be deployed in zones (e.g., us-east1-b) not just regions
     locations = get_workbench_api_locations(aiplatform, project_id)
+    if locations is None:
+        logger.warning(
+            "Skipping Vertex AI Workbench instances sync for project %s to preserve existing data.",
+            project_id,
+        )
+        return
 
     # Collect instances from all locations
     all_instances = []

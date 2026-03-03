@@ -35,6 +35,7 @@ Detailed procedures are available in separate documents:
 - **Data Model**: Declarative schema using `CartographyNodeSchema` and `CartographyRelSchema`
 - **Update Tag**: Timestamp used for cleanup jobs to remove stale data
 - **Analysis Jobs**: Post-ingestion queries that enrich the graph (e.g., internet exposure, permission inheritance)
+- **Fetch Failure Sentinel**: For non-fatal provider failures (API disabled, permission denied, temporary auth mismatch), prefer returning a sentinel like `None` from `get()` and skip both `load()` and `cleanup()` to preserve existing graph data.
 
 **Critical Files to Know:**
 - `cartography/config.py` - Configuration object definitions

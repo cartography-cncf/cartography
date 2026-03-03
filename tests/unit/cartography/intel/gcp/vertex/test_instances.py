@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 from cartography.intel.gcp.vertex.instances import get_workbench_api_locations
 from cartography.intel.gcp.vertex.instances import get_workbench_instances_for_location
+from cartography.intel.gcp.vertex.instances import sync_workbench_instances
 
 
 def test_get_workbench_api_locations_uses_authorized_session(monkeypatch):
@@ -53,7 +54,7 @@ def test_get_workbench_api_locations_handles_unauthorized(monkeypatch, caplog):
     with caplog.at_level("WARNING"):
         locations = get_workbench_api_locations(mock_aiplatform, "test-project")
 
-    assert locations == []
+    assert locations is None
     assert any(
         "Unauthorized when trying to get Notebooks API locations for project test-project"
         in rec.message
@@ -89,3 +90,53 @@ def test_get_workbench_instances_for_location_uses_authorized_session(monkeypatc
     )
     assert instances == [{"name": "instance-1"}, {"name": "instance-2"}]
     assert mock_session.get.call_count == 2
+
+
+def test_sync_workbench_instances_skips_cleanup_on_location_discovery_failure(
+    monkeypatch,
+    caplog,
+):
+    mock_session = MagicMock()
+    mock_aiplatform = MagicMock()
+    common_job_parameters = {"PROJECT_ID": "test-project"}
+
+    cleanup_called = False
+    load_called = False
+
+    def _mock_cleanup(*args, **kwargs):
+        nonlocal cleanup_called
+        cleanup_called = True
+
+    def _mock_load(*args, **kwargs):
+        nonlocal load_called
+        load_called = True
+
+    monkeypatch.setattr(
+        "cartography.intel.gcp.vertex.instances.get_workbench_api_locations",
+        lambda aiplatform, project_id: None,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gcp.vertex.instances.load_workbench_instances",
+        _mock_load,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gcp.vertex.instances.cleanup_workbench_instances",
+        _mock_cleanup,
+    )
+
+    with caplog.at_level("WARNING"):
+        sync_workbench_instances(
+            mock_session,
+            mock_aiplatform,
+            "test-project",
+            123,
+            common_job_parameters,
+        )
+
+    assert not load_called
+    assert not cleanup_called
+    assert any(
+        "Skipping Vertex AI Workbench instances sync for project test-project to preserve existing data."
+        in rec.message
+        for rec in caplog.records
+    )

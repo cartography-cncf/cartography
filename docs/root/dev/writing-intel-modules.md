@@ -25,6 +25,19 @@ Note that it is your module's responsibility to validate arguments that you intr
 
 A cartography intel module consists of one `sync` function. `sync` should call `get`, then `load`, and finally `cleanup`.
 
+When `get` can return a sentinel (`None`) for non-fatal fetch failures, `sync` should skip `load` and `cleanup` in that case:
+
+```python
+items = get(...)
+if items is None:
+    logger.warning("Skipping sync to preserve existing data.")
+    return
+
+transformed = transform(items)
+load_entities(...)
+cleanup(...)
+```
+
 ### Get
 
 The `get` function [returns data as a list of dicts](https://github.com/cartography-cncf/cartography/blob/8d60311a10156cd8aa16de7e1fe3e109cc3eca0f/cartography/intel/gcp/compute.py#L98)
@@ -32,6 +45,8 @@ from a resource provider API, which is GCP in this particular example.
 
 `get` should be "dumb" in the sense that it should not handle retry logic or data
 manipulation. It should also raise an exception if it's not able to complete successfully.
+
+For provider-specific non-fatal conditions (for example, API disabled on a project, per-project permission denied, or other expected partial-access scenarios), prefer returning an explicit sentinel like `None` and then gating downstream `load` and `cleanup` in `sync`. This prevents cleanup from deleting previously-synced valid data when a fetch failed due to access or service availability.
 
 ### Transform
 
