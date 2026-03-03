@@ -3,6 +3,7 @@ from typing import Dict
 from typing import List
 
 import neo4j
+import requests
 from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
@@ -30,14 +31,6 @@ def get_workbench_api_locations(aiplatform: Resource, project_id: str) -> List[s
     url = f"{notebooks_endpoint}/v1/projects/{project_id}/locations"
     response = session.get(url, timeout=60)
 
-    if response.status_code == 401:
-        logger.warning(
-            "Unauthorized when trying to get Notebooks API locations for project %s. "
-            "Ensure credentials are valid for notebooks.googleapis.com and that the "
-            "Notebooks API is enabled on the host/quota project.",
-            project_id,
-        )
-        return []
     if response.status_code == 403:
         logger.warning(
             "Access forbidden when trying to get Notebooks API locations for project %s. "
@@ -52,14 +45,18 @@ def get_workbench_api_locations(aiplatform: Resource, project_id: str) -> List[s
             project_id,
         )
         return []
-    if response.status_code != 200:
+
+    try:
+        response.raise_for_status()
+    except requests.HTTPError:
         logger.error(
             "Error getting Notebooks API locations for project %s: HTTP %s - %s",
             project_id,
             response.status_code,
             response.reason,
+            exc_info=True,
         )
-        return []
+        raise
 
     data = response.json()
 

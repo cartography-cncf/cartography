@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
-from unittest.mock import patch
+
+import pytest
+import requests
 
 from cartography.intel.gcp.vertex.instances import get_workbench_api_locations
 from cartography.intel.gcp.vertex.instances import get_workbench_instances_for_location
@@ -36,7 +38,7 @@ def test_get_workbench_api_locations_uses_authorized_session(monkeypatch):
     )
 
 
-def test_get_workbench_api_locations_handles_unauthorized(monkeypatch, caplog):
+def test_get_workbench_api_locations_raises_unauthorized(monkeypatch, caplog):
     mock_aiplatform = MagicMock()
     mock_aiplatform._http.credentials = MagicMock()
 
@@ -44,6 +46,7 @@ def test_get_workbench_api_locations_handles_unauthorized(monkeypatch, caplog):
     mock_response = MagicMock()
     mock_response.status_code = 401
     mock_response.reason = "Unauthorized"
+    mock_response.raise_for_status.side_effect = requests.HTTPError("401 unauthorized")
     mock_session.get.return_value = mock_response
 
     monkeypatch.setattr(
@@ -51,43 +54,41 @@ def test_get_workbench_api_locations_handles_unauthorized(monkeypatch, caplog):
         lambda credentials: mock_session,
     )
 
-    with caplog.at_level("WARNING"):
-        locations = get_workbench_api_locations(mock_aiplatform, "test-project")
+    with pytest.raises(requests.HTTPError, match="401 unauthorized"):
+        with caplog.at_level("ERROR"):
+            get_workbench_api_locations(mock_aiplatform, "test-project")
 
-    assert locations == []
     assert any(
-        "Unauthorized when trying to get Notebooks API locations for project test-project"
-        in rec.message
+        "Error getting Notebooks API locations for project test-project" in rec.message
         for rec in caplog.records
     )
 
 
-def test_get_workbench_instances_for_location_passes_authorized_session(monkeypatch):
+def test_get_workbench_instances_for_location_uses_authorized_session(monkeypatch):
     mock_aiplatform = MagicMock()
     mock_aiplatform._http.credentials = MagicMock()
 
     mock_session = MagicMock()
+    page_1 = MagicMock()
+    page_1.status_code = 200
+    page_1.json.return_value = {
+        "instances": [{"name": "instance-1"}],
+        "nextPageToken": "token-1",
+    }
+    page_2 = MagicMock()
+    page_2.status_code = 200
+    page_2.json.return_value = {"instances": [{"name": "instance-2"}]}
+    mock_session.get.side_effect = [page_1, page_2]
+
     monkeypatch.setattr(
         "google.auth.transport.requests.AuthorizedSession",
         lambda credentials: mock_session,
     )
 
-    with patch(
-        "cartography.intel.gcp.vertex.utils.paginate_vertex_api",
-        return_value=[],
-    ) as mock_paginate:
-        get_workbench_instances_for_location(
-            mock_aiplatform,
-            "test-project",
-            "us-central1",
-        )
-
-    mock_paginate.assert_called_once_with(
-        url="https://notebooks.googleapis.com/v2/projects/test-project/locations/us-central1/instances",
-        headers={"Content-Type": "application/json"},
-        resource_type="workbench instances",
-        response_key="instances",
-        location="us-central1",
-        project_id="test-project",
-        session=mock_session,
+    instances = get_workbench_instances_for_location(
+        mock_aiplatform,
+        "test-project",
+        "us-central1",
     )
+    assert instances == [{"name": "instance-1"}, {"name": "instance-2"}]
+    assert mock_session.get.call_count == 2
