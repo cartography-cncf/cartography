@@ -28,7 +28,7 @@ jobs:
       - name: Build a binary wheel and a source tarball
         run: uv build
       - name: Publish distribution 📦 to PyPI
-        if: startsWith(github.ref, 'refs/tags')
+        if: github.event_name == 'release'
         # --check-url checks if files already exist on PyPI before uploading.
         # If the version already exists, it skips without failing, allowing
         # downstream jobs (Docker build) to proceed on re-runs.
