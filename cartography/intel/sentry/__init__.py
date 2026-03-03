@@ -23,7 +23,7 @@ def start_sentry_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     :param config: A cartography.config object
     :return: None
     """
-    if not config.sentry_api_key:
+    if not config.sentry_token:
         logger.info(
             "Sentry import is not configured - skipping this module. "
             "See docs to configure.",
@@ -34,7 +34,7 @@ def start_sentry_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
 
     api_session = requests.Session()
     api_session.headers.update(
-        {"Authorization": f"Bearer {config.sentry_api_key}"},
+        {"Authorization": f"Bearer {config.sentry_token}"},
     )
 
     # 1. Sync organizations

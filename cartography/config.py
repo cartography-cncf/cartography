@@ -239,8 +239,8 @@ class Config:
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
     :param syft_s3_prefix: S3 prefix path containing Syft scan results. Optional.
-    :type sentry_api_key: str
-    :param sentry_api_key: Sentry API auth token. Optional.
+    :type sentry_token: str
+    :param sentry_token: Sentry internal integration auth token. Optional.
     :type sentry_host: str
     :param sentry_host: Sentry host URL, defaults to https://sentry.io. Optional.
     """
@@ -365,7 +365,7 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
-        sentry_api_key=None,
+        sentry_token=None,
         sentry_host="https://sentry.io",
     ):
         self.neo4j_uri = neo4j_uri
@@ -488,5 +488,5 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
-        self.sentry_api_key = sentry_api_key
+        self.sentry_token = sentry_token
         self.sentry_host = sentry_host

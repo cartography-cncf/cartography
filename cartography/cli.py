@@ -1160,11 +1160,11 @@ class CLI:
             # =================================================================
             # Sentry Options
             # =================================================================
-            sentry_api_key_env_var: Annotated[
+            sentry_token_env_var: Annotated[
                 str | None,
                 typer.Option(
-                    "--sentry-api-key-env-var",
-                    help="Environment variable name containing Sentry API auth token.",
+                    "--sentry-token-env-var",
+                    help="Environment variable name containing Sentry internal integration token.",
                     rich_help_panel=PANEL_SENTRY,
                     hidden=PANEL_SENTRY not in visible_panels,
                 ),
@@ -1860,14 +1860,14 @@ class CLI:
                 )
                 anthropic_apikey = os.environ.get(anthropic_apikey_env_var)
 
-            # Read Sentry API key
-            sentry_api_key = None
-            if sentry_api_key_env_var:
+            # Read Sentry token
+            sentry_token = None
+            if sentry_token_env_var:
                 logger.debug(
-                    "Reading Sentry API key from environment variable %s",
-                    sentry_api_key_env_var,
+                    "Reading Sentry token from environment variable %s",
+                    sentry_token_env_var,
                 )
-                sentry_api_key = os.environ.get(sentry_api_key_env_var)
+                sentry_token = os.environ.get(sentry_token_env_var)
 
             # Read Airbyte client secret
             airbyte_client_secret = None
@@ -2065,7 +2065,7 @@ class CLI:
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
                 anthropic_apikey=anthropic_apikey,
-                sentry_api_key=sentry_api_key,
+                sentry_token=sentry_token,
                 sentry_host=sentry_host,
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
