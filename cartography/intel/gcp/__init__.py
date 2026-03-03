@@ -546,6 +546,7 @@ def _sync_project_resources(
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                credentials=credentials,
             )
             cloudrun_execution.sync_executions(
                 neo4j_session,
@@ -553,6 +554,7 @@ def _sync_project_resources(
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                credentials=credentials,
             )
 
         # Build the BigQuery v2 client once — used for datasets/tables/routines
