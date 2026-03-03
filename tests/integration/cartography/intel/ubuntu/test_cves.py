@@ -13,12 +13,7 @@ TEST_API_URL = "https://fake-ubuntu-api.example.com"
     "get_updated_since",
     return_value=tests.data.ubuntu.cves.UBUNTU_CVES_RESPONSE,
 )
-@patch.object(
-    cartography.intel.ubuntu.cves,
-    "get_last_sync_timestamp",
-    return_value=None,
-)
-def test_sync_ubuntu_cves(mock_ts, mock_api, neo4j_session):
+def test_sync_ubuntu_cves(mock_api, neo4j_session):
     """
     Ensure that CVE nodes are created with correct properties, the extra CVE label,
     and CVSS v3 fields are populated from nested impact data.
@@ -71,14 +66,9 @@ def test_sync_ubuntu_cves(mock_ts, mock_api, neo4j_session):
     "get_updated_since",
     return_value=tests.data.ubuntu.cves.UBUNTU_CVES_RESPONSE,
 )
-@patch.object(
-    cartography.intel.ubuntu.cves,
-    "get_last_sync_timestamp",
-    return_value=None,
-)
-def test_sync_metadata_written(mock_ts, mock_api, neo4j_session):
+def test_sync_metadata_written(mock_api, neo4j_session):
     """
-    Ensure that a SyncMetadata node is created with the correct watermark
+    Ensure that an UbuntuSyncMetadata node is created with the correct watermark
     so that subsequent syncs can run incrementally.
     """
     cartography.intel.ubuntu.cves.sync(

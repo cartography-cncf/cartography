@@ -43,7 +43,9 @@ def sync(
     else:
         logger.info("No new or updated CVEs found")
 
-    # CVEs are never deleted from the Ubuntu database, so no cleanup is needed.
+    # Cleanup is intentionally omitted: CVEs are permanent records in Ubuntu's database
+    # and are never deleted. This module uses incremental sync (watermark-based), so running
+    # GraphJob cleanup would incorrectly remove nodes not present in the latest partial batch.
     logger.info("Completed Ubuntu CVE sync")
 
 

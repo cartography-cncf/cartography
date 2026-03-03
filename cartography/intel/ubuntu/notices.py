@@ -40,7 +40,9 @@ def sync(
     else:
         logger.info("No new notices found")
 
-    # Notices are permanent records, so no cleanup is needed.
+    # Cleanup is intentionally omitted: notices are permanent records in Ubuntu's database
+    # and are never deleted. This module uses incremental sync (watermark-based), so running
+    # GraphJob cleanup would incorrectly remove nodes not present in the latest partial batch.
     logger.info("Completed Ubuntu Security Notice sync")
 
 
