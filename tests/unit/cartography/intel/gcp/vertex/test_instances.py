@@ -96,7 +96,7 @@ def test_sync_workbench_instances_skips_cleanup_on_location_discovery_failure(
     monkeypatch,
     caplog,
 ):
-    mock_session = MagicMock()
+    mock_neo4j_session = MagicMock()
     mock_aiplatform = MagicMock()
     common_job_parameters = {"PROJECT_ID": "test-project"}
 
@@ -126,7 +126,7 @@ def test_sync_workbench_instances_skips_cleanup_on_location_discovery_failure(
 
     with caplog.at_level("WARNING"):
         sync_workbench_instances(
-            mock_session,
+            mock_neo4j_session,
             mock_aiplatform,
             "test-project",
             123,
