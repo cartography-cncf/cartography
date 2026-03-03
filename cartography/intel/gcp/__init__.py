@@ -546,6 +546,7 @@ def _sync_project_resources(
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                credentials=credentials,
             )
             cloudrun_execution.sync_executions(
                 neo4j_session,
@@ -553,6 +554,7 @@ def _sync_project_resources(
                 project_id,
                 gcp_update_tag,
                 common_job_parameters,
+                credentials=credentials,
             )
 
         # Build the BigQuery v2 client once — used for datasets/tables/routines
@@ -782,6 +784,12 @@ def start_gcp_ingestion(
 
     run_analysis_job(
         "gcp_ip_node_label_migration.json",
+        neo4j_session,
+        common_job_parameters,
+    )
+    # DEPRECATED: compatibility migration for legacy role edges. Remove in v1.0.0.
+    run_analysis_job(
+        "gcp_role_resource_edge_migration.json",
         neo4j_session,
         common_job_parameters,
     )
