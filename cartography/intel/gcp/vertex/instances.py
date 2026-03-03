@@ -31,6 +31,14 @@ def get_workbench_api_locations(aiplatform: Resource, project_id: str) -> List[s
     url = f"{notebooks_endpoint}/v1/projects/{project_id}/locations"
     response = session.get(url, timeout=60)
 
+    if response.status_code == 401:
+        logger.warning(
+            "Unauthorized when trying to get Notebooks API locations for project %s. "
+            "Ensure credentials are valid for notebooks.googleapis.com and that the "
+            "Notebooks API is enabled on the host/quota project.",
+            project_id,
+        )
+        return []
     if response.status_code == 403:
         logger.warning(
             "Access forbidden when trying to get Notebooks API locations for project %s. "

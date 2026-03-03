@@ -1,8 +1,5 @@
 from unittest.mock import MagicMock
 
-import pytest
-import requests
-
 from cartography.intel.gcp.vertex.instances import get_workbench_api_locations
 from cartography.intel.gcp.vertex.instances import get_workbench_instances_for_location
 
@@ -38,7 +35,7 @@ def test_get_workbench_api_locations_uses_authorized_session(monkeypatch):
     )
 
 
-def test_get_workbench_api_locations_raises_unauthorized(monkeypatch, caplog):
+def test_get_workbench_api_locations_handles_unauthorized(monkeypatch, caplog):
     mock_aiplatform = MagicMock()
     mock_aiplatform._http.credentials = MagicMock()
 
@@ -46,7 +43,6 @@ def test_get_workbench_api_locations_raises_unauthorized(monkeypatch, caplog):
     mock_response = MagicMock()
     mock_response.status_code = 401
     mock_response.reason = "Unauthorized"
-    mock_response.raise_for_status.side_effect = requests.HTTPError("401 unauthorized")
     mock_session.get.return_value = mock_response
 
     monkeypatch.setattr(
@@ -54,12 +50,13 @@ def test_get_workbench_api_locations_raises_unauthorized(monkeypatch, caplog):
         lambda credentials: mock_session,
     )
 
-    with pytest.raises(requests.HTTPError, match="401 unauthorized"):
-        with caplog.at_level("ERROR"):
-            get_workbench_api_locations(mock_aiplatform, "test-project")
+    with caplog.at_level("WARNING"):
+        locations = get_workbench_api_locations(mock_aiplatform, "test-project")
 
+    assert locations == []
     assert any(
-        "Error getting Notebooks API locations for project test-project" in rec.message
+        "Unauthorized when trying to get Notebooks API locations for project test-project"
+        in rec.message
         for rec in caplog.records
     )
 
