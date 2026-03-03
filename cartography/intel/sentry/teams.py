@@ -3,7 +3,6 @@ from typing import Any
 
 import neo4j
 import requests
-from dateutil import parser as dt_parse
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -49,7 +48,7 @@ def transform(raw_teams: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for team in raw_teams:
         t = team.copy()
         t["id"] = team["id"]
-        t["date_created"] = _to_epoch_ms(team.get("dateCreated"))
+        t["date_created"] = team.get("dateCreated")
         result.append(t)
     return result
 
@@ -77,9 +76,3 @@ def cleanup(
     GraphJob.from_node_schema(SentryTeamSchema(), common_job_parameters).run(
         neo4j_session,
     )
-
-
-def _to_epoch_ms(date_str: str | None) -> int | None:
-    if not date_str:
-        return None
-    return int(dt_parse.parse(date_str).timestamp() * 1000)

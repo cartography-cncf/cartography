@@ -3,7 +3,6 @@ from typing import Any
 
 import neo4j
 import requests
-from dateutil import parser as dt_parse
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -49,8 +48,8 @@ def transform(raw_releases: list[dict[str, Any]]) -> list[dict[str, Any]]:
         r = release.copy()
         # Use version as id since release "id" is an integer that may collide across orgs
         r["id"] = release["version"]
-        r["date_created"] = _to_epoch_ms(release.get("dateCreated"))
-        r["date_released"] = _to_epoch_ms(release.get("dateReleased"))
+        r["date_created"] = release.get("dateCreated")
+        r["date_released"] = release.get("dateReleased")
         result.append(r)
     return result
 
@@ -78,9 +77,3 @@ def cleanup(
     GraphJob.from_node_schema(SentryReleaseSchema(), common_job_parameters).run(
         neo4j_session,
     )
-
-
-def _to_epoch_ms(date_str: str | None) -> int | None:
-    if not date_str:
-        return None
-    return int(dt_parse.parse(date_str).timestamp() * 1000)

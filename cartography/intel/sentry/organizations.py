@@ -3,7 +3,6 @@ from typing import Any
 
 import neo4j
 import requests
-from dateutil import parser as dt_parse
 
 from cartography.client.core.tx import load
 from cartography.intel.sentry.util import get_paginated_results
@@ -42,7 +41,7 @@ def transform(raw_orgs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         o["id"] = org["id"]
         status = org.get("status", {})
         o["status"] = status.get("name") if isinstance(status, dict) else status
-        o["date_created"] = _to_epoch_ms(org.get("dateCreated"))
+        o["date_created"] = org.get("dateCreated")
         result.append(o)
     return result
 
@@ -59,9 +58,3 @@ def load_organizations(
         data,
         lastupdated=update_tag,
     )
-
-
-def _to_epoch_ms(date_str: str | None) -> int | None:
-    if not date_str:
-        return None
-    return int(dt_parse.parse(date_str).timestamp() * 1000)

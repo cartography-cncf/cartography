@@ -3,7 +3,6 @@ from typing import Any
 
 import neo4j
 import requests
-from dateutil import parser as dt_parse
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -54,7 +53,7 @@ def transform(
     for rule in raw_rules:
         r = rule.copy()
         r["id"] = rule["id"]
-        r["date_created"] = _to_epoch_ms(rule.get("dateCreated"))
+        r["date_created"] = rule.get("dateCreated")
         r["project_slug"] = project_slug
         result.append(r)
     return result
@@ -86,9 +85,3 @@ def cleanup(
     GraphJob.from_node_schema(SentryAlertRuleSchema(), params).run(
         neo4j_session,
     )
-
-
-def _to_epoch_ms(date_str: str | None) -> int | None:
-    if not date_str:
-        return None
-    return int(dt_parse.parse(date_str).timestamp() * 1000)
