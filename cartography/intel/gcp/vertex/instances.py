@@ -20,92 +20,90 @@ def get_workbench_api_locations(aiplatform: Resource, project_id: str) -> List[s
     The Notebooks API uses both zones and regions, unlike Vertex AI which primarily uses regions.
     Filters to commonly-used locations to improve sync performance.
     """
-    import requests
-    from google.auth.transport.requests import Request as AuthRequest
+    from google.auth.transport.requests import AuthorizedSession
 
-    # Get credentials and refresh token if needed
     creds = aiplatform._http.credentials
-    if not creds.valid:
-        creds.refresh(AuthRequest())
+    session = AuthorizedSession(creds)
 
     # Query Notebooks API for available locations
     notebooks_endpoint = "https://notebooks.googleapis.com"
     url = f"{notebooks_endpoint}/v1/projects/{project_id}/locations"
-    headers = {
-        "Authorization": f"Bearer {creds.token}",
-        "Content-Type": "application/json",
+    response = session.get(url, timeout=60)
+
+    if response.status_code == 401:
+        logger.warning(
+            "Unauthorized when trying to get Notebooks API locations for project %s. "
+            "Ensure credentials are valid for notebooks.googleapis.com and that the "
+            "Notebooks API is enabled on the host/quota project.",
+            project_id,
+        )
+        return []
+    if response.status_code == 403:
+        logger.warning(
+            "Access forbidden when trying to get Notebooks API locations for project %s. "
+            "Ensure the Notebooks API is enabled and you have the necessary permissions.",
+            project_id,
+        )
+        return []
+    if response.status_code == 404:
+        logger.warning(
+            "Notebooks API locations not found for project %s. "
+            "The Notebooks API may not be enabled.",
+            project_id,
+        )
+        return []
+    if response.status_code != 200:
+        logger.error(
+            "Error getting Notebooks API locations for project %s: HTTP %s - %s",
+            project_id,
+            response.status_code,
+            response.reason,
+        )
+        return []
+
+    data = response.json()
+
+    # Filter to commonly-used locations to avoid excessive API calls
+    # Include major regions and their zones
+    # Reference: https://cloud.google.com/vertex-ai/docs/general/locations
+    supported_prefixes = {
+        "us-central1",
+        "us-east1",
+        "us-east4",
+        "us-west1",
+        "us-west2",
+        "us-west3",
+        "us-west4",
+        "europe-west1",
+        "europe-west2",
+        "europe-west3",
+        "europe-west4",
+        "asia-east1",
+        "asia-northeast1",
+        "asia-northeast3",
+        "asia-southeast1",
+        "australia-southeast1",
+        "northamerica-northeast1",
+        "southamerica-east1",
     }
 
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
+    locations = []
+    all_locations = data.get("locations", [])
+    for location in all_locations:
+        # Extract location ID from the full path
+        # Format: "projects/PROJECT_ID/locations/LOCATION_ID"
+        location_id = location.get("locationId", "")
 
-        # Filter to commonly-used locations to avoid excessive API calls
-        # Include major regions and their zones
-        # Reference: https://cloud.google.com/vertex-ai/docs/general/locations
-        supported_prefixes = {
-            "us-central1",
-            "us-east1",
-            "us-east4",
-            "us-west1",
-            "us-west2",
-            "us-west3",
-            "us-west4",
-            "europe-west1",
-            "europe-west2",
-            "europe-west3",
-            "europe-west4",
-            "asia-east1",
-            "asia-northeast1",
-            "asia-northeast3",
-            "asia-southeast1",
-            "australia-southeast1",
-            "northamerica-northeast1",
-            "southamerica-east1",
-        }
+        # Check if this location matches any of our supported prefixes
+        # This handles both regions (us-central1) and zones (us-central1-a, us-central1-b)
+        if any(location_id.startswith(prefix) for prefix in supported_prefixes):
+            locations.append(location_id)
 
-        locations = []
-        all_locations = data.get("locations", [])
-        for location in all_locations:
-            # Extract location ID from the full path
-            # Format: "projects/PROJECT_ID/locations/LOCATION_ID"
-            location_id = location.get("locationId", "")
-
-            # Check if this location matches any of our supported prefixes
-            # This handles both regions (us-central1) and zones (us-central1-a, us-central1-b)
-            if any(location_id.startswith(prefix) for prefix in supported_prefixes):
-                locations.append(location_id)
-
-        logger.info(
-            f"Found {len(locations)} supported Notebooks API locations "
-            f"(filtered from {len(all_locations)} total) for project {project_id}"
-        )
-        return locations
-
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 403:
-            logger.warning(
-                f"Access forbidden when trying to get Notebooks API locations for project {project_id}. "
-                "Ensure the Notebooks API is enabled and you have the necessary permissions.",
-            )
-        elif e.response.status_code == 404:
-            logger.warning(
-                f"Notebooks API locations not found for project {project_id}. "
-                "The Notebooks API may not be enabled.",
-            )
-        else:
-            logger.error(
-                f"Error getting Notebooks API locations for project {project_id}: {e}",
-                exc_info=True,
-            )
-        return []
-    except Exception as e:
-        logger.error(
-            f"Unexpected error getting Notebooks API locations for project {project_id}: {e}",
-            exc_info=True,
-        )
-        return []
+    logger.info(
+        f"Found {len(locations)} supported Notebooks API locations "
+        f"(filtered from {len(all_locations)} total) for project {project_id}"
+    )
+    return locations
 
 
 @timeit
@@ -119,33 +117,28 @@ def get_workbench_instances_for_location(
     Note: This queries the Notebooks API v2 for Workbench instances. The v2 API is used
     by the GCP Console for creating new Workbench instances. The v1 API is deprecated.
     """
-    from google.auth.transport.requests import Request as AuthRequest
+    from google.auth.transport.requests import AuthorizedSession
 
     from cartography.intel.gcp.vertex.utils import paginate_vertex_api
 
-    # Get credentials and refresh token if needed
     creds = aiplatform._http.credentials
-    if not creds.valid:
-        creds.refresh(AuthRequest())
+    session = AuthorizedSession(creds)
 
     # Prepare request parameters for Notebooks API v2
     # Workbench Instances use notebooks.googleapis.com/v2, not aiplatform.googleapis.com
     notebooks_endpoint = "https://notebooks.googleapis.com"
     parent = f"projects/{project_id}/locations/{location}"
-    headers = {
-        "Authorization": f"Bearer {creds.token}",
-        "Content-Type": "application/json",
-    }
     url = f"{notebooks_endpoint}/v2/{parent}/instances"
 
     # Use helper function to handle pagination and error handling
     return paginate_vertex_api(
         url=url,
-        headers=headers,
+        headers={"Content-Type": "application/json"},
         resource_type="workbench instances",
         response_key="instances",
         location=location,
         project_id=project_id,
+        session=session,
     )
 
 

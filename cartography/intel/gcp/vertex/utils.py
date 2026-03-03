@@ -55,34 +55,40 @@ def handle_vertex_api_response(
 
 def paginate_vertex_api(
     url: str,
-    headers: Dict[str, str],
+    headers: Optional[Dict[str, str]],
     resource_type: str,
     response_key: str,
     location: str,
     project_id: str,
+    session: Optional[Any] = None,
 ) -> List[Dict]:
     """
     Handle paginated requests to Vertex AI regional endpoints.
 
     :param url: Base API URL (without pagination params)
-    :param headers: HTTP headers including Authorization
+    :param headers: Optional HTTP headers
     :param resource_type: Type of resource (for logging)
     :param response_key: Key in JSON response containing the resource list
     :param location: GCP location/region
     :param project_id: GCP project ID
+    :param session: Optional authorized session used to execute requests
     :return: List of all resources across all pages
     """
     import requests
 
     resources = []
     page_token = None
+    request_headers = headers or {}
 
     while True:
         params: Dict[str, str] = {}
         if page_token:
             params["pageToken"] = page_token
 
-        response = requests.get(url, headers=headers, params=params)
+        if session is not None:
+            response = session.get(url, headers=request_headers, params=params)
+        else:
+            response = requests.get(url, headers=request_headers, params=params)
 
         # Handle response with common error patterns
         data, should_continue = handle_vertex_api_response(

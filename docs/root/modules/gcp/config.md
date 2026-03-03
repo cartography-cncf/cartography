@@ -19,6 +19,8 @@ Grant the following roles to the identity at the **organization level**. This en
 | `roles/bigquery.connectionUser` | List BigQuery connections | Optional |
 | `roles/cloudasset.viewer` | Sync IAM policy bindings (effective policies across org hierarchy) | Optional |
 | `roles/artifactregistry.reader` | List/get Artifact Registry repositories and artifacts | Optional |
+| `roles/run.viewer` | List/get Cloud Run services, jobs, and executions | Optional |
+| `roles/notebooks.viewer` | List/get Vertex AI Workbench (Notebooks API) resources | Optional |
 
 To grant a role at the organization level:
 ```bash
@@ -68,6 +70,7 @@ gcloud services enable secretmanager.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable artifactregistry.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable run.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable aiplatform.googleapis.com --project=YOUR_HOST_PROJECT
+gcloud services enable notebooks.googleapis.com --project=YOUR_HOST_PROJECT
 gcloud services enable cloudasset.googleapis.com --project=YOUR_HOST_PROJECT
 ```
 
@@ -78,6 +81,8 @@ If you set `GOOGLE_CLOUD_QUOTA_PROJECT` to override the default quota project, e
 #### Graceful Handling
 
 If an API is not enabled on your host/quota project, Cartography will log a warning and skip syncing that resource type rather than crashing. Other modules will continue normally.
+
+Some services also emit per-location permission warnings (for example Cloud Run in restricted regions). Cartography logs these and skips only affected locations.
 
 ### Cloud Asset Inventory (CAI)
 
