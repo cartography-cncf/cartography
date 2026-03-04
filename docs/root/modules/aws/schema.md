@@ -6347,5 +6347,5 @@ When you create an environment, Elastic Beanstalk provisions the resources neede
 
 - Elastic Beanstalk Environment has SQS Queues
     ```
-    (:ElasticBeanstalkEnvironment)-[:HAS_QUEUE]->(:SQSQueue)
+    (:ElasticBeanstalkEnvironment)-[:HAS_SQS_QUEUE]->(:SQSQueue)
     ```

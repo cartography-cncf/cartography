@@ -185,7 +185,7 @@ class ElasticBeanstalkToAWSLoadBalancerV2Rel(CartographyRelSchema):
     )
 
 
-# (:ElasticBeanstalkEnvironment) -[:HAS_QUEUE]-> (:SQSQueue)
+# (:ElasticBeanstalkEnvironment) -[:HAS_SQS_QUEUE]-> (:SQSQueue)
 
 
 @dataclass(frozen=True)
