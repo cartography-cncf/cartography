@@ -114,6 +114,9 @@
 ```{include} ../modules/sentinelone/schema.md
 ```
 
+```{include} ../modules/sentry/schema.md
+```
+
 ```{include} ../modules/slack/schema.md
 ```
 
