@@ -154,7 +154,7 @@ class ElasticBeanstalkToAWSLoadBalancerRel(CartographyRelSchema):
     target_node_label: str = "AWSLoadBalancer"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         # This LOADBALANCER_NAMES field is set by transform_elasticbeanstalk_environments
-        {"arn": PropertyRef("LOADBALANCER_NAMES", one_to_many=True)},
+        {"name": PropertyRef("LOADBALANCER_NAMES", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "HAS_LOAD_BALANCER"
