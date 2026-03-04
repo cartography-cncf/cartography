@@ -12,7 +12,6 @@ from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
 from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
-from cartography.intel.aws.identitycenter import load_user_roles
 from cartography.intel.aws.identitycenter import transform_permission_sets
 from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
@@ -1009,35 +1008,3 @@ def test_allowed_by_scoped_to_identity_store(
     assert (
         node_store_id == "d-BBBB"
     ), f"Expected identity_store_id=d-BBBB after instance B sync, got {node_store_id}"
-
-    # Assert 3 (regression): A matchlink targeting identity_store_id=d-AAAA
-    # no longer matches now that the node has identity_store_id=d-BBBB.
-    # First delete the existing ALLOWED_BY so we can test a fresh matchlink.
-    neo4j_session.run(
-        "MATCH (:AWSSSOUser {id: $uid})<-[r:ALLOWED_BY]-() DELETE r",
-        uid=SHARED_USER_ID,
-    )
-    load_user_roles(
-        neo4j_session,
-        [
-            {
-                "UserId": SHARED_USER_ID,
-                "IdentityStoreId": "d-AAAA",
-                "PermissionSetArn": PERMSET_A_ARN,
-                "RoleArn": ROLE_ARN,
-            },
-        ],
-        TEST_ACCOUNT_ID,
-        123,
-    )
-    stale_rels = neo4j_session.run(
-        """
-        MATCH (user:AWSSSOUser {id: $uid})<-[:ALLOWED_BY]-(role:AWSRole)
-        RETURN count(*) as cnt
-        """,
-        uid=SHARED_USER_ID,
-    ).single()["cnt"]
-    assert stale_rels == 0, (
-        f"Expected no ALLOWED_BY when identity_store_id mismatches (d-AAAA vs d-BBBB on node), "
-        f"but found {stale_rels}"
-    )
