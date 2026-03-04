@@ -184,12 +184,17 @@ GET_REPOS: List[dict[str, Any]] = [
             """,
             ),
         },
-        "dependencyGraphManifests": DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
         "branchProtectionRules": {
             "nodes": [PROTECTED_BRANCH_STRONG],
         },
     },
 ]
+
+# Dependency graph manifests returned by the per-repo fetch function, keyed by repo URL.
+# Only repos with dependency manifests have entries here.
+DEP_MANIFESTS_BY_URL: dict[str, dict[str, Any]] = {
+    GET_REPOS[2]["url"]: DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS,
+}
 
 
 # - This list is not a raw API response, but the lightly processed collected results of all the API calls, for all
