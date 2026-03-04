@@ -2045,6 +2045,11 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
     (ECSContainerInstance)-[IS_INSTANCE]->(EC2Instance)
     ```
 
+- Elastic Beanstalk Environment has EC2 Instances
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_INSTANCE]->(:EC2Instance)
+    ```
+
 ### EC2KeyPair
 
 Representation of an AWS [EC2 Key Pair](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_KeyPairInfo.html)
@@ -3117,6 +3122,11 @@ Represents a classic [AWS Elastic Load Balancer](https://docs.aws.amazon.com/ela
     (AWSDNSRecord, DNSRecord)-[DNS_POINTS_TO]->(LoadBalancer)
     ```
 
+- Elastic Beanstalk Environment has AWS LoadBalancers
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_LOAD_BALANCER]->(:AWSLoadBalancer)
+    ```
+
 ### AWSLoadBalancerV2
 
 ```{important}
@@ -3207,6 +3217,11 @@ The `EXPOSE` relationship holds the protocol, port and TargetGroupArn the load b
 - EC2NetworkAcl's can protect AWSLoadBalancerV2's via subnet traversal. Set by an analysis job.
     ```
     (EC2NetworkAcl)-[PROTECTS]->(AWSLoadBalancerV2)
+    ```
+
+- Elastic Beanstalk Environment has AWS LoadBalancer V2's
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_LOAD_BALANCER]->(:AWSLoadBalancerV2)
     ```
 
 ### Nameserver
@@ -4215,6 +4230,11 @@ Representation of an AWS [Auto Scaling Group Resource](https://docs.aws.amazon.c
     (AutoScalingGroup)-[HAS_LAUNCH_TEMPLATE]->(LaunchTemplate)
     ```
 
+- Elastic Beanstalk Environment has Auto Scaling Groups
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_AUTO_SCALING_GROUP]->(:AutoScalingGroup)
+    ```
+
 ### EC2Image
 
 Representation of an AWS [EC2 Images (AMIs)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html).
@@ -4443,6 +4463,11 @@ Representation of an AWS [SQS Queue](https://docs.aws.amazon.com/AWSSimpleQueueS
     (SQSQueue)-[HAS_DEADLETTER_QUEUE]->(SQSQueue)
     ```
 
+- Elastic Beanstalk Environment has SQS Queues
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_QUEUE]->(:SQSQueue)
+    ```
+
 ### SecurityHub
 
 Representation of the configuration of AWS [Security Hub](https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_DescribeHub.html)
@@ -4574,6 +4599,12 @@ Representation of an AWS [Launch Configuration](https://docs.aws.amazon.com/auto
     (AWSAccount)-[RESOURCE]->(LaunchConfiguration)
     ```
 
+- Elastic Beanstalk Environment has Launch Configuration
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_LAUNCH_CONFIG]->(:LaunchConfiguration)
+    ```
+
+
 ### LaunchTemplate
 
 Representation of an AWS [Launch Template](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_LaunchTemplate.html)
@@ -4601,6 +4632,11 @@ Representation of an AWS [Launch Template](https://docs.aws.amazon.com/AWSEC2/la
 - Launch templates have Launch Template Versions
     ```
     (LaunchTemplate)-[VERSION]->(LaunchTemplateVersion)
+    ```
+
+- Elastic Beanstalk Environment has Launch Templates
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_LAUNCH_TEMPLATE]->(:LaunchTemplate)
     ```
 
 ### LaunchTemplateVersion
@@ -6212,4 +6248,72 @@ Represents an [AWS SageMaker Model Package](https://docs.aws.amazon.com/sagemake
 - Model Package references artifacts in S3 Bucket
     ```
     (AWSSageMakerModelPackage)-[:REFERENCES_ARTIFACTS_IN]->(S3Bucket)
+    ```
+
+### ElasticBeanstalkEnvironment
+
+Represents an [AWS Elastic Beanstalk Environment](https://docs.aws.amazon.com/elasticbeanstalk/latest/api/API_DescribeEnvironments.html).
+An environment is a collection of AWS resources running an application version. Each environment runs only one application version at a time,
+however, you can run the same application version or different application versions in many environments simultaneously.
+When you create an environment, Elastic Beanstalk provisions the resources needed in your AWS account to run the application version you specified.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The ID of the Environment |
+| abortable_operation_in_progress | Indicates if there is an in-progress environment configuration update or application version deployment that you can cancel. |
+| application_name | The name of the application associated with this environment. |
+| arn | The ARN of the Environment |
+| cname | The URL to the CNAME for this environment. |
+| endpoint_url | For load-balanced, autoscaling environments, the URL to the LoadBalancer. For single-instance environments, the IP address of the instance. |
+| environment_name | The name of this environment. |
+| health | Describes the health status of the environment. |
+| health_status | Returns the health status of the application running in your environment. |
+| platform_arn | The ARN of the platform version. |
+| solution_stack_name | The name of the SolutionStack deployed with this environment. |
+| status | The current operational status of the environment: |
+| version_label | The application version deployed in this environment. |
+| region | The AWS region where the Environment exists |
+
+#### Relationships
+
+- Elastic Beanstalk Environment is a resource under an AWS Account
+    ```
+    (AWSAccount)-[:RESOURCE]->(ElasticBeanstalkEnvironment)
+    ```
+
+- Elastic Beanstalk Environment has EC2 Instances
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_INSTANCE]->(:EC2Instance)
+    ```
+
+- Elastic Beanstalk Environment has Auto Scaling Groups
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_AUTO_SCALING_GROUP]->(:AutoScalingGroup)
+    ```
+
+- Elastic Beanstalk Environment has Launch Configuration
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_LAUNCH_CONFIG]->(:LaunchConfiguration)
+    ```
+
+- Elastic Beanstalk Environment has Launch Templates
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_LAUNCH_TEMPLATE]->(:LaunchTemplate)
+    ```
+
+- Elastic Beanstalk Environment has AWS LoadBalancers
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_LOAD_BALANCER]->(:AWSLoadBalancer)
+    ```
+
+- Elastic Beanstalk Environment has AWS LoadBalancer V2's
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_LOAD_BALANCER]->(:AWSLoadBalancerV2)
+    ```
+
+- Elastic Beanstalk Environment has SQS Queues
+    ```
+    (:ElasticBeanstalkEnvironment)-[:HAS_QUEUE]->(:SQSQueue)
     ```
