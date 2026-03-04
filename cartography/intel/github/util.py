@@ -154,6 +154,7 @@ def fetch_all(
     org_data: dict[str, Any] = {}
     data: PaginatedGraphqlData = PaginatedGraphqlData(nodes=[], edges=[])
     retry = 0
+    null_resource_retry = 0
 
     while has_next_page:
         exc: Any = None
@@ -213,11 +214,11 @@ def fetch_all(
             resource = resp["data"]["organization"][resource_type][resource_inner_type]
 
         if resource is None:
-            retry += 1
-            if retry >= retries:
+            null_resource_retry += 1
+            if null_resource_retry >= retries:
                 raise ValueError(
                     f"Got null resource for organization: {organization}, resource_type: {resource_type}, "
-                    f"resource_inner_type: {resource_inner_type} after {retry} retries. "
+                    f"resource_inner_type: {resource_inner_type} after {null_resource_retry} retries. "
                     f"This may indicate a GitHub API timeout on a nested field.",
                 )
             logger.warning(
@@ -226,11 +227,14 @@ def fetch_all(
                 organization,
                 resource_type,
                 resource_inner_type,
-                retry,
+                null_resource_retry,
                 retries,
             )
-            time.sleep(2**retry)
+            time.sleep(2**null_resource_retry)
             continue
+
+        # Successful non-null resource; reset null-resource retry counter.
+        null_resource_retry = 0
 
         # Allow for paginating both nodes and edges fields of the GitHub GQL structure.
         data.nodes.extend(resource.get("nodes", []))
