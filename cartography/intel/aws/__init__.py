@@ -119,6 +119,8 @@ def _sync_one_account(
         # `ecs` creates IS_INSTANCE relationships from ECSContainerInstance to EC2Instance
         "ecs": ["ec2:instance"],
         "dynamodb": ["kms"],
+        # ElasticBeanstalk dynamically creates these resources, so they should be imported prior to running the Beanstalk sync
+        "elasticbeanstalk": ["ec2:instance", "ec2:autoscalinggroup", "ec2:launch_templates", "ec2:load_balancer", "ec2:load_balancer_v2", "sqs"],
     }
     for module, dependencies in module_dependencies.items():
         if module in requested_syncs_set:
