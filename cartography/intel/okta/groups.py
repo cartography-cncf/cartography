@@ -15,10 +15,13 @@ from cartography.client.core.tx import run_write_query
 from cartography.intel.okta.sync_state import OktaSyncState
 from cartography.intel.okta.utils import check_rate_limit
 from cartography.intel.okta.utils import create_api_client
+from cartography.intel.okta.utils import get_next_url
 from cartography.intel.okta.utils import is_last_page
+from cartography.intel.pagination import get_pagination_limits
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+MAX_PAGINATION_PAGES, MAX_PAGINATION_ITEMS = get_pagination_limits(logger)
 
 
 @timeit
@@ -30,11 +33,19 @@ def _get_okta_groups(api_client: ApiClient) -> List[str]:
     """
     group_list: List[str] = []
     next_url = None
+    page_count = 0
 
     # SDK Bug
     # get_paged_groups returns User object instead of UserGroup
 
     while True:
+        if page_count >= MAX_PAGINATION_PAGES:
+            logger.warning(
+                "Okta groups: reached max pagination pages (%d). Stopping with %d groups.",
+                MAX_PAGINATION_PAGES,
+                len(group_list),
+            )
+            break
         # https://developer.okta.com/docs/reference/api/groups/#list-groups
         if next_url:
             paged_response = api_client.get(next_url)
@@ -47,11 +58,25 @@ def _get_okta_groups(api_client: ApiClient) -> List[str]:
         paged_results = PagedResults(paged_response, UserGroup)
 
         group_list.extend(paged_results.result)
+        page_count += 1
+        if len(group_list) > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "Okta groups: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count,
+            )
+            break
 
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
+            next_url = get_next_url(paged_response)
+            if not next_url:
+                logger.warning(
+                    "Okta groups: missing next page URL; stopping after %d pages.",
+                    page_count,
+                )
+                break
         else:
             break
 
@@ -68,8 +93,16 @@ def get_okta_group_members(api_client: ApiClient, group_id: str) -> List[Dict]:
     """
     member_list: List[Dict] = []
     next_url = None
+    page_count = 0
 
     while True:
+        if page_count >= MAX_PAGINATION_PAGES:
+            logger.warning(
+                "Okta group members: reached max pagination pages (%d). Stopping with %d members.",
+                MAX_PAGINATION_PAGES,
+                len(member_list),
+            )
+            break
         try:
             # https://developer.okta.com/docs/reference/api/groups/#list-group-members
             if next_url:
@@ -83,12 +116,27 @@ def get_okta_group_members(api_client: ApiClient, group_id: str) -> List[Dict]:
             logger.error(f"OktaError while listing members of group {group_id}")
             raise
 
-        member_list.extend(json.loads(paged_response.text))
+        members = json.loads(paged_response.text)
+        member_list.extend(members)
+        page_count += 1
+        if len(member_list) > MAX_PAGINATION_ITEMS:
+            logger.warning(
+                "Okta group members: reached max pagination items (%d). Stopping after %d pages.",
+                MAX_PAGINATION_ITEMS,
+                page_count,
+            )
+            break
 
         check_rate_limit(paged_response)
 
         if not is_last_page(paged_response):
-            next_url = paged_response.links.get("next").get("url")
+            next_url = get_next_url(paged_response)
+            if not next_url:
+                logger.warning(
+                    "Okta group members: missing next page URL; stopping after %d pages.",
+                    page_count,
+                )
+                break
         else:
             break
 
