@@ -6300,7 +6300,7 @@ When you create an environment, Elastic Beanstalk provisions the resources neede
 | **id** | The ID of the Environment |
 | abortable_operation_in_progress | Indicates if there is an in-progress environment configuration update or application version deployment that you can cancel. |
 | application_name | The name of the application associated with this environment. |
-| arn | The ARN of the Environment |
+| **arn** | The ARN of the Environment |
 | cname | The URL to the CNAME for this environment. |
 | endpoint_url | For load-balanced, autoscaling environments, the URL to the LoadBalancer. For single-instance environments, the IP address of the instance. |
 | environment_name | The name of this environment. |
@@ -6353,7 +6353,7 @@ When you create an environment, Elastic Beanstalk provisions the resources neede
     ```
     (:ElasticBeanstalkEnvironment)-[:HAS_SQS_QUEUE]->(:SQSQueue)
     ```
-    
+
 - DNSRecords can point to Elastic Beanstalk Environments.
     ```
     (DNSRecord)-[DNS_POINTS_TO]->(ElasticBeanstalkEnvironment)
