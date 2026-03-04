@@ -35,8 +35,8 @@ CIS_REFERENCES = [
 class ClusterAdminUsageOutput(Finding):
     """Output model for cluster-admin role usage check."""
 
-    binding_id: str | None = None
     binding_name: str | None = None
+    binding_id: str | None = None
     subject_type: str | None = None
     subject_name: str | None = None
     cluster_name: str | None = None
@@ -443,11 +443,11 @@ cis_k8s_5_1_4_pod_create_access = Rule(
 class DefaultSaBindingsOutput(Finding):
     """Output model for default service account bindings check."""
 
+    binding_name: str | None = None
     binding_id: str | None = None
+    binding_type: str | None = None
     service_account_name: str | None = None
     namespace: str | None = None
-    binding_name: str | None = None
-    binding_type: str | None = None
     role_name: str | None = None
     cluster_name: str | None = None
 
@@ -561,8 +561,8 @@ cis_k8s_5_1_5_default_sa_bindings = Rule(
 class SystemMastersGroupOutput(Finding):
     """Output model for system:masters group usage check."""
 
-    binding_id: str | None = None
     binding_name: str | None = None
+    binding_id: str | None = None
     binding_type: str | None = None
     role_name: str | None = None
     cluster_name: str | None = None

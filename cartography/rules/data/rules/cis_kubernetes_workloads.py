@@ -35,10 +35,10 @@ CIS_REFERENCES = [
 class SecretsInEnvVarsOutput(Finding):
     """Output model for secrets in environment variables check."""
 
-    pod_id: str | None = None
     pod_name: str | None = None
+    pod_id: str | None = None
     namespace: str | None = None
-    secret_names: str | None = None
+    secret_names: list[str] | None = None
     cluster_name: str | None = None
 
 
