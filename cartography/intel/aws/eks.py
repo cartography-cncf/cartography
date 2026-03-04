@@ -81,6 +81,34 @@ def _ensure_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def _get_subject_key_identifier_hex(cert: x509.Certificate) -> str | None:
+    """
+    Return the SKI extension value when present on the certificate.
+
+    This intentionally does not derive SKI from the certificate's public key.
+    """
+    try:
+        ski = cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_KEY_IDENTIFIER)
+    except ExtensionNotFound:
+        return None
+    return ski.value.digest.hex()
+
+
+def _get_authority_key_identifier_hex(cert: x509.Certificate) -> str | None:
+    """
+    Return the AKI key identifier extension value when present on the certificate.
+    """
+    try:
+        aki = cert.extensions.get_extension_for_oid(
+            ExtensionOID.AUTHORITY_KEY_IDENTIFIER
+        )
+    except ExtensionNotFound:
+        return None
+    if aki.value.key_identifier:
+        return aki.value.key_identifier.hex()
+    return None
+
+
 def _parse_certificate_authority_metadata(cluster: Dict[str, Any]) -> Dict[str, Any]:
     cert_data = cluster.get("certificateAuthority", {}).get("data")
     cert_metadata: Dict[str, Any] = {
@@ -158,24 +186,12 @@ def _parse_certificate_authority_metadata(cluster: Dict[str, Any]) -> Dict[str, 
     cert_metadata["certificate_authority_not_before"] = not_before_utc
     cert_metadata["certificate_authority_not_after"] = not_after_utc
 
-    try:
-        ski = cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_KEY_IDENTIFIER)
-        cert_metadata["certificate_authority_subject_key_identifier"] = (
-            ski.value.digest.hex()
-        )
-    except ExtensionNotFound:
-        pass
-
-    try:
-        aki = cert.extensions.get_extension_for_oid(
-            ExtensionOID.AUTHORITY_KEY_IDENTIFIER
-        )
-        if aki.value.key_identifier:
-            cert_metadata["certificate_authority_authority_key_identifier"] = (
-                aki.value.key_identifier.hex()
-            )
-    except ExtensionNotFound:
-        pass
+    cert_metadata["certificate_authority_subject_key_identifier"] = (
+        _get_subject_key_identifier_hex(cert)
+    )
+    cert_metadata["certificate_authority_authority_key_identifier"] = (
+        _get_authority_key_identifier_hex(cert)
+    )
 
     return cert_metadata
 
