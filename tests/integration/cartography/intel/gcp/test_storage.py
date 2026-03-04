@@ -146,6 +146,8 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
     ) == {
         ("project-abc", "bucket_name"),
     }
+    # GCPBucketLabel nodes include both legacy (GCPBucketLabelSchema) and
+    # unified (GCPBucketGCPLabelSchema) nodes since both carry the GCPBucketLabel label.
     assert check_rels(
         neo4j_session,
         "GCPBucket",
@@ -157,6 +159,8 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
     ) == {
         ("bucket_name", "GCPBucket_label_key_1"),
         ("bucket_name", "GCPBucket_label_key_2"),
+        ("bucket_name", "bucket_name:label_key_1:label_value_1"),
+        ("bucket_name", "bucket_name:label_key_2:label_value_2"),
     }
     assert check_rels(
         neo4j_session,
@@ -169,9 +173,11 @@ def test_sync_gcp_buckets(mock_get_buckets, neo4j_session):
     ) == {
         ("project-abc", "GCPBucket_label_key_1"),
         ("project-abc", "GCPBucket_label_key_2"),
+        ("project-abc", "bucket_name:label_key_1:label_value_1"),
+        ("project-abc", "bucket_name:label_key_2:label_value_2"),
     }
 
-    # Assert - unified GCPLabel nodes also created by sync_labels
+    # Assert - unified GCPLabel nodes created by sync_labels
     assert check_nodes(
         neo4j_session,
         "GCPLabel",
