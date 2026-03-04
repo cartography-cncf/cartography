@@ -22,7 +22,7 @@ class GCPLabelNodeProperties(CartographyNodeProperties):
     The id is computed as "{resource_id}:{key}:{value}" during ingestion.
     """
 
-    id: PropertyRef = PropertyRef("id", extra_index=True)
+    id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     key: PropertyRef = PropertyRef("key", extra_index=True)
     value: PropertyRef = PropertyRef("value")

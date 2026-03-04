@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import neo4j
 
@@ -18,7 +16,7 @@ logger = logging.getLogger(__name__)
 # labels_field: the key path to extract labels from the raw API response dict
 # id_field: the dict key used to get the resource's unique identifier
 # schema: the CartographyNodeSchema used for load() and cleanup
-LABEL_RESOURCE_TYPE_MAPPINGS: Dict[str, Dict[str, Any]] = {
+LABEL_RESOURCE_TYPE_MAPPINGS: dict[str, dict[str, Any]] = {
     "gcp_instance": {
         "labels_field": "labels",
         "id_field": "partial_uri",
@@ -32,7 +30,7 @@ LABEL_RESOURCE_TYPE_MAPPINGS: Dict[str, Dict[str, Any]] = {
 }
 
 
-def _resolve_labels_field(resource: Dict, labels_field: str) -> Dict[str, str]:
+def _resolve_labels_field(resource: dict, labels_field: str) -> dict[str, str]:
     """
     Extract the labels dict from a resource, supporting dot-separated nested field paths.
     For example, 'settings.userLabels' will resolve resource['settings']['userLabels'].
@@ -55,9 +53,9 @@ def _resolve_labels_field(resource: Dict, labels_field: str) -> Dict[str, str]:
 
 @timeit
 def get_labels(
-    resource_list: List[Dict],
+    resource_list: list[dict],
     resource_type: str,
-) -> List[Dict]:
+) -> list[dict]:
     """
     Extract labels from a list of already-fetched GCP resource dicts.
 
@@ -75,7 +73,7 @@ def get_labels(
 
     labels_field = mapping["labels_field"]
     id_field = mapping["id_field"]
-    labels: List[Dict] = []
+    labels: list[dict] = []
 
     for resource in resource_list:
         resource_id = resource.get(id_field)
@@ -103,7 +101,7 @@ def get_labels(
 
 
 @timeit
-def transform_labels(label_data: List[Dict], resource_type: str) -> List[Dict]:
+def transform_labels(label_data: list[dict], resource_type: str) -> list[dict]:
     """
     Add the resource_type field to each label dict.
 
@@ -131,7 +129,7 @@ def transform_labels(label_data: List[Dict], resource_type: str) -> List[Dict]:
 @timeit
 def load_labels(
     neo4j_session: neo4j.Session,
-    label_data: List[Dict],
+    label_data: list[dict],
     resource_type: str,
     project_id: str,
     update_tag: int,
@@ -159,7 +157,7 @@ def load_labels(
 
 @timeit
 def cleanup(
-    neo4j_session: neo4j.Session, resource_type: str, common_job_parameters: Dict
+    neo4j_session: neo4j.Session, resource_type: str, common_job_parameters: dict
 ) -> None:
     """
     Clean up stale GCPLabel nodes and LABELED relationships for a single resource type.
@@ -178,11 +176,11 @@ def cleanup(
 @timeit
 def sync_labels(
     neo4j_session: neo4j.Session,
-    resource_list: List[Dict],
+    resource_list: list[dict],
     resource_type: str,
     project_id: str,
     update_tag: int,
-    common_job_parameters: Dict,
+    common_job_parameters: dict,
 ) -> None:
     """
     End-to-end sync of GCPLabel nodes for a single resource type.
