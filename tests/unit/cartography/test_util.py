@@ -94,7 +94,7 @@ def test_aws_handle_regions(mocker):
 
     assert raises_authorization_error(1, 2) == []
 
-    # UnknownOperationException should return the default for unsupported regions
+    # UnknownOperationException should return the default when a region does not support the operation
     @aws_handle_regions
     def raises_unknown_operation_error(a, b):
         e = botocore.exceptions.ClientError(
@@ -109,6 +109,23 @@ def test_aws_handle_regions(mocker):
         raise e
 
     assert raises_unknown_operation_error(1, 2) == []
+
+    # UnknownOperationException should still fail fast for non-regional operation failures
+    @aws_handle_regions
+    def raises_non_regional_unknown_operation_error(a, b):
+        e = botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": "UnknownOperationException",
+                    "Message": "Operation name is not recognized.",
+                },
+            },
+            "FakeOperation",
+        )
+        raise e
+
+    with pytest.raises(botocore.exceptions.ClientError):
+        raises_non_regional_unknown_operation_error(1, 2)
 
     # InvalidToken should raise RuntimeError
     @aws_handle_regions

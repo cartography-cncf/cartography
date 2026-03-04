@@ -619,8 +619,28 @@ AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
     "UnauthorizedOperation",
     "UnrecognizedClientException",
     "InternalServerErrorException",
-    "UnknownOperationException",
 ]
+
+AWS_REGION_UNSUPPORTED_OPERATION_SNIPPETS = (
+    "not supported in the called region",
+    "not supported in this region",
+    "unsupported in this region",
+)
+
+
+def _is_region_unsupported_unknown_operation(
+    error_code: Optional[str],
+    error_message: Optional[str],
+) -> bool:
+    """
+    Return True for UnknownOperationException errors that explicitly indicate regional unavailability.
+    """
+    if error_code != "UnknownOperationException" or not error_message:
+        return False
+    lowered = error_message.lower()
+    return any(
+        snippet in lowered for snippet in AWS_REGION_UNSUPPORTED_OPERATION_SNIPPETS
+    )
 
 
 # TODO Move this to cartography.intel.aws.util.common
@@ -661,10 +681,12 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         - UnauthorizedOperation
         - UnrecognizedClientException
         - InternalServerErrorException
-        - UnknownOperationException
 
         For these errors, a warning is logged and an empty list is returned.
         Other errors are re-raised normally.
+
+        UnknownOperationException is only skipped when the error message
+        explicitly indicates the operation is unsupported in the requested region.
 
         The decorator includes retry logic with exponential backoff (max 600 seconds)
         for handling transient AWS API errors and rate limiting.
@@ -691,16 +713,23 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
             return func(*args, **kwargs)
         except botocore.exceptions.ClientError as e:
             error_code = e.response.get("Error", {}).get("Code")
+            error_message = e.response.get("Error", {}).get("Message")
             if error_code == "InvalidToken":
                 raise RuntimeError(
                     "AWS returned an InvalidToken error. Configure regional STS endpoints by "
                     "setting environment variable AWS_STS_REGIONAL_ENDPOINTS=regional or adding "
                     "'sts_regional_endpoints = regional' to your AWS config file."
                 ) from e
+            if _is_region_unsupported_unknown_operation(error_code, error_message):
+                logger.warning(
+                    "{} in this region. Skipping...".format(
+                        error_message,
+                    ),
+                )
+                return []
             # The account is not authorized to use this service in this region
             # so we can continue without raising an exception
             if error_code in AWS_REGION_ACCESS_DENIED_ERROR_CODES:
-                error_message = e.response.get("Error", {}).get("Message")
                 if is_service_control_policy_explicit_deny(e):
                     logger.warning(
                         "Service control policy denied access while calling %s: %s",
