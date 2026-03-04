@@ -40,6 +40,46 @@ from cartography.rules.data.rules.cis_google_workspace import (
 from cartography.rules.data.rules.cis_google_workspace import (
     cis_gw_4_1_1_3_user_2sv_not_enforced,
 )
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_1_cluster_admin_usage,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import cis_k8s_5_1_2_secret_access
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_3_wildcard_roles,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_4_pod_create_access,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_5_default_sa_bindings,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_7_system_masters_group,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_8_escalation_permissions,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_9_pv_create_access,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_10_node_proxy_access,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_11_csr_approval_access,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_12_webhook_config_access,
+)
+from cartography.rules.data.rules.cis_kubernetes_rbac import (
+    cis_k8s_5_1_13_sa_token_creation,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_4_1_secrets_in_env_vars,
+)
+from cartography.rules.data.rules.cis_kubernetes_workloads import (
+    cis_k8s_5_6_4_default_namespace,
+)
 from cartography.rules.data.rules.cloud_security_product_deactivated import (
     cloud_security_product_deactivated,
 )
@@ -118,4 +158,19 @@ RULES = {
     # CIS Google Workspace Rules
     cis_gw_4_1_1_3_user_2sv_not_enforced.id: cis_gw_4_1_1_3_user_2sv_not_enforced,
     cis_gw_4_1_1_1_admin_2sv_not_enforced.id: cis_gw_4_1_1_1_admin_2sv_not_enforced,
+    # CIS Kubernetes Benchmark v1.12 Rules
+    cis_k8s_5_1_1_cluster_admin_usage.id: cis_k8s_5_1_1_cluster_admin_usage,
+    cis_k8s_5_1_2_secret_access.id: cis_k8s_5_1_2_secret_access,
+    cis_k8s_5_1_3_wildcard_roles.id: cis_k8s_5_1_3_wildcard_roles,
+    cis_k8s_5_1_4_pod_create_access.id: cis_k8s_5_1_4_pod_create_access,
+    cis_k8s_5_1_5_default_sa_bindings.id: cis_k8s_5_1_5_default_sa_bindings,
+    cis_k8s_5_1_7_system_masters_group.id: cis_k8s_5_1_7_system_masters_group,
+    cis_k8s_5_1_8_escalation_permissions.id: cis_k8s_5_1_8_escalation_permissions,
+    cis_k8s_5_1_9_pv_create_access.id: cis_k8s_5_1_9_pv_create_access,
+    cis_k8s_5_1_10_node_proxy_access.id: cis_k8s_5_1_10_node_proxy_access,
+    cis_k8s_5_1_11_csr_approval_access.id: cis_k8s_5_1_11_csr_approval_access,
+    cis_k8s_5_1_12_webhook_config_access.id: cis_k8s_5_1_12_webhook_config_access,
+    cis_k8s_5_1_13_sa_token_creation.id: cis_k8s_5_1_13_sa_token_creation,
+    cis_k8s_5_4_1_secrets_in_env_vars.id: cis_k8s_5_4_1_secrets_in_env_vars,
+    cis_k8s_5_6_4_default_namespace.id: cis_k8s_5_6_4_default_namespace,
 }

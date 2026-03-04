@@ -34,7 +34,6 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
     "backoff>=2.1.2",
-    "dockerfile>=3.0.0",
     "boto3>=1.15.1",
     "aioboto3>=13.0.0",
     "httpx>=0.24.0",
@@ -48,6 +47,7 @@ dependencies = [
     "oci>=2.71.0",
     "okta<1.0.0",
     "PyJWT[crypto]>=2.0.0",
+    "cryptography",
     "pyyaml>=5.3.1",
     "requests>=2.22.0",
     "statsd",

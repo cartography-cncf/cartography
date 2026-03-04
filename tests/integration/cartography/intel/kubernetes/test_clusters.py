@@ -24,6 +24,41 @@ def test_load_clusters(neo4j_session):
         (KUBERNETES_CLUSTER_IDS[1],),
     }
     assert check_nodes(neo4j_session, "KubernetesCluster", ["id"]) == expected_nodes
+    assert check_nodes(
+        neo4j_session,
+        "KubernetesCluster",
+        [
+            "id",
+            "api_server_url",
+            "kubeconfig_tls_configuration_status",
+            "kubeconfig_insecure_skip_tls_verify",
+            "kubeconfig_has_certificate_authority_data",
+            "kubeconfig_has_certificate_authority_file",
+            "kubeconfig_has_client_certificate",
+            "kubeconfig_has_client_key",
+        ],
+    ) == {
+        (
+            KUBERNETES_CLUSTER_IDS[0],
+            "https://cluster-1.example.com",
+            "valid_config",
+            False,
+            True,
+            False,
+            True,
+            True,
+        ),
+        (
+            KUBERNETES_CLUSTER_IDS[1],
+            "https://cluster-2.example.com",
+            "insecure_skip_tls",
+            True,
+            False,
+            False,
+            False,
+            False,
+        ),
+    }
 
 
 # cleaning up the kubernetes cluster node is currently not supported
