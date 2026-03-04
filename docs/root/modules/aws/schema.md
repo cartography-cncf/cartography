@@ -4501,7 +4501,7 @@ Representation of an AWS [SQS Queue](https://docs.aws.amazon.com/AWSSimpleQueueS
 
 - Elastic Beanstalk Environment has SQS Queues
     ```
-    (:ElasticBeanstalkEnvironment)-[:HAS_QUEUE]->(:SQSQueue)
+    (:ElasticBeanstalkEnvironment)-[:HAS_SQS_QUEUE]->(:SQSQueue)
     ```
 
 ### SecurityHub
