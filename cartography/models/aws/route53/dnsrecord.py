@@ -212,6 +212,7 @@ class AWSDNSRecordToElasticIPAddressRel(CartographyRelSchema):
         AWSDNSRecordToElasticIPAddressRelProperties()
     )
 
+
 @dataclass(frozen=True)
 class AWSDNSRecordToElasticBeanstalkEnvironmentRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

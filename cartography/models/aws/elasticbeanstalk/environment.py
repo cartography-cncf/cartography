@@ -10,6 +10,7 @@ from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
+
 @dataclass(frozen=True)
 class ElasticBeanstalkEnvironmentNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("EnvironmentId")
@@ -22,7 +23,9 @@ class ElasticBeanstalkEnvironmentNodeProperties(CartographyNodeProperties):
     endpoint_url: PropertyRef = PropertyRef("EndpointURL")
     cname: PropertyRef = PropertyRef("CNAME")
     status: PropertyRef = PropertyRef("Status")
-    abortable_operation_in_progress: PropertyRef = PropertyRef("AbortableOperationInProgress")
+    abortable_operation_in_progress: PropertyRef = PropertyRef(
+        "AbortableOperationInProgress"
+    )
     health: PropertyRef = PropertyRef("Health")
     health_status: PropertyRef = PropertyRef("HealthStatus")
     region: PropertyRef = PropertyRef("Region", set_in_kwargs=True)
@@ -31,9 +34,11 @@ class ElasticBeanstalkEnvironmentNodeProperties(CartographyNodeProperties):
 
 # (:AWSAccount) -[:RESOURCE]-> (:ElasticBeanstalkEnvironment)
 
+
 @dataclass(frozen=True)
 class ElasticBeanstalkEnvironmentToAWSAccountRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class ElasticBeanstalkEnvironmentToAWSAccountRel(CartographyRelSchema):
@@ -50,9 +55,11 @@ class ElasticBeanstalkEnvironmentToAWSAccountRel(CartographyRelSchema):
 
 # (:ElasticBeanstalkEnvironment) -[:HAS_INSTANCE]-> (:EC2Instance)
 
+
 @dataclass(frozen=True)
 class ElasticBeanstalkToInstanceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class ElasticBeanstalkToInstanceRel(CartographyRelSchema):
@@ -70,9 +77,11 @@ class ElasticBeanstalkToInstanceRel(CartographyRelSchema):
 
 # (:ElasticBeanstalkEnvironment) -[:HAS_AUTO_SCALING_GROUP]-> (:AutoScalingGroup)
 
+
 @dataclass(frozen=True)
 class ElasticBeanstalkToAutoScalingGroupRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class ElasticBeanstalkToAutoScalingGroupRel(CartographyRelSchema):
@@ -90,9 +99,11 @@ class ElasticBeanstalkToAutoScalingGroupRel(CartographyRelSchema):
 
 # (:ElasticBeanstalkEnvironment) -[:HAS_LAUNCH_CONFIG]-> (:LaunchConfiguration)
 
+
 @dataclass(frozen=True)
 class ElasticBeanstalkToLaunchConfigurationRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class ElasticBeanstalkToLaunchConfigurationRel(CartographyRelSchema):
@@ -110,9 +121,11 @@ class ElasticBeanstalkToLaunchConfigurationRel(CartographyRelSchema):
 
 # (:ElasticBeanstalkEnvironment) -[:HAS_LAUNCH_TEMPLATE]-> (:LaunchTemplate)
 
+
 @dataclass(frozen=True)
 class ElasticBeanstalkToLaunchTemplateRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class ElasticBeanstalkToLaunchTemplateRel(CartographyRelSchema):
@@ -130,9 +143,11 @@ class ElasticBeanstalkToLaunchTemplateRel(CartographyRelSchema):
 
 # (:ElasticBeanstalkEnvironment) -[:HAS_LOAD_BALANCER]-> (:AWSLoadBalancer)
 
+
 @dataclass(frozen=True)
 class ElasticBeanstalkToAWSLoadBalancerRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class ElasticBeanstalkToAWSLoadBalancerRel(CartographyRelSchema):
@@ -150,9 +165,11 @@ class ElasticBeanstalkToAWSLoadBalancerRel(CartographyRelSchema):
 
 # (:ElasticBeanstalkEnvironment) -[:HAS_LOAD_BALANCER]-> (:AWSLoadBalancerV2)
 
+
 @dataclass(frozen=True)
 class ElasticBeanstalkToAWSLoadBalancerV2RelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class ElasticBeanstalkToAWSLoadBalancerV2Rel(CartographyRelSchema):
@@ -170,9 +187,11 @@ class ElasticBeanstalkToAWSLoadBalancerV2Rel(CartographyRelSchema):
 
 # (:ElasticBeanstalkEnvironment) -[:HAS_QUEUE]-> (:SQSQueue)
 
+
 @dataclass(frozen=True)
 class ElasticBeanstalkToQueueRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
 
 @dataclass(frozen=True)
 class ElasticBeanstalkToQueueRel(CartographyRelSchema):
@@ -187,23 +206,27 @@ class ElasticBeanstalkToQueueRel(CartographyRelSchema):
         ElasticBeanstalkToQueueRelProperties()
     )
 
+
 # Note: No relationship is built for TRIGGER_NAMES, because we don't currently have them in the AWS model
+
 
 @dataclass(frozen=True)
 class ElasticBeanstalkEnvironmentSchema(CartographyNodeSchema):
     label: str = "ElasticBeanstalkEnvironment"
-    properties: ElasticBeanstalkEnvironmentNodeProperties = ElasticBeanstalkEnvironmentNodeProperties()
+    properties: ElasticBeanstalkEnvironmentNodeProperties = (
+        ElasticBeanstalkEnvironmentNodeProperties()
+    )
     sub_resource_relationship: ElasticBeanstalkEnvironmentToAWSAccountRel = (
         ElasticBeanstalkEnvironmentToAWSAccountRel()
     )
     other_relationships: OtherRelationships = OtherRelationships(
         [
-          ElasticBeanstalkToInstanceRel(),
-          ElasticBeanstalkToAutoScalingGroupRel(),
-          ElasticBeanstalkToLaunchConfigurationRel(),
-          ElasticBeanstalkToLaunchTemplateRel(),
-          ElasticBeanstalkToAWSLoadBalancerRel(),
-          ElasticBeanstalkToAWSLoadBalancerV2Rel(),
-          ElasticBeanstalkToQueueRel(),
+            ElasticBeanstalkToInstanceRel(),
+            ElasticBeanstalkToAutoScalingGroupRel(),
+            ElasticBeanstalkToLaunchConfigurationRel(),
+            ElasticBeanstalkToLaunchTemplateRel(),
+            ElasticBeanstalkToAWSLoadBalancerRel(),
+            ElasticBeanstalkToAWSLoadBalancerV2Rel(),
+            ElasticBeanstalkToQueueRel(),
         ],
     )

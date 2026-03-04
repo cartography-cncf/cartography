@@ -149,7 +149,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "cognito": cognito.sync,
         "eventbridge": eventbridge.sync,
         "glue": glue.sync,
-        # ElasticBeanstalk must run after ec2:instance, ec2:autoscalinggroup, ec2:launch_templates, 
+        # ElasticBeanstalk must run after ec2:instance, ec2:autoscalinggroup, ec2:launch_templates,
         # ec2:load_balancer, ec2:load_balancer_v2 and sqs, so that the nodes exist when elasticbeanstalk
         # makes relationships, but before route53 as it has a relationship to this.
         "elasticbeanstalk": elasticbeanstalk.sync,
