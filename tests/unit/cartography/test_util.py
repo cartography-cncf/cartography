@@ -94,6 +94,22 @@ def test_aws_handle_regions(mocker):
 
     assert raises_authorization_error(1, 2) == []
 
+    # UnknownOperationException should return the default for unsupported regions
+    @aws_handle_regions
+    def raises_unknown_operation_error(a, b):
+        e = botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": "UnknownOperationException",
+                    "Message": "The requested operation is not supported in the called region.",
+                },
+            },
+            "FakeOperation",
+        )
+        raise e
+
+    assert raises_unknown_operation_error(1, 2) == []
+
     # InvalidToken should raise RuntimeError
     @aws_handle_regions
     def raises_invalid_token(a, b):

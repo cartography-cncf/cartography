@@ -619,6 +619,7 @@ AWS_REGION_ACCESS_DENIED_ERROR_CODES = [
     "UnauthorizedOperation",
     "UnrecognizedClientException",
     "InternalServerErrorException",
+    "UnknownOperationException",
 ]
 
 
@@ -660,6 +661,7 @@ def aws_handle_regions(func: AWSGetFunc) -> AWSGetFunc:
         - UnauthorizedOperation
         - UnrecognizedClientException
         - InternalServerErrorException
+        - UnknownOperationException
 
         For these errors, a warning is logged and an empty list is returned.
         Other errors are re-raised normally.
