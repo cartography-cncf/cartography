@@ -99,19 +99,6 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                             text
                         }
                     }
-                    dependencyGraphManifests(first: 20) {
-                        nodes {
-                            blobPath
-                            dependencies(first: 100) {
-                                nodes {
-                                    packageName
-                                    packageUrl
-                                    requirements
-                                    packageManager
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -197,6 +184,117 @@ GITHUB_REPO_COLLABS_PAGINATED_GRAPHQL = """
         }
     }
     """
+
+GITHUB_REPO_DEP_MANIFESTS_PAGINATED_GRAPHQL = """
+    query($login: String!, $repo: String!, $cursor: String) {
+        organization(login: $login) {
+            url
+            login
+            repository(name: $repo) {
+                dependencyGraphManifests(first: 20, after: $cursor) {
+                    pageInfo {
+                        endCursor
+                        hasNextPage
+                    }
+                    nodes {
+                        blobPath
+                        dependencies(first: 100) {
+                            nodes {
+                                packageName
+                                packageUrl
+                                requirements
+                                packageManager
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        rateLimit {
+            limit
+            cost
+            remaining
+            resetAt
+        }
+    }
+    """
+
+
+def _get_repo_dep_manifests(
+    token: str,
+    api_url: str,
+    organization: str,
+    repo: str,
+) -> PaginatedGraphqlData:
+    """
+    Retrieve dependency graph manifests for a single repository.
+    :param token: The Github API token as string.
+    :param api_url: The Github v4 API endpoint as string.
+    :param organization: The name of the target Github organization as string.
+    :param repo: The name of the target Github repository as string.
+    :return: PaginatedGraphqlData containing manifest nodes.
+    """
+    manifests, _ = fetch_all(
+        token,
+        api_url,
+        organization,
+        GITHUB_REPO_DEP_MANIFESTS_PAGINATED_GRAPHQL,
+        "repository",
+        resource_inner_type="dependencyGraphManifests",
+        repo=repo,
+    )
+    return manifests
+
+
+def _get_dep_manifests_for_repos(
+    repo_raw_data: list[dict[str, Any] | None],
+    org: str,
+    api_url: str,
+    token: str,
+) -> dict[str, dict[str, Any]]:
+    """
+    For every repo in the given list, retrieve its dependency graph manifests individually.
+    This avoids embedding the heavy dependencyGraphManifests query in the main repos query,
+    which causes 502 errors on orgs with repos containing large manifest files.
+    :param repo_raw_data: A list of dicts representing repos.
+    :param org: The name of the target Github organization as string.
+    :param api_url: The Github v4 API endpoint as string.
+    :param token: The Github API token as string.
+    :return: A dict mapping repo URL to its dependencyGraphManifests structure.
+    """
+    logger.info(
+        "Fetching dependency graph manifests for %d repos in org %s.",
+        len(repo_raw_data),
+        org,
+    )
+    result: dict[str, dict[str, Any]] = {}
+
+    for repo in repo_raw_data:
+        if repo is None:
+            continue
+        repo_name = repo.get("name")
+        repo_url = repo.get("url")
+        if not repo_name or not repo_url:
+            continue
+
+        try:
+            manifests = _get_repo_dep_manifests(token, api_url, org, repo_name)
+            if manifests.nodes:
+                result[repo_url] = {"nodes": manifests.nodes}
+                logger.debug(
+                    "Fetched %d dependency manifests for repo %s.",
+                    len(manifests.nodes),
+                    repo_name,
+                )
+        except Exception:
+            logger.warning(
+                "Failed to fetch dependency manifests for repo %s; skipping.",
+                repo_name,
+                exc_info=True,
+            )
+
+    logger.info("Fetched dependency manifests for %d repos.", len(result))
+    return result
 
 
 def _get_repo_collaborators_inner_func(
@@ -1569,6 +1667,18 @@ def sync(
             "Unable to list repo collaborators due to permission errors; continuing on.",
             exc_info=True,
         )
+
+    # Fetch dependency graph manifests per-repo to avoid 502s from heavy inline queries
+    dep_manifests_by_url = _get_dep_manifests_for_repos(
+        repos_json,
+        organization,
+        github_url,
+        github_api_key,
+    )
+    for repo in repos_json:
+        if repo is not None and repo.get("url") in dep_manifests_by_url:
+            repo["dependencyGraphManifests"] = dep_manifests_by_url[repo["url"]]
+
     repo_data = transform(repos_json, direct_collabs, outside_collabs)
     load(neo4j_session, common_job_parameters, repo_data)
 
