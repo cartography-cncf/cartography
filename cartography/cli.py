@@ -56,6 +56,7 @@ PANEL_SYFT = "Syft Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
+PANEL_SANTA = "Santa Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SLACK = "Slack Options"
 PANEL_SPACELIFT = "Spacelift Options"
@@ -97,6 +98,7 @@ MODULE_PANELS = {
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentinelone": PANEL_SENTINELONE,
+    "santa": PANEL_SANTA,
     "keycloak": PANEL_KEYCLOAK,
     "slack": PANEL_SLACK,
     "spacelift": PANEL_SPACELIFT,
@@ -1327,6 +1329,54 @@ class CLI:
                 ),
             ] = "SENTINELONE_API_TOKEN",
             # =================================================================
+            # Santa Options
+            # =================================================================
+            santa_base_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--santa-base-url",
+                    help="Zentral API base URL used for Santa exports.",
+                    rich_help_panel=PANEL_SANTA,
+                    hidden=PANEL_SANTA not in visible_panels,
+                ),
+            ] = None,
+            santa_token_env_var: Annotated[
+                str,
+                typer.Option(
+                    "--santa-token-env-var",
+                    help="Environment variable name containing Zentral API token for Santa exports.",
+                    rich_help_panel=PANEL_SANTA,
+                    hidden=PANEL_SANTA not in visible_panels,
+                ),
+            ] = "SANTA_TOKEN",
+            santa_source_name: Annotated[
+                str,
+                typer.Option(
+                    "--santa-source-name",
+                    help="Inventory source name used to filter Santa exports.",
+                    rich_help_panel=PANEL_SANTA,
+                    hidden=PANEL_SANTA not in visible_panels,
+                ),
+            ] = "Santa",
+            santa_event_lookback_days: Annotated[
+                int,
+                typer.Option(
+                    "--santa-event-lookback-days",
+                    help="Number of days of Santa execution events to process.",
+                    rich_help_panel=PANEL_SANTA,
+                    hidden=PANEL_SANTA not in visible_panels,
+                ),
+            ] = 30,
+            santa_request_timeout: Annotated[
+                int,
+                typer.Option(
+                    "--santa-request-timeout",
+                    help="Request timeout in seconds for Zentral Santa API calls.",
+                    rich_help_panel=PANEL_SANTA,
+                    hidden=PANEL_SANTA not in visible_panels,
+                ),
+            ] = 60,
+            # =================================================================
             # Keycloak Options
             # =================================================================
             keycloak_client_id: Annotated[
@@ -1891,6 +1941,15 @@ class CLI:
                 )
                 sentinelone_api_token = os.environ.get(sentinelone_api_token_env_var)
 
+            # Read Santa API token
+            santa_token = None
+            if santa_base_url and santa_token_env_var:
+                logger.debug(
+                    "Reading Santa API token from environment variable %s",
+                    santa_token_env_var,
+                )
+                santa_token = os.environ.get(santa_token_env_var)
+
             # Read Keycloak client secret
             keycloak_client_secret = None
             if keycloak_client_secret_env_var:
@@ -2050,6 +2109,11 @@ class CLI:
                 sentinelone_api_url=sentinelone_api_url,
                 sentinelone_api_token=sentinelone_api_token,
                 sentinelone_account_ids=sentinelone_account_ids_list,
+                santa_base_url=santa_base_url,
+                santa_token=santa_token,
+                santa_source_name=santa_source_name,
+                santa_event_lookback_days=santa_event_lookback_days,
+                santa_request_timeout=santa_request_timeout,
                 spacelift_api_endpoint=spacelift_api_endpoint_resolved,
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,

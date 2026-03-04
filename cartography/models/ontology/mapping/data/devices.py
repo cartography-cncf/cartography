@@ -148,6 +148,34 @@ tailscale_mapping = OntologyMapping(
         )
     ],
 )
+santa_mapping = OntologyMapping(
+    module_name="santa",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SantaMachine",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="hostname", node_field="hostname", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="serial_number", node_field="serial_number"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="os_version", node_field="os_version"
+                ),
+                OntologyFieldMapping(ontology_field="model", node_field="model"),
+                OntologyFieldMapping(ontology_field="platform", node_field="platform"),
+            ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link Device to User based on SantaUser-SantaMachine relationship",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:SantaUser)<-[:PRIMARY_USER]-(:SantaMachine)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
+        ),
+    ],
+)
 
 googleworkspace_mapping = OntologyMapping(
     module_name="googleworkspace",
@@ -189,6 +217,7 @@ DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "duo": duo_mapping,
     "googleworkspace": googleworkspace_mapping,
     "kandji": kandji_mapping,
+    "santa": santa_mapping,
     "snipeit": snipeit_mapping,
     "tailscale": tailscale_mapping,
 }
