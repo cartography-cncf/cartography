@@ -27,5 +27,12 @@ def test_sync_account_summary(mock_get_account_summary, neo4j_session):
     assert check_nodes(
         neo4j_session,
         "AWSAccount",
-        ["id", "account_mfa_enabled", "mfa_devices", "mfa_devices_in_use", "users", "roles"],
+        [
+            "id",
+            "account_mfa_enabled",
+            "mfa_devices",
+            "mfa_devices_in_use",
+            "users",
+            "roles",
+        ],
     ) == {(TEST_ACCOUNT_ID, 1, 3, 2, 5, 10)}

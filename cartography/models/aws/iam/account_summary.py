@@ -20,7 +20,9 @@ class AWSAccountSummaryNodeProperties(CartographyNodeProperties):
     mfa_devices: PropertyRef = PropertyRef("MFADevices")
     mfa_devices_in_use: PropertyRef = PropertyRef("MFADevicesInUse")
     account_access_keys_present: PropertyRef = PropertyRef("AccountAccessKeysPresent")
-    account_signing_certificates_present: PropertyRef = PropertyRef("AccountSigningCertificatesPresent")
+    account_signing_certificates_present: PropertyRef = PropertyRef(
+        "AccountSigningCertificatesPresent"
+    )
 
     # Entity counts
     users: PropertyRef = PropertyRef("Users")
