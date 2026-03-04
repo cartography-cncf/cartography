@@ -5033,6 +5033,9 @@ Representation of an AWS ECS [Container](https://docs.aws.amazon.com/AmazonECS/l
 | name | The name of the container. |
 | image | The image used for the container. |
 | image\_digest | The container image manifest digest. |
+| architecture | Raw container architecture value captured from ECS runtime/task definition (for example, `x86_64`, `ARM64`). |
+| architecture\_normalized | Canonicalized architecture value (for example, `amd64`, `arm64`, `arm`, `386`, `unknown`). |
+| architecture\_source | Source for architecture inference (`runtime_api_exact` or `task_definition_hint`). |
 | runtime\_id | The ID of the Docker container. |
 | last\_status | The last known status of the container. |
 | exit\_code | The exit code returned from the container. |
