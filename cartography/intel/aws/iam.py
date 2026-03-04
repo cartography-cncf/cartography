@@ -1310,7 +1310,7 @@ def load_server_certificates(
 def get_account_summary(boto3_session: boto3.Session) -> Dict[str, int]:
     client = boto3_session.client("iam")
     response = client.get_account_summary()
-    return response.get("SummaryMap", {})
+    return response["SummaryMap"]
 
 
 def transform_account_summary(
