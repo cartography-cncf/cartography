@@ -212,6 +212,17 @@ def fetch_all(
         if resource_inner_type:
             resource = resp["data"]["organization"][resource_type][resource_inner_type]
 
+        if resource is None:
+            logger.warning(
+                "Got null resource for organization: %s, resource_type: %s, resource_inner_type: %s. "
+                "This may indicate a GitHub API timeout on a nested field. Stopping pagination.",
+                organization,
+                resource_type,
+                resource_inner_type,
+            )
+            has_next_page = False
+            continue
+
         # Allow for paginating both nodes and edges fields of the GitHub GQL structure.
         data.nodes.extend(resource.get("nodes", []))
         data.edges.extend(resource.get("edges", []))
