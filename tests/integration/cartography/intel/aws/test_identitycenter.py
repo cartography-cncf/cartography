@@ -845,86 +845,199 @@ def test_multi_account_permission_set_assignments(
     ), f"Role in account 3 should exist in graph but was not found: {role_3_arn}"
 
 
-def test_allowed_by_scoped_to_identity_store(neo4j_session):
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_user_group_memberships",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_group_permissionsets",
+    return_value=[],
+)
+@patch.object(cartography.intel.aws.identitycenter, "get_user_permissionsets")
+@patch.object(cartography.intel.aws.identitycenter, "get_sso_groups", return_value=[])
+@patch.object(cartography.intel.aws.identitycenter, "get_sso_users")
+@patch.object(cartography.intel.aws.identitycenter, "get_permission_sets")
+@patch.object(cartography.intel.aws.identitycenter, "get_identity_center_instances")
+def test_allowed_by_scoped_to_identity_store(
+    mock_instances,
+    mock_permsets,
+    mock_users,
+    mock_groups,
+    mock_user_permsets,
+    mock_group_permsets,
+    mock_memberships,
+    neo4j_session,
+):
     """
     Test that ALLOWED_BY relationships are scoped by identity_store_id,
     preventing cross-instance leaks when multiple Identity Center instances exist.
 
     Scenario:
-    - Instance A (identity store d-AAAA) has user alice
-    - Instance B (identity store d-BBBB) has user bob
-    - A role exists that alice should have ALLOWED_BY access to
-    - bob should NOT get an ALLOWED_BY relationship to that role,
-      even though the matchlink data only targets alice by UserId
+    - Two Identity Center instances (A and B) with different identity stores
+    - Both stores contain a user with the SAME UserId (simulating UUID collision)
+    - Only instance A has a permission set assignment for the user
+    - After full sync: instance A's ALLOWED_BY relationship is created correctly
+    - Regression: a matchlink targeting the wrong identity_store_id is rejected
     """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
-    # Create users in two different identity stores
-    alice = {
-        "UserId": "alice-uuid",
-        "UserName": "alice@example.com",
-        "IdentityStoreId": "d-AAAA",
-    }
-    bob = {
-        "UserId": "bob-uuid",
-        "UserName": "bob@example.com",
-        "IdentityStoreId": "d-BBBB",
-    }
-
-    load_sso_users(
-        neo4j_session,
-        [alice],
-        "d-AAAA",
-        "us-east-1",
-        TEST_ACCOUNT_ID,
-        "test_tag",
-    )
-    load_sso_users(
-        neo4j_session,
-        [bob],
-        "d-BBBB",
-        "us-east-1",
-        TEST_ACCOUNT_ID,
-        "test_tag",
+    SHARED_USER_ID = "shared-user-uuid"
+    INSTANCE_A_ARN = "arn:aws:sso:::instance/ssoins-AAAA"
+    INSTANCE_B_ARN = "arn:aws:sso:::instance/ssoins-BBBB"
+    PERMSET_A_ARN = "arn:aws:sso:::permissionSet/ssoins-AAAA/ps-admin"
+    ROLE_ARN = (
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/aws-reserved/"
+        "sso.amazonaws.com/AWSReservedSSO_AdminAccess_abc123"
     )
 
-    # Create a role
-    role_arn = "arn:aws:iam::1234567890:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_Admin_test"
-    neo4j_session.run(
-        "MERGE (:AWSRole{arn: $arn, lastupdated: $tag})",
-        arn=role_arn,
-        tag="test_tag",
-    )
-
-    # Load ALLOWED_BY for alice in instance A only
-    user_role_data = [
+    # Two instances in the same account, different identity stores
+    mock_instances.return_value = [
         {
-            "UserId": "alice-uuid",
+            "InstanceArn": INSTANCE_A_ARN,
             "IdentityStoreId": "d-AAAA",
-            "PermissionSetArn": "arn:aws:sso:::permissionSet/ssoins-A/ps-admin",
-            "RoleArn": role_arn,
+            "OwnerAccountId": TEST_ACCOUNT_ID,
+        },
+        {
+            "InstanceArn": INSTANCE_B_ARN,
+            "IdentityStoreId": "d-BBBB",
+            "OwnerAccountId": TEST_ACCOUNT_ID,
         },
     ]
 
-    load_user_roles(neo4j_session, user_role_data, TEST_ACCOUNT_ID, "test_tag")
+    # Same UserId in both identity stores
+    def _get_users(boto3_session, identity_store_id, region):
+        return [
+            {
+                "UserId": SHARED_USER_ID,
+                "UserName": f"user@{identity_store_id}.com",
+                "IdentityStoreId": identity_store_id,
+            },
+        ]
 
-    # Assert: alice has the ALLOWED_BY relationship
-    assert check_rels(
-        neo4j_session,
-        "AWSRole",
-        "arn",
-        "AWSSSOUser",
-        "id",
-        "ALLOWED_BY",
-        True,
-    ) == {(role_arn, "alice-uuid")}
+    mock_users.side_effect = _get_users
 
-    # Assert: bob does NOT have the ALLOWED_BY relationship
-    bob_rels = neo4j_session.run(
-        """
-        MATCH (user:AWSSSOUser {id: $user_id})<-[:ALLOWED_BY]-(role:AWSRole)
-        RETURN role.arn as role_arn
-        """,
-        user_id="bob-uuid",
+    # Instance A supports permission sets; instance B is account-scoped (no permission sets)
+    def _get_permsets(boto3_session, instance_arn, region):
+        if instance_arn == INSTANCE_A_ARN:
+            return [
+                {
+                    "Name": "AdminAccess",
+                    "PermissionSetArn": PERMSET_A_ARN,
+                    "SessionDuration": "PT12H",
+                },
+            ]
+        raise botocore.exceptions.ClientError(
+            {
+                "Error": {
+                    "Code": "ValidationException",
+                    "Message": "The operation is not supported for this Identity Center instance",
+                },
+            },
+            "ListPermissionSets",
+        )
+
+    mock_permsets.side_effect = _get_permsets
+
+    # User assigned to permission set in instance A only
+    def _get_user_permsets(boto3_session, users, instance_arn, region):
+        if instance_arn == INSTANCE_A_ARN:
+            return [
+                {
+                    "UserId": SHARED_USER_ID,
+                    "PermissionSetArn": PERMSET_A_ARN,
+                    "AccountId": TEST_ACCOUNT_ID,
+                },
+            ]
+        return []
+
+    mock_user_permsets.side_effect = _get_user_permsets
+
+    # Pre-create the AWSRole matching instance A's permission set
+    neo4j_session.run(
+        "MERGE (a:AWSAccount {id: $id}) SET a.lastupdated = $tag",
+        id=TEST_ACCOUNT_ID,
+        tag=123,
     )
-    assert {r["role_arn"] for r in bob_rels} == set()
+    role_data = [
+        {
+            "arn": ROLE_ARN,
+            "name": "AWSReservedSSO_AdminAccess_abc123",
+            "roleid": "AIDAROLETEST",
+            "path": "/aws-reserved/sso.amazonaws.com/",
+            "createdate": "2023-01-01",
+            "trusted_aws_principals": [],
+        },
+    ]
+    load(
+        neo4j_session,
+        AWSRoleSchema(),
+        role_data,
+        lastupdated=123,
+        AWS_ID=TEST_ACCOUNT_ID,
+    )
+
+    # Act - Run the full end-to-end sync across both instances
+    cartography.intel.aws.identitycenter.sync_identity_center_instances(
+        neo4j_session,
+        boto3_session=None,
+        regions=["us-east-1"],
+        current_aws_account_id=TEST_ACCOUNT_ID,
+        update_tag=123,
+        common_job_parameters={"AWS_ID": TEST_ACCOUNT_ID, "UPDATE_TAG": 123},
+    )
+
+    # Assert 1: ALLOWED_BY was created during instance A's sync
+    allowed_by = neo4j_session.run(
+        """
+        MATCH (user:AWSSSOUser {id: $uid})<-[:ALLOWED_BY]-(role:AWSRole)
+        RETURN role.arn as arn
+        """,
+        uid=SHARED_USER_ID,
+    )
+    actual_arns = {r["arn"] for r in allowed_by}
+    assert (
+        ROLE_ARN in actual_arns
+    ), f"Expected ALLOWED_BY to {ROLE_ARN}, got {actual_arns}"
+
+    # Assert 2: The AWSSSOUser node's identity_store_id is d-BBBB (instance B synced last)
+    node_store_id = neo4j_session.run(
+        "MATCH (u:AWSSSOUser {id: $uid}) RETURN u.identity_store_id as sid",
+        uid=SHARED_USER_ID,
+    ).single()["sid"]
+    assert (
+        node_store_id == "d-BBBB"
+    ), f"Expected identity_store_id=d-BBBB after instance B sync, got {node_store_id}"
+
+    # Assert 3 (regression): A matchlink targeting identity_store_id=d-AAAA
+    # no longer matches now that the node has identity_store_id=d-BBBB.
+    # First delete the existing ALLOWED_BY so we can test a fresh matchlink.
+    neo4j_session.run(
+        "MATCH (:AWSSSOUser {id: $uid})<-[r:ALLOWED_BY]-() DELETE r",
+        uid=SHARED_USER_ID,
+    )
+    load_user_roles(
+        neo4j_session,
+        [
+            {
+                "UserId": SHARED_USER_ID,
+                "IdentityStoreId": "d-AAAA",
+                "PermissionSetArn": PERMSET_A_ARN,
+                "RoleArn": ROLE_ARN,
+            },
+        ],
+        TEST_ACCOUNT_ID,
+        123,
+    )
+    stale_rels = neo4j_session.run(
+        """
+        MATCH (user:AWSSSOUser {id: $uid})<-[:ALLOWED_BY]-(role:AWSRole)
+        RETURN count(*) as cnt
+        """,
+        uid=SHARED_USER_ID,
+    ).single()["cnt"]
+    assert stale_rels == 0, (
+        f"Expected no ALLOWED_BY when identity_store_id mismatches (d-AAAA vs d-BBBB on node), "
+        f"but found {stale_rels}"
+    )
