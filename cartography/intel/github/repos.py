@@ -267,7 +267,7 @@ def _fetch_manifest_page(
             continue
 
         # Check for GraphQL-level timeout: HTTP 200 but dependencyGraphManifests is null
-        repository = resp.get("data", {}).get("organization", {}).get("repository")
+        repository = (resp.get("data") or {}).get("organization", {}).get("repository")
         dep_manifests = (
             repository.get("dependencyGraphManifests") if repository else None
         )
@@ -463,7 +463,7 @@ def _get_dep_manifests_for_repos(
                     len(manifests),
                     repo_name,
                 )
-        except Exception:
+        except requests.exceptions.RequestException:
             logger.warning(
                 "Failed to fetch dependency manifests for repo %s; skipping.",
                 repo_name,
