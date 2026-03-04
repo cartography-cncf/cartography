@@ -2750,8 +2750,8 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
 | certificate_authority_issuer | Issuer DN of the EKS API server certificate authority certificate |
 | certificate_authority_not_before | Certificate validity start time (Neo4j datetime) |
 | certificate_authority_not_after | Certificate validity end time (Neo4j datetime) |
-| certificate_authority_subject_key_identifier | Subject Key Identifier (SKI) extension value in hex if present |
-| certificate_authority_authority_key_identifier | Authority Key Identifier (AKI) extension key identifier value in hex if present |
+| certificate_authority_subject_key_identifier | Subject Key Identifier (SKI) extension value in hex if present. `null` when the extension is absent (not derived from the public key) |
+| certificate_authority_authority_key_identifier | Authority Key Identifier (AKI) extension key identifier value in hex if present. `null` when the extension or key identifier is absent |
 
 #### Relationships
 
@@ -2769,6 +2769,7 @@ Representation of an AWS [EKS Cluster](https://docs.aws.amazon.com/eks/latest/AP
            c.certificate_authority_sha256_fingerprint,
            c.certificate_authority_subject,
            c.certificate_authority_issuer,
+           c.certificate_authority_subject_key_identifier,
            c.certificate_authority_authority_key_identifier
     ORDER BY a.id, c.region, c.name;
     ```
