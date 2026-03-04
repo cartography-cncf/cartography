@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -14,7 +15,6 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _PAGE_SIZE = 20
 _SYNC_METADATA_ID = "UbuntuNotice_sync_metadata"
-_EPOCH = "2020-01-01T00:00:00+00:00"
 
 
 @timeit
@@ -26,50 +26,126 @@ def sync(
 ) -> None:
     logger.info("Starting Ubuntu Security Notice sync")
 
-    last_published = get_last_sync_timestamp(neo4j_session) or _EPOCH
-    logger.info("Syncing Ubuntu notices published since %s", last_published)
-    raw_notices = get_new_since(api_url, last_published)
+    metadata = get_sync_metadata(neo4j_session)
 
-    if raw_notices:
-        transformed = transform(raw_notices)
-        load_notices(neo4j_session, transformed, update_tag)
-
-        latest_pub = _extract_latest_published(raw_notices)
-        if latest_pub:
-            save_sync_metadata(neo4j_session, latest_pub, update_tag)
+    if metadata["full_sync_complete"]:
+        _run_incremental_sync(neo4j_session, api_url, update_tag, metadata["last_published"])
     else:
-        logger.info("No new notices found")
+        _run_full_sync(neo4j_session, api_url, update_tag, metadata["full_sync_offset"])
 
-    # Cleanup is intentionally omitted: notices are permanent records in Ubuntu's database
-    # and are never deleted. This module uses incremental sync (watermark-based), so running
-    # GraphJob cleanup would incorrectly remove nodes not present in the latest partial batch.
     logger.info("Completed Ubuntu Security Notice sync")
 
 
-def get_last_sync_timestamp(neo4j_session: neo4j.Session) -> str | None:
-    query = """
-    MATCH (s:UbuntuSyncMetadata {id: $sync_id})
-    RETURN s.last_published AS last_published
-    """
-    result = read_single_value_tx(neo4j_session, query, sync_id=_SYNC_METADATA_ID)
-    return result
+def _run_full_sync(
+    neo4j_session: neo4j.Session,
+    api_url: str,
+    update_tag: int,
+    start_offset: int,
+) -> None:
+    if start_offset > 0:
+        logger.info("Resuming full notice sync from offset %d", start_offset)
+    else:
+        logger.info("Running full notice ingestion")
+
+    total = 0
+    current_offset = start_offset
+    for page in _fetch_notices(api_url, start_offset=start_offset):
+        transformed = transform(page)
+        load_notices(neo4j_session, transformed, update_tag)
+        total += len(transformed)
+        current_offset += _PAGE_SIZE
+        save_sync_metadata(
+            neo4j_session, update_tag,
+            full_sync_complete=False,
+            full_sync_offset=current_offset,
+            last_published=None,
+        )
+
+    watermark = _get_max_published(neo4j_session)
+    save_sync_metadata(
+        neo4j_session, update_tag,
+        full_sync_complete=True,
+        full_sync_offset=0,
+        last_published=watermark,
+    )
+    logger.info("Full sync complete: loaded %d Ubuntu notices (watermark=%s)", total, watermark)
+
+
+def _run_incremental_sync(
+    neo4j_session: neo4j.Session,
+    api_url: str,
+    update_tag: int,
+    last_published: str | None,
+) -> None:
+    logger.info("Running incremental notice sync (watermark=%s)", last_published)
+
+    total = 0
+    best_watermark: str | None = None
+    for page in _fetch_notices(api_url, since=last_published):
+        transformed = transform(page)
+        load_notices(neo4j_session, transformed, update_tag)
+        total += len(transformed)
+        latest_pub = _extract_latest_published(page)
+        if latest_pub and (best_watermark is None or latest_pub > best_watermark):
+            best_watermark = latest_pub
+
+    if best_watermark:
+        save_sync_metadata(
+            neo4j_session, update_tag,
+            full_sync_complete=True,
+            full_sync_offset=0,
+            last_published=best_watermark,
+        )
+        logger.info("Incremental sync complete: loaded %d notices (new watermark=%s)", total, best_watermark)
+    else:
+        logger.info("No new notices found")
+
+
+def get_sync_metadata(neo4j_session: neo4j.Session) -> dict[str, Any]:
+    result = neo4j_session.run(
+        """
+        MATCH (s:UbuntuSyncMetadata {id: $sync_id})
+        RETURN s.full_sync_complete AS full_sync_complete,
+               s.full_sync_offset AS full_sync_offset,
+               s.last_published AS last_published
+        """,
+        sync_id=_SYNC_METADATA_ID,
+    ).single()
+    if result is None:
+        return {
+            "full_sync_complete": False,
+            "full_sync_offset": 0,
+            "last_published": None,
+        }
+    return {
+        "full_sync_complete": result["full_sync_complete"] or False,
+        "full_sync_offset": result["full_sync_offset"] or 0,
+        "last_published": result["last_published"],
+    }
 
 
 def save_sync_metadata(
     neo4j_session: neo4j.Session,
-    last_published: str,
     update_tag: int,
+    *,
+    full_sync_complete: bool,
+    full_sync_offset: int,
+    last_published: str | None,
 ) -> None:
     query = """
     MERGE (s:UbuntuSyncMetadata {id: $sync_id})
     ON CREATE SET s.firstseen = timestamp()
-    SET s.last_published = $last_published,
+    SET s.full_sync_complete = $full_sync_complete,
+        s.full_sync_offset = $full_sync_offset,
+        s.last_published = $last_published,
         s.lastupdated = $update_tag
     """
     run_write_query(
         neo4j_session,
         query,
         sync_id=_SYNC_METADATA_ID,
+        full_sync_complete=full_sync_complete,
+        full_sync_offset=full_sync_offset,
         last_published=last_published,
         update_tag=update_tag,
     )
@@ -85,20 +161,42 @@ def _extract_latest_published(raw_notices: list[dict[str, Any]]) -> str | None:
     return max(timestamps)
 
 
+def _get_max_published(neo4j_session: neo4j.Session) -> str | None:
+    return read_single_value_tx(
+        neo4j_session,
+        "MATCH (n:UbuntuSecurityNotice) RETURN max(n.published) AS max_published",
+    )
+
+
 @timeit
-def get_new_since(api_url: str, last_published: str) -> list[dict[str, Any]]:
-    new_notices: list[dict[str, Any]] = []
-    offset = 0
+def _fetch_notices(
+    api_url: str,
+    *,
+    since: str | None = None,
+    start_offset: int = 0,
+) -> Iterator[list[dict[str, Any]]]:
+    """Yield pages of notices from the Ubuntu Security API.
+
+    Full sync (since=None): fetches all notices sorted by published date ascending,
+    starting from start_offset for resume capability.
+
+    Incremental (since set): fetches notices published after the watermark, sorted
+    by published date descending, stopping when it reaches already-seen data.
+    """
+    offset = start_offset
+    total_fetched = 0
     session = Session()
+
+    if since is None:
+        params_base: dict[str, str] = {"limit": str(_PAGE_SIZE), "order": "oldest"}
+    else:
+        params_base = {"limit": str(_PAGE_SIZE), "order": "newest"}
+
     while True:
-        logger.debug("Fetching new Ubuntu notices at offset %d", offset)
+        logger.debug("Fetching Ubuntu notices at offset %d", offset)
         response = session.get(
             f"{api_url}/security/notices.json",
-            params={
-                "limit": str(_PAGE_SIZE),
-                "offset": str(offset),
-                "order": "newest",
-            },
+            params={**params_base, "offset": str(offset)},
             timeout=_TIMEOUT,
         )
         response.raise_for_status()
@@ -107,20 +205,31 @@ def get_new_since(api_url: str, last_published: str) -> list[dict[str, Any]]:
         if not notices:
             break
 
-        found_old = False
-        for notice in notices:
-            pub = notice.get("published")
-            if pub is None or pub <= last_published:
-                found_old = True
-                break
-            new_notices.append(notice)
+        if since is not None:
+            page: list[dict[str, Any]] = []
+            found_old = False
+            for notice in notices:
+                pub = notice.get("published")
+                if pub is None or pub <= since:
+                    found_old = True
+                    break
+                page.append(notice)
 
-        if found_old:
-            break
+            if page:
+                yield page
+                total_fetched += len(page)
+
+            if found_old:
+                break
+        else:
+            yield notices
+            total_fetched += len(notices)
+            if total_fetched + start_offset >= data.get("total_results", 0):
+                break
+
         offset += _PAGE_SIZE
 
-    logger.info("Incremental sync fetched %d new Ubuntu notices", len(new_notices))
-    return new_notices
+    logger.info("Fetched %d Ubuntu notices", total_fetched)
 
 
 @timeit

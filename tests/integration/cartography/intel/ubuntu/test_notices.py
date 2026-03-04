@@ -15,8 +15,8 @@ def _load_cves_first(neo4j_session):
     """Load CVE nodes so that notice-to-CVE relationships can be created."""
     with patch.object(
         cartography.intel.ubuntu.cves,
-        "get_updated_since",
-        return_value=tests.data.ubuntu.cves.UBUNTU_CVES_RESPONSE,
+        "_fetch_cves",
+        return_value=iter([tests.data.ubuntu.cves.UBUNTU_CVES_RESPONSE]),
     ):
         cartography.intel.ubuntu.cves.sync(
             neo4j_session,
@@ -28,8 +28,8 @@ def _load_cves_first(neo4j_session):
 
 @patch.object(
     cartography.intel.ubuntu.notices,
-    "get_new_since",
-    return_value=tests.data.ubuntu.notices.UBUNTU_NOTICES_RESPONSE,
+    "_fetch_notices",
+    return_value=iter([tests.data.ubuntu.notices.UBUNTU_NOTICES_RESPONSE]),
 )
 def test_sync_ubuntu_notices(mock_api, neo4j_session):
     """
@@ -56,8 +56,8 @@ def test_sync_ubuntu_notices(mock_api, neo4j_session):
 
 @patch.object(
     cartography.intel.ubuntu.notices,
-    "get_new_since",
-    return_value=tests.data.ubuntu.notices.UBUNTU_NOTICES_RESPONSE,
+    "_fetch_notices",
+    return_value=iter([tests.data.ubuntu.notices.UBUNTU_NOTICES_RESPONSE]),
 )
 def test_sync_ubuntu_notices_cve_relationships(mock_api, neo4j_session):
     """

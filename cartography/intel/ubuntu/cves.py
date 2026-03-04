@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 from typing import Any
 
 import neo4j
@@ -16,7 +17,6 @@ _TIMEOUT = (60, 60)
 _PAGE_SIZE = 20
 _FEED_ID = "ubuntu-security-cve-feed"
 _SYNC_METADATA_ID = "UbuntuCVE_sync_metadata"
-_EPOCH = "2020-01-01T00:00:00+00:00"
 
 
 @timeit
@@ -29,50 +29,126 @@ def sync(
     logger.info("Starting Ubuntu CVE sync")
     load_feed(neo4j_session, api_url, update_tag)
 
-    last_updated_at = get_last_sync_timestamp(neo4j_session) or _EPOCH
-    logger.info("Syncing Ubuntu CVEs updated since %s", last_updated_at)
-    raw_cves = get_updated_since(api_url, last_updated_at)
+    metadata = get_sync_metadata(neo4j_session)
 
-    if raw_cves:
-        transformed = transform(raw_cves)
-        load_cves(neo4j_session, transformed, update_tag)
-
-        latest_ts = _extract_latest_updated_at(raw_cves)
-        if latest_ts:
-            save_sync_metadata(neo4j_session, latest_ts, update_tag)
+    if metadata["full_sync_complete"]:
+        _run_incremental_sync(neo4j_session, api_url, update_tag, metadata["last_updated_at"])
     else:
-        logger.info("No new or updated CVEs found")
+        _run_full_sync(neo4j_session, api_url, update_tag, metadata["full_sync_offset"])
 
-    # Cleanup is intentionally omitted: CVEs are permanent records in Ubuntu's database
-    # and are never deleted. This module uses incremental sync (watermark-based), so running
-    # GraphJob cleanup would incorrectly remove nodes not present in the latest partial batch.
     logger.info("Completed Ubuntu CVE sync")
 
 
-def get_last_sync_timestamp(neo4j_session: neo4j.Session) -> str | None:
-    query = """
-    MATCH (s:UbuntuSyncMetadata {id: $sync_id})
-    RETURN s.last_updated_at AS last_updated_at
-    """
-    result = read_single_value_tx(neo4j_session, query, sync_id=_SYNC_METADATA_ID)
-    return result
+def _run_full_sync(
+    neo4j_session: neo4j.Session,
+    api_url: str,
+    update_tag: int,
+    start_offset: int,
+) -> None:
+    if start_offset > 0:
+        logger.info("Resuming full CVE sync from offset %d", start_offset)
+    else:
+        logger.info("Running full CVE ingestion")
+
+    total = 0
+    current_offset = start_offset
+    for page in _fetch_cves(api_url, start_offset=start_offset):
+        transformed = transform(page)
+        load_cves(neo4j_session, transformed, update_tag)
+        total += len(transformed)
+        current_offset += _PAGE_SIZE
+        save_sync_metadata(
+            neo4j_session, update_tag,
+            full_sync_complete=False,
+            full_sync_offset=current_offset,
+            last_updated_at=None,
+        )
+
+    watermark = _get_max_updated_at(neo4j_session)
+    save_sync_metadata(
+        neo4j_session, update_tag,
+        full_sync_complete=True,
+        full_sync_offset=0,
+        last_updated_at=watermark,
+    )
+    logger.info("Full sync complete: loaded %d Ubuntu CVEs (watermark=%s)", total, watermark)
+
+
+def _run_incremental_sync(
+    neo4j_session: neo4j.Session,
+    api_url: str,
+    update_tag: int,
+    last_updated_at: str | None,
+) -> None:
+    logger.info("Running incremental CVE sync (watermark=%s)", last_updated_at)
+
+    total = 0
+    best_watermark: str | None = None
+    for page in _fetch_cves(api_url, since=last_updated_at):
+        transformed = transform(page)
+        load_cves(neo4j_session, transformed, update_tag)
+        total += len(transformed)
+        latest_ts = _extract_latest_updated_at(page)
+        if latest_ts and (best_watermark is None or latest_ts > best_watermark):
+            best_watermark = latest_ts
+
+    if best_watermark:
+        save_sync_metadata(
+            neo4j_session, update_tag,
+            full_sync_complete=True,
+            full_sync_offset=0,
+            last_updated_at=best_watermark,
+        )
+        logger.info("Incremental sync complete: loaded %d CVEs (new watermark=%s)", total, best_watermark)
+    else:
+        logger.info("No new or updated CVEs found")
+
+
+def get_sync_metadata(neo4j_session: neo4j.Session) -> dict[str, Any]:
+    result = neo4j_session.run(
+        """
+        MATCH (s:UbuntuSyncMetadata {id: $sync_id})
+        RETURN s.full_sync_complete AS full_sync_complete,
+               s.full_sync_offset AS full_sync_offset,
+               s.last_updated_at AS last_updated_at
+        """,
+        sync_id=_SYNC_METADATA_ID,
+    ).single()
+    if result is None:
+        return {
+            "full_sync_complete": False,
+            "full_sync_offset": 0,
+            "last_updated_at": None,
+        }
+    return {
+        "full_sync_complete": result["full_sync_complete"] or False,
+        "full_sync_offset": result["full_sync_offset"] or 0,
+        "last_updated_at": result["last_updated_at"],
+    }
 
 
 def save_sync_metadata(
     neo4j_session: neo4j.Session,
-    last_updated_at: str,
     update_tag: int,
+    *,
+    full_sync_complete: bool,
+    full_sync_offset: int,
+    last_updated_at: str | None,
 ) -> None:
     query = """
     MERGE (s:UbuntuSyncMetadata {id: $sync_id})
     ON CREATE SET s.firstseen = timestamp()
-    SET s.last_updated_at = $last_updated_at,
+    SET s.full_sync_complete = $full_sync_complete,
+        s.full_sync_offset = $full_sync_offset,
+        s.last_updated_at = $last_updated_at,
         s.lastupdated = $update_tag
     """
     run_write_query(
         neo4j_session,
         query,
         sync_id=_SYNC_METADATA_ID,
+        full_sync_complete=full_sync_complete,
+        full_sync_offset=full_sync_offset,
         last_updated_at=last_updated_at,
         update_tag=update_tag,
     )
@@ -88,21 +164,46 @@ def _extract_latest_updated_at(raw_cves: list[dict[str, Any]]) -> str | None:
     return max(timestamps)
 
 
+def _get_max_updated_at(neo4j_session: neo4j.Session) -> str | None:
+    return read_single_value_tx(
+        neo4j_session,
+        "MATCH (c:UbuntuCVE) RETURN max(c.updated_at) AS max_updated_at",
+    )
+
+
 @timeit
-def get_updated_since(api_url: str, last_updated_at: str) -> list[dict[str, Any]]:
-    updated_cves: list[dict[str, Any]] = []
-    offset = 0
+def _fetch_cves(
+    api_url: str,
+    *,
+    since: str | None = None,
+    start_offset: int = 0,
+) -> Iterator[list[dict[str, Any]]]:
+    """Yield pages of CVEs from the Ubuntu Security API.
+
+    Full sync (since=None): fetches all CVEs sorted by published date ascending,
+    starting from start_offset for resume capability.
+
+    Incremental (since set): fetches CVEs updated after the watermark, sorted by
+    updated_at descending, stopping when it reaches already-seen data.
+    """
+    offset = start_offset
+    total_fetched = 0
     session = Session()
+
+    if since is None:
+        params_base: dict[str, str] = {"limit": str(_PAGE_SIZE), "order": "ascending"}
+    else:
+        params_base = {
+            "limit": str(_PAGE_SIZE),
+            "sort_by": "updated",
+            "order": "descending",
+        }
+
     while True:
-        logger.debug("Fetching updated Ubuntu CVEs at offset %d", offset)
+        logger.debug("Fetching Ubuntu CVEs at offset %d", offset)
         response = session.get(
             f"{api_url}/security/cves.json",
-            params={
-                "limit": str(_PAGE_SIZE),
-                "offset": str(offset),
-                "sort_by": "updated",
-                "order": "descending",
-            },
+            params={**params_base, "offset": str(offset)},
             timeout=_TIMEOUT,
         )
         response.raise_for_status()
@@ -111,20 +212,31 @@ def get_updated_since(api_url: str, last_updated_at: str) -> list[dict[str, Any]
         if not cves:
             break
 
-        found_old = False
-        for cve in cves:
-            cve_updated = cve.get("updated_at")
-            if cve_updated is None or cve_updated <= last_updated_at:
-                found_old = True
-                break
-            updated_cves.append(cve)
+        if since is not None:
+            page: list[dict[str, Any]] = []
+            found_old = False
+            for cve in cves:
+                cve_updated = cve.get("updated_at")
+                if cve_updated is None or cve_updated <= since:
+                    found_old = True
+                    break
+                page.append(cve)
 
-        if found_old:
-            break
+            if page:
+                yield page
+                total_fetched += len(page)
+
+            if found_old:
+                break
+        else:
+            yield cves
+            total_fetched += len(cves)
+            if total_fetched + start_offset >= data.get("total_results", 0):
+                break
+
         offset += _PAGE_SIZE
 
-    logger.info("Incremental sync fetched %d updated Ubuntu CVEs", len(updated_cves))
-    return updated_cves
+    logger.info("Fetched %d Ubuntu CVEs", total_fetched)
 
 
 @timeit
