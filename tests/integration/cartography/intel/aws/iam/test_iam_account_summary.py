@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-import neo4j
+import pytest
 
 import cartography.intel.aws.iam
 import tests.data.aws.iam.account_summary
@@ -36,3 +36,19 @@ def test_sync_account_summary(mock_get_account_summary, neo4j_session):
             "roles",
         ],
     ) == {(TEST_ACCOUNT_ID, 1, 3, 2, 5, 10)}
+
+
+@patch("cartography.intel.aws.iam.get_account_summary")
+def test_sync_account_summary_missing_summary_map(
+    mock_get_account_summary,
+    neo4j_session,
+):
+    mock_get_account_summary.side_effect = KeyError("SummaryMap")
+
+    with pytest.raises(KeyError, match="SummaryMap"):
+        cartography.intel.aws.iam.sync_account_summary(
+            neo4j_session,
+            "dummy_session",
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+        )
