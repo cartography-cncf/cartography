@@ -1,0 +1,15 @@
+GET_ACCOUNT_SUMMARY_RESPONSE = {
+    "AccountMFAEnabled": 1,
+    "MFADevices": 3,
+    "MFADevicesInUse": 2,
+    "AccountAccessKeysPresent": 0,
+    "AccountSigningCertificatesPresent": 0,
+    "Users": 5,
+    "Groups": 3,
+    "Roles": 10,
+    "Policies": 8,
+    "InstanceProfiles": 4,
+    "Providers": 1,
+    "ServerCertificates": 0,
+    "PolicyVersionsInUse": 12,
+}
