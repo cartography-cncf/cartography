@@ -239,12 +239,14 @@ def _fetch_manifest_page(
 ) -> dict[str, Any] | None:
     """
     Fetch a single page from the dependency manifests endpoint with retry logic.
+    Retries on both HTTP errors and GraphQL-level timeouts (where GitHub returns
+    HTTP 200 but with errors and null data in the response body).
     Returns the raw response dict, or None if all retries failed.
     """
     for attempt in range(retries):
         try:
             handle_rate_limit_sleep(token)
-            return fetch_page(
+            resp = fetch_page(
                 token,
                 api_url,
                 organization,
@@ -262,6 +264,31 @@ def _fetch_manifest_page(
             if attempt + 1 >= retries:
                 return None
             time.sleep(2 ** (attempt + 1))
+            continue
+
+        # Check for GraphQL-level timeout: HTTP 200 but dependencyGraphManifests is null
+        repository = resp.get("data", {}).get("organization", {}).get("repository")
+        dep_manifests = (
+            repository.get("dependencyGraphManifests") if repository else None
+        )
+        if dep_manifests is None and resp.get("errors"):
+            if attempt + 1 >= retries:
+                logger.warning(
+                    "GraphQL timeout fetching dependency manifests for repo %s after %d retries.",
+                    repo,
+                    retries,
+                )
+                return resp
+            logger.debug(
+                "GraphQL timeout for repo %s, retry %d/%d.",
+                repo,
+                attempt + 1,
+                retries,
+            )
+            time.sleep(2 ** (attempt + 1))
+            continue
+
+        return resp
     return None
 
 
