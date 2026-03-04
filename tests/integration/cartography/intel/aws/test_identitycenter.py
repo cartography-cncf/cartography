@@ -12,6 +12,7 @@ from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
 from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
+from cartography.intel.aws.identitycenter import load_user_roles
 from cartography.intel.aws.identitycenter import transform_permission_sets
 from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
@@ -334,6 +335,7 @@ def test_group_allowed_by_role(neo4j_session):
     rel_data = [
         {
             "GroupId": group["GroupId"],
+            "IdentityStoreId": group["IdentityStoreId"],
             "PermissionSetArn": ps["PermissionSetArn"],
             "RoleArn": role_arn,
         }
@@ -841,3 +843,88 @@ def test_multi_account_permission_set_assignments(
     assert (
         role_3_exists == 1
     ), f"Role in account 3 should exist in graph but was not found: {role_3_arn}"
+
+
+def test_allowed_by_scoped_to_identity_store(neo4j_session):
+    """
+    Test that ALLOWED_BY relationships are scoped by identity_store_id,
+    preventing cross-instance leaks when multiple Identity Center instances exist.
+
+    Scenario:
+    - Instance A (identity store d-AAAA) has user alice
+    - Instance B (identity store d-BBBB) has user bob
+    - A role exists that alice should have ALLOWED_BY access to
+    - bob should NOT get an ALLOWED_BY relationship to that role,
+      even though the matchlink data only targets alice by UserId
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    # Create users in two different identity stores
+    alice = {
+        "UserId": "alice-uuid",
+        "UserName": "alice@example.com",
+        "IdentityStoreId": "d-AAAA",
+    }
+    bob = {
+        "UserId": "bob-uuid",
+        "UserName": "bob@example.com",
+        "IdentityStoreId": "d-BBBB",
+    }
+
+    load_sso_users(
+        neo4j_session,
+        [alice],
+        "d-AAAA",
+        "us-east-1",
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+    load_sso_users(
+        neo4j_session,
+        [bob],
+        "d-BBBB",
+        "us-east-1",
+        TEST_ACCOUNT_ID,
+        "test_tag",
+    )
+
+    # Create a role
+    role_arn = "arn:aws:iam::1234567890:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_Admin_test"
+    neo4j_session.run(
+        "MERGE (:AWSRole{arn: $arn, lastupdated: $tag})",
+        arn=role_arn,
+        tag="test_tag",
+    )
+
+    # Load ALLOWED_BY for alice in instance A only
+    user_role_data = [
+        {
+            "UserId": "alice-uuid",
+            "IdentityStoreId": "d-AAAA",
+            "PermissionSetArn": "arn:aws:sso:::permissionSet/ssoins-A/ps-admin",
+            "RoleArn": role_arn,
+        },
+    ]
+
+    load_user_roles(neo4j_session, user_role_data, TEST_ACCOUNT_ID, "test_tag")
+
+    # Assert: alice has the ALLOWED_BY relationship
+    assert check_rels(
+        neo4j_session,
+        "AWSRole",
+        "arn",
+        "AWSSSOUser",
+        "id",
+        "ALLOWED_BY",
+        True,
+    ) == {(role_arn, "alice-uuid")}
+
+    # Assert: bob does NOT have the ALLOWED_BY relationship
+    bob_rels = neo4j_session.run(
+        """
+        MATCH (user:AWSSSOUser {id: $user_id})<-[:ALLOWED_BY]-(role:AWSRole)
+        RETURN role.arn as role_arn
+        """,
+        user_id="bob-uuid",
+    )
+    assert {r["role_arn"] for r in bob_rels} == set()
