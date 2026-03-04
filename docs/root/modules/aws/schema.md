@@ -1515,6 +1515,10 @@ Representation of a generic DNSRecord.
     (DNSRecord)-[DNS_POINTS_TO]->(LoadBalancer)
     ```
 
+- DNSRecords can point to Elastic Beanstalk Environments.
+    ```
+    (DNSRecord)-[DNS_POINTS_TO]->(ElasticBeanstalkEnvironment)
+    ```
 
 - DNSRecords can be members of DNSZones.
     ```
@@ -6348,4 +6352,9 @@ When you create an environment, Elastic Beanstalk provisions the resources neede
 - Elastic Beanstalk Environment has SQS Queues
     ```
     (:ElasticBeanstalkEnvironment)-[:HAS_SQS_QUEUE]->(:SQSQueue)
+    ```
+    
+- DNSRecords can point to Elastic Beanstalk Environments.
+    ```
+    (DNSRecord)-[DNS_POINTS_TO]->(ElasticBeanstalkEnvironment)
     ```
