@@ -120,3 +120,41 @@ class GCPInstanceGCPLabelSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [GCPLabelToInstanceRel()],
     )
+
+
+# --- GCPCloudSQLInstance label schema ---
+
+
+@dataclass(frozen=True)
+class GCPLabelToCloudSQLInstanceRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class GCPLabelToCloudSQLInstanceRel(CartographyRelSchema):
+    """(:GCPCloudSQLInstance)-[:LABELED]->(:GCPLabel)"""
+
+    target_node_label: str = "GCPCloudSQLInstance"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("resource_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "LABELED"
+    properties: GCPLabelToCloudSQLInstanceRelProperties = (
+        GCPLabelToCloudSQLInstanceRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class GCPCloudSQLInstanceGCPLabelSchema(CartographyNodeSchema):
+    """
+    GCPLabel nodes sourced from GCPCloudSQLInstance resources.
+    """
+
+    label: str = "GCPLabel"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Label"])
+    properties: GCPLabelNodeProperties = GCPLabelNodeProperties()
+    sub_resource_relationship: GCPLabelToProjectRel = GCPLabelToProjectRel()
+    other_relationships: OtherRelationships = OtherRelationships(
+        [GCPLabelToCloudSQLInstanceRel()],
+    )

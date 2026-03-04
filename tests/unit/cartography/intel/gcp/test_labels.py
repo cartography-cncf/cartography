@@ -41,3 +41,25 @@ def test_get_labels_unknown_resource_type():
     """
     labels = get_labels([{"id": "x", "labels": {"a": "b"}}], "unknown_type")
     assert labels == []
+
+
+def test_get_labels_cloud_sql_uses_nested_user_labels_and_self_link_id():
+    """
+    Verify Cloud SQL labels resolve from settings.userLabels and use selfLink as resource_id.
+    """
+    resources = [
+        {
+            "selfLink": "https://sqladmin.googleapis.com/sql/v1beta4/projects/p/instances/i",
+            "settings": {"userLabels": {"owner": "sec"}},
+        },
+    ]
+    labels = get_labels(resources, "gcp_cloud_sql_instance")
+    assert len(labels) == 1
+    assert (
+        labels[0]["id"]
+        == "https://sqladmin.googleapis.com/sql/v1beta4/projects/p/instances/i:owner:sec"
+    )
+    assert (
+        labels[0]["resource_id"]
+        == "https://sqladmin.googleapis.com/sql/v1beta4/projects/p/instances/i"
+    )

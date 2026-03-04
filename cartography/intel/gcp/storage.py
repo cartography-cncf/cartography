@@ -196,7 +196,6 @@ def sync_gcp_buckets(
     buckets, bucket_labels = transform_gcp_buckets_and_labels(storage_res)
     load_gcp_buckets(neo4j_session, buckets, project_id, gcp_update_tag)
     load_gcp_bucket_labels(neo4j_session, bucket_labels, project_id, gcp_update_tag)
-    cleanup_gcp_buckets(neo4j_session, common_job_parameters)
     sync_labels(
         neo4j_session,
         raw_buckets,
@@ -205,3 +204,4 @@ def sync_gcp_buckets(
         gcp_update_tag,
         common_job_parameters,
     )
+    cleanup_gcp_buckets(neo4j_session, common_job_parameters)

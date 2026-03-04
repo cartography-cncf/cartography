@@ -18,6 +18,10 @@ MOCK_INSTANCES = {
                 "dataDiskSizeGb": "100",
                 "dataDiskType": "PD_SSD",
                 "availabilityType": "REGIONAL",
+                "userLabels": {
+                    "owner": "security",
+                    "env": "prod",
+                },
                 "backupConfiguration": {
                     "enabled": True,
                     "startTime": "03:00",

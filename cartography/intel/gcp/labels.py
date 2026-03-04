@@ -4,8 +4,8 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
-from cartography.graph.job import GraphJob
 from cartography.models.gcp.labels.label import GCPBucketGCPLabelSchema
+from cartography.models.gcp.labels.label import GCPCloudSQLInstanceGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPInstanceGCPLabelSchema
 from cartography.util import timeit
 
@@ -26,6 +26,11 @@ LABEL_RESOURCE_TYPE_MAPPINGS: dict[str, dict[str, Any]] = {
         "labels_field": "labels",
         "id_field": "id",
         "schema": GCPBucketGCPLabelSchema(),
+    },
+    "gcp_cloud_sql_instance": {
+        "labels_field": "settings.userLabels",
+        "id_field": "selfLink",
+        "schema": GCPCloudSQLInstanceGCPLabelSchema(),
     },
 }
 
@@ -162,15 +167,26 @@ def cleanup(
     """
     Clean up stale GCPLabel nodes and LABELED relationships for a single resource type.
 
-    Uses GraphJob.from_node_schema() with the per-resource-type schema so that cleanup
-    is automatically scoped to the correct resource type.
+    GCPLabel nodes are shared across resource schemas under the same base node label.
+    Scope deletion by `resource_type` so one partial sync cannot delete labels that
+    belong to other resource classes.
     """
     mapping = LABEL_RESOURCE_TYPE_MAPPINGS.get(resource_type)
     if not mapping:
         return
-    GraphJob.from_node_schema(mapping["schema"], common_job_parameters).run(
-        neo4j_session
-    )
+    schema = mapping["schema"]
+    resource_node_label = schema.other_relationships.rels[0].target_node_label
+    neo4j_session.run(
+        """
+        MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(l:GCPLabel)
+        WHERE l.resource_type = $RESOURCE_NODE_LABEL
+          AND l.lastupdated <> $UPDATE_TAG
+        DETACH DELETE l
+        """,
+        PROJECT_ID=common_job_parameters["PROJECT_ID"],
+        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
+        RESOURCE_NODE_LABEL=resource_node_label,
+    ).consume()
 
 
 @timeit

@@ -1191,7 +1191,6 @@ def sync_gcp_instances(
     instance_responses = get_gcp_instance_responses(project_id, zones, compute)
     instance_list = transform_gcp_instances(instance_responses)
     load_gcp_instances(neo4j_session, instance_list, gcp_update_tag, project_id)
-    cleanup_gcp_instances(neo4j_session, common_job_parameters)
     # Sync unified GCPLabel nodes - use transformed list since it has partial_uri set
     sync_labels(
         neo4j_session,
@@ -1201,6 +1200,7 @@ def sync_gcp_instances(
         gcp_update_tag,
         common_job_parameters,
     )
+    cleanup_gcp_instances(neo4j_session, common_job_parameters)
 
 
 @timeit

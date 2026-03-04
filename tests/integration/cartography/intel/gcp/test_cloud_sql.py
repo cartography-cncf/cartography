@@ -115,6 +115,24 @@ def test_sync_sql(
     assert check_nodes(neo4j_session, "GCPCloudSQLBackupConfiguration", ["id"]) == {
         (f"{TEST_INSTANCE_ID}/backupConfig",),
     }
+    assert check_nodes(
+        neo4j_session,
+        "GCPLabel",
+        ["id", "key", "value", "resource_type"],
+    ) == {
+        (
+            f"{TEST_INSTANCE_ID}:env:prod",
+            "env",
+            "prod",
+            "GCPCloudSQLInstance",
+        ),
+        (
+            f"{TEST_INSTANCE_ID}:owner:security",
+            "owner",
+            "security",
+            "GCPCloudSQLInstance",
+        ),
+    }
 
     # Assert: Check all 9 relationships
     assert check_rels(
@@ -125,6 +143,30 @@ def test_sync_sql(
         "id",
         "RESOURCE",
     ) == {(TEST_PROJECT_ID, TEST_INSTANCE_ID)}
+
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudSQLInstance",
+        "id",
+        "GCPLabel",
+        "id",
+        "LABELED",
+    ) == {
+        (TEST_INSTANCE_ID, f"{TEST_INSTANCE_ID}:env:prod"),
+        (TEST_INSTANCE_ID, f"{TEST_INSTANCE_ID}:owner:security"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPProject",
+        "id",
+        "GCPLabel",
+        "id",
+        "RESOURCE",
+    ) == {
+        (TEST_PROJECT_ID, f"{TEST_INSTANCE_ID}:env:prod"),
+        (TEST_PROJECT_ID, f"{TEST_INSTANCE_ID}:owner:security"),
+    }
 
     assert check_rels(
         neo4j_session,

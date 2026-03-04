@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.cloudsql.instance import GCPSqlInstanceSchema
@@ -157,6 +158,14 @@ def sync_sql_instances(
 
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["PROJECT_ID"] = project_id
+        sync_labels(
+            neo4j_session,
+            instances_raw,
+            "gcp_cloud_sql_instance",
+            project_id,
+            update_tag,
+            cleanup_job_params,
+        )
         cleanup_sql_instances(neo4j_session, cleanup_job_params)
 
     return instances_raw
