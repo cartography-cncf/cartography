@@ -212,6 +212,25 @@ class AWSDNSRecordToElasticIPAddressRel(CartographyRelSchema):
         AWSDNSRecordToElasticIPAddressRelProperties()
     )
 
+@dataclass(frozen=True)
+class AWSDNSRecordToElasticBeanstalkEnvironmentRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class AWSDNSRecordToElasticBeanstalkEnvironmentRel(CartographyRelSchema):
+    target_node_label: str = "ElasticBeanstalkEnvironment"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {
+            "cname": PropertyRef("value"),
+        }
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "DNS_POINTS_TO"
+    properties: AWSDNSRecordToElasticBeanstalkEnvironmentRelProperties = (
+        AWSDNSRecordToElasticBeanstalkEnvironmentRelProperties()
+    )
+
 
 class AWSDNSRecordSchema(CartographyNodeSchema):
     label: str = "AWSDNSRecord"
@@ -231,5 +250,6 @@ class AWSDNSRecordSchema(CartographyNodeSchema):
             AWSDNSRecordToZoneRel(),
             AWSDNSRecordToIpRel(),
             AWSDNSRecordToElasticIPAddressRel(),
+            AWSDNSRecordToElasticBeanstalkEnvironmentRel(),
         ]
     )
