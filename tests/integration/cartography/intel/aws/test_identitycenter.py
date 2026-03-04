@@ -877,8 +877,17 @@ def test_allowed_by_scoped_to_identity_store(
     - Two Identity Center instances (A and B) with different identity stores
     - Both stores contain a user with the SAME UserId (simulating UUID collision)
     - Only instance A has a permission set assignment for the user
-    - After full sync: instance A's ALLOWED_BY relationship is created correctly
-    - Regression: a matchlink targeting the wrong identity_store_id is rejected
+    - Instance B is account-scoped (no permission sets)
+
+    Positive assertion: instance A's ALLOWED_BY is created correctly.
+    Negative assertion: no extra ALLOWED_BY edges are created beyond instance A's
+    assignment — the total count is exactly 1.
+
+    Note on defense-in-depth: The identity_store_id field in the MatchLink
+    target_node_matcher adds a second matching criterion beyond just UserId. In the
+    sequential sync design each instance sets identity_store_id on the node before
+    creating matchlinks, so the scoping is not directly observable end-to-end. It
+    guards against future changes to sync ordering or batching.
     """
     neo4j_session.run("MATCH (n) DETACH DELETE n")
 
@@ -917,7 +926,7 @@ def test_allowed_by_scoped_to_identity_store(
 
     mock_users.side_effect = _get_users
 
-    # Instance A supports permission sets; instance B is account-scoped (no permission sets)
+    # Instance A supports permission sets; instance B is account-scoped
     def _get_permsets(boto3_session, instance_arn, region):
         if instance_arn == INSTANCE_A_ARN:
             return [
@@ -987,7 +996,7 @@ def test_allowed_by_scoped_to_identity_store(
         common_job_parameters={"AWS_ID": TEST_ACCOUNT_ID, "UPDATE_TAG": 123},
     )
 
-    # Assert 1: ALLOWED_BY was created during instance A's sync
+    # Assert (positive): ALLOWED_BY was created during instance A's sync
     allowed_by = neo4j_session.run(
         """
         MATCH (user:AWSSSOUser {id: $uid})<-[:ALLOWED_BY]-(role:AWSRole)
@@ -996,15 +1005,16 @@ def test_allowed_by_scoped_to_identity_store(
         uid=SHARED_USER_ID,
     )
     actual_arns = {r["arn"] for r in allowed_by}
-    assert (
-        ROLE_ARN in actual_arns
-    ), f"Expected ALLOWED_BY to {ROLE_ARN}, got {actual_arns}"
+    assert actual_arns == {
+        ROLE_ARN
+    }, f"Expected exactly one ALLOWED_BY to {ROLE_ARN}, got {actual_arns}"
 
-    # Assert 2: The AWSSSOUser node's identity_store_id is d-BBBB (instance B synced last)
-    node_store_id = neo4j_session.run(
-        "MATCH (u:AWSSSOUser {id: $uid}) RETURN u.identity_store_id as sid",
-        uid=SHARED_USER_ID,
-    ).single()["sid"]
+    # Assert (negative): No ALLOWED_BY relationships exist beyond instance A's
+    # assignment. This catches cross-instance leaks where instance B (account-scoped,
+    # no permission sets) might incorrectly create ALLOWED_BY edges.
+    total_allowed_by = neo4j_session.run(
+        "MATCH ()-[r:ALLOWED_BY]->() RETURN count(r) as cnt",
+    ).single()["cnt"]
     assert (
-        node_store_id == "d-BBBB"
-    ), f"Expected identity_store_id=d-BBBB after instance B sync, got {node_store_id}"
+        total_allowed_by == 1
+    ), f"Expected exactly 1 ALLOWED_BY relationship in the entire graph, got {total_allowed_by}"
