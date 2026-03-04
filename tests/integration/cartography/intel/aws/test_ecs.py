@@ -243,9 +243,7 @@ def test_load_ecs_tasks_with_live_redacted_payload(neo4j_session):
     # The neo4j integration fixture is module-scoped, so isolate this test's data.
     neo4j_session.run("MATCH (n) DETACH DELETE n;")
     try:
-        data = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASKS_LIVE_REDACTED)
-        data = cartography.intel.aws.ecs.transform_ecs_tasks(data)
-        containers = cartography.intel.aws.ecs._get_containers_from_tasks(data)
+        from unittest.mock import MagicMock
 
         task_definitions = copy.deepcopy(
             tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS_LIVE_REDACTED
@@ -257,21 +255,66 @@ def test_load_ecs_tasks_with_live_redacted_payload(neo4j_session):
         )
         assert task_definition_architecture == {}
 
-        cartography.intel.aws.ecs.load_ecs_tasks(
-            neo4j_session,
-            "arn:aws:ecs:us-east-1:000000000000:cluster/internal-tooling",
-            data,
-            TEST_REGION,
-            TEST_ACCOUNT_ID,
-            TEST_UPDATE_TAG,
+        create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+        boto3_session = MagicMock()
+        common_job_parameters = {
+            "UPDATE_TAG": TEST_UPDATE_TAG,
+            "AWS_ID": TEST_ACCOUNT_ID,
+        }
+        internal_tooling_cluster_arn = (
+            "arn:aws:ecs:us-east-1:000000000000:cluster/internal-tooling"
         )
-        cartography.intel.aws.ecs.load_ecs_containers(
-            neo4j_session,
-            containers,
-            TEST_REGION,
-            TEST_ACCOUNT_ID,
-            TEST_UPDATE_TAG,
-        )
+
+        with (
+            patch.object(
+                cartography.intel.aws.ecs,
+                "get_ecs_cluster_arns",
+                return_value=[internal_tooling_cluster_arn],
+            ),
+            patch.object(
+                cartography.intel.aws.ecs,
+                "get_ecs_clusters",
+                return_value=[
+                    {
+                        "clusterArn": internal_tooling_cluster_arn,
+                        "clusterName": "internal-tooling",
+                        "status": "ACTIVE",
+                    }
+                ],
+            ),
+            patch.object(
+                cartography.intel.aws.ecs,
+                "get_ecs_container_instances",
+                return_value=[],
+            ),
+            patch.object(
+                cartography.intel.aws.ecs,
+                "get_ecs_services",
+                return_value=[],
+            ),
+            patch.object(
+                cartography.intel.aws.ecs,
+                "get_ecs_tasks",
+                return_value=copy.deepcopy(
+                    tests.data.aws.ecs.GET_ECS_TASKS_LIVE_REDACTED
+                ),
+            ),
+            patch.object(
+                cartography.intel.aws.ecs,
+                "get_ecs_task_definitions",
+                return_value=copy.deepcopy(
+                    tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS_LIVE_REDACTED
+                ),
+            ),
+        ):
+            cartography.intel.aws.ecs.sync(
+                neo4j_session,
+                boto3_session,
+                [TEST_REGION],
+                TEST_ACCOUNT_ID,
+                TEST_UPDATE_TAG,
+                common_job_parameters,
+            )
 
         assert check_nodes(
             neo4j_session,
@@ -299,31 +342,56 @@ def test_load_ecs_tasks_with_live_redacted_payload(neo4j_session):
 def test_ecs_container_architecture_fallback_from_task_definition(neo4j_session):
     tasks = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASKS)
     tasks[0]["attributes"] = []
-    tasks = cartography.intel.aws.ecs.transform_ecs_tasks(tasks)
     task_definitions = copy.deepcopy(tests.data.aws.ecs.GET_ECS_TASK_DEFINITIONS)
-    task_definition_architecture = (
-        cartography.intel.aws.ecs._get_task_definition_architecture(task_definitions)
-    )
-    containers = cartography.intel.aws.ecs._get_containers_from_tasks(
-        tasks,
-        task_definition_architecture,
-    )
+    from unittest.mock import MagicMock
 
-    cartography.intel.aws.ecs.load_ecs_tasks(
-        neo4j_session,
-        CLUSTER_ARN,
-        tasks,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
-    cartography.intel.aws.ecs.load_ecs_containers(
-        neo4j_session,
-        containers,
-        TEST_REGION,
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-    )
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    boto3_session = MagicMock()
+    common_job_parameters = {
+        "UPDATE_TAG": TEST_UPDATE_TAG,
+        "AWS_ID": TEST_ACCOUNT_ID,
+    }
+
+    with (
+        patch.object(
+            cartography.intel.aws.ecs,
+            "get_ecs_cluster_arns",
+            return_value=[CLUSTER_ARN],
+        ),
+        patch.object(
+            cartography.intel.aws.ecs,
+            "get_ecs_clusters",
+            return_value=tests.data.aws.ecs.GET_ECS_CLUSTERS,
+        ),
+        patch.object(
+            cartography.intel.aws.ecs,
+            "get_ecs_container_instances",
+            return_value=[],
+        ),
+        patch.object(
+            cartography.intel.aws.ecs,
+            "get_ecs_services",
+            return_value=[],
+        ),
+        patch.object(
+            cartography.intel.aws.ecs,
+            "get_ecs_tasks",
+            return_value=tasks,
+        ),
+        patch.object(
+            cartography.intel.aws.ecs,
+            "get_ecs_task_definitions",
+            return_value=task_definitions,
+        ),
+    ):
+        cartography.intel.aws.ecs.sync(
+            neo4j_session,
+            boto3_session,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            common_job_parameters,
+        )
     assert check_nodes(
         neo4j_session,
         "ECSContainer",

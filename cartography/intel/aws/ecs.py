@@ -10,7 +10,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.container_arch import ARCH_SOURCE_RUNTIME_API_EXACT
 from cartography.intel.container_arch import ARCH_SOURCE_TASK_DEFINITION_HINT
-from cartography.intel.container_arch import normalize_architecture_with_raw
+from cartography.intel.container_arch import normalize_architecture
 from cartography.models.aws.ecs.clusters import ECSClusterSchema
 from cartography.models.aws.ecs.container_definitions import (
     ECSContainerDefinitionSchema,
@@ -173,16 +173,14 @@ def _get_task_definition_architecture(
         task_definition_arn = task_definition.get("taskDefinitionArn")
         runtime_platform = task_definition.get("runtimePlatform") or {}
         raw_architecture = runtime_platform.get("cpuArchitecture")
-        normalized_architecture, normalized_raw = normalize_architecture_with_raw(
-            raw_architecture,
-        )
+        normalized_architecture = normalize_architecture(raw_architecture)
         if (
             task_definition_arn
-            and normalized_raw is not None
+            and raw_architecture is not None
             and normalized_architecture != "unknown"
         ):
             task_definition_architecture[task_definition_arn] = (
-                normalized_raw,
+                raw_architecture,
                 normalized_architecture,
             )
     return task_definition_architecture
@@ -244,11 +242,9 @@ def transform_ecs_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if attribute.get("name") == "ecs.cpu-architecture":
                 task_arch_raw = attribute.get("value")
                 break
-        normalized_architecture, raw_architecture = normalize_architecture_with_raw(
-            task_arch_raw
-        )
+        normalized_architecture = normalize_architecture(task_arch_raw)
         task["_normalized_architecture"] = normalized_architecture
-        task["_architecture_raw"] = raw_architecture
+        task["_architecture_raw"] = task_arch_raw
     return tasks
 
 
