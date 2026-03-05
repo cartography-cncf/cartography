@@ -20,6 +20,9 @@ GCP_RETRYABLE_HTTP_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 GCP_API_MAX_RETRIES = 3
 GCP_API_BACKOFF_BASE = 2
 GCP_API_BACKOFF_MAX = 30
+GCP_PERMISSION_DENIED_REASONS = frozenset(
+    {"forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"}
+)
 
 # Number of retries for network-level errors (handled natively by googleapiclient)
 GCP_API_NUM_RETRIES = 5
@@ -184,6 +187,16 @@ def is_billing_disabled_error(e: HttpError) -> bool:
         return False
 
 
+def is_permission_denied_error(e: HttpError) -> bool:
+    """
+    Check if an HttpError indicates an IAM permission denied condition.
+
+    This identifies authorization failures distinct from API-disabled and
+    billing-disabled errors.
+    """
+    return get_error_reason(e) in GCP_PERMISSION_DENIED_REASONS
+
+
 def parse_compute_full_uri_to_partial_uri(
     full_uri: str | None,
     version: str | None = None,
@@ -261,11 +274,7 @@ def is_api_disabled_error(e: HttpError) -> bool:
             if reason in ("accessNotConfigured", "SERVICE_DISABLED"):
                 return True
             # Explicitly reject 'forbidden' and other IAM-related reasons
-            if reason in (
-                "forbidden",
-                "insufficientPermissions",
-                "IAM_PERMISSION_DENIED",
-            ):
+            if reason in GCP_PERMISSION_DENIED_REASONS:
                 return False
 
         # Fallback: Check message patterns for APIs that may use different error formats

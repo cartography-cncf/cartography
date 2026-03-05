@@ -14,6 +14,7 @@ from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.intel.gcp.util import is_billing_disabled_error
+from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.models.gcp.secretsmanager.secret import GCPSecretManagerSecretSchema
 from cartography.models.gcp.secretsmanager.secret_version import (
     GCPSecretManagerSecretVersionSchema,
@@ -56,7 +57,7 @@ def get_secrets(secretmanager: Resource, project_id: str) -> List[Dict]:
                 e,
             )
             return []
-        elif reason == "forbidden":
+        elif is_permission_denied_error(e):
             logger.warning(
                 (
                     "You do not have secretmanager.secrets.list access to the project %s. "
@@ -66,7 +67,7 @@ def get_secrets(secretmanager: Resource, project_id: str) -> List[Dict]:
                 e,
             )
             return []
-        elif reason == "BILLING_DISABLED" or is_billing_disabled_error(e):
+        elif is_billing_disabled_error(e):
             logger.warning(
                 (
                     "Billing is disabled for project %s. "
@@ -128,7 +129,7 @@ def get_secret_versions(
                 e,
             )
             return []
-        elif reason == "forbidden":
+        elif is_permission_denied_error(e):
             logger.warning(
                 (
                     "You do not have secretmanager.versions.list access to the secret %s. "
@@ -138,7 +139,7 @@ def get_secret_versions(
                 e,
             )
             return []
-        elif reason == "BILLING_DISABLED" or is_billing_disabled_error(e):
+        elif is_billing_disabled_error(e):
             logger.warning(
                 (
                     "Billing is disabled while listing versions for secret %s. "

@@ -6,6 +6,7 @@ from googleapiclient.errors import HttpError
 from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.intel.gcp.util import is_billing_disabled_error
+from cartography.intel.gcp.util import is_permission_denied_error
 
 
 class TestIsApiDisabledError:
@@ -309,3 +310,40 @@ class TestIsBillingDisabledError:
         ).encode("utf-8")
         error = HttpError(mock_resp, error_content)
         assert is_api_disabled_error(error) is False
+
+
+class TestIsPermissionDeniedError:
+    @staticmethod
+    def _make_error(reason: str) -> HttpError:
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 403,
+                    "message": "permission denied",
+                    "errors": [{"reason": reason}],
+                }
+            }
+        ).encode("utf-8")
+        return HttpError(mock_resp, error_content)
+
+    def test_forbidden(self):
+        assert is_permission_denied_error(self._make_error("forbidden")) is True
+
+    def test_insufficient_permissions(self):
+        assert (
+            is_permission_denied_error(self._make_error("insufficientPermissions"))
+            is True
+        )
+
+    def test_iam_permission_denied(self):
+        assert (
+            is_permission_denied_error(self._make_error("IAM_PERMISSION_DENIED"))
+            is True
+        )
+
+    def test_non_permission_reason(self):
+        assert (
+            is_permission_denied_error(self._make_error("accessNotConfigured")) is False
+        )
