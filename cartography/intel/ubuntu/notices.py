@@ -246,7 +246,7 @@ def transform(raw_notices: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "notice_type": notice.get("type"),
             "instructions": notice.get("instructions"),
             "is_hidden": notice.get("is_hidden"),
-            "cves_ids": [f"USV|{cid}" for cid in notice.get("cves_ids", [])],
+            "cves_ids": [f"USV|{cid}" for cid in (notice.get("cves_ids") or [])],
         }
         result.append(transformed)
     return result

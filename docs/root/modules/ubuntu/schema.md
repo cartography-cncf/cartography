@@ -2,7 +2,7 @@
 
 ### UbuntuCVEFeed
 
-Represents the Ubuntu Security CVE data feed. This is a root node that serves as the parent for all UbuntuCVE nodes.
+Represents the Ubuntu Security CVE data feed. This is a root node that serves as the parent for all UbuntuCVE and UbuntuSecurityNotice nodes.
 
 | Field | Description |
 |-------|-------------|
@@ -20,10 +20,11 @@ Representation of a CVE from the [Ubuntu Security API](https://ubuntu.com/securi
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| id | The CVE ID (e.g., CVE-2024-1234) |
+| **id** | Unique identifier, prefixed with `USV\|` (e.g., `USV\|CVE-2024-1234`) |
+| **cve\_id** | The original CVE ID without prefix (e.g., `CVE-2024-1234`) |
 | description | The CVE description |
 | ubuntu\_description | Ubuntu-specific description of the vulnerability |
-| priority | Ubuntu's priority rating (critical, high, medium, low, negligible) |
+| **priority** | Ubuntu's priority rating (critical, high, medium, low, negligible) |
 | status | The status of the CVE (e.g., active) |
 | cvss3 | The CVSS v3 base score |
 | published | The date the CVE was published |
@@ -64,6 +65,12 @@ Representation of a Ubuntu Security Notice (USN) from the [Ubuntu Security API](
 | is\_hidden | Whether the notice is hidden |
 
 #### Relationships
+
+- UbuntuSecurityNotice nodes are linked to their feed
+
+    ```
+    (UbuntuCVEFeed)-[:RESOURCE]->(UbuntuSecurityNotice)
+    ```
 
 - UbuntuSecurityNotice addresses one or more CVEs
 
