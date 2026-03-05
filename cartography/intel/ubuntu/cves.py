@@ -103,15 +103,18 @@ def _run_incremental_sync(
 
 
 def get_sync_metadata(neo4j_session: neo4j.Session) -> dict[str, Any]:
-    result = neo4j_session.run(
-        """
-        MATCH (s:UbuntuSyncMetadata {id: $sync_id})
-        RETURN s.full_sync_complete AS full_sync_complete,
-               s.full_sync_offset AS full_sync_offset,
-               s.last_updated_at AS last_updated_at
-        """,
-        sync_id=_SYNC_METADATA_ID,
-    ).single()
+    def _read_tx(tx: neo4j.ManagedTransaction) -> neo4j.Record | None:
+        return tx.run(
+            """
+            MATCH (s:UbuntuSyncMetadata {id: $sync_id})
+            RETURN s.full_sync_complete AS full_sync_complete,
+                   s.full_sync_offset AS full_sync_offset,
+                   s.last_updated_at AS last_updated_at
+            """,
+            sync_id=_SYNC_METADATA_ID,
+        ).single()
+
+    result = neo4j_session.execute_read(_read_tx)
     if result is None:
         return {
             "full_sync_complete": False,
