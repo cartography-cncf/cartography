@@ -775,17 +775,23 @@ def start_gcp_ingestion(
 
         # Sync organization-level IAM (predefined roles + custom org roles) ONCE per org.
         # This is done before project resources so that roles exist when policy bindings are created.
-        logger.info(
-            f"Syncing organization-level IAM for {org_resource_name}",
-        )
-        iam_client = build_client("iam", "v1", credentials=credentials)
-        iam.sync_org_iam(
-            neo4j_session,
-            iam_client,
-            org_resource_name,
-            config.update_tag,
-            common_job_parameters,
-        )
+        # Gate behind iam or policy_bindings since these are the only modules that need role nodes.
+        if (
+            requested_syncs is None
+            or "iam" in requested_syncs
+            or "policy_bindings" in requested_syncs
+        ):
+            logger.info(
+                f"Syncing organization-level IAM for {org_resource_name}",
+            )
+            iam_client = build_client("iam", "v1", credentials=credentials)
+            iam.sync_org_iam(
+                neo4j_session,
+                iam_client,
+                org_resource_name,
+                config.update_tag,
+                common_job_parameters,
+            )
 
         # Ingest per-project resources (these run their own cleanup immediately since they're leaf nodes)
         _sync_project_resources(
@@ -798,8 +804,15 @@ def start_gcp_ingestion(
         )
 
         # Clean up org-level roles for this org (after all project resources have been synced)
-        logger.debug(f"Running cleanup for org-level IAM roles in {org_resource_name}")
-        iam.cleanup_org_roles(neo4j_session, common_job_parameters)
+        if (
+            requested_syncs is None
+            or "iam" in requested_syncs
+            or "policy_bindings" in requested_syncs
+        ):
+            logger.debug(
+                f"Running cleanup for org-level IAM roles in {org_resource_name}"
+            )
+            iam.cleanup_org_roles(neo4j_session, common_job_parameters)
 
         # Clean up projects and folders for this org (children before parents).
         # Use cascade_delete=True to also delete orphaned child resources when a
