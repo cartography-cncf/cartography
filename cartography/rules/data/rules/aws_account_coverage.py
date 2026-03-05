@@ -31,6 +31,13 @@ _aws_account_not_synced = Fact(
     WHERE resource_count <= 1
     RETURN a
     """,
+    cypher_count_query="""
+    MATCH (a:AWSAccount)
+    OPTIONAL MATCH (a)-[:RESOURCE]->(n)
+    WITH a, count(n) AS resource_count
+    WHERE resource_count <= 1
+    RETURN count(a) AS count
+    """,
     module=Module.AWS,
     maturity=Maturity.EXPERIMENTAL,
 )
