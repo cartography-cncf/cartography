@@ -244,8 +244,10 @@ def transform(raw_cves: list[dict[str, Any]]) -> list[dict[str, Any]]:
         impact = cve.get("impact") or {}
         base_metric_v3 = impact.get("baseMetricV3") or {}
         cvss_v3 = base_metric_v3.get("cvssV3") or {}
+        raw_id = cve["id"]
         transformed = {
-            "id": cve["id"],
+            "id": f"USV|{raw_id}",
+            "cve_id": raw_id,
             "description": cve.get("description"),
             "ubuntu_description": cve.get("ubuntu_description"),
             "priority": cve.get("priority"),

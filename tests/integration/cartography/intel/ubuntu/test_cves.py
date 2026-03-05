@@ -39,32 +39,33 @@ def test_sync_ubuntu_cves(mock_api, neo4j_session):
     )
 
     expected_nodes = {
-        ("CVE-2024-1234", "high", 8.1),
-        ("CVE-2024-5678", "medium", 5.3),
-        ("CVE-2024-9999", "low", 3.7),
+        ("USV|CVE-2024-1234", "CVE-2024-1234", "high", 8.1),
+        ("USV|CVE-2024-5678", "CVE-2024-5678", "medium", 5.3),
+        ("USV|CVE-2024-9999", "CVE-2024-9999", "low", 3.7),
     }
     assert (
-        check_nodes(neo4j_session, "UbuntuCVE", ["id", "priority", "cvss3"])
+        check_nodes(neo4j_session, "UbuntuCVE", ["id", "cve_id", "priority", "cvss3"])
         == expected_nodes
     )
 
     assert check_nodes(neo4j_session, "CVE", ["id"]) == {
-        ("CVE-2024-1234",),
-        ("CVE-2024-5678",),
-        ("CVE-2024-9999",),
+        ("USV|CVE-2024-1234",),
+        ("USV|CVE-2024-5678",),
+        ("USV|CVE-2024-9999",),
     }
 
     record = neo4j_session.run(
-        "MATCH (n:UbuntuCVE {id: 'CVE-2024-1234'}) "
-        "RETURN n.attack_vector, n.attack_complexity, n.base_score, n.base_severity",
+        "MATCH (n:UbuntuCVE {id: 'USV|CVE-2024-1234'}) "
+        "RETURN n.cve_id, n.attack_vector, n.attack_complexity, n.base_score, n.base_severity",
     ).single()
+    assert record["n.cve_id"] == "CVE-2024-1234"
     assert record["n.attack_vector"] == "NETWORK"
     assert record["n.attack_complexity"] == "LOW"
     assert record["n.base_score"] == 8.1
     assert record["n.base_severity"] == "HIGH"
 
     record = neo4j_session.run(
-        "MATCH (n:UbuntuCVE {id: 'CVE-2024-9999'}) RETURN n.attack_vector, n.base_score",
+        "MATCH (n:UbuntuCVE {id: 'USV|CVE-2024-9999'}) RETURN n.attack_vector, n.base_score",
     ).single()
     assert record["n.attack_vector"] is None
     assert record["n.base_score"] is None
@@ -137,9 +138,9 @@ def test_sync_incremental(mock_api, neo4j_session):
     mock_api.assert_called_once_with(TEST_API_URL, since="2024-01-01T00:00:00")
 
     expected_nodes = {
-        ("CVE-2024-1234", "high", 8.1),
-        ("CVE-2024-5678", "medium", 5.3),
-        ("CVE-2024-9999", "low", 3.7),
+        ("USV|CVE-2024-1234", "high", 8.1),
+        ("USV|CVE-2024-5678", "medium", 5.3),
+        ("USV|CVE-2024-9999", "low", 3.7),
     }
     assert (
         check_nodes(neo4j_session, "UbuntuCVE", ["id", "priority", "cvss3"])

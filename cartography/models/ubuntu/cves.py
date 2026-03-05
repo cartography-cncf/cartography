@@ -15,6 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class UbuntuCVENodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    cve_id: PropertyRef = PropertyRef("cve_id", extra_index=True)
     description: PropertyRef = PropertyRef("description")
     ubuntu_description: PropertyRef = PropertyRef("ubuntu_description")
     priority: PropertyRef = PropertyRef("priority", extra_index=True)

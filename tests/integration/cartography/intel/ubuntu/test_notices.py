@@ -80,9 +80,9 @@ def test_sync_ubuntu_notices_cve_relationships(mock_api, neo4j_session):
     )
 
     expected_rels = {
-        ("USN-6600-1", "CVE-2024-1234"),
-        ("USN-6600-1", "CVE-2024-5678"),
-        ("USN-6700-1", "CVE-2024-5678"),
+        ("USN-6600-1", "USV|CVE-2024-1234"),
+        ("USN-6600-1", "USV|CVE-2024-5678"),
+        ("USN-6700-1", "USV|CVE-2024-5678"),
     }
     assert (
         check_rels(
