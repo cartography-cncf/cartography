@@ -14,6 +14,8 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import get_error_reason
+from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import is_billing_disabled_error
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.models.gcp.compute.instance_group import GCPInstanceGroupSchema
 from cartography.util import timeit
@@ -65,6 +67,24 @@ def _get_instance_group_members(
             if reason in {"backendError", "rateLimitExceeded", "internalError"}:
                 logger.warning(
                     "Transient error listing members for instance group %s: %s; skipping.",
+                    instance_group_name,
+                    e,
+                )
+                return []
+            if reason in {
+                "forbidden",
+                "insufficientPermissions",
+                "IAM_PERMISSION_DENIED",
+            }:
+                logger.warning(
+                    "Missing permissions listing members for instance group %s: %s; skipping members.",
+                    instance_group_name,
+                    e,
+                )
+                return []
+            if is_api_disabled_error(e) or is_billing_disabled_error(e):
+                logger.info(
+                    "Compute API unavailable for listing members of instance group %s: %s; skipping members.",
                     instance_group_name,
                     e,
                 )
