@@ -241,8 +241,10 @@ Representation of an AWS [GuardDuty Finding](https://docs.aws.amazon.com/guarddu
 | confidence | The confidence level that GuardDuty has in the accuracy of the finding |
 | title | A short description of the finding |
 | description | A more detailed description of the finding |
-| eventfirstseen | Timestamp when the activity that prompted GuardDuty to generate this finding was first observed |
-| eventlastseen | Timestamp when the activity that prompted GuardDuty to generate this finding was last observed |
+| createdat | Timestamp when GuardDuty created the finding |
+| updatedat | Timestamp when GuardDuty last updated the finding |
+| event_first_seen | Timestamp when the activity that prompted GuardDuty to generate this finding was first observed (`Service.EventFirstSeen`) |
+| event_last_seen | Timestamp when the activity that prompted GuardDuty to generate this finding was last observed (`Service.EventLastSeen`) |
 | accountid | The ID of the AWS account in which the finding was generated |
 | region | The AWS Region where the finding was generated |
 | detectorid | The ID of the detector that generated the finding |
