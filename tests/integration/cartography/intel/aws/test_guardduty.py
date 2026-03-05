@@ -138,8 +138,8 @@ def test_sync_guardduty_findings(
             f.id AS id,
             toString(f.createdat) AS createdat,
             toString(f.updatedat) AS updatedat,
-            toString(f.event_first_seen) AS event_first_seen,
-            toString(f.event_last_seen) AS event_last_seen
+            toString(f.eventfirstseen) AS eventfirstseen,
+            toString(f.eventlastseen) AS eventlastseen
         """,
     ).data()
     assert {
@@ -147,8 +147,8 @@ def test_sync_guardduty_findings(
             row["id"],
             row["createdat"],
             row["updatedat"],
-            row["event_first_seen"],
-            row["event_last_seen"],
+            row["eventfirstseen"],
+            row["eventlastseen"],
         )
         for row in finding_dates
     } == {

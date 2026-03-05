@@ -179,11 +179,11 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "confidence": f.get("Confidence"),
             "createdat": f.get("CreatedAt"),
             "updatedat": f.get("UpdatedAt"),
-            "event_first_seen": service.get(
+            "eventfirstseen": service.get(
                 "EventFirstSeen",
                 f.get("EventFirstSeen"),
             ),
-            "event_last_seen": service.get(
+            "eventlastseen": service.get(
                 "EventLastSeen",
                 f.get("EventLastSeen"),
             ),
