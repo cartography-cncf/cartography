@@ -1,3 +1,4 @@
+from cartography.rules.data.rules.aws_account_coverage import aws_account_not_synced
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_1_default_network
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_6_unrestricted_ssh
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_7_unrestricted_rdp
@@ -137,6 +138,7 @@ RULES = {
     cis_aws_5_2_unrestricted_rdp.id: cis_aws_5_2_unrestricted_rdp,
     cis_aws_5_4_default_sg_traffic.id: cis_aws_5_4_default_sg_traffic,
     # Security Rules
+    aws_account_not_synced.id: aws_account_not_synced,
     compute_instance_exposed.id: compute_instance_exposed,
     database_instance_exposed.id: database_instance_exposed,
     delegation_boundary_modifiable.id: delegation_boundary_modifiable,
