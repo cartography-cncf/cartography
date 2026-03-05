@@ -30,7 +30,12 @@ def sync(
     metadata = get_sync_metadata(neo4j_session)
 
     if metadata["full_sync_complete"]:
-        _run_incremental_sync(neo4j_session, api_url, update_tag, metadata["last_published"])
+        _run_incremental_sync(
+            neo4j_session,
+            api_url,
+            update_tag,
+            metadata["last_published"],
+        )
     else:
         _run_full_sync(neo4j_session, api_url, update_tag, metadata["full_sync_offset"])
 
@@ -56,7 +61,8 @@ def _run_full_sync(
         total += len(transformed)
         current_offset += _PAGE_SIZE
         save_sync_metadata(
-            neo4j_session, update_tag,
+            neo4j_session,
+            update_tag,
             full_sync_complete=False,
             full_sync_offset=current_offset,
             last_published=None,
@@ -64,12 +70,17 @@ def _run_full_sync(
 
     watermark = _get_max_published(neo4j_session)
     save_sync_metadata(
-        neo4j_session, update_tag,
+        neo4j_session,
+        update_tag,
         full_sync_complete=True,
         full_sync_offset=0,
         last_published=watermark,
     )
-    logger.info("Full sync complete: loaded %d Ubuntu notices (watermark=%s)", total, watermark)
+    logger.info(
+        "Full sync complete: loaded %d Ubuntu notices (watermark=%s)",
+        total,
+        watermark,
+    )
 
 
 def _run_incremental_sync(
@@ -92,12 +103,17 @@ def _run_incremental_sync(
 
     if best_watermark:
         save_sync_metadata(
-            neo4j_session, update_tag,
+            neo4j_session,
+            update_tag,
             full_sync_complete=True,
             full_sync_offset=0,
             last_published=best_watermark,
         )
-        logger.info("Incremental sync complete: loaded %d notices (new watermark=%s)", total, best_watermark)
+        logger.info(
+            "Incremental sync complete: loaded %d notices (new watermark=%s)",
+            total,
+            best_watermark,
+        )
     else:
         logger.info("No new notices found")
 
@@ -157,7 +173,8 @@ def save_sync_metadata(
 
 def _extract_latest_published(raw_notices: list[dict[str, Any]]) -> str | None:
     timestamps = [
-        notice["published"] for notice in raw_notices
+        notice["published"]
+        for notice in raw_notices
         if notice.get("published") is not None
     ]
     if not timestamps:
@@ -166,10 +183,11 @@ def _extract_latest_published(raw_notices: list[dict[str, Any]]) -> str | None:
 
 
 def _get_max_published(neo4j_session: neo4j.Session) -> str | None:
-    return read_single_value_tx(
+    result = read_single_value_tx(
         neo4j_session,
         "MATCH (n:UbuntuSecurityNotice) RETURN max(n.published) AS max_published",
     )
+    return str(result) if result is not None else None
 
 
 @timeit

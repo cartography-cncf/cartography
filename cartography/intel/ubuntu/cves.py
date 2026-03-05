@@ -30,7 +30,12 @@ def sync(
     metadata = get_sync_metadata(neo4j_session)
 
     if metadata["full_sync_complete"]:
-        _run_incremental_sync(neo4j_session, api_url, update_tag, metadata["last_updated_at"])
+        _run_incremental_sync(
+            neo4j_session,
+            api_url,
+            update_tag,
+            metadata["last_updated_at"],
+        )
     else:
         _run_full_sync(neo4j_session, api_url, update_tag, metadata["full_sync_offset"])
 
@@ -56,7 +61,8 @@ def _run_full_sync(
         total += len(transformed)
         current_offset += _PAGE_SIZE
         save_sync_metadata(
-            neo4j_session, update_tag,
+            neo4j_session,
+            update_tag,
             full_sync_complete=False,
             full_sync_offset=current_offset,
             last_updated_at=None,
@@ -64,12 +70,17 @@ def _run_full_sync(
 
     watermark = _get_max_updated_at(neo4j_session)
     save_sync_metadata(
-        neo4j_session, update_tag,
+        neo4j_session,
+        update_tag,
         full_sync_complete=True,
         full_sync_offset=0,
         last_updated_at=watermark,
     )
-    logger.info("Full sync complete: loaded %d Ubuntu CVEs (watermark=%s)", total, watermark)
+    logger.info(
+        "Full sync complete: loaded %d Ubuntu CVEs (watermark=%s)",
+        total,
+        watermark,
+    )
 
 
 def _run_incremental_sync(
@@ -92,12 +103,17 @@ def _run_incremental_sync(
 
     if best_watermark:
         save_sync_metadata(
-            neo4j_session, update_tag,
+            neo4j_session,
+            update_tag,
             full_sync_complete=True,
             full_sync_offset=0,
             last_updated_at=best_watermark,
         )
-        logger.info("Incremental sync complete: loaded %d CVEs (new watermark=%s)", total, best_watermark)
+        logger.info(
+            "Incremental sync complete: loaded %d CVEs (new watermark=%s)",
+            total,
+            best_watermark,
+        )
     else:
         logger.info("No new or updated CVEs found")
 
@@ -157,8 +173,7 @@ def save_sync_metadata(
 
 def _extract_latest_updated_at(raw_cves: list[dict[str, Any]]) -> str | None:
     timestamps = [
-        cve["updated_at"] for cve in raw_cves
-        if cve.get("updated_at") is not None
+        cve["updated_at"] for cve in raw_cves if cve.get("updated_at") is not None
     ]
     if not timestamps:
         return None
@@ -166,10 +181,11 @@ def _extract_latest_updated_at(raw_cves: list[dict[str, Any]]) -> str | None:
 
 
 def _get_max_updated_at(neo4j_session: neo4j.Session) -> str | None:
-    return read_single_value_tx(
+    result = read_single_value_tx(
         neo4j_session,
         "MATCH (c:UbuntuCVE) RETURN max(c.updated_at) AS max_updated_at",
     )
+    return str(result) if result is not None else None
 
 
 @timeit
