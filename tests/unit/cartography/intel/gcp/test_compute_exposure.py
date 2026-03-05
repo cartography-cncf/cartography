@@ -1,3 +1,8 @@
+import json
+from unittest.mock import MagicMock
+
+from googleapiclient.errors import HttpError
+
 import cartography.intel.gcp.backendservice
 import cartography.intel.gcp.cloud_armor
 import cartography.intel.gcp.instancegroup
@@ -139,3 +144,37 @@ def test_transform_gcp_instance_groups_with_non_v1_uris():
     assert item["member_instance_partial_uris"] == [
         "projects/sample-project-123456/zones/us-central1-a/instances/vm-1"
     ]
+
+
+def test_get_instance_group_members_forbidden_returns_empty(monkeypatch):
+    compute = MagicMock()
+    req = MagicMock()
+    compute.instanceGroups.return_value.listInstances.return_value = req
+    compute.instanceGroups.return_value.listInstances_next.return_value = None
+
+    resp = MagicMock()
+    resp.status = 403
+    error = HttpError(
+        resp=resp,
+        content=json.dumps(
+            {
+                "error": {
+                    "message": "Required permission",
+                    "errors": [{"reason": "forbidden"}],
+                }
+            }
+        ).encode("utf-8"),
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gcp.instancegroup.gcp_api_execute_with_retry",
+        lambda _req: (_ for _ in ()).throw(error),
+    )
+
+    members = cartography.intel.gcp.instancegroup._get_instance_group_members(
+        project_id="test-project",
+        instance_group_name="test-group",
+        zone="us-central1-a",
+        region=None,
+        compute=compute,
+    )
+    assert members == []

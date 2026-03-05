@@ -3,7 +3,9 @@ from unittest.mock import MagicMock
 
 from googleapiclient.errors import HttpError
 
+from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import is_billing_disabled_error
 
 
 class TestIsApiDisabledError:
@@ -56,6 +58,87 @@ class TestIsApiDisabledError:
         ).encode("utf-8")
         error = HttpError(mock_resp, error_content)
         assert is_api_disabled_error(error) is False
+
+
+class TestGetErrorReason:
+    def test_extracts_reason_from_error_details_error_info(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 403,
+                    "message": "Billing disabled",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "BILLING_DISABLED",
+                            "domain": "googleapis.com",
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert get_error_reason(error) == "BILLING_DISABLED"
+
+    def test_extracts_reason_from_standard_errors_array(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {"error": {"errors": [{"reason": "forbidden"}]}}
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert get_error_reason(error) == "forbidden"
+
+    def test_returns_empty_string_when_no_reason_present(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 500
+        error = HttpError(mock_resp, b'{"error": {"message": "oops"}}')
+        assert get_error_reason(error) == ""
+
+
+class TestIsBillingDisabledError:
+    def test_true_when_reason_is_billing_disabled(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "BILLING_DISABLED",
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is True
+
+    def test_true_when_message_contains_billing_disabled_text(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {"error": {"message": "This API method requires billing to be enabled."}}
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is True
+
+    def test_false_when_unrelated_403(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "message": "Permission denied",
+                    "errors": [{"reason": "forbidden"}],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is False
 
     def test_insufficient_permissions_reason(self):
         """Test that reason='insufficientPermissions' returns False."""

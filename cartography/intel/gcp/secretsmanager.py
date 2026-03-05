@@ -12,6 +12,8 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import get_error_reason
+from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import is_billing_disabled_error
 from cartography.models.gcp.secretsmanager.secret import GCPSecretManagerSecretSchema
 from cartography.models.gcp.secretsmanager.secret_version import (
     GCPSecretManagerSecretVersionSchema,
@@ -64,6 +66,28 @@ def get_secrets(secretmanager: Resource, project_id: str) -> List[Dict]:
                 e,
             )
             return []
+        elif reason == "BILLING_DISABLED" or is_billing_disabled_error(e):
+            logger.warning(
+                (
+                    "Billing is disabled for project %s. "
+                    "Skipping Secret Manager sync for this project. "
+                    "Full details: %s"
+                ),
+                project_id,
+                e,
+            )
+            return []
+        elif is_api_disabled_error(e):
+            logger.info(
+                (
+                    "Secret Manager API appears disabled for project %s. "
+                    "Skipping Secret Manager sync for this project. "
+                    "Full details: %s"
+                ),
+                project_id,
+                e,
+            )
+            return []
         else:
             raise
 
@@ -109,6 +133,26 @@ def get_secret_versions(
                 (
                     "You do not have secretmanager.versions.list access to the secret %s. "
                     "Full details: %s"
+                ),
+                secret_name,
+                e,
+            )
+            return []
+        elif reason == "BILLING_DISABLED" or is_billing_disabled_error(e):
+            logger.warning(
+                (
+                    "Billing is disabled while listing versions for secret %s. "
+                    "Skipping versions sync for this secret. Full details: %s"
+                ),
+                secret_name,
+                e,
+            )
+            return []
+        elif is_api_disabled_error(e):
+            logger.info(
+                (
+                    "Secret Manager API appears disabled while listing versions for secret %s. "
+                    "Skipping versions sync for this secret. Full details: %s"
                 ),
                 secret_name,
                 e,
