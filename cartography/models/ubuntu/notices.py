@@ -25,6 +25,26 @@ class UbuntuSecurityNoticeNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
+class UbuntuNoticeToUbuntuCVEFeedRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class UbuntuNoticeToUbuntuCVEFeedRel(CartographyRelSchema):
+    """(:UbuntuSecurityNotice)<-[:RESOURCE]-(:UbuntuCVEFeed)"""
+
+    target_node_label: str = "UbuntuCVEFeed"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("FEED_ID", set_in_kwargs=True)},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "RESOURCE"
+    properties: UbuntuNoticeToUbuntuCVEFeedRelProperties = (
+        UbuntuNoticeToUbuntuCVEFeedRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class UbuntuNoticeToUbuntuCVERelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -50,8 +70,9 @@ class UbuntuSecurityNoticeSchema(CartographyNodeSchema):
     properties: UbuntuSecurityNoticeNodeProperties = (
         UbuntuSecurityNoticeNodeProperties()
     )
-    sub_resource_relationship: None = None
-    scoped_cleanup: bool = False
+    sub_resource_relationship: UbuntuNoticeToUbuntuCVEFeedRel = (
+        UbuntuNoticeToUbuntuCVEFeedRel()
+    )
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
             UbuntuNoticeToUbuntuCVERel(),

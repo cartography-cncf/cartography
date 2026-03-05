@@ -1,11 +1,22 @@
 from unittest.mock import patch
 
 import cartography.intel.ubuntu.cves
+import cartography.intel.ubuntu.feed
 import tests.data.ubuntu.cves
 from tests.integration.util import check_nodes
 
 TEST_UPDATE_TAG = 123456789
 TEST_API_URL = "https://fake-ubuntu-api.example.com"
+
+
+def _load_feed(neo4j_session):
+    """Load the feed node so that CVE sub-resource relationships can be created."""
+    cartography.intel.ubuntu.feed.sync(
+        neo4j_session,
+        TEST_API_URL,
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
 
 
 @patch.object(
@@ -19,6 +30,7 @@ def test_sync_ubuntu_cves(mock_api, neo4j_session):
     and CVSS v3 fields are populated from nested impact data.
     """
     neo4j_session.run("MATCH (s:UbuntuSyncMetadata) DETACH DELETE s")
+    _load_feed(neo4j_session)
     cartography.intel.ubuntu.cves.sync(
         neo4j_session,
         TEST_API_URL,
@@ -70,6 +82,7 @@ def test_sync_metadata_full_sync(mock_api, neo4j_session):
     """
     neo4j_session.run("MATCH (s:UbuntuSyncMetadata) DETACH DELETE s")
     neo4j_session.run("MATCH (n:UbuntuCVE) DETACH DELETE n")
+    _load_feed(neo4j_session)
     cartography.intel.ubuntu.cves.sync(
         neo4j_session,
         TEST_API_URL,
@@ -102,6 +115,7 @@ def test_sync_incremental(mock_api, neo4j_session):
     """
     neo4j_session.run("MATCH (s:UbuntuSyncMetadata) DETACH DELETE s")
     neo4j_session.run("MATCH (n:UbuntuCVE) DETACH DELETE n")
+    _load_feed(neo4j_session)
     neo4j_session.run(
         """
         CREATE (s:UbuntuSyncMetadata {

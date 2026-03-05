@@ -8,14 +8,13 @@ from requests import Session
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_single_value_tx
 from cartography.client.core.tx import run_write_query
+from cartography.intel.ubuntu.feed import FEED_ID
 from cartography.models.ubuntu.cves import UbuntuCVESchema
-from cartography.models.ubuntu.feed import UbuntuCVEFeedSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 _TIMEOUT = (60, 60)
 _PAGE_SIZE = 20
-_FEED_ID = "ubuntu-security-cve-feed"
 _SYNC_METADATA_ID = "UbuntuCVE_sync_metadata"
 
 
@@ -27,7 +26,6 @@ def sync(
     common_job_parameters: dict[str, Any],
 ) -> None:
     logger.info("Starting Ubuntu CVE sync")
-    load_feed(neo4j_session, api_url, update_tag)
 
     metadata = get_sync_metadata(neo4j_session)
 
@@ -269,26 +267,6 @@ def transform(raw_cves: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-def load_feed(
-    neo4j_session: neo4j.Session,
-    api_url: str,
-    update_tag: int,
-) -> None:
-    feed_data = [
-        {
-            "id": _FEED_ID,
-            "name": "Ubuntu Security CVE Feed",
-            "url": f"{api_url}/security/cves.json",
-        },
-    ]
-    load(
-        neo4j_session,
-        UbuntuCVEFeedSchema(),
-        feed_data,
-        lastupdated=update_tag,
-    )
-
-
 def load_cves(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
@@ -299,5 +277,5 @@ def load_cves(
         UbuntuCVESchema(),
         data,
         lastupdated=update_tag,
-        FEED_ID=_FEED_ID,
+        FEED_ID=FEED_ID,
     )

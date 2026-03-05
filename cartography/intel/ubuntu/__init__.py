@@ -3,6 +3,7 @@ import logging
 import neo4j
 
 import cartography.intel.ubuntu.cves
+import cartography.intel.ubuntu.feed
 import cartography.intel.ubuntu.notices
 from cartography.config import Config
 from cartography.util import timeit
@@ -26,6 +27,13 @@ def start_ubuntu_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
     }
+
+    cartography.intel.ubuntu.feed.sync(
+        neo4j_session,
+        api_url,
+        config.update_tag,
+        common_job_parameters,
+    )
 
     cartography.intel.ubuntu.cves.sync(
         neo4j_session,

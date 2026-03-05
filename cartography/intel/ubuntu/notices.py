@@ -8,6 +8,7 @@ from requests import Session
 from cartography.client.core.tx import load
 from cartography.client.core.tx import read_single_value_tx
 from cartography.client.core.tx import run_write_query
+from cartography.intel.ubuntu.feed import FEED_ID
 from cartography.models.ubuntu.notices import UbuntuSecurityNoticeSchema
 from cartography.util import timeit
 
@@ -261,4 +262,5 @@ def load_notices(
         UbuntuSecurityNoticeSchema(),
         data,
         lastupdated=update_tag,
+        FEED_ID=FEED_ID,
     )
