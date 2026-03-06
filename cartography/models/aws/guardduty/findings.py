@@ -21,6 +21,8 @@ class GuardDutyFindingNodeProperties(CartographyNodeProperties):
     type: PropertyRef = PropertyRef("type")
     severity: PropertyRef = PropertyRef("severity")
     confidence: PropertyRef = PropertyRef("confidence")
+    createdat: PropertyRef = PropertyRef("createdat")
+    updatedat: PropertyRef = PropertyRef("updatedat")
     eventfirstseen: PropertyRef = PropertyRef("eventfirstseen")
     eventlastseen: PropertyRef = PropertyRef("eventlastseen")
     accountid: PropertyRef = PropertyRef("accountid")

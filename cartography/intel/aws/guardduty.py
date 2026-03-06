@@ -168,6 +168,7 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Transform GuardDuty findings from API response to schema format."""
     transformed: list[dict[str, Any]] = []
     for f in findings:
+        service = f.get("Service", {})
         item: dict[str, Any] = {
             "id": f["Id"],
             "arn": f.get("Arn"),
@@ -176,8 +177,16 @@ def transform_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "title": f.get("Title"),
             "description": f.get("Description"),
             "confidence": f.get("Confidence"),
-            "eventfirstseen": f.get("EventFirstSeen"),
-            "eventlastseen": f.get("EventLastSeen"),
+            "createdat": f.get("CreatedAt"),
+            "updatedat": f.get("UpdatedAt"),
+            "eventfirstseen": service.get(
+                "EventFirstSeen",
+                f.get("EventFirstSeen"),
+            ),
+            "eventlastseen": service.get(
+                "EventLastSeen",
+                f.get("EventLastSeen"),
+            ),
             "accountid": f.get("AccountId"),
             "region": f.get("Region"),
             "detectorid": f.get("DetectorId"),

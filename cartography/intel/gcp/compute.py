@@ -18,6 +18,7 @@ from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
 from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import get_error_reason
+from cartography.intel.gcp.util import is_permission_denied_error
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
 from cartography.models.gcp.compute.firewall import GCPFirewallSchema
 from cartography.models.gcp.compute.firewall_target_tag import (
@@ -86,7 +87,7 @@ def get_zones_in_project(
                 e,
             )
             return None
-        elif reason == "forbidden":
+        elif is_permission_denied_error(e):
             logger.info(
                 (
                     "Your GCP identity does not have the compute.zones.list permission for project %s; skipping "

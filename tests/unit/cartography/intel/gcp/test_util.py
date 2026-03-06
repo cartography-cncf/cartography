@@ -1,9 +1,13 @@
 import json
 from unittest.mock import MagicMock
 
+import pytest
 from googleapiclient.errors import HttpError
 
+from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import is_billing_disabled_error
+from cartography.intel.gcp.util import is_permission_denied_error
 
 
 class TestIsApiDisabledError:
@@ -226,3 +230,98 @@ class TestIsApiDisabledError:
         ).encode("utf-8")
         error = HttpError(mock_resp, error_content)
         assert is_api_disabled_error(error) is False
+
+
+class TestGetErrorReason:
+    def test_extracts_reason_from_error_details_error_info(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 403,
+                    "message": "Billing disabled",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "BILLING_DISABLED",
+                            "domain": "googleapis.com",
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert get_error_reason(error) == "BILLING_DISABLED"
+
+    def test_extracts_reason_from_standard_errors_array(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {"error": {"errors": [{"reason": "forbidden"}]}}
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert get_error_reason(error) == "forbidden"
+
+
+class TestIsBillingDisabledError:
+    def test_true_when_reason_is_billing_disabled(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "BILLING_DISABLED",
+                        }
+                    ],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is True
+
+    def test_false_when_unrelated_403(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "message": "Permission denied",
+                    "errors": [{"reason": "forbidden"}],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+        assert is_billing_disabled_error(error) is False
+
+
+class TestIsPermissionDeniedError:
+    @staticmethod
+    def _make_error(reason: str) -> HttpError:
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 403,
+                    "message": "permission denied",
+                    "errors": [{"reason": reason}],
+                }
+            }
+        ).encode("utf-8")
+        return HttpError(mock_resp, error_content)
+
+    @pytest.mark.parametrize(
+        "reason",
+        ["forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"],
+    )
+    def test_true_for_supported_permission_denied_reasons(self, reason):
+        assert is_permission_denied_error(self._make_error(reason)) is True
+
+    def test_false_for_non_permission_reason(self):
+        assert (
+            is_permission_denied_error(self._make_error("accessNotConfigured")) is False
+        )
