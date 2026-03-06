@@ -15,6 +15,11 @@ class Config:
     :type neo4j_max_connection_lifetime: int
     :param neo4j_max_connection_lifetime: Time in seconds for Neo4j driver to consider a TCP connection alive.
         See https://neo4j.com/docs/driver-manual/1.7/client-applications/. Optional.
+    :type neo4j_liveness_check_timeout: int
+    :param neo4j_liveness_check_timeout: Time in seconds that a connection can be idle before the driver performs a
+        liveness check (RESET ping) before reusing it. Helps prevent SessionExpired or ConnectionResetError on
+        Aura/clustered Neo4j instances that close idle connections server-side. Maps to the neo4j driver's
+        ``liveness_check_timeout`` parameter. Optional.
     :type neo4j_database: string
     :param neo4j_database: The name of the database in Neo4j to connect to. If not specified, uses your Neo4j database
     settings to infer which database is set to default.
@@ -247,6 +252,7 @@ class Config:
         neo4j_user=None,
         neo4j_password=None,
         neo4j_max_connection_lifetime=None,
+        neo4j_liveness_check_timeout=None,
         neo4j_database=None,
         selected_modules=None,
         update_tag=None,
@@ -366,6 +372,7 @@ class Config:
         self.neo4j_user = neo4j_user
         self.neo4j_password = neo4j_password
         self.neo4j_max_connection_lifetime = neo4j_max_connection_lifetime
+        self.neo4j_liveness_check_timeout = neo4j_liveness_check_timeout
         self.neo4j_database = neo4j_database
         self.selected_modules = selected_modules
         self.update_tag = update_tag
