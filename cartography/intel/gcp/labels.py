@@ -5,7 +5,6 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.models.gcp.labels.label import GCPBucketGCPLabelSchema
-from cartography.models.gcp.labels.label import GCPCloudSQLInstanceGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPInstanceGCPLabelSchema
 from cartography.util import timeit
 
@@ -27,18 +26,13 @@ LABEL_RESOURCE_TYPE_MAPPINGS: dict[str, dict[str, Any]] = {
         "id_field": "id",
         "schema": GCPBucketGCPLabelSchema(),
     },
-    "gcp_cloud_sql_instance": {
-        "labels_field": "settings.userLabels",
-        "id_field": "selfLink",
-        "schema": GCPCloudSQLInstanceGCPLabelSchema(),
-    },
 }
 
 
 def _resolve_labels_field(resource: dict, labels_field: str) -> dict[str, str]:
     """
     Extract the labels dict from a resource, supporting dot-separated nested field paths.
-    For example, 'settings.userLabels' will resolve resource['settings']['userLabels'].
+    For example, 'foo.bar' will resolve resource['foo']['bar'].
 
     :param resource: A single raw GCP API resource dict.
     :param labels_field: Dot-separated path to the labels field.

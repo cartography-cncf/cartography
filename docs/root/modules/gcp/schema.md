@@ -230,7 +230,7 @@ Representation of a GCP [Label](https://cloud.google.com/resource-manager/docs/l
 
 > **Ontology Mapping**: This node has the extra label `Label` to preserve cross-platform semantics for generic key/value labels.
 
-Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchema`, `GCPInstanceGCPLabelSchema`, and `GCPCloudSQLInstanceGCPLabelSchema`). Bucket-sourced labels also carry the `GCPBucketLabel` extra label for backward compatibility with the legacy per-resource label schema.
+Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchema` and `GCPInstanceGCPLabelSchema`). Bucket-sourced labels also carry the `GCPBucketLabel` extra label for backward compatibility with the legacy per-resource label schema.
 
 | Field         | Description                                                                                                 |
 |---------------|-------------------------------------------------------------------------------------------------------------|
@@ -248,7 +248,6 @@ Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchem
     ```
     (GCPBucket)-[LABELED]->(GCPLabel:GCPBucketLabel)
     (GCPInstance)-[LABELED]->(GCPLabel)
-    (GCPCloudSQLInstance)-[LABELED]->(GCPLabel)
     ```
 
 - GCPLabel nodes are associated with a GCPProject via the RESOURCE relationship.
