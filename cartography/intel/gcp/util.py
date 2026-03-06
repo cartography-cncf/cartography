@@ -20,6 +20,9 @@ GCP_RETRYABLE_HTTP_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 GCP_API_MAX_RETRIES = 3
 GCP_API_BACKOFF_BASE = 2
 GCP_API_BACKOFF_MAX = 30
+GCP_PERMISSION_DENIED_REASONS = frozenset(
+    {"forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"}
+)
 
 # Number of retries for network-level errors (handled natively by googleapiclient)
 GCP_API_NUM_RETRIES = 5
@@ -120,11 +123,78 @@ def get_error_reason(http_error: HttpError) -> str:
     try:
         data = json.loads(http_error.content.decode("utf-8"))
         if isinstance(data, dict):
-            return data["error"]["errors"][0]["reason"]
-        return data[0]["error"]["errors"]["reason"]
+            error_obj = data.get("error", {})
+            if not isinstance(error_obj, dict):
+                return ""
+
+            # Standard GCP error shape.
+            errors = error_obj.get("errors", [])
+            if isinstance(errors, list) and errors:
+                first_error = errors[0]
+                if isinstance(first_error, dict):
+                    reason = first_error.get("reason")
+                    if isinstance(reason, str):
+                        return reason
+
+            # gRPC-transcoded shape often used by newer APIs:
+            # error.details[] with type.googleapis.com/google.rpc.ErrorInfo
+            details = error_obj.get("details", [])
+            if isinstance(details, list):
+                for detail in details:
+                    if isinstance(detail, dict):
+                        reason = detail.get("reason")
+                        if isinstance(reason, str):
+                            return reason
+
+            return ""
+
+        if isinstance(data, list) and data:
+            item = data[0]
+            if isinstance(item, dict):
+                error_obj = item.get("error", {})
+                if isinstance(error_obj, dict):
+                    errors = error_obj.get("errors", [])
+                    if isinstance(errors, list) and errors:
+                        first_error = errors[0]
+                        if isinstance(first_error, dict):
+                            reason = first_error.get("reason")
+                            if isinstance(reason, str):
+                                return reason
+
+        return ""
     except (UnicodeDecodeError, ValueError, KeyError, IndexError, TypeError):
         logger.warning("HttpError: %s", http_error)
         return ""
+
+
+def is_billing_disabled_error(e: HttpError) -> bool:
+    """
+    Check if an HttpError indicates that billing is disabled for the project.
+    """
+    reason = get_error_reason(e)
+    if reason == "BILLING_DISABLED":
+        return True
+
+    try:
+        error_json = json.loads(e.content.decode("utf-8"))
+        err = error_json.get("error", {}) if isinstance(error_json, dict) else {}
+        message = err.get("message", "")
+        if isinstance(message, str):
+            lowered = message.lower()
+            return "requires billing to be enabled" in lowered
+        return False
+    except (ValueError, UnicodeDecodeError, AttributeError):
+        return False
+
+
+def is_permission_denied_error(e: HttpError) -> bool:
+    """
+    Check if an HttpError indicates an IAM permission denied condition.
+
+    This identifies authorization failures distinct from API-disabled and
+    billing-disabled errors.
+    """
+    return get_error_reason(e) in GCP_PERMISSION_DENIED_REASONS
 
 
 def parse_compute_full_uri_to_partial_uri(
@@ -204,11 +274,7 @@ def is_api_disabled_error(e: HttpError) -> bool:
             if reason in ("accessNotConfigured", "SERVICE_DISABLED"):
                 return True
             # Explicitly reject 'forbidden' and other IAM-related reasons
-            if reason in (
-                "forbidden",
-                "insufficientPermissions",
-                "IAM_PERMISSION_DENIED",
-            ):
+            if reason in GCP_PERMISSION_DENIED_REASONS:
                 return False
 
         # Fallback: Check message patterns for APIs that may use different error formats
