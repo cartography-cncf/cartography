@@ -20,7 +20,8 @@ It is fully managed, no infrastructure to maintain, no updates to handle.
 
 This module syncs SubImage metadata into your Cartography graph:
 
-- **Users** configured in SubImage
+- **Tenant** information
+- **Team members** configured in SubImage
 - **API keys** provisioned in SubImage
 - **Neo4j users** with access to the graph database
 - **Enabled modules** (which integrations are active)
