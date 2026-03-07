@@ -15,6 +15,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.gcp.backendservice import sync_gcp_backend_services
 from cartography.intel.gcp.cloud_armor import sync_gcp_cloud_armor
 from cartography.intel.gcp.instancegroup import sync_gcp_instance_groups
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_permission_denied_error
@@ -1191,6 +1192,15 @@ def sync_gcp_instances(
     instance_responses = get_gcp_instance_responses(project_id, zones, compute)
     instance_list = transform_gcp_instances(instance_responses)
     load_gcp_instances(neo4j_session, instance_list, gcp_update_tag, project_id)
+    # Sync unified GCPLabel nodes - use transformed list since it has partial_uri set
+    sync_labels(
+        neo4j_session,
+        instance_list,
+        "gcp_instance",
+        project_id,
+        gcp_update_tag,
+        common_job_parameters,
+    )
     cleanup_gcp_instances(neo4j_session, common_job_parameters)
 
 

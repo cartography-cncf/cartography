@@ -84,6 +84,8 @@ class Config:
     :param permission_relationships_file: File path for the resource permission relationships file. Optional.
     :type azure_permission_relationships_file: str
     :param azure_permission_relationships_file: File path for the Azure permission relationships file. Optional.
+    :type gcp_requested_syncs: str
+    :param gcp_requested_syncs: Comma-separated list of GCP resources to sync. Optional.
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
@@ -278,6 +280,7 @@ class Config:
         digitalocean_token=None,
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
+        gcp_requested_syncs=None,
         gcp_permission_relationships_file=None,
         jamf_base_uri=None,
         jamf_user=None,
@@ -401,6 +404,7 @@ class Config:
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
+        self.gcp_requested_syncs = gcp_requested_syncs
         self.gcp_permission_relationships_file = gcp_permission_relationships_file
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
