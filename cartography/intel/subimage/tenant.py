@@ -17,7 +17,7 @@ def get(api_session: requests.Session, base_url: str) -> list[dict[str, Any]]:
     response = api_session.get(f"{base_url}/api/tenant", timeout=_TIMEOUT)
     response.raise_for_status()
     tenant_data = response.json()
-    tenant_data["id"] = tenant_data.get("tenantId", "")
+    tenant_data["id"] = tenant_data["tenantId"]
     return [tenant_data]
 
 

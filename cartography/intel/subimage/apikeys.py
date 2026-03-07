@@ -21,7 +21,8 @@ def sync(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    apikeys = get(api_session, common_job_parameters["BASE_URL"])
+    raw_data = get(api_session, common_job_parameters["BASE_URL"])
+    apikeys = transform(raw_data)
     load_apikeys(neo4j_session, apikeys, tenant_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
@@ -31,6 +32,19 @@ def get(api_session: requests.Session, base_url: str) -> list[dict[str, Any]]:
     response = api_session.get(f"{base_url}/api/api-keys/subimage", timeout=_TIMEOUT)
     response.raise_for_status()
     return response.json()
+
+
+def transform(raw_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "app_id": key["app_id"],
+            "client_id": key.get("client_id"),
+            "role": key.get("role"),
+            "name": key.get("name"),
+            "description": key.get("description"),
+        }
+        for key in raw_data
+    ]
 
 
 @timeit

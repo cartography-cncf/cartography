@@ -36,7 +36,7 @@ def get(api_session: requests.Session, base_url: str) -> dict[str, Any]:
 
 def transform(raw_data: dict[str, Any]) -> list[dict[str, Any]]:
     """Convert {"usernames": ["a", "b"]} to [{"username": "a"}, {"username": "b"}]."""
-    return [{"username": u} for u in raw_data.get("usernames", [])]
+    return [{"username": username} for username in raw_data["usernames"]]
 
 
 @timeit

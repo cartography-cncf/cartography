@@ -36,7 +36,14 @@ def get(api_session: requests.Session, base_url: str) -> dict[str, Any]:
 
 def transform(raw_data: dict[str, Any]) -> list[dict[str, Any]]:
     """Convert {module_name: config_dict, ...} to list of dicts with module_name key."""
-    return [{"module_name": name, **config} for name, config in raw_data.items()]
+    return [
+        {
+            "module_name": name,
+            "is_configured": config.get("is_configured"),
+            "last_sync_status": config.get("last_sync_status"),
+        }
+        for name, config in raw_data.items()
+    ]
 
 
 @timeit

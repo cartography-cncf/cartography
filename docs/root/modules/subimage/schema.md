@@ -18,7 +18,7 @@ Represents a SubImage Tenant.
 
 | Field | Description |
 |-------|-------------|
-| id | The tenant identifier |
+| **id** | The tenant identifier |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | account_id | The account identifier |
@@ -44,7 +44,7 @@ Represents a team member within a SubImage tenant.
 
 | Field | Description |
 |-------|-------------|
-| id | The member identifier |
+| **id** | The member identifier |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | email | The email address of the team member |
@@ -67,7 +67,7 @@ Represents an API key in SubImage.
 
 | Field | Description |
 |-------|-------------|
-| id | The app identifier |
+| **id** | The app identifier |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | client_id | The client identifier |
@@ -88,7 +88,7 @@ Represents a Neo4j database user configured in SubImage.
 
 | Field | Description |
 |-------|-------------|
-| id | The username |
+| **id** | The username |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
@@ -105,7 +105,7 @@ Represents a sync module configured in SubImage.
 
 | Field | Description |
 |-------|-------------|
-| id | The module name |
+| **id** | The module name |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | is_configured | Whether the module is configured |
@@ -124,7 +124,7 @@ Represents a compliance framework in SubImage.
 
 | Field | Description |
 |-------|-------------|
-| id | The framework identifier |
+| **id** | The framework identifier |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | name | The full name of the framework |
