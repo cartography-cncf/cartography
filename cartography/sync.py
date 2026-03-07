@@ -43,6 +43,7 @@ import cartography.intel.sentinelone
 import cartography.intel.slack
 import cartography.intel.snipeit
 import cartography.intel.spacelift
+import cartography.intel.subimage
 import cartography.intel.syft
 import cartography.intel.tailscale
 import cartography.intel.trivy
@@ -95,6 +96,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "slack": cartography.intel.slack.start_slack_ingestion,
         "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
+        "subimage": cartography.intel.subimage.start_subimage_ingestion,
         "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,
