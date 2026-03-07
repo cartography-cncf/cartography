@@ -224,6 +224,39 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
     ```
 
 
+### Label::GCPLabel
+
+Representation of a GCP [Label](https://cloud.google.com/resource-manager/docs/labels-overview). GCP Labels can be applied to many resource types. This is a unified label node type similar to how `AWSTag` works for AWS resources.
+
+> **Ontology Mapping**: This node has the extra label `Label` to preserve cross-platform semantics for generic key/value labels.
+
+Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchema` and `GCPInstanceGCPLabelSchema`). Bucket-sourced labels also carry the `GCPBucketLabel` extra label for backward compatibility with the legacy per-resource label schema.
+
+| Field         | Description                                                                                                 |
+|---------------|-------------------------------------------------------------------------------------------------------------|
+| firstseen     | Timestamp of when a sync job first discovered this node                                                     |
+| lastupdated   | Timestamp of the last time the node was updated                                                             |
+| id            | The ID of the label. Takes the form `{resource_id}:{key}:{value}`.                                         |
+| key           | The key of the label.                                                                                       |
+| value         | The value of the label.                                                                                     |
+| resource_type | The Cartography node label of the resource this label is attached to (e.g. `GCPBucket`, `GCPInstance`).     |
+
+#### Relationships
+
+- GCP resources can be labeled with GCPLabels.
+
+    ```
+    (GCPBucket)-[LABELED]->(GCPLabel:GCPBucketLabel)
+    (GCPInstance)-[LABELED]->(GCPLabel)
+    ```
+
+- GCPLabel nodes are associated with a GCPProject via the RESOURCE relationship.
+
+    ```
+    (GCPProject)-[RESOURCE]->(GCPLabel)
+    ```
+
+
 ### GCPInstance
 
 Representation of a GCP [Instance](https://cloud.google.com/compute/docs/reference/rest/v1/instances).  Additional references can be found in the [official documentation]( https://cloud.google.com/compute/docs/concepts).
