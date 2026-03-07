@@ -7,6 +7,7 @@ from unittest.mock import patch
 import cartography.intel.aws.ecr
 import tests.data.aws.ecr
 from cartography.intel.aibom import sync_aibom_from_dir
+from cartography.intel.aibom import sync_aibom_from_s3
 from cartography.intel.aibom.cleanup import cleanup_aibom
 from tests.data.aibom.aibom_sample import ENVELOPE_AIBOM_REPORT
 from tests.data.aibom.aibom_sample import RAW_AIBOM_INCOMPLETE_REPORT
@@ -276,6 +277,80 @@ def test_sync_aibom_skips_unmatched_sources(
     ).single()["count"]
     assert component_count == 0
     assert "no manifest-list ECRImage match found" in caplog.text
+
+
+@patch(
+    "builtins.open",
+    side_effect=UnicodeDecodeError("utf-8", b"\x80", 0, 1, "invalid start byte"),
+)
+@patch(
+    "cartography.intel.aibom._get_json_files_in_dir",
+    return_value={"/tmp/aibom-bad-encoding.json"},
+)
+def test_sync_aibom_skips_local_unicode_decode_errors(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+    caplog,
+):
+    _seed_manifest_list_graph(neo4j_session)
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    component_count = neo4j_session.run(
+        """
+        MATCH (c:AIBOMComponent)
+        RETURN count(c) AS count
+        """,
+    ).single()["count"]
+    assert component_count == 0
+    assert (
+        "Skipping unreadable AIBOM report /tmp/aibom-bad-encoding.json" in caplog.text
+    )
+
+
+def test_sync_aibom_skips_s3_unicode_decode_errors(
+    neo4j_session,
+    caplog,
+):
+    _seed_manifest_list_graph(neo4j_session)
+
+    boto3_session = MagicMock()
+    s3_client = MagicMock()
+    s3_client.get_object.return_value = {
+        "Body": MagicMock(read=MagicMock(return_value=b"\x80")),
+    }
+    boto3_session.client.return_value = s3_client
+
+    with patch(
+        "cartography.intel.aibom._get_json_files_in_s3",
+        return_value={"reports/aibom-bad-encoding.json"},
+    ):
+        sync_aibom_from_s3(
+            neo4j_session,
+            "example-bucket",
+            "reports/",
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG},
+            boto3_session,
+        )
+
+    component_count = neo4j_session.run(
+        """
+        MATCH (c:AIBOMComponent)
+        RETURN count(c) AS count
+        """,
+    ).single()["count"]
+    assert component_count == 0
+    assert (
+        "Skipping unreadable AIBOM report s3://example-bucket/reports/aibom-bad-encoding.json"
+        in caplog.text
+    )
 
 
 @patch(

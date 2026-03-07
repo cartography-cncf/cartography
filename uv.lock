@@ -876,6 +876,7 @@ dependencies = [
     { name = "botocore" },
     { name = "cloudflare" },
     { name = "crowdstrike-falconpy" },
+    { name = "cryptography" },
     { name = "dnspython" },
     { name = "duo-client" },
     { name = "google-api-python-client" },
@@ -982,6 +983,7 @@ requires-dist = [
     { name = "botocore", specifier = ">=1.18.1" },
     { name = "cloudflare", specifier = ">=4.1.0,<5.0.0" },
     { name = "crowdstrike-falconpy", specifier = ">=0.5.1" },
+    { name = "cryptography" },
     { name = "dnspython", specifier = ">=1.15.0" },
     { name = "duo-client" },
     { name = "google-api-python-client", specifier = ">=1.7.8" },
@@ -1703,7 +1705,7 @@ grpc = [
 
 [[package]]
 name = "google-api-python-client"
-version = "2.190.0"
+version = "2.192.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "google-api-core" },
@@ -1712,9 +1714,9 @@ dependencies = [
     { name = "httplib2" },
     { name = "uritemplate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e4/8d/4ab3e3516b93bb50ed7814738ea61d49cba3f72f4e331dc9518ae2731e92/google_api_python_client-2.190.0.tar.gz", hash = "sha256:5357f34552e3724d80d2604c8fa146766e0a9d6bb0afada886fafed9feafeef6", size = 14111143, upload-time = "2026-02-12T00:38:03.37Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/85/d8/489052a40935e45b9b5b3d6accc14b041360c1507bdc659c2e1a19aaa3ff/google_api_python_client-2.192.0.tar.gz", hash = "sha256:d48cfa6078fadea788425481b007af33fe0ab6537b78f37da914fb6fc112eb27", size = 14209505, upload-time = "2026-03-05T15:17:01.598Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/ad/223d5f4b0b987669ffeb3eadd7e9f85ece633aa7fd3246f1e2f6238e1e05/google_api_python_client-2.190.0-py3-none-any.whl", hash = "sha256:d9b5266758f96c39b8c21d9bbfeb4e58c14dbfba3c931f7c5a8d7fdcd292dd57", size = 14682070, upload-time = "2026-02-12T00:38:00.974Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/76/ec4128f00fefb9011635ae2abc67d7dacd05c8559378f8f05f0c907c38d8/google_api_python_client-2.192.0-py3-none-any.whl", hash = "sha256:63a57d4457cd97df1d63eb89c5fda03c5a50588dcbc32c0115dd1433c08f4b62", size = 14783267, upload-time = "2026-03-05T15:16:58.804Z" },
 ]
 
 [[package]]
@@ -2714,7 +2716,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.167.3"
+version = "2.168.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -2724,9 +2726,9 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/83/a4/ea2c6b3586b01036b77582226d8b07361b1c81f29f3a19f6bab12a2b3b64/oci-2.167.3.tar.gz", hash = "sha256:e3abf32c52b6d73bcfd33423da014e0f473afc052934a010c79428d2a9b82ea2", size = 16553027, upload-time = "2026-02-24T04:10:34.254Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/e7/88b0cd7f8f402e9114d3654f653fbc0483249448918e232537818e5c31f8/oci-2.168.0.tar.gz", hash = "sha256:758ab7e5360c70ba7565c8313a893910e8be4f3643b5bdb073cb3f6adde952e0", size = 16533911, upload-time = "2026-03-03T02:21:53.503Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/30/7a/d446289337b3de0cb4e7ada0be9781135b1522ebc13e50edc03a1a952e9d/oci-2.167.3-py3-none-any.whl", hash = "sha256:b01e9bb880ba45180675614bbddce387a8108ad5eb7af0d0f0db74c28f6d7615", size = 33735965, upload-time = "2026-02-24T04:10:27.898Z" },
+    { url = "https://files.pythonhosted.org/packages/62/ae/6446b5ae5a3448cd6c095de6dc36ae17adf6fa9cb2be8a3057e11df2492f/oci-2.168.0-py3-none-any.whl", hash = "sha256:c7a97d218b8bb0bc7c7132e6c060262a6ece026dd7746c979108e5c453ba9234", size = 33814540, upload-time = "2026-03-03T02:21:46.362Z" },
 ]
 
 [[package]]
@@ -2800,14 +2802,14 @@ wheels = [
 
 [[package]]
 name = "pagerduty"
-version = "6.2.0"
+version = "6.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/62/6b/cf20ba0b925a817d2b50da9a6e20a45386b20a5fa064ca50b9dea00067dc/pagerduty-6.2.0.tar.gz", hash = "sha256:96d8b06041d5e268a64506a127af1b4dea8e74d94f6aaef3ea7d940b960a0a17", size = 44803, upload-time = "2026-02-26T00:30:16.822Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ae/df/c04b48f1a572fba4fbdd30df5ee84231adddaa60adf73915e0f7b34188de/pagerduty-6.2.1.tar.gz", hash = "sha256:ccab9cc14cb78fef9d1a33919662d620259406c5d764737af09f4b0e9a9264d7", size = 44798, upload-time = "2026-03-03T22:24:11.401Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/30/453fc61b884064b1c9ff193f68353a714902f8c0bf284b08ba17a4b2ee31/pagerduty-6.2.0-py3-none-any.whl", hash = "sha256:1085e37e793ea8c8f03d3330444614fab02704d7cde6723e6ca9d388f93fcc7f", size = 55580, upload-time = "2026-02-26T00:30:15.626Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/5f/32170240e7cb5dfd78a68b82047a598c77b810d2e3083ce8317d4f67df7a/pagerduty-6.2.1-py3-none-any.whl", hash = "sha256:38433bf2ec9bd74b2deffef2f9b0e88b897f4d9785646b776c53d88f279e948f", size = 55580, upload-time = "2026-03-03T22:24:10.115Z" },
 ]
 
 [[package]]
@@ -3888,7 +3890,7 @@ wheels = [
 
 [[package]]
 name = "sphinxcontrib-mermaid"
-version = "2.0.0"
+version = "2.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jinja2" },
@@ -3896,9 +3898,9 @@ dependencies = [
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "8.2.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/96/a5/65a5c439cc14ba80483b9891e9350f11efb80cd3bdccb222f0c738068c78/sphinxcontrib_mermaid-2.0.0.tar.gz", hash = "sha256:cf4f7d453d001132eaba5d1fdf53d42049f02e913213cf8337427483bfca26f4", size = 18194, upload-time = "2026-01-13T17:13:42.563Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2b/ae/999891de292919b66ea34f2c22fc22c9be90ab3536fbc0fca95716277351/sphinxcontrib_mermaid-2.0.1.tar.gz", hash = "sha256:a21a385a059a6cafd192aa3a586b14bf5c42721e229db67b459dc825d7f0a497", size = 19839, upload-time = "2026-03-05T14:10:41.901Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/de/bd96c69b62e967bffd02c6d89dfca9471b04e761c466725fc39746abf41d/sphinxcontrib_mermaid-2.0.0-py3-none-any.whl", hash = "sha256:59a73249bbee2c74b1a4db036f8e8899ade65982bdda6712cf22b4f4e9874bb5", size = 14055, upload-time = "2026-01-13T17:13:41.481Z" },
+    { url = "https://files.pythonhosted.org/packages/03/46/25d64bcd7821c8d6f1080e1c43d5fcdfc442a18f759a230b5ccdc891093e/sphinxcontrib_mermaid-2.0.1-py3-none-any.whl", hash = "sha256:9dca7fbe827bad5e7e2b97c4047682cfd26e3e07398cfdc96c7a8842ae7f06e7", size = 14064, upload-time = "2026-03-05T14:10:40.533Z" },
 ]
 
 [[package]]
@@ -4041,14 +4043,14 @@ wheels = [
 
 [[package]]
 name = "types-aiobotocore-ecr"
-version = "3.2.0"
+version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f1/f3/643186449cf344c57dd71e167a399689b537b7fd0dd71baefeb932cd85e6/types_aiobotocore_ecr-3.2.0.tar.gz", hash = "sha256:58068cf35d108422b0d94ba70b9f59ef9baad5c80f923b2a3492ac4f705ae88f", size = 37026, upload-time = "2026-02-25T02:25:01.455Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/d9/2afb563a9c74b2c194d9d0d469de6ff668510355f57751327dc8aa8dec40/types_aiobotocore_ecr-3.2.1.tar.gz", hash = "sha256:408c080ec002d63571e01dd166e949d261c5fcd0fd6c647666b6c8f14293913b", size = 37043, upload-time = "2026-03-05T02:23:15.954Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/91/ed2bcd958567c69252afa5b40266c5c0e4630a8a7f8940fc7b0e00cda9c5/types_aiobotocore_ecr-3.2.0-py3-none-any.whl", hash = "sha256:4561a64398970861be4fde52a8bc0b5e987ae1e6f5edce481d62583ab3d3ec88", size = 43574, upload-time = "2026-02-25T02:25:00.251Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/1e/e0b566e3145c82a9793213d15c96c52b7198c4dd9dfde6ff49fc67e6d9f1/types_aiobotocore_ecr-3.2.1-py3-none-any.whl", hash = "sha256:4fbdf14c77f6efee6e170a71e73dc5604f5820e6c457cedf09547f882b8d93c9", size = 43597, upload-time = "2026-03-05T02:23:14.736Z" },
 ]
 
 [[package]]

@@ -99,7 +99,7 @@ def sync_aibom_from_dir(
         try:
             with open(file_path, encoding="utf-8") as file_pointer:
                 document = json.load(file_pointer)
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             logger.warning("Skipping unreadable AIBOM report %s: %s", file_path, exc)
             continue
 
@@ -142,7 +142,7 @@ def sync_aibom_from_s3(
             response = s3_client.get_object(Bucket=aibom_s3_bucket, Key=object_key)
             scan_data_json = response["Body"].read().decode("utf-8")
             document = json.loads(scan_data_json)
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             logger.warning(
                 "Skipping unreadable AIBOM report s3://%s/%s: %s",
                 aibom_s3_bucket,

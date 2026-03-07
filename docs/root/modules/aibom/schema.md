@@ -26,7 +26,7 @@ Representation of one AI component detection from an AIBOM report.
 - An AIBOMComponent is detected in a manifest-list ECR image.
 
     ```
-    (AIBOMComponent)-[:DETECTED_IN]->(ECRImage::ImageManifestList)
+    (:AIBOMComponent)-[:DETECTED_IN]->(:ECRImage)
     ```
 
 - An AIBOMComponent participates in an AIBOMWorkflow.

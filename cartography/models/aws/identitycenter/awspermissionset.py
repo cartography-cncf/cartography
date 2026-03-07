@@ -114,7 +114,10 @@ class AWSRoleToSSOUserMatchLink(CartographyRelSchema):
     # Standard CartographyRelSchema fields for AWSSSOUser as target
     target_node_label: str = "AWSSSOUser"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("UserId")},
+        {
+            "id": PropertyRef("UserId"),
+            "identity_store_id": PropertyRef("IdentityStoreId"),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ALLOWED_BY"
@@ -138,7 +141,10 @@ class AWSRoleToSSOGroupMatchLink(CartographyRelSchema):
 
     target_node_label: str = "AWSSSOGroup"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("GroupId")},
+        {
+            "id": PropertyRef("GroupId"),
+            "identity_store_id": PropertyRef("IdentityStoreId"),
+        },
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ALLOWED_BY"

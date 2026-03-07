@@ -3,14 +3,23 @@ Utility functions for GCP Cloud Run intel module.
 """
 
 import logging
+from typing import Optional
 
+from google.auth.credentials import Credentials as GoogleCredentials
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
+
+from cartography.intel.gcp.clients import build_client
+from cartography.intel.gcp.clients import get_gcp_credentials
 
 logger = logging.getLogger(__name__)
 
 
-def discover_cloud_run_locations(client: Resource, project_id: str) -> set[str]:
+def discover_cloud_run_locations(
+    client: Resource,
+    project_id: str,
+    credentials: Optional[GoogleCredentials] = None,
+) -> set[str]:
     """
     Discovers GCP locations with Cloud Run resources.
 
@@ -19,12 +28,10 @@ def discover_cloud_run_locations(client: Resource, project_id: str) -> set[str]:
     Falls back to discovering via services list if the v1 API call fails.
     """
     try:
-        # Use v1 API's locations.list() to get all Cloud Run regions
-        from cartography.intel.gcp.clients import build_client
-        from cartography.intel.gcp.clients import get_gcp_credentials
-
-        credentials = get_gcp_credentials()
-        v1_client = build_client("run", "v1", credentials=credentials)
+        # Use v1 API's locations.list() to get all Cloud Run regions.
+        # Prefer caller-provided credentials to avoid accidental fallback to ADC.
+        resolved_credentials = credentials or get_gcp_credentials()
+        v1_client = build_client("run", "v1", credentials=resolved_credentials)
 
         parent = f"projects/{project_id}"
         request = v1_client.projects().locations().list(name=parent)
@@ -61,10 +68,9 @@ def discover_cloud_run_locations(client: Resource, project_id: str) -> set[str]:
                 "v1 API returned no locations, falling back to service-based discovery"
             )
 
-    except HttpError as e:
-        # Only fall back for HTTP/API errors (e.g., API not enabled, 404, etc.)
-        # Auth errors (DefaultCredentialsError, RefreshError) will propagate
-        # since the fallback would also fail with the same auth issue
+    except (HttpError, RuntimeError) as e:
+        # Fall back to service-based discovery for HTTP/API failures and when
+        # the v1 helper cannot initialize credentials in non-ADC environments.
         logger.warning(
             f"Could not discover locations via v1 API: {e}. "
             f"Falling back to discovery via services list.",

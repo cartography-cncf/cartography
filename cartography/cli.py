@@ -54,6 +54,7 @@ PANEL_AIRBYTE = "Airbyte Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
 PANEL_AIBOM = "AIBOM Options"
+PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
@@ -96,6 +97,7 @@ MODULE_PANELS = {
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
     "aibom": PANEL_AIBOM,
+    "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentinelone": PANEL_SENTINELONE,
@@ -583,6 +585,18 @@ class CLI:
             # =================================================================
             # GCP Options
             # =================================================================
+            gcp_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-requested-syncs",
+                    help=(
+                        "Comma-separated list of GCP resources to sync. "
+                        'Example: "compute,iam,storage". See cartography.intel.gcp.resources for full list.'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
             gcp_permission_relationships_file: Annotated[
                 str,
                 typer.Option(
@@ -1247,7 +1261,6 @@ class CLI:
                     hidden=PANEL_SYFT not in visible_panels,
                 ),
             ] = None,
-            # =================================================================
             # AIBOM Options
             # =================================================================
             aibom_s3_bucket: Annotated[
@@ -1275,6 +1288,27 @@ class CLI:
                     help="Local directory containing AIBOM JSON results.",
                     rich_help_panel=PANEL_AIBOM,
                     hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Ubuntu Security Options
+            # =================================================================
+            ubuntu_security_enabled: Annotated[
+                bool,
+                typer.Option(
+                    "--ubuntu-security-enabled",
+                    help="Enable Ubuntu Security CVE and Notice ingestion.",
+                    rich_help_panel=PANEL_UBUNTU,
+                    hidden=PANEL_UBUNTU not in visible_panels,
+                ),
+            ] = False,
+            ubuntu_security_api_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--ubuntu-security-api-url",
+                    help="Ubuntu Security API base URL. Defaults to https://ubuntu.com.",
+                    rich_help_panel=PANEL_UBUNTU,
+                    hidden=PANEL_UBUNTU not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1600,6 +1634,14 @@ class CLI:
                 )
 
                 parse_and_validate_aws_regions(aws_regions)
+
+            # Validate GCP options
+            if gcp_requested_syncs:
+                from cartography.intel.gcp.util import (
+                    parse_and_validate_gcp_requested_syncs,
+                )
+
+                parse_and_validate_gcp_requested_syncs(gcp_requested_syncs)
 
             # Read Azure client secret
             azure_client_secret = None
@@ -2021,6 +2063,7 @@ class CLI:
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,
+                gcp_requested_syncs=gcp_requested_syncs,
                 gcp_permission_relationships_file=gcp_permission_relationships_file,
                 jamf_base_uri=jamf_base_uri,
                 jamf_user=jamf_user,
@@ -2107,6 +2150,8 @@ class CLI:
                 slack_token=slack_token,
                 slack_teams=slack_teams,
                 slack_channels_memberships=slack_channels_memberships,
+                ubuntu_security_enabled=ubuntu_security_enabled,
+                ubuntu_security_api_url=ubuntu_security_api_url,
             )
 
             # Run the sync

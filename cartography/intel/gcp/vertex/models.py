@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Dict
 from typing import List
@@ -151,6 +152,21 @@ def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
         artifact_uri = model.get("artifactUri")
         gcs_bucket_id = _extract_bucket_name_from_gcs_uri(artifact_uri)
 
+        # Neo4j properties cannot store maps; serialize map-like fields to JSON.
+        labels = model.get("labels")
+        labels_json = json.dumps(labels) if labels else None
+
+        training_pipeline = model.get("trainingPipeline")
+        training_pipeline_value: Optional[str]
+        if isinstance(training_pipeline, (dict, list)):
+            training_pipeline_value = json.dumps(training_pipeline)
+        elif isinstance(training_pipeline, str):
+            training_pipeline_value = training_pipeline
+        elif training_pipeline is None:
+            training_pipeline_value = None
+        else:
+            training_pipeline_value = str(training_pipeline)
+
         transformed_model = {
             "id": model.get("name"),  # Full resource name
             "name": model.get("name"),
@@ -163,8 +179,8 @@ def transform_vertex_ai_models(models: List[Dict]) -> List[Dict]:
             "update_time": model.get("updateTime"),
             "artifact_uri": artifact_uri,
             "etag": model.get("etag"),
-            "labels": model.get("labels"),
-            "training_pipeline": model.get("trainingPipeline"),
+            "labels": labels_json,
+            "training_pipeline": training_pipeline_value,
             "gcs_bucket_id": gcs_bucket_id,  # For STORED_IN relationship
         }
 

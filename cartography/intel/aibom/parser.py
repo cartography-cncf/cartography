@@ -76,6 +76,18 @@ def _looks_like_local_path(value: str) -> bool:
     return value.startswith("./") or value.startswith("../")
 
 
+def _require_dict(value: Any, field_name: str) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    raise ValueError(f"AIBOM document has invalid {field_name} format")
+
+
+def _require_list(value: Any, field_name: str) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    raise ValueError(f"AIBOM document has invalid {field_name} format")
+
+
 def _parse_workflow(workflow: dict[str, Any]) -> ParsedAIBOMWorkflow | None:
     workflow_id = _as_str(workflow.get("id")) or _as_str(workflow.get("workflow_id"))
     if not workflow_id:
@@ -101,7 +113,15 @@ def _parse_component(
 
     embedded_workflows: list[ParsedAIBOMWorkflow] = []
     workflow_ids: list[str] = []
-    for workflow_obj in _as_list(component.get("workflows")):
+    workflow_objects = component.get("workflows")
+    if workflow_objects is not None:
+        workflow_objects = _require_list(
+            workflow_objects,
+            "component workflows",
+        )
+    else:
+        workflow_objects = []
+    for workflow_obj in workflow_objects:
         if not isinstance(workflow_obj, dict):
             continue
         workflow = _parse_workflow(workflow_obj)
@@ -139,7 +159,7 @@ def _parse_components(
         return components, embedded_workflows
 
     if not isinstance(components_obj, dict):
-        return components, embedded_workflows
+        raise ValueError("AIBOM document has invalid components format")
 
     for category, category_components_obj in components_obj.items():
         category_hint = _as_str(category)
@@ -167,21 +187,27 @@ def parse_aibom_document(
     scanner_name: str | None = None
     scanner_version: str | None = None
 
-    scanner_obj = _as_dict(document.get("scanner"))
-    if scanner_obj:
+    scanner_obj_raw = document.get("scanner")
+    scanner_obj: dict[str, Any] = {}
+    if scanner_obj_raw is not None:
+        scanner_obj = _require_dict(scanner_obj_raw, "scanner")
         scanner_name = _as_str(scanner_obj.get("name"))
         scanner_version = _as_str(scanner_obj.get("version"))
 
     report_obj = document.get("report")
-    if isinstance(report_obj, dict):
-        report_document = report_obj
+    if report_obj is not None:
+        report_document = _require_dict(report_obj, "report")
 
-    analysis_obj = _as_dict(report_document.get("aibom_analysis"))
-    if not analysis_obj:
+    analysis_obj_raw = report_document.get("aibom_analysis")
+    if analysis_obj_raw is None:
         raise ValueError("AIBOM document is missing aibom_analysis")
+    analysis_obj = _require_dict(analysis_obj_raw, "aibom_analysis")
 
     if scanner_version is None:
-        metadata_obj = _as_dict(analysis_obj.get("metadata"))
+        metadata_obj_raw = analysis_obj.get("metadata")
+        metadata_obj = {}
+        if metadata_obj_raw is not None:
+            metadata_obj = _require_dict(metadata_obj_raw, "metadata")
         scanner_version = _as_str(metadata_obj.get("analyzer_version"))
 
     if scanner_name is None:
@@ -195,9 +221,12 @@ def parse_aibom_document(
 
     for source_key_raw, source_payload_obj in sources_obj.items():
         source_key = str(source_key_raw)
-        source_payload = _as_dict(source_payload_obj)
+        source_payload = _require_dict(source_payload_obj, "source payload")
 
-        source_summary = _as_dict(source_payload.get("summary"))
+        source_summary_raw = source_payload.get("summary")
+        source_summary = {}
+        if source_summary_raw is not None:
+            source_summary = _require_dict(source_summary_raw, "source summary")
         source_status = _as_str(source_payload.get("status")) or _as_str(
             source_summary.get("status")
         )
@@ -215,7 +244,12 @@ def parse_aibom_document(
         )
 
         workflows_by_id: dict[str, ParsedAIBOMWorkflow] = {}
-        for workflow_obj in _as_list(source_payload.get("workflows")):
+        workflow_objects = source_payload.get("workflows")
+        if workflow_objects is not None:
+            workflow_objects = _require_list(workflow_objects, "workflows")
+        else:
+            workflow_objects = []
+        for workflow_obj in workflow_objects:
             if not isinstance(workflow_obj, dict):
                 continue
             workflow = _parse_workflow(workflow_obj)
