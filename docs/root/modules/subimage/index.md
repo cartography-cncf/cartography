@@ -1,0 +1,6 @@
+# SubImage
+
+```{toctree}
+config
+schema
+```

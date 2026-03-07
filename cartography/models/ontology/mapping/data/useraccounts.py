@@ -473,6 +473,24 @@ pagerduty_mapping = OntologyMapping(
 # inactive
 # lastactivity
 
+subimage_mapping = OntologyMapping(
+    module_name="subimage",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SubImageTeamMember",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="first_name"
+                ),
+                OntologyFieldMapping(ontology_field="lastname", node_field="last_name"),
+            ],
+        ),
+    ],
+)
+
 USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "entra": entra_mapping,
     "lastpass": lastpass_mapping,
@@ -495,4 +513,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "pagerduty": pagerduty_mapping,
+    "subimage": subimage_mapping,
 }
