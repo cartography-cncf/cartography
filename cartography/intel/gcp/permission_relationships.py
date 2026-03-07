@@ -348,6 +348,15 @@ def sync(
     # 1. GET - Fetch all GCP principals in suitable dict format
     principals = get_principals_for_project(neo4j_session, project_id)
 
+    if not principals:
+        logger.warning(
+            "No principals found for project '%s'. This means no permission relationships will be created. "
+            "Ensure that 'iam' and 'policy_bindings' have been synced for this project before running "
+            "permission_relationships. If using --gcp-requested-syncs, include 'iam' and 'policy_bindings'.",
+            project_id,
+        )
+        return
+
     # 2. PARSE - Parse relationship file
     relationship_mapping = parse_permission_relationships_file(pr_file)
 
@@ -362,6 +371,17 @@ def sync(
         permissions = rpr["permissions"]
 
         resource_dict = get_resource_ids(neo4j_session, project_id, target_label)
+
+        if not resource_dict:
+            logger.warning(
+                "No '%s' resources found for project '%s'. "
+                "Skipping '%s' relationship. Ensure the module that syncs '%s' nodes has been run.",
+                target_label,
+                project_id,
+                relationship_name,
+                target_label,
+            )
+            continue
 
         logger.info(
             f"Evaluating relationship '{relationship_name}' for resource type '{target_label}'"

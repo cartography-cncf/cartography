@@ -703,7 +703,7 @@ def start_gcp_ingestion(
         # Warn if modules are requested without their dependencies
         module_dependencies = {
             "policy_bindings": ["iam"],
-            "permission_relationships": ["iam"],
+            "permission_relationships": ["iam", "policy_bindings"],
             "bigquery_connection": ["bigquery"],
         }
         for module, dependencies in module_dependencies.items():
