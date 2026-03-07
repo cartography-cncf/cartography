@@ -1126,6 +1126,8 @@ More information on https://docs.aws.amazon.com/cli/latest/reference/ec2/describ
 
 Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging/latest/APIReference/API_Tag.html). AWS Tags can be applied to many objects.
 
+> **Ontology Mapping**: This node carries the extra labels `Tag` and `ResourceTag`. The `ResourceTag` label enables cross-cloud queries that target both AWSTag and GCPLabel nodes with a single pattern (`:ResourceTag`).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
