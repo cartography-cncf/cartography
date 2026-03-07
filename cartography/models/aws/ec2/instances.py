@@ -39,6 +39,7 @@ class EC2InstanceNodeProperties(CartographyNodeProperties):
     instancelifecycle: PropertyRef = PropertyRef("InstanceLifecycle")
     hibernationoptions: PropertyRef = PropertyRef("HibernationOption")
     eks_cluster_name: PropertyRef = PropertyRef("EksClusterName")
+    ipv6address: PropertyRef = PropertyRef("IPv6Address")
 
 
 @dataclass(frozen=True)
