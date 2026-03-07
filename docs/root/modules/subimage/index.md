@@ -5,13 +5,13 @@ config
 schema
 ```
 
-The SubImage module ingests data from [SubImage](https://subimage.io), a managed 
+The SubImage module ingests data from [SubImage](https://subimage.io), a managed
 and enriched version of Cartography built by the same team.
 
 ## What is SubImage?
 
-SubImage takes Cartography's infrastructure graph and adds a managed layer on top: 
-automated data collection, attack path analysis, vulnerability management, 
+SubImage takes Cartography's infrastructure graph and adds a managed layer on top:
+automated data collection, attack path analysis, vulnerability management,
 compliance frameworks, and a natural language chatbot to query your graph.
 
 It is fully managed, no infrastructure to maintain, no updates to handle.
@@ -26,7 +26,7 @@ This module syncs SubImage metadata into your Cartography graph:
 - **Enabled modules** (which integrations are active)
 - **Compliance frameworks** being tracked
 
-This allows you to measure the **coverage** of your current SubImage configuration 
+This allows you to measure the **coverage** of your current SubImage configuration
 directly from your graph and identify gaps in your integration setup.
 
 ## References
