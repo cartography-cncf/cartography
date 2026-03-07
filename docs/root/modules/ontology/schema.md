@@ -664,6 +664,7 @@ It generalizes concepts like AWS ECRImageLayer and OCI image layers.
 
 ```{note}
 ResourceTag is a semantic label.
+**Ontology Mapping**: `AWSTag` and `GCPLabel` nodes receive the `ResourceTag` label.
 ```
 
 A resource tag represents a key/value metadata label attached to a cloud resource. It provides a shared semantic layer for cross-cloud querying of provider-native metadata nodes (`AWSTag`, `GCPLabel`, etc.) without losing provider-specific fidelity.
@@ -681,7 +682,12 @@ Since both `AWSTag` and `GCPLabel` share the same `key` and `value` field names,
 
 Count all tags/labels across providers:
 ```cypher
-MATCH (t:ResourceTag) RETURN labels(t)[0] AS provider_type, COUNT(t) AS total
+MATCH (t:ResourceTag)
+RETURN CASE
+  WHEN 'AWSTag' IN labels(t) THEN 'AWS'
+  WHEN 'GCPLabel' IN labels(t) THEN 'GCP'
+  ELSE 'Unknown'
+END AS provider_type, COUNT(t) AS total
 ```
 
 Find all resources tagged with `env=production` across AWS and GCP:
