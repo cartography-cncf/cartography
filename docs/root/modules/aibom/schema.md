@@ -23,7 +23,7 @@ Representation of one AI component detection from an AIBOM report.
 
 #### Relationships
 
-- An AIBOMComponent is detected in the canonical ECR image for the tag.
+- An AIBOMComponent is detected in the canonical ECR image resolved for the source image URI.
 
     ```
     (:AIBOMComponent)-[:DETECTED_IN]->(:ECRImage)
@@ -53,5 +53,5 @@ Representation of a workflow/function context emitted by AIBOM and referenced by
 ### Linking constraints
 
 - AIBOM ingestion prefers `ECRImage` nodes with `type = "manifest_list"`.
-- If no manifest list exists for a tag, AIBOM ingestion falls back to the single linked `ECRImage` node with `type = "image"`.
+- If no manifest list exists for a source image URI, AIBOM ingestion falls back to a linked `ECRImage` node with `type = "image"`.
 - AIBOM detections are linked to only one `ECRImage` per source image URI.
