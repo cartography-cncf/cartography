@@ -381,6 +381,19 @@ class CLI:
                     rich_help_panel=PANEL_NEO4J,
                 ),
             ] = 3600,
+            neo4j_liveness_check_timeout: Annotated[
+                int | None,
+                typer.Option(
+                    "--neo4j-liveness-check-timeout",
+                    help=(
+                        "Time in seconds that a connection can be idle before the driver performs a liveness check "
+                        "(RESET ping) before reusing it. Helps prevent SessionExpired or ConnectionResetError on "
+                        "Aura or clustered Neo4j instances that close idle connections server-side. "
+                        "Uses the Neo4j driver default when not specified."
+                    ),
+                    rich_help_panel=PANEL_NEO4J,
+                ),
+            ] = None,
             neo4j_database: Annotated[
                 str | None,
                 typer.Option(
@@ -1993,6 +2006,7 @@ class CLI:
                 neo4j_user=neo4j_user,
                 neo4j_password=neo4j_password,
                 neo4j_max_connection_lifetime=neo4j_max_connection_lifetime,
+                neo4j_liveness_check_timeout=neo4j_liveness_check_timeout,
                 neo4j_database=neo4j_database,
                 selected_modules=selected_modules,
                 update_tag=update_tag,
