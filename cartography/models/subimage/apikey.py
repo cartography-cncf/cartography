@@ -45,6 +45,4 @@ class SubImageAPIKeySchema(CartographyNodeSchema):
     label: str = "SubImageAPIKey"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["APIKey"])
     properties: SubImageAPIKeyNodeProperties = SubImageAPIKeyNodeProperties()
-    sub_resource_relationship: SubImageAPIKeyToTenantRel = (
-        SubImageAPIKeyToTenantRel()
-    )
+    sub_resource_relationship: SubImageAPIKeyToTenantRel = SubImageAPIKeyToTenantRel()

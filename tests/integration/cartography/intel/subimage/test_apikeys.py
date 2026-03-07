@@ -44,8 +44,7 @@ def test_load_subimage_apikeys(mock_api, neo4j_session):
         ("app-key-002", "Read-Only Key"),
     }
     assert (
-        check_nodes(neo4j_session, "SubImageAPIKey", ["id", "name"])
-        == expected_nodes
+        check_nodes(neo4j_session, "SubImageAPIKey", ["id", "name"]) == expected_nodes
     )
 
     # Assert rels to tenant

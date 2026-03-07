@@ -43,10 +43,7 @@ def test_load_subimage_neo4jusers(mock_api, neo4j_session):
         ("neo4j_admin",),
         ("neo4j_reader",),
     }
-    assert (
-        check_nodes(neo4j_session, "SubImageNeo4jUser", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "SubImageNeo4jUser", ["id"]) == expected_nodes
 
     # Assert rels to tenant
     expected_rels = {

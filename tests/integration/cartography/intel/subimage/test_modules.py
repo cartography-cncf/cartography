@@ -43,10 +43,7 @@ def test_load_subimage_modules(mock_api, neo4j_session):
         ("aws",),
         ("gcp",),
     }
-    assert (
-        check_nodes(neo4j_session, "SubImageModule", ["id"])
-        == expected_nodes
-    )
+    assert check_nodes(neo4j_session, "SubImageModule", ["id"]) == expected_nodes
 
     # Assert rels to tenant
     expected_rels = {
@@ -74,5 +71,13 @@ def test_transform():
     }
     result = cartography.intel.subimage.modules.transform(raw)
     assert len(result) == 2
-    assert {"module_name": "aws", "is_configured": True, "last_sync_status": "success"} in result
-    assert {"module_name": "gcp", "is_configured": False, "last_sync_status": None} in result
+    assert {
+        "module_name": "aws",
+        "is_configured": True,
+        "last_sync_status": "success",
+    } in result
+    assert {
+        "module_name": "gcp",
+        "is_configured": False,
+        "last_sync_status": None,
+    } in result

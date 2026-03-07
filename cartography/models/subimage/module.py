@@ -41,6 +41,4 @@ class SubImageModuleToTenantRel(CartographyRelSchema):
 class SubImageModuleSchema(CartographyNodeSchema):
     label: str = "SubImageModule"
     properties: SubImageModuleNodeProperties = SubImageModuleNodeProperties()
-    sub_resource_relationship: SubImageModuleToTenantRel = (
-        SubImageModuleToTenantRel()
-    )
+    sub_resource_relationship: SubImageModuleToTenantRel = SubImageModuleToTenantRel()

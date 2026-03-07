@@ -29,7 +29,8 @@ def sync(
 @timeit
 def get(api_session: requests.Session, base_url: str) -> list[dict[str, Any]]:
     response = api_session.get(
-        f"{base_url}/api/findings/frameworks", timeout=_TIMEOUT,
+        f"{base_url}/api/findings/frameworks",
+        timeout=_TIMEOUT,
     )
     response.raise_for_status()
     return response.json().get("frameworks", [])
