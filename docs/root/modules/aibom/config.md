@@ -12,9 +12,12 @@ This module adds that missing layer by mapping AIBOM detections to container ima
 
 ### ECR-first linking behavior
 
-AIBOM detections are linked only to `ECRImage` nodes where `type = "manifest_list"`.
+AIBOM detections are linked to the most canonical `ECRImage` already in the graph:
 
-This intentionally avoids duplicating detections across platform-specific child images (`amd64`, `arm64`) for the same logical image tag.
+1. Prefer `ECRImage` nodes where `type = "manifest_list"`.
+1. Fall back to `ECRImage` nodes where `type = "image"` only when no manifest list exists for the tagged image.
+
+This intentionally avoids duplicating detections across platform-specific child images (`amd64`, `arm64`) for the same logical image tag while still supporting single-platform images.
 
 ### Supported input formats
 
@@ -73,6 +76,7 @@ cartography \
 - `aibom_reports_processed`
 - `aibom_sources_total`
 - `aibom_sources_matched_manifest_list`
+- `aibom_sources_matched_image`
 - `aibom_sources_unmatched`
 - `aibom_sources_skipped_incomplete`
 - `aibom_components_loaded_<category>`

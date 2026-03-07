@@ -1,6 +1,9 @@
 TEST_IMAGE_URI = (
     "000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository:v1.0"
 )
+TEST_SINGLE_PLATFORM_IMAGE_URI = (
+    "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository:latest"
+)
 TEST_UNMATCHED_IMAGE_URI = (
     "000000000000.dkr.ecr.us-east-1.amazonaws.com/unmatched-repository:v1.0"
 )
@@ -194,6 +197,32 @@ RAW_AIBOM_UNMATCHED_REPORT = {
                             "line_number": 100,
                             "category": "agent",
                             "instance_id": "unmatched_agent",
+                        }
+                    ]
+                },
+            }
+        },
+    }
+}
+
+RAW_AIBOM_SINGLE_PLATFORM_REPORT = {
+    "aibom_analysis": {
+        "metadata": {
+            "analyzer_version": "0.4.0",
+        },
+        "sources": {
+            TEST_SINGLE_PLATFORM_IMAGE_URI: {
+                "summary": {
+                    "status": "completed",
+                },
+                "components": {
+                    "agent": [
+                        {
+                            "name": "langchain.agents.create_agent",
+                            "file_path": "/app/app/chat/agent.py",
+                            "line_number": 250,
+                            "category": "agent",
+                            "instance_id": "single_platform_agent",
                         }
                     ]
                 },

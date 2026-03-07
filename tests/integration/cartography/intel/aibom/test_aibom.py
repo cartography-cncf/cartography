@@ -12,8 +12,10 @@ from cartography.intel.aibom.cleanup import cleanup_aibom
 from tests.data.aibom.aibom_sample import ENVELOPE_AIBOM_REPORT
 from tests.data.aibom.aibom_sample import RAW_AIBOM_INCOMPLETE_REPORT
 from tests.data.aibom.aibom_sample import RAW_AIBOM_REPORT
+from tests.data.aibom.aibom_sample import RAW_AIBOM_SINGLE_PLATFORM_REPORT
 from tests.data.aibom.aibom_sample import RAW_AIBOM_UNMATCHED_REPORT
 from tests.data.aibom.aibom_sample import TEST_IMAGE_URI
+from tests.data.aibom.aibom_sample import TEST_SINGLE_PLATFORM_IMAGE_URI
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 
@@ -103,6 +105,66 @@ def _assert_seed_is_manifest_list_shape(neo4j_session) -> None:
 
     assert "manifest_list" in manifest_types
     assert "image" in manifest_types
+
+
+def _seed_single_platform_graph(neo4j_session) -> None:
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+
+    boto3_session = MagicMock()
+    mock_client = MagicMock()
+
+    mock_list_paginator = MagicMock()
+    mock_list_paginator.paginate.return_value = [
+        {
+            "imageIds": [
+                {
+                    "imageDigest": tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST,
+                    "imageTag": "latest",
+                }
+            ]
+        }
+    ]
+
+    mock_describe_paginator = MagicMock()
+    mock_describe_paginator.paginate.return_value = [
+        {"imageDetails": [tests.data.aws.ecr.SINGLE_PLATFORM_IMAGE_DETAILS]}
+    ]
+
+    def get_paginator(name):
+        if name == "list_images":
+            return mock_list_paginator
+        if name == "describe_images":
+            return mock_describe_paginator
+        raise ValueError(f"Unexpected paginator: {name}")
+
+    mock_client.get_paginator = get_paginator
+    mock_client.batch_get_image.return_value = (
+        tests.data.aws.ecr.BATCH_GET_MANIFEST_LIST_EMPTY_RESPONSE
+    )
+    boto3_session.client.return_value = mock_client
+
+    with patch.object(
+        cartography.intel.aws.ecr,
+        "get_ecr_repositories",
+        return_value=[
+            {
+                "repositoryArn": f"arn:aws:ecr:{TEST_REGION}:{TEST_ACCOUNT_ID}:repository/single-platform-repository",
+                "registryId": TEST_ACCOUNT_ID,
+                "repositoryName": "single-platform-repository",
+                "repositoryUri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository",
+                "createdAt": datetime.datetime(2025, 1, 1, 0, 0, 1),
+            }
+        ],
+    ):
+        cartography.intel.aws.ecr.sync(
+            neo4j_session,
+            boto3_session,
+            [TEST_REGION],
+            TEST_ACCOUNT_ID,
+            TEST_UPDATE_TAG,
+            {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
+        )
 
 
 @patch(
@@ -276,7 +338,42 @@ def test_sync_aibom_skips_unmatched_sources(
         """,
     ).single()["count"]
     assert component_count == 0
-    assert "no manifest-list ECRImage match found" in caplog.text
+    assert "no ECRImage match found" in caplog.text
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data=json.dumps(RAW_AIBOM_SINGLE_PLATFORM_REPORT),
+)
+@patch(
+    "cartography.intel.aibom._get_json_files_in_dir",
+    return_value={"/tmp/aibom-single-platform.json"},
+)
+def test_sync_aibom_falls_back_to_single_platform_image(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    _seed_single_platform_graph(neo4j_session)
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    row = neo4j_session.run(
+        """
+        MATCH (c:AIBOMComponent)-[:DETECTED_IN]->(img:ECRImage)
+        RETURN c.source_image_uri AS source_image_uri, img.type AS type, img.digest AS digest
+        """,
+    ).single()
+
+    assert row["source_image_uri"] == TEST_SINGLE_PLATFORM_IMAGE_URI
+    assert row["type"] == "image"
+    assert row["digest"] == tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST
 
 
 @patch(

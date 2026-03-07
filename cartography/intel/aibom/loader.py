@@ -22,32 +22,69 @@ def _stable_hash(value: str) -> str:
 def resolve_manifest_list_digests(
     neo4j_session: Session,
     image_uris: list[str],
-) -> dict[str, list[str]]:
+) -> dict[str, list[dict[str, str]]]:
     if not image_uris:
         return {}
 
     query = """
     UNWIND $image_uris AS image_uri
-    OPTIONAL MATCH (:ECRRepositoryImage {id: image_uri})-[:IMAGE]->
-        (manifest:ECRImage {type: 'manifest_list'})
-    WITH image_uri, manifest
-    ORDER BY image_uri, manifest.digest
-    WITH image_uri, [d IN collect(manifest.digest) WHERE d IS NOT NULL] AS manifest_digests
-    RETURN image_uri, manifest_digests
+
+    // Try tag-based lookup: ECRRepositoryImage.id == image_uri
+    OPTIONAL MATCH (:ECRRepositoryImage {id: image_uri})-[:IMAGE]->(tag_img:ECRImage)
+    WHERE tag_img.type IN ['manifest_list', 'image']
+    WITH image_uri, collect(tag_img) AS tag_matches
+
+    // If tag-based found nothing, try digest-based: repo@sha256:... -> ECRImage.digest
+    CALL {
+        WITH image_uri, tag_matches
+        WITH image_uri, tag_matches WHERE size(tag_matches) = 0 AND image_uri CONTAINS '@'
+        MATCH (digest_img:ECRImage)
+        WHERE digest_img.digest = split(image_uri, '@')[1]
+          AND digest_img.type IN ['manifest_list', 'image']
+        RETURN collect(digest_img) AS digest_matches
+        UNION
+        WITH image_uri, tag_matches
+        WITH image_uri, tag_matches WHERE size(tag_matches) > 0 OR NOT image_uri CONTAINS '@'
+        RETURN [] AS digest_matches
+    }
+    WITH image_uri, tag_matches + digest_matches AS all_matches
+    UNWIND CASE WHEN size(all_matches) = 0 THEN [null] ELSE all_matches END AS img
+    WITH image_uri, img
+    ORDER BY image_uri,
+        CASE img.type
+            WHEN 'manifest_list' THEN 0
+            WHEN 'image' THEN 1
+            ELSE 2
+        END,
+        img.digest
+    WITH image_uri, [
+        target IN collect({digest: img.digest, type: img.type})
+        WHERE target.digest IS NOT NULL AND target.type IS NOT NULL
+    ] AS image_targets
+    RETURN image_uri, image_targets
     """
 
     rows = neo4j_session.run(query, image_uris=image_uris).data()
-    resolved: dict[str, list[str]] = {}
+    resolved: dict[str, list[dict[str, str]]] = {}
 
     for row in rows:
         image_uri = row.get("image_uri")
-        manifest_digests = row.get("manifest_digests")
+        image_targets = row.get("image_targets")
         if not isinstance(image_uri, str):
             continue
-        if not isinstance(manifest_digests, list):
+        if not isinstance(image_targets, list):
             resolved[image_uri] = []
             continue
-        normalized = [digest for digest in manifest_digests if isinstance(digest, str)]
+        normalized = [
+            {
+                "digest": target["digest"],
+                "type": target["type"],
+            }
+            for target in image_targets
+            if isinstance(target, dict)
+            and isinstance(target.get("digest"), str)
+            and isinstance(target.get("type"), str)
+        ]
         resolved[image_uri] = normalized
 
     return resolved
@@ -97,26 +134,31 @@ def load_aibom_sources(
         if source.image_uri is None:
             continue
 
-        manifest_digests = manifest_digest_map.get(source.image_uri, [])
-        if not manifest_digests:
+        image_targets = manifest_digest_map.get(source.image_uri, [])
+        if not image_targets:
             logger.warning(
-                "Skipping AIBOM source %s (image URI %s): no manifest-list ECRImage match found",
+                "Skipping AIBOM source %s (image URI %s): no ECRImage match found",
                 source.source_key,
                 source.image_uri,
             )
             stat_handler.incr("aibom_sources_unmatched")
             continue
 
-        if len(manifest_digests) > 1:
+        if len(image_targets) > 1:
             logger.warning(
-                "Found %d manifest-list matches for image URI %s; using first digest %s",
-                len(manifest_digests),
+                "Found %d ECRImage matches for image URI %s; using %s digest %s",
+                len(image_targets),
                 source.image_uri,
-                manifest_digests[0],
+                image_targets[0]["type"],
+                image_targets[0]["digest"],
             )
 
-        manifest_digest = manifest_digests[0]
-        stat_handler.incr("aibom_sources_matched_manifest_list")
+        manifest_digest = image_targets[0]["digest"]
+        image_type = image_targets[0]["type"]
+        if image_type == "manifest_list":
+            stat_handler.incr("aibom_sources_matched_manifest_list")
+        else:
+            stat_handler.incr("aibom_sources_matched_image")
 
         workflow_id_map: dict[str, str] = {}
         for workflow in source.workflows:

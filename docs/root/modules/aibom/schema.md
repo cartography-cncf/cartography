@@ -19,11 +19,11 @@ Representation of one AI component detection from an AIBOM report.
 | scanner_name | Scanner name |
 | scanner_version | Scanner version |
 | scan_scope | Scanner input scope |
-| **manifest_digest** | Manifest-list digest used for graph linking |
+| **manifest_digest** | Digest of the canonical ECRImage used for graph linking |
 
 #### Relationships
 
-- An AIBOMComponent is detected in a manifest-list ECR image.
+- An AIBOMComponent is detected in the canonical ECR image for the tag.
 
     ```
     (:AIBOMComponent)-[:DETECTED_IN]->(:ECRImage)
@@ -52,5 +52,6 @@ Representation of a workflow/function context emitted by AIBOM and referenced by
 
 ### Linking constraints
 
-- AIBOM ingestion links only to `ECRImage` nodes with `type = "manifest_list"`.
-- Platform-specific `ECRImage` nodes (`type = "image"`) are not link targets for AIBOM detections.
+- AIBOM ingestion prefers `ECRImage` nodes with `type = "manifest_list"`.
+- If no manifest list exists for a tag, AIBOM ingestion falls back to the single linked `ECRImage` node with `type = "image"`.
+- AIBOM detections are linked to only one `ECRImage` per source image URI.
