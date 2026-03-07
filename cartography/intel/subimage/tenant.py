@@ -13,6 +13,18 @@ _TIMEOUT = (60, 60)
 
 
 @timeit
+def sync(
+    neo4j_session: neo4j.Session,
+    api_session: requests.Session,
+    update_tag: int,
+    base_url: str,
+) -> list[dict[str, Any]]:
+    tenants = get(api_session, base_url)
+    load_tenants(neo4j_session, tenants, update_tag)
+    return tenants
+
+
+@timeit
 def get(api_session: requests.Session, base_url: str) -> list[dict[str, Any]]:
     response = api_session.get(f"{base_url}/api/tenant", timeout=_TIMEOUT)
     response.raise_for_status()

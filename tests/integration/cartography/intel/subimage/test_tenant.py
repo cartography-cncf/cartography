@@ -14,18 +14,16 @@ TEST_UPDATE_TAG = 123456789
     "get",
     return_value=tests.data.subimage.tenant.SUBIMAGE_TENANT,
 )
-def test_load_subimage_tenant(mock_api, neo4j_session):
+def test_sync_subimage_tenant(mock_api, neo4j_session):
     # Arrange
     api_session = requests.Session()
 
     # Act
-    tenants = cartography.intel.subimage.tenant.get(
-        api_session, "https://app.example.com"
-    )
-    cartography.intel.subimage.tenant.load_tenants(
+    cartography.intel.subimage.tenant.sync(
         neo4j_session,
-        tenants,
+        api_session,
         TEST_UPDATE_TAG,
+        "https://app.example.com",
     )
 
     # Assert

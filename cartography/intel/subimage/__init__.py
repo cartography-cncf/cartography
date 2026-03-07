@@ -39,11 +39,11 @@ def start_subimage_ingestion(neo4j_session: neo4j.Session, config: Config) -> No
     api_session = create_api_session(access_token)
     base_url = config.subimage_tenant_url.rstrip("/")
 
-    tenants = cartography.intel.subimage.tenant.get(api_session, base_url)
-    cartography.intel.subimage.tenant.load_tenants(
+    tenants = cartography.intel.subimage.tenant.sync(
         neo4j_session,
-        tenants,
+        api_session,
         config.update_tag,
+        base_url,
     )
 
     for tenant_data in tenants:
