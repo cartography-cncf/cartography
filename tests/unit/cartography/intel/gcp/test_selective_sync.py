@@ -28,6 +28,7 @@ def test_selective_sync_warns_permission_relationships_missing_deps(
         cartography.intel.gcp.start_gcp_ingestion(
             MagicMock(),
             config,
+            credentials=MagicMock(),
         )
 
     warning_records = [
