@@ -38,6 +38,6 @@ class AWSTagSchema(CartographyNodeSchema):
     """
 
     label: str = "AWSTag"
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tag"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["Tag", "ResourceTag"])
     properties: AWSTagNodeProperties = AWSTagNodeProperties()
     sub_resource_relationship: None = None
