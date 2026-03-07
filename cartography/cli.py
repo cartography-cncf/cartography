@@ -585,6 +585,18 @@ class CLI:
             # =================================================================
             # GCP Options
             # =================================================================
+            gcp_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-requested-syncs",
+                    help=(
+                        "Comma-separated list of GCP resources to sync. "
+                        'Example: "compute,iam,storage". See cartography.intel.gcp.resources for full list.'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
             gcp_permission_relationships_file: Annotated[
                 str,
                 typer.Option(
@@ -1615,6 +1627,14 @@ class CLI:
 
                 parse_and_validate_aws_regions(aws_regions)
 
+            # Validate GCP options
+            if gcp_requested_syncs:
+                from cartography.intel.gcp.util import (
+                    parse_and_validate_gcp_requested_syncs,
+                )
+
+                parse_and_validate_gcp_requested_syncs(gcp_requested_syncs)
+
             # Read Azure client secret
             azure_client_secret = None
             if azure_sp_auth and azure_client_secret_env_var:
@@ -2035,6 +2055,7 @@ class CLI:
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,
+                gcp_requested_syncs=gcp_requested_syncs,
                 gcp_permission_relationships_file=gcp_permission_relationships_file,
                 jamf_base_uri=jamf_base_uri,
                 jamf_user=jamf_user,
