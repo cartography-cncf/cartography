@@ -1,0 +1,6 @@
+# AIBOM
+
+```{toctree}
+config
+schema
+```
