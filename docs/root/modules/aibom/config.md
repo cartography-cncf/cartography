@@ -19,22 +19,9 @@ AIBOM detections are linked to the most canonical `ECRImage` already in the grap
 
 This intentionally avoids duplicating detections across platform-specific child images (`amd64`, `arm64`) for the same logical image tag while still supporting single-platform images.
 
-### Supported input formats
+### Input format
 
-Cartography accepts two JSON layouts. Both must contain the native `aibom_analysis` object produced by the scanner.
-
-#### 1. Raw AIBOM output
-
-Pass the scanner output as-is. Cartography reads `aibom_analysis.sources` and uses each source key as the image URI. This works when the scanner was invoked with a registry reference (e.g. `000000000000.dkr.ecr.us-east-1.amazonaws.com/repo:tag`) so the source key is already a valid image URI.
-
-If a source key looks like a local filesystem path (absolute path, `./`, `../`, or `file://`), that source is skipped because it cannot be resolved to an ECR image.
-
-#### 2. Envelope format (recommended)
-
-Wrap the scanner output in a JSON envelope that explicitly provides the image URI. This is the recommended approach because:
-
-- The scanner is often invoked against a local directory or extracted container filesystem, producing source keys that are local paths rather than registry references.
-- The envelope lets your CI pipeline attach the correct registry URI after scanning.
+Each JSON file must be an envelope wrapping the native scanner output with the ECR image URI. The scanner is typically invoked against a local directory or extracted container filesystem, so source keys inside the report are local paths. The envelope lets your CI pipeline attach the correct registry URI after scanning.
 
 ```json
 {
@@ -54,17 +41,11 @@ Wrap the scanner output in a JSON envelope that explicitly provides the image UR
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `image_uri` | Yes | ECR image URI (tag or digest). Overrides source keys from the scanner output. |
+| `image_uri` | Yes | ECR image URI (tag or digest). Used to link detections to the graph. |
 | `report` | Yes | Wrapper object containing the native `aibom_analysis`. |
 | `scan_scope` | No | Path that was scanned inside the container (e.g. `/app`). Stored on components for context. |
 | `scanner.name` | No | Scanner name. Defaults to `cisco-aibom`. |
 | `scanner.version` | No | Scanner version. Falls back to `aibom_analysis.metadata.analyzer_version`. |
-
-#### Resolution rules
-
-1. If `image_uri` is present, it is used for all sources in the report.
-1. Otherwise each `aibom_analysis.sources` key is used as the image URI.
-1. Sources with local-path keys and no envelope `image_uri` are skipped.
 
 ### Prerequisite
 

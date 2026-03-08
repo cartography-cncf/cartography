@@ -9,11 +9,10 @@ import tests.data.aws.ecr
 from cartography.intel.aibom import sync_aibom_from_dir
 from cartography.intel.aibom import sync_aibom_from_s3
 from cartography.intel.aibom.cleanup import cleanup_aibom
-from tests.data.aibom.aibom_sample import ENVELOPE_AIBOM_REPORT
-from tests.data.aibom.aibom_sample import RAW_AIBOM_INCOMPLETE_REPORT
-from tests.data.aibom.aibom_sample import RAW_AIBOM_REPORT
-from tests.data.aibom.aibom_sample import RAW_AIBOM_SINGLE_PLATFORM_REPORT
-from tests.data.aibom.aibom_sample import RAW_AIBOM_UNMATCHED_REPORT
+from tests.data.aibom.aibom_sample import AIBOM_INCOMPLETE_REPORT
+from tests.data.aibom.aibom_sample import AIBOM_REPORT
+from tests.data.aibom.aibom_sample import AIBOM_SINGLE_PLATFORM_REPORT
+from tests.data.aibom.aibom_sample import AIBOM_UNMATCHED_REPORT
 from tests.data.aibom.aibom_sample import TEST_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_SINGLE_PLATFORM_IMAGE_URI
 from tests.integration.cartography.intel.aws.common import create_test_account
@@ -170,13 +169,13 @@ def _seed_single_platform_graph(neo4j_session) -> None:
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(RAW_AIBOM_REPORT),
+    read_data=json.dumps(AIBOM_REPORT),
 )
 @patch(
     "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-raw.json"},
+    return_value={"/tmp/aibom.json"},
 )
-def test_sync_aibom_from_dir_raw(
+def test_sync_aibom_from_dir(
     mock_json_files,
     mock_file_open,
     neo4j_session,
@@ -235,30 +234,7 @@ def test_sync_aibom_from_dir_raw(
     ).single()["count"]
     assert detected_platform_images == 0
 
-
-@patch(
-    "builtins.open",
-    new_callable=mock_open,
-    read_data=json.dumps(ENVELOPE_AIBOM_REPORT),
-)
-@patch(
-    "cartography.intel.aibom._get_json_files_in_dir",
-    return_value={"/tmp/aibom-envelope.json"},
-)
-def test_sync_aibom_from_dir_envelope(
-    mock_json_files,
-    mock_file_open,
-    neo4j_session,
-):
-    _seed_manifest_list_graph(neo4j_session)
-
-    sync_aibom_from_dir(
-        neo4j_session,
-        "/tmp",
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG},
-    )
-
+    # Verify envelope fields are stored on components
     row = neo4j_session.run(
         """
         MATCH (c:AIBOMComponent)
@@ -266,6 +242,7 @@ def test_sync_aibom_from_dir_envelope(
                c.scanner_name AS scanner_name,
                c.scanner_version AS scanner_version,
                c.scan_scope AS scan_scope
+        LIMIT 1
         """,
     ).single()
 
@@ -278,7 +255,7 @@ def test_sync_aibom_from_dir_envelope(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(RAW_AIBOM_INCOMPLETE_REPORT),
+    read_data=json.dumps(AIBOM_INCOMPLETE_REPORT),
 )
 @patch(
     "cartography.intel.aibom._get_json_files_in_dir",
@@ -310,7 +287,7 @@ def test_sync_aibom_skips_incomplete_sources(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(RAW_AIBOM_UNMATCHED_REPORT),
+    read_data=json.dumps(AIBOM_UNMATCHED_REPORT),
 )
 @patch(
     "cartography.intel.aibom._get_json_files_in_dir",
@@ -344,7 +321,7 @@ def test_sync_aibom_skips_unmatched_sources(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(RAW_AIBOM_SINGLE_PLATFORM_REPORT),
+    read_data=json.dumps(AIBOM_SINGLE_PLATFORM_REPORT),
 )
 @patch(
     "cartography.intel.aibom._get_json_files_in_dir",
@@ -453,7 +430,7 @@ def test_sync_aibom_skips_s3_unicode_decode_errors(
 @patch(
     "builtins.open",
     new_callable=mock_open,
-    read_data=json.dumps(RAW_AIBOM_REPORT),
+    read_data=json.dumps(AIBOM_REPORT),
 )
 @patch(
     "cartography.intel.aibom._get_json_files_in_dir",

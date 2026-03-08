@@ -1,5 +1,4 @@
 import logging
-import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -29,12 +28,11 @@ class ParsedAIBOMComponent:
 @dataclass(frozen=True)
 class ParsedAIBOMSource:
     source_key: str
-    image_uri: str | None
+    image_uri: str
     source_status: str | None
     scanner_name: str | None
     scanner_version: str | None
     scan_scope: str | None
-    skip_reason: str | None
     components: list[ParsedAIBOMComponent]
     workflows: list[ParsedAIBOMWorkflow]
 
@@ -46,14 +44,6 @@ def _as_str(value: Any) -> str | None:
         if cleaned:
             return cleaned
     return None
-
-
-def _looks_like_local_path(value: str) -> bool:
-    if value.startswith("file://"):
-        return True
-    if os.path.isabs(value):
-        return True
-    return value.startswith("./") or value.startswith("../")
 
 
 def _parse_workflow(workflow: dict[str, Any]) -> ParsedAIBOMWorkflow | None:
@@ -160,8 +150,10 @@ def _parse_components(
 def parse_aibom_document(
     document: dict[str, Any],
 ) -> list[ParsedAIBOMSource]:
-    report_document = document
-    image_uri_override = _as_str(document.get("image_uri"))
+    image_uri = _as_str(document.get("image_uri"))
+    if not image_uri:
+        raise ValueError("AIBOM envelope is missing required image_uri field")
+
     scan_scope = _as_str(document.get("scan_scope"))
 
     scanner_name: str | None = None
@@ -173,12 +165,12 @@ def parse_aibom_document(
         scanner_version = _as_str(scanner_obj.get("version"))
 
     report_obj = document.get("report")
-    if isinstance(report_obj, dict):
-        report_document = report_obj
+    if not isinstance(report_obj, dict):
+        raise ValueError("AIBOM envelope is missing required report field")
 
-    analysis_obj = report_document.get("aibom_analysis")
+    analysis_obj = report_obj.get("aibom_analysis")
     if not isinstance(analysis_obj, dict):
-        raise ValueError("AIBOM document is missing or has invalid aibom_analysis")
+        raise ValueError("AIBOM envelope is missing or has invalid aibom_analysis")
 
     if scanner_version is None:
         metadata_obj = analysis_obj.get("metadata")
@@ -211,14 +203,6 @@ def parse_aibom_document(
             source_summary.get("status"),
         )
 
-        image_uri = image_uri_override
-        skip_reason: str | None = None
-        if image_uri is None:
-            if _looks_like_local_path(source_key):
-                skip_reason = "source_key_is_local_path"
-            else:
-                image_uri = source_key
-
         components, embedded_workflows = _parse_components(
             source_payload_obj.get("components"),
         )
@@ -245,7 +229,6 @@ def parse_aibom_document(
                 scanner_name=scanner_name,
                 scanner_version=scanner_version,
                 scan_scope=scan_scope,
-                skip_reason=skip_reason,
                 components=components,
                 workflows=list(workflows_by_id.values()),
             ),

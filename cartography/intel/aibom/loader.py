@@ -90,15 +90,6 @@ def load_aibom_sources(
             )
             continue
 
-        if source.image_uri is None:
-            logger.warning(
-                "Skipping AIBOM source %s because no image URI was resolved (%s)",
-                source.source_key,
-                source.skip_reason,
-            )
-            stat_handler.incr("aibom_sources_unmatched")
-            continue
-
         # Transform: resolve image URI to an ECRImage digest.
         # For digest-based URIs (repo@sha256:...) this is pure string
         # splitting. For tag-based URIs it falls back to a graph lookup.
