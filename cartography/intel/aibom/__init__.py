@@ -9,7 +9,7 @@ from neo4j import Session
 
 from cartography.config import Config
 from cartography.intel.aibom.cleanup import cleanup_aibom
-from cartography.intel.aibom.loader import load_aibom_sources
+from cartography.intel.aibom.loader import load_aibom_document
 from cartography.intel.aibom.parser import parse_aibom_document
 from cartography.stats import get_stats_client
 from cartography.util import timeit
@@ -108,17 +108,17 @@ def _ingest_aibom_reports(
     processed_reports = 0
     for source, document in documents:
         try:
-            parsed_sources = parse_aibom_document(document)
+            parsed_document = parse_aibom_document(document, report_location=source)
         except ValueError as exc:
             logger.warning("Skipping invalid AIBOM report %s: %s", source, exc)
             continue
 
-        if not parsed_sources:
+        if not parsed_document.sources:
             logger.info("AIBOM report %s had no sources to ingest", source)
             continue
 
         stat_handler.incr("aibom_reports_processed")
-        load_aibom_sources(neo4j_session, parsed_sources, update_tag)
+        load_aibom_document(neo4j_session, parsed_document, update_tag)
         processed_reports += 1
 
     # Only run cleanup when at least one report was ingested. Because AIBOM

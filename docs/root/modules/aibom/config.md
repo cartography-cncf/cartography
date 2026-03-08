@@ -1,32 +1,27 @@
 ## AIBOM Configuration
 
-The AIBOM module ingests pre-generated [Cisco AI BOM](https://github.com/cisco-ai-defense/aibom) JSON reports and catalogs AI components discovered in container codebases.
+The AIBOM module ingests pre-generated [Cisco AI BOM](https://github.com/cisco-ai-defense/aibom) JSON reports and maps them onto container images already present in Cartography.
 
 Cartography does not run the scanner in this module. It only ingests JSON artifacts from local disk or S3.
 
 ### Why this module exists
 
-Container vulnerability inventory tells you what software is present. It does not tell you whether an image contains AI agent logic, tool usage, or related AI workflows.
+Traditional image inventory tells you what packages and vulnerabilities exist in a container. It does not tell you whether that container includes AI agents, models, prompts, tools, memory layers, or other agentic building blocks.
 
-This module adds that missing layer by mapping AIBOM detections to container images already present in the graph.
+This module adds that missing inventory layer and ties it to the production graph through `ECRImage`, so you can ask questions such as:
 
-### ECR-first linking behavior
-
-AIBOM detections are linked to the most canonical `ECRImage` already in the graph:
-
-1. Prefer `ECRImage` nodes where `type = "manifest_list"`.
-1. Fall back to `ECRImage` nodes where `type = "image"` only when no manifest list exists for the tagged image.
-
-This intentionally avoids duplicating detections across platform-specific child images (`amd64`, `arm64`) for the same logical image tag while still supporting single-platform images.
+- Which production images contain AI agents?
+- Which agents use tools, prompts, models, or memory?
+- Which scans failed or did not match a known image in the graph?
 
 ### Input format
 
-Each JSON file must be an envelope wrapping the native scanner output with the ECR image URI. The scanner is typically invoked against a local directory or extracted container filesystem, so source keys inside the report are local paths. The envelope lets your CI pipeline attach the correct registry URI after scanning.
+Each JSON file must be an envelope wrapping the native scanner output with the image URI that should be matched to the graph.
 
 ```json
 {
   "image_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:v1.0",
-  "scan_scope": "/app/app",
+  "scan_scope": "/app",
   "scanner": {
     "name": "cisco-aibom",
     "version": "0.4.0"
@@ -41,11 +36,38 @@ Each JSON file must be an envelope wrapping the native scanner output with the E
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `image_uri` | Yes | ECR image URI (tag or digest). Used to link detections to the graph. |
+| `image_uri` | Yes | Image URI to map into the graph. Tag-based and digest-based URIs are both supported. |
 | `report` | Yes | Wrapper object containing the native `aibom_analysis`. |
-| `scan_scope` | No | Path that was scanned inside the container (e.g. `/app`). Stored on components for context. |
+| `scan_scope` | No | Path or scope scanned inside the image or extracted filesystem. Stored on `AIBOMScan`. |
 | `scanner.name` | No | Scanner name. Defaults to `cisco-aibom`. |
 | `scanner.version` | No | Scanner version. Falls back to `aibom_analysis.metadata.analyzer_version`. |
+
+The native source payload may optionally include:
+
+- `workflows`
+- `relationships`
+- `source_kind`
+- category-specific component fields such as `model_name`, `framework`, `label`, and `metadata`
+
+The module preserves those optional fields when present.
+
+### ECR-first linking behavior
+
+AIBOM resolves each report to the most canonical `ECRImage` already in the graph:
+
+1. Prefer `ECRImage` nodes where `type = "manifest_list"`.
+1. Fall back to `ECRImage` nodes where `type = "image"` only when no manifest list exists for the tagged image.
+
+This avoids duplicating detections across platform-specific child images while still supporting single-platform images.
+
+### Provenance behavior
+
+Cartography now preserves scan and source provenance even when component inventory is not loaded:
+
+- If a source has a non-`completed` status, Cartography loads `AIBOMScan` and `AIBOMSource` but skips components, workflows, and relationships.
+- If `image_uri` does not resolve to an `ECRImage`, Cartography still loads `AIBOMScan` and `AIBOMSource` with `image_matched = false` for troubleshooting.
+
+This makes stale coverage, failed scans, and mismatched image URIs visible in the graph instead of silently disappearing.
 
 ### Prerequisite
 
@@ -53,7 +75,7 @@ Run ECR ingestion before AIBOM ingestion so `ECRRepositoryImage` and `ECRImage` 
 
 ### Results layout
 
-The AIBOM module ingests every `*.json` file under the configured directory or S3 prefix as part of a single snapshot. Keep only the latest scan per image in the results location. If older reports for the same image are also present, their detections will be included in the graph and cleanup will not remove them because they share the same `update_tag`.
+The AIBOM module ingests every `*.json` file under the configured directory or S3 prefix as part of a single snapshot. Keep only the latest scan per image in the results location. If older reports for the same image are also present, their scans and detections will all be loaded in that snapshot because they share the same `update_tag`.
 
 ### Run with local files
 
@@ -82,3 +104,4 @@ cartography \
 - `aibom_sources_unmatched`
 - `aibom_sources_skipped_incomplete`
 - `aibom_components_loaded_<category>`
+- `aibom_relationships_loaded_<relationship_type>`

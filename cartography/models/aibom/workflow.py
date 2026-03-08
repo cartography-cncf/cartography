@@ -24,28 +24,20 @@ class AIBOMWorkflowNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AIBOMWorkflowToComponentRelProperties(CartographyRelProperties):
+class AIBOMWorkflowToSourceRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AIBOMWorkflowToComponentRel(CartographyRelSchema):
-    """Reverse side of AIBOMComponent -[:IN_WORKFLOW]-> AIBOMWorkflow.
-
-    Declared here so that GraphJob can generate cleanup queries for
-    AIBOMWorkflow nodes (without an other_relationships entry, the
-    cleanup builder returns an empty job for unscoped schemas with
-    no relationships).
-    """
-
-    target_node_label: str = "AIBOMComponent"
+class AIBOMWorkflowToSourceRel(CartographyRelSchema):
+    target_node_label: str = "AIBOMSource"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
+        {"id": PropertyRef("source_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "IN_WORKFLOW"
-    properties: AIBOMWorkflowToComponentRelProperties = (
-        AIBOMWorkflowToComponentRelProperties()
+    rel_label: str = "HAS_WORKFLOW"
+    properties: AIBOMWorkflowToSourceRelProperties = (
+        AIBOMWorkflowToSourceRelProperties()
     )
 
 
@@ -56,5 +48,5 @@ class AIBOMWorkflowSchema(CartographyNodeSchema):
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels([])
     properties: AIBOMWorkflowNodeProperties = AIBOMWorkflowNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
-        [AIBOMWorkflowToComponentRel()],
+        [AIBOMWorkflowToSourceRel()],
     )

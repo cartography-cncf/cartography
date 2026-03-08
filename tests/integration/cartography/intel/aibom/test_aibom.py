@@ -15,6 +15,7 @@ from tests.data.aibom.aibom_sample import AIBOM_SINGLE_PLATFORM_REPORT
 from tests.data.aibom.aibom_sample import AIBOM_UNMATCHED_REPORT
 from tests.data.aibom.aibom_sample import TEST_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_SINGLE_PLATFORM_IMAGE_URI
+from tests.data.aibom.aibom_sample import TEST_SOURCE_KEY
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -31,7 +32,6 @@ def _seed_manifest_list_graph(neo4j_session) -> None:
     boto3_session = MagicMock()
     mock_client = MagicMock()
 
-    # list_images -> one tagged manifest-list image
     mock_list_paginator = MagicMock()
     mock_list_paginator.paginate.return_value = [
         {
@@ -44,7 +44,6 @@ def _seed_manifest_list_graph(neo4j_session) -> None:
         }
     ]
 
-    # describe_images -> manifest-list metadata
     mock_describe_paginator = MagicMock()
     mock_describe_paginator.paginate.return_value = [
         {"imageDetails": [tests.data.aws.ecr.MULTI_ARCH_IMAGE_DETAILS]}
@@ -84,27 +83,6 @@ def _seed_manifest_list_graph(neo4j_session) -> None:
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
         )
-
-
-def _assert_seed_is_manifest_list_shape(neo4j_session) -> None:
-    image_uri = neo4j_session.run(
-        """
-        MATCH (ri:ECRRepositoryImage)
-        RETURN ri.id AS id
-        """
-    ).single()["id"]
-    assert image_uri == TEST_IMAGE_URI
-
-    manifest_types = neo4j_session.run(
-        """
-        MATCH (:ECRRepositoryImage {id: $image_uri})-[:IMAGE]->(img:ECRImage)
-        RETURN collect(DISTINCT img.type) AS types
-        """,
-        image_uri=TEST_IMAGE_URI,
-    ).single()["types"]
-
-    assert "manifest_list" in manifest_types
-    assert "image" in manifest_types
 
 
 def _seed_single_platform_graph(neo4j_session) -> None:
@@ -182,7 +160,6 @@ def test_sync_aibom_from_dir(
     neo4j_session,
 ):
     _seed_manifest_list_graph(neo4j_session)
-    _assert_seed_is_manifest_list_shape(neo4j_session)
 
     sync_aibom_from_dir(
         neo4j_session,
@@ -191,20 +168,96 @@ def test_sync_aibom_from_dir(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    # Verify components by category
+    assert check_nodes(
+        neo4j_session,
+        "AIBOMScan",
+        [
+            "image_uri",
+            "scanner_name",
+            "scanner_version",
+            "analysis_status",
+            "image_matched",
+        ],
+    ) == {
+        (TEST_IMAGE_URI, "cisco-aibom", "0.4.0", "completed", True),
+    }
+
+    assert check_nodes(
+        neo4j_session,
+        "AIBOMSource",
+        [
+            "source_key",
+            "source_status",
+            "source_kind",
+            "total_components",
+            "total_relationships",
+        ],
+    ) == {
+        (TEST_SOURCE_KEY, "completed", "container_image", 6, 4),
+    }
+
     assert check_nodes(neo4j_session, "AIBOMComponent", ["category"]) == {
         ("agent",),
+        ("memory",),
+        ("model",),
         ("other",),
+        ("prompt",),
         ("tool",),
     }
 
-    # Verify workflows
     assert check_nodes(neo4j_session, "AIBOMWorkflow", ["workflow_id"]) == {
         ("workflow-agent",),
         ("workflow-tool",),
     }
 
-    # Verify IN_WORKFLOW relationships
+    assert check_nodes(neo4j_session, "AIBOMRelationship", ["relationship_type"]) == {
+        ("USES_LLM",),
+        ("USES_MEMORY",),
+        ("USES_PROMPT",),
+        ("USES_TOOL",),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AIBOMScan",
+        "image_uri",
+        "ECRImage",
+        "type",
+        "SCANNED_IMAGE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_IMAGE_URI, "manifest_list"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AIBOMScan",
+        "image_uri",
+        "AIBOMSource",
+        "source_key",
+        "HAS_SOURCE",
+        rel_direction_right=True,
+    ) == {
+        (TEST_IMAGE_URI, TEST_SOURCE_KEY),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AIBOMSource",
+        "source_key",
+        "AIBOMComponent",
+        "category",
+        "HAS_COMPONENT",
+        rel_direction_right=True,
+    ) == {
+        (TEST_SOURCE_KEY, "agent"),
+        (TEST_SOURCE_KEY, "memory"),
+        (TEST_SOURCE_KEY, "model"),
+        (TEST_SOURCE_KEY, "other"),
+        (TEST_SOURCE_KEY, "prompt"),
+        (TEST_SOURCE_KEY, "tool"),
+    }
+
     assert check_rels(
         neo4j_session,
         "AIBOMComponent",
@@ -214,34 +267,60 @@ def test_sync_aibom_from_dir(
         "IN_WORKFLOW",
         rel_direction_right=True,
     ) == {
-        ("langchain.agents.create_agent", "workflow-agent"),
-        ("typing.get_args", "workflow-tool"),
+        ("ConversationBufferMemory", "workflow-agent"),
+        ("fetch_customer_profile", "workflow-tool"),
+        ("openai:gpt-4.1-mini", "workflow-agent"),
+        ("pydantic_ai.Agent", "workflow-agent"),
+        ("system_prompt.customer_support", "workflow-agent"),
     }
 
-    # Verify DETECTED_IN relationships target manifest_list only
     assert check_rels(
         neo4j_session,
         "AIBOMComponent",
-        "category",
-        "ECRImage",
-        "type",
-        "DETECTED_IN",
+        "name",
+        "AIBOMRelationship",
+        "relationship_type",
+        "FROM_COMPONENT",
         rel_direction_right=True,
     ) == {
-        ("agent", "manifest_list"),
-        ("other", "manifest_list"),
-        ("tool", "manifest_list"),
+        ("pydantic_ai.Agent", "USES_LLM"),
+        ("pydantic_ai.Agent", "USES_MEMORY"),
+        ("pydantic_ai.Agent", "USES_PROMPT"),
+        ("pydantic_ai.Agent", "USES_TOOL"),
     }
 
-    # Verify envelope fields are stored on components
+    assert check_rels(
+        neo4j_session,
+        "AIBOMRelationship",
+        "relationship_type",
+        "AIBOMComponent",
+        "name",
+        "TO_COMPONENT",
+        rel_direction_right=True,
+    ) == {
+        ("USES_LLM", "openai:gpt-4.1-mini"),
+        ("USES_MEMORY", "ConversationBufferMemory"),
+        ("USES_PROMPT", "system_prompt.customer_support"),
+        ("USES_TOOL", "fetch_customer_profile"),
+    }
+
     assert check_nodes(
         neo4j_session,
         "AIBOMComponent",
-        ["source_image_uri", "scanner_name", "scanner_version", "scan_scope"],
-    ) == {
-        (TEST_IMAGE_URI, "cisco-aibom", "0.4.0", "/app/app"),
-        (TEST_IMAGE_URI, "cisco-aibom", "0.4.0", "/app/app"),
-        (TEST_IMAGE_URI, "cisco-aibom", "0.4.0", "/app/app"),
+        ["name", "framework", "label", "metadata_json"],
+    ) >= {
+        (
+            "pydantic_ai.Agent",
+            "pydantic_ai",
+            "customer_assistant",
+            json.dumps({"approval": "human", "mcp": True}, sort_keys=True),
+        ),
+        (
+            "fetch_customer_profile",
+            "internal_mcp",
+            "customer_lookup_tool",
+            json.dumps({"approval": "required", "transport": "mcp"}, sort_keys=True),
+        ),
     }
 
 
@@ -254,7 +333,7 @@ def test_sync_aibom_from_dir(
     "cartography.intel.aibom._get_json_files_in_dir",
     return_value={"/tmp/aibom-incomplete.json"},
 )
-def test_sync_aibom_skips_incomplete_sources(
+def test_sync_aibom_keeps_scan_provenance_for_incomplete_sources(
     mock_json_files,
     mock_file_open,
     neo4j_session,
@@ -268,6 +347,20 @@ def test_sync_aibom_skips_incomplete_sources(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
+    assert check_nodes(
+        neo4j_session,
+        "AIBOMScan",
+        ["image_uri", "image_matched"],
+    ) == {
+        (TEST_IMAGE_URI, True),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "AIBOMSource",
+        ["source_key", "source_status"],
+    ) == {
+        (TEST_SOURCE_KEY, "failed"),
+    }
     assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == set()
 
 
@@ -280,7 +373,7 @@ def test_sync_aibom_skips_incomplete_sources(
     "cartography.intel.aibom._get_json_files_in_dir",
     return_value={"/tmp/aibom-unmatched.json"},
 )
-def test_sync_aibom_skips_unmatched_sources(
+def test_sync_aibom_keeps_scan_provenance_for_unmatched_sources(
     mock_json_files,
     mock_file_open,
     neo4j_session,
@@ -295,6 +388,23 @@ def test_sync_aibom_skips_unmatched_sources(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
+    assert check_nodes(
+        neo4j_session,
+        "AIBOMScan",
+        ["image_uri", "image_matched"],
+    ) == {
+        (
+            "000000000000.dkr.ecr.us-east-1.amazonaws.com/unmatched-repository:v1.0",
+            False,
+        ),
+    }
+    assert check_nodes(
+        neo4j_session,
+        "AIBOMSource",
+        ["source_key", "source_status"],
+    ) == {
+        (TEST_SOURCE_KEY, "completed"),
+    }
     assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == set()
     assert "could not resolve digest" in caplog.text
 
@@ -324,11 +434,11 @@ def test_sync_aibom_falls_back_to_single_platform_image(
 
     assert check_rels(
         neo4j_session,
-        "AIBOMComponent",
-        "source_image_uri",
+        "AIBOMScan",
+        "image_uri",
         "ECRImage",
         "type",
-        "DETECTED_IN",
+        "SCANNED_IMAGE",
         rel_direction_right=True,
     ) == {
         (TEST_SINGLE_PLATFORM_IMAGE_URI, "image"),
@@ -358,7 +468,7 @@ def test_sync_aibom_skips_local_unicode_decode_errors(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AIBOMScan", ["id"]) == set()
     assert (
         "Skipping unreadable AIBOM report /tmp/aibom-bad-encoding.json" in caplog.text
     )
@@ -390,7 +500,7 @@ def test_sync_aibom_skips_s3_unicode_decode_errors(
             boto3_session,
         )
 
-    assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AIBOMScan", ["id"]) == set()
     assert (
         "Skipping unreadable AIBOM report s3://example-bucket/reports/aibom-bad-encoding.json"
         in caplog.text
@@ -422,6 +532,16 @@ def test_cleanup_aibom_removes_stale_nodes(
 
     neo4j_session.run(
         """
+        CREATE (:AIBOMScan {
+            id: 'stale-scan',
+            lastupdated: 0,
+            _module_name: 'cartography:aibom'
+        })
+        CREATE (:AIBOMSource {
+            id: 'stale-source',
+            lastupdated: 0,
+            _module_name: 'cartography:aibom'
+        })
         CREATE (:AIBOMComponent {
             id: 'stale-component',
             lastupdated: 0,
@@ -432,23 +552,34 @@ def test_cleanup_aibom_removes_stale_nodes(
             lastupdated: 0,
             _module_name: 'cartography:aibom'
         })
+        CREATE (:AIBOMRelationship {
+            id: 'stale-relationship',
+            lastupdated: 0,
+            _module_name: 'cartography:aibom'
+        })
         """
     )
 
     cleanup_aibom(neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
-    # Stale nodes should be removed
-    assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == {
-        row
-        for row in check_nodes(neo4j_session, "AIBOMComponent", ["id"])
-        if row[0] != "stale-component"
+    assert "stale-scan" not in {
+        row[0] for row in check_nodes(neo4j_session, "AIBOMScan", ["id"])
     }
-    assert check_nodes(neo4j_session, "AIBOMWorkflow", ["id"]) == {
-        row
-        for row in check_nodes(neo4j_session, "AIBOMWorkflow", ["id"])
-        if row[0] != "stale-workflow"
+    assert "stale-source" not in {
+        row[0] for row in check_nodes(neo4j_session, "AIBOMSource", ["id"])
+    }
+    assert "stale-component" not in {
+        row[0] for row in check_nodes(neo4j_session, "AIBOMComponent", ["id"])
+    }
+    assert "stale-workflow" not in {
+        row[0] for row in check_nodes(neo4j_session, "AIBOMWorkflow", ["id"])
+    }
+    assert "stale-relationship" not in {
+        row[0] for row in check_nodes(neo4j_session, "AIBOMRelationship", ["id"])
     }
 
-    # Current nodes should survive
-    assert len(check_nodes(neo4j_session, "AIBOMComponent", ["id"])) == 3
+    assert len(check_nodes(neo4j_session, "AIBOMScan", ["id"])) == 1
+    assert len(check_nodes(neo4j_session, "AIBOMSource", ["id"])) == 1
+    assert len(check_nodes(neo4j_session, "AIBOMComponent", ["id"])) == 6
     assert len(check_nodes(neo4j_session, "AIBOMWorkflow", ["id"])) == 2
+    assert len(check_nodes(neo4j_session, "AIBOMRelationship", ["id"])) == 4

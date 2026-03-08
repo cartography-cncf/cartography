@@ -22,10 +22,10 @@ class AIBOMComponentNodeProperties(CartographyNodeProperties):
     assigned_target: PropertyRef = PropertyRef("assigned_target")
     file_path: PropertyRef = PropertyRef("file_path")
     line_number: PropertyRef = PropertyRef("line_number")
-    source_image_uri: PropertyRef = PropertyRef("source_image_uri", extra_index=True)
-    scanner_name: PropertyRef = PropertyRef("scanner_name")
-    scanner_version: PropertyRef = PropertyRef("scanner_version")
-    scan_scope: PropertyRef = PropertyRef("scan_scope")
+    model_name: PropertyRef = PropertyRef("model_name")
+    framework: PropertyRef = PropertyRef("framework")
+    label: PropertyRef = PropertyRef("label")
+    metadata_json: PropertyRef = PropertyRef("metadata_json")
     manifest_digest: PropertyRef = PropertyRef("manifest_digest", extra_index=True)
 
 
