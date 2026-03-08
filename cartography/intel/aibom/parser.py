@@ -1,6 +1,9 @@
+import logging
 import os
 from dataclasses import dataclass
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,7 @@ def _looks_like_local_path(value: str) -> bool:
 def _parse_workflow(workflow: dict[str, Any]) -> ParsedAIBOMWorkflow | None:
     workflow_id = _as_str(workflow.get("id")) or _as_str(workflow.get("workflow_id"))
     if not workflow_id:
+        logger.warning("Skipping AIBOM workflow missing id: %s", workflow)
         return None
     return ParsedAIBOMWorkflow(
         workflow_id=workflow_id,
@@ -72,6 +76,7 @@ def _parse_component(
 ) -> tuple[ParsedAIBOMComponent | None, list[ParsedAIBOMWorkflow]]:
     name = _as_str(component.get("name"))
     if not name:
+        logger.warning("Skipping AIBOM component missing name: %s", component)
         return None, []
 
     category = _as_str(component.get("category")) or category_hint or "unknown"
@@ -110,6 +115,10 @@ def _parse_components(
     if isinstance(components_obj, list):
         for component_obj in components_obj:
             if not isinstance(component_obj, dict):
+                logger.warning(
+                    "Skipping non-dict component entry: %s",
+                    type(component_obj).__name__,
+                )
                 continue
             parsed_component, parsed_workflows = _parse_component(component_obj, None)
             if parsed_component is not None:
@@ -123,9 +132,19 @@ def _parse_components(
     for category, category_components_obj in components_obj.items():
         category_hint = _as_str(category)
         if not isinstance(category_components_obj, list):
+            logger.warning(
+                "Skipping non-list component category %s: %s",
+                category,
+                type(category_components_obj).__name__,
+            )
             continue
         for component_obj in category_components_obj:
             if not isinstance(component_obj, dict):
+                logger.warning(
+                    "Skipping non-dict component entry in category %s: %s",
+                    category,
+                    type(component_obj).__name__,
+                )
                 continue
             parsed_component, parsed_workflows = _parse_component(
                 component_obj,
@@ -178,6 +197,11 @@ def parse_aibom_document(
     for source_key_raw, source_payload_obj in sources_obj.items():
         source_key = str(source_key_raw)
         if not isinstance(source_payload_obj, dict):
+            logger.warning(
+                "Skipping AIBOM source %s: expected dict, got %s",
+                source_key,
+                type(source_payload_obj).__name__,
+            )
             continue
 
         source_summary = source_payload_obj.get("summary")
