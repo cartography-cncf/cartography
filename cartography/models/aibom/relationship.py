@@ -62,6 +62,10 @@ class AIBOMRelationshipToComponentRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+# Native AIBOM relationships are modeled as nodes rather than direct graph edges.
+# The scanner emits relationship objects with their own payload and source-defined
+# types, so we preserve that source fidelity here and leave normalized edges to
+# ontology or analysis jobs.
 class AIBOMRelationshipSchema(CartographyNodeSchema):
     label: str = "AIBOMRelationship"
     scoped_cleanup: bool = False
