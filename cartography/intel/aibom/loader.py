@@ -44,7 +44,12 @@ def _resolve_digest_for_source(
     # Fast path: digest is in the URI itself
     digest = _extract_digest(image_uri)
     if digest:
-        return digest
+        # Verify the digest actually exists in the graph before accepting it.
+        exists = neo4j_session.run(
+            "MATCH (img:ECRImage {digest: $digest}) RETURN img.digest LIMIT 1",
+            digest=digest,
+        ).single()
+        return digest if exists else None
 
     # Slow path: tag-based URI, need to resolve via the graph
     row = neo4j_session.run(

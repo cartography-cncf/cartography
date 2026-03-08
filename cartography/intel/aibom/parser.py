@@ -36,35 +36,12 @@ class ParsedAIBOMSource:
     workflows: list[ParsedAIBOMWorkflow]
 
 
-def _as_dict(value: Any) -> dict[str, Any]:
-    if isinstance(value, dict):
-        return value
-    return {}
-
-
-def _as_list(value: Any) -> list[Any]:
-    if isinstance(value, list):
-        return value
-    return []
-
-
 def _as_str(value: Any) -> str | None:
+    """Return a stripped non-empty string, or None."""
     if isinstance(value, str):
         cleaned = value.strip()
         if cleaned:
             return cleaned
-    return None
-
-
-def _as_int(value: Any) -> int | None:
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        stripped = value.strip()
-        if stripped.isdigit():
-            return int(stripped)
     return None
 
 
@@ -76,18 +53,6 @@ def _looks_like_local_path(value: str) -> bool:
     return value.startswith("./") or value.startswith("../")
 
 
-def _require_dict(value: Any, field_name: str) -> dict[str, Any]:
-    if isinstance(value, dict):
-        return value
-    raise ValueError(f"AIBOM document has invalid {field_name} format")
-
-
-def _require_list(value: Any, field_name: str) -> list[Any]:
-    if isinstance(value, list):
-        return value
-    raise ValueError(f"AIBOM document has invalid {field_name} format")
-
-
 def _parse_workflow(workflow: dict[str, Any]) -> ParsedAIBOMWorkflow | None:
     workflow_id = _as_str(workflow.get("id")) or _as_str(workflow.get("workflow_id"))
     if not workflow_id:
@@ -96,8 +61,8 @@ def _parse_workflow(workflow: dict[str, Any]) -> ParsedAIBOMWorkflow | None:
         workflow_id=workflow_id,
         function=_as_str(workflow.get("function")),
         file_path=_as_str(workflow.get("file_path")),
-        line=_as_int(workflow.get("line")),
-        distance=_as_int(workflow.get("distance")),
+        line=workflow.get("line"),
+        distance=workflow.get("distance"),
     )
 
 
@@ -114,21 +79,15 @@ def _parse_component(
     embedded_workflows: list[ParsedAIBOMWorkflow] = []
     workflow_ids: list[str] = []
     workflow_objects = component.get("workflows")
-    if workflow_objects is not None:
-        workflow_objects = _require_list(
-            workflow_objects,
-            "component workflows",
-        )
-    else:
-        workflow_objects = []
-    for workflow_obj in workflow_objects:
-        if not isinstance(workflow_obj, dict):
-            continue
-        workflow = _parse_workflow(workflow_obj)
-        if workflow is None:
-            continue
-        embedded_workflows.append(workflow)
-        workflow_ids.append(workflow.workflow_id)
+    if isinstance(workflow_objects, list):
+        for workflow_obj in workflow_objects:
+            if not isinstance(workflow_obj, dict):
+                continue
+            workflow = _parse_workflow(workflow_obj)
+            if workflow is None:
+                continue
+            embedded_workflows.append(workflow)
+            workflow_ids.append(workflow.workflow_id)
 
     parsed_component = ParsedAIBOMComponent(
         name=name,
@@ -136,7 +95,7 @@ def _parse_component(
         instance_id=_as_str(component.get("instance_id")),
         assigned_target=_as_str(component.get("assigned_target")),
         file_path=_as_str(component.get("file_path")),
-        line_number=_as_int(component.get("line_number")),
+        line_number=component.get("line_number"),
         workflow_ids=workflow_ids,
     )
     return parsed_component, embedded_workflows
@@ -163,7 +122,9 @@ def _parse_components(
 
     for category, category_components_obj in components_obj.items():
         category_hint = _as_str(category)
-        for component_obj in _as_list(category_components_obj):
+        if not isinstance(category_components_obj, list):
+            continue
+        for component_obj in category_components_obj:
             if not isinstance(component_obj, dict):
                 continue
             parsed_component, parsed_workflows = _parse_component(
@@ -187,28 +148,23 @@ def parse_aibom_document(
     scanner_name: str | None = None
     scanner_version: str | None = None
 
-    scanner_obj_raw = document.get("scanner")
-    scanner_obj: dict[str, Any] = {}
-    if scanner_obj_raw is not None:
-        scanner_obj = _require_dict(scanner_obj_raw, "scanner")
+    scanner_obj = document.get("scanner")
+    if isinstance(scanner_obj, dict):
         scanner_name = _as_str(scanner_obj.get("name"))
         scanner_version = _as_str(scanner_obj.get("version"))
 
     report_obj = document.get("report")
-    if report_obj is not None:
-        report_document = _require_dict(report_obj, "report")
+    if isinstance(report_obj, dict):
+        report_document = report_obj
 
-    analysis_obj_raw = report_document.get("aibom_analysis")
-    if analysis_obj_raw is None:
-        raise ValueError("AIBOM document is missing aibom_analysis")
-    analysis_obj = _require_dict(analysis_obj_raw, "aibom_analysis")
+    analysis_obj = report_document.get("aibom_analysis")
+    if not isinstance(analysis_obj, dict):
+        raise ValueError("AIBOM document is missing or has invalid aibom_analysis")
 
     if scanner_version is None:
-        metadata_obj_raw = analysis_obj.get("metadata")
-        metadata_obj = {}
-        if metadata_obj_raw is not None:
-            metadata_obj = _require_dict(metadata_obj_raw, "metadata")
-        scanner_version = _as_str(metadata_obj.get("analyzer_version"))
+        metadata_obj = analysis_obj.get("metadata")
+        if isinstance(metadata_obj, dict):
+            scanner_version = _as_str(metadata_obj.get("analyzer_version"))
 
     if scanner_name is None:
         scanner_name = "cisco-aibom"
@@ -221,14 +177,14 @@ def parse_aibom_document(
 
     for source_key_raw, source_payload_obj in sources_obj.items():
         source_key = str(source_key_raw)
-        source_payload = _require_dict(source_payload_obj, "source payload")
+        if not isinstance(source_payload_obj, dict):
+            continue
 
-        source_summary_raw = source_payload.get("summary")
-        source_summary = {}
-        if source_summary_raw is not None:
-            source_summary = _require_dict(source_summary_raw, "source summary")
-        source_status = _as_str(source_payload.get("status")) or _as_str(
-            source_summary.get("status")
+        source_summary = source_payload_obj.get("summary")
+        if not isinstance(source_summary, dict):
+            source_summary = {}
+        source_status = _as_str(source_payload_obj.get("status")) or _as_str(
+            source_summary.get("status"),
         )
 
         image_uri = image_uri_override
@@ -240,22 +196,19 @@ def parse_aibom_document(
                 image_uri = source_key
 
         components, embedded_workflows = _parse_components(
-            source_payload.get("components"),
+            source_payload_obj.get("components"),
         )
 
         workflows_by_id: dict[str, ParsedAIBOMWorkflow] = {}
-        workflow_objects = source_payload.get("workflows")
-        if workflow_objects is not None:
-            workflow_objects = _require_list(workflow_objects, "workflows")
-        else:
-            workflow_objects = []
-        for workflow_obj in workflow_objects:
-            if not isinstance(workflow_obj, dict):
-                continue
-            workflow = _parse_workflow(workflow_obj)
-            if workflow is None:
-                continue
-            workflows_by_id[workflow.workflow_id] = workflow
+        workflow_objects = source_payload_obj.get("workflows")
+        if isinstance(workflow_objects, list):
+            for workflow_obj in workflow_objects:
+                if not isinstance(workflow_obj, dict):
+                    continue
+                workflow = _parse_workflow(workflow_obj)
+                if workflow is None:
+                    continue
+                workflows_by_id[workflow.workflow_id] = workflow
 
         for workflow in embedded_workflows:
             workflows_by_id[workflow.workflow_id] = workflow
@@ -271,7 +224,7 @@ def parse_aibom_document(
                 skip_reason=skip_reason,
                 components=components,
                 workflows=list(workflows_by_id.values()),
-            )
+            ),
         )
 
     return parsed_sources
