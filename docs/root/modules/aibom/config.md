@@ -75,8 +75,7 @@ cartography \
 
 - `aibom_reports_processed`
 - `aibom_sources_total`
-- `aibom_sources_matched_manifest_list`
-- `aibom_sources_matched_image`
+- `aibom_sources_matched`
 - `aibom_sources_unmatched`
 - `aibom_sources_skipped_incomplete`
 - `aibom_components_loaded_<category>`
