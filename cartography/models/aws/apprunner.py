@@ -18,7 +18,7 @@ class AppRunnerServiceNodeProperties(CartographyNodeProperties):
     cpu: PropertyRef = PropertyRef("Cpu")
     created_at: PropertyRef = PropertyRef("CreatedAt")
     egress_type: PropertyRef = PropertyRef("EgressType")
-    id: PropertyRef = PropertyRef("ServiceId")
+    id: PropertyRef = PropertyRef("ServiceArn")
     image_identifier: PropertyRef = PropertyRef("ImageIdentifier")
     instance_role_arn: PropertyRef = PropertyRef("InstanceRoleArn")
     is_publicly_accessible: PropertyRef = PropertyRef("IsPubliclyAccessible")

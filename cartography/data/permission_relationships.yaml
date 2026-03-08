@@ -45,10 +45,6 @@
 # App Runner - Execute code via service deployment
 - target_label: AppRunnerService
   permissions:
-  - iam:PassRole
   - apprunner:CreateService
-  relationship_name: CAN_EXEC
-- target_label: AppRunnerService
-  permissions:
   - apprunner:UpdateService
   relationship_name: CAN_EXEC
