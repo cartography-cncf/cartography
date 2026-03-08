@@ -338,7 +338,7 @@ def test_sync_aibom_skips_unmatched_sources(
         """,
     ).single()["count"]
     assert component_count == 0
-    assert "no ECRImage match found" in caplog.text
+    assert "could not resolve digest" in caplog.text
 
 
 @patch(

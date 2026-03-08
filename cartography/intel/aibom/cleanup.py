@@ -17,6 +17,9 @@ def cleanup_aibom(
     GraphJob.from_node_schema(AIBOMWorkflowSchema(), common_job_parameters).run(
         neo4j_session,
     )
+    # AIBOMWorkflowSchema has no sub_resource_relationship and
+    # scoped_cleanup=False, so GraphJob generates an empty job.
+    # Clean up stale workflows explicitly.
     neo4j_session.run(
         """
         MATCH (w:AIBOMWorkflow)
