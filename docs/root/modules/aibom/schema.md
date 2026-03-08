@@ -52,6 +52,6 @@ Representation of a workflow/function context emitted by AIBOM and referenced by
 
 ### Linking constraints
 
-- AIBOM ingestion prefers `ECRImage` nodes with `type = "manifest_list"`.
-- If no manifest list exists for a source image URI, AIBOM ingestion falls back to a linked `ECRImage` node with `type = "image"`.
+- If the envelope `image_uri` contains a digest (`repo@sha256:...`), the digest is extracted directly and verified against `ECRImage` nodes. No graph traversal is needed.
+- For tag-based URIs (`repo:tag`), AIBOM resolves the digest via `ECRRepositoryImage` → `ECRImage`, preferring `type = "manifest_list"` over `type = "image"`.
 - AIBOM detections are linked to only one `ECRImage` per source image URI.
