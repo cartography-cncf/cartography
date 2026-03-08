@@ -50,7 +50,11 @@ Resolution rules:
 
 ### Prerequisite
 
-Run ECR ingestion before AIBOM ingestion so `ECRRepositoryImage` and `ECRImage` nodes exist.
+Run ECR ingestion before AIBOM ingestion so `ECRRepositoryImage` and `ECRImage` nodes exist. In the default sync order AIBOM runs after AWS automatically.
+
+### Results layout
+
+The AIBOM module ingests every `*.json` file under the configured directory or S3 prefix as part of a single snapshot. Keep only the latest scan per image in the results location. If older reports for the same image are also present, their detections will be included in the graph and cleanup will not remove them because they share the same `update_tag`.
 
 ### Run with local files
 
