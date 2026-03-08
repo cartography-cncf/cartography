@@ -17,6 +17,7 @@ from tests.data.aibom.aibom_sample import TEST_IMAGE_URI
 from tests.data.aibom.aibom_sample import TEST_SINGLE_PLATFORM_IMAGE_URI
 from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
+from tests.integration.util import check_rels
 
 TEST_ACCOUNT_ID = "000000000000"
 TEST_UPDATE_TAG = 123456789
@@ -190,66 +191,58 @@ def test_sync_aibom_from_dir(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    category_counts = neo4j_session.run(
-        """
-        MATCH (c:AIBOMComponent)
-        RETURN c.category AS category, count(*) AS count
-        ORDER BY category
-        """,
-    ).data()
+    # Verify components by category
+    assert check_nodes(neo4j_session, "AIBOMComponent", ["category"]) == {
+        ("agent",),
+        ("other",),
+        ("tool",),
+    }
 
-    assert category_counts == [
-        {"category": "agent", "count": 1},
-        {"category": "other", "count": 1},
-        {"category": "tool", "count": 1},
-    ]
-
-    workflow_nodes = check_nodes(neo4j_session, "AIBOMWorkflow", ["workflow_id"])
-    assert workflow_nodes == {
+    # Verify workflows
+    assert check_nodes(neo4j_session, "AIBOMWorkflow", ["workflow_id"]) == {
         ("workflow-agent",),
         ("workflow-tool",),
     }
 
-    in_workflow_count = neo4j_session.run(
-        """
-        MATCH (:AIBOMComponent)-[r:IN_WORKFLOW]->(:AIBOMWorkflow)
-        RETURN count(r) AS count
-        """,
-    ).single()["count"]
-    assert in_workflow_count == 2
+    # Verify IN_WORKFLOW relationships
+    assert check_rels(
+        neo4j_session,
+        "AIBOMComponent",
+        "name",
+        "AIBOMWorkflow",
+        "workflow_id",
+        "IN_WORKFLOW",
+        rel_direction_right=True,
+    ) == {
+        ("langchain.agents.create_agent", "workflow-agent"),
+        ("typing.get_args", "workflow-tool"),
+    }
 
-    detected_types = neo4j_session.run(
-        """
-        MATCH (:AIBOMComponent)-[:DETECTED_IN]->(img:ECRImage)
-        RETURN DISTINCT img.type AS type
-        """,
-    ).data()
-    assert detected_types == [{"type": "manifest_list"}]
-
-    detected_platform_images = neo4j_session.run(
-        """
-        MATCH (:AIBOMComponent)-[:DETECTED_IN]->(img:ECRImage {type: 'image'})
-        RETURN count(img) AS count
-        """,
-    ).single()["count"]
-    assert detected_platform_images == 0
+    # Verify DETECTED_IN relationships target manifest_list only
+    assert check_rels(
+        neo4j_session,
+        "AIBOMComponent",
+        "category",
+        "ECRImage",
+        "type",
+        "DETECTED_IN",
+        rel_direction_right=True,
+    ) == {
+        ("agent", "manifest_list"),
+        ("other", "manifest_list"),
+        ("tool", "manifest_list"),
+    }
 
     # Verify envelope fields are stored on components
-    row = neo4j_session.run(
-        """
-        MATCH (c:AIBOMComponent)
-        RETURN c.source_image_uri AS source_image_uri,
-               c.scanner_name AS scanner_name,
-               c.scanner_version AS scanner_version,
-               c.scan_scope AS scan_scope
-        LIMIT 1
-        """,
-    ).single()
-
-    assert row["source_image_uri"] == TEST_IMAGE_URI
-    assert row["scanner_name"] == "cisco-aibom"
-    assert row["scanner_version"] == "0.4.0"
-    assert row["scan_scope"] == "/app/app"
+    assert check_nodes(
+        neo4j_session,
+        "AIBOMComponent",
+        ["source_image_uri", "scanner_name", "scanner_version", "scan_scope"],
+    ) == {
+        (TEST_IMAGE_URI, "cisco-aibom", "0.4.0", "/app/app"),
+        (TEST_IMAGE_URI, "cisco-aibom", "0.4.0", "/app/app"),
+        (TEST_IMAGE_URI, "cisco-aibom", "0.4.0", "/app/app"),
+    }
 
 
 @patch(
@@ -275,13 +268,7 @@ def test_sync_aibom_skips_incomplete_sources(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    counts = neo4j_session.run(
-        """
-        MATCH (c:AIBOMComponent)
-        RETURN count(c) AS count
-        """,
-    ).single()["count"]
-    assert counts == 0
+    assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == set()
 
 
 @patch(
@@ -308,13 +295,7 @@ def test_sync_aibom_skips_unmatched_sources(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    component_count = neo4j_session.run(
-        """
-        MATCH (c:AIBOMComponent)
-        RETURN count(c) AS count
-        """,
-    ).single()["count"]
-    assert component_count == 0
+    assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == set()
     assert "could not resolve digest" in caplog.text
 
 
@@ -341,16 +322,17 @@ def test_sync_aibom_falls_back_to_single_platform_image(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    row = neo4j_session.run(
-        """
-        MATCH (c:AIBOMComponent)-[:DETECTED_IN]->(img:ECRImage)
-        RETURN c.source_image_uri AS source_image_uri, img.type AS type, img.digest AS digest
-        """,
-    ).single()
-
-    assert row["source_image_uri"] == TEST_SINGLE_PLATFORM_IMAGE_URI
-    assert row["type"] == "image"
-    assert row["digest"] == tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST
+    assert check_rels(
+        neo4j_session,
+        "AIBOMComponent",
+        "source_image_uri",
+        "ECRImage",
+        "type",
+        "DETECTED_IN",
+        rel_direction_right=True,
+    ) == {
+        (TEST_SINGLE_PLATFORM_IMAGE_URI, "image"),
+    }
 
 
 @patch(
@@ -376,13 +358,7 @@ def test_sync_aibom_skips_local_unicode_decode_errors(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    component_count = neo4j_session.run(
-        """
-        MATCH (c:AIBOMComponent)
-        RETURN count(c) AS count
-        """,
-    ).single()["count"]
-    assert component_count == 0
+    assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == set()
     assert (
         "Skipping unreadable AIBOM report /tmp/aibom-bad-encoding.json" in caplog.text
     )
@@ -414,13 +390,7 @@ def test_sync_aibom_skips_s3_unicode_decode_errors(
             boto3_session,
         )
 
-    component_count = neo4j_session.run(
-        """
-        MATCH (c:AIBOMComponent)
-        RETURN count(c) AS count
-        """,
-    ).single()["count"]
-    assert component_count == 0
+    assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == set()
     assert (
         "Skipping unreadable AIBOM report s3://example-bucket/reports/aibom-bad-encoding.json"
         in caplog.text
@@ -467,35 +437,18 @@ def test_cleanup_aibom_removes_stale_nodes(
 
     cleanup_aibom(neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
-    stale_component_count = neo4j_session.run(
-        """
-        MATCH (c:AIBOMComponent {id: 'stale-component'})
-        RETURN count(c) AS count
-        """,
-    ).single()["count"]
-    stale_workflow_count = neo4j_session.run(
-        """
-        MATCH (w:AIBOMWorkflow {id: 'stale-workflow'})
-        RETURN count(w) AS count
-        """,
-    ).single()["count"]
-    assert stale_component_count == 0
-    assert stale_workflow_count == 0
+    # Stale nodes should be removed
+    assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == {
+        row
+        for row in check_nodes(neo4j_session, "AIBOMComponent", ["id"])
+        if row[0] != "stale-component"
+    }
+    assert check_nodes(neo4j_session, "AIBOMWorkflow", ["id"]) == {
+        row
+        for row in check_nodes(neo4j_session, "AIBOMWorkflow", ["id"])
+        if row[0] != "stale-workflow"
+    }
 
-    current_component_count = neo4j_session.run(
-        """
-        MATCH (c:AIBOMComponent {lastupdated: $update_tag})
-        RETURN count(c) AS count
-        """,
-        update_tag=TEST_UPDATE_TAG,
-    ).single()["count"]
-    current_workflow_count = neo4j_session.run(
-        """
-        MATCH (w:AIBOMWorkflow {lastupdated: $update_tag})
-        RETURN count(w) AS count
-        """,
-        update_tag=TEST_UPDATE_TAG,
-    ).single()["count"]
-
-    assert current_component_count == 3
-    assert current_workflow_count == 2
+    # Current nodes should survive
+    assert len(check_nodes(neo4j_session, "AIBOMComponent", ["id"])) == 3
+    assert len(check_nodes(neo4j_session, "AIBOMWorkflow", ["id"])) == 2
