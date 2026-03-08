@@ -79,7 +79,11 @@ def _resolve_component_id(
     component_ids_by_name_and_category: dict[tuple[str, str], str],
 ) -> str | None:
     if relationship_endpoint_instance_id:
-        return component_ids_by_instance_id.get(relationship_endpoint_instance_id)
+        component_id = component_ids_by_instance_id.get(
+            relationship_endpoint_instance_id
+        )
+        if component_id:
+            return component_id
     if relationship_endpoint_name and relationship_endpoint_category:
         return component_ids_by_name_and_category.get(
             (relationship_endpoint_name, relationship_endpoint_category),

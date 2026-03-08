@@ -156,10 +156,8 @@ def _extract_rel_endpoint(
         )
 
     prefix = primary_key
-    if primary_key == "source":
-        prefix = "source"
-    elif primary_key == "target":
-        prefix = "target"
+    if fallback_key in {"from", "to"}:
+        prefix = fallback_key
 
     return (
         _as_str(relationship.get(f"{prefix}_instance_id"))

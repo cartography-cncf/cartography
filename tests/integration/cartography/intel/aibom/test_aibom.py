@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 from unittest.mock import MagicMock
@@ -322,6 +323,63 @@ def test_sync_aibom_from_dir(
             json.dumps({"approval": "required", "transport": "mcp"}, sort_keys=True),
         ),
     }
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data="",
+)
+@patch(
+    "cartography.intel.aibom._get_json_files_in_dir",
+    return_value={"/tmp/aibom-relationship-fallback.json"},
+)
+def test_sync_aibom_relationship_falls_back_to_name_category_when_instance_id_unmatched(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    _seed_manifest_list_graph(neo4j_session)
+
+    report = copy.deepcopy(AIBOM_REPORT)
+    relationship = report["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY][
+        "relationships"
+    ][0]
+    relationship["source"]["instance_id"] = "missing-agent-instance"
+    relationship["target"]["instance_id"] = "missing-model-instance"
+    mock_file_open.return_value.read.return_value = json.dumps(report)
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        "pydantic_ai.Agent",
+        "USES_LLM",
+    ) in check_rels(
+        neo4j_session,
+        "AIBOMComponent",
+        "name",
+        "AIBOMRelationship",
+        "relationship_type",
+        "FROM_COMPONENT",
+        rel_direction_right=True,
+    )
+    assert (
+        "USES_LLM",
+        "openai:gpt-4.1-mini",
+    ) in check_rels(
+        neo4j_session,
+        "AIBOMRelationship",
+        "relationship_type",
+        "AIBOMComponent",
+        "name",
+        "TO_COMPONENT",
+        rel_direction_right=True,
+    )
 
 
 @patch(
