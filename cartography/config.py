@@ -239,6 +239,11 @@ class Config:
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
     :param syft_s3_prefix: S3 prefix path containing Syft scan results. Optional.
+    :type jumpcloud_api_key: str
+    :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
+    :type jumpcloud_org_id: str
+    :param jumpcloud_org_id: JumpCloud organization ID used as the tenant identifier. Optional.
+
     """
 
     def __init__(
@@ -361,6 +366,8 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
+        jumpcloud_api_key=None,
+        jumpcloud_org_id=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
@@ -482,3 +489,5 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
+        self.jumpcloud_api_key = jumpcloud_api_key
+        self.jumpcloud_org_id = jumpcloud_org_id

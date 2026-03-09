@@ -31,6 +31,7 @@ import cartography.intel.jamf
 import cartography.intel.kandji
 import cartography.intel.keycloak
 import cartography.intel.kubernetes
+import cartography.intel.jumpcloud
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
@@ -78,6 +79,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "kandji": cartography.intel.kandji.start_kandji_ingestion,
         "keycloak": cartography.intel.keycloak.start_keycloak_ingestion,
         "kubernetes": cartography.intel.kubernetes.start_k8s_ingestion,
+        "jumpcloud": cartography.intel.jumpcloud.start_jumpcloud_ingestion,
         "lastpass": cartography.intel.lastpass.start_lastpass_ingestion,
         "bigfix": cartography.intel.bigfix.start_bigfix_ingestion,
         "duo": cartography.intel.duo.start_duo_ingestion,

@@ -59,6 +59,7 @@ PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SLACK = "Slack Options"
 PANEL_SPACELIFT = "Spacelift Options"
+PANEL_JUMPCLOUD = "JumpCloud Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
 
@@ -81,6 +82,7 @@ MODULE_PANELS = {
     "kubernetes": PANEL_KUBERNETES,
     "cve": PANEL_CVE,
     "pagerduty": PANEL_PAGERDUTY,
+    "jumpcloud": PANEL_JUMPCLOUD,
     "lastpass": PANEL_LASTPASS,
     "bigfix": PANEL_BIGFIX,
     "duo": PANEL_DUO,
@@ -940,6 +942,27 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # JumpCloud Options
+            # =================================================================
+            jumpcloud_api_key_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--jumpcloud-api-key-env-var",
+                    help="Environment variable name containing JumpCloud API key.",
+                    rich_help_panel=PANEL_JUMPCLOUD,
+                    hidden=PANEL_JUMPCLOUD not in visible_panels,
+                ),
+            ] = None,
+            jumpcloud_org_id: Annotated[
+                str | None,
+                typer.Option(
+                    "--jumpcloud-org-id",
+                    help="JumpCloud organization ID used as the tenant identifier.",
+                    rich_help_panel=PANEL_JUMPCLOUD,
+                    hidden=PANEL_JUMPCLOUD not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # BigFix Options
             # =================================================================
             bigfix_username: Annotated[
@@ -1701,6 +1724,14 @@ class CLI:
                 )
                 googleworkspace_config = os.environ.get(googleworkspace_tokens_env_var)
 
+            # Read JumpCloud API key
+            jumpcloud_api_key = None
+            if jumpcloud_api_key_env_var:
+                logger.debug(
+                    "Reading API key for JumpCloud from environment variable %s",
+                    jumpcloud_api_key_env_var,
+                )
+                jumpcloud_api_key = os.environ.get(jumpcloud_api_key_env_var)
             # Read LastPass credentials
             lastpass_cid = None
             if lastpass_cid_env_var:
@@ -2006,6 +2037,8 @@ class CLI:
                 gsuite_config=gsuite_config,
                 googleworkspace_auth_method=googleworkspace_auth_method,
                 googleworkspace_config=googleworkspace_config,
+                jumpcloud_api_key=jumpcloud_api_key,
+                jumpcloud_org_id=jumpcloud_org_id,
                 lastpass_cid=lastpass_cid,
                 lastpass_provhash=lastpass_provhash,
                 bigfix_username=bigfix_username,
