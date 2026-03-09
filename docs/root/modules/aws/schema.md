@@ -6299,3 +6299,8 @@ Representation of an AWS [CloudFormation Stack](https://docs.aws.amazon.com/AWSC
     ```
     (CloudFormationStack)-[:HAS_EXECUTION_ROLE]->(AWSRole)
     ```
+
+- An AWS Principal can escalate privileges via CloudFormation
+    ```
+    (AWSPrincipal)-[:CAN_EXEC]->(CloudFormationStack)
+    ```
