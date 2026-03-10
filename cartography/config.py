@@ -189,6 +189,8 @@ class Config:
     :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
     :type airbyte_api_url: str
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
+    :type docker_scout_images: str
+    :param docker_scout_images: Comma-separated list of container image references to scan with Docker Scout. Optional.
     :type trivy_s3_bucket: str
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
     :type trivy_s3_prefix: str
@@ -342,6 +344,7 @@ class Config:
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
+        docker_scout_images=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
         ontology_users_source=None,
@@ -467,6 +470,7 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
+        self.docker_scout_images = docker_scout_images
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
         self.ontology_users_source = ontology_users_source

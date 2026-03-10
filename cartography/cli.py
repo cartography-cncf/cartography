@@ -51,6 +51,7 @@ PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
+PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
@@ -93,6 +94,7 @@ MODULE_PANELS = {
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
+    "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
     "ubuntu": PANEL_UBUNTU,
@@ -1213,6 +1215,18 @@ class CLI:
                 ),
             ] = "https://api.airbyte.com/v1",
             # =================================================================
+            # Docker Scout Options
+            # =================================================================
+            docker_scout_images: Annotated[
+                str | None,
+                typer.Option(
+                    "--docker-scout-images",
+                    help="Comma-separated list of container image references to scan with Docker Scout.",
+                    rich_help_panel=PANEL_DOCKER_SCOUT,
+                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
             # Trivy Options
             # =================================================================
             trivy_s3_bucket: Annotated[
@@ -1902,6 +1916,10 @@ class CLI:
                 )
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
 
+            # Log Docker Scout config
+            if docker_scout_images:
+                logger.debug("Docker Scout images: %s", docker_scout_images)
+
             # Log Trivy config
             if trivy_s3_bucket:
                 logger.debug("Trivy S3 bucket: %s", trivy_s3_bucket)
@@ -2094,6 +2112,7 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
+                docker_scout_images=docker_scout_images,
                 trivy_s3_bucket=trivy_s3_bucket,
                 trivy_s3_prefix=trivy_s3_prefix,
                 syft_s3_bucket=syft_s3_bucket,

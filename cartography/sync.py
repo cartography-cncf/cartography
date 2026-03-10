@@ -20,6 +20,7 @@ import cartography.intel.create_indexes
 import cartography.intel.crowdstrike
 import cartography.intel.cve
 import cartography.intel.digitalocean
+import cartography.intel.docker_scout
 import cartography.intel.duo
 import cartography.intel.entra
 import cartography.intel.gcp
@@ -89,6 +90,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
         "jamf": cartography.intel.jamf.start_jamf_ingestion,
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
+        "docker_scout": cartography.intel.docker_scout.start_docker_scout_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "syft": cartography.intel.syft.start_syft_ingestion,
         "ubuntu": cartography.intel.ubuntu.start_ubuntu_ingestion,
