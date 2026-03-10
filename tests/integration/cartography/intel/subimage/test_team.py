@@ -17,7 +17,7 @@ TEST_TENANT_ID = "tenant-abc-123"
 def _ensure_local_neo4j_has_test_tenant(neo4j_session):
     load_tenants(
         neo4j_session,
-        tests.data.subimage.tenant.SUBIMAGE_TENANT,
+        tests.data.subimage.tenant.SUBIMAGE_TENANT_TRANSFORMED,
         TEST_UPDATE_TAG,
     )
 

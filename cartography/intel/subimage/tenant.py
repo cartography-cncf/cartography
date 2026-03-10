@@ -19,7 +19,8 @@ def sync(
     update_tag: int,
     base_url: str,
 ) -> list[dict[str, Any]]:
-    tenants = get(api_session, base_url)
+    raw = get(api_session, base_url)
+    tenants = transform(raw)
     load_tenants(neo4j_session, tenants, update_tag)
     return tenants
 
@@ -28,9 +29,21 @@ def sync(
 def get(api_session: requests.Session, base_url: str) -> list[dict[str, Any]]:
     response = api_session.get(f"{base_url}/api/tenant", timeout=_TIMEOUT)
     response.raise_for_status()
-    tenant_data = response.json()
-    tenant_data["id"] = tenant_data["tenantId"]
-    return [tenant_data]
+    return [response.json()]
+
+
+@timeit
+def transform(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result = []
+    for tenant in raw:
+        result.append(
+            {
+                "id": tenant["tenantId"],
+                "account_id": tenant["accountId"],
+                "scan_role_name": tenant["scanRoleName"],
+            }
+        )
+    return result
 
 
 @timeit
