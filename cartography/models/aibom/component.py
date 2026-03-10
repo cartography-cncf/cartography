@@ -17,6 +17,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class AIBOMComponentNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    logical_id: PropertyRef = PropertyRef("logical_id", extra_index=True)
     name: PropertyRef = PropertyRef("name")
     category: PropertyRef = PropertyRef("category", extra_index=True)
     instance_id: PropertyRef = PropertyRef("instance_id")

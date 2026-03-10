@@ -57,6 +57,49 @@ def _resolve_component_id(
     return None
 
 
+def _get_component_logical_identity_base(component: Any) -> str:
+    return "|".join(
+        [
+            component.category,
+            component.name,
+            component.file_path or "",
+            component.assigned_target or "",
+            component.framework or "",
+            component.label or "",
+            component.model_name or "",
+        ],
+    )
+
+
+def _get_component_logical_id(
+    component: Any,
+    duplicate_logical_identity_bases: set[str],
+) -> str:
+    logical_identity_parts = [
+        component.category,
+        component.name,
+        component.file_path or "",
+        component.assigned_target or "",
+        component.framework or "",
+        component.label or "",
+        component.model_name or "",
+    ]
+    logical_identity_base = "|".join(logical_identity_parts)
+
+    # When multiple components share the same stable callsite fields within a
+    # single source, add a deterministic fallback to avoid collapsing distinct
+    # detections that happen to look identical at the higher-level fingerprint.
+    if logical_identity_base in duplicate_logical_identity_bases:
+        logical_identity_parts.extend(
+            [
+                component.instance_id or "",
+                str(component.line_number) if component.line_number is not None else "",
+            ],
+        )
+
+    return _stable_hash("|".join(logical_identity_parts))
+
+
 def transform_aibom_document(
     document: ParsedAIBOMDocument,
     manifest_digest: str | None,
@@ -121,6 +164,15 @@ def transform_aibom_document(
         should_load_components = (
             source.source_status or "completed"
         ).lower() == "completed" and bool(manifest_digest)
+        logical_identity_base_counts = Counter(
+            _get_component_logical_identity_base(component)
+            for component in source.components
+        )
+        duplicate_logical_identity_bases = {
+            logical_identity_base
+            for logical_identity_base, count in logical_identity_base_counts.items()
+            if count > 1
+        }
         for component in source.components:
             if not should_load_components:
                 continue
@@ -151,6 +203,10 @@ def transform_aibom_document(
 
             component_payloads_by_id[component_id] = {
                 "id": component_id,
+                "logical_id": _get_component_logical_id(
+                    component,
+                    duplicate_logical_identity_bases,
+                ),
                 "name": component.name,
                 "category": component.category,
                 "instance_id": component.instance_id,

@@ -5,6 +5,7 @@ The AIBOM module uses a source-faithful model:
 - `AIBOMScan` represents one ingested report envelope for one image.
 - `AIBOMSource` represents one source entry inside the report.
 - `AIBOMComponent` represents one detected component occurrence within a source.
+- `AIBOMComponent.logical_id` provides a stable callsite-style fingerprint so equivalent components can be grouped across repeated rebuilds and image churn.
 - `AIBOMWorkflow` represents workflow context emitted by the scanner.
 - `AIBOMComponent` nodes are linked directly for common AIBOM relationships such as `USES_TOOL`, `USES_MODEL`, and `USES_MEMORY`.
 
@@ -91,7 +92,8 @@ Representation of one detected AI component occurrence within a source.
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Stable hash of source id + component identity fields |
+| **id** | Stable hash of source id + component occurrence identity fields |
+| logical_id | Stable hash of category + symbol + callsite fields used to group equivalent components across images |
 | name | Detected symbol name |
 | **category** | Category emitted by AIBOM (for example `agent`, `model`, `tool`, `memory`, `prompt`, `other`) |
 | instance_id | AIBOM component instance identifier |
@@ -137,6 +139,12 @@ Representation of one detected AI component occurrence within a source.
 
 - `USES_LLM` from the source payload is normalized to `USES_MODEL` in the graph so model relationships query consistently with other AI modules.
 
+#### Identity notes
+
+- `id` stays occurrence-oriented so relationships such as `DETECTED_IN`, `IN_WORKFLOW`, and `USES_*` remain correct for a specific scanned artifact.
+- `logical_id` is the cross-image grouping key. It is derived from stable callsite-like fields such as category, name, file path, assigned target, framework, label, and model name.
+- When multiple components within a single source share the same higher-level fingerprint, Cartography adds deterministic fallback fields (`instance_id` and `line_number`) to avoid collapsing distinct detections.
+
 ### AIBOMWorkflow
 
 Representation of a workflow/function context emitted by AIBOM.
@@ -179,4 +187,12 @@ Find agent-to-tool relationships:
 ```cypher
 MATCH (img:ECRImage)<-[:DETECTED_IN]-(agent:AIAgent)-[:USES_TOOL]->(tool:AITool)
 RETURN img.digest, agent.name, tool.name
+```
+
+Group equivalent agents across rebuilds:
+
+```cypher
+MATCH (component:AIAgent)
+RETURN component.logical_id, collect(DISTINCT component.name), count(*) AS detections
+ORDER BY detections DESC
 ```

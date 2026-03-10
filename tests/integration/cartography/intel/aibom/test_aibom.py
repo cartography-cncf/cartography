@@ -1,5 +1,6 @@
 import copy
 import datetime
+import io
 import json
 from unittest.mock import MagicMock
 from unittest.mock import mock_open
@@ -144,6 +145,47 @@ def _seed_single_platform_graph(neo4j_session) -> None:
             TEST_UPDATE_TAG,
             {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
         )
+
+
+def _seed_image_resolution(
+    neo4j_session,
+    image_uri: str,
+    digest: str,
+    image_type: str,
+) -> None:
+    neo4j_session.run(
+        """
+        MERGE (img:ECRImage {id: $digest})
+        SET img.digest = $digest,
+            img.type = $image_type,
+            img.lastupdated = $lastupdated
+        MERGE (repo_img:ECRRepositoryImage {id: $image_uri})
+        SET repo_img.lastupdated = $lastupdated
+        MERGE (repo_img)-[r:IMAGE]->(img)
+        SET r.lastupdated = $lastupdated
+        """,
+        digest=digest,
+        image_type=image_type,
+        image_uri=image_uri,
+        lastupdated=TEST_UPDATE_TAG,
+    )
+
+
+def _seed_multi_image_resolution_graph(neo4j_session) -> None:
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    _seed_image_resolution(
+        neo4j_session,
+        TEST_IMAGE_URI,
+        tests.data.aws.ecr.MANIFEST_LIST_DIGEST,
+        "manifest_list",
+    )
+    _seed_image_resolution(
+        neo4j_session,
+        TEST_SINGLE_PLATFORM_IMAGE_URI,
+        tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST,
+        "image",
+    )
 
 
 @patch(
@@ -349,6 +391,87 @@ def test_sync_aibom_from_dir(
             "internal_mcp",
             "customer_lookup_tool",
         ),
+    }
+
+    logical_id_count = neo4j_session.run(
+        """
+        MATCH (component:AIBOMComponent)
+        WHERE component.logical_id IS NOT NULL
+        RETURN count(component) AS count
+        """,
+    ).single()
+    assert logical_id_count is not None
+    assert logical_id_count["count"] == 6
+
+
+@patch("cartography.intel.aibom._get_json_files_in_dir")
+@patch("builtins.open")
+def test_sync_aibom_stores_stable_logical_ids_across_images(
+    mock_file_open,
+    mock_json_files,
+    neo4j_session,
+):
+    _seed_multi_image_resolution_graph(neo4j_session)
+
+    second_source_key = "000000000000.dkr.ecr.us-east-1.amazonaws.com/single-platform-repository@sha256:fake"
+    second_report = copy.deepcopy(AIBOM_REPORT)
+    second_report["image_uri"] = TEST_SINGLE_PLATFORM_IMAGE_URI
+    second_report["report"]["aibom_analysis"]["sources"] = {
+        second_source_key: copy.deepcopy(
+            second_report["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
+        ),
+    }
+
+    report_by_path = {
+        "/tmp/aibom-1.json": AIBOM_REPORT,
+        "/tmp/aibom-2.json": second_report,
+    }
+    mock_json_files.return_value = set(report_by_path)
+
+    def open_side_effect(file_path, *args, **kwargs):
+        return io.StringIO(json.dumps(report_by_path[file_path]))
+
+    mock_file_open.side_effect = open_side_effect
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert len(check_nodes(neo4j_session, "AIBOMComponent", ["id"])) == 12
+    assert len(check_nodes(neo4j_session, "AIBOMComponent", ["logical_id"])) == 6
+
+    row = neo4j_session.run(
+        """
+        MATCH (agent:AIAgent {name: 'pydantic_ai.Agent'})
+        RETURN count(agent) AS detections, count(DISTINCT agent.logical_id) AS logical_ids
+        """,
+    ).single()
+    assert row is not None
+    assert row["detections"] == 2
+    assert row["logical_ids"] == 1
+
+    agent_logical_id = neo4j_session.run(
+        """
+        MATCH (agent:AIAgent {name: 'pydantic_ai.Agent'})
+        RETURN agent.logical_id AS logical_id
+        LIMIT 1
+        """,
+    ).single()["logical_id"]
+
+    assert check_rels(
+        neo4j_session,
+        "AIAgent",
+        "logical_id",
+        "ECRImage",
+        "digest",
+        "DETECTED_IN",
+        rel_direction_right=True,
+    ) >= {
+        (agent_logical_id, tests.data.aws.ecr.MANIFEST_LIST_DIGEST),
+        (agent_logical_id, tests.data.aws.ecr.SINGLE_PLATFORM_DIGEST),
     }
 
 
