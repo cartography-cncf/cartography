@@ -339,6 +339,10 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
+        subimage_client_id=None,
+        subimage_client_secret=None,
+        subimage_tenant_url=None,
+        subimage_authkit_url="https://auth.subimage.io",
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
@@ -464,6 +468,10 @@ class Config:
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
         self.anthropic_apikey = anthropic_apikey
+        self.subimage_client_id = subimage_client_id
+        self.subimage_client_secret = subimage_client_secret
+        self.subimage_tenant_url = subimage_tenant_url
+        self.subimage_authkit_url = subimage_authkit_url
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
