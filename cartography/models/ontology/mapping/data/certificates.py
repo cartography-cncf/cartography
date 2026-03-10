@@ -7,9 +7,9 @@ from cartography.models.ontology.mapping.specs import OntologyNodeMapping
 # expiry - Expiration date/time
 # issuer - Certificate issuer
 
-# AWS ACM
-aws_acm_mapping = OntologyMapping(
-    module_name="aws_acm",
+# AWS (ACM Certificate + IAM Server Certificate)
+aws_mapping = OntologyMapping(
+    module_name="aws",
     nodes=[
         OntologyNodeMapping(
             node_label="ACMCertificate",
@@ -21,13 +21,6 @@ aws_acm_mapping = OntologyMapping(
                 # issuer: Not available
             ],
         ),
-    ],
-)
-
-# AWS IAM Server Certificate
-aws_iam_mapping = OntologyMapping(
-    module_name="aws_iam",
-    nodes=[
         OntologyNodeMapping(
             node_label="AWSServerCertificate",
             fields=[
@@ -61,7 +54,6 @@ azure_mapping = OntologyMapping(
 )
 
 CERTIFICATES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
-    "aws_acm": aws_acm_mapping,
-    "aws_iam": aws_iam_mapping,
+    "aws": aws_mapping,
     "azure": azure_mapping,
 }
