@@ -36,6 +36,29 @@ EOL_SOFTWARE_REFERENCES = [
     ),
 ]
 
+
+def _build_ec2_instance_amazon_linux_2_eol_query(
+    current_date_expression: str = "date()",
+) -> str:
+    return f"""
+    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:SSMInstanceInformation)
+    WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
+      AND trim(toString(ssm.platform_version)) = '2'
+      AND {current_date_expression} > date('{_AMAZON_LINUX_2_EOL_DATE}')
+    RETURN ec2.id AS asset_id,
+           coalesce(ec2.instanceid, ec2.id) AS asset_name,
+           'EC2Instance' AS asset_type,
+           'amazon-linux' AS software_name,
+           trim(toString(ssm.platform_version)) AS software_version,
+           2 AS software_major,
+           NULL AS software_minor,
+           coalesce(ssm.region, ec2.region) AS location,
+           'vendor' AS support_basis,
+           'eol' AS support_status
+    ORDER BY asset_name
+    """
+
+
 _eks_cluster_kubernetes_version_eol = Fact(
     id="eks_cluster_kubernetes_version_eol",
     name="EKS clusters running end-of-life Kubernetes versions",
@@ -163,23 +186,7 @@ _ec2_instance_amazon_linux_2_eol = Fact(
         "Amazon Linux version 2 after the Amazon Linux 2 end-of-life date of "
         "2026-06-30."
     ),
-    cypher_query=f"""
-    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:SSMInstanceInformation)
-    WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
-      AND trim(toString(ssm.platform_version)) = '2'
-      AND date() > date('{_AMAZON_LINUX_2_EOL_DATE}')
-    RETURN ec2.id AS asset_id,
-           coalesce(ec2.instanceid, ec2.id) AS asset_name,
-           'EC2Instance' AS asset_type,
-           'amazon-linux' AS software_name,
-           trim(toString(ssm.platform_version)) AS software_version,
-           2 AS software_major,
-           NULL AS software_minor,
-           coalesce(ssm.region, ec2.region) AS location,
-           'vendor' AS support_basis,
-           'eol' AS support_status
-    ORDER BY asset_name
-    """,
+    cypher_query=_build_ec2_instance_amazon_linux_2_eol_query(),
     cypher_visual_query=f"""
     MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:SSMInstanceInformation)
     WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
