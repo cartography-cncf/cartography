@@ -77,10 +77,10 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 
 #### Relationships
 
-- A SemgrepSASTFinding connected to a GithubRepository (optional)
+- A SemgrepSASTFinding connected to a GitHubRepository (optional)
 
     ```
-    (SemgrepSASTFinding)-[FOUND_IN]->(GithubRepository)
+    (SemgrepSASTFinding)-[FOUND_IN]->(GitHubRepository)
     ```
 
 - A SemgrepSASTFinding has a SemgrepFindingAssistant (optional)
@@ -124,10 +124,10 @@ Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chai
 
 #### Relationships
 
-- An SemgrepSCAFinding connected to a GithubRepository (optional)
+- An SemgrepSCAFinding connected to a GitHubRepository (optional)
 
     ```
-    (SemgrepSCAFinding)-[FOUND_IN]->(GithubRepository)
+    (SemgrepSCAFinding)-[FOUND_IN]->(GitHubRepository)
     ```
 
 - A SemgrepSCAFinding vulnerable dependency usage at SemgrepSCALocation (optional)
@@ -228,10 +228,10 @@ See [SemgrepDependency](#semgrepdependency) for details.
 
 #### Relationships
 
-- A SemgrepDependency is required by a GithubRepository (optional)
+- A SemgrepDependency is required by a GitHubRepository (optional)
 
     ```
-    (:SemgrepDependency)<-[:REQUIRES{specifier, transitivity, url}]-(:GithubRepository)
+    (:SemgrepDependency)<-[:REQUIRES{specifier, transitivity, url}]-(:GitHubRepository)
     ```
 
     - specifier: A string describing the library version required by the repo (e.g. "==1.0.2")
