@@ -129,6 +129,9 @@
 ```{include} ../modules/spacelift/schema.md
 ```
 
+```{include} ../modules/subimage/schema.md
+```
+
 ```{include} ../modules/tailscale/schema.md
 ```
 
