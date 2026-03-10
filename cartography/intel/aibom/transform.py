@@ -65,8 +65,6 @@ def _get_component_logical_identity_base(component: Any) -> str:
             component.file_path or "",
             component.assigned_target or "",
             component.framework or "",
-            component.label or "",
-            component.model_name or "",
         ],
     )
 
@@ -81,8 +79,6 @@ def _get_component_logical_id(
         component.file_path or "",
         component.assigned_target or "",
         component.framework or "",
-        component.label or "",
-        component.model_name or "",
     ]
     logical_identity_base = "|".join(logical_identity_parts)
 

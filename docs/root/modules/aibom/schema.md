@@ -93,16 +93,16 @@ Representation of one detected AI component occurrence within a source.
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | Stable hash of source id + component occurrence identity fields |
-| logical_id | Stable hash of category + symbol + callsite fields used to group equivalent components across images |
+| logical_id | Stable hash of category + symbol + stable callsite fields used to group equivalent components across images |
 | name | Detected symbol name |
 | **category** | Category emitted by AIBOM (for example `agent`, `model`, `tool`, `memory`, `prompt`, `other`) |
 | instance_id | AIBOM component instance identifier |
 | assigned_target | Optional assigned target from the scanner |
 | file_path | File path reported by the scanner |
 | line_number | Line number reported by the scanner |
-| model_name | Optional model name emitted by the source |
+| model_name | Optional model name emitted by the source; queryable metadata rather than part of the stable logical fingerprint |
 | framework | Optional framework emitted by the source |
-| label | Optional label emitted by the source |
+| label | Optional source-defined label or custom concept emitted by AIBOM; queryable metadata rather than part of the stable logical fingerprint |
 | manifest_digest | Digest of the canonical `ECRImage` used for graph linking |
 
 `AIBOMComponent` also gets conditional category labels for discoverability:
@@ -142,7 +142,9 @@ Representation of one detected AI component occurrence within a source.
 #### Identity notes
 
 - `id` stays occurrence-oriented so relationships such as `DETECTED_IN`, `IN_WORKFLOW`, and `USES_*` remain correct for a specific scanned artifact.
-- `logical_id` is the cross-image grouping key. It is derived from stable callsite-like fields such as category, name, file path, assigned target, framework, label, and model name.
+- `logical_id` is the cross-image grouping key. It is derived from stable callsite-like fields: category, name, file path, assigned target, and framework.
+- `label` is intentionally excluded from `logical_id` because it is source-defined metadata that may change when catalogs or classifiers change even if the underlying code callsite does not.
+- `model_name` is intentionally excluded from `logical_id` because security engineers usually want an agent to remain the same logical agent when its model dependency changes; that change should show up in `USES_MODEL` relationships rather than redefining the agent identity.
 - When multiple components within a single source share the same higher-level fingerprint, Cartography adds deterministic fallback fields (`instance_id` and `line_number`) to avoid collapsing distinct detections.
 
 ### AIBOMWorkflow
