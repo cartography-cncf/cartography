@@ -33,3 +33,23 @@ def test_kubernetes_fact_dedupes_eks_backed_clusters() -> None:
     assert "e.name = k.external_id" in kubernetes_fact.cypher_query
     assert "e.endpoint = k.api_server_url" in kubernetes_fact.cypher_query
     assert "WHERE NOT EXISTS" in kubernetes_fact.cypher_count_query
+
+
+def test_eks_fact_uses_provider_support_window() -> None:
+    eks_fact = next(
+        fact
+        for fact in eol_software.facts
+        if fact.id == "eks_cluster_kubernetes_version_eol"
+    )
+    assert "kubernetes_minor < 29" in eks_fact.cypher_query
+    assert "'provider' AS support_basis" in eks_fact.cypher_query
+
+
+def test_kubernetes_fact_uses_upstream_support_window() -> None:
+    kubernetes_fact = next(
+        fact
+        for fact in eol_software.facts
+        if fact.id == "kubernetes_cluster_kubernetes_version_eol"
+    )
+    assert "kubernetes_minor < 33" in kubernetes_fact.cypher_query
+    assert "'upstream' AS support_basis" in kubernetes_fact.cypher_query

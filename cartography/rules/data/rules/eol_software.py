@@ -5,7 +5,8 @@ from cartography.rules.spec.model import Module
 from cartography.rules.spec.model import Rule
 from cartography.rules.spec.model import RuleReference
 
-_OLDEST_SUPPORTED_KUBERNETES_MINOR = 33
+_OLDEST_SUPPORTED_UPSTREAM_KUBERNETES_MINOR = 33
+_OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR = 29
 
 KUBERNETES_EOL_REFERENCES = [
     RuleReference(
@@ -16,15 +17,19 @@ KUBERNETES_EOL_REFERENCES = [
         text="Kubernetes Releases",
         url="https://kubernetes.io/releases/",
     ),
+    RuleReference(
+        text="Amazon EKS Kubernetes version lifecycle",
+        url="https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html",
+    ),
 ]
 
 _eks_cluster_kubernetes_version_eol = Fact(
     id="eks_cluster_kubernetes_version_eol",
     name="EKS clusters running end-of-life Kubernetes versions",
     description=(
-        "Detects EKS clusters running Kubernetes minor versions older than the "
-        "current upstream support window. As of 2026-03-10, upstream-supported "
-        "Kubernetes minors are 1.35, 1.34, and 1.33."
+        "Detects EKS clusters running Kubernetes minor versions that are no longer "
+        "supported by Amazon EKS. As of 2026-03-10, EKS-supported Kubernetes "
+        "minors are 1.34, 1.33, 1.32, 1.31, 1.30, and 1.29."
     ),
     cypher_query=f"""
     MATCH (e:EKSCluster)
@@ -34,7 +39,7 @@ _eks_cluster_kubernetes_version_eol = Fact(
              ELSE toInteger(split(split(toString(e.version), '.')[1], '-')[0])
          END AS kubernetes_minor
     WHERE kubernetes_minor IS NOT NULL
-      AND kubernetes_minor < {_OLDEST_SUPPORTED_KUBERNETES_MINOR}
+      AND kubernetes_minor < {_OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR}
     RETURN e.id AS asset_id,
            e.name AS asset_name,
            'EKSCluster' AS asset_type,
@@ -42,7 +47,9 @@ _eks_cluster_kubernetes_version_eol = Fact(
            toString(e.version) AS software_version,
            1 AS software_major,
            kubernetes_minor AS software_minor,
-           e.region AS location
+           e.region AS location,
+           'provider' AS support_basis,
+           'eol' AS support_status
     ORDER BY asset_name
     """,
     cypher_visual_query=f"""
@@ -53,7 +60,7 @@ _eks_cluster_kubernetes_version_eol = Fact(
              ELSE toInteger(split(split(toString(e.version), '.')[1], '-')[0])
          END AS kubernetes_minor
     WHERE kubernetes_minor IS NOT NULL
-      AND kubernetes_minor < {_OLDEST_SUPPORTED_KUBERNETES_MINOR}
+      AND kubernetes_minor < {_OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR}
     OPTIONAL MATCH p=(a:AWSAccount)-[:RESOURCE]->(e)
     RETURN *
     """,
@@ -72,7 +79,8 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
     description=(
         "Detects Kubernetes clusters running end-of-life minor versions. "
         "If a native KubernetesCluster is the same EKS-backed cluster already "
-        "represented as an EKSCluster, it is excluded to avoid double counting."
+        "represented as an EKSCluster, it is excluded so managed clusters are "
+        "evaluated against the EKS provider lifecycle instead of upstream support."
     ),
     cypher_query=f"""
     MATCH (k:KubernetesCluster)
@@ -82,7 +90,7 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
              ELSE toInteger(replace(toString(k.version_minor), '+', ''))
          END AS kubernetes_minor
     WHERE kubernetes_minor IS NOT NULL
-      AND kubernetes_minor < {_OLDEST_SUPPORTED_KUBERNETES_MINOR}
+      AND kubernetes_minor < {_OLDEST_SUPPORTED_UPSTREAM_KUBERNETES_MINOR}
       AND NOT EXISTS {{
           MATCH (e:EKSCluster)
           WHERE e.id = k.external_id
@@ -96,7 +104,9 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
            toString(k.version) AS software_version,
            1 AS software_major,
            kubernetes_minor AS software_minor,
-           NULL AS location
+           NULL AS location,
+           'upstream' AS support_basis,
+           'eol' AS support_status
     ORDER BY asset_name
     """,
     cypher_visual_query=f"""
@@ -107,7 +117,7 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
              ELSE toInteger(replace(toString(k.version_minor), '+', ''))
          END AS kubernetes_minor
     WHERE kubernetes_minor IS NOT NULL
-      AND kubernetes_minor < {_OLDEST_SUPPORTED_KUBERNETES_MINOR}
+      AND kubernetes_minor < {_OLDEST_SUPPORTED_UPSTREAM_KUBERNETES_MINOR}
       AND NOT EXISTS {{
           MATCH (e:EKSCluster)
           WHERE e.id = k.external_id
@@ -142,6 +152,8 @@ class EOLSoftwareOutput(Finding):
     software_major: int | None = None
     software_minor: int | None = None
     location: str | None = None
+    support_basis: str | None = None
+    support_status: str | None = None
 
 
 eol_software = Rule(
@@ -149,8 +161,9 @@ eol_software = Rule(
     name="End-of-Life Software",
     description=(
         "Detects infrastructure running end-of-life software versions. "
-        "The initial coverage flags Kubernetes and EKS clusters on "
-        "upstream-unsupported Kubernetes minors."
+        "The initial coverage flags raw Kubernetes clusters using the upstream "
+        "Kubernetes support window and EKS clusters using the Amazon EKS "
+        "provider lifecycle."
     ),
     output_model=EOLSoftwareOutput,
     facts=(
