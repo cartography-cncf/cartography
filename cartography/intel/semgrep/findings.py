@@ -207,7 +207,7 @@ def load_semgrep_sca_vulns(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(vulns)} SemgrepSCAFinding objects into the graph.")
+    logger.debug(f"Loading {len(vulns)} SemgrepSCAFinding objects into the graph.")
     load(
         neo4j_session,
         SemgrepSCAFindingSchema(),
@@ -218,7 +218,9 @@ def load_semgrep_sca_vulns(
 
 
 @timeit
-def get_sast_findings(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str, Any]]:
+def get_sast_findings(
+    semgrep_app_token: str, deployment_slug: str
+) -> List[Dict[str, Any]]:
     """
     Gets the SAST findings associated with the passed Semgrep App token and deployment slug.
     param: semgrep_app_token: The Semgrep App token to use for authentication.
@@ -321,7 +323,7 @@ def load_semgrep_sast_findings(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(findings)} SemgrepSASTFinding objects into the graph.")
+    logger.debug(f"Loading {len(findings)} SemgrepSASTFinding objects into the graph.")
     load(
         neo4j_session,
         SemgrepSASTFindingSchema(),
@@ -338,7 +340,7 @@ def load_semgrep_sca_usages(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(usages)} SemgrepSCALocation objects into the graph.")
+    logger.debug(f"Loading {len(usages)} SemgrepSCALocation objects into the graph.")
     load(
         neo4j_session,
         SemgrepSCALocationSchema(),
@@ -387,7 +389,9 @@ def load_semgrep_finding_assistants(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(assistants)} SemgrepFindingAssistant objects into the graph.")
+    logger.debug(
+        f"Loading {len(assistants)} SemgrepFindingAssistant objects into the graph."
+    )
     load(
         neo4j_session,
         SemgrepFindingAssistantSchema(),
@@ -449,7 +453,9 @@ def sync_findings(
 
     logger.info("Running Semgrep FindingAssistant sync job.")
     assistants = _extract_assistants(raw_sast_findings) + _extract_assistants(raw_vulns)
-    load_semgrep_finding_assistants(neo4j_session, assistants, deployment_id, update_tag)
+    load_semgrep_finding_assistants(
+        neo4j_session, assistants, deployment_id, update_tag
+    )
 
     logger.info("Running Semgrep SAST findings sync job.")
     sast_findings = transform_sast_findings(raw_sast_findings)

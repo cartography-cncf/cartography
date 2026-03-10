@@ -57,7 +57,16 @@ def test_sync_sast_findings(mock_get_sast_findings, mock_get_deployment, neo4j_s
     assert check_nodes(
         neo4j_session,
         "SemgrepSASTFinding",
-        ["id", "rule_id", "repository", "branch", "severity", "confidence", "triage_status", "fix_status"],
+        [
+            "id",
+            "rule_id",
+            "repository",
+            "branch",
+            "severity",
+            "confidence",
+            "triage_status",
+            "fix_status",
+        ],
     ) == {
         (
             tests.data.semgrep.sast.SAST_FINDING_ID,
@@ -117,7 +126,9 @@ def test_sync_sast_findings(mock_get_sast_findings, mock_get_deployment, neo4j_s
         ),
     }
 
-    expected_assistant_id = f"semgrep-assistant-{tests.data.semgrep.sast.SAST_FINDING_ID}"
+    expected_assistant_id = (
+        f"semgrep-assistant-{tests.data.semgrep.sast.SAST_FINDING_ID}"
+    )
 
     # Assert assistant node
     assert check_nodes(
@@ -175,7 +186,9 @@ def test_sync_sast_findings(mock_get_sast_findings, mock_get_deployment, neo4j_s
     "get_sca_vulns",
     return_value=tests.data.semgrep.sca.RAW_VULNS,
 )
-def test_sync_findings(mock_get_sca_vulns, mock_get_sast_findings, mock_get_deployment, neo4j_session):
+def test_sync_findings(
+    mock_get_sca_vulns, mock_get_sast_findings, mock_get_deployment, neo4j_session
+):
     # Arrange
     create_github_repos(neo4j_session)
     create_dependency_nodes(neo4j_session)
