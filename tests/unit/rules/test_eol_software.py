@@ -10,8 +10,8 @@ def test_eol_software_rule_registered() -> None:
 
 def test_eol_software_rule_shape() -> None:
     assert eol_software.name == "End-of-Life Software"
-    assert len(eol_software.facts) == 2
-    assert len(eol_software.references) >= 2
+    assert len(eol_software.facts) == 3
+    assert len(eol_software.references) >= 5
 
 
 def test_eol_software_fact_modules() -> None:
@@ -53,3 +53,19 @@ def test_kubernetes_fact_uses_upstream_support_window() -> None:
     )
     assert "kubernetes_minor < 33" in kubernetes_fact.cypher_query
     assert "'upstream' AS support_basis" in kubernetes_fact.cypher_query
+
+
+def test_ec2_fact_uses_ssm_and_vendor_eol_date() -> None:
+    ec2_fact = next(
+        fact
+        for fact in eol_software.facts
+        if fact.id == "ec2_instance_amazon_linux_2_eol"
+    )
+    assert (
+        "MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:SSMInstanceInformation)"
+        in ec2_fact.cypher_query
+    )
+    assert "ssm.platform_name" in ec2_fact.cypher_query
+    assert "ssm.platform_version" in ec2_fact.cypher_query
+    assert "date() > date('2026-06-30')" in ec2_fact.cypher_query
+    assert "'vendor' AS support_basis" in ec2_fact.cypher_query

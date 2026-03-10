@@ -7,8 +7,9 @@ from cartography.rules.spec.model import RuleReference
 
 _OLDEST_SUPPORTED_UPSTREAM_KUBERNETES_MINOR = 33
 _OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR = 29
+_AMAZON_LINUX_2_EOL_DATE = "2026-06-30"
 
-KUBERNETES_EOL_REFERENCES = [
+EOL_SOFTWARE_REFERENCES = [
     RuleReference(
         text="Kubernetes Version Skew Policy",
         url="https://kubernetes.io/releases/version-skew-policy/",
@@ -20,6 +21,18 @@ KUBERNETES_EOL_REFERENCES = [
     RuleReference(
         text="Amazon EKS Kubernetes version lifecycle",
         url="https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html",
+    ),
+    RuleReference(
+        text="Amazon Linux 2 release notes",
+        url="https://docs.aws.amazon.com/AL2/latest/relnotes/relnotes-al2.html",
+    ),
+    RuleReference(
+        text="Amazon Linux 2023 release cadence",
+        url="https://docs.aws.amazon.com/linux/al2023/ug/release-cadence.html",
+    ),
+    RuleReference(
+        text="AWS Systems Manager InstanceInformation API",
+        url="https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_InstanceInformation.html",
     ),
 ]
 
@@ -142,6 +155,51 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
     maturity=Maturity.EXPERIMENTAL,
 )
 
+_ec2_instance_amazon_linux_2_eol = Fact(
+    id="ec2_instance_amazon_linux_2_eol",
+    name="EC2 instances running end-of-life Amazon Linux 2",
+    description=(
+        "Detects EC2 instances whose AWS Systems Manager InstanceInformation reports "
+        "Amazon Linux version 2 after the Amazon Linux 2 end-of-life date of "
+        "2026-06-30."
+    ),
+    cypher_query=f"""
+    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:SSMInstanceInformation)
+    WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
+      AND trim(toString(ssm.platform_version)) = '2'
+      AND date() > date('{_AMAZON_LINUX_2_EOL_DATE}')
+    RETURN ec2.id AS asset_id,
+           coalesce(ec2.instanceid, ec2.id) AS asset_name,
+           'EC2Instance' AS asset_type,
+           'amazon-linux' AS software_name,
+           trim(toString(ssm.platform_version)) AS software_version,
+           2 AS software_major,
+           NULL AS software_minor,
+           coalesce(ssm.region, ec2.region) AS location,
+           'vendor' AS support_basis,
+           'eol' AS support_status
+    ORDER BY asset_name
+    """,
+    cypher_visual_query=f"""
+    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:SSMInstanceInformation)
+    WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
+      AND trim(toString(ssm.platform_version)) = '2'
+      AND date() > date('{_AMAZON_LINUX_2_EOL_DATE}')
+    OPTIONAL MATCH p=(a:AWSAccount)-[:RESOURCE]->(ec2)
+    RETURN *
+    """,
+    cypher_count_query=f"""
+    MATCH (ec2:EC2Instance)-[:HAS_INFORMATION]->(ssm:SSMInstanceInformation)
+    WHERE toLower(trim(coalesce(ssm.platform_name, ''))) = 'amazon linux'
+      AND trim(toString(ssm.platform_version)) = '2'
+      AND date() > date('{_AMAZON_LINUX_2_EOL_DATE}')
+    RETURN COUNT(ec2) AS count
+    """,
+    asset_id_field="asset_id",
+    module=Module.AWS,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
 
 class EOLSoftwareOutput(Finding):
     asset_id: str | None = None
@@ -163,19 +221,23 @@ eol_software = Rule(
         "Detects infrastructure running end-of-life software versions. "
         "The initial coverage flags raw Kubernetes clusters using the upstream "
         "Kubernetes support window and EKS clusters using the Amazon EKS "
-        "provider lifecycle."
+        "provider lifecycle. It also flags EC2 instances that AWS SSM reports "
+        "as running Amazon Linux 2 after the vendor end-of-life date."
     ),
     output_model=EOLSoftwareOutput,
     facts=(
         _eks_cluster_kubernetes_version_eol,
         _kubernetes_cluster_kubernetes_version_eol,
+        _ec2_instance_amazon_linux_2_eol,
     ),
     tags=(
         "infrastructure",
         "kubernetes",
+        "ec2",
+        "operating_system",
         "lifecycle",
         "compliance",
     ),
-    version="0.1.0",
-    references=KUBERNETES_EOL_REFERENCES,
+    version="0.2.0",
+    references=EOL_SOFTWARE_REFERENCES,
 )
