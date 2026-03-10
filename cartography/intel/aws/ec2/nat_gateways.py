@@ -6,6 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.arns import build_arn
 from cartography.models.aws.ec2.nat_gateways import AWSNatGatewaySchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -13,14 +14,6 @@ from cartography.util import timeit
 from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
-
-
-def _get_aws_partition(region: str) -> str:
-    if region.startswith("us-gov-"):
-        return "aws-us-gov"
-    if region.startswith("cn-"):
-        return "aws-cn"
-    return "aws"
 
 
 @timeit
@@ -42,7 +35,6 @@ def transform_nat_gateways(
     nat_gateways: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
-    partition: str = "aws",
 ) -> list[dict[str, Any]]:
     """
     Transform NAT gateway data, flattening the primary NatGatewayAddresses entry.
@@ -50,8 +42,8 @@ def transform_nat_gateways(
     result = []
     for ngw in nat_gateways:
         ngw_id = ngw["NatGatewayId"]
-        arn = (
-            f"arn:{partition}:ec2:{region}:{current_aws_account_id}:natgateway/{ngw_id}"
+        arn = build_arn(
+            "ec2", current_aws_account_id, "natgateway", ngw_id, region=region
         )
 
         # Flatten the primary address entry; prefer the entry marked IsPrimary
@@ -125,9 +117,8 @@ def sync_nat_gateways(
             current_aws_account_id,
         )
         nat_gateways = get_nat_gateways(boto3_session, region)
-        partition = _get_aws_partition(region)
         transformed_data = transform_nat_gateways(
-            nat_gateways, region, current_aws_account_id, partition
+            nat_gateways, region, current_aws_account_id
         )
         load_nat_gateways(
             neo4j_session, transformed_data, region, current_aws_account_id, update_tag

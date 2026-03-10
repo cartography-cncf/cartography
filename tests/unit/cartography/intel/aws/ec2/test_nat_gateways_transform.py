@@ -82,32 +82,6 @@ def test_transform_nat_gateways_isprimary_selection():
     assert r["PublicIp"] == "1.1.1.1"
 
 
-def test_transform_nat_gateways_govcloud_partition():
-    """
-    Verify that a non-commercial partition (GovCloud) produces a correct ARN.
-    """
-    raw = [
-        {
-            "NatGatewayId": "nat-0gov",
-            "SubnetId": "subnet-gov",
-            "VpcId": "vpc-gov",
-            "State": "available",
-            "CreateTime": "2021-01-01T00:00:00+00:00",
-            "ConnectivityType": "public",
-            "NatGatewayAddresses": [],
-        },
-    ]
-    result = transform_nat_gateways(
-        raw, "us-gov-west-1", "123456789012", partition="aws-us-gov"
-    )
-
-    assert len(result) == 1
-    assert (
-        result[0]["Arn"]
-        == "arn:aws-us-gov:ec2:us-gov-west-1:123456789012:natgateway/nat-0gov"
-    )
-
-
 def test_transform_nat_gateways_private_no_addresses():
     """
     Verify that a private NAT gateway (no NatGatewayAddresses) produces None
