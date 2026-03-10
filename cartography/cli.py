@@ -383,6 +383,19 @@ class CLI:
                     rich_help_panel=PANEL_NEO4J,
                 ),
             ] = 3600,
+            neo4j_liveness_check_timeout: Annotated[
+                int | None,
+                typer.Option(
+                    "--neo4j-liveness-check-timeout",
+                    help=(
+                        "Time in seconds that a connection can be idle before the driver performs a liveness check "
+                        "(RESET ping) before reusing it. Helps prevent SessionExpired or ConnectionResetError on "
+                        "Aura or clustered Neo4j instances that close idle connections server-side. "
+                        "Uses the Neo4j driver default when not specified."
+                    ),
+                    rich_help_panel=PANEL_NEO4J,
+                ),
+            ] = None,
             neo4j_database: Annotated[
                 str | None,
                 typer.Option(
@@ -585,6 +598,18 @@ class CLI:
             # =================================================================
             # GCP Options
             # =================================================================
+            gcp_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-requested-syncs",
+                    help=(
+                        "Comma-separated list of GCP resources to sync. "
+                        'Example: "compute,iam,storage". See cartography.intel.gcp.resources for full list.'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
             gcp_permission_relationships_file: Annotated[
                 str,
                 typer.Option(
@@ -1633,6 +1658,14 @@ class CLI:
 
                 parse_and_validate_aws_regions(aws_regions)
 
+            # Validate GCP options
+            if gcp_requested_syncs:
+                from cartography.intel.gcp.util import (
+                    parse_and_validate_gcp_requested_syncs,
+                )
+
+                parse_and_validate_gcp_requested_syncs(gcp_requested_syncs)
+
             # Read Azure client secret
             azure_client_secret = None
             if azure_sp_auth and azure_client_secret_env_var:
@@ -2031,6 +2064,7 @@ class CLI:
                 neo4j_user=neo4j_user,
                 neo4j_password=neo4j_password,
                 neo4j_max_connection_lifetime=neo4j_max_connection_lifetime,
+                neo4j_liveness_check_timeout=neo4j_liveness_check_timeout,
                 neo4j_database=neo4j_database,
                 selected_modules=selected_modules,
                 update_tag=update_tag,
@@ -2062,6 +2096,7 @@ class CLI:
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,
+                gcp_requested_syncs=gcp_requested_syncs,
                 gcp_permission_relationships_file=gcp_permission_relationships_file,
                 jamf_base_uri=jamf_base_uri,
                 jamf_user=jamf_user,

@@ -15,6 +15,11 @@ class Config:
     :type neo4j_max_connection_lifetime: int
     :param neo4j_max_connection_lifetime: Time in seconds for Neo4j driver to consider a TCP connection alive.
         See https://neo4j.com/docs/driver-manual/1.7/client-applications/. Optional.
+    :type neo4j_liveness_check_timeout: int
+    :param neo4j_liveness_check_timeout: Time in seconds that a connection can be idle before the driver performs a
+        liveness check (RESET ping) before reusing it. Helps prevent SessionExpired or ConnectionResetError on
+        Aura/clustered Neo4j instances that close idle connections server-side. Maps to the neo4j driver's
+        ``liveness_check_timeout`` parameter. Optional.
     :type neo4j_database: string
     :param neo4j_database: The name of the database in Neo4j to connect to. If not specified, uses your Neo4j database
     settings to infer which database is set to default.
@@ -84,6 +89,8 @@ class Config:
     :param permission_relationships_file: File path for the resource permission relationships file. Optional.
     :type azure_permission_relationships_file: str
     :param azure_permission_relationships_file: File path for the Azure permission relationships file. Optional.
+    :type gcp_requested_syncs: str
+    :param gcp_requested_syncs: Comma-separated list of GCP resources to sync. Optional.
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
@@ -247,6 +254,7 @@ class Config:
         neo4j_user=None,
         neo4j_password=None,
         neo4j_max_connection_lifetime=None,
+        neo4j_liveness_check_timeout=None,
         neo4j_database=None,
         selected_modules=None,
         update_tag=None,
@@ -278,6 +286,7 @@ class Config:
         digitalocean_token=None,
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
+        gcp_requested_syncs=None,
         gcp_permission_relationships_file=None,
         jamf_base_uri=None,
         jamf_user=None,
@@ -372,6 +381,7 @@ class Config:
         self.neo4j_user = neo4j_user
         self.neo4j_password = neo4j_password
         self.neo4j_max_connection_lifetime = neo4j_max_connection_lifetime
+        self.neo4j_liveness_check_timeout = neo4j_liveness_check_timeout
         self.neo4j_database = neo4j_database
         self.selected_modules = selected_modules
         self.update_tag = update_tag
@@ -405,6 +415,7 @@ class Config:
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
+        self.gcp_requested_syncs = gcp_requested_syncs
         self.gcp_permission_relationships_file = gcp_permission_relationships_file
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user

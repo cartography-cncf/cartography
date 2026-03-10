@@ -116,7 +116,7 @@ def test_sync_sql(
         (f"{TEST_INSTANCE_ID}/backupConfig",),
     }
 
-    # Assert: Check all 9 relationships
+    # Assert: Check the expected Cloud SQL relationships
     assert check_rels(
         neo4j_session,
         "GCPProject",
