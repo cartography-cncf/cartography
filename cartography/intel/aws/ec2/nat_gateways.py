@@ -15,6 +15,14 @@ from .util import get_botocore_config
 logger = logging.getLogger(__name__)
 
 
+def _get_aws_partition(region: str) -> str:
+    if region.startswith("us-gov-"):
+        return "aws-us-gov"
+    if region.startswith("cn-"):
+        return "aws-cn"
+    return "aws"
+
+
 @timeit
 @aws_handle_regions
 def get_nat_gateways(
@@ -117,7 +125,7 @@ def sync_nat_gateways(
             current_aws_account_id,
         )
         nat_gateways = get_nat_gateways(boto3_session, region)
-        partition = boto3_session._session.get_partition_for_region(region)
+        partition = _get_aws_partition(region)
         transformed_data = transform_nat_gateways(
             nat_gateways, region, current_aws_account_id, partition
         )
