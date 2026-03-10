@@ -6,7 +6,6 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.util.arns import build_arn
 from cartography.models.aws.ec2.nat_gateways import AWSNatGatewaySchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -42,9 +41,8 @@ def transform_nat_gateways(
     result = []
     for ngw in nat_gateways:
         ngw_id = ngw["NatGatewayId"]
-        arn = build_arn(
-            "ec2", current_aws_account_id, "natgateway", ngw_id, region=region
-        )
+        # TODO: Right now this won't work in non-AWS commercial (GovCloud, China) as partition is hardcoded
+        arn = f"arn:aws:ec2:{region}:{current_aws_account_id}:natgateway/{ngw_id}"
 
         # Flatten the primary address entry; prefer the entry marked IsPrimary
         addresses = ngw.get("NatGatewayAddresses", [])
