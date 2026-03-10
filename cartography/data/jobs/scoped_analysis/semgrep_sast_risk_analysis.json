@@ -1,0 +1,20 @@
+{
+    "name": "Semgrep SAST findings risk analysis based on severity and repository archive status.",
+    "statements": [
+        {
+            "__comment__": "ARCHIVED -> Risk = Info",
+            "query": "MATCH (g:GitHubRepository{archived:true})<-[:FOUND_IN]-(s:SemgrepSASTFinding{lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) SET s.risk_severity = 'INFO' return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "Not archived -> Risk = Severity",
+            "query": "MATCH (g:GitHubRepository{archived:false})<-[:FOUND_IN]-(s:SemgrepSASTFinding{lastupdated:$UPDATE_TAG})<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) SET s.risk_severity = s.severity return COUNT(*) as TotalCompleted",
+            "iterative": false
+        },
+        {
+            "__comment__": "Remove risk_severity if not updated by the previous statements",
+            "query": "MATCH (s:SemgrepSASTFinding)<-[:RESOURCE]-(:SemgrepDeployment{id:$DEPLOYMENT_ID}) WHERE s.risk_severity IS NOT NULL AND s.lastupdated <> $UPDATE_TAG REMOVE s.risk_severity return COUNT(*) as TotalCompleted",
+            "iterative": false
+        }
+    ]
+}
