@@ -34,6 +34,7 @@ def transform_nat_gateways(
     nat_gateways: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
+    partition: str = "aws",
 ) -> list[dict[str, Any]]:
     """
     Transform NAT gateway data, flattening the primary NatGatewayAddresses entry.
@@ -41,12 +42,16 @@ def transform_nat_gateways(
     result = []
     for ngw in nat_gateways:
         ngw_id = ngw["NatGatewayId"]
-        # TODO: Right now this won't work in non-AWS commercial (GovCloud, China) as partition is hardcoded
-        arn = f"arn:aws:ec2:{region}:{current_aws_account_id}:natgateway/{ngw_id}"
+        arn = (
+            f"arn:{partition}:ec2:{region}:{current_aws_account_id}:natgateway/{ngw_id}"
+        )
 
-        # Flatten the primary address entry for public NAT gateways
+        # Flatten the primary address entry; prefer the entry marked IsPrimary
         addresses = ngw.get("NatGatewayAddresses", [])
-        primary = addresses[0] if addresses else {}
+        primary = next(
+            (addr for addr in addresses if addr.get("IsPrimary", False)),
+            addresses[0] if addresses else {},
+        )
 
         create_time = ngw.get("CreateTime")
         result.append(
@@ -112,8 +117,9 @@ def sync_nat_gateways(
             current_aws_account_id,
         )
         nat_gateways = get_nat_gateways(boto3_session, region)
+        partition = boto3_session._session.get_partition_for_region(region)
         transformed_data = transform_nat_gateways(
-            nat_gateways, region, current_aws_account_id
+            nat_gateways, region, current_aws_account_id, partition
         )
         load_nat_gateways(
             neo4j_session, transformed_data, region, current_aws_account_id, update_tag

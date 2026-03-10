@@ -2322,8 +2322,8 @@ Representation of an AWS [NAT Gateway](https://docs.aws.amazon.com/AWSEC2/latest
 | Field | Description |
 |-------|-------------|
 | **id** | NAT Gateway ID |
-| nat_gateway_id | NAT Gateway ID (same as id) |
-| arn | Amazon Resource Name |
+| **nat_gateway_id** | NAT Gateway ID (same as id) |
+| **arn** | Amazon Resource Name |
 | subnet_id | The ID of the subnet in which the NAT gateway resides |
 | vpc_id | The ID of the VPC |
 | state | The state of the NAT gateway (e.g., available, deleting) |
@@ -2334,6 +2334,7 @@ Representation of an AWS [NAT Gateway](https://docs.aws.amazon.com/AWSEC2/latest
 | public_ip | The public IP address of the NAT gateway |
 | connectivity_type | Whether the gateway is `public` or `private` |
 | region | The AWS region |
+| lastupdated | Timestamp of the last time the node was updated |
 
 
 #### Relationships

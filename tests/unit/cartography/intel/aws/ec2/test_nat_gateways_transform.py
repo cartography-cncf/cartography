@@ -20,6 +20,7 @@ def test_transform_nat_gateways_public():
                     "NetworkInterfaceId": "eni-abc",
                     "PrivateIp": "10.0.0.1",
                     "PublicIp": "1.2.3.4",
+                    "IsPrimary": True,
                 },
             ],
         },
@@ -38,6 +39,73 @@ def test_transform_nat_gateways_public():
     assert r["NetworkInterfaceId"] == "eni-abc"
     assert r["PrivateIp"] == "10.0.0.1"
     assert r["PublicIp"] == "1.2.3.4"
+
+
+def test_transform_nat_gateways_isprimary_selection():
+    """
+    Verify that when multiple NatGatewayAddresses are present, the entry
+    marked IsPrimary=True is selected over the first entry.
+    """
+    raw = [
+        {
+            "NatGatewayId": "nat-0multi",
+            "SubnetId": "subnet-123",
+            "VpcId": "vpc-456",
+            "State": "available",
+            "CreateTime": "2021-01-01T00:00:00+00:00",
+            "ConnectivityType": "public",
+            "NatGatewayAddresses": [
+                {
+                    "AllocationId": "eipalloc-secondary",
+                    "NetworkInterfaceId": "eni-secondary",
+                    "PrivateIp": "10.0.0.2",
+                    "PublicIp": "2.2.2.2",
+                    "IsPrimary": False,
+                },
+                {
+                    "AllocationId": "eipalloc-primary",
+                    "NetworkInterfaceId": "eni-primary",
+                    "PrivateIp": "10.0.0.1",
+                    "PublicIp": "1.1.1.1",
+                    "IsPrimary": True,
+                },
+            ],
+        },
+    ]
+    result = transform_nat_gateways(raw, "us-east-1", "123456789012")
+
+    assert len(result) == 1
+    r = result[0]
+    assert r["AllocationId"] == "eipalloc-primary"
+    assert r["NetworkInterfaceId"] == "eni-primary"
+    assert r["PrivateIp"] == "10.0.0.1"
+    assert r["PublicIp"] == "1.1.1.1"
+
+
+def test_transform_nat_gateways_govcloud_partition():
+    """
+    Verify that a non-commercial partition (GovCloud) produces a correct ARN.
+    """
+    raw = [
+        {
+            "NatGatewayId": "nat-0gov",
+            "SubnetId": "subnet-gov",
+            "VpcId": "vpc-gov",
+            "State": "available",
+            "CreateTime": "2021-01-01T00:00:00+00:00",
+            "ConnectivityType": "public",
+            "NatGatewayAddresses": [],
+        },
+    ]
+    result = transform_nat_gateways(
+        raw, "us-gov-west-1", "123456789012", partition="aws-us-gov"
+    )
+
+    assert len(result) == 1
+    assert (
+        result[0]["Arn"]
+        == "arn:aws-us-gov:ec2:us-gov-west-1:123456789012:natgateway/nat-0gov"
+    )
 
 
 def test_transform_nat_gateways_private_no_addresses():
