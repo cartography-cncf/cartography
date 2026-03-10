@@ -8,7 +8,6 @@ from neo4j import Session
 from cartography.client.core.tx import load
 from cartography.intel.aibom.parser import ParsedAIBOMDocument
 from cartography.models.aibom import AIBOMComponentSchema
-from cartography.models.aibom import AIBOMRelationshipSchema
 from cartography.models.aibom import AIBOMScanSchema
 from cartography.models.aibom import AIBOMSourceSchema
 from cartography.models.aibom import AIBOMWorkflowSchema
@@ -16,6 +15,20 @@ from cartography.stats import get_stats_client
 
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
+
+_RELATIONSHIP_TARGET_FIELD_BY_TYPE = {
+    "USES_TOOL": "uses_tool_component_ids",
+    "USES_LLM": "uses_model_component_ids",
+    "USES_MODEL": "uses_model_component_ids",
+    "USES_MEMORY": "uses_memory_component_ids",
+    "USES_RETRIEVER": "uses_retriever_component_ids",
+    "USES_EMBEDDING": "uses_embedding_component_ids",
+    "USES_PROMPT": "uses_prompt_component_ids",
+}
+
+_NORMALIZED_RELATIONSHIP_TYPE_BY_SOURCE_TYPE = {
+    "USES_LLM": "USES_MODEL",
+}
 
 
 def _stable_hash(value: str) -> str:
@@ -131,7 +144,6 @@ def load_aibom_document(
 
     source_payloads_by_id: dict[str, dict[str, Any]] = {}
     component_payloads_by_id: dict[str, dict[str, Any]] = {}
-    relationship_payloads_by_id: dict[str, dict[str, Any]] = {}
     component_category_counts: Counter[str] = Counter()
     relationship_type_counts: Counter[str] = Counter()
     workflow_payloads_by_id: dict[str, dict[str, Any]] = {}
@@ -142,7 +154,6 @@ def load_aibom_document(
         source_id = _stable_hash(f"{scan_id}|{source.source_key}")
         source_component_ids: list[str] = []
         source_workflow_ids: list[str] = []
-        source_relationship_ids: list[str] = []
 
         source_status = (source.source_status or "completed").lower()
         if source_status == "completed" and manifest_digest:
@@ -220,9 +231,14 @@ def load_aibom_document(
                 "model_name": component.model_name,
                 "framework": component.framework,
                 "label": component.label,
-                "metadata_json": component.metadata_json,
                 "manifest_digest": manifest_digest,
                 "workflow_ids": workflow_ids,
+                "uses_tool_component_ids": [],
+                "uses_model_component_ids": [],
+                "uses_memory_component_ids": [],
+                "uses_retriever_component_ids": [],
+                "uses_embedding_component_ids": [],
+                "uses_prompt_component_ids": [],
             }
             source_component_ids.append(component_id)
 
@@ -260,30 +276,28 @@ def load_aibom_document(
                 )
                 continue
 
-            relationship_id = _stable_hash(
-                "|".join(
-                    [
-                        source_id,
-                        relationship.relationship_type,
-                        source_component_id,
-                        target_component_id,
-                    ]
-                ),
+            relationship_field = _RELATIONSHIP_TARGET_FIELD_BY_TYPE.get(
+                relationship.relationship_type,
             )
-            relationship_payloads_by_id[relationship_id] = {
-                "id": relationship_id,
-                "relationship_type": relationship.relationship_type,
-                "source_component_id": source_component_id,
-                "target_component_id": target_component_id,
-                "raw_source_instance_id": relationship.source_instance_id,
-                "raw_target_instance_id": relationship.target_instance_id,
-                "raw_source_name": relationship.source_name,
-                "raw_target_name": relationship.target_name,
-                "raw_source_category": relationship.source_category,
-                "raw_target_category": relationship.target_category,
-            }
-            source_relationship_ids.append(relationship_id)
-            relationship_type_counts[relationship.relationship_type] += 1
+            if relationship_field is None:
+                logger.info(
+                    "Skipping unsupported AIBOM relationship type %s",
+                    relationship.relationship_type,
+                )
+                continue
+
+            source_component_payload = component_payloads_by_id[source_component_id]
+            target_component_ids = source_component_payload[relationship_field]
+            if target_component_id not in target_component_ids:
+                target_component_ids.append(target_component_id)
+
+            normalized_relationship_type = (
+                _NORMALIZED_RELATIONSHIP_TYPE_BY_SOURCE_TYPE.get(
+                    relationship.relationship_type,
+                    relationship.relationship_type,
+                )
+            )
+            relationship_type_counts[normalized_relationship_type] += 1
 
         source_payloads_by_id[source_id] = {
             "id": source_id,
@@ -297,7 +311,6 @@ def load_aibom_document(
             "category_summary_json": source.category_summary_json,
             "component_ids": sorted(set(source_component_ids)),
             "workflow_ids": sorted(set(source_workflow_ids)),
-            "relationship_ids": sorted(set(source_relationship_ids)),
         }
 
     load(
@@ -322,15 +335,6 @@ def load_aibom_document(
             neo4j_session,
             AIBOMComponentSchema(),
             components,
-            lastupdated=update_tag,
-        )
-
-    relationships = list(relationship_payloads_by_id.values())
-    if relationships:
-        load(
-            neo4j_session,
-            AIBOMRelationshipSchema(),
-            relationships,
             lastupdated=update_tag,
         )
 

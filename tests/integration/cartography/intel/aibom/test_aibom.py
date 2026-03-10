@@ -211,11 +211,22 @@ def test_sync_aibom_from_dir(
         ("workflow-tool",),
     }
 
-    assert check_nodes(neo4j_session, "AIBOMRelationship", ["relationship_type"]) == {
-        ("USES_LLM",),
-        ("USES_MEMORY",),
-        ("USES_PROMPT",),
-        ("USES_TOOL",),
+    assert check_nodes(neo4j_session, "AIBOMRelationship", ["id"]) == set()
+
+    assert check_nodes(neo4j_session, "AIAgent", ["name"]) == {
+        ("pydantic_ai.Agent",),
+    }
+    assert check_nodes(neo4j_session, "AIModel", ["name"]) == {
+        ("openai:gpt-4.1-mini",),
+    }
+    assert check_nodes(neo4j_session, "AITool", ["name"]) == {
+        ("fetch_customer_profile",),
+    }
+    assert check_nodes(neo4j_session, "AIMemory", ["name"]) == {
+        ("ConversationBufferMemory",),
+    }
+    assert check_nodes(neo4j_session, "AIPrompt", ["name"]) == {
+        ("system_prompt.customer_support",),
     }
 
     assert check_rels(
@@ -277,50 +288,66 @@ def test_sync_aibom_from_dir(
 
     assert check_rels(
         neo4j_session,
-        "AIBOMComponent",
+        "AIAgent",
         "name",
-        "AIBOMRelationship",
-        "relationship_type",
-        "FROM_COMPONENT",
+        "AIModel",
+        "name",
+        "USES_MODEL",
         rel_direction_right=True,
     ) == {
-        ("pydantic_ai.Agent", "USES_LLM"),
-        ("pydantic_ai.Agent", "USES_MEMORY"),
-        ("pydantic_ai.Agent", "USES_PROMPT"),
-        ("pydantic_ai.Agent", "USES_TOOL"),
+        ("pydantic_ai.Agent", "openai:gpt-4.1-mini"),
     }
 
     assert check_rels(
         neo4j_session,
-        "AIBOMRelationship",
-        "relationship_type",
-        "AIBOMComponent",
+        "AIAgent",
         "name",
-        "TO_COMPONENT",
+        "AITool",
+        "name",
+        "USES_TOOL",
         rel_direction_right=True,
     ) == {
-        ("USES_LLM", "openai:gpt-4.1-mini"),
-        ("USES_MEMORY", "ConversationBufferMemory"),
-        ("USES_PROMPT", "system_prompt.customer_support"),
-        ("USES_TOOL", "fetch_customer_profile"),
+        ("pydantic_ai.Agent", "fetch_customer_profile"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AIAgent",
+        "name",
+        "AIMemory",
+        "name",
+        "USES_MEMORY",
+        rel_direction_right=True,
+    ) == {
+        ("pydantic_ai.Agent", "ConversationBufferMemory"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "AIAgent",
+        "name",
+        "AIPrompt",
+        "name",
+        "USES_PROMPT",
+        rel_direction_right=True,
+    ) == {
+        ("pydantic_ai.Agent", "system_prompt.customer_support"),
     }
 
     assert check_nodes(
         neo4j_session,
         "AIBOMComponent",
-        ["name", "framework", "label", "metadata_json"],
+        ["name", "framework", "label"],
     ) >= {
         (
             "pydantic_ai.Agent",
             "pydantic_ai",
             "customer_assistant",
-            json.dumps({"approval": "human", "mcp": True}, sort_keys=True),
         ),
         (
             "fetch_customer_profile",
             "internal_mcp",
             "customer_lookup_tool",
-            json.dumps({"approval": "required", "transport": "mcp"}, sort_keys=True),
         ),
     }
 
@@ -358,26 +385,69 @@ def test_sync_aibom_relationship_falls_back_to_name_category_when_instance_id_un
 
     assert (
         "pydantic_ai.Agent",
-        "USES_LLM",
-    ) in check_rels(
-        neo4j_session,
-        "AIBOMComponent",
-        "name",
-        "AIBOMRelationship",
-        "relationship_type",
-        "FROM_COMPONENT",
-        rel_direction_right=True,
-    )
-    assert (
-        "USES_LLM",
         "openai:gpt-4.1-mini",
     ) in check_rels(
         neo4j_session,
-        "AIBOMRelationship",
-        "relationship_type",
-        "AIBOMComponent",
+        "AIAgent",
         "name",
-        "TO_COMPONENT",
+        "AIModel",
+        "name",
+        "USES_MODEL",
+        rel_direction_right=True,
+    )
+
+
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data="",
+)
+@patch(
+    "cartography.intel.aibom._get_json_files_in_dir",
+    return_value={"/tmp/aibom-flat-source-target.json"},
+)
+def test_sync_aibom_parses_flat_source_target_relationships(
+    mock_json_files,
+    mock_file_open,
+    neo4j_session,
+):
+    _seed_manifest_list_graph(neo4j_session)
+
+    report = copy.deepcopy(AIBOM_REPORT)
+    relationship = report["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY][
+        "relationships"
+    ][1]
+    relationship.pop("source")
+    relationship.pop("target")
+    relationship.update(
+        {
+            "source_instance_id": "agent_main",
+            "source_name": "pydantic_ai.Agent",
+            "source_category": "agent",
+            "target_instance_id": "tool_customer_lookup",
+            "target_name": "fetch_customer_profile",
+            "target_category": "tool",
+        },
+    )
+    mock_file_open.return_value.read.return_value = json.dumps(report)
+
+    sync_aibom_from_dir(
+        neo4j_session,
+        "/tmp",
+        TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert (
+        "pydantic_ai.Agent",
+        "fetch_customer_profile",
+    ) in check_rels(
+        neo4j_session,
+        "AIAgent",
+        "name",
+        "AITool",
+        "name",
+        "USES_TOOL",
         rel_direction_right=True,
     )
 
@@ -640,4 +710,4 @@ def test_cleanup_aibom_removes_stale_nodes(
     assert len(check_nodes(neo4j_session, "AIBOMSource", ["id"])) == 1
     assert len(check_nodes(neo4j_session, "AIBOMComponent", ["id"])) == 6
     assert len(check_nodes(neo4j_session, "AIBOMWorkflow", ["id"])) == 2
-    assert len(check_nodes(neo4j_session, "AIBOMRelationship", ["id"])) == 4
+    assert len(check_nodes(neo4j_session, "AIBOMRelationship", ["id"])) == 0

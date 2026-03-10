@@ -78,24 +78,6 @@ class AIBOMSourceToWorkflowRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
-class AIBOMSourceToRelationshipRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class AIBOMSourceToRelationshipRel(CartographyRelSchema):
-    target_node_label: str = "AIBOMRelationship"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("relationship_ids", one_to_many=True)},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "HAS_RELATIONSHIP"
-    properties: AIBOMSourceToRelationshipRelProperties = (
-        AIBOMSourceToRelationshipRelProperties()
-    )
-
-
-@dataclass(frozen=True)
 class AIBOMSourceSchema(CartographyNodeSchema):
     label: str = "AIBOMSource"
     scoped_cleanup: bool = False
@@ -106,6 +88,5 @@ class AIBOMSourceSchema(CartographyNodeSchema):
             AIBOMSourceToScanRel(),
             AIBOMSourceToComponentRel(),
             AIBOMSourceToWorkflowRel(),
-            AIBOMSourceToRelationshipRel(),
         ],
     )

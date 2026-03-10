@@ -38,7 +38,6 @@ class ParsedAIBOMComponent:
     model_name: str | None
     framework: str | None
     label: str | None
-    metadata_json: str | None
     workflow_ids: list[str]
 
 
@@ -130,11 +129,6 @@ def _parse_component(
         model_name=_as_str(component.get("model_name")),
         framework=_as_str(component.get("framework")),
         label=_as_str(component.get("label")),
-        metadata_json=(
-            json.dumps(component.get("metadata"), sort_keys=True)
-            if isinstance(component.get("metadata"), dict)
-            else None
-        ),
         workflow_ids=workflow_ids,
     )
     return parsed_component, embedded_workflows
@@ -155,9 +149,16 @@ def _extract_rel_endpoint(
             _as_str(endpoint_obj.get("category")),
         )
 
-    prefix = primary_key
-    if fallback_key in {"from", "to"}:
-        prefix = fallback_key
+    primary_prefix_values = (
+        _as_str(relationship.get(f"{primary_key}_instance_id"))
+        or _as_str(relationship.get(f"{primary_key}_id")),
+        _as_str(relationship.get(f"{primary_key}_name")),
+        _as_str(relationship.get(f"{primary_key}_category")),
+    )
+    if any(primary_prefix_values):
+        return primary_prefix_values
+
+    prefix = fallback_key if fallback_key in {"from", "to"} else primary_key
 
     return (
         _as_str(relationship.get(f"{prefix}_instance_id"))

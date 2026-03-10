@@ -1,5 +1,4 @@
 import copy
-import json
 from typing import Any
 from typing import cast
 
@@ -68,14 +67,10 @@ def test_parse_aibom_document_parses_rich_document() -> None:
         component for component in source.components if component.category == "model"
     )
 
-    assert agent.metadata_json == json.dumps(
-        {"approval": "human", "mcp": True},
-        sort_keys=True,
-    )
-    assert tool.metadata_json == json.dumps(
-        {"approval": "required", "transport": "mcp"},
-        sort_keys=True,
-    )
+    assert agent.framework == "pydantic_ai"
+    assert agent.label == "customer_assistant"
+    assert tool.framework == "internal_mcp"
+    assert tool.label == "customer_lookup_tool"
     assert model.model_name == "gpt-4.1-mini"
     assert {
         relationship.relationship_type for relationship in source.relationships
@@ -105,6 +100,38 @@ def test_parse_aibom_document_parses_flat_from_to_relationships() -> None:
             "to_instance_id": "model_primary",
             "to_name": "openai:gpt-4.1-mini",
             "to_category": "model",
+        },
+    )
+
+    document = parse_aibom_document(report)
+
+    parsed_relationship = document.sources[0].relationships[0]
+    assert parsed_relationship.source_instance_id == "agent_main"
+    assert parsed_relationship.source_name == "pydantic_ai.Agent"
+    assert parsed_relationship.source_category == "agent"
+    assert parsed_relationship.target_instance_id == "model_primary"
+    assert parsed_relationship.target_name == "openai:gpt-4.1-mini"
+    assert parsed_relationship.target_category == "model"
+
+
+def test_parse_aibom_document_parses_flat_source_target_relationships() -> None:
+    report = cast(dict[str, Any], copy.deepcopy(AIBOM_REPORT))
+    source = cast(
+        dict[str, Any],
+        report["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
+    )
+    relationships = cast(list[dict[str, Any]], source["relationships"])
+    relationship = relationships[0]
+    relationship.pop("source")
+    relationship.pop("target")
+    relationship.update(
+        {
+            "source_instance_id": "agent_main",
+            "source_name": "pydantic_ai.Agent",
+            "source_category": "agent",
+            "target_instance_id": "model_primary",
+            "target_name": "openai:gpt-4.1-mini",
+            "target_category": "model",
         },
     )
 

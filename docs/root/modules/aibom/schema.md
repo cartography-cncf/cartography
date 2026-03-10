@@ -6,7 +6,7 @@ The AIBOM module uses a source-faithful model:
 - `AIBOMSource` represents one source entry inside the report.
 - `AIBOMComponent` represents one detected component occurrence within a source.
 - `AIBOMWorkflow` represents workflow context emitted by the scanner.
-- `AIBOMRelationship` preserves source-defined component relationships such as `USES_TOOL` or `USES_LLM`.
+- `AIBOMComponent` nodes are linked directly for common AIBOM relationships such as `USES_TOOL`, `USES_MODEL`, and `USES_MEMORY`.
 
 ### AIBOMScan
 
@@ -101,8 +101,16 @@ Representation of one detected AI component occurrence within a source.
 | model_name | Optional model name emitted by the source |
 | framework | Optional framework emitted by the source |
 | label | Optional label emitted by the source |
-| metadata_json | Optional JSON-encoded metadata emitted by the source |
 | manifest_digest | Digest of the canonical `ECRImage` used for graph linking |
+
+`AIBOMComponent` also gets conditional category labels for discoverability:
+
+- `AIAgent` when `category = "agent"`
+- `AIModel` when `category = "model"`
+- `AITool` when `category = "tool"`
+- `AIMemory` when `category = "memory"`
+- `AIEmbedding` when `category = "embedding"`
+- `AIPrompt` when `category = "prompt"`
 
 #### Relationships
 
@@ -117,6 +125,17 @@ Representation of one detected AI component occurrence within a source.
     ```
     (:AIBOMComponent)-[:IN_WORKFLOW]->(:AIBOMWorkflow)
     ```
+
+- Common agentic relationships are materialized directly between components.
+
+    ```
+    (:AIAgent)-[:USES_TOOL]->(:AITool)
+    (:AIAgent)-[:USES_MODEL]->(:AIModel)
+    (:AIAgent)-[:USES_MEMORY]->(:AIMemory)
+    (:AIAgent)-[:USES_PROMPT]->(:AIPrompt)
+    ```
+
+- `USES_LLM` from the source payload is normalized to `USES_MODEL` in the graph so model relationships query consistently with other AI modules.
 
 ### AIBOMWorkflow
 
@@ -133,36 +152,10 @@ Representation of a workflow/function context emitted by AIBOM.
 | line | Line number for the workflow |
 | distance | Workflow distance reported by AIBOM |
 
-### AIBOMRelationship
+### Relationship ingestion
 
-Representation of one source-defined relationship between two component occurrences.
-
-| Field | Description |
-|-------|-------------|
-| firstseen | Timestamp of when a sync job first discovered this node |
-| lastupdated | Timestamp of the last time the node was updated |
-| **id** | Stable hash of source id + relationship type + source component + target component |
-| **relationship_type** | Native relationship type emitted by AIBOM (for example `USES_TOOL`, `USES_LLM`) |
-| raw_source_instance_id | Raw source instance id from the scanner payload |
-| raw_target_instance_id | Raw target instance id from the scanner payload |
-| raw_source_name | Raw source component name from the scanner payload |
-| raw_target_name | Raw target component name from the scanner payload |
-| raw_source_category | Raw source component category from the scanner payload |
-| raw_target_category | Raw target component category from the scanner payload |
-
-#### Relationships
-
-- An `AIBOMRelationship` points back to its source component.
-
-    ```
-    (:AIBOMComponent)-[:FROM_COMPONENT]->(:AIBOMRelationship)
-    ```
-
-- An `AIBOMRelationship` points to its target component.
-
-    ```
-    (:AIBOMRelationship)-[:TO_COMPONENT]->(:AIBOMComponent)
-    ```
+- Source `relationships` are used to create direct component-to-component edges for the built-in AIBOM relationship types currently supported by Cartography.
+- Unsupported custom relationship types are counted on `AIBOMSource.total_relationships` but are not materialized as graph edges.
 
 ### Linking constraints
 
@@ -184,7 +177,6 @@ RETURN scan.image_uri, img.digest, collect(component.name)
 Find agent-to-tool relationships:
 
 ```cypher
-MATCH (source:AIBOMSource)-[:HAS_RELATIONSHIP]->(rel:AIBOMRelationship {relationship_type: 'USES_TOOL'})
-MATCH (agent:AIBOMComponent)-[:FROM_COMPONENT]->(rel)-[:TO_COMPONENT]->(tool:AIBOMComponent)
-RETURN source.source_key, agent.name, tool.name
+MATCH (img:ECRImage)<-[:DETECTED_IN]-(agent:AIAgent)-[:USES_TOOL]->(tool:AITool)
+RETURN img.digest, agent.name, tool.name
 ```

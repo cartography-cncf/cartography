@@ -47,7 +47,7 @@ The native source payload may optionally include:
 - `workflows`
 - `relationships`
 - `source_kind`
-- category-specific component fields such as `model_name`, `framework`, `label`, and `metadata`
+- category-specific component fields such as `model_name`, `framework`, and `label`
 
 The module preserves those optional fields when present.
 
