@@ -36,9 +36,7 @@ aws_iam_mapping = OntologyMapping(
                     node_field="server_certificate_name",
                     required=True,
                 ),
-                OntologyFieldMapping(
-                    ontology_field="expiry", node_field="expiration"
-                ),
+                OntologyFieldMapping(ontology_field="expiry", node_field="expiration"),
                 # issuer: Not available
             ],
         ),
