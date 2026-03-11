@@ -128,7 +128,7 @@ def get_gcp_instance_responses(
                     "Transient error listing instances for project %s zone %s: %s; skipping this zone.",
                     project_id,
                     zone.get("name"),
-                    e,
+                    summarize_gcp_http_error(e),
                 )
                 continue
             raise

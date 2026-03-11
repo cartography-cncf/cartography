@@ -125,7 +125,7 @@ def get_gcp_zonal_instance_groups(
                         "Transient error listing instance groups for project %s zone %s: %s; skipping.",
                         project_id,
                         zone.get("name"),
-                        e,
+                        summarize_gcp_http_error(e),
                     )
                     break
                 raise
