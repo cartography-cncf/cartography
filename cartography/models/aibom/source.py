@@ -16,6 +16,22 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class AIBOMSourceNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    image_uri: PropertyRef = PropertyRef("image_uri", extra_index=True)
+    manifest_digest: PropertyRef = PropertyRef("manifest_digest", extra_index=True)
+    image_matched: PropertyRef = PropertyRef("image_matched", extra_index=True)
+    scan_scope: PropertyRef = PropertyRef("scan_scope")
+    report_location: PropertyRef = PropertyRef("report_location")
+    scanner_name: PropertyRef = PropertyRef("scanner_name")
+    scanner_version: PropertyRef = PropertyRef("scanner_version")
+    analyzer_version: PropertyRef = PropertyRef("analyzer_version")
+    analysis_status: PropertyRef = PropertyRef("analysis_status", extra_index=True)
+    report_total_sources: PropertyRef = PropertyRef("report_total_sources")
+    report_total_components: PropertyRef = PropertyRef("report_total_components")
+    report_total_workflows: PropertyRef = PropertyRef("report_total_workflows")
+    report_total_relationships: PropertyRef = PropertyRef("report_total_relationships")
+    report_category_summary_json: PropertyRef = PropertyRef(
+        "report_category_summary_json"
+    )
     source_key: PropertyRef = PropertyRef("source_key", extra_index=True)
     source_status: PropertyRef = PropertyRef("source_status", extra_index=True)
     source_kind: PropertyRef = PropertyRef("source_kind", extra_index=True)
@@ -26,19 +42,19 @@ class AIBOMSourceNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class AIBOMSourceToScanRelProperties(CartographyRelProperties):
+class AIBOMSourceToImageRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class AIBOMSourceToScanRel(CartographyRelSchema):
-    target_node_label: str = "AIBOMScan"
+class AIBOMSourceToImageRel(CartographyRelSchema):
+    target_node_label: str = "ECRImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("scan_id")},
+        {"digest": PropertyRef("manifest_digest")},
     )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "HAS_SOURCE"
-    properties: AIBOMSourceToScanRelProperties = AIBOMSourceToScanRelProperties()
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "SCANNED_IMAGE"
+    properties: AIBOMSourceToImageRelProperties = AIBOMSourceToImageRelProperties()
 
 
 @dataclass(frozen=True)
@@ -85,7 +101,7 @@ class AIBOMSourceSchema(CartographyNodeSchema):
     properties: AIBOMSourceNodeProperties = AIBOMSourceNodeProperties()
     other_relationships: OtherRelationships = OtherRelationships(
         [
-            AIBOMSourceToScanRel(),
+            AIBOMSourceToImageRel(),
             AIBOMSourceToComponentRel(),
             AIBOMSourceToWorkflowRel(),
         ],

@@ -213,30 +213,32 @@ def test_sync_aibom_from_dir(
 
     assert check_nodes(
         neo4j_session,
-        "AIBOMScan",
+        "AIBOMSource",
         [
             "image_uri",
+            "source_key",
             "scanner_name",
             "scanner_version",
             "analysis_status",
             "image_matched",
-        ],
-    ) == {
-        (TEST_IMAGE_URI, "cisco-aibom", "0.4.0", "completed", True),
-    }
-
-    assert check_nodes(
-        neo4j_session,
-        "AIBOMSource",
-        [
-            "source_key",
             "source_status",
             "source_kind",
             "total_components",
             "total_relationships",
         ],
     ) == {
-        (TEST_SOURCE_KEY, "completed", "container_image", 6, 4),
+        (
+            TEST_IMAGE_URI,
+            TEST_SOURCE_KEY,
+            "cisco-aibom",
+            "0.4.0",
+            "completed",
+            True,
+            "completed",
+            "container_image",
+            6,
+            4,
+        ),
     }
 
     assert check_nodes(neo4j_session, "AIBOMComponent", ["category"]) == {
@@ -273,26 +275,14 @@ def test_sync_aibom_from_dir(
 
     assert check_rels(
         neo4j_session,
-        "AIBOMScan",
-        "image_uri",
+        "AIBOMSource",
+        "source_key",
         "ECRImage",
         "type",
         "SCANNED_IMAGE",
         rel_direction_right=True,
     ) == {
-        (TEST_IMAGE_URI, "manifest_list"),
-    }
-
-    assert check_rels(
-        neo4j_session,
-        "AIBOMScan",
-        "image_uri",
-        "AIBOMSource",
-        "source_key",
-        "HAS_SOURCE",
-        rel_direction_right=True,
-    ) == {
-        (TEST_IMAGE_URI, TEST_SOURCE_KEY),
+        (TEST_SOURCE_KEY, "manifest_list"),
     }
 
     assert check_rels(
@@ -600,17 +590,10 @@ def test_sync_aibom_keeps_scan_provenance_for_incomplete_sources(
 
     assert check_nodes(
         neo4j_session,
-        "AIBOMScan",
-        ["image_uri", "image_matched"],
-    ) == {
-        (TEST_IMAGE_URI, True),
-    }
-    assert check_nodes(
-        neo4j_session,
         "AIBOMSource",
-        ["source_key", "source_status"],
+        ["image_uri", "image_matched", "source_key", "source_status"],
     ) == {
-        (TEST_SOURCE_KEY, "failed"),
+        (TEST_IMAGE_URI, True, TEST_SOURCE_KEY, "failed"),
     }
     assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == set()
 
@@ -641,20 +624,15 @@ def test_sync_aibom_keeps_scan_provenance_for_unmatched_sources(
 
     assert check_nodes(
         neo4j_session,
-        "AIBOMScan",
-        ["image_uri", "image_matched"],
+        "AIBOMSource",
+        ["image_uri", "image_matched", "source_key", "source_status"],
     ) == {
         (
             "000000000000.dkr.ecr.us-east-1.amazonaws.com/unmatched-repository:v1.0",
             False,
+            TEST_SOURCE_KEY,
+            "completed",
         ),
-    }
-    assert check_nodes(
-        neo4j_session,
-        "AIBOMSource",
-        ["source_key", "source_status"],
-    ) == {
-        (TEST_SOURCE_KEY, "completed"),
     }
     assert check_nodes(neo4j_session, "AIBOMComponent", ["id"]) == set()
     assert "could not resolve digest" in caplog.text
@@ -685,14 +663,14 @@ def test_sync_aibom_falls_back_to_single_platform_image(
 
     assert check_rels(
         neo4j_session,
-        "AIBOMScan",
-        "image_uri",
+        "AIBOMSource",
+        "source_key",
         "ECRImage",
         "type",
         "SCANNED_IMAGE",
         rel_direction_right=True,
     ) == {
-        (TEST_SINGLE_PLATFORM_IMAGE_URI, "image"),
+        (TEST_SOURCE_KEY, "image"),
     }
 
 
@@ -719,7 +697,7 @@ def test_sync_aibom_skips_local_unicode_decode_errors(
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )
 
-    assert check_nodes(neo4j_session, "AIBOMScan", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
     assert (
         "Skipping unreadable AIBOM report /tmp/aibom-bad-encoding.json" in caplog.text
     )
@@ -751,7 +729,7 @@ def test_sync_aibom_skips_s3_unicode_decode_errors(
             boto3_session,
         )
 
-    assert check_nodes(neo4j_session, "AIBOMScan", ["id"]) == set()
+    assert check_nodes(neo4j_session, "AIBOMSource", ["id"]) == set()
     assert (
         "Skipping unreadable AIBOM report s3://example-bucket/reports/aibom-bad-encoding.json"
         in caplog.text
@@ -783,11 +761,6 @@ def test_cleanup_aibom_removes_stale_nodes(
 
     neo4j_session.run(
         """
-        CREATE (:AIBOMScan {
-            id: 'stale-scan',
-            lastupdated: 0,
-            _module_name: 'cartography:aibom'
-        })
         CREATE (:AIBOMSource {
             id: 'stale-source',
             lastupdated: 0,
@@ -813,9 +786,6 @@ def test_cleanup_aibom_removes_stale_nodes(
 
     cleanup_aibom(neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
 
-    assert "stale-scan" not in {
-        row[0] for row in check_nodes(neo4j_session, "AIBOMScan", ["id"])
-    }
     assert "stale-source" not in {
         row[0] for row in check_nodes(neo4j_session, "AIBOMSource", ["id"])
     }
@@ -829,7 +799,6 @@ def test_cleanup_aibom_removes_stale_nodes(
         row[0] for row in check_nodes(neo4j_session, "AIBOMRelationship", ["id"])
     }
 
-    assert len(check_nodes(neo4j_session, "AIBOMScan", ["id"])) == 1
     assert len(check_nodes(neo4j_session, "AIBOMSource", ["id"])) == 1
     assert len(check_nodes(neo4j_session, "AIBOMComponent", ["id"])) == 6
     assert len(check_nodes(neo4j_session, "AIBOMWorkflow", ["id"])) == 2

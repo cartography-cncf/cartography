@@ -6,7 +6,6 @@ from cartography.client.core.tx import load
 from cartography.intel.aibom.parser import ParsedAIBOMDocument
 from cartography.intel.aibom.transform import transform_aibom_document
 from cartography.models.aibom import AIBOMComponentSchema
-from cartography.models.aibom import AIBOMScanSchema
 from cartography.models.aibom import AIBOMSourceSchema
 from cartography.models.aibom import AIBOMWorkflowSchema
 from cartography.stats import get_stats_client
@@ -95,13 +94,6 @@ def load_aibom_document(
                 source.source_key,
                 document.image_uri,
             )
-
-    load(
-        neo4j_session,
-        AIBOMScanSchema(),
-        [transformed_document.scan_payload],
-        lastupdated=update_tag,
-    )
 
     if transformed_document.workflow_payloads:
         load(

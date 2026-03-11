@@ -25,7 +25,6 @@ _NORMALIZED_RELATIONSHIP_TYPE_BY_SOURCE_TYPE = {
 
 @dataclass(frozen=True)
 class TransformedAIBOMDocument:
-    scan_payload: dict[str, Any]
     source_payloads: list[dict[str, Any]]
     component_payloads: list[dict[str, Any]]
     workflow_payloads: list[dict[str, Any]]
@@ -100,35 +99,6 @@ def transform_aibom_document(
     document: ParsedAIBOMDocument,
     manifest_digest: str | None,
 ) -> TransformedAIBOMDocument:
-    scan_identity_value = manifest_digest or document.image_uri
-    scan_id = _stable_hash(
-        "|".join(
-            [
-                scan_identity_value,
-                document.scanner_name or "",
-                document.scan_scope or "",
-            ],
-        ),
-    )
-
-    scan_payload = {
-        "id": scan_id,
-        "image_uri": document.image_uri,
-        "manifest_digest": manifest_digest,
-        "image_matched": bool(manifest_digest),
-        "scan_scope": document.scan_scope,
-        "report_location": document.report_location,
-        "scanner_name": document.scanner_name,
-        "scanner_version": document.scanner_version,
-        "analyzer_version": document.analyzer_version,
-        "analysis_status": document.analysis_status,
-        "total_sources": document.total_sources,
-        "total_components": document.total_components,
-        "total_workflows": document.total_workflows,
-        "total_relationships": document.total_relationships,
-        "category_summary_json": document.category_summary_json,
-    }
-
     source_payloads_by_id: dict[str, dict[str, Any]] = {}
     component_payloads_by_id: dict[str, dict[str, Any]] = {}
     workflow_payloads_by_id: dict[str, dict[str, Any]] = {}
@@ -136,7 +106,16 @@ def transform_aibom_document(
     relationship_type_counts: Counter[str] = Counter()
 
     for source in document.sources:
-        source_id = _stable_hash(f"{scan_id}|{source.source_key}")
+        source_id = _stable_hash(
+            "|".join(
+                [
+                    manifest_digest or document.image_uri,
+                    document.scanner_name or "",
+                    document.scan_scope or "",
+                    source.source_key,
+                ],
+            ),
+        )
         source_component_ids: list[str] = []
         source_workflow_ids: list[str] = []
         workflow_id_map: dict[str, str] = {}
@@ -282,7 +261,20 @@ def transform_aibom_document(
 
         source_payloads_by_id[source_id] = {
             "id": source_id,
-            "scan_id": scan_id,
+            "image_uri": document.image_uri,
+            "manifest_digest": manifest_digest,
+            "image_matched": bool(manifest_digest),
+            "scan_scope": document.scan_scope,
+            "report_location": document.report_location,
+            "scanner_name": document.scanner_name,
+            "scanner_version": document.scanner_version,
+            "analyzer_version": document.analyzer_version,
+            "analysis_status": document.analysis_status,
+            "report_total_sources": document.total_sources,
+            "report_total_components": document.total_components,
+            "report_total_workflows": document.total_workflows,
+            "report_total_relationships": document.total_relationships,
+            "report_category_summary_json": document.category_summary_json,
             "source_key": source.source_key,
             "source_status": source.source_status,
             "source_kind": source.source_kind,
@@ -295,7 +287,6 @@ def transform_aibom_document(
         }
 
     return TransformedAIBOMDocument(
-        scan_payload=scan_payload,
         source_payloads=list(source_payloads_by_id.values()),
         component_payloads=list(component_payloads_by_id.values()),
         workflow_payloads=list(workflow_payloads_by_id.values()),

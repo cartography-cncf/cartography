@@ -38,7 +38,7 @@ Each JSON file must be an envelope wrapping the native scanner output with the i
 |-------|----------|-------------|
 | `image_uri` | Yes | Image URI to map into the graph. Tag-based and digest-based URIs are both supported. |
 | `report` | Yes | Wrapper object containing the native `aibom_analysis`. |
-| `scan_scope` | No | Path or scope scanned inside the image or extracted filesystem. Stored on `AIBOMScan`. |
+| `scan_scope` | No | Path or scope scanned inside the image or extracted filesystem. Stored on `AIBOMSource`. |
 | `scanner.name` | No | Scanner name. Defaults to `cisco-aibom`. |
 | `scanner.version` | No | Scanner version. Falls back to `aibom_analysis.metadata.analyzer_version`. |
 
@@ -62,10 +62,10 @@ This avoids duplicating detections across platform-specific child images while s
 
 ### Provenance behavior
 
-Cartography now preserves scan and source provenance even when component inventory is not loaded:
+Cartography now preserves source provenance even when component inventory is not loaded:
 
-- If a source has a non-`completed` status, Cartography loads `AIBOMScan` and `AIBOMSource` but skips components, workflows, and relationships.
-- If `image_uri` does not resolve to an `ECRImage`, Cartography still loads `AIBOMScan` and `AIBOMSource` with `image_matched = false` for troubleshooting.
+- If a source has a non-`completed` status, Cartography loads `AIBOMSource` but skips components, workflows, and relationships.
+- If `image_uri` does not resolve to an `ECRImage`, Cartography still loads `AIBOMSource` with `image_matched = false` for troubleshooting.
 
 This makes stale coverage, failed scans, and mismatched image URIs visible in the graph instead of silently disappearing.
 

@@ -1,23 +1,22 @@
 ## AIBOM Schema
 
-The AIBOM module uses a source-faithful model:
+The AIBOM module uses a mostly source-faithful model with one pragmatic simplification:
 
-- `AIBOMScan` represents one ingested report envelope for one image.
-- `AIBOMSource` represents one source entry inside the report.
+- `AIBOMSource` is the primary scanned-target node. It combines the report-envelope metadata and the source entry because real AIBOM usage here is effectively one meaningful source per image.
 - `AIBOMComponent` represents one detected component occurrence within a source.
 - `AIBOMComponent.logical_id` provides a stable callsite-style fingerprint so equivalent components can be grouped across repeated rebuilds and image churn.
 - `AIBOMWorkflow` represents workflow context emitted by the scanner.
 - `AIBOMComponent` nodes are linked directly for common AIBOM relationships such as `USES_TOOL`, `USES_MODEL`, and `USES_MEMORY`.
 
-### AIBOMScan
+### AIBOMSource
 
-Representation of one ingested AIBOM report for one image URI.
+Representation of one scanned target within the AIBOM output. In practice this is the node you traverse from `ECRImage` to reach the rest of the AI inventory.
 
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
-| **id** | Stable hash of the matched image identity and scan metadata |
+| **id** | Stable hash of matched image identity + scanner metadata + source key |
 | **image_uri** | Image URI provided in the report envelope |
 | manifest_digest | Canonical `ECRImage.digest` resolved from `image_uri`, when available |
 | image_matched | Whether `image_uri` resolved to an `ECRImage` already in the graph |
@@ -27,35 +26,11 @@ Representation of one ingested AIBOM report for one image URI.
 | scanner_version | Scanner version |
 | analyzer_version | Analyzer version reported by AIBOM |
 | analysis_status | Top-level analysis status if present |
-| total_sources | Number of sources in the report |
-| total_components | Total detected components across all sources |
-| total_workflows | Total workflows across all sources |
-| total_relationships | Total component relationships across all sources |
-| category_summary_json | JSON summary of category counts across the report |
-
-#### Relationships
-
-- An `AIBOMScan` points to the canonical image it scanned when that image exists in the graph.
-
-    ```
-    (:AIBOMScan)-[:SCANNED_IMAGE]->(:ECRImage)
-    ```
-
-- An `AIBOMScan` contains one or more `AIBOMSource` entries.
-
-    ```
-    (:AIBOMScan)-[:HAS_SOURCE]->(:AIBOMSource)
-    ```
-
-### AIBOMSource
-
-Representation of one source entry within the scanner output.
-
-| Field | Description |
-|-------|-------------|
-| firstseen | Timestamp of when a sync job first discovered this node |
-| lastupdated | Timestamp of the last time the node was updated |
-| **id** | Stable hash of scan id + source key |
+| report_total_sources | Number of sources in the report |
+| report_total_components | Total detected components across all sources in the report |
+| report_total_workflows | Total workflows across all sources in the report |
+| report_total_relationships | Total component relationships across all sources in the report |
+| report_category_summary_json | JSON summary of category counts across the report |
 | **source_key** | Native source key emitted by AIBOM |
 | source_status | Source status (for example `completed` or `failed`) |
 | source_kind | Optional source kind emitted by AIBOM |
@@ -65,6 +40,12 @@ Representation of one source entry within the scanner output.
 | category_summary_json | JSON summary of component category counts for this source |
 
 #### Relationships
+
+- A source points to the canonical image it scanned when that image exists in the graph.
+
+    ```
+    (:AIBOMSource)-[:SCANNED_IMAGE]->(:ECRImage)
+    ```
 
 - A source contains component occurrences.
 
@@ -76,12 +57,6 @@ Representation of one source entry within the scanner output.
 
     ```
     (:AIBOMSource)-[:HAS_WORKFLOW]->(:AIBOMWorkflow)
-    ```
-
-- A source contains relationship entries between components.
-
-    ```
-    (:AIBOMSource)-[:HAS_RELATIONSHIP]->(:AIBOMRelationship)
     ```
 
 ### AIBOMComponent
@@ -171,17 +146,17 @@ Representation of a workflow/function context emitted by AIBOM.
 
 - If the envelope `image_uri` contains a digest (`repo@sha256:...`), the digest is extracted directly and verified against `ECRImage` nodes. No graph traversal is needed.
 - For tag-based URIs (`repo:tag`), AIBOM resolves the digest via `ECRRepositoryImage` → `ECRImage`, preferring `type = "manifest_list"` over `type = "image"`.
-- A scan without an image match is still preserved as `AIBOMScan {image_matched: false}` for coverage and troubleshooting, but it will not create `AIBOMComponent -> ECRImage` links.
+- A source without an image match is still preserved as `AIBOMSource {image_matched: false}` for coverage and troubleshooting, but it will not create `AIBOMSource -> ECRImage` or `AIBOMComponent -> ECRImage` links.
 
 ### Example queries
 
 Find production images that contain agent components:
 
 ```cypher
-MATCH (scan:AIBOMScan)-[:SCANNED_IMAGE]->(img:ECRImage)
-MATCH (scan)-[:HAS_SOURCE]->(:AIBOMSource)-[:HAS_COMPONENT]->(component:AIBOMComponent)
+MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(img:ECRImage)
+MATCH (source)-[:HAS_COMPONENT]->(component:AIBOMComponent)
 WHERE component.category = 'agent'
-RETURN scan.image_uri, img.digest, collect(component.name)
+RETURN source.image_uri, img.digest, collect(component.name)
 ```
 
 Find agent-to-tool relationships:
