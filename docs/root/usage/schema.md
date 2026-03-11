@@ -29,6 +29,9 @@
 ```{include} ../modules/airbyte/schema.md
 ```
 
+```{include} ../modules/aibom/schema.md
+```
+
 
 ```{include} ../modules/anthropic/schema.md
 ```

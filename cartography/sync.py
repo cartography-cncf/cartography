@@ -9,6 +9,7 @@ import neo4j.exceptions
 from neo4j import GraphDatabase
 from statsd import StatsClient
 
+import cartography.intel.aibom
 import cartography.intel.airbyte
 import cartography.intel.analysis
 import cartography.intel.anthropic
@@ -94,6 +95,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "syft": cartography.intel.syft.start_syft_ingestion,
+        "aibom": cartography.intel.aibom.start_aibom_ingestion,
         "ubuntu": cartography.intel.ubuntu.start_ubuntu_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "slack": cartography.intel.slack.start_slack_ingestion,
