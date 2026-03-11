@@ -41,7 +41,12 @@ def get_sbom(image: str) -> dict[str, Any]:
 
     # stdout may have info log lines before the JSON; find the JSON start
     stdout = result.stdout
-    json_start = stdout.index("{")
+    try:
+        json_start = stdout.index("{")
+    except ValueError:
+        raise RuntimeError(
+            f"docker scout sbom returned no JSON output for {image}: {stdout[:200]}",
+        )
     return json.loads(stdout[json_start:])
 
 
@@ -67,7 +72,12 @@ def get_cves(image: str) -> dict[str, Any]:
         )
 
     stdout = result.stdout
-    json_start = stdout.index("{")
+    try:
+        json_start = stdout.index("{")
+    except ValueError:
+        raise RuntimeError(
+            f"docker scout cves returned no JSON output for {image}: {stdout[:200]}",
+        )
     return json.loads(stdout[json_start:])
 
 
@@ -191,7 +201,7 @@ def transform_findings(
         package_id = purl_to_pkg_id.get(pkg_purl)
 
         for vuln in vuln_pkg.get("vulnerabilities", []):
-            source_id = vuln.get("source_id", "")
+            source_id = vuln["source_id"]
             finding_id = f"DSF|{source_id}"
 
             # Extract severity and CVSS version from nested cvss object

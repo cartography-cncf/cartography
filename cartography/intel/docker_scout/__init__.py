@@ -71,10 +71,14 @@ def start_docker_scout_ingestion(neo4j_session: Session, config: Config) -> None
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
 
     logger.info("Starting Docker Scout sync for %d images", len(images))
+    synced_count = 0
     for image in sorted(images):
-        try:
-            sync(neo4j_session, image, config.update_tag)
-        except Exception:
-            logger.exception("Failed to sync Docker Scout data for image %s", image)
+        sync(neo4j_session, image, config.update_tag)
+        synced_count += 1
 
-    cleanup(neo4j_session, common_job_parameters)
+    if synced_count > 0:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "No images synced successfully, skipping cleanup to preserve existing data"
+        )

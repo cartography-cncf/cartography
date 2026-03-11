@@ -52,7 +52,7 @@ Representation of a package installed in a public/base image, as detected by Doc
 | namespace | Package namespace (e.g. `debian`) |
 | type | Package type (e.g. `deb`, `rpm`) |
 | purl | Package URL (e.g. `pkg:deb/debian/libssl3@3.0.15`) |
-| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{name}\|{version}`). Indexed. |
+| **normalized_id** | Normalized ID for cross-tool matching (format: `{type}\|{namespace/}{normalized_name}\|{version}`). The name is lowercased and separators are normalized for consistent matching across tools (e.g. Trivy, Syft). Indexed. |
 | layer_digest | Digest of the image layer containing the package |
 | layer_diff_id | Diff ID of the image layer containing the package |
 

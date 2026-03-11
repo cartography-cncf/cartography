@@ -1,17 +1,12 @@
-from cartography.intel.docker_scout.scanner import cleanup
-from cartography.intel.docker_scout.scanner import load_findings
-from cartography.intel.docker_scout.scanner import load_fixes
-from cartography.intel.docker_scout.scanner import load_packages
-from cartography.intel.docker_scout.scanner import load_public_image
-from cartography.intel.docker_scout.scanner import transform_findings
-from cartography.intel.docker_scout.scanner import transform_packages
-from cartography.intel.docker_scout.scanner import transform_public_image
+from unittest.mock import patch
+
+import cartography.intel.docker_scout.scanner
 from tests.data.docker_scout.mock_data import MOCK_CVES_DATA
 from tests.data.docker_scout.mock_data import MOCK_PUBLIC_SBOM_DATA
 from tests.data.docker_scout.mock_data import MOCK_SBOM_DATA
 from tests.data.docker_scout.mock_data import TEST_GITLAB_IMAGE_ID
+from tests.data.docker_scout.mock_data import TEST_IMAGE
 from tests.data.docker_scout.mock_data import TEST_IMAGE_DIGEST
-from tests.data.docker_scout.mock_data import TEST_PUBLIC_IMAGE_ID
 from tests.data.docker_scout.mock_data import TEST_UPDATE_TAG
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -41,25 +36,33 @@ def _create_gitlab_container_image(neo4j_session, image_id, update_tag):
     )
 
 
-def test_docker_scout_sync(neo4j_session):
+@patch.object(
+    cartography.intel.docker_scout.scanner,
+    "get_cves",
+    return_value=MOCK_CVES_DATA,
+)
+@patch.object(
+    cartography.intel.docker_scout.scanner,
+    "get_sbom",
+    side_effect=[MOCK_SBOM_DATA, MOCK_PUBLIC_SBOM_DATA],
+)
+def test_docker_scout_sync(mock_get_sbom, mock_get_cves, neo4j_session):
     # Arrange: create external registry nodes that Docker Scout rels connect to
     _create_ecr_image(neo4j_session, TEST_IMAGE_DIGEST, TEST_UPDATE_TAG)
     _create_gitlab_container_image(neo4j_session, TEST_GITLAB_IMAGE_ID, TEST_UPDATE_TAG)
 
-    # Transform
-    public_image = transform_public_image(MOCK_SBOM_DATA, TEST_IMAGE_DIGEST)
-    assert public_image is not None
-
-    packages = transform_packages(
-        MOCK_PUBLIC_SBOM_DATA, TEST_IMAGE_DIGEST, TEST_PUBLIC_IMAGE_ID
+    # Act: run the full sync orchestration
+    cartography.intel.docker_scout.scanner.sync(
+        neo4j_session,
+        TEST_IMAGE,
+        TEST_UPDATE_TAG,
     )
-    findings, fixes = transform_findings(MOCK_CVES_DATA, TEST_IMAGE_DIGEST)
 
-    # Load
-    load_public_image(neo4j_session, public_image, TEST_UPDATE_TAG)
-    load_packages(neo4j_session, packages, TEST_UPDATE_TAG)
-    load_findings(neo4j_session, findings, TEST_UPDATE_TAG)
-    load_fixes(neo4j_session, fixes, TEST_UPDATE_TAG)
+    # Verify get_sbom was called twice (scanned image, then public image)
+    assert mock_get_sbom.call_count == 2
+    assert mock_get_sbom.call_args_list[0].args[0] == TEST_IMAGE
+    assert mock_get_sbom.call_args_list[1].args[0] == "python:3.12-slim"
+    mock_get_cves.assert_called_once_with(TEST_IMAGE)
 
     # --- Assert nodes ---
 
@@ -247,4 +250,7 @@ def test_docker_scout_sync(neo4j_session):
     }
 
     # --- Cleanup test ---
-    cleanup(neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG})
+    cartography.intel.docker_scout.scanner.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
