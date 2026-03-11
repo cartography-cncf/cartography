@@ -96,6 +96,7 @@ def summarize_gcp_http_error(http_error: HttpError) -> str:
     prefix = f"HTTP {status}"
     if reason:
         prefix = f"{prefix} {reason}"
+    fallback = f"{prefix}: {_truncate_gcp_error_detail(str(http_error))}"
 
     try:
         data = json.loads(http_error.content.decode("utf-8"))
@@ -106,9 +107,9 @@ def summarize_gcp_http_error(http_error: HttpError) -> str:
                 if isinstance(message, str) and message:
                     return f"{prefix}: {_truncate_gcp_error_detail(message)}"
     except (UnicodeDecodeError, ValueError, KeyError, IndexError, TypeError):
-        pass
+        return fallback
 
-    return f"{prefix}: {_truncate_gcp_error_detail(str(http_error))}"
+    return fallback
 
 
 def gcp_api_giveup_handler(details: Dict) -> None:
