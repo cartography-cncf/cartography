@@ -21,6 +21,7 @@ GCP_RETRYABLE_HTTP_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 GCP_API_MAX_RETRIES = 3
 GCP_API_BACKOFF_BASE = 2
 GCP_API_BACKOFF_MAX = 30
+GCP_HTTP_ERROR_DETAIL_MAX_CHARS = 240
 GCP_PERMISSION_DENIED_REASONS = frozenset(
     {"forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"}
 )
@@ -77,12 +78,78 @@ def gcp_api_backoff_handler(details: Dict) -> None:
     )
 
 
+def _truncate_gcp_error_detail(
+    value: str, limit: int = GCP_HTTP_ERROR_DETAIL_MAX_CHARS
+) -> str:
+    value = " ".join(value.split())
+    if len(value) <= limit:
+        return value
+    return value[: limit - 3] + "..."
+
+
+def summarize_gcp_http_error(http_error: HttpError) -> str:
+    """
+    Return a concise, single-line summary for a GCP HttpError.
+    """
+    status = getattr(http_error.resp, "status", "unknown")
+    reason = get_error_reason(http_error)
+    prefix = f"HTTP {status}"
+    if reason:
+        prefix = f"{prefix} {reason}"
+
+    try:
+        data = json.loads(http_error.content.decode("utf-8"))
+        if isinstance(data, dict):
+            error_obj = data.get("error", {})
+            if isinstance(error_obj, dict):
+                message = error_obj.get("message")
+                if isinstance(message, str) and message:
+                    return f"{prefix}: {_truncate_gcp_error_detail(message)}"
+    except (UnicodeDecodeError, ValueError, KeyError, IndexError, TypeError):
+        pass
+
+    return f"{prefix}: {_truncate_gcp_error_detail(str(http_error))}"
+
+
+def gcp_api_giveup_handler(details: Dict) -> None:
+    """
+    Handler that logs exhausted retries concisely.
+
+    The default backoff logger includes the full HttpError repr, which is
+    extremely noisy for non-retryable GCP 403s. Suppress those give-up logs
+    entirely and keep retryable exhaustion to a short one-liner.
+    """
+    tries = details.get("tries")
+    tries_display = str(tries) if tries is not None else "unknown"
+
+    target = details.get("target", "<unknown>")
+    exc = details.get("exception")
+    if exc and isinstance(exc, HttpError):
+        if not is_retryable_gcp_http_error(exc):
+            return
+        logger.warning(
+            "GCP API retries exhausted after %s tries. %s Calling: %s",
+            tries_display,
+            summarize_gcp_http_error(exc),
+            target,
+        )
+        return
+
+    logger.warning(
+        "GCP API retries exhausted after %s tries. Calling: %s",
+        tries_display,
+        target,
+    )
+
+
 @backoff.on_exception(  # type: ignore[misc]
     backoff.expo,
     HttpError,
     max_tries=GCP_API_MAX_RETRIES,
     giveup=lambda e: not is_retryable_gcp_http_error(e),
     on_backoff=gcp_api_backoff_handler,
+    on_giveup=gcp_api_giveup_handler,
+    logger=None,
     base=GCP_API_BACKOFF_BASE,
     max_value=GCP_API_BACKOFF_MAX,
 )
