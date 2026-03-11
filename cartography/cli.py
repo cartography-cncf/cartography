@@ -1217,11 +1217,29 @@ class CLI:
             # =================================================================
             # Docker Scout Options
             # =================================================================
-            docker_scout_images: Annotated[
+            docker_scout_results_dir: Annotated[
                 str | None,
                 typer.Option(
-                    "--docker-scout-images",
-                    help="Comma-separated list of container image references to scan with Docker Scout.",
+                    "--docker-scout-results-dir",
+                    help="Local directory containing Docker Scout JSON results.",
+                    rich_help_panel=PANEL_DOCKER_SCOUT,
+                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                ),
+            ] = None,
+            docker_scout_s3_bucket: Annotated[
+                str | None,
+                typer.Option(
+                    "--docker-scout-s3-bucket",
+                    help="S3 bucket name containing Docker Scout scan results.",
+                    rich_help_panel=PANEL_DOCKER_SCOUT,
+                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                ),
+            ] = None,
+            docker_scout_s3_prefix: Annotated[
+                str | None,
+                typer.Option(
+                    "--docker-scout-s3-prefix",
+                    help="S3 prefix path for Docker Scout scan results.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
@@ -1917,8 +1935,12 @@ class CLI:
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
 
             # Log Docker Scout config
-            if docker_scout_images:
-                logger.debug("Docker Scout images: %s", docker_scout_images)
+            if docker_scout_results_dir:
+                logger.debug("Docker Scout results dir: %s", docker_scout_results_dir)
+            if docker_scout_s3_bucket:
+                logger.debug("Docker Scout S3 bucket: %s", docker_scout_s3_bucket)
+            if docker_scout_s3_prefix:
+                logger.debug("Docker Scout S3 prefix: %s", docker_scout_s3_prefix)
 
             # Log Trivy config
             if trivy_s3_bucket:
@@ -2112,7 +2134,9 @@ class CLI:
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
-                docker_scout_images=docker_scout_images,
+                docker_scout_results_dir=docker_scout_results_dir,
+                docker_scout_s3_bucket=docker_scout_s3_bucket,
+                docker_scout_s3_prefix=docker_scout_s3_prefix,
                 trivy_s3_bucket=trivy_s3_bucket,
                 trivy_s3_prefix=trivy_s3_prefix,
                 syft_s3_bucket=syft_s3_bucket,

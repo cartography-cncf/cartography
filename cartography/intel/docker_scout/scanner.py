@@ -1,6 +1,4 @@
-import json
 import logging
-import subprocess
 from typing import Any
 
 import neo4j
@@ -15,70 +13,6 @@ from cartography.models.docker_scout.package import DockerScoutPackageSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-def get_sbom(image: str) -> dict[str, Any]:
-    """
-    Run `docker scout sbom` for the given image and return the parsed JSON.
-    Returns the SBOM dict containing source image metadata, artifacts (packages),
-    and attestations.
-    """
-    logger.info("Running docker scout sbom for image %s", image)
-    result = subprocess.run(
-        ["docker", "scout", "sbom", "--format", "json", image],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        logger.error(
-            "docker scout sbom failed for %s: %s",
-            image,
-            result.stderr.strip(),
-        )
-        raise RuntimeError(
-            f"docker scout sbom failed for {image}: {result.stderr.strip()}"
-        )
-
-    # stdout may have info log lines before the JSON; find the JSON start
-    stdout = result.stdout
-    try:
-        json_start = stdout.index("{")
-    except ValueError:
-        raise RuntimeError(
-            f"docker scout sbom returned no JSON output for {image}: {stdout[:200]}",
-        )
-    return json.loads(stdout[json_start:])
-
-
-def get_cves(image: str) -> dict[str, Any]:
-    """
-    Run `docker scout cves --only-base` for the given image and return the parsed JSON.
-    Returns the CVE dict containing vulnerabilities grouped by package purl.
-    """
-    logger.info("Running docker scout cves --only-base for image %s", image)
-    result = subprocess.run(
-        ["docker", "scout", "cves", "--only-base", "--format", "sbom", image],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        logger.error(
-            "docker scout cves failed for %s: %s",
-            image,
-            result.stderr.strip(),
-        )
-        raise RuntimeError(
-            f"docker scout cves failed for {image}: {result.stderr.strip()}"
-        )
-
-    stdout = result.stdout
-    try:
-        json_start = stdout.index("{")
-    except ValueError:
-        raise RuntimeError(
-            f"docker scout cves returned no JSON output for {image}: {stdout[:200]}",
-        )
-    return json.loads(stdout[json_start:])
 
 
 def transform_public_image(
@@ -121,15 +55,15 @@ def transform_public_image(
 
 
 def transform_packages(
-    public_sbom_data: dict[str, Any],
+    sbom_data: dict[str, Any],
     image_digest: str,
     public_image_id: str,
 ) -> list[dict[str, Any]]:
     """
-    Transform SBOM artifacts from the public image into DockerScoutPackage dicts.
-    Expects the SBOM output from scanning the public image directly.
+    Transform SBOM artifacts into DockerScoutPackage dicts.
+    Works with both full SBOM data (with locations) and CVE artifact data (without locations).
     """
-    artifacts = public_sbom_data.get("artifacts", [])
+    artifacts = sbom_data.get("artifacts", [])
     packages = []
 
     for artifact in artifacts:
@@ -172,7 +106,7 @@ def transform_packages(
             }
         )
 
-    logger.info("Transformed %d public image packages", len(packages))
+    logger.info("Transformed %d packages", len(packages))
     return packages
 
 
@@ -201,7 +135,12 @@ def transform_findings(
         package_id = purl_to_pkg_id.get(pkg_purl)
 
         for vuln in vuln_pkg.get("vulnerabilities", []):
-            source_id = vuln["source_id"]
+            source_id = vuln.get("source_id")
+            if not source_id:
+                logger.warning(
+                    "Skipping vulnerability entry missing source_id: %s", vuln
+                )
+                continue
             finding_id = f"DSF|{source_id}"
 
             # Extract severity and CVSS version from nested cvss object
@@ -252,7 +191,7 @@ def transform_findings(
                 )
 
     logger.info(
-        "Transformed %d findings and %d fixes from public image CVEs",
+        "Transformed %d findings and %d fixes from CVE data",
         len(findings),
         len(fixes),
     )
@@ -324,7 +263,7 @@ def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    """Run cleanup jobs to remove stale Docker Scout nodes. Used Global Cleanup to emulate Trivy Module"""
+    """Run cleanup jobs to remove stale Docker Scout nodes. Uses global cleanup to emulate Trivy module."""
     logger.info("Running Docker Scout cleanup")
     GraphJob.from_node_schema(
         DockerScoutPublicImageSchema(), common_job_parameters
@@ -341,28 +280,46 @@ def cleanup(
 
 
 @timeit
-def sync(
+def sync_from_file(
     neo4j_session: neo4j.Session,
-    image: str,
+    scout_data: dict[str, Any],
+    source: str,
     update_tag: int,
 ) -> None:
-    logger.info("Starting Docker Scout sync for image %s", image)
+    """
+    Sync Docker Scout data from a pre-generated JSON file.
 
-    sbom_data = get_sbom(image)
-    image_digest = sbom_data["source"]["image"]["digest"]
+    Expects a combined JSON dict with keys:
+        - "sbom": output of `docker scout sbom --format json <image>`
+        - "cves": output of `docker scout cves --only-base --format sbom <image>`
+    """
+    sbom_data = scout_data.get("sbom")
+    cves_data = scout_data.get("cves")
+    if not sbom_data or not cves_data:
+        logger.warning(
+            "Skipping %s: expected JSON with 'sbom' and 'cves' keys",
+            source,
+        )
+        return
 
+    image_digest = sbom_data.get("source", {}).get("image", {}).get("digest")
+    if not image_digest:
+        logger.warning("Skipping %s: no image digest found in sbom data", source)
+        return
+
+    # Extract base image info from SBOM annotations
     public_image = transform_public_image(sbom_data, image_digest)
     if public_image is None:
-        logger.info("Skipping %s: no public image detected (built FROM scratch)", image)
+        logger.info(
+            "Skipping %s: no public image detected (built FROM scratch)",
+            source,
+        )
         return
 
     public_image_id = public_image["id"]
-    logger.info("Fetching SBOM for public image %s", public_image_id)
-    public_sbom_data = get_sbom(public_image_id)
 
-    cves_data = get_cves(image)
-
-    packages = transform_packages(public_sbom_data, image_digest, public_image_id)
+    # Derive packages from CVE artifacts (they contain the vulnerable packages)
+    packages = transform_packages(cves_data, image_digest, public_image_id)
     findings, fixes = transform_findings(cves_data, image_digest)
 
     load_public_image(neo4j_session, public_image, update_tag)
@@ -373,7 +330,7 @@ def sync(
     logger.info(
         "Completed Docker Scout sync for %s: "
         "public_image=%s, %d packages, %d findings, %d fixes",
-        image,
+        source,
         public_image_id,
         len(packages),
         len(findings),

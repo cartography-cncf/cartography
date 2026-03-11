@@ -1,84 +1,133 @@
+import json
 import logging
+from typing import Any
 
+import boto3
 from neo4j import Session
 
-from cartography.client.aws import list_accounts
-from cartography.client.aws.ecr import get_ecr_images
-from cartography.client.gcp.artifact_registry import get_gcp_container_images
-from cartography.client.gitlab.container_images import get_gitlab_container_images
-from cartography.client.gitlab.container_images import get_gitlab_container_tags
 from cartography.config import Config
 from cartography.intel.docker_scout.scanner import cleanup
-from cartography.intel.docker_scout.scanner import sync
+from cartography.intel.docker_scout.scanner import sync_from_file
+from cartography.intel.trivy.scanner import get_json_files_in_dir
+from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
 
-def _get_images_from_graph(neo4j_session: Session) -> set[str]:
-    """
-    Query Neo4j for container image URIs from ECR, GCP Artifact Registry,
-    and GitLab container registries using the shared client functions.
-    Returns image URIs that can be passed directly to `docker scout`.
-    """
-    image_uris: set[str] = set()
+@timeit
+def sync_docker_scout_from_dir(
+    neo4j_session: Session,
+    results_dir: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+) -> None:
+    """Sync Docker Scout scan results from local JSON files."""
+    logger.info("Using Docker Scout scan results from %s", results_dir)
 
-    # ECR images
-    for account_id in list_accounts(neo4j_session):
-        for _, _, image_uri, _, _ in get_ecr_images(neo4j_session, account_id):
-            if image_uri:
-                image_uris.add(image_uri)
+    json_files = get_json_files_in_dir(results_dir)
 
-    # GCP Artifact Registry images
-    for _, _, image_uri, _, _ in get_gcp_container_images(neo4j_session):
-        if image_uri:
-            image_uris.add(image_uri)
+    if not json_files:
+        logger.error(
+            "Docker Scout sync was configured, but no json files were found in %s.",
+            results_dir,
+        )
+        raise ValueError("No Docker Scout json results found on disk")
 
-    # GitLab container images (base URIs and tagged URIs)
-    for uri, _ in get_gitlab_container_images(neo4j_session):
-        if uri:
-            image_uris.add(uri)
-    for tag_location, _ in get_gitlab_container_tags(neo4j_session):
-        if tag_location:
-            image_uris.add(tag_location)
+    logger.info("Processing %d local Docker Scout result files", len(json_files))
 
-    return image_uris
+    for file_path in json_files:
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                scout_data = json.load(f)
+        except json.JSONDecodeError as e:
+            logger.error("Failed to read Docker Scout data from %s: %s", file_path, e)
+            continue
+
+        sync_from_file(neo4j_session, scout_data, file_path, update_tag)
+
+    cleanup(neo4j_session, common_job_parameters)
+
+
+@timeit
+def sync_docker_scout_from_s3(
+    neo4j_session: Session,
+    s3_bucket: str,
+    s3_prefix: str,
+    update_tag: int,
+    common_job_parameters: dict[str, Any],
+    boto3_session: boto3.Session,
+) -> None:
+    """Sync Docker Scout scan results from S3."""
+    logger.info("Using Docker Scout scan results from s3://%s/%s", s3_bucket, s3_prefix)
+
+    json_files = get_json_files_in_s3(s3_bucket, s3_prefix, boto3_session)
+
+    if not json_files:
+        logger.error(
+            "Docker Scout sync was configured, but no json files found in s3://%s/%s.",
+            s3_bucket,
+            s3_prefix,
+        )
+        raise ValueError("No Docker Scout json results found in S3")
+
+    logger.info("Processing %d S3 Docker Scout result files", len(json_files))
+
+    s3_client = boto3_session.client("s3")
+    for s3_key in json_files:
+        try:
+            response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
+            raw = response["Body"].read().decode("utf-8")
+            scout_data = json.loads(raw)
+        except Exception as e:
+            logger.error(
+                "Failed to read Docker Scout data from s3://%s/%s: %s",
+                s3_bucket,
+                s3_key,
+                e,
+            )
+            continue
+
+        sync_from_file(
+            neo4j_session, scout_data, f"s3://{s3_bucket}/{s3_key}", update_tag
+        )
+
+    cleanup(neo4j_session, common_job_parameters)
 
 
 @timeit
 def start_docker_scout_ingestion(neo4j_session: Session, config: Config) -> None:
-    """Entry point for Docker Scout ingestion."""
-    images: set[str] = set()
+    """Entry point for Docker Scout ingestion.
 
-    # Add explicitly specified images
-    if config.docker_scout_images:
-        explicit = {
-            img.strip() for img in config.docker_scout_images.split(",") if img.strip()
-        }
-        images.update(explicit)
-        logger.info("Found %d explicitly configured Docker Scout images", len(explicit))
-
-    # Add images discovered from the graph
-    graph_images = _get_images_from_graph(neo4j_session)
-    if graph_images:
-        images.update(graph_images)
-        logger.info("Found %d container images in the graph to scan", len(graph_images))
-
-    if not images:
-        logger.info("No Docker Scout images to scan. Skipping.")
+    Supports two modes (checked in priority order):
+    1. Local directory with pre-generated JSON files (--docker-scout-results-dir)
+    2. S3 bucket with pre-generated JSON files (--docker-scout-s3-bucket)
+    """
+    if not config.docker_scout_results_dir and not config.docker_scout_s3_bucket:
+        logger.info(
+            "Docker Scout configuration not provided. Skipping Docker Scout ingestion."
+        )
         return
 
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
 
-    logger.info("Starting Docker Scout sync for %d images", len(images))
-    synced_count = 0
-    for image in sorted(images):
-        sync(neo4j_session, image, config.update_tag)
-        synced_count += 1
-
-    if synced_count > 0:
-        cleanup(neo4j_session, common_job_parameters)
-    else:
-        logger.warning(
-            "No images synced successfully, skipping cleanup to preserve existing data"
+    # Priority 1: Local directory
+    if config.docker_scout_results_dir:
+        sync_docker_scout_from_dir(
+            neo4j_session,
+            config.docker_scout_results_dir,
+            config.update_tag,
+            common_job_parameters,
         )
+        return
+
+    # Priority 2: S3 bucket
+    s3_prefix = config.docker_scout_s3_prefix or ""
+    sync_docker_scout_from_s3(
+        neo4j_session,
+        config.docker_scout_s3_bucket,
+        s3_prefix,
+        config.update_tag,
+        common_job_parameters,
+        boto3.Session(),
+    )
