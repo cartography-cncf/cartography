@@ -1665,7 +1665,7 @@ Representation of a language package in a GCP Artifact Registry repository. This
 
 #### GCPArtifactRegistryGenericArtifact
 
-Representation of a generic artifact in a GCP Artifact Registry repository. This node type covers [APT Artifacts](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.aptArtifacts) and [YUM Artifacts](https://cloud.google.com/artifact-registry/docs/reference/rest/v1/projects.locations.repositories.yumArtifacts).
+Representation of a generic artifact in a GCP Artifact Registry repository. This node type covers APT and YUM package versions discovered from Artifact Registry package inventories.
 
 | Field | Description |
 |-------|-------------|

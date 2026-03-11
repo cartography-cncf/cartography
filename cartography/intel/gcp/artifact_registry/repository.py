@@ -1,14 +1,19 @@
 import logging
 
 import neo4j
-from google.api_core.exceptions import PermissionDenied
+from google.api_core.exceptions import GoogleAPICallError
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
-from googleapiclient.discovery import Resource
-from googleapiclient.errors import HttpError
+from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.artifact_registry.util import (
+    artifact_registry_message_to_dict,
+)
+from cartography.intel.gcp.artifact_registry.util import (
+    classify_artifact_registry_error,
+)
 from cartography.intel.gcp.artifact_registry.util import get_artifact_registry_locations
 from cartography.models.gcp.artifact_registry.repository import (
     GCPArtifactRegistryRepositorySchema,
@@ -19,7 +24,9 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_artifact_registry_repositories(client: Resource, project_id: str) -> list[dict]:
+def get_artifact_registry_repositories(
+    client: ArtifactRegistryClient, project_id: str
+) -> list[dict]:
     """
     Gets GCP Artifact Registry repositories for a project across all locations.
     """
@@ -32,29 +39,18 @@ def get_artifact_registry_repositories(client: Resource, project_id: str) -> lis
     for location in locations:
         try:
             parent = f"projects/{project_id}/locations/{location}"
-            request = client.projects().locations().repositories().list(parent=parent)
-            while request is not None:
-                response = request.execute()
-                repositories.extend(response.get("repositories", []))
-                request = (
-                    client.projects()
-                    .locations()
-                    .repositories()
-                    .list_next(
-                        previous_request=request,
-                        previous_response=response,
-                    )
-                )
-        except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
-            logger.warning(
-                f"Failed to get Artifact Registry repositories for project {project_id} "
-                f"in location {location} due to permissions or auth error: {e}",
+            repositories.extend(
+                artifact_registry_message_to_dict(repository)
+                for repository in client.list_repositories(parent=parent)
             )
-            continue
-        except HttpError as e:
-            logger.debug(
-                f"Failed to get Artifact Registry repositories for project {project_id} "
-                f"in location {location}: {e}",
+        except (GoogleAPICallError, DefaultCredentialsError, RefreshError) as e:
+            classification = classify_artifact_registry_error(e)
+            if classification is None:
+                raise
+            logger.warning(
+                "Skipping Artifact Registry repositories for project %s in location %s due to access or service state.",
+                project_id,
+                location,
             )
             continue
 
@@ -144,7 +140,7 @@ def cleanup_repositories(
 @timeit
 def sync_artifact_registry_repositories(
     neo4j_session: neo4j.Session,
-    client: Resource,
+    client: ArtifactRegistryClient,
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
