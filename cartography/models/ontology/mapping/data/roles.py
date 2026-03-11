@@ -81,12 +81,8 @@ gcp_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="title", required=True
                 ),
-                OntologyFieldMapping(
-                    ontology_field="type", node_field="role_type"
-                ),
-                OntologyFieldMapping(
-                    ontology_field="scope", node_field="scope"
-                ),
+                OntologyFieldMapping(ontology_field="type", node_field="role_type"),
+                OntologyFieldMapping(ontology_field="scope", node_field="scope"),
             ],
         ),
     ],

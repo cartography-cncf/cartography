@@ -295,6 +295,8 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
 ### KubernetesRole
 Representation of a [Kubernetes Role.](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole)
 
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Identifier for the Role derived from cluster_name, namespace and name (e.g. `my-cluster/default/pod-reader`) |
@@ -366,6 +368,8 @@ Representation of a [Kubernetes RoleBinding.](https://kubernetes.io/docs/referen
 
 ### KubernetesClusterRole
 Representation of a [Kubernetes ClusterRole.](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole)
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|
