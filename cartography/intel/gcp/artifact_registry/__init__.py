@@ -2,7 +2,7 @@ import logging
 
 import neo4j
 from google.auth.credentials import Credentials as GoogleCredentials
-from googleapiclient.discovery import Resource
+from google.cloud.artifactregistry_v1 import ArtifactRegistryClient
 
 from cartography.intel.gcp.artifact_registry.artifact import (
     sync_artifact_registry_artifacts,
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    client: Resource,
+    client: ArtifactRegistryClient,
     credentials: GoogleCredentials,
     project_id: str,
     update_tag: int,
@@ -36,7 +36,7 @@ def sync(
 
     :param neo4j_session: The Neo4j session.
     :param client: The Artifact Registry API client.
-    :param credentials: GCP credentials (unused but kept for API compatibility).
+    :param credentials: GCP credentials used for the Go module compatibility path.
     :param project_id: The GCP project ID.
     :param update_tag: The update tag for this sync.
     :param common_job_parameters: Common job parameters for cleanup.
@@ -61,6 +61,7 @@ def sync(
         project_id,
         update_tag,
         common_job_parameters,
+        credentials,
     )
 
     # Load platform images (manifests) - no HTTP calls needed, data comes from dockerImages API

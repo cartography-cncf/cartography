@@ -39,6 +39,7 @@ from cartography.intel.gcp import permission_relationships
 from cartography.intel.gcp import policy_bindings
 from cartography.intel.gcp import secretsmanager
 from cartography.intel.gcp import storage
+from cartography.intel.gcp.clients import build_artifact_registry_client
 from cartography.intel.gcp.clients import build_asset_client
 from cartography.intel.gcp.clients import build_client
 from cartography.intel.gcp.clients import get_gcp_credentials
@@ -529,8 +530,8 @@ def _sync_project_resources(
 
         if service_names.artifact_registry in enabled_services:
             logger.info("Syncing GCP project %s for Artifact Registry.", project_id)
-            artifact_registry_client = build_client(
-                "artifactregistry", "v1", credentials=credentials
+            artifact_registry_client = build_artifact_registry_client(
+                credentials=credentials
             )
             artifact_registry.sync(
                 neo4j_session,
