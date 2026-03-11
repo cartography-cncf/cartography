@@ -109,6 +109,7 @@ class GCPOrgRoleSchema(CartographyNodeSchema):
 
     label: str = "GCPRole"
     properties: GCPOrgRoleNodeProperties = GCPOrgRoleNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
     sub_resource_relationship: GCPOrgRoleToOrganizationRel = (
         GCPOrgRoleToOrganizationRel()
     )
@@ -167,4 +168,5 @@ class GCPProjectRoleSchema(CartographyNodeSchema):
 
     label: str = "GCPRole"
     properties: GCPProjectRoleNodeProperties = GCPProjectRoleNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
     sub_resource_relationship: GCPProjectRoleToProjectRel = GCPProjectRoleToProjectRel()
