@@ -156,10 +156,16 @@ def _extract_rel_endpoint(
         _as_str(relationship.get(f"{primary_key}_category")),
     )
     if any(primary_prefix_values):
-        return primary_prefix_values
+        prefix = fallback_key if fallback_key in {"from", "to"} else primary_key
+        return (
+            primary_prefix_values[0]
+            or _as_str(relationship.get(f"{prefix}_instance_id"))
+            or _as_str(relationship.get(f"{prefix}_id")),
+            primary_prefix_values[1] or _as_str(relationship.get(f"{prefix}_name")),
+            primary_prefix_values[2] or _as_str(relationship.get(f"{prefix}_category")),
+        )
 
     prefix = fallback_key if fallback_key in {"from", "to"} else primary_key
-
     return (
         _as_str(relationship.get(f"{prefix}_instance_id"))
         or _as_str(relationship.get(f"{prefix}_id")),

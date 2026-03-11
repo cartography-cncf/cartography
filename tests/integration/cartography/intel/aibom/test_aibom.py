@@ -1,6 +1,5 @@
 import copy
 import datetime
-import io
 import json
 from unittest.mock import MagicMock
 from unittest.mock import mock_open
@@ -394,12 +393,9 @@ def test_sync_aibom_from_dir(
     assert logical_id_count["count"] == 6
 
 
-@patch("cartography.intel.aibom._get_json_files_in_dir")
-@patch("builtins.open")
 def test_sync_aibom_stores_stable_logical_ids_across_images(
-    mock_file_open,
-    mock_json_files,
     neo4j_session,
+    tmp_path,
 ):
     _seed_multi_image_resolution_graph(neo4j_session)
 
@@ -412,20 +408,18 @@ def test_sync_aibom_stores_stable_logical_ids_across_images(
         ),
     }
 
-    report_by_path = {
-        "/tmp/aibom-1.json": AIBOM_REPORT,
-        "/tmp/aibom-2.json": second_report,
-    }
-    mock_json_files.return_value = set(report_by_path)
-
-    def open_side_effect(file_path, *args, **kwargs):
-        return io.StringIO(json.dumps(report_by_path[file_path]))
-
-    mock_file_open.side_effect = open_side_effect
+    (tmp_path / "aibom-1.json").write_text(
+        json.dumps(AIBOM_REPORT),
+        encoding="utf-8",
+    )
+    (tmp_path / "aibom-2.json").write_text(
+        json.dumps(second_report),
+        encoding="utf-8",
+    )
 
     sync_aibom_from_dir(
         neo4j_session,
-        "/tmp",
+        str(tmp_path),
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG},
     )

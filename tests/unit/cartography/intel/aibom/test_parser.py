@@ -146,6 +146,38 @@ def test_parse_aibom_document_parses_flat_source_target_relationships() -> None:
     assert parsed_relationship.target_category == "model"
 
 
+def test_parse_aibom_document_merges_partial_source_target_and_from_to_fields() -> None:
+    report = cast(dict[str, Any], copy.deepcopy(AIBOM_REPORT))
+    source = cast(
+        dict[str, Any],
+        report["report"]["aibom_analysis"]["sources"][TEST_SOURCE_KEY],
+    )
+    relationships = cast(list[dict[str, Any]], source["relationships"])
+    relationship = relationships[0]
+    relationship.pop("source")
+    relationship.pop("target")
+    relationship.update(
+        {
+            "source_name": "pydantic_ai.Agent",
+            "source_category": "agent",
+            "from_instance_id": "agent_main",
+            "target_name": "openai:gpt-4.1-mini",
+            "target_category": "model",
+            "to_instance_id": "model_primary",
+        },
+    )
+
+    document = parse_aibom_document(report)
+
+    parsed_relationship = document.sources[0].relationships[0]
+    assert parsed_relationship.source_instance_id == "agent_main"
+    assert parsed_relationship.source_name == "pydantic_ai.Agent"
+    assert parsed_relationship.source_category == "agent"
+    assert parsed_relationship.target_instance_id == "model_primary"
+    assert parsed_relationship.target_name == "openai:gpt-4.1-mini"
+    assert parsed_relationship.target_category == "model"
+
+
 def test_parse_aibom_document_skips_invalid_source_payload() -> None:
     document: dict[str, Any] = {
         "image_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example:v1",

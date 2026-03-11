@@ -146,7 +146,7 @@ Representation of a workflow/function context emitted by AIBOM.
 
 - If the envelope `image_uri` contains a digest (`repo@sha256:...`), the digest is extracted directly and verified against `ECRImage` nodes. No graph traversal is needed.
 - For tag-based URIs (`repo:tag`), AIBOM resolves the digest via `ECRRepositoryImage` → `ECRImage`, preferring `type = "manifest_list"` over `type = "image"`.
-- A source without an image match is still preserved as `AIBOMSource {image_matched: false}` for coverage and troubleshooting, but it will not create `AIBOMSource -> ECRImage` or `AIBOMComponent -> ECRImage` links.
+- A source without an image match is still preserved as `AIBOMSource {image_matched: false}` for coverage and troubleshooting, but it will not create `AIBOMSource -> ECRImage` links, and `AIBOMComponent` nodes are not materialized until a canonical digest is resolved.
 
 ### Example queries
 
