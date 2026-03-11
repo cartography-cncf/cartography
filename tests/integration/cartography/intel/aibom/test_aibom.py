@@ -254,8 +254,6 @@ def test_sync_aibom_from_dir(
         ("workflow-tool",),
     }
 
-    assert check_nodes(neo4j_session, "AIBOMRelationship", ["id"]) == set()
-
     assert check_nodes(neo4j_session, "AIAgent", ["name"]) == {
         ("pydantic_ai.Agent",),
     }
@@ -770,11 +768,6 @@ def test_cleanup_aibom_removes_stale_nodes(
             lastupdated: 0,
             _module_name: 'cartography:aibom'
         })
-        CREATE (:AIBOMRelationship {
-            id: 'stale-relationship',
-            lastupdated: 0,
-            _module_name: 'cartography:aibom'
-        })
         """
     )
 
@@ -789,11 +782,7 @@ def test_cleanup_aibom_removes_stale_nodes(
     assert "stale-workflow" not in {
         row[0] for row in check_nodes(neo4j_session, "AIBOMWorkflow", ["id"])
     }
-    assert "stale-relationship" not in {
-        row[0] for row in check_nodes(neo4j_session, "AIBOMRelationship", ["id"])
-    }
 
     assert len(check_nodes(neo4j_session, "AIBOMSource", ["id"])) == 1
     assert len(check_nodes(neo4j_session, "AIBOMComponent", ["id"])) == 6
     assert len(check_nodes(neo4j_session, "AIBOMWorkflow", ["id"])) == 2
-    assert len(check_nodes(neo4j_session, "AIBOMRelationship", ["id"])) == 0
