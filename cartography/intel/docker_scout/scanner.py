@@ -135,12 +135,7 @@ def transform_findings(
         package_id = purl_to_pkg_id.get(pkg_purl)
 
         for vuln in vuln_pkg.get("vulnerabilities", []):
-            source_id = vuln.get("source_id")
-            if not source_id:
-                logger.warning(
-                    "Skipping vulnerability entry missing source_id: %s", vuln
-                )
-                continue
+            source_id = vuln["source_id"]
             finding_id = f"DSF|{source_id}"
 
             # Extract severity and CVSS version from nested cvss object
@@ -285,13 +280,15 @@ def sync_from_file(
     scout_data: dict[str, Any],
     source: str,
     update_tag: int,
-) -> None:
+) -> bool:
     """
     Sync Docker Scout data from a pre-generated JSON file.
 
     Expects a combined JSON dict with keys:
         - "sbom": output of `docker scout sbom --format json <image>`
         - "cves": output of `docker scout cves --only-base --format sbom <image>`
+
+    Returns True if data was successfully loaded, False if the file was skipped.
     """
     sbom_data = scout_data.get("sbom")
     cves_data = scout_data.get("cves")
@@ -300,12 +297,12 @@ def sync_from_file(
             "Skipping %s: expected JSON with 'sbom' and 'cves' keys",
             source,
         )
-        return
+        return False
 
     image_digest = sbom_data.get("source", {}).get("image", {}).get("digest")
     if not image_digest:
         logger.warning("Skipping %s: no image digest found in sbom data", source)
-        return
+        return False
 
     # Extract base image info from SBOM annotations
     public_image = transform_public_image(sbom_data, image_digest)
@@ -314,7 +311,7 @@ def sync_from_file(
             "Skipping %s: no public image detected (built FROM scratch)",
             source,
         )
-        return
+        return False
 
     public_image_id = public_image["id"]
 
@@ -336,3 +333,4 @@ def sync_from_file(
         len(findings),
         len(fixes),
     )
+    return True

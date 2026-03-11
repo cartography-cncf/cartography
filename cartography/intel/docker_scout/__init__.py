@@ -36,17 +36,19 @@ def sync_docker_scout_from_dir(
 
     logger.info("Processing %d local Docker Scout result files", len(json_files))
 
+    synced_count = 0
     for file_path in json_files:
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                scout_data = json.load(f)
-        except json.JSONDecodeError as e:
-            logger.error("Failed to read Docker Scout data from %s: %s", file_path, e)
-            continue
+        with open(file_path, encoding="utf-8") as f:
+            scout_data = json.load(f)
+        if sync_from_file(neo4j_session, scout_data, file_path, update_tag):
+            synced_count += 1
 
-        sync_from_file(neo4j_session, scout_data, file_path, update_tag)
-
-    cleanup(neo4j_session, common_job_parameters)
+    if synced_count > 0:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "No Docker Scout files were successfully processed, skipping cleanup to preserve existing data",
+        )
 
 
 @timeit
@@ -73,26 +75,24 @@ def sync_docker_scout_from_s3(
 
     logger.info("Processing %d S3 Docker Scout result files", len(json_files))
 
+    synced_count = 0
     s3_client = boto3_session.client("s3")
     for s3_key in json_files:
-        try:
-            response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
-            raw = response["Body"].read().decode("utf-8")
-            scout_data = json.loads(raw)
-        except Exception as e:
-            logger.error(
-                "Failed to read Docker Scout data from s3://%s/%s: %s",
-                s3_bucket,
-                s3_key,
-                e,
-            )
-            continue
+        response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
+        raw = response["Body"].read().decode("utf-8")
+        scout_data = json.loads(raw)
 
-        sync_from_file(
+        if sync_from_file(
             neo4j_session, scout_data, f"s3://{s3_bucket}/{s3_key}", update_tag
-        )
+        ):
+            synced_count += 1
 
-    cleanup(neo4j_session, common_job_parameters)
+    if synced_count > 0:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "No Docker Scout files were successfully processed, skipping cleanup to preserve existing data",
+        )
 
 
 @timeit
