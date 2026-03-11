@@ -1,4 +1,5 @@
 import json
+import logging
 from unittest.mock import MagicMock
 
 from googleapiclient.errors import HttpError
@@ -105,3 +106,27 @@ def test_get_secret_versions_returns_empty_when_iam_permission_denied(monkeypatc
         get_secret_versions(secretmanager, "projects/test-project/secrets/example")
         == []
     )
+
+
+def test_get_secrets_logs_compact_summary_for_permission_denied(monkeypatch, caplog):
+    secretmanager, _req = _make_secretmanager_client()
+    error = _make_http_error(
+        403,
+        {
+            "error": {
+                "message": "User lacks required permissions",
+                "errors": [{"reason": "insufficientPermissions"}],
+            }
+        },
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gcp.secretsmanager.gcp_api_execute_with_retry",
+        lambda _request: (_ for _ in ()).throw(error),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        secrets = get_secrets(secretmanager, "test-project")
+
+    assert secrets == []
+    assert "HTTP 403 insufficientPermissions" in caplog.text
+    assert "googleapiclient.errors.HttpError" not in caplog.text
