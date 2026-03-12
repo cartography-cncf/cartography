@@ -9,6 +9,7 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.kms.cryptokey import GCPCryptoKeySchema
 from cartography.models.gcp.kms.keyring import GCPKeyRingSchema
 from cartography.util import timeit
@@ -45,8 +46,9 @@ def get_kms_locations(client: Resource, project_id: str) -> list[dict] | None:
         if is_api_disabled_error(e):
             logger.warning(
                 "Could not retrieve KMS locations on project %s due to permissions "
-                "issues or API not enabled. Skipping sync to preserve existing data.",
+                "issues or API not enabled. Skipping sync to preserve existing data. %s",
                 project_id,
+                summarize_gcp_http_error(e),
             )
             return None
         raise
