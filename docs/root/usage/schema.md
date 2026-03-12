@@ -108,6 +108,9 @@
 ```{include} ../modules/pagerduty/schema.md
 ```
 
+```{include} ../modules/santa/schema.md
+```
+
 ```{include} ../modules/scaleway/schema.md
 ```
 
