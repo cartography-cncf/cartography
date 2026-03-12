@@ -402,30 +402,119 @@ def load_semgrep_finding_assistants(
 
 
 @timeit
-def cleanup(
+def sync_sast_findings(
     neo4j_session: neo4j.Session,
+    semgrep_app_token: str,
+    deployment_id: str,
+    deployment_slug: str,
+    update_tag: int,
     common_job_parameters: Dict[str, Any],
-) -> None:
-    logger.info("Running Semgrep FindingAssistant cleanup job.")
-    GraphJob.from_node_schema(
-        SemgrepFindingAssistantSchema(),
-        common_job_parameters,
-    ).run(neo4j_session)
-    logger.info("Running Semgrep SAST findings cleanup job.")
-    GraphJob.from_node_schema(
-        SemgrepSASTFindingSchema(),
-        common_job_parameters,
-    ).run(neo4j_session)
-    logger.info("Running Semgrep SCA findings cleanup job.")
-    GraphJob.from_node_schema(
-        SemgrepSCAFindingSchema(),
-        common_job_parameters,
-    ).run(neo4j_session)
-    logger.info("Running Semgrep SCA Locations cleanup job.")
-    GraphJob.from_node_schema(
-        SemgrepSCALocationSchema(),
-        common_job_parameters,
-    ).run(neo4j_session)
+) -> bool:
+    """
+    Fetches, transforms, and loads Semgrep SAST findings for the given deployment.
+    Returns True on success, False if the API call failed.
+    """
+    try:
+        raw_findings = get_sast_findings(semgrep_app_token, deployment_slug)
+        logger.info("Running Semgrep FindingAssistant sync job (SAST).")
+        load_semgrep_finding_assistants(
+            neo4j_session,
+            _extract_assistants(raw_findings),
+            deployment_id,
+            update_tag,
+        )
+        logger.info("Running Semgrep SAST findings sync job.")
+        load_semgrep_sast_findings(
+            neo4j_session,
+            transform_sast_findings(raw_findings),
+            deployment_id,
+            update_tag,
+        )
+        run_scoped_analysis_job(
+            "semgrep_sast_risk_analysis.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+        merge_module_sync_metadata(
+            neo4j_session=neo4j_session,
+            group_type="Semgrep",
+            group_id=deployment_id,
+            synced_type="SAST",
+            update_tag=update_tag,
+            stat_handler=stat_handler,
+        )
+        logger.info("Running Semgrep SAST findings cleanup job.")
+        GraphJob.from_node_schema(
+            SemgrepSASTFindingSchema(),
+            common_job_parameters,
+        ).run(neo4j_session)
+        return True
+    except (ReadTimeout, HTTPError) as e:
+        logger.warning(
+            "Semgrep SAST sync failed, skipping SAST for this run: %s",
+            e,
+            exc_info=True,
+        )
+        return False
+
+
+@timeit
+def sync_sca_findings(
+    neo4j_session: neo4j.Session,
+    semgrep_app_token: str,
+    deployment_id: str,
+    deployment_slug: str,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> bool:
+    """
+    Fetches, transforms, and loads Semgrep SCA findings for the given deployment.
+    Returns True on success, False if the API call failed.
+    """
+    try:
+        raw_vulns = get_sca_vulns(semgrep_app_token, deployment_slug)
+        logger.info("Running Semgrep FindingAssistant sync job (SCA).")
+        load_semgrep_finding_assistants(
+            neo4j_session,
+            _extract_assistants(raw_vulns),
+            deployment_id,
+            update_tag,
+        )
+        logger.info("Running Semgrep SCA findings sync job.")
+        vulns, usages = transform_sca_vulns(raw_vulns)
+        load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
+        load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
+        run_scoped_analysis_job(
+            "semgrep_sca_risk_analysis.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+        merge_module_sync_metadata(
+            neo4j_session=neo4j_session,
+            group_type="Semgrep",
+            group_id=deployment_id,
+            synced_type="SCA",
+            update_tag=update_tag,
+            stat_handler=stat_handler,
+        )
+        logger.info("Running Semgrep SCA findings cleanup job.")
+        GraphJob.from_node_schema(
+            SemgrepSCAFindingSchema(),
+            common_job_parameters,
+        ).run(neo4j_session)
+        logger.info("Running Semgrep SCA Locations cleanup job.")
+        GraphJob.from_node_schema(
+            SemgrepSCALocationSchema(),
+            common_job_parameters,
+        ).run(neo4j_session)
+        return True
+    except (ReadTimeout, HTTPError) as e:
+        logger.warning(
+            "Semgrep SCA sync failed, skipping SCA for this run: %s",
+            e,
+            exc_info=True,
+        )
+        return False
 
 
 @timeit
@@ -435,61 +524,37 @@ def sync_findings(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-
     deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
     deployment_slug = common_job_parameters.get("DEPLOYMENT_SLUG")
     if not deployment_id or not deployment_slug:
         logger.warning(
-            "Missing Semgrep deployment ID or slug, ensure that sync_deployment() has been called."
-            "Skipping SCA findings sync job.",
+            "Missing Semgrep deployment ID or slug, ensure that sync_deployment() has been called. "
+            "Skipping findings sync job.",
         )
         return
 
-    # Fetch raw data for all finding types first so assistants can be loaded
-    # before findings — the HAS_ASSISTANT relationship is created during finding
-    # ingestion and requires the target SemgrepFindingAssistant node to already exist.
-    raw_sast_findings = get_sast_findings(semgrep_app_token, deployment_slug)
-    raw_vulns = get_sca_vulns(semgrep_app_token, deployment_slug)
-
-    logger.info("Running Semgrep FindingAssistant sync job.")
-    assistants = _extract_assistants(raw_sast_findings) + _extract_assistants(raw_vulns)
-    load_semgrep_finding_assistants(
-        neo4j_session, assistants, deployment_id, update_tag
-    )
-
-    logger.info("Running Semgrep SAST findings sync job.")
-    sast_findings = transform_sast_findings(raw_sast_findings)
-    load_semgrep_sast_findings(neo4j_session, sast_findings, deployment_id, update_tag)
-    run_scoped_analysis_job(
-        "semgrep_sast_risk_analysis.json",
+    sast_succeeded = sync_sast_findings(
         neo4j_session,
+        semgrep_app_token,
+        deployment_id,
+        deployment_slug,
+        update_tag,
         common_job_parameters,
     )
-    merge_module_sync_metadata(
-        neo4j_session=neo4j_session,
-        group_type="Semgrep",
-        group_id=deployment_id,
-        synced_type="SAST",
-        update_tag=update_tag,
-        stat_handler=stat_handler,
-    )
-
-    logger.info("Running Semgrep SCA findings sync job.")
-    vulns, usages = transform_sca_vulns(raw_vulns)
-    load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
-    load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
-    run_scoped_analysis_job(
-        "semgrep_sca_risk_analysis.json",
+    sca_succeeded = sync_sca_findings(
         neo4j_session,
+        semgrep_app_token,
+        deployment_id,
+        deployment_slug,
+        update_tag,
         common_job_parameters,
     )
 
-    cleanup(neo4j_session, common_job_parameters)
-    merge_module_sync_metadata(
-        neo4j_session=neo4j_session,
-        group_type="Semgrep",
-        group_id=deployment_id,
-        synced_type="SCA",
-        update_tag=update_tag,
-        stat_handler=stat_handler,
-    )
+    # Assistant cleanup runs after both pipelines so we don't prematurely
+    # remove assistants belonging to the other finding type.
+    if sast_succeeded or sca_succeeded:
+        logger.info("Running Semgrep FindingAssistant cleanup job.")
+        GraphJob.from_node_schema(
+            SemgrepFindingAssistantSchema(),
+            common_job_parameters,
+        ).run(neo4j_session)
