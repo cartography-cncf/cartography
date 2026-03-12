@@ -528,6 +528,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "DEFAULT_DATETIME": '2000-01-01 00:00:00+00:00',
         "NULL_STRINGS": ['NONE', 'none', 'None', ''],
         "PARTIAL": config.partial,
+        "MANUAL_RUN": config.manual_run,
         "DC": config.dc,
         "DEFAULT_REGION": config.params.get("defaultRegion", None),
     }

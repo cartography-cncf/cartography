@@ -151,6 +151,7 @@ class Config:
         gitlab_hosted_domain=None,
         aws_internal_accounts=None,
         partial=None,
+        manual_run=None,
         dc=None,
     ):
         self.neo4j_uri = neo4j_uri
@@ -213,4 +214,5 @@ class Config:
         self.identity_store_region = identity_store_region
         self.aws_internal_accounts = aws_internal_accounts
         self.partial = partial
+        self.manual_run = manual_run
         self.dc = dc

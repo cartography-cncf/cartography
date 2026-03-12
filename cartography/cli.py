@@ -796,6 +796,7 @@ def run_aws(request):
         identity_store_region=request.get("identityStoreRegion", None),
         aws_internal_accounts=request.get("awsInternalAccounts", None),
         partial=request.get("params", {}).get("partial", False),
+        manual_run=request.get("params", {}).get("manualRun", False),
         dc=request.get("params", {}).get("dc", "US"),
     )
 
