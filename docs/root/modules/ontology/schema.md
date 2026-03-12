@@ -11,6 +11,8 @@ U -- OWNS --> CC(Device)
 U -- OWNS --> AK{{APIKey}}
 U -- AUTHORIZED --> OA{{ThirdPartyApp}}
 UG{{UserGroup}}
+SA{{ServiceAccount}}
+CERT{{Certificate}}
 LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
 CL{{ComputeCluster}}
@@ -378,6 +380,45 @@ Common tenant concepts across platforms include:
 | _ont_name | Display name or friendly name of the tenant/organization (REQUIRED for most modules). |
 | _ont_status | Current status/state of the tenant (e.g., active, suspended, archived). |
 | _ont_domain | Primary domain name associated with the tenant (for workspace/domain-based services). |
+
+
+### ServiceAccount
+
+```{note}
+ServiceAccount is a semantic label.
+```
+
+A service account represents a non-human identity used for automation and inter-service communication.
+Unlike user accounts, service accounts are designed for programmatic access and workload identity.
+
+Common service account concepts across platforms include:
+- **Cloud Providers**: GCP Service Accounts, AWS Service Principals
+- **Container Orchestration**: Kubernetes Service Accounts
+- **SaaS Platforms**: OpenAI Service Accounts, Scaleway Applications
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name of the service account (REQUIRED). |
+| _ont_email | Email address associated with the service account. |
+| _ont_active | Whether the service account is active. |
+| _ont_source | Source of the data. |
+
+
+### Certificate
+
+```{note}
+Certificate is a semantic label.
+```
+
+A certificate represents a managed TLS/SSL certificate used for securing communications.
+It generalizes concepts like AWS ACM Certificates, AWS IAM Server Certificates, and Azure Key Vault Certificates.
+
+| Field | Description |
+|-------|-------------|
+| _ont_domain | Domain name or certificate name (REQUIRED). |
+| _ont_expiry | Expiration date/time of the certificate. |
+| _ont_issuer | Certificate issuer. |
+| _ont_source | Source of the data. |
 
 
 ### Function

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -64,6 +65,7 @@ class KubernetesServiceAccountToClusterRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesServiceAccountSchema(CartographyNodeSchema):
     label: str = "KubernetesServiceAccount"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ServiceAccount"])
     properties: KubernetesServiceAccountNodeProperties = (
         KubernetesServiceAccountNodeProperties()
     )

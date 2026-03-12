@@ -100,9 +100,30 @@ subimage_mapping = OntologyMapping(
     ],
 )
 
+aws_mapping = OntologyMapping(
+    module_name="aws",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="AccountAccessKey",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="accesskeyid", required=True
+                ),
+                OntologyFieldMapping(
+                    ontology_field="created_at", node_field="createdate"
+                ),
+                OntologyFieldMapping(
+                    ontology_field="last_used_at", node_field="lastuseddate"
+                ),
+            ],
+        ),
+    ],
+)
+
 APIKEYS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "anthropic": anthropic_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
     "subimage": subimage_mapping,
+    "aws": aws_mapping,
 }
