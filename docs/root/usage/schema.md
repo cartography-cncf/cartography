@@ -29,6 +29,9 @@
 ```{include} ../modules/airbyte/schema.md
 ```
 
+```{include} ../modules/aibom/schema.md
+```
+
 
 ```{include} ../modules/anthropic/schema.md
 ```
@@ -124,6 +127,9 @@
 ```
 
 ```{include} ../modules/spacelift/schema.md
+```
+
+```{include} ../modules/subimage/schema.md
 ```
 
 ```{include} ../modules/tailscale/schema.md

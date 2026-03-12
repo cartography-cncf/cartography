@@ -9,6 +9,7 @@ import neo4j.exceptions
 from neo4j import GraphDatabase
 from statsd import StatsClient
 
+import cartography.intel.aibom
 import cartography.intel.airbyte
 import cartography.intel.analysis
 import cartography.intel.anthropic
@@ -43,6 +44,7 @@ import cartography.intel.sentinelone
 import cartography.intel.slack
 import cartography.intel.snipeit
 import cartography.intel.spacelift
+import cartography.intel.subimage
 import cartography.intel.syft
 import cartography.intel.tailscale
 import cartography.intel.trivy
@@ -91,10 +93,12 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "syft": cartography.intel.syft.start_syft_ingestion,
+        "aibom": cartography.intel.aibom.start_aibom_ingestion,
         "ubuntu": cartography.intel.ubuntu.start_ubuntu_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "slack": cartography.intel.slack.start_slack_ingestion,
         "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
+        "subimage": cartography.intel.subimage.start_subimage_ingestion,
         "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,
@@ -391,6 +395,7 @@ def run_with_config(sync: Sync, config: Config) -> int:
             config.neo4j_uri,
             auth=neo4j_auth,
             max_connection_lifetime=config.neo4j_max_connection_lifetime,
+            liveness_check_timeout=config.neo4j_liveness_check_timeout,
         )
     except neo4j.exceptions.ServiceUnavailable as e:
         logger.debug("Error occurred during Neo4j connect.", exc_info=True)
