@@ -1,4 +1,5 @@
 import json
+import logging
 from unittest.mock import MagicMock
 
 from googleapiclient.errors import HttpError
@@ -72,7 +73,7 @@ def test_transform_gcp_instance_groups_with_non_v1_uris():
     ]
 
 
-def test_get_instance_group_members_forbidden_returns_empty(monkeypatch):
+def test_get_instance_group_members_forbidden_returns_empty(monkeypatch, caplog):
     compute = MagicMock()
     req = MagicMock()
     compute.instanceGroups.return_value.listInstances.return_value = req
@@ -96,11 +97,15 @@ def test_get_instance_group_members_forbidden_returns_empty(monkeypatch):
         lambda _req: (_ for _ in ()).throw(error),
     )
 
-    members = cartography.intel.gcp.instancegroup._get_instance_group_members(
-        project_id="test-project",
-        instance_group_name="test-group",
-        zone="us-central1-a",
-        region=None,
-        compute=compute,
-    )
+    with caplog.at_level(logging.WARNING):
+        members = cartography.intel.gcp.instancegroup._get_instance_group_members(
+            project_id="test-project",
+            instance_group_name="test-group",
+            zone="us-central1-a",
+            region=None,
+            compute=compute,
+        )
+
     assert members == []
+    assert "HTTP 403 forbidden: Required permission" in caplog.text
+    assert "googleapiclient.errors.HttpError" not in caplog.text

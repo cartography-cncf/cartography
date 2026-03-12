@@ -250,38 +250,42 @@ def get_go_modules(client: Resource, repository_name: str) -> list[dict]:
 @timeit
 def get_apt_artifacts(client: Resource, repository_name: str) -> list[dict]:
     """
-    Gets APT artifacts for a repository.
+    Gets APT package versions for a repository.
 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of APT artifact dicts from the API.
+    :return: List of APT package-version dicts from the API.
     """
     artifacts: list[dict] = []
     try:
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .aptArtifacts()
-            .list(parent=repository_name)
-        )
-        while request is not None:
-            response = request.execute()
-            artifacts.extend(response.get("aptArtifacts", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .aptArtifacts()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
+        packages_resource = client.projects().locations().repositories().packages()
+        packages_request = packages_resource.list(parent=repository_name)
+        while packages_request is not None:
+            packages_response = packages_request.execute()
+            for package in packages_response.get("packages", []):
+                package_name = (
+                    package.get("displayName")
+                    or package.get("name", "").split("/packages/")[-1]
                 )
+                versions_resource = packages_resource.versions()
+                versions_request = versions_resource.list(parent=package.get("name"))
+                while versions_request is not None:
+                    versions_response = versions_request.execute()
+                    for version in versions_response.get("versions", []):
+                        version["packageName"] = package_name
+                        artifacts.append(version)
+                    versions_request = versions_resource.list_next(
+                        previous_request=versions_request,
+                        previous_response=versions_response,
+                    )
+            packages_request = packages_resource.list_next(
+                previous_request=packages_request,
+                previous_response=packages_response,
             )
         return artifacts
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get APT artifacts for repository {repository_name} "
+            f"Failed to get APT package versions for repository {repository_name} "
             f"due to permissions or auth error: {e}",
         )
         return []
@@ -290,38 +294,42 @@ def get_apt_artifacts(client: Resource, repository_name: str) -> list[dict]:
 @timeit
 def get_yum_artifacts(client: Resource, repository_name: str) -> list[dict]:
     """
-    Gets YUM artifacts for a repository.
+    Gets YUM package versions for a repository.
 
     :param client: The Artifact Registry API client.
     :param repository_name: The full repository resource name.
-    :return: List of YUM artifact dicts from the API.
+    :return: List of YUM package-version dicts from the API.
     """
     artifacts: list[dict] = []
     try:
-        request = (
-            client.projects()
-            .locations()
-            .repositories()
-            .yumArtifacts()
-            .list(parent=repository_name)
-        )
-        while request is not None:
-            response = request.execute()
-            artifacts.extend(response.get("yumArtifacts", []))
-            request = (
-                client.projects()
-                .locations()
-                .repositories()
-                .yumArtifacts()
-                .list_next(
-                    previous_request=request,
-                    previous_response=response,
+        packages_resource = client.projects().locations().repositories().packages()
+        packages_request = packages_resource.list(parent=repository_name)
+        while packages_request is not None:
+            packages_response = packages_request.execute()
+            for package in packages_response.get("packages", []):
+                package_name = (
+                    package.get("displayName")
+                    or package.get("name", "").split("/packages/")[-1]
                 )
+                versions_resource = packages_resource.versions()
+                versions_request = versions_resource.list(parent=package.get("name"))
+                while versions_request is not None:
+                    versions_response = versions_request.execute()
+                    for version in versions_response.get("versions", []):
+                        version["packageName"] = package_name
+                        artifacts.append(version)
+                    versions_request = versions_resource.list_next(
+                        previous_request=versions_request,
+                        previous_response=versions_response,
+                    )
+            packages_request = packages_resource.list_next(
+                previous_request=packages_request,
+                previous_response=packages_response,
             )
         return artifacts
     except (PermissionDenied, DefaultCredentialsError, RefreshError) as e:
         logger.warning(
-            f"Failed to get YUM artifacts for repository {repository_name} "
+            f"Failed to get YUM package versions for repository {repository_name} "
             f"due to permissions or auth error: {e}",
         )
         return []

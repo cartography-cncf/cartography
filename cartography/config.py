@@ -252,6 +252,12 @@ class Config:
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
     :param syft_s3_prefix: S3 prefix path containing Syft scan results. Optional.
+    :type aibom_results_dir: str
+    :param aibom_results_dir: Local directory containing AIBOM JSON results. Optional.
+    :type aibom_s3_bucket: str
+    :param aibom_s3_bucket: S3 bucket containing AIBOM scan results. Optional.
+    :type aibom_s3_prefix: str
+    :param aibom_s3_prefix: S3 prefix path containing AIBOM scan results. Optional.
     """
 
     def __init__(
@@ -345,6 +351,10 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
+        subimage_client_id=None,
+        subimage_client_secret=None,
+        subimage_tenant_url=None,
+        subimage_authkit_url="https://auth.subimage.io",
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
@@ -379,6 +389,9 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
+        aibom_results_dir=None,
+        aibom_s3_bucket=None,
+        aibom_s3_prefix=None,
         ubuntu_security_enabled=False,
         ubuntu_security_api_url=None,
     ):
@@ -473,6 +486,10 @@ class Config:
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
         self.anthropic_apikey = anthropic_apikey
+        self.subimage_client_id = subimage_client_id
+        self.subimage_client_secret = subimage_client_secret
+        self.subimage_tenant_url = subimage_tenant_url
+        self.subimage_authkit_url = subimage_authkit_url
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
@@ -507,5 +524,8 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
+        self.aibom_results_dir = aibom_results_dir
+        self.aibom_s3_bucket = aibom_s3_bucket
+        self.aibom_s3_prefix = aibom_s3_prefix
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url

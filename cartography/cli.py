@@ -54,12 +54,14 @@ PANEL_AIRBYTE = "Airbyte Options"
 PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
+PANEL_AIBOM = "AIBOM Options"
 PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SLACK = "Slack Options"
+PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
@@ -97,12 +99,14 @@ MODULE_PANELS = {
     "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
+    "aibom": PANEL_AIBOM,
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentinelone": PANEL_SENTINELONE,
     "keycloak": PANEL_KEYCLOAK,
     "slack": PANEL_SLACK,
+    "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "analysis": PANEL_ANALYSIS,
 }
@@ -1185,6 +1189,45 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # SubImage Options
+            # =================================================================
+            subimage_client_id_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--subimage-client-id-env-var",
+                    help="Environment variable name containing SubImage client ID.",
+                    rich_help_panel=PANEL_SUBIMAGE,
+                    hidden=PANEL_SUBIMAGE not in visible_panels,
+                ),
+            ] = None,
+            subimage_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--subimage-client-secret-env-var",
+                    help="Environment variable name containing SubImage client secret.",
+                    rich_help_panel=PANEL_SUBIMAGE,
+                    hidden=PANEL_SUBIMAGE not in visible_panels,
+                ),
+            ] = None,
+            subimage_tenant_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--subimage-tenant-url",
+                    help="SubImage tenant URL, e.g. https://tenant.subimage.io.",
+                    rich_help_panel=PANEL_SUBIMAGE,
+                    hidden=PANEL_SUBIMAGE not in visible_panels,
+                ),
+            ] = None,
+            subimage_authkit_url: Annotated[
+                str,
+                typer.Option(
+                    "--subimage-authkit-url",
+                    help="SubImage AuthKit URL for OAuth2 token exchange.",
+                    rich_help_panel=PANEL_SUBIMAGE,
+                    hidden=PANEL_SUBIMAGE not in visible_panels,
+                ),
+            ] = "https://auth.subimage.io",
+            # =================================================================
             # Airbyte Options
             # =================================================================
             airbyte_client_id: Annotated[
@@ -1302,6 +1345,35 @@ class CLI:
                     help="Local directory containing Syft JSON results.",
                     rich_help_panel=PANEL_SYFT,
                     hidden=PANEL_SYFT not in visible_panels,
+                ),
+            ] = None,
+            # AIBOM Options
+            # =================================================================
+            aibom_s3_bucket: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-s3-bucket",
+                    help="S3 bucket name containing AIBOM scan results.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            aibom_s3_prefix: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-s3-prefix",
+                    help="S3 prefix path for AIBOM scan results.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            aibom_results_dir: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-results-dir",
+                    help="Local directory containing AIBOM JSON results.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1925,6 +1997,23 @@ class CLI:
                 )
                 anthropic_apikey = os.environ.get(anthropic_apikey_env_var)
 
+            # Read SubImage credentials
+            subimage_client_id = None
+            if subimage_client_id_env_var:
+                logger.debug(
+                    "Reading SubImage client ID from environment variable %s",
+                    subimage_client_id_env_var,
+                )
+                subimage_client_id = os.environ.get(subimage_client_id_env_var)
+
+            subimage_client_secret = None
+            if subimage_client_secret_env_var:
+                logger.debug(
+                    "Reading SubImage client secret from environment variable %s",
+                    subimage_client_secret_env_var,
+                )
+                subimage_client_secret = os.environ.get(subimage_client_secret_env_var)
+
             # Read Airbyte client secret
             airbyte_client_secret = None
             if airbyte_client_id and airbyte_client_secret_env_var:
@@ -1957,6 +2046,14 @@ class CLI:
                 logger.debug("Syft S3 prefix: %s", syft_s3_prefix)
             if syft_results_dir:
                 logger.debug("Syft results dir: %s", syft_results_dir)
+
+            # Log AIBOM config
+            if aibom_s3_bucket:
+                logger.debug("AIBOM S3 bucket: %s", aibom_s3_bucket)
+            if aibom_s3_prefix:
+                logger.debug("AIBOM S3 prefix: %s", aibom_s3_prefix)
+            if aibom_results_dir:
+                logger.debug("AIBOM results dir: %s", aibom_results_dir)
 
             # Read Scaleway secret key
             scaleway_secret_key = None
@@ -2131,6 +2228,10 @@ class CLI:
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
                 anthropic_apikey=anthropic_apikey,
+                subimage_client_id=subimage_client_id,
+                subimage_client_secret=subimage_client_secret,
+                subimage_tenant_url=subimage_tenant_url,
+                subimage_authkit_url=subimage_authkit_url,
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
@@ -2142,6 +2243,9 @@ class CLI:
                 syft_s3_bucket=syft_s3_bucket,
                 syft_s3_prefix=syft_s3_prefix,
                 syft_results_dir=syft_results_dir,
+                aibom_s3_bucket=aibom_s3_bucket,
+                aibom_s3_prefix=aibom_s3_prefix,
+                aibom_results_dir=aibom_results_dir,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 trivy_results_dir=trivy_results_dir,

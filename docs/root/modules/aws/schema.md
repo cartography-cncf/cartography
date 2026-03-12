@@ -982,6 +982,8 @@ Representation of the root principal for an AWS account.
 
 Representation of a global AWS service principal e.g. "ec2.amazonaws.com"
 
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., GCPServiceAccount, KubernetesServiceAccount, OpenAIServiceAccount).
+
 | Field | Description |
 |-------|-------------|
 | firstseen | Timestamp of when a sync job first discovered this node |
@@ -1144,6 +1146,8 @@ Representation of an AWS [Tag](https://docs.aws.amazon.com/resourcegroupstagging
 ### AccountAccessKey
 
 Representation of an AWS [Access Key](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AccessKey.html).
+
+> **Ontology Mapping**: This node has the extra label `APIKey` to enable cross-platform queries for API keys across different systems (e.g., AnthropicApiKey, OpenAIApiKey, ScalewayApiKey).
 
 | Field | Description |
 |-------|-------------|
@@ -4070,6 +4074,8 @@ Representation of an AWS [API Gateway Deployment](https://docs.aws.amazon.com/ap
 
 Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/latest/APIReference/API_CertificateDetail.html).
 
+> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., AWSServerCertificate, AzureKeyVaultCertificate).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node |
@@ -4097,6 +4103,31 @@ Representation of an AWS [ACM Certificate](https://docs.aws.amazon.com/acm/lates
     (:ACMCertificate)-[:USED_BY]->(:ELBV2Listener)
     ```
   Note: the AWS ACM API may return a load balancer ARN for the `in_use_by` field instead of a listener ARN. To properly map the certificate to the listener in this situation, we need to rely on data from the ELBV2 module. This is a weird quirk of the AWS API.
+
+### AWSServerCertificate
+
+Representation of an AWS [IAM Server Certificate](https://docs.aws.amazon.com/IAM/latest/APIReference/API_ServerCertificateMetadata.html).
+
+> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., ACMCertificate, AzureKeyVaultCertificate).
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | The server certificate ID |
+| arn | The ARN of the server certificate |
+| server\_certificate\_id | The stable and unique ID for the server certificate |
+| server\_certificate\_name | The name of the server certificate |
+| path | The path to the server certificate |
+| expiration | The date on which the certificate is set to expire |
+| upload\_date | The date the server certificate was uploaded |
+
+#### Relationships
+
+- AWS Server Certificates are resources under the AWS Account.
+    ```
+    (:AWSAccount)-[:RESOURCE]->(:AWSServerCertificate)
+    ```
 
 ### APIGatewayResource
 
