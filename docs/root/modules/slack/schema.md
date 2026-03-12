@@ -3,6 +3,7 @@
 ```mermaid
 graph LR
 ST(SlackTeam) -- RESOURCE --> SU(SlackUser)
+ST -- RESOURCE --> SB(SlackBot)
 ST -- RESOURCE --> SC(SlackChannel)
 ST -- RESOURCE --> SG(SlackGroup)
 SU -- CREATED --> SC
@@ -35,6 +36,12 @@ Representation of a Slack Workspace.
 
     ```
     (SlackTeam)-[RESOURCE]->(SlackUser)
+    ```
+
+- A SlackTeam contains SlackBot
+
+    ```
+    (SlackTeam)-[RESOURCE]->(SlackBot)
     ```
 
 - A SlackTeam contains SlackChannels
@@ -73,8 +80,6 @@ Representation of a single [User in Slack](https://api.slack.com/types/user).
 | is_owner | Flag for Slack Workspace owners (boolean) |
 | is_restricted | Flag for restricted users, aka guests (boolean) |
 | is_ultra_restricted | Flag for ultra restricted users, aka guests (boolean) |
-| is_bot | Flag for bot user accounts (boolean) |
-| is_app_user | Flag for application user accounts (boolean) |
 | is_email_confirmed | Flag for user with confirmed email (boolean) |
 | has_mfa | Flag for users with multi-factor authentication enabled (boolean) |
 | team | Slack team ID |
@@ -109,6 +114,34 @@ Representation of a single [User in Slack](https://api.slack.com/types/user).
 
     ```
     (SlackUser)-[CREATED]->(SlackGroup)
+    ```
+
+
+### SlackBot
+
+Representation of a bot or app account in Slack. Previously ingested as `SlackUser`, bot accounts now have their own dedicated node type.
+
+> **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable cross-platform queries for third-party applications across different systems (e.g., GoogleWorkspaceOAuthApp, KeycloakClient, EntraApplication).
+
+> **Backward Compatibility**: This node also carries a deprecated `SlackUser` extra label so that existing `MATCH (n:SlackUser)` queries continue to return bots. This label will be removed in v1.
+
+| Field | Description |
+|-------|--------------|
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Slack ID |
+| name | Bot name (eg. securitybot) |
+| real_name | Bot display name (eg. Security Bot) |
+| deleted | Flag for deleted bots (boolean) |
+| is_bot | Flag for bot accounts (boolean) |
+| is_app_user | Flag for application user accounts (boolean) |
+
+#### Relationships
+
+- A SlackTeam contains SlackBot
+
+    ```
+    (SlackTeam)-[RESOURCE]->(SlackBot)
     ```
 
 
