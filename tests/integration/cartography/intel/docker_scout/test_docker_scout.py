@@ -1,4 +1,6 @@
 import cartography.intel.docker_scout.scanner
+from cartography.intel.docker_scout.scanner import cleanup
+from cartography.intel.docker_scout.scanner import sync_from_file
 from tests.data.docker_scout.mock_data import MOCK_ECR_COMBINED_FILE_DATA
 from tests.data.docker_scout.mock_data import MOCK_GITLAB_COMBINED_FILE_DATA
 from tests.data.docker_scout.mock_data import TEST_ECR_IMAGE_DIGEST
@@ -211,3 +213,21 @@ def test_docker_scout_sync_from_file(neo4j_session):
     ) == {
         ("3.0.16-1~deb12u1|3.0.15-1~deb12u1|libssl3", "DSF|CVE-2024-13176"),
     }
+
+
+def test_docker_scout_cleanup(neo4j_session):
+    """Test that cleanup removes stale Docker Scout nodes."""
+    # Ingest with tag 1
+    _create_ecr_image(neo4j_session, TEST_ECR_IMAGE_DIGEST, TEST_UPDATE_TAG)
+    sync_from_file(
+        neo4j_session, MOCK_ECR_COMBINED_FILE_DATA, "test.json", TEST_UPDATE_TAG
+    )
+
+    # Run cleanup with tag 2 (simulating a new sync that didn't re-ingest)
+    cleanup(neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG + 1})
+
+    # Assert stale nodes are removed
+    assert check_nodes(neo4j_session, "DockerScoutPublicImage", ["id"]) == set()
+    assert check_nodes(neo4j_session, "DockerScoutPackage", ["id"]) == set()
+    assert check_nodes(neo4j_session, "DockerScoutFinding", ["id"]) == set()
+    assert check_nodes(neo4j_session, "DockerScoutFix", ["id"]) == set()

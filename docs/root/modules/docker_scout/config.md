@@ -25,7 +25,7 @@ Currently, Cartography allows you to use Docker Scout to scan the following reso
     echo "$DOCKER_HUB_TOKEN" | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin
     ```
 
-1. Ensure your graph is populated with the container images you want to scan. For example, with AWS ECR:
+1. Ensure the container image registry nodes (e.g., ECR, GCP Artifact Registry, GitLab) are already synced into the graph so Docker Scout can create relationships to them. For example, with AWS ECR:
 
     ```bash
     cartography --selected-modules aws --aws-requested-syncs ecr

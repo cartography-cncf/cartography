@@ -315,8 +315,16 @@ def sync_from_file(
 
     public_image_id = public_image["id"]
 
-    # Derive packages from CVE artifacts (they contain the vulnerable packages)
-    packages = transform_packages(cves_data, image_digest, public_image_id)
+    # Merge packages from SBOM (all packages, has location data) and CVE artifacts (vulnerable only),
+    # deduplicating by package ID and preferring SBOM entries since they have richer context.
+    sbom_packages = transform_packages(sbom_data, image_digest, public_image_id)
+    cve_packages = transform_packages(cves_data, image_digest, public_image_id)
+    packages_by_id: dict[str, dict[str, Any]] = {}
+    for pkg in cve_packages:
+        packages_by_id[pkg["id"]] = pkg
+    for pkg in sbom_packages:
+        packages_by_id[pkg["id"]] = pkg
+    packages = list(packages_by_id.values())
     findings, fixes = transform_findings(cves_data, image_digest)
 
     load_public_image(neo4j_session, public_image, update_tag)

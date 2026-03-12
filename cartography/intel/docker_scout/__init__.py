@@ -38,8 +38,13 @@ def sync_docker_scout_from_dir(
 
     synced_count = 0
     for file_path in json_files:
-        with open(file_path, encoding="utf-8") as f:
-            scout_data = json.load(f)
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                scout_data = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Failed to parse Docker Scout JSON from {file_path}"
+            ) from e
         if sync_from_file(neo4j_session, scout_data, file_path, update_tag):
             synced_count += 1
 
@@ -80,7 +85,12 @@ def sync_docker_scout_from_s3(
     for s3_key in json_files:
         response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
         raw = response["Body"].read().decode("utf-8")
-        scout_data = json.loads(raw)
+        try:
+            scout_data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Failed to parse Docker Scout JSON from s3://{s3_bucket}/{s3_key}"
+            ) from e
 
         if sync_from_file(
             neo4j_session, scout_data, f"s3://{s3_bucket}/{s3_key}", update_tag
