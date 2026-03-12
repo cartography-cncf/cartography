@@ -336,8 +336,8 @@ def load_identity_center_account_assignments(
                     _load_identity_center_account_assignments_tx, assignment, permissions_set, instance_arn, update_tag,
                 )
 
-                # INFO: This is a temporary solution to skip Loading Policies for partial run particularly for IN DC.
-                if common_job_parameters.get("DC", "US") == "IN" and common_job_parameters.get("PARTIAL", False) or current_aws_account_id == "934101271236":
+                # INFO: This is a temporary solution to skip Loading Policies for manual runs.
+                if common_job_parameters.get("MANUAL_RUN", False) or current_aws_account_id == "934101271236":
                     loaded_permissions_sets.append(permissions_set["PermissionSetArn"])
                     break
 
@@ -461,8 +461,8 @@ def sync_identity_center_permissions_sets(
 ) -> None:
     permissions_sets = get_identity_center_permissions_sets_list(boto3_session, instance, region)
 
-    # INFO: This is a temporary solution to skip Loading Policies for partial run particularly for IN DC.
-    if common_job_parameters.get("DC", "US") == "IN" and common_job_parameters.get("PARTIAL", False) or current_aws_account_id == "934101271236":
+    # INFO: This is a temporary solution to skip Loading Policies for manual runs.
+    if common_job_parameters.get("MANUAL_RUN", False) or current_aws_account_id == "934101271236":
         managed_policies = {}
         inline_policies = {}
 
@@ -526,8 +526,8 @@ def sync_identity_center_permissions_sets(
             continue
 
         unloaded_permissions_sets.append(permissions_set)
-        # INFO: This is a temporary solution to skip Loading Policies for partial run particularly for IN DC.
-        if common_job_parameters.get("DC", "US") == "IN" and common_job_parameters.get("PARTIAL", False) or current_aws_account_id == "934101271236":
+        # INFO: This is a temporary solution to skip Loading Policies for manual runs.
+        if common_job_parameters.get("MANUAL_RUN", False) or current_aws_account_id == "934101271236":
             continue
         unloaded_managed_policies[permissions_set["PermissionSetArn"]] = copy.deepcopy(managed_policies.get(permissions_set["PermissionSetArn"], {}))
         unloaded_inline_policies[permissions_set["PermissionSetArn"]] = copy.deepcopy(inline_policies.get(permissions_set["PermissionSetArn"], {}))
