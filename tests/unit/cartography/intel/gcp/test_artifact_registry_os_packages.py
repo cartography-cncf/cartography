@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 from cartography.intel.gcp.artifact_registry.artifact import get_apt_artifacts
 from cartography.intel.gcp.artifact_registry.artifact import get_go_modules
 from cartography.intel.gcp.artifact_registry.artifact import get_yum_artifacts
+from cartography.intel.gcp.util import GCP_API_NUM_RETRIES
 
 
 def _make_os_package_client(package_name: str, version_name: str) -> MagicMock:
@@ -40,18 +41,15 @@ def _make_os_package_client(package_name: str, version_name: str) -> MagicMock:
     return client
 
 
-def test_get_apt_artifacts_uses_packages_and_versions(monkeypatch):
+def test_get_apt_artifacts_uses_packages_and_versions():
     client = _make_os_package_client("curl", "7.88.1")
-    calls = []
-
-    def _fake_execute(request):
-        calls.append(request)
-        return request.execute()
-
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.artifact.gcp_api_execute_with_retry",
-        _fake_execute,
+    repositories = (
+        client.projects.return_value.locations.return_value.repositories.return_value
     )
+    packages = repositories.packages.return_value
+    versions = packages.versions.return_value
+    packages_request = packages.list.return_value
+    versions_request = versions.list.return_value
 
     artifacts = get_apt_artifacts(
         client,
@@ -66,21 +64,23 @@ def test_get_apt_artifacts_uses_packages_and_versions(monkeypatch):
             "packageName": "curl",
         }
     ]
-    assert len(calls) == 2
-
-
-def test_get_yum_artifacts_uses_packages_and_versions(monkeypatch):
-    client = _make_os_package_client("bash", "5.2.26")
-    calls = []
-
-    def _fake_execute(request):
-        calls.append(request)
-        return request.execute()
-
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.artifact.gcp_api_execute_with_retry",
-        _fake_execute,
+    packages_request.execute.assert_called_once_with(
+        num_retries=GCP_API_NUM_RETRIES,
     )
+    versions_request.execute.assert_called_once_with(
+        num_retries=GCP_API_NUM_RETRIES,
+    )
+
+
+def test_get_yum_artifacts_uses_packages_and_versions():
+    client = _make_os_package_client("bash", "5.2.26")
+    repositories = (
+        client.projects.return_value.locations.return_value.repositories.return_value
+    )
+    packages = repositories.packages.return_value
+    versions = packages.versions.return_value
+    packages_request = packages.list.return_value
+    versions_request = versions.list.return_value
 
     artifacts = get_yum_artifacts(
         client,
@@ -95,10 +95,15 @@ def test_get_yum_artifacts_uses_packages_and_versions(monkeypatch):
             "packageName": "bash",
         }
     ]
-    assert len(calls) == 2
+    packages_request.execute.assert_called_once_with(
+        num_retries=GCP_API_NUM_RETRIES,
+    )
+    versions_request.execute.assert_called_once_with(
+        num_retries=GCP_API_NUM_RETRIES,
+    )
 
 
-def test_get_go_modules_uses_retry_helper(monkeypatch):
+def test_get_go_modules_uses_retry_helper():
     client = MagicMock()
     repositories = (
         client.projects.return_value.locations.return_value.repositories.return_value
@@ -107,19 +112,8 @@ def test_get_go_modules_uses_retry_helper(monkeypatch):
     next_request = MagicMock()
     repositories.goModules.return_value.list.return_value = request
     repositories.goModules.return_value.list_next.side_effect = [next_request, None]
-
-    calls = []
-
-    def _fake_execute(req):
-        calls.append(req)
-        if req is request:
-            return {"goModules": [{"name": "module-1"}]}
-        return {"goModules": [{"name": "module-2"}]}
-
-    monkeypatch.setattr(
-        "cartography.intel.gcp.artifact_registry.artifact.gcp_api_execute_with_retry",
-        _fake_execute,
-    )
+    request.execute.return_value = {"goModules": [{"name": "module-1"}]}
+    next_request.execute.return_value = {"goModules": [{"name": "module-2"}]}
 
     modules = get_go_modules(
         client,
@@ -127,4 +121,5 @@ def test_get_go_modules_uses_retry_helper(monkeypatch):
     )
 
     assert modules == [{"name": "module-1"}, {"name": "module-2"}]
-    assert calls == [request, next_request]
+    request.execute.assert_called_once_with(num_retries=GCP_API_NUM_RETRIES)
+    next_request.execute.assert_called_once_with(num_retries=GCP_API_NUM_RETRIES)
