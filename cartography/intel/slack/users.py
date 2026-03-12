@@ -41,6 +41,8 @@ def transform(
     users = []
     bots = []
     for member in members:
+        # is_bot: traditional bot integrations; is_app_user: newer Slack-app-created accounts.
+        # Both are non-human and should be ingested as SlackBot, not SlackUser.
         if member.get("is_bot") or member.get("is_app_user"):
             bots.append(member)
         else:

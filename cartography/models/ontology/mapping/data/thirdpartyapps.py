@@ -140,7 +140,7 @@ slack_mapping = OntologyMapping(
             fields=[
                 OntologyFieldMapping(
                     ontology_field="client_id",
-                    node_field="id",
+                    node_field="id",  # Note: This is the bot's Slack user ID, not an OAuth client_id
                     required=True,
                 ),
                 OntologyFieldMapping(
