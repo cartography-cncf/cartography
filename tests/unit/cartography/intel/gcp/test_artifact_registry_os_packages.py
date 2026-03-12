@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 from cartography.intel.gcp.artifact_registry.artifact import get_apt_artifacts
+from cartography.intel.gcp.artifact_registry.artifact import get_go_modules
 from cartography.intel.gcp.artifact_registry.artifact import get_yum_artifacts
 
 
@@ -39,8 +40,18 @@ def _make_os_package_client(package_name: str, version_name: str) -> MagicMock:
     return client
 
 
-def test_get_apt_artifacts_uses_packages_and_versions():
+def test_get_apt_artifacts_uses_packages_and_versions(monkeypatch):
     client = _make_os_package_client("curl", "7.88.1")
+    calls = []
+
+    def _fake_execute(request):
+        calls.append(request)
+        return request.execute()
+
+    monkeypatch.setattr(
+        "cartography.intel.gcp.artifact_registry.artifact.gcp_api_execute_with_retry",
+        _fake_execute,
+    )
 
     artifacts = get_apt_artifacts(
         client,
@@ -55,10 +66,21 @@ def test_get_apt_artifacts_uses_packages_and_versions():
             "packageName": "curl",
         }
     ]
+    assert len(calls) == 2
 
 
-def test_get_yum_artifacts_uses_packages_and_versions():
+def test_get_yum_artifacts_uses_packages_and_versions(monkeypatch):
     client = _make_os_package_client("bash", "5.2.26")
+    calls = []
+
+    def _fake_execute(request):
+        calls.append(request)
+        return request.execute()
+
+    monkeypatch.setattr(
+        "cartography.intel.gcp.artifact_registry.artifact.gcp_api_execute_with_retry",
+        _fake_execute,
+    )
 
     artifacts = get_yum_artifacts(
         client,
@@ -73,3 +95,36 @@ def test_get_yum_artifacts_uses_packages_and_versions():
             "packageName": "bash",
         }
     ]
+    assert len(calls) == 2
+
+
+def test_get_go_modules_uses_retry_helper(monkeypatch):
+    client = MagicMock()
+    repositories = (
+        client.projects.return_value.locations.return_value.repositories.return_value
+    )
+    request = MagicMock()
+    next_request = MagicMock()
+    repositories.goModules.return_value.list.return_value = request
+    repositories.goModules.return_value.list_next.side_effect = [next_request, None]
+
+    calls = []
+
+    def _fake_execute(req):
+        calls.append(req)
+        if req is request:
+            return {"goModules": [{"name": "module-1"}]}
+        return {"goModules": [{"name": "module-2"}]}
+
+    monkeypatch.setattr(
+        "cartography.intel.gcp.artifact_registry.artifact.gcp_api_execute_with_retry",
+        _fake_execute,
+    )
+
+    modules = get_go_modules(
+        client,
+        "projects/test-project/locations/us-east1/repositories/repo",
+    )
+
+    assert modules == [{"name": "module-1"}, {"name": "module-2"}]
+    assert calls == [request, next_request]
