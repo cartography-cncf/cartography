@@ -226,7 +226,7 @@ def get_go_modules(client: Resource, repository_name: str) -> list[dict]:
             .list(parent=repository_name)
         )
         while request is not None:
-            response = request.execute()
+            response = gcp_api_execute_with_retry(request)
             modules.extend(response.get("goModules", []))
             request = (
                 client.projects()
@@ -261,7 +261,7 @@ def get_apt_artifacts(client: Resource, repository_name: str) -> list[dict]:
         packages_resource = client.projects().locations().repositories().packages()
         packages_request = packages_resource.list(parent=repository_name)
         while packages_request is not None:
-            packages_response = packages_request.execute()
+            packages_response = gcp_api_execute_with_retry(packages_request)
             for package in packages_response.get("packages", []):
                 package_name = (
                     package.get("displayName")
@@ -270,7 +270,7 @@ def get_apt_artifacts(client: Resource, repository_name: str) -> list[dict]:
                 versions_resource = packages_resource.versions()
                 versions_request = versions_resource.list(parent=package.get("name"))
                 while versions_request is not None:
-                    versions_response = versions_request.execute()
+                    versions_response = gcp_api_execute_with_retry(versions_request)
                     for version in versions_response.get("versions", []):
                         version["packageName"] = package_name
                         artifacts.append(version)
@@ -305,7 +305,7 @@ def get_yum_artifacts(client: Resource, repository_name: str) -> list[dict]:
         packages_resource = client.projects().locations().repositories().packages()
         packages_request = packages_resource.list(parent=repository_name)
         while packages_request is not None:
-            packages_response = packages_request.execute()
+            packages_response = gcp_api_execute_with_retry(packages_request)
             for package in packages_response.get("packages", []):
                 package_name = (
                     package.get("displayName")
@@ -314,7 +314,7 @@ def get_yum_artifacts(client: Resource, repository_name: str) -> list[dict]:
                 versions_resource = packages_resource.versions()
                 versions_request = versions_resource.list(parent=package.get("name"))
                 while versions_request is not None:
-                    versions_response = versions_request.execute()
+                    versions_response = gcp_api_execute_with_retry(versions_request)
                     for version in versions_response.get("versions", []):
                         version["packageName"] = package_name
                         artifacts.append(version)
