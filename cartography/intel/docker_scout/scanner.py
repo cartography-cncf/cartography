@@ -27,12 +27,12 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class _DockerScoutPublicImageCleanupRelProperties(CartographyRelProperties):
+class DockerScoutPublicImageCleanupRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
 @dataclass(frozen=True)
-class _DockerScoutPublicImageCleanupBuiltOnRel(CartographyRelSchema):
+class DockerScoutPublicImageCleanupBuiltOnRel(CartographyRelSchema):
     """
     Cleanup-only relationship schema.
 
@@ -48,15 +48,15 @@ class _DockerScoutPublicImageCleanupBuiltOnRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "BUILT_ON"
-    properties: _DockerScoutPublicImageCleanupRelProperties = (
-        _DockerScoutPublicImageCleanupRelProperties()
+    properties: DockerScoutPublicImageCleanupRelProperties = (
+        DockerScoutPublicImageCleanupRelProperties()
     )
 
 
 @dataclass(frozen=True)
-class _DockerScoutPublicImageCleanupSchema(DockerScoutPublicImageSchema):
+class DockerScoutPublicImageCleanupSchema(DockerScoutPublicImageSchema):
     other_relationships: OtherRelationships = OtherRelationships(
-        [_DockerScoutPublicImageCleanupBuiltOnRel()],
+        [DockerScoutPublicImageCleanupBuiltOnRel()],
     )
 
 
@@ -269,7 +269,7 @@ def cleanup(
         common_job_parameters,
     ).run(neo4j_session)
     GraphJob.from_node_schema(
-        _DockerScoutPublicImageCleanupSchema(),
+        DockerScoutPublicImageCleanupSchema(),
         common_job_parameters,
     ).run(neo4j_session)
 
