@@ -61,6 +61,40 @@ def drop_none(value: dict[str, Any]) -> dict[str, Any]:
     return {key: item for key, item in value.items() if item is not None and item != {}}
 
 
+def parse_alternative_tags(text: str) -> list[str]:
+    lines = text.splitlines()
+    supported_tags_lines: list[str] = []
+    collecting = False
+
+    for line in lines:
+        if "│" not in line:
+            if collecting:
+                break
+            continue
+
+        _, right_column = line.split("│", 1)
+        normalized = right_column.strip()
+        if not collecting and "supported tag(s)" in normalized:
+            collecting = True
+
+        if not collecting:
+            continue
+
+        supported_tags_lines.append(normalized)
+        if "If you want to display recommendations" in normalized:
+            break
+
+    supported_tags_text = " ".join(supported_tags_lines)
+    match = re.search(
+        r"supported tag\(s\)\s+(.+?)\.\s+If you want to display recommendations",
+        supported_tags_text,
+    )
+    if not match:
+        return []
+
+    return re.findall(r"`([^`]+)`", match.group(1))
+
+
 def parse_base_image(text: str) -> tuple[dict[str, Any], dict[str, int]]:
     base_match = re.search(r"Base image is\s+(\S+)", text)
     if not base_match:
@@ -80,14 +114,7 @@ def parse_base_image(text: str) -> tuple[dict[str, Any], dict[str, int]]:
 
     vulnerabilities = parse_vulnerabilities(fields.get("Vulnerabilities", ""))
     flavor = fields.get("Flavor")
-    alt_tags_match = re.search(
-        r"supported tag\(s\)\s+(.+?)\.\s+If you want to display recommendations",
-        text,
-        flags=re.DOTALL,
-    )
-    alternative_tags = []
-    if alt_tags_match:
-        alternative_tags = re.findall(r"`([^`]+)`", alt_tags_match.group(1))
+    alternative_tags = parse_alternative_tags(text)
 
     base_image = {
         "name": image_name,

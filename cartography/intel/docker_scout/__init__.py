@@ -63,7 +63,11 @@ def sync_docker_scout_from_dir(
 
     synced_count = 0
     for file_path in report_files:
-        raw_recommendation = Path(file_path).read_text(encoding="utf-8")
+        try:
+            raw_recommendation = Path(file_path).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            logger.warning("Skipping unreadable Docker Scout report %s", file_path)
+            continue
         if not _looks_like_docker_scout_report(raw_recommendation):
             logger.debug(
                 "Skipping %s: not a Docker Scout recommendation report", file_path
@@ -110,7 +114,15 @@ def sync_docker_scout_from_s3(
     s3_client = boto3_session.client("s3")
     for s3_key in report_files:
         response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
-        raw_recommendation = response["Body"].read().decode("utf-8")
+        try:
+            raw_recommendation = response["Body"].read().decode("utf-8")
+        except UnicodeDecodeError:
+            logger.warning(
+                "Skipping unreadable Docker Scout report s3://%s/%s",
+                s3_bucket,
+                s3_key,
+            )
+            continue
         if not _looks_like_docker_scout_report(raw_recommendation):
             logger.debug(
                 "Skipping s3://%s/%s: not a Docker Scout recommendation report",

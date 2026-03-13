@@ -80,6 +80,29 @@ def test_parse_recommendation_raw_supports_crlf_and_registry_ports() -> None:
     assert parsed["base_image"]["tag"] == "25-alpine"
 
 
+def test_parse_recommendation_raw_normalizes_wrapped_supported_tags() -> None:
+    wrapped_report = MOCK_ECR_RECOMMENDATION_RAW.replace(
+        "supported tag(s) `25-alpine3.23`, `alpine`, `alpine3.23`, `current-alpine`, `current-alpine3.23`. If you want to display recommendations",
+        "\n".join(
+            [
+                "      │ This image version is available for the following supported tag(s) `25-alpine3.23`,",
+                "      │ `alpine`, `alpine3.23`,",
+                "      │ `current-alpine`, `current-alpine3.23`. If you want to display recommendations",
+            ]
+        ),
+    )
+
+    parsed = parse_recommendation_raw(wrapped_report)
+
+    assert parsed["base_image"]["alternative_tags"] == [
+        "25-alpine3.23",
+        "alpine",
+        "alpine3.23",
+        "current-alpine",
+        "current-alpine3.23",
+    ]
+
+
 def test_sync_from_file_skips_invalid_reports(mocker) -> None:
     neo4j_session = mocker.Mock()
 
