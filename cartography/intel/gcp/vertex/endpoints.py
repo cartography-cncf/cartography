@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Dict
 from typing import List
@@ -57,6 +58,10 @@ def transform_vertex_ai_endpoints(endpoints: List[Dict]) -> List[Dict]:
     transformed_endpoints = []
 
     for endpoint in endpoints:
+        # Neo4j properties cannot store maps; serialize map-like fields to JSON.
+        labels = endpoint.get("labels")
+        labels_json = json.dumps(labels) if labels else None
+
         transformed_endpoint = {
             "id": endpoint.get("name"),  # Full resource name
             "name": endpoint.get("name"),
@@ -65,7 +70,7 @@ def transform_vertex_ai_endpoints(endpoints: List[Dict]) -> List[Dict]:
             "create_time": endpoint.get("createTime"),
             "update_time": endpoint.get("updateTime"),
             "etag": endpoint.get("etag"),
-            "labels": endpoint.get("labels"),
+            "labels": labels_json,
             "network": endpoint.get("network"),
         }
 

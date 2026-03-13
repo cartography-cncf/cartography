@@ -11,6 +11,7 @@ from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
 from cartography.intel.github.repos import transform
+from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import GET_REPOS
 
@@ -212,8 +213,10 @@ def test_transform_includes_branch_protection_rules():
 
 
 def test_transform_prefers_dependency_graph_over_requirements_txt():
-    repo = GET_REPOS[2]
+    repo = dict(GET_REPOS[2])
     repo_url = repo["url"]
+    # Simulate what sync() does: inject dep manifests fetched separately
+    repo["dependencyGraphManifests"] = DEP_MANIFESTS_BY_URL[repo_url]
 
     result = transform(
         [repo],

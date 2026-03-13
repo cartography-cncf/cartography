@@ -15,6 +15,11 @@ class Config:
     :type neo4j_max_connection_lifetime: int
     :param neo4j_max_connection_lifetime: Time in seconds for Neo4j driver to consider a TCP connection alive.
         See https://neo4j.com/docs/driver-manual/1.7/client-applications/. Optional.
+    :type neo4j_liveness_check_timeout: int
+    :param neo4j_liveness_check_timeout: Time in seconds that a connection can be idle before the driver performs a
+        liveness check (RESET ping) before reusing it. Helps prevent SessionExpired or ConnectionResetError on
+        Aura/clustered Neo4j instances that close idle connections server-side. Maps to the neo4j driver's
+        ``liveness_check_timeout`` parameter. Optional.
     :type neo4j_database: string
     :param neo4j_database: The name of the database in Neo4j to connect to. If not specified, uses your Neo4j database
     settings to infer which database is set to default.
@@ -84,6 +89,8 @@ class Config:
     :param permission_relationships_file: File path for the resource permission relationships file. Optional.
     :type azure_permission_relationships_file: str
     :param azure_permission_relationships_file: File path for the Azure permission relationships file. Optional.
+    :type gcp_requested_syncs: str
+    :param gcp_requested_syncs: Comma-separated list of GCP resources to sync. Optional.
     :type gcp_permission_relationships_file: str
     :param gcp_permission_relationships_file: File path for the GCP resource permission relationships file. Optional.
     :type jamf_base_uri: string
@@ -239,6 +246,12 @@ class Config:
     :param syft_s3_bucket: S3 bucket containing Syft scan results. Optional.
     :type syft_s3_prefix: str
     :param syft_s3_prefix: S3 prefix path containing Syft scan results. Optional.
+    :type aibom_results_dir: str
+    :param aibom_results_dir: Local directory containing AIBOM JSON results. Optional.
+    :type aibom_s3_bucket: str
+    :param aibom_s3_bucket: S3 bucket containing AIBOM scan results. Optional.
+    :type aibom_s3_prefix: str
+    :param aibom_s3_prefix: S3 prefix path containing AIBOM scan results. Optional.
     """
 
     def __init__(
@@ -247,6 +260,7 @@ class Config:
         neo4j_user=None,
         neo4j_password=None,
         neo4j_max_connection_lifetime=None,
+        neo4j_liveness_check_timeout=None,
         neo4j_database=None,
         selected_modules=None,
         update_tag=None,
@@ -278,6 +292,7 @@ class Config:
         digitalocean_token=None,
         permission_relationships_file=None,
         azure_permission_relationships_file=None,
+        gcp_requested_syncs=None,
         gcp_permission_relationships_file=None,
         jamf_base_uri=None,
         jamf_user=None,
@@ -330,6 +345,10 @@ class Config:
         openai_apikey=None,
         openai_org_id=None,
         anthropic_apikey=None,
+        subimage_client_id=None,
+        subimage_client_secret=None,
+        subimage_tenant_url=None,
+        subimage_authkit_url="https://auth.subimage.io",
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
@@ -361,11 +380,17 @@ class Config:
         syft_results_dir=None,
         syft_s3_bucket=None,
         syft_s3_prefix=None,
+        aibom_results_dir=None,
+        aibom_s3_bucket=None,
+        aibom_s3_prefix=None,
+        ubuntu_security_enabled=False,
+        ubuntu_security_api_url=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
         self.neo4j_password = neo4j_password
         self.neo4j_max_connection_lifetime = neo4j_max_connection_lifetime
+        self.neo4j_liveness_check_timeout = neo4j_liveness_check_timeout
         self.neo4j_database = neo4j_database
         self.selected_modules = selected_modules
         self.update_tag = update_tag
@@ -399,6 +424,7 @@ class Config:
         self.digitalocean_token = digitalocean_token
         self.permission_relationships_file = permission_relationships_file
         self.azure_permission_relationships_file = azure_permission_relationships_file
+        self.gcp_requested_syncs = gcp_requested_syncs
         self.gcp_permission_relationships_file = gcp_permission_relationships_file
         self.jamf_base_uri = jamf_base_uri
         self.jamf_user = jamf_user
@@ -451,6 +477,10 @@ class Config:
         self.openai_apikey = openai_apikey
         self.openai_org_id = openai_org_id
         self.anthropic_apikey = anthropic_apikey
+        self.subimage_client_id = subimage_client_id
+        self.subimage_client_secret = subimage_client_secret
+        self.subimage_tenant_url = subimage_tenant_url
+        self.subimage_authkit_url = subimage_authkit_url
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
@@ -482,3 +512,8 @@ class Config:
         self.syft_results_dir = syft_results_dir
         self.syft_s3_bucket = syft_s3_bucket
         self.syft_s3_prefix = syft_s3_prefix
+        self.aibom_results_dir = aibom_results_dir
+        self.aibom_s3_bucket = aibom_s3_bucket
+        self.aibom_s3_prefix = aibom_s3_prefix
+        self.ubuntu_security_enabled = ubuntu_security_enabled
+        self.ubuntu_security_api_url = ubuntu_security_api_url

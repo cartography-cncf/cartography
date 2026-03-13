@@ -87,7 +87,7 @@ PropertyRef("field_list", one_to_many=True)        # One-to-many relationships
 git commit -s -m "feat(module): add new feature"
 ```
 
-**Pull Request Descriptions**: When creating a pull request, use the template at `.github/pull_request_template.md`.
+**Pull Request Descriptions**: All pull requests must follow the template at `.github/pull_request_template.md`. Update the PR description to match the template sections if they are missing or incomplete.
 
 ## Quick Start: Copy an Existing Module
 

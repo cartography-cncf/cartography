@@ -12,6 +12,10 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import get_error_reason
+from cartography.intel.gcp.util import is_api_disabled_error
+from cartography.intel.gcp.util import is_billing_disabled_error
+from cartography.intel.gcp.util import is_permission_denied_error
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.secretsmanager.secret import GCPSecretManagerSecretSchema
 from cartography.models.gcp.secretsmanager.secret_version import (
     GCPSecretManagerSecretVersionSchema,
@@ -46,22 +50,32 @@ def get_secrets(secretmanager: Resource, project_id: str) -> List[Dict]:
         reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
-                (
-                    "The project %s is invalid - returned a 400 invalid error. "
-                    "Full details: %s"
-                ),
+                "The project %s is invalid - returned a 400 invalid error. %s",
                 project_id,
-                e,
+                summarize_gcp_http_error(e),
             )
             return []
-        elif reason == "forbidden":
+        elif is_permission_denied_error(e):
             logger.warning(
-                (
-                    "You do not have secretmanager.secrets.list access to the project %s. "
-                    "Full details: %s"
-                ),
+                "You do not have secretmanager.secrets.list access to the project %s. %s",
                 project_id,
-                e,
+                summarize_gcp_http_error(e),
+            )
+            return []
+        elif is_billing_disabled_error(e):
+            logger.warning(
+                "Billing is disabled for project %s. "
+                "Skipping Secret Manager sync for this project. %s",
+                project_id,
+                summarize_gcp_http_error(e),
+            )
+            return []
+        elif is_api_disabled_error(e):
+            logger.info(
+                "Secret Manager API appears disabled for project %s. "
+                "Skipping Secret Manager sync for this project. %s",
+                project_id,
+                summarize_gcp_http_error(e),
             )
             return []
         else:
@@ -96,22 +110,32 @@ def get_secret_versions(
         reason = get_error_reason(e)
         if reason == "invalid":
             logger.warning(
-                (
-                    "The secret %s is invalid - returned a 400 invalid error. "
-                    "Full details: %s"
-                ),
+                "The secret %s is invalid - returned a 400 invalid error. %s",
                 secret_name,
-                e,
+                summarize_gcp_http_error(e),
             )
             return []
-        elif reason == "forbidden":
+        elif is_permission_denied_error(e):
             logger.warning(
-                (
-                    "You do not have secretmanager.versions.list access to the secret %s. "
-                    "Full details: %s"
-                ),
+                "You do not have secretmanager.versions.list access to the secret %s. %s",
                 secret_name,
-                e,
+                summarize_gcp_http_error(e),
+            )
+            return []
+        elif is_billing_disabled_error(e):
+            logger.warning(
+                "Billing is disabled while listing versions for secret %s. "
+                "Skipping versions sync for this secret. %s",
+                secret_name,
+                summarize_gcp_http_error(e),
+            )
+            return []
+        elif is_api_disabled_error(e):
+            logger.info(
+                "Secret Manager API appears disabled while listing versions for secret %s. "
+                "Skipping versions sync for this secret. %s",
+                secret_name,
+                summarize_gcp_http_error(e),
             )
             return []
         else:
