@@ -25,6 +25,7 @@ GCP_HTTP_ERROR_DETAIL_MAX_CHARS = 240
 GCP_PERMISSION_DENIED_REASONS = frozenset(
     {"forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"}
 )
+GCP_QUOTA_EXCEEDED_REASONS = frozenset({"rateLimitExceeded", "userRateLimitExceeded"})
 
 # Number of retries for network-level errors (handled natively by googleapiclient)
 GCP_API_NUM_RETRIES = 5
@@ -407,7 +408,11 @@ def classify_gcp_http_error(e: HttpError) -> str:
         return "unknown"
 
     if status == 403:
-        return "api_disabled" if is_api_disabled_error(e) else "forbidden"
+        if is_api_disabled_error(e):
+            return "api_disabled"
+        if get_error_reason(e) in GCP_QUOTA_EXCEEDED_REASONS:
+            return "transient"
+        return "forbidden"
 
     if status == 404:
         return "not_found"

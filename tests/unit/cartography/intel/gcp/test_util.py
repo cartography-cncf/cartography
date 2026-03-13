@@ -559,6 +559,17 @@ class TestClassifyGcpHttpError:
         )
         assert classify_gcp_http_error(e) == "transient"
 
+    @pytest.mark.parametrize("reason", ["rateLimitExceeded", "userRateLimitExceeded"])
+    def test_transient_quota_403(self, reason):
+        # Some GCP APIs return 403 (not 429) for quota/rate-limit errors.
+        # These must classify as "transient", not "forbidden", so callers
+        # do not silently swallow them as permission skips.
+        e = _make_http_error(
+            403,
+            {"error": {"code": 403, "errors": [{"reason": reason}]}},
+        )
+        assert classify_gcp_http_error(e) == "transient"
+
     # ------------------------------------------------------------------
     # unknown
     # ------------------------------------------------------------------
