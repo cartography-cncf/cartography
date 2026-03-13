@@ -22,14 +22,21 @@ def sync(
     account_id: str,
 ) -> List[Dict]:
     zones = get(client, account_id)
+
+    transformed = transform_zones(account_id, zones)
+
     load_zones(
         neo4j_session,
-        zones,
+        transformed,
         account_id,
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
-    return zones
+    return transformed
+
+
+def transform_zones(account_id, zones: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return [zone for zone in zones if zone["account"]["id"] == account_id]
 
 
 @timeit
