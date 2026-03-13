@@ -57,6 +57,9 @@
 ```{include} ../modules/digitalocean/schema.md
 ```
 
+```{include} ../modules/docker_scout/schema.md
+```
+
 ```{include} ../modules/duo/schema.md
 ```
 

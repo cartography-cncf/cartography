@@ -189,6 +189,12 @@ class Config:
     :param airbyte_client_secret: Airbyte client secret for API authentication. Optional.
     :type airbyte_api_url: str
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
+    :type docker_scout_results_dir: str
+    :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
+    :type docker_scout_s3_bucket: str
+    :param docker_scout_s3_bucket: S3 bucket name containing Docker Scout recommendation text reports. Optional.
+    :type docker_scout_s3_prefix: str
+    :param docker_scout_s3_prefix: S3 prefix path for Docker Scout recommendation text reports. Optional.
     :type trivy_s3_bucket: str
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
     :type trivy_s3_prefix: str
@@ -356,6 +362,9 @@ class Config:
         airbyte_client_id=None,
         airbyte_client_secret=None,
         airbyte_api_url=None,
+        docker_scout_results_dir=None,
+        docker_scout_s3_bucket=None,
+        docker_scout_s3_prefix=None,
         trivy_s3_bucket=None,
         trivy_s3_prefix=None,
         ontology_users_source=None,
@@ -490,6 +499,9 @@ class Config:
         self.airbyte_client_id = airbyte_client_id
         self.airbyte_client_secret = airbyte_client_secret
         self.airbyte_api_url = airbyte_api_url
+        self.docker_scout_results_dir = docker_scout_results_dir
+        self.docker_scout_s3_bucket = docker_scout_s3_bucket
+        self.docker_scout_s3_prefix = docker_scout_s3_prefix
         self.trivy_s3_bucket = trivy_s3_bucket
         self.trivy_s3_prefix = trivy_s3_prefix
         self.ontology_users_source = ontology_users_source
