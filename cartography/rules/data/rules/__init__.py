@@ -104,6 +104,8 @@ from cartography.rules.data.rules.malicious_npm_dependencies_shai_hulud import (
 )
 from cartography.rules.data.rules.mfa_missing import missing_mfa_rule
 from cartography.rules.data.rules.nist_ai_rmf import nist_ai_admin_ai_app_authorizations
+from cartography.rules.data.rules.nist_ai_rmf import nist_ai_aibom_agent_inventory
+from cartography.rules.data.rules.nist_ai_rmf import nist_ai_aibom_coverage_gaps
 from cartography.rules.data.rules.nist_ai_rmf import nist_ai_provider_api_key_hygiene
 from cartography.rules.data.rules.nist_ai_rmf import nist_ai_third_party_app_inventory
 from cartography.rules.data.rules.nist_ai_rmf import (
@@ -161,6 +163,8 @@ RULES = {
     nist_ai_third_party_app_inventory.id: nist_ai_third_party_app_inventory,
     nist_ai_third_party_app_sensitive_scopes.id: nist_ai_third_party_app_sensitive_scopes,
     nist_ai_admin_ai_app_authorizations.id: nist_ai_admin_ai_app_authorizations,
+    nist_ai_aibom_agent_inventory.id: nist_ai_aibom_agent_inventory,
+    nist_ai_aibom_coverage_gaps.id: nist_ai_aibom_coverage_gaps,
     nist_ai_provider_api_key_hygiene.id: nist_ai_provider_api_key_hygiene,
     # CIS GCP 4.0 Rules
     cis_gcp_3_1_default_network.id: cis_gcp_3_1_default_network,

@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 class Module(str, Enum):
     """Services that can be monitored"""
 
+    AIBOM = "AIBOM"
+    """AI BOM inventory mapped onto container images"""
+
     AIRBYTE = "Airbyte"
     """Airbyte data integration"""
 
@@ -121,6 +124,7 @@ class Maturity(str, Enum):
 
 
 MODULE_TO_CARTOGRAPHY_INTEL = {
+    Module.AIBOM: "aibom",
     Module.AIRBYTE: "airbyte",
     Module.ANTHROPIC: "anthropic",
     Module.AWS: "aws",

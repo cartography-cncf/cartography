@@ -346,17 +346,22 @@ _gw_nist_ai_admin_app_authorizations = Fact(
     RETURN *
     """,
     cypher_count_query=f"""
-    MATCH (app:ThirdPartyApp)
+    MATCH (u:GoogleWorkspaceUser)-[:AUTHORIZED]->(app:ThirdPartyApp)
     WITH
+        u,
+        app,
         toLower(coalesce(app._ont_name, app.display_name, app.display_text, app.name, '')) AS normalized_name,
         toLower(coalesce(app._ont_client_id, app.client_id, app.app_id, app.id, '')) AS normalized_client_id
     WHERE
-        ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
-            WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
+        u.is_admin = true
+        AND (
+            ANY(term IN {AI_ALLOWLIST_TERMS_CYPHER}
+                WHERE normalized_name CONTAINS term OR normalized_client_id CONTAINS term
+            )
+            OR normalized_name =~ '{AI_HEURISTIC_REGEX}'
+            OR normalized_client_id =~ '{AI_HEURISTIC_REGEX}'
         )
-        OR normalized_name =~ '{AI_HEURISTIC_REGEX}'
-        OR normalized_client_id =~ '{AI_HEURISTIC_REGEX}'
-    RETURN COUNT(app) AS count
+    RETURN COUNT(DISTINCT app) AS count
     """,
     asset_id_field="app_client_id",
     module=Module.GOOGLEWORKSPACE,
@@ -380,6 +385,248 @@ nist_ai_admin_ai_app_authorizations = Rule(
             name="NIST AI Risk Management Framework",
             short_name="NIST-AI-RMF",
             requirement="GOVERN 5",
+            revision="1.0",
+        ),
+    ),
+)
+
+
+# =============================================================================
+# NIST AI RMF: Deployed AI agent inventory from AIBOM
+# Main node: AIBOMComponent (AIAgent)
+# =============================================================================
+class NistAiAibomAgentInventoryOutput(Finding):
+    source_id: str | None = None
+    image_uri: str | None = None
+    manifest_digest: str | None = None
+    scanner_name: str | None = None
+    scanner_version: str | None = None
+    agent_component_id: str | None = None
+    agent_logical_id: str | None = None
+    agent_name: str | None = None
+    agent_framework: str | None = None
+    agent_file_path: str | None = None
+    agent_line_number: int | None = None
+    model_count: int | None = None
+    model_names: list[str] | None = None
+    tool_count: int | None = None
+    tool_names: list[str] | None = None
+    memory_count: int | None = None
+    memory_names: list[str] | None = None
+    prompt_count: int | None = None
+    prompt_names: list[str] | None = None
+    embedding_count: int | None = None
+    embedding_names: list[str] | None = None
+
+
+_aibom_nist_ai_agent_inventory = Fact(
+    id="aibom_nist_ai_agent_inventory",
+    name="Deployed AI agent inventory from AIBOM",
+    description=(
+        "Inventories deployed AI agents discovered by AIBOM and summarizes the "
+        "models, tools, memory stores, prompts, and embeddings each agent uses."
+    ),
+    cypher_query="""
+    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(img:ECRImage)
+    MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
+    WITH DISTINCT source, img, agent
+    OPTIONAL MATCH (agent)-[:USES_MODEL]->(model:AIModel)
+    WITH source, img, agent, collect(DISTINCT model.name) AS model_names
+    OPTIONAL MATCH (agent)-[:USES_TOOL]->(tool:AITool)
+    WITH source, img, agent, model_names, collect(DISTINCT tool.name) AS tool_names
+    OPTIONAL MATCH (agent)-[:USES_MEMORY]->(memory:AIMemory)
+    WITH
+        source,
+        img,
+        agent,
+        model_names,
+        tool_names,
+        collect(DISTINCT memory.name) AS memory_names
+    OPTIONAL MATCH (agent)-[:USES_PROMPT]->(prompt:AIPrompt)
+    WITH
+        source,
+        img,
+        agent,
+        model_names,
+        tool_names,
+        memory_names,
+        collect(DISTINCT prompt.name) AS prompt_names
+    OPTIONAL MATCH (agent)-[:USES_EMBEDDING]->(embedding:AIEmbedding)
+    RETURN
+        source.id AS source_id,
+        source.image_uri AS image_uri,
+        coalesce(source.manifest_digest, img.digest) AS manifest_digest,
+        source.scanner_name AS scanner_name,
+        source.scanner_version AS scanner_version,
+        agent.id AS agent_component_id,
+        agent.logical_id AS agent_logical_id,
+        agent.name AS agent_name,
+        agent.framework AS agent_framework,
+        agent.file_path AS agent_file_path,
+        agent.line_number AS agent_line_number,
+        size(model_names) AS model_count,
+        model_names,
+        size(tool_names) AS tool_count,
+        tool_names,
+        size(memory_names) AS memory_count,
+        memory_names,
+        size(prompt_names) AS prompt_count,
+        prompt_names,
+        count(DISTINCT embedding) AS embedding_count,
+        collect(DISTINCT embedding.name) AS embedding_names
+    ORDER BY image_uri, agent_name
+    """,
+    cypher_visual_query="""
+    MATCH p=(source:AIBOMSource)-[:SCANNED_IMAGE]->(img:ECRImage)
+    MATCH p1=(source)-[:HAS_COMPONENT]->(agent:AIAgent)
+    OPTIONAL MATCH p2=(agent)-[:USES_MODEL]->(:AIModel)
+    OPTIONAL MATCH p3=(agent)-[:USES_TOOL]->(:AITool)
+    OPTIONAL MATCH p4=(agent)-[:USES_MEMORY]->(:AIMemory)
+    OPTIONAL MATCH p5=(agent)-[:USES_PROMPT]->(:AIPrompt)
+    OPTIONAL MATCH p6=(agent)-[:USES_EMBEDDING]->(:AIEmbedding)
+    RETURN *
+    """,
+    cypher_count_query="""
+    MATCH (source:AIBOMSource)-[:SCANNED_IMAGE]->(:ECRImage)
+    MATCH (source)-[:HAS_COMPONENT]->(agent:AIAgent)
+    RETURN COUNT(DISTINCT agent) AS count
+    """,
+    asset_id_field="agent_component_id",
+    module=Module.AIBOM,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+nist_ai_aibom_agent_inventory = Rule(
+    id="nist_ai_aibom_agent_inventory",
+    name="NIST AI RMF: Deployed AI Agent Inventory",
+    description=(
+        "Inventories deployed AI agents from AIBOM and their direct agentic "
+        "dependencies so teams can map runtime AI system composition."
+    ),
+    output_model=NistAiAibomAgentInventoryOutput,
+    facts=(_aibom_nist_ai_agent_inventory,),
+    tags=("ai", "inventory", "software_supply_chain", "compliance"),
+    version="0.1.0",
+    references=NIST_REFERENCES,
+    frameworks=(
+        Framework(
+            name="NIST AI Risk Management Framework",
+            short_name="NIST-AI-RMF",
+            requirement="MAP 1",
+            revision="1.0",
+        ),
+        Framework(
+            name="NIST AI Risk Management Framework",
+            short_name="NIST-AI-RMF",
+            requirement="GOVERN 1",
+            revision="1.0",
+        ),
+    ),
+)
+
+
+# =============================================================================
+# NIST AI RMF: AIBOM coverage and provenance gaps
+# Main node: AIBOMSource
+# =============================================================================
+class NistAiAibomCoverageGapOutput(Finding):
+    source_id: str | None = None
+    image_uri: str | None = None
+    manifest_digest: str | None = None
+    report_location: str | None = None
+    scanner_name: str | None = None
+    scanner_version: str | None = None
+    source_status: str | None = None
+    analysis_status: str | None = None
+    image_matched: bool | None = None
+    total_components: int | None = None
+    gap_reason: str | None = None
+
+
+_aibom_nist_ai_coverage_gaps = Fact(
+    id="aibom_nist_ai_coverage_gaps",
+    name="AIBOM coverage and provenance gaps",
+    description=(
+        "Finds AIBOM sources that did not complete successfully or failed to map "
+        "to a canonical ECR image, indicating gaps in deployed AI inventory."
+    ),
+    cypher_query="""
+    MATCH (source:AIBOMSource)
+    WITH
+        source,
+        CASE
+            WHEN coalesce(source.image_matched, false) = false THEN 'unmatched_image'
+            WHEN toLower(coalesce(source.source_status, 'completed')) <> 'completed' THEN 'incomplete_source'
+            WHEN source.analysis_status IS NOT NULL
+                 AND toLower(source.analysis_status) <> 'completed' THEN 'analysis_not_completed'
+            ELSE NULL
+        END AS gap_reason
+    WHERE gap_reason IS NOT NULL
+    RETURN
+        source.id AS source_id,
+        source.image_uri AS image_uri,
+        source.manifest_digest AS manifest_digest,
+        source.report_location AS report_location,
+        source.scanner_name AS scanner_name,
+        source.scanner_version AS scanner_version,
+        source.source_status AS source_status,
+        source.analysis_status AS analysis_status,
+        source.image_matched AS image_matched,
+        source.total_components AS total_components,
+        gap_reason
+    ORDER BY gap_reason, image_uri
+    """,
+    cypher_visual_query="""
+    MATCH (source:AIBOMSource)
+    WHERE
+        coalesce(source.image_matched, false) = false
+        OR toLower(coalesce(source.source_status, 'completed')) <> 'completed'
+        OR (
+            source.analysis_status IS NOT NULL
+            AND toLower(source.analysis_status) <> 'completed'
+        )
+    OPTIONAL MATCH p=(source)-[:SCANNED_IMAGE]->(:ECRImage)
+    RETURN source, p
+    """,
+    cypher_count_query="""
+    MATCH (source:AIBOMSource)
+    WHERE
+        coalesce(source.image_matched, false) = false
+        OR toLower(coalesce(source.source_status, 'completed')) <> 'completed'
+        OR (
+            source.analysis_status IS NOT NULL
+            AND toLower(source.analysis_status) <> 'completed'
+        )
+    RETURN COUNT(source) AS count
+    """,
+    asset_id_field="source_id",
+    module=Module.AIBOM,
+    maturity=Maturity.EXPERIMENTAL,
+)
+
+nist_ai_aibom_coverage_gaps = Rule(
+    id="nist_ai_aibom_coverage_gaps",
+    name="NIST AI RMF: AIBOM Coverage Gaps",
+    description=(
+        "Detects deployed AI inventory gaps where AIBOM scans are incomplete or "
+        "cannot be tied back to the canonical production image."
+    ),
+    output_model=NistAiAibomCoverageGapOutput,
+    facts=(_aibom_nist_ai_coverage_gaps,),
+    tags=("ai", "inventory", "provenance", "compliance"),
+    version="0.1.0",
+    references=NIST_REFERENCES,
+    frameworks=(
+        Framework(
+            name="NIST AI Risk Management Framework",
+            short_name="NIST-AI-RMF",
+            requirement="MEASURE 2",
+            revision="1.0",
+        ),
+        Framework(
+            name="NIST AI Risk Management Framework",
+            short_name="NIST-AI-RMF",
+            requirement="MANAGE 2",
             revision="1.0",
         ),
     ),
