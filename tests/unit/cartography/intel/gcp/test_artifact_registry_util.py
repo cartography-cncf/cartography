@@ -1,4 +1,5 @@
 import json
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -33,7 +34,9 @@ def test_get_artifact_registry_locations_success(monkeypatch):
     assert locations == ["us-central1", "europe-west1"]
 
 
-def test_get_artifact_registry_locations_billing_disabled_returns_empty(monkeypatch):
+def test_get_artifact_registry_locations_billing_disabled_returns_empty(
+    monkeypatch, caplog
+):
     client, _request = _make_client()
     billing_error = _make_http_error(
         403,
@@ -54,8 +57,12 @@ def test_get_artifact_registry_locations_billing_disabled_returns_empty(monkeypa
         lambda _req: (_ for _ in ()).throw(billing_error),
     )
 
-    locations = get_artifact_registry_locations(client, "test-project")
+    with caplog.at_level(logging.WARNING):
+        locations = get_artifact_registry_locations(client, "test-project")
+
     assert locations == []
+    assert "HTTP 403 BILLING_DISABLED" in caplog.text
+    assert "googleapiclient.errors.HttpError" not in caplog.text
 
 
 def test_get_artifact_registry_locations_forbidden_returns_empty(monkeypatch):

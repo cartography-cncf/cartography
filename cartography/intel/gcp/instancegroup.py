@@ -17,6 +17,7 @@ from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.intel.gcp.util import is_billing_disabled_error
 from cartography.intel.gcp.util import parse_compute_full_uri_to_partial_uri
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.compute.instance_group import GCPInstanceGroupSchema
 from cartography.util import timeit
 
@@ -68,7 +69,7 @@ def _get_instance_group_members(
                 logger.warning(
                     "Transient error listing members for instance group %s: %s; skipping.",
                     instance_group_name,
-                    e,
+                    summarize_gcp_http_error(e),
                 )
                 return []
             if reason in {
@@ -79,14 +80,14 @@ def _get_instance_group_members(
                 logger.warning(
                     "Missing permissions listing members for instance group %s: %s; skipping members.",
                     instance_group_name,
-                    e,
+                    summarize_gcp_http_error(e),
                 )
                 return []
             if is_api_disabled_error(e) or is_billing_disabled_error(e):
                 logger.info(
                     "Compute API unavailable for listing members of instance group %s: %s; skipping members.",
                     instance_group_name,
-                    e,
+                    summarize_gcp_http_error(e),
                 )
                 return []
             raise
@@ -124,7 +125,7 @@ def get_gcp_zonal_instance_groups(
                         "Transient error listing instance groups for project %s zone %s: %s; skipping.",
                         project_id,
                         zone.get("name"),
-                        e,
+                        summarize_gcp_http_error(e),
                     )
                     break
                 raise

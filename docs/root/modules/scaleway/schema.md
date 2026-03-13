@@ -163,6 +163,8 @@ Represents a Group in Scaleway.
 
 Represents an Application (Service Account) in Scaleway
 
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., GCPServiceAccount, KubernetesServiceAccount, OpenAIServiceAccount).
+
 | Field       | Description                                  |
 |-------------|----------------------------------------------|
 | id          | ID of the application.                       |

@@ -1,13 +1,16 @@
 import json
+import logging
 from unittest.mock import MagicMock
 
 import pytest
 from googleapiclient.errors import HttpError
 
+from cartography.intel.gcp.util import gcp_api_giveup_handler
 from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.intel.gcp.util import is_billing_disabled_error
 from cartography.intel.gcp.util import is_permission_denied_error
+from cartography.intel.gcp.util import summarize_gcp_http_error
 
 
 class TestIsApiDisabledError:
@@ -325,3 +328,85 @@ class TestIsPermissionDeniedError:
         assert (
             is_permission_denied_error(self._make_error("accessNotConfigured")) is False
         )
+
+
+class TestSummarizeGcpHttpError:
+    def test_uses_structured_error_message(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 403,
+                    "message": (
+                        "Required 'compute.instanceGroups.get' permission for "
+                        "'projects/example/zones/us-central1-a/instanceGroups/test'"
+                    ),
+                    "errors": [{"reason": "forbidden"}],
+                }
+            }
+        ).encode("utf-8")
+
+        error = HttpError(mock_resp, error_content)
+
+        assert summarize_gcp_http_error(error) == (
+            "HTTP 403 forbidden: Required 'compute.instanceGroups.get' permission for "
+            "'projects/example/zones/us-central1-a/instanceGroups/test'"
+        )
+
+
+class TestGcpApiGiveupHandler:
+    def test_suppresses_non_retryable_http_errors(self, caplog):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 403,
+                    "message": "Permission denied on resource",
+                    "errors": [{"reason": "forbidden"}],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+
+        with caplog.at_level(logging.WARNING):
+            gcp_api_giveup_handler(
+                {
+                    "tries": 1,
+                    "target": "_gcp_execute",
+                    "exception": error,
+                }
+            )
+
+        assert not caplog.records
+
+    def test_logs_retryable_http_errors_concisely(self, caplog):
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        error_content = json.dumps(
+            {
+                "error": {
+                    "code": 503,
+                    "message": "The service is currently unavailable.",
+                    "errors": [{"reason": "backendError"}],
+                }
+            }
+        ).encode("utf-8")
+        error = HttpError(mock_resp, error_content)
+
+        with caplog.at_level(logging.WARNING):
+            gcp_api_giveup_handler(
+                {
+                    "tries": 3,
+                    "target": "_gcp_execute",
+                    "exception": error,
+                }
+            )
+
+        assert len(caplog.records) == 1
+        assert (
+            "HTTP 503 backendError: The service is currently unavailable."
+            in caplog.text
+        )
+        assert "googleapiclient.errors.HttpError" not in caplog.text
