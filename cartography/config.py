@@ -190,11 +190,11 @@ class Config:
     :type airbyte_api_url: str
     :param airbyte_api_url: Airbyte API base URL, e.g. https://api.airbyte.com/v1. Optional.
     :type docker_scout_results_dir: str
-    :param docker_scout_results_dir: Local directory containing Docker Scout JSON results. Optional.
+    :param docker_scout_results_dir: Local directory containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_s3_bucket: str
-    :param docker_scout_s3_bucket: S3 bucket name containing Docker Scout scan results. Optional.
+    :param docker_scout_s3_bucket: S3 bucket name containing Docker Scout recommendation text reports. Optional.
     :type docker_scout_s3_prefix: str
-    :param docker_scout_s3_prefix: S3 prefix path for Docker Scout scan results. Optional.
+    :param docker_scout_s3_prefix: S3 prefix path for Docker Scout recommendation text reports. Optional.
     :type trivy_s3_bucket: str
     :param trivy_s3_bucket: The S3 bucket name containing Trivy scan results. Optional.
     :type trivy_s3_prefix: str

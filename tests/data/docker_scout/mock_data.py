@@ -4,127 +4,92 @@ TEST_ECR_IMAGE_DIGEST = (
 TEST_GITLAB_IMAGE_DIGEST = (
     "sha256:gl00000000000000000000000000000000000000000000000000000000000000"
 )
-TEST_PUBLIC_IMAGE_ID = "python:3.12-slim"
 TEST_UPDATE_TAG = 123456789
 
-# Combined file format for file-based ingestion (sbom + cves in one JSON).
-# Generated externally by running:
-#   docker scout sbom --format json <image>         -> "sbom"
-#   docker scout cves --only-base --format sbom <image> -> "cves"
+MOCK_ECR_RECOMMENDATION_RAW = """
+  Target   │  registry.example.test/example/app:1.2.3
+    digest │  ecr000000000000
 
-# Scan result for the ECR image
-MOCK_ECR_COMBINED_FILE_DATA = {
-    "sbom": {
-        "source": {
-            "image": {
-                "digest": TEST_ECR_IMAGE_DIGEST,
-                "manifest": {
-                    "annotations": {
-                        "org.opencontainers.image.base.name": "python:3.12-slim",
-                        "org.opencontainers.image.base.digest": "sha256:basedigest000000000000000000000000000000000000000000000000000000",
-                        "org.opencontainers.image.version": "3.12",
-                    },
-                },
-            },
-        },
-        "artifacts": [],
-    },
-    "cves": {
-        "artifacts": [
-            {
-                "name": "libssl3",
-                "version": "3.0.15-1~deb12u1",
-                "purl": "pkg:deb/debian/libssl3@3.0.15-1~deb12u1?arch=amd64&distro=debian-12",
-            },
-            {
-                "name": "curl",
-                "version": "7.88.1-10+deb12u8",
-                "purl": "pkg:deb/debian/curl@7.88.1-10+deb12u8?arch=amd64&distro=debian-12",
-            },
-        ],
-        "vulnerabilities": [
-            {
-                "purl": "pkg:deb/debian/libssl3@3.0.15-1~deb12u1?arch=amd64&distro=debian-12",
-                "vulnerabilities": [
-                    {
-                        "source_id": "CVE-2024-13176",
-                        "source": "NVD",
-                        "description": "Issue in OpenSSL timing side channel",
-                        "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-13176",
-                        "published_at": "2024-01-15T00:00:00Z",
-                        "updated_at": "2024-02-01T00:00:00Z",
-                        "cvss": {"severity": "MEDIUM", "version": "3.1"},
-                        "vulnerable_range": "<3.0.16-1~deb12u1",
-                        "cwes": [{"cwe_id": "CWE-208"}],
-                        "epss": {"score": 0.00234, "percentile": 0.6123},
-                        "fixed_by": "3.0.16-1~deb12u1",
-                    },
-                ],
-            },
-            {
-                "purl": "pkg:deb/debian/curl@7.88.1-10+deb12u8?arch=amd64&distro=debian-12",
-                "vulnerabilities": [
-                    {
-                        "source_id": "CVE-2024-99999",
-                        "source": "NVD",
-                        "description": "Buffer overflow in curl HTTP/2 handling",
-                        "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-99999",
-                        "published_at": "2024-03-01T00:00:00Z",
-                        "updated_at": "2024-03-15T00:00:00Z",
-                        "cvss": {"severity": "HIGH", "version": "3.1"},
-                        "vulnerable_range": "<7.88.1-10+deb12u9",
-                        "epss": {"score": 0.512, "percentile": 0.912},
-                    },
-                ],
-            },
-        ],
-    },
-}
+## Recommended fixes
 
-# Scan result for the GitLab image (distinct digest, same base image + vulns)
-MOCK_GITLAB_COMBINED_FILE_DATA = {
-    "sbom": {
-        "source": {
-            "image": {
-                "digest": TEST_GITLAB_IMAGE_DIGEST,
-                "manifest": {
-                    "annotations": {
-                        "org.opencontainers.image.base.name": "python:3.12-slim",
-                        "org.opencontainers.image.base.digest": "sha256:basedigest000000000000000000000000000000000000000000000000000000",
-                        "org.opencontainers.image.version": "3.12",
-                    },
-                },
-            },
-        },
-        "artifacts": [],
-    },
-    "cves": {
-        "artifacts": [
-            {
-                "name": "libssl3",
-                "version": "3.0.15-1~deb12u1",
-                "purl": "pkg:deb/debian/libssl3@3.0.15-1~deb12u1?arch=amd64&distro=debian-12",
-            },
-        ],
-        "vulnerabilities": [
-            {
-                "purl": "pkg:deb/debian/libssl3@3.0.15-1~deb12u1?arch=amd64&distro=debian-12",
-                "vulnerabilities": [
-                    {
-                        "source_id": "CVE-2024-13176",
-                        "source": "NVD",
-                        "description": "Issue in OpenSSL timing side channel",
-                        "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-13176",
-                        "published_at": "2024-01-15T00:00:00Z",
-                        "updated_at": "2024-02-01T00:00:00Z",
-                        "cvss": {"severity": "MEDIUM", "version": "3.1"},
-                        "vulnerable_range": "<3.0.16-1~deb12u1",
-                        "cwes": [{"cwe_id": "CWE-208"}],
-                        "epss": {"score": 0.00234, "percentile": 0.6123},
-                        "fixed_by": "3.0.16-1~deb12u1",
-                    },
-                ],
-            },
-        ],
-    },
-}
+  Base image is  node:25-alpine
+
+  Name            │  25-alpine
+  Digest          │  sha256:e75468deb6a0d82fc49a7c566d016862dbdb9bd90e7ef31aee95c547c8e591ef
+  Vulnerabilities │    0C     6H     2M     1L
+  Pushed          │ 4 weeks ago
+  Size            │ 59 MB
+  Packages        │ 184
+  Flavor          │ alpine
+  OS              │ 3.23
+  Runtime         │ 22
+
+  │ The base image is also available under the supported tag(s) `25-alpine3.23`, `alpine`, `alpine3.23`, `current-alpine`, `current-alpine3.23`. If you want to display recommendations specifically for a different tag, please re-run the command using the `--tag` flag.
+
+Refresh base image
+  Rebuild the image using a newer base image version. Updating this may result in breaking changes.
+
+            Tag            │                        Details                        │   Pushed   │       Vulnerabilities
+───────────────────────────┼───────────────────────────────────────────────────────┼────────────┼──────────────────────────────
+   25-alpine               │ Benefits:                                             │ 2 days ago │    0C     4H     2M     1L
+  Newer image for same tag │ • Same OS detected                                    │            │           -2
+  Also known as:           │ • Minor runtime version update                        │            │
+  • 25.8.1-alpine          │ • Newer image for same tag                            │            │
+  • 25.8.1-alpine3.23      │ • Image contains 9 fewer packages                     │            │
+  • 25.8-alpine            │ • Tag was pushed more recently                        │            │
+  • 25.8-alpine3.23        │ • Image has similar size                              │            │
+  • 25-alpine3.23          │ • Image introduces no new vulnerability but removes 2 │            │
+                           │                                                       │            │
+                           │ Image details:                                        │            │
+                           │ • Size: 60 MB                                         │            │
+                           │ • Flavor: alpine                                      │            │
+                           │ • OS: 3.23                                            │            │
+                           │ • Runtime: 25.8.1                                     │            │
+
+Change base image
+  The list displays new recommended tags in descending order, where the top results are rated as most suitable.
+
+                          Tag                         │                        Details                        │   Pushed    │       Vulnerabilities
+──────────────────────────────────────────────────────┼───────────────────────────────────────────────────────┼─────────────┼──────────────────────────────
+   current-alpine3.23                                 │ Benefits:                                             │ 1 week ago  │    0C     4H     2M     1L
+  Image introduces no new vulnerability but removes 2 │ • Same OS detected                                    │             │           -2
+  Also known as:                                      │ • Image contains 9 fewer packages                     │             │
+  • alpine3.23                                        │ • Tag was pushed more recently                        │             │
+                                                      │ • Image has similar size                              │             │
+                                                      │ • Image introduces no new vulnerability but removes 2 │             │
+                                                      │                                                       │             │
+                                                      │ Image details:                                        │             │
+                                                      │ • Size: 60 MB                                         │             │
+                                                      │ • Flavor: alpine                                      │             │
+                                                      │ • OS: 3.23                                            │             │
+                                                      │ • Runtime: 22                                         │             │
+   current-alpine                                     │ Benefits:                                             │ 2 weeks ago │    0C     4H     2M     1L
+  Image introduces no new vulnerability but removes 2 │ • Same OS detected                                    │             │           -2
+                                                      │ • Image contains 10 fewer packages                    │             │
+                                                      │ • Tag was pushed more recently                        │             │
+                                                      │ • Image has similar size                              │             │
+                                                      │ • Image introduces no new vulnerability but removes 2 │             │
+                                                      │ • current-alpine was pulled 21K times last month      │             │
+                                                      │                                                       │             │
+                                                      │ Image details:                                        │             │
+                                                      │ • Size: 60 MB                                         │             │
+                                                      │ • Flavor: alpine                                      │             │
+                                                      │ • Runtime: 22                                         │             │
+   slim                                               │ Benefits:                                             │ 2 days ago  │    0C     4H     1M    10L
+  Tag is preferred tag                                │ • Tag is preferred tag                                │             │           -2     -1     +9
+  Also known as:                                      │ • Tag was pushed more recently                        │             │
+  • 25.8.1-slim                                       │ • Tag is using slim variant                           │             │
+  • 25.8-slim                                         │ • slim was pulled 17K times last month                │             │
+  • current-slim                                      │                                                       │             │
+  • 25-slim                                           │ Image details:                                        │             │
+  • bookworm-slim                                     │ • Size: 79 MB                                         │             │
+  • 25-bookworm-slim                                  │ • Runtime: 22                                         │             │
+  • 25.8-bookworm-slim                                │                                                       │             │
+  • 25.8.1-bookworm-slim                              │                                                       │             │
+  • current-bookworm-slim                             │                                                       │             │
+"""
+
+MOCK_GITLAB_RECOMMENDATION_RAW = MOCK_ECR_RECOMMENDATION_RAW.replace(
+    "ecr000000000000",
+    "gl00000000000000",
+)

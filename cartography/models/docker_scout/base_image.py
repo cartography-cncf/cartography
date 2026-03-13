@@ -16,6 +16,7 @@ class DockerScoutBaseImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     tag: PropertyRef = PropertyRef("tag")
+    alternative_tags: PropertyRef = PropertyRef("alternative_tags")
     digest: PropertyRef = PropertyRef("digest")
     size: PropertyRef = PropertyRef("size")
     flavor: PropertyRef = PropertyRef("flavor")
@@ -34,7 +35,7 @@ class DockerScoutBaseImageRelProperties(CartographyRelProperties):
 class DockerScoutPublicImageBuiltFromBaseImageRel(CartographyRelSchema):
     target_node_label: str = "DockerScoutPublicImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("public_image_id")},
+        {"id": PropertyRef("built_from_public_image_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "BUILT_FROM"
@@ -42,14 +43,25 @@ class DockerScoutPublicImageBuiltFromBaseImageRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class DockerScoutPublicImageShouldUpdateToBaseImageRelProperties(
+    CartographyRelProperties,
+):
+    benefits: PropertyRef = PropertyRef("benefits")
+    fix: PropertyRef = PropertyRef("fix")
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
 class DockerScoutPublicImageUpdateToBaseImageRel(CartographyRelSchema):
     target_node_label: str = "DockerScoutPublicImage"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("public_image_id")},
+        {"id": PropertyRef("recommended_for_public_image_id")},
     )
     direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "UPDATED_TO"
-    properties: DockerScoutBaseImageRelProperties = DockerScoutBaseImageRelProperties()
+    rel_label: str = "SHOULD_UPDATE_TO"
+    properties: DockerScoutPublicImageShouldUpdateToBaseImageRelProperties = (
+        DockerScoutPublicImageShouldUpdateToBaseImageRelProperties()
+    )
 
 
 @dataclass(frozen=True)

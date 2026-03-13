@@ -1,5 +1,5 @@
-import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import boto3
@@ -8,11 +8,33 @@ from neo4j import Session
 from cartography.config import Config
 from cartography.intel.docker_scout.scanner import cleanup
 from cartography.intel.docker_scout.scanner import sync_from_file
-from cartography.intel.trivy.scanner import get_json_files_in_dir
-from cartography.intel.trivy.scanner import get_json_files_in_s3
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+def _get_report_files_in_dir(results_dir: str) -> list[str]:
+    return sorted(
+        str(path)
+        for path in Path(results_dir).rglob("*")
+        if path.is_file() and not path.name.startswith(".")
+    )
+
+
+def _get_report_files_in_s3(
+    s3_bucket: str,
+    s3_prefix: str,
+    boto3_session: boto3.Session,
+) -> list[str]:
+    client = boto3_session.client("s3")
+    paginator = client.get_paginator("list_objects_v2")
+    keys: list[str] = []
+    for page in paginator.paginate(Bucket=s3_bucket, Prefix=s3_prefix):
+        for obj in page.get("Contents", []):
+            key = obj["Key"]
+            if not key.endswith("/"):
+                keys.append(key)
+    return sorted(keys)
 
 
 @timeit
@@ -22,30 +44,22 @@ def sync_docker_scout_from_dir(
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
-    """Sync Docker Scout scan results from local JSON files."""
-    logger.info("Using Docker Scout scan results from %s", results_dir)
+    logger.info("Using Docker Scout recommendation reports from %s", results_dir)
 
-    json_files = get_json_files_in_dir(results_dir)
-
-    if not json_files:
+    report_files = _get_report_files_in_dir(results_dir)
+    if not report_files:
         logger.error(
-            "Docker Scout sync was configured, but no json files were found in %s.",
+            "Docker Scout sync was configured, but no report files were found in %s.",
             results_dir,
         )
-        raise ValueError("No Docker Scout json results found on disk")
+        raise ValueError("No Docker Scout recommendation reports found on disk")
 
-    logger.info("Processing %d local Docker Scout result files", len(json_files))
+    logger.info("Processing %d local Docker Scout report files", len(report_files))
 
     synced_count = 0
-    for file_path in json_files:
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                scout_data = json.load(f)
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Failed to parse Docker Scout JSON from {file_path}"
-            ) from e
-        if sync_from_file(neo4j_session, scout_data, file_path, update_tag):
+    for file_path in report_files:
+        raw_recommendation = Path(file_path).read_text(encoding="utf-8")
+        if sync_from_file(neo4j_session, raw_recommendation, file_path, update_tag):
             synced_count += 1
 
     if synced_count > 0:
@@ -65,35 +79,33 @@ def sync_docker_scout_from_s3(
     common_job_parameters: dict[str, Any],
     boto3_session: boto3.Session,
 ) -> None:
-    """Sync Docker Scout scan results from S3."""
-    logger.info("Using Docker Scout scan results from s3://%s/%s", s3_bucket, s3_prefix)
+    logger.info(
+        "Using Docker Scout recommendation reports from s3://%s/%s",
+        s3_bucket,
+        s3_prefix,
+    )
 
-    json_files = get_json_files_in_s3(s3_bucket, s3_prefix, boto3_session)
-
-    if not json_files:
+    report_files = _get_report_files_in_s3(s3_bucket, s3_prefix, boto3_session)
+    if not report_files:
         logger.error(
-            "Docker Scout sync was configured, but no json files found in s3://%s/%s.",
+            "Docker Scout sync was configured, but no report files found in s3://%s/%s.",
             s3_bucket,
             s3_prefix,
         )
-        raise ValueError("No Docker Scout json results found in S3")
+        raise ValueError("No Docker Scout recommendation reports found in S3")
 
-    logger.info("Processing %d S3 Docker Scout result files", len(json_files))
+    logger.info("Processing %d S3 Docker Scout report files", len(report_files))
 
     synced_count = 0
     s3_client = boto3_session.client("s3")
-    for s3_key in json_files:
+    for s3_key in report_files:
         response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
-        raw = response["Body"].read().decode("utf-8")
-        try:
-            scout_data = json.loads(raw)
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Failed to parse Docker Scout JSON from s3://{s3_bucket}/{s3_key}"
-            ) from e
-
+        raw_recommendation = response["Body"].read().decode("utf-8")
         if sync_from_file(
-            neo4j_session, scout_data, f"s3://{s3_bucket}/{s3_key}", update_tag
+            neo4j_session,
+            raw_recommendation,
+            f"s3://{s3_bucket}/{s3_key}",
+            update_tag,
         ):
             synced_count += 1
 
@@ -107,12 +119,7 @@ def sync_docker_scout_from_s3(
 
 @timeit
 def start_docker_scout_ingestion(neo4j_session: Session, config: Config) -> None:
-    """Entry point for Docker Scout ingestion.
-
-    Supports two modes (checked in priority order):
-    1. Local directory with pre-generated JSON files (--docker-scout-results-dir)
-    2. S3 bucket with pre-generated JSON files (--docker-scout-s3-bucket)
-    """
+    """Entry point for Docker Scout ingestion from recommendation text reports."""
     if not config.docker_scout_results_dir and not config.docker_scout_s3_bucket:
         logger.info(
             "Docker Scout configuration not provided. Skipping Docker Scout ingestion."
@@ -121,7 +128,6 @@ def start_docker_scout_ingestion(neo4j_session: Session, config: Config) -> None
 
     common_job_parameters = {"UPDATE_TAG": config.update_tag}
 
-    # Priority 1: Local directory
     if config.docker_scout_results_dir:
         sync_docker_scout_from_dir(
             neo4j_session,
@@ -131,7 +137,6 @@ def start_docker_scout_ingestion(neo4j_session: Session, config: Config) -> None
         )
         return
 
-    # Priority 2: S3 bucket
     s3_prefix = config.docker_scout_s3_prefix or ""
     sync_docker_scout_from_s3(
         neo4j_session,

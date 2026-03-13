@@ -25,7 +25,9 @@ Currently, Cartography allows you to use Docker Scout to scan the following reso
     echo "$DOCKER_HUB_TOKEN" | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin
     ```
 
-1. Ensure the container image registry nodes (e.g., ECR, GCP Artifact Registry, GitLab) are already synced into the graph so Docker Scout can create relationships to them. For example, with AWS ECR:
+1. Ensure your container images are already present in the ontology as `Image` nodes with `_ont_digest` populated. Docker Scout links recommendation reports to those ontology images.
+
+   In practice, this usually means syncing the underlying registry modules first so the ontology pipeline can materialize `Image` nodes. For example, with AWS ECR:
 
     ```bash
     cartography --selected-modules aws --aws-requested-syncs ecr
@@ -33,45 +35,46 @@ Currently, Cartography allows you to use Docker Scout to scan the following reso
 
 ### Generating scan results
 
-Docker Scout ingestion requires pre-generated JSON files containing the scan results for each image. Each file must be a JSON object with two keys: `sbom` and `cves`.
+Docker Scout ingestion now expects the standard text output produced by `docker scout recommendations`.
 
-For each image, run the following commands and combine the output:
+For each image, generate one text file with:
 
 ```bash
 IMAGE="000000000000.dkr.ecr.us-east-1.amazonaws.com/my-app:latest"
 
-# Generate the combined JSON file
-SBOM=$(docker scout sbom --format json "$IMAGE")
-CVES=$(docker scout cves --only-base --format sbom "$IMAGE")
-jq -n --argjson sbom "$SBOM" --argjson cves "$CVES" \
-    '{sbom: $sbom, cves: $cves}' > results/my-app.json
+docker scout recommendations --output file "$IMAGE"
 ```
 
-**Required Docker Scout arguments**:
+This produces the standard recommendation report used by Cartography to parse:
 
-- `docker scout sbom --format json`: produces the SBOM containing image metadata (digest, base image annotations).
-- `docker scout cves --only-base --format sbom`: produces the vulnerability list for base image packages. The `--only-base` flag restricts results to the public base image layer.
+- the target image reference and short digest
+- the current base image
+- the recommended replacement tags
+- the recommendation benefits and vulnerability deltas
+- the ontology link key used to attach the report to an existing `(:Image)` node via `_ont_digest`
 
 **Naming conventions**:
 
-- JSON files can be named using any convention. Cartography determines which image each scan belongs to by inspecting the image digest in the SBOM data, not the filename.
+- Text files can be named using any convention.
+- Cartography does not rely on the filename to identify the image.
+- The report is linked from the `Target` digest in the file to an existing ontology `Image` node using `_ont_digest`.
 
 ### Configuring Cartography
 
 #### Option 1: Local directory
 
-Place the JSON result files in a directory and point Cartography at it:
+Place the Docker Scout text result files in a directory and point Cartography at it:
 
 ```bash
 cartography --selected-modules docker_scout \
     --docker-scout-results-dir /path/to/results
 ```
 
-Cartography will ingest every `.json` file under the provided directory (recursively).
+Cartography will ingest every non-hidden file under the provided directory recursively.
 
 #### Option 2: S3 bucket
 
-Upload the JSON result files to an S3 bucket and configure Cartography to read from it:
+Upload the Docker Scout text result files to an S3 bucket and configure Cartography to read from it:
 
 ```bash
 cartography --selected-modules docker_scout \
@@ -82,6 +85,16 @@ cartography --selected-modules docker_scout \
 This requires the role running Cartography to have `s3:ListBucket`, `s3:GetObject` permissions for the bucket and prefix.
 
 The `--docker-scout-s3-prefix` parameter is optional and defaults to an empty string.
+
+### What Gets Created
+
+For each report, Cartography creates:
+
+- one `DockerScoutPublicImage` node for the current public base image
+- one or more `DockerScoutBaseImage` nodes for the current and recommended tags
+- a `BUILT_FROM` relationship from the current public image to its current base image entry
+- `SHOULD_UPDATE_TO` relationships from the current public image to recommended base image tags
+- a `BUILT_ON` relationship from the ontology `Image` node to the `DockerScoutPublicImage` node
 
 ### Required cloud permissions
 

@@ -16,6 +16,7 @@ class DockerScoutPublicImageNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     name: PropertyRef = PropertyRef("name")
     tag: PropertyRef = PropertyRef("tag")
+    alternative_tags: PropertyRef = PropertyRef("alternative_tags")
     version: PropertyRef = PropertyRef("version")
     digest: PropertyRef = PropertyRef("digest")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)

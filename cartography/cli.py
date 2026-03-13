@@ -1264,7 +1264,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--docker-scout-results-dir",
-                    help="Local directory containing Docker Scout JSON results.",
+                    help="Local directory containing Docker Scout recommendation text reports.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
@@ -1273,7 +1273,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--docker-scout-s3-bucket",
-                    help="S3 bucket name containing Docker Scout scan results.",
+                    help="S3 bucket name containing Docker Scout recommendation text reports.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
@@ -1282,7 +1282,7 @@ class CLI:
                 str | None,
                 typer.Option(
                     "--docker-scout-s3-prefix",
-                    help="S3 prefix path for Docker Scout scan results.",
+                    help="S3 prefix path for Docker Scout recommendation text reports.",
                     rich_help_panel=PANEL_DOCKER_SCOUT,
                     hidden=PANEL_DOCKER_SCOUT not in visible_panels,
                 ),
