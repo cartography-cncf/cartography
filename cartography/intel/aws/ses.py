@@ -75,15 +75,13 @@ def _get_ses_email_identity_detail(
         return client.get_email_identity(EmailIdentity=identity_name)
     except botocore.exceptions.ClientError as e:
         code = e.response["Error"]["Code"]
-        msg = e.response["Error"]["Message"]
-        logger.warning(
-            "Could not run SESv2 get_email_identity for '%s' "
-            "due to boto3 error %s: %s. Skipping.",
-            identity_name,
-            code,
-            msg,
-        )
-        return None
+        if code == "NotFoundException":
+            logger.warning(
+                "SESv2 get_email_identity returned NotFoundException. "
+                "The identity may have been deleted after listing. Skipping.",
+            )
+            return None
+        raise
 
 
 @timeit
