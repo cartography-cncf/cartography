@@ -40,8 +40,8 @@ from . import s3
 from . import s3accountpublicaccessblock
 from . import sagemaker
 from . import secretsmanager
-from . import ses
 from . import securityhub
+from . import ses
 from . import sns
 from . import sqs
 from . import ssm
