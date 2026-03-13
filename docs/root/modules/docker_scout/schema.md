@@ -39,6 +39,37 @@ Representation of a public/base image that a container image is built on, as det
     (GitLabContainerImage)-[BUILT_ON]->(DockerScoutPublicImage)
     ```
 
+### DockerScoutBaseImage
+Representation of a base image that a public image is built from or can be updated to, as detected by Docker Scout.
+
+| Field | Description |
+|-------|-------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique identifier for the base image (format: `name:tag`) |
+| name | Name of the base image (e.g. `python`) |
+| tag | Tag of the base image (e.g. `3-slim-bookworm`) |
+| digest | Digest of the base image (can be empty for update suggestions) |
+| size | Size of the base image (e.g. `44 MB`) |
+| flavor | Flavor of the base image (e.g. `python`) |
+| os | Operating system of the base image (e.g. `debian`) |
+| runtime | Runtime version of the base image (e.g. `3.13.7`) |
+| is_slim | Whether the base image is a slim variant |
+
+#### Relationships
+
+- A DockerScoutPublicImage is built from a DockerScoutBaseImage.
+
+    ```
+    (DockerScoutPublicImage)-[BUILT_FROM]->(DockerScoutBaseImage)
+    ```
+
+- A DockerScoutPublicImage can be updated to a DockerScoutBaseImage.
+
+    ```
+    (DockerScoutPublicImage)-[UPDATED_TO]->(DockerScoutBaseImage)
+    ```
+
 ### DockerScoutPackage
 Representation of a package installed in a public/base image, as detected by Docker Scout.
 
