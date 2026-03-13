@@ -749,6 +749,8 @@ Representation of an IP range or subnet.
 
 Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts).
 
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., KubernetesServiceAccount, OpenAIServiceAccount, ScalewayApplication).
+
 | Field          | Description                                                                                     |
 | -------------- | ----------------------------------------------------------------------------------------------- |
 | id             | The unique identifier for the service account.                                                  |
