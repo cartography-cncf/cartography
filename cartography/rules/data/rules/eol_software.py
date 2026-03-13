@@ -89,16 +89,17 @@ _eks_cluster_kubernetes_version_eol = Fact(
     ORDER BY asset_name
     """,
     cypher_visual_query=f"""
-    MATCH (e:EKSCluster)
-    WITH e,
+    MATCH account_path=(a:AWSAccount)-[:RESOURCE]->(e:EKSCluster)
+    WITH account_path, e,
          CASE
              WHEN e.version IS NULL OR size(split(toString(e.version), '.')) < 2 THEN NULL
              ELSE toInteger(split(split(toString(e.version), '.')[1], '-')[0])
          END AS kubernetes_minor
     WHERE kubernetes_minor IS NOT NULL
       AND kubernetes_minor < {_OLDEST_SUPPORTED_EKS_KUBERNETES_MINOR}
-    OPTIONAL MATCH p=(a:AWSAccount)-[:RESOURCE]->(e)
-    RETURN *
+    OPTIONAL MATCH worker_path=(ec2:EC2Instance)-[:MEMBER_OF_EKS_CLUSTER]->(e)
+    WITH account_path, e, head(collect(worker_path)) AS worker_path
+    RETURN e AS cluster, account_path, worker_path
     """,
     cypher_count_query="""
     MATCH (e:EKSCluster)
@@ -160,8 +161,11 @@ _kubernetes_cluster_kubernetes_version_eol = Fact(
              OR e.name = k.external_id
              OR (k.api_server_url IS NOT NULL AND e.endpoint = k.api_server_url)
       }}
-    OPTIONAL MATCH p=(k)-[:RESOURCE]->(r)
-    RETURN *
+    OPTIONAL MATCH workload_path=(k)-[:RESOURCE]->(svc:KubernetesService)-[:TARGETS]->(pod:KubernetesPod)
+    WITH k, head(collect(workload_path)) AS workload_path
+    OPTIONAL MATCH resource_path=(k)-[:RESOURCE]->(r)
+    WITH k, workload_path, head(collect(resource_path)) AS resource_path
+    RETURN k AS cluster, workload_path, resource_path
     """,
     cypher_count_query="""
     MATCH (k:KubernetesCluster)

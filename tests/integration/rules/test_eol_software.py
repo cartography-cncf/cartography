@@ -47,6 +47,38 @@ def test_eks_fact_returns_provider_lifecycle_finding(neo4j_session) -> None:
     ]
 
 
+def test_eks_visual_query_returns_account_and_worker_context(neo4j_session) -> None:
+    _reset_graph(neo4j_session)
+    result = neo4j_session.run(
+        """
+        CREATE (account:AWSAccount {id: '123456789012', name: 'prod'})
+        CREATE (cluster:EKSCluster {
+            id: 'arn:aws:eks:us-east-1:123456789012:cluster/eks-1',
+            arn: 'arn:aws:eks:us-east-1:123456789012:cluster/eks-1',
+            name: 'eks-1',
+            version: '1.28',
+            region: 'us-east-1'
+        })
+        CREATE (worker:EC2Instance {
+            id: 'i-eks-worker',
+            instanceid: 'i-eks-worker'
+        })
+        CREATE (account)-[:RESOURCE]->(cluster)
+        CREATE (worker)-[:MEMBER_OF_EKS_CLUSTER]->(cluster)
+        """
+    )
+    result.consume()
+
+    record = neo4j_session.run(
+        _get_fact("eks_cluster_kubernetes_version_eol").cypher_visual_query,
+    ).single()
+
+    assert record is not None
+    assert record["cluster"]["name"] == "eks-1"
+    assert record["account_path"] is not None
+    assert record["worker_path"] is not None
+
+
 def test_kubernetes_fact_dedupes_eks_overlap(neo4j_session) -> None:
     _reset_graph(neo4j_session)
     neo4j_session.run(
@@ -92,6 +124,44 @@ def test_kubernetes_fact_dedupes_eks_overlap(neo4j_session) -> None:
             "support_status": "eol",
         }
     ]
+
+
+def test_kubernetes_visual_query_returns_workload_context(neo4j_session) -> None:
+    _reset_graph(neo4j_session)
+    result = neo4j_session.run(
+        """
+        CREATE (cluster:KubernetesCluster {
+            id: 'kube-1',
+            name: 'kube-1',
+            version: '1.32.0',
+            version_minor: 32
+        })
+        CREATE (service:KubernetesService {
+            id: 'svc-1',
+            name: 'frontend',
+            namespace: 'default',
+            cluster_name: 'kube-1'
+        })
+        CREATE (pod:KubernetesPod {
+            id: 'pod-1',
+            name: 'frontend-abc',
+            namespace: 'default',
+            cluster_name: 'kube-1'
+        })
+        CREATE (cluster)-[:RESOURCE]->(service)
+        CREATE (service)-[:TARGETS]->(pod)
+        """
+    )
+    result.consume()
+
+    record = neo4j_session.run(
+        _get_fact("kubernetes_cluster_kubernetes_version_eol").cypher_visual_query,
+    ).single()
+
+    assert record is not None
+    assert record["cluster"]["name"] == "kube-1"
+    assert record["workload_path"] is not None
+    assert record["resource_path"] is not None
 
 
 def test_ec2_fact_flags_amazon_linux_2_after_eol(neo4j_session) -> None:
