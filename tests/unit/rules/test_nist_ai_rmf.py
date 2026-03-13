@@ -153,3 +153,12 @@ def test_nist_ai_admin_ai_app_authorizations_count_query_counts_distinct_apps():
     )
 
     assert "RETURN COUNT(DISTINCT app) AS count" in fact.cypher_count_query
+
+
+def test_nist_ai_openai_api_key_query_avoids_invalid_grouping_expression():
+    fact = nist_ai_provider_api_key_hygiene.get_fact_by_id(
+        "openai_nist_ai_stale_or_unowned_api_keys"
+    )
+
+    assert "has_user_owner, count(sa) > 0 AS has_sa_owner" in fact.cypher_query
+    assert "has_user_owner OR has_sa_owner AS has_owner" in fact.cypher_query

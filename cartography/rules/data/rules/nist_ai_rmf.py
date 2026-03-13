@@ -664,7 +664,8 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     OPTIONAL MATCH (u:OpenAIUser)-[:OWNS]->(k)
     WITH org, k, count(u) > 0 AS has_user_owner
     OPTIONAL MATCH (sa:OpenAIServiceAccount)-[:OWNS]->(k)
-    WITH org, k, has_user_owner OR count(sa) > 0 AS has_owner
+    WITH org, k, has_user_owner, count(sa) > 0 AS has_sa_owner
+    WITH org, k, has_user_owner OR has_sa_owner AS has_owner
     OPTIONAL MATCH (project:OpenAIProject)-[:RESOURCE]->(k)
     WITH
         org,
