@@ -1,8 +1,11 @@
 import re
 from typing import Any
 
-
 SEVERITIES = ("C", "H", "M", "L")
+TARGET_PATTERN = re.compile(
+    r"^\s*Target\s*│\s*(.*?)\s*$\r?\n^\s*digest\s*│\s*(.*?)\s*$",
+    flags=re.MULTILINE,
+)
 
 
 def extract_section(text: str, title: str, next_titles: tuple[str, ...]) -> str:
@@ -10,7 +13,9 @@ def extract_section(text: str, title: str, next_titles: tuple[str, ...]) -> str:
     if start == -1:
         return ""
 
-    end_candidates = [text.find(next_title, start + len(title)) for next_title in next_titles]
+    end_candidates = [
+        text.find(next_title, start + len(title)) for next_title in next_titles
+    ]
     end_candidates = [candidate for candidate in end_candidates if candidate != -1]
     end = min(end_candidates) if end_candidates else len(text)
     return text[start:end]
@@ -32,43 +37,45 @@ def infer_image_os(tag: str, image_flavor: str | None) -> str | None:
     lowered_tag = tag.lower()
     if "alpine" in lowered_tag:
         return "alpine"
-    if any(name in lowered_tag for name in ("bookworm", "bullseye", "buster", "trixie")):
+    if any(
+        name in lowered_tag for name in ("bookworm", "bullseye", "buster", "trixie")
+    ):
         return "debian"
-    if "ubuntu" in lowered_tag or any(name in lowered_tag for name in ("jammy", "focal", "noble")):
+    if "ubuntu" in lowered_tag or any(
+        name in lowered_tag for name in ("jammy", "focal", "noble")
+    ):
         return "ubuntu"
     return image_flavor.lower() if image_flavor else None
 
 
 def parse_target(text: str) -> dict[str, str]:
-    target_match = re.search(
-        r"^\s*Target\s*│\s*(.*?)\s*$\n\s*digest\s*│\s*(.*?)\s*$",
-        text,
-        flags=re.MULTILINE,
-    )
+    target_match = TARGET_PATTERN.search(text)
     if not target_match:
-        return {}
+        raise ValueError("Failed to find the Docker Scout 'Target' section.")
 
     image, digest = target_match.groups()
     return {"image": image.strip(), "digest": digest.strip()}
 
 
 def drop_none(value: dict[str, Any]) -> dict[str, Any]:
-    return {
-        key: item
-        for key, item in value.items()
-        if item is not None and item != {}
-    }
+    return {key: item for key, item in value.items() if item is not None and item != {}}
 
 
 def parse_base_image(text: str) -> tuple[dict[str, Any], dict[str, int]]:
-    base_match = re.search(r"Base image is\s+([^\s:]+):([^\s]+)", text)
+    base_match = re.search(r"Base image is\s+(\S+)", text)
     if not base_match:
         raise ValueError("Failed to find the 'Base image is ...' line.")
 
-    image_name, tag = base_match.groups()
+    image_ref = base_match.group(1)
+    if ":" not in image_ref:
+        raise ValueError("Failed to split the Docker Scout base image reference.")
+
+    image_name, tag = image_ref.rsplit(":", 1)
     section = extract_section(text, "## Recommended fixes", ("Refresh base image",))
 
-    field_matches = re.findall(r"^\s*([A-Za-z]+)\s*│\s*(.*?)\s*$", section, flags=re.MULTILINE)
+    field_matches = re.findall(
+        r"^\s*([A-Za-z]+)\s*│\s*(.*?)\s*$", section, flags=re.MULTILINE
+    )
     fields = {key: value.strip() for key, value in field_matches}
 
     vulnerabilities = parse_vulnerabilities(fields.get("Vulnerabilities", ""))
@@ -179,9 +186,15 @@ def parse_recommendation_block(
         "is_slim": detail_fields.get("slim", "") == "✓" or "slim" in tag.lower(),
         "benefits": benefits,
         "fix": {
-            severity: max(current_vulnerabilities.get(severity, 0) - vulnerabilities.get(severity, 0), 0)
+            severity: max(
+                current_vulnerabilities.get(severity, 0)
+                - vulnerabilities.get(severity, 0),
+                0,
+            )
             for severity in SEVERITIES
-            if current_vulnerabilities.get(severity, 0) - vulnerabilities.get(severity, 0) > 0
+            if current_vulnerabilities.get(severity, 0)
+            - vulnerabilities.get(severity, 0)
+            > 0
         },
     }
 
@@ -202,8 +215,7 @@ def parse_recommendations(
         for block in blocks
     ]
     return {
-        str(recommendation["tag"]): recommendation
-        for recommendation in recommendations
+        str(recommendation["tag"]): recommendation for recommendation in recommendations
     }
 
 
@@ -218,14 +230,23 @@ def merge_recommendation_maps(
                 continue
 
             current = merged[tag]
-            merged[tag] = recommendation if len(recommendation) > len(current) else current
+            merged[tag] = (
+                recommendation if len(recommendation) > len(current) else current
+            )
 
     return merged
 
 
 def parse_recommendation_text(text: str) -> dict[str, Any]:
     target = parse_target(text)
-    base_image, vulnerabilities = parse_base_image(text)
+    try:
+        base_image, vulnerabilities = parse_base_image(text)
+    except ValueError as exc:
+        if "Base image is" not in text:
+            raise
+        raise ValueError(
+            "Failed to parse the Docker Scout base image section."
+        ) from exc
     image_name = str(base_image["name"])
 
     refresh_recommendations = parse_recommendations(

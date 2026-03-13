@@ -13,6 +13,11 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+def _looks_like_docker_scout_report(text: str) -> bool:
+    required_markers = ("Target", "digest", "## Recommended fixes", "Base image is")
+    return all(marker in text for marker in required_markers)
+
+
 def _get_report_files_in_dir(results_dir: str) -> list[str]:
     return sorted(
         str(path)
@@ -59,6 +64,11 @@ def sync_docker_scout_from_dir(
     synced_count = 0
     for file_path in report_files:
         raw_recommendation = Path(file_path).read_text(encoding="utf-8")
+        if not _looks_like_docker_scout_report(raw_recommendation):
+            logger.debug(
+                "Skipping %s: not a Docker Scout recommendation report", file_path
+            )
+            continue
         if sync_from_file(neo4j_session, raw_recommendation, file_path, update_tag):
             synced_count += 1
 
@@ -101,6 +111,13 @@ def sync_docker_scout_from_s3(
     for s3_key in report_files:
         response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
         raw_recommendation = response["Body"].read().decode("utf-8")
+        if not _looks_like_docker_scout_report(raw_recommendation):
+            logger.debug(
+                "Skipping s3://%s/%s: not a Docker Scout recommendation report",
+                s3_bucket,
+                s3_key,
+            )
+            continue
         if sync_from_file(
             neo4j_session,
             raw_recommendation,

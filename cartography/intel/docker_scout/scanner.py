@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Any
 
@@ -6,9 +5,13 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.docker_scout.recommendation_parser import parse_recommendation_text
-from cartography.models.docker_scout.base_image import DockerScoutBaseImageSchema
+from cartography.intel.docker_scout.recommendation_parser import (
+    parse_recommendation_text,
+)
 from cartography.models.docker_scout.image import DockerScoutPublicImageSchema
+from cartography.models.docker_scout.public_image_tag import (
+    DockerScoutPublicImageTagSchema,
+)
 from cartography.util import timeit
 from cartography.version import get_cartography_version
 
@@ -17,14 +20,6 @@ logger = logging.getLogger(__name__)
 
 def _normalize_digest_for_compare(digest: str) -> str:
     return digest.removeprefix("sha256:").strip().lower()
-
-
-def _digests_match(left: str, right: str) -> bool:
-    normalized_left = _normalize_digest_for_compare(left)
-    normalized_right = _normalize_digest_for_compare(right)
-    return normalized_left.startswith(normalized_right) or normalized_right.startswith(
-        normalized_left,
-    )
 
 
 def _merge_string_lists(
@@ -64,11 +59,11 @@ def transform_public_image(recommendation_data: dict[str, Any]) -> dict[str, Any
     }
 
 
-def transform_base_images(
+def transform_public_image_tags(
     recommendation_data: dict[str, Any],
     public_image_id: str,
 ) -> list[dict[str, Any]]:
-    """Transform parsed recommendation data into DockerScoutBaseImage rows."""
+    """Transform parsed recommendation data into DockerScoutPublicImageTag rows."""
     transformed: list[dict[str, Any]] = []
     canonical_by_id: dict[str, dict[str, Any]] = {}
 
@@ -88,7 +83,10 @@ def transform_base_images(
                 "built_from_public_image_id",
                 "recommended_for_public_image_id",
                 "benefits",
-                "fix",
+                "fix_critical",
+                "fix_high",
+                "fix_medium",
+                "fix_low",
             }
         }
 
@@ -119,11 +117,10 @@ def transform_base_images(
             {
                 "id": recommendation_id,
                 "benefits": recommendation.get("benefits"),
-                "fix": (
-                    json.dumps(recommendation["fix"], sort_keys=True)
-                    if recommendation.get("fix")
-                    else None
-                ),
+                "fix_critical": recommendation.get("fix", {}).get("C"),
+                "fix_high": recommendation.get("fix", {}).get("H"),
+                "fix_medium": recommendation.get("fix", {}).get("M"),
+                "fix_low": recommendation.get("fix", {}).get("L"),
                 "recommended_for_public_image_id": public_image_id,
             },
         )
@@ -132,7 +129,10 @@ def transform_base_images(
         "built_from_public_image_id",
         "recommended_for_public_image_id",
         "benefits",
-        "fix",
+        "fix_critical",
+        "fix_high",
+        "fix_medium",
+        "fix_low",
     }
     for row in transformed:
         canonical = canonical_by_id[row["id"]]
@@ -140,7 +140,7 @@ def transform_base_images(
             if key not in relation_fields:
                 row[key] = value
 
-    logger.info("Transformed %d base image rows", len(transformed))
+    logger.info("Transformed %d public image tag rows", len(transformed))
     return transformed
 
 
@@ -159,15 +159,15 @@ def load_public_image(
 
 
 @timeit
-def load_base_images(
+def load_public_image_tags(
     neo4j_session: neo4j.Session,
-    base_images_list: list[dict[str, Any]],
+    public_image_tags_list: list[dict[str, Any]],
     update_tag: int,
 ) -> None:
     load(
         neo4j_session,
-        DockerScoutBaseImageSchema(),
-        base_images_list,
+        DockerScoutPublicImageTagSchema(),
+        public_image_tags_list,
         lastupdated=update_tag,
     )
 
@@ -222,22 +222,12 @@ def cleanup(
     common_job_parameters: dict[str, Any],
 ) -> None:
     logger.info("Running Docker Scout cleanup")
-    neo4j_session.run(
-        """
-        MATCH (:Image)-[r:BUILT_ON]->(:DockerScoutPublicImage)
-        WHERE r.lastupdated <> $UPDATE_TAG
-        WITH r LIMIT $LIMIT_SIZE
-        DELETE r
-        """,
-        UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
-        LIMIT_SIZE=10000,
-    ).consume()
     GraphJob.from_node_schema(
-        DockerScoutPublicImageSchema(),
+        DockerScoutPublicImageTagSchema(),
         common_job_parameters,
     ).run(neo4j_session)
     GraphJob.from_node_schema(
-        DockerScoutBaseImageSchema(),
+        DockerScoutPublicImageSchema(),
         common_job_parameters,
     ).run(neo4j_session)
 
@@ -252,7 +242,15 @@ def sync_from_file(
     """
     Sync Docker Scout recommendation data from a raw text report.
     """
-    recommendation_data = parse_recommendation_raw(raw_recommendation)
+    try:
+        recommendation_data = parse_recommendation_raw(raw_recommendation)
+    except ValueError:
+        logger.warning(
+            "Skipping %s: invalid or non-Docker Scout recommendation report",
+            source,
+            exc_info=True,
+        )
+        return False
     target = recommendation_data.get("target", {})
     base_image = recommendation_data.get("base_image")
     if not target or not base_image:
@@ -263,16 +261,18 @@ def sync_from_file(
         return False
 
     public_image = transform_public_image(recommendation_data)
-    base_images = transform_base_images(recommendation_data, public_image["id"])
+    public_image_tags = transform_public_image_tags(
+        recommendation_data, public_image["id"]
+    )
 
     load_public_image(neo4j_session, public_image, update_tag)
-    load_base_images(neo4j_session, base_images, update_tag)
+    load_public_image_tags(neo4j_session, public_image_tags, update_tag)
     attach_public_image_to_target_image(neo4j_session, public_image, update_tag)
 
     logger.info(
-        "Completed Docker Scout sync for %s: public_image=%s, %d base images",
+        "Completed Docker Scout sync for %s: public_image=%s, %d public image tags",
         source,
         public_image["id"],
-        len(base_images),
+        len(public_image_tags),
     )
     return True

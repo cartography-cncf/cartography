@@ -17,7 +17,7 @@ def _create_ontology_image(neo4j_session, ont_digest, update_tag):
         ON CREATE SET i.firstseen = timestamp()
         SET i._ont_digest = $ont_digest, i.lastupdated = $update_tag
         """,
-        image_id=ont_digest,
+        image_id=f"image-for-{ont_digest[:18]}",
         ont_digest=ont_digest,
         update_tag=update_tag,
     )
@@ -67,7 +67,7 @@ def test_docker_scout_sync_from_file(neo4j_session):
 
     assert check_nodes(
         neo4j_session,
-        "DockerScoutBaseImage",
+        "DockerScoutPublicImageTag",
         ["id", "name", "tag"],
     ) == {
         ("node:25-alpine", "node", "25-alpine"),
@@ -80,7 +80,7 @@ def test_docker_scout_sync_from_file(neo4j_session):
         (record["id"], record["tag"]): record["alternative_tags"]
         for record in neo4j_session.run(
             """
-            MATCH (b:DockerScoutBaseImage)
+            MATCH (b:DockerScoutPublicImageTag)
             RETURN b.id AS id, b.tag AS tag, b.alternative_tags AS alternative_tags
             """,
         )
@@ -117,15 +117,15 @@ def test_docker_scout_sync_from_file(neo4j_session):
         "BUILT_ON",
         rel_direction_right=True,
     ) == {
-        (TEST_ECR_IMAGE_DIGEST, "node:25-alpine"),
-        (TEST_GITLAB_IMAGE_DIGEST, "node:25-alpine"),
+        (f"image-for-{TEST_ECR_IMAGE_DIGEST[:18]}", "node:25-alpine"),
+        (f"image-for-{TEST_GITLAB_IMAGE_DIGEST[:18]}", "node:25-alpine"),
     }
 
     assert check_rels(
         neo4j_session,
         "DockerScoutPublicImage",
         "id",
-        "DockerScoutBaseImage",
+        "DockerScoutPublicImageTag",
         "id",
         "BUILT_FROM",
         rel_direction_right=True,
@@ -137,7 +137,7 @@ def test_docker_scout_sync_from_file(neo4j_session):
         neo4j_session,
         "DockerScoutPublicImage",
         "id",
-        "DockerScoutBaseImage",
+        "DockerScoutPublicImageTag",
         "id",
         "SHOULD_UPDATE_TO",
         rel_direction_right=True,
@@ -150,14 +150,24 @@ def test_docker_scout_sync_from_file(neo4j_session):
 
     should_update_rels = neo4j_session.run(
         """
-        MATCH (p:DockerScoutPublicImage)-[r:SHOULD_UPDATE_TO]->(b:DockerScoutBaseImage)
-        RETURN p.id AS public_image_id, b.id AS base_image_id, r.benefits AS benefits, r.fix AS fix
+        MATCH (p:DockerScoutPublicImage)-[r:SHOULD_UPDATE_TO]->(b:DockerScoutPublicImageTag)
+        RETURN
+            p.id AS public_image_id,
+            b.id AS base_image_id,
+            r.benefits AS benefits,
+            r.fix_critical AS fix_critical,
+            r.fix_high AS fix_high,
+            r.fix_medium AS fix_medium,
+            r.fix_low AS fix_low
         """,
     )
     rel_props = {
         (record["public_image_id"], record["base_image_id"]): (
             record["benefits"],
-            record["fix"],
+            record["fix_critical"],
+            record["fix_high"],
+            record["fix_medium"],
+            record["fix_low"],
         )
         for record in should_update_rels
     }
@@ -171,7 +181,10 @@ def test_docker_scout_sync_from_file(neo4j_session):
             "Image has similar size",
             "Image introduces no new vulnerability but removes 2",
         ],
-        '{"H": 2}',
+        None,
+        2,
+        None,
+        None,
     )
     assert rel_props[("node:25-alpine", "node:slim")] == (
         [
@@ -180,7 +193,10 @@ def test_docker_scout_sync_from_file(neo4j_session):
             "Tag is using slim variant",
             "slim was pulled 17K times last month",
         ],
-        '{"H": 2, "M": 1}',
+        None,
+        2,
+        1,
+        None,
     )
 
 
@@ -196,4 +212,4 @@ def test_docker_scout_cleanup(neo4j_session):
     cleanup(neo4j_session, {"UPDATE_TAG": TEST_UPDATE_TAG + 1})
 
     assert check_nodes(neo4j_session, "DockerScoutPublicImage", ["id"]) == set()
-    assert check_nodes(neo4j_session, "DockerScoutBaseImage", ["id"]) == set()
+    assert check_nodes(neo4j_session, "DockerScoutPublicImageTag", ["id"]) == set()

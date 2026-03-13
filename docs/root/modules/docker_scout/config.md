@@ -41,8 +41,11 @@ For each image, generate one text file with:
 
 ```bash
 IMAGE="000000000000.dkr.ecr.us-east-1.amazonaws.com/my-app:latest"
+OUTPUT_DIR="./docker-scout-results"
+OUTPUT_FILE="${OUTPUT_DIR}/$(echo "$IMAGE" | tr '/:' '__').txt"
 
-docker scout recommendations --output file "$IMAGE"
+mkdir -p "$OUTPUT_DIR"
+docker scout recommendations --output "$OUTPUT_FILE" "$IMAGE"
 ```
 
 This produces the standard recommendation report used by Cartography to parse:
@@ -70,7 +73,7 @@ cartography --selected-modules docker_scout \
     --docker-scout-results-dir /path/to/results
 ```
 
-Cartography will ingest every non-hidden file under the provided directory recursively.
+Cartography will inspect non-hidden files under the provided directory recursively and ingest the ones that match the Docker Scout recommendation report format.
 
 #### Option 2: S3 bucket
 
@@ -91,7 +94,7 @@ The `--docker-scout-s3-prefix` parameter is optional and defaults to an empty st
 For each report, Cartography creates:
 
 - one `DockerScoutPublicImage` node for the current public base image
-- one or more `DockerScoutBaseImage` nodes for the current and recommended tags
+- one or more `DockerScoutPublicImageTag` nodes for the current and recommended tags
 - a `BUILT_FROM` relationship from the current public image to its current base image entry
 - `SHOULD_UPDATE_TO` relationships from the current public image to recommended base image tags
 - a `BUILT_ON` relationship from the ontology `Image` node to the `DockerScoutPublicImage` node

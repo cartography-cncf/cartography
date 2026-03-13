@@ -28,49 +28,10 @@ class DockerScoutPublicImageToImageRelProperties(CartographyRelProperties):
 
 
 @dataclass(frozen=True)
-class DockerScoutPublicImageToECRImageRel(CartographyRelSchema):
-    target_node_label: str = "ECRImage"
+class DockerScoutPublicImageToOntologyImageRel(CartographyRelSchema):
+    target_node_label: str = "Image"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ImageDigest")},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "BUILT_ON"
-    properties: DockerScoutPublicImageToImageRelProperties = (
-        DockerScoutPublicImageToImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class DockerScoutPublicImageToGCPImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("ImageDigest")},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "BUILT_ON"
-    properties: DockerScoutPublicImageToImageRelProperties = (
-        DockerScoutPublicImageToImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class DockerScoutPublicImageToGCPPlatformImageRel(CartographyRelSchema):
-    target_node_label: str = "GCPArtifactRegistryPlatformImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"digest": PropertyRef("ImageDigest")},
-    )
-    direction: LinkDirection = LinkDirection.INWARD
-    rel_label: str = "BUILT_ON"
-    properties: DockerScoutPublicImageToImageRelProperties = (
-        DockerScoutPublicImageToImageRelProperties()
-    )
-
-
-@dataclass(frozen=True)
-class DockerScoutPublicImageToGitLabImageRel(CartographyRelSchema):
-    target_node_label: str = "GitLabContainerImage"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("ImageDigest")},
+        {"_ont_digest": PropertyRef("target_digest")},
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "BUILT_ON"
@@ -87,10 +48,5 @@ class DockerScoutPublicImageSchema(CartographyNodeSchema):
         DockerScoutPublicImageNodeProperties()
     )
     other_relationships: OtherRelationships = OtherRelationships(
-        [
-            DockerScoutPublicImageToECRImageRel(),
-            DockerScoutPublicImageToGCPImageRel(),
-            DockerScoutPublicImageToGCPPlatformImageRel(),
-            DockerScoutPublicImageToGitLabImageRel(),
-        ],
+        [DockerScoutPublicImageToOntologyImageRel()],
     )
