@@ -39,12 +39,19 @@ def is_retryable_gcp_http_error(exc: Exception) -> bool:
     HTTP 429 (rate limit) and 5xx (server errors) are transient and should be retried
     with exponential backoff.
 
+    Some older GCP APIs return 403 with reason rateLimitExceeded or userRateLimitExceeded
+    instead of 429. These are also retryable.
+
     :param exc: The exception to check
     :return: True if the exception is a retryable HTTP error, False otherwise
     """
     if not isinstance(exc, HttpError):
         return False
-    return exc.resp.status in GCP_RETRYABLE_HTTP_STATUS_CODES
+    if exc.resp.status in GCP_RETRYABLE_HTTP_STATUS_CODES:
+        return True
+    if exc.resp.status == 403:
+        return get_error_reason(exc) in GCP_QUOTA_EXCEEDED_REASONS
+    return False
 
 
 def gcp_api_backoff_handler(details: Dict) -> None:

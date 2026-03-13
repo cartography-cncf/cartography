@@ -11,6 +11,7 @@ from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.intel.gcp.util import is_billing_disabled_error
 from cartography.intel.gcp.util import is_permission_denied_error
+from cartography.intel.gcp.util import is_retryable_gcp_http_error
 from cartography.intel.gcp.util import summarize_gcp_http_error
 
 
@@ -329,6 +330,46 @@ class TestIsPermissionDeniedError:
         assert (
             is_permission_denied_error(self._make_error("accessNotConfigured")) is False
         )
+
+
+class TestIsRetryableGcpHttpError:
+    @pytest.mark.parametrize("status", [429, 500, 502, 503, 504])
+    def test_true_for_standard_retryable_status_codes(self, status):
+        mock_resp = MagicMock()
+        mock_resp.status = status
+        error = HttpError(mock_resp, b"")
+        assert is_retryable_gcp_http_error(error) is True
+
+    @pytest.mark.parametrize("reason", ["rateLimitExceeded", "userRateLimitExceeded"])
+    def test_true_for_quota_exceeded_403(self, reason):
+        # Older GCP APIs signal quota exhaustion as 403, not 429.
+        # is_retryable_gcp_http_error must agree with classify_gcp_http_error
+        # (which returns "transient" for these) so the backoff decorator retries them.
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        content = json.dumps(
+            {"error": {"code": 403, "errors": [{"reason": reason}]}}
+        ).encode("utf-8")
+        error = HttpError(mock_resp, content)
+        assert is_retryable_gcp_http_error(error) is True
+
+    def test_false_for_permission_denied_403(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        content = json.dumps(
+            {"error": {"code": 403, "errors": [{"reason": "forbidden"}]}}
+        ).encode("utf-8")
+        error = HttpError(mock_resp, content)
+        assert is_retryable_gcp_http_error(error) is False
+
+    def test_false_for_404(self):
+        mock_resp = MagicMock()
+        mock_resp.status = 404
+        error = HttpError(mock_resp, b"")
+        assert is_retryable_gcp_http_error(error) is False
+
+    def test_false_for_non_http_error(self):
+        assert is_retryable_gcp_http_error(ValueError("not an HttpError")) is False
 
 
 class TestSummarizeGcpHttpError:
