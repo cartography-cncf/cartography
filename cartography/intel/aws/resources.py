@@ -40,6 +40,7 @@ from . import s3
 from . import s3accountpublicaccessblock
 from . import sagemaker
 from . import secretsmanager
+from . import ses
 from . import securityhub
 from . import sns
 from . import sqs
@@ -135,6 +136,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "securityhub": securityhub.sync,
         "s3accountpublicaccessblock": s3accountpublicaccessblock.sync,
         "sagemaker": sagemaker.sync,
+        "ses": ses.sync,
         "sns": sns.sync,
         "sqs": sqs.sync,
         "ssm": ssm.sync,
