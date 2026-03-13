@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from googleapiclient.errors import HttpError
 
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_giveup_handler
 from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
@@ -410,3 +411,182 @@ class TestGcpApiGiveupHandler:
             in caplog.text
         )
         assert "googleapiclient.errors.HttpError" not in caplog.text
+
+
+def _make_http_error(
+    status: int, body: dict | None = None, raw: bytes | None = None
+) -> HttpError:
+    """Helper: build an HttpError with the given HTTP status and optional JSON body."""
+    mock_resp = MagicMock()
+    mock_resp.status = status
+    if raw is not None:
+        content = raw
+    elif body is not None:
+        content = json.dumps(body).encode("utf-8")
+    else:
+        content = b""
+    return HttpError(mock_resp, content)
+
+
+class TestClassifyGcpHttpError:
+    """Table-driven tests for classify_gcp_http_error()."""
+
+    # ------------------------------------------------------------------
+    # api_disabled
+    # ------------------------------------------------------------------
+    @pytest.mark.parametrize(
+        "reason",
+        ["accessNotConfigured", "SERVICE_DISABLED"],
+    )
+    def test_api_disabled_from_reason(self, reason):
+        e = _make_http_error(
+            403,
+            {
+                "error": {
+                    "code": 403,
+                    "message": "API not enabled",
+                    "errors": [{"reason": reason}],
+                }
+            },
+        )
+        assert classify_gcp_http_error(e) == "api_disabled"
+
+    def test_api_disabled_from_message_pattern(self):
+        e = _make_http_error(
+            403,
+            {
+                "error": {
+                    "code": 403,
+                    "message": "Cloud Run API has not been used in project 123 before or it is disabled",
+                }
+            },
+        )
+        assert classify_gcp_http_error(e) == "api_disabled"
+
+    # ------------------------------------------------------------------
+    # forbidden
+    # ------------------------------------------------------------------
+    @pytest.mark.parametrize(
+        "reason",
+        ["forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"],
+    )
+    def test_forbidden_iam_reasons(self, reason):
+        e = _make_http_error(
+            403,
+            {
+                "error": {
+                    "code": 403,
+                    "message": "permission denied",
+                    "errors": [{"reason": reason}],
+                }
+            },
+        )
+        assert classify_gcp_http_error(e) == "forbidden"
+
+    def test_forbidden_billing_disabled(self):
+        # BILLING_DISABLED is a 403 but NOT api_disabled → classifies as forbidden
+        e = _make_http_error(
+            403,
+            {
+                "error": {
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "BILLING_DISABLED",
+                        }
+                    ]
+                }
+            },
+        )
+        assert classify_gcp_http_error(e) == "forbidden"
+
+    def test_forbidden_plain_403_no_reason(self):
+        e = _make_http_error(403, {"error": {"code": 403, "message": "Forbidden"}})
+        assert classify_gcp_http_error(e) == "forbidden"
+
+    # ------------------------------------------------------------------
+    # not_found
+    # ------------------------------------------------------------------
+    def test_not_found_404(self):
+        e = _make_http_error(404, {"error": {"code": 404, "message": "Not found"}})
+        assert classify_gcp_http_error(e) == "not_found"
+
+    def test_not_found_404_no_body(self):
+        e = _make_http_error(404)
+        assert classify_gcp_http_error(e) == "not_found"
+
+    # ------------------------------------------------------------------
+    # invalid
+    # ------------------------------------------------------------------
+    @pytest.mark.parametrize(
+        "reason",
+        ["invalid", "badRequest"],
+    )
+    def test_invalid_400_matching_reasons(self, reason):
+        e = _make_http_error(
+            400,
+            {"error": {"code": 400, "errors": [{"reason": reason}]}},
+        )
+        assert classify_gcp_http_error(e) == "invalid"
+
+    def test_invalid_400_grpc_shape(self):
+        # gRPC-transcoded shape with reason in details[]
+        e = _make_http_error(
+            400,
+            {
+                "error": {
+                    "code": 400,
+                    "details": [{"reason": "invalid"}],
+                }
+            },
+        )
+        assert classify_gcp_http_error(e) == "invalid"
+
+    def test_400_unrecognised_reason_is_unknown(self):
+        e = _make_http_error(
+            400,
+            {"error": {"code": 400, "errors": [{"reason": "someOtherReason"}]}},
+        )
+        assert classify_gcp_http_error(e) == "unknown"
+
+    # ------------------------------------------------------------------
+    # transient
+    # ------------------------------------------------------------------
+    @pytest.mark.parametrize("status", [429, 500, 502, 503, 504])
+    def test_transient_status_codes(self, status):
+        e = _make_http_error(
+            status, {"error": {"code": status, "message": "transient"}}
+        )
+        assert classify_gcp_http_error(e) == "transient"
+
+    # ------------------------------------------------------------------
+    # unknown
+    # ------------------------------------------------------------------
+    def test_unknown_401(self):
+        e = _make_http_error(401, {"error": {"code": 401, "message": "Unauthorized"}})
+        assert classify_gcp_http_error(e) == "unknown"
+
+    def test_unknown_301(self):
+        e = _make_http_error(301, {"error": {}})
+        assert classify_gcp_http_error(e) == "unknown"
+
+    # ------------------------------------------------------------------
+    # Malformed / non-JSON payloads — must never raise, classify as expected
+    # ------------------------------------------------------------------
+    def test_non_json_body_403_classifies_as_forbidden(self):
+        # Non-JSON 403: is_api_disabled_error returns False → forbidden
+        e = _make_http_error(403, raw=b"not json at all")
+        assert classify_gcp_http_error(e) == "forbidden"
+
+    def test_non_json_body_404_classifies_as_not_found(self):
+        e = _make_http_error(404, raw=b"not json at all")
+        assert classify_gcp_http_error(e) == "not_found"
+
+    def test_partial_json_missing_error_key(self):
+        e = _make_http_error(403, {"status": "FAILED"})
+        # No matching api_disabled pattern → forbidden
+        assert classify_gcp_http_error(e) == "forbidden"
+
+    def test_empty_body_403(self):
+        e = _make_http_error(403)
+        assert classify_gcp_http_error(e) == "forbidden"

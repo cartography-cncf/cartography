@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Any
 from typing import Dict
@@ -10,7 +9,9 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.gke import GCPGKEClusterSchema
 from cartography.util import timeit
 
@@ -38,19 +39,14 @@ def get_gke_clusters(container: Resource, project_id: str) -> Dict:
         res = gcp_api_execute_with_retry(req)
         return res
     except HttpError as e:
-        err = json.loads(e.content.decode("utf-8"))["error"]
-        if err["status"] == "PERMISSION_DENIED":
+        if classify_gcp_http_error(e) in ("forbidden", "api_disabled"):
             logger.warning(
-                (
-                    "Could not retrieve GKE clusters on project %s due to permissions issue. Code: %s, Message: %s"
-                ),
+                "Could not retrieve GKE clusters on project %s due to permissions issue. %s",
                 project_id,
-                err["code"],
-                err["message"],
+                summarize_gcp_http_error(e),
             )
             return {}
-        else:
-            raise
+        raise
 
 
 @timeit

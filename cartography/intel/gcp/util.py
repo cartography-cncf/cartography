@@ -379,3 +379,46 @@ def is_api_disabled_error(e: HttpError) -> bool:
             parse_error,
         )
         return False
+
+
+def classify_gcp_http_error(e: HttpError) -> str:
+    """
+    Classify a GCP HttpError into a canonical category string.
+
+    Reuses existing helpers (is_api_disabled_error, get_error_reason, etc.) so
+    logic is not duplicated. Malformed or non-JSON bodies never raise; they are
+    classified as "unknown".
+
+    Mapping rules:
+      - 403 + api-disabled pattern (is_api_disabled_error) → "api_disabled"
+      - (other) 403                                        → "forbidden"
+      - 404                                                → "not_found"
+      - 400 + reason "invalid" or "badRequest"            → "invalid"
+      - status in {429, 500, 502, 503, 504}               → "transient"
+      - anything else                                      → "unknown"
+
+    :param e: The HttpError exception to classify
+    :return: One of "api_disabled", "forbidden", "not_found", "invalid",
+             "transient", "unknown"
+    """
+    try:
+        status = int(e.resp.status)
+    except (AttributeError, TypeError, ValueError):
+        return "unknown"
+
+    if status == 403:
+        return "api_disabled" if is_api_disabled_error(e) else "forbidden"
+
+    if status == 404:
+        return "not_found"
+
+    if status == 400:
+        reason = get_error_reason(e)
+        if reason.lower() in ("invalid", "badrequest"):
+            return "invalid"
+        return "unknown"
+
+    if status in GCP_RETRYABLE_HTTP_STATUS_CODES:
+        return "transient"
+
+    return "unknown"
