@@ -232,3 +232,23 @@ def test_sync_bigtable_modules(
         "id",
         "BACKED_UP_AS",
     ) == {(TEST_TABLE_ID, TEST_BACKUP_ID)}
+
+    # Assert: Check GCPLabel nodes from Bigtable instance labels
+    assert check_nodes(neo4j_session, "GCPLabel", ["key", "value"]) >= {
+        ("env", "dev"),
+        ("team", "data"),
+    }
+
+    # Assert: Check LABELED relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPBigtableInstance",
+        "id",
+        "GCPLabel",
+        "key",
+        "LABELED",
+        rel_direction_right=True,
+    ) == {
+        (TEST_INSTANCE_ID, "env"),
+        (TEST_INSTANCE_ID, "team"),
+    }

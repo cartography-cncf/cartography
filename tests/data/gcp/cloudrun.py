@@ -2,6 +2,10 @@ MOCK_SERVICES = {
     "services": [
         {
             "name": "projects/test-project/locations/us-central1/services/test-service",
+            "labels": {
+                "env": "prod",
+                "team": "api",
+            },
             "description": "Test Cloud Run service",
             "uri": "https://test-service-abc123-uc.a.run.app",
             "ingress": "INGRESS_TRAFFIC_ALL",
@@ -30,6 +34,10 @@ MOCK_JOBS = {
     "jobs": [
         {
             "name": "projects/test-project/locations/us-west1/jobs/test-job",
+            "labels": {
+                "env": "staging",
+                "team": "batch",
+            },
             "template": {
                 "template": {
                     "containers": [

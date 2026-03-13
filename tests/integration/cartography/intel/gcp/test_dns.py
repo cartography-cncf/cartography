@@ -188,3 +188,46 @@ def test_sync_dns_record_set_relationships(
         (TEST_PROJECT_ID, "b.zone-1.example.com.|TXT|111111111111111111111"),
         (TEST_PROJECT_ID, "a.zone-2.example.com.|TXT|2222222222222222222"),
     }
+
+
+@patch.object(
+    cartography.intel.gcp.dns,
+    "get_dns_rrs",
+    return_value=tests.data.gcp.dns.DNS_RRS,
+)
+@patch.object(
+    cartography.intel.gcp.dns,
+    "get_dns_zones",
+    return_value=tests.data.gcp.dns.DNS_ZONES,
+)
+def test_sync_dns_zone_labels(_mock_get_zones, _mock_get_rrs, neo4j_session):
+    """Test sync() loads GCPLabel nodes for DNS zones with labels."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    _create_test_project(neo4j_session, TEST_PROJECT_ID, TEST_UPDATE_TAG)
+
+    cartography.intel.gcp.dns.sync(
+        neo4j_session,
+        MagicMock(),
+        TEST_PROJECT_ID,
+        TEST_UPDATE_TAG,
+        COMMON_JOB_PARAMS,
+    )
+
+    # Only test-zone-1 has labels
+    assert check_nodes(neo4j_session, "GCPLabel", ["key", "value"]) >= {
+        ("env", "prod"),
+        ("team", "networking"),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "GCPDNSZone",
+        "id",
+        "GCPLabel",
+        "key",
+        "LABELED",
+        rel_direction_right=True,
+    ) == {
+        ("111111111111111111111", "env"),
+        ("111111111111111111111", "team"),
+    }

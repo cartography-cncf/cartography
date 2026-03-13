@@ -14,6 +14,10 @@ MOCK_INSTANCES = {
                 {"type": "PRIVATE", "ipAddress": "10.0.0.5"},
             ],
             "settings": {
+                "userLabels": {
+                    "env": "staging",
+                    "team": "backend",
+                },
                 "tier": "db-custom-2-7680",
                 "dataDiskSizeGb": "100",
                 "dataDiskType": "PD_SSD",
