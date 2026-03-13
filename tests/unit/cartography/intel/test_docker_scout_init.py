@@ -26,9 +26,7 @@ def test_sync_docker_scout_from_dir_skips_unicode_decode_errors(
             {"UPDATE_TAG": 1},
         )
 
-    assert (
-        f"Skipping unreadable Docker Scout report {report_path}" in caplog.text
-    )
+    assert f"Skipping unreadable Docker Scout report {report_path}" in caplog.text
 
 
 def test_sync_docker_scout_from_s3_skips_unicode_decode_errors(
