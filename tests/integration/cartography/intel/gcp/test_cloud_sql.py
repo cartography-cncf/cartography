@@ -216,10 +216,10 @@ def test_sync_sql(
         "GCPCloudSQLInstance",
         "id",
         "GCPLabel",
-        "key",
+        "id",
         "LABELED",
         rel_direction_right=True,
     ) == {
-        (TEST_INSTANCE_ID, "env"),
-        (TEST_INSTANCE_ID, "team"),
+        (TEST_INSTANCE_ID, f"{TEST_INSTANCE_ID}:env:staging"),
+        (TEST_INSTANCE_ID, f"{TEST_INSTANCE_ID}:team:backend"),
     }

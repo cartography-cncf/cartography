@@ -181,12 +181,12 @@ def test_sync_cloudrun(
         "GCPCloudRunService",
         "id",
         "GCPLabel",
-        "key",
+        "id",
         "LABELED",
         rel_direction_right=True,
     ) == {
-        (TEST_SERVICE_ID, "env"),
-        (TEST_SERVICE_ID, "team"),
+        (TEST_SERVICE_ID, f"{TEST_SERVICE_ID}:env:prod"),
+        (TEST_SERVICE_ID, f"{TEST_SERVICE_ID}:team:api"),
     }
 
     # Assert: Check GCPLabel nodes from Cloud Run job labels
@@ -201,10 +201,10 @@ def test_sync_cloudrun(
         "GCPCloudRunJob",
         "id",
         "GCPLabel",
-        "key",
+        "id",
         "LABELED",
         rel_direction_right=True,
     ) == {
-        (TEST_JOB_ID, "env"),
-        (TEST_JOB_ID, "team"),
+        (TEST_JOB_ID, f"{TEST_JOB_ID}:env:staging"),
+        (TEST_JOB_ID, f"{TEST_JOB_ID}:team:batch"),
     }

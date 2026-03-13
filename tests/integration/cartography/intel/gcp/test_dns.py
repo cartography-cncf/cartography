@@ -214,7 +214,7 @@ def test_sync_dns_zone_labels(_mock_get_zones, _mock_get_rrs, neo4j_session):
     )
 
     # Only test-zone-1 has labels
-    assert check_nodes(neo4j_session, "GCPLabel", ["key", "value"]) >= {
+    assert check_nodes(neo4j_session, "GCPLabel", ["key", "value"]) == {
         ("env", "prod"),
         ("team", "networking"),
     }
@@ -224,10 +224,10 @@ def test_sync_dns_zone_labels(_mock_get_zones, _mock_get_rrs, neo4j_session):
         "GCPDNSZone",
         "id",
         "GCPLabel",
-        "key",
+        "id",
         "LABELED",
         rel_direction_right=True,
     ) == {
-        ("111111111111111111111", "env"),
-        ("111111111111111111111", "team"),
+        ("111111111111111111111", "111111111111111111111:env:prod"),
+        ("111111111111111111111", "111111111111111111111:team:networking"),
     }

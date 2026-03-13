@@ -143,14 +143,14 @@ def sync_gke_clusters(
             lastupdated=gcp_update_tag,
             PROJECT_ID=project_id,
         )
-        sync_labels(
-            neo4j_session,
-            clusters,
-            "gke_cluster",
-            project_id,
-            gcp_update_tag,
-            common_job_parameters,
-        )
+    sync_labels(
+        neo4j_session,
+        clusters,
+        "gke_cluster",
+        project_id,
+        gcp_update_tag,
+        common_job_parameters,
+    )
     cleanup_gke_clusters(neo4j_session, common_job_parameters)
 
 

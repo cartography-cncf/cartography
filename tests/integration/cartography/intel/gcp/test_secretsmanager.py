@@ -165,11 +165,20 @@ def test_sync_secretsmanager(mock_get_secrets, mock_get_secret_versions, neo4j_s
         "GCPSecretManagerSecret",
         "id",
         "GCPLabel",
-        "key",
+        "id",
         "LABELED",
         rel_direction_right=True,
     ) == {
-        ("projects/test-project-123/secrets/my-api-key", "env"),
-        ("projects/test-project-123/secrets/my-api-key", "team"),
-        ("projects/test-project-123/secrets/db-password", "env"),
+        (
+            "projects/test-project-123/secrets/my-api-key",
+            "projects/test-project-123/secrets/my-api-key:env:production",
+        ),
+        (
+            "projects/test-project-123/secrets/my-api-key",
+            "projects/test-project-123/secrets/my-api-key:team:platform",
+        ),
+        (
+            "projects/test-project-123/secrets/db-password",
+            "projects/test-project-123/secrets/db-password:env:production",
+        ),
     }

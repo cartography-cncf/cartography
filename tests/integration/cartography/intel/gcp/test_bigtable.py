@@ -245,10 +245,10 @@ def test_sync_bigtable_modules(
         "GCPBigtableInstance",
         "id",
         "GCPLabel",
-        "key",
+        "id",
         "LABELED",
         rel_direction_right=True,
     ) == {
-        (TEST_INSTANCE_ID, "env"),
-        (TEST_INSTANCE_ID, "team"),
+        (TEST_INSTANCE_ID, f"{TEST_INSTANCE_ID}:env:dev"),
+        (TEST_INSTANCE_ID, f"{TEST_INSTANCE_ID}:team:data"),
     }
