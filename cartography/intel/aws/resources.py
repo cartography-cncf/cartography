@@ -21,6 +21,7 @@ from . import ecs
 from . import efs
 from . import eks
 from . import elasticache
+from . import elasticbeanstalk
 from . import elasticsearch
 from . import emr
 from . import eventbridge
@@ -123,7 +124,6 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "lambda_function": lambda_function.sync,
         "rds": rds.sync,
         "redshift": redshift.sync,
-        "route53": route53.sync,
         "elasticsearch": elasticsearch.sync,
         "permission_relationships": permission_relationships.sync,
         "resourcegroupstaggingapi": resourcegroupstaggingapi.sync,
@@ -151,5 +151,10 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "cognito": cognito.sync,
         "eventbridge": eventbridge.sync,
         "glue": glue.sync,
+        # ElasticBeanstalk must run after ec2:instance, ec2:autoscalinggroup, ec2:launch_templates,
+        # ec2:load_balancer, ec2:load_balancer_v2 and sqs, so that the nodes exist when elasticbeanstalk
+        # makes relationships, but before route53 as it has a relationship to this.
+        "elasticbeanstalk": elasticbeanstalk.sync,
+        "route53": route53.sync,
     }
 )
