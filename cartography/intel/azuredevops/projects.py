@@ -69,7 +69,10 @@ def load_projects(
     - state: Project state (active, deleted, etc.)
     - revision: Project revision number
     - visibility: Project visibility (private, public)
+    - is_private: Boolean indicating if the project is private
     - lastUpdateTime: Last update timestamp
+    - last_activity_at: Last activity timestamp
+    - last_activity_at_timestamp: Last activity timestamp in milliseconds
     - description: Project description (if available)
     - capabilities: Project capabilities (if available)
     """

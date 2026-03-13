@@ -97,6 +97,9 @@ def load_repositories(
     - isDisabled: Whether repository is disabled
     - webUrl: Web interface URL
     - project: Associated project information
+    - is_private: Boolean indicating if the repository is private
+    - last_activity_at: Last activity timestamp
+    - last_activity_at_timestamp: Last activity timestamp in milliseconds
     """
     query = """
     UNWIND $RepoData as repo
