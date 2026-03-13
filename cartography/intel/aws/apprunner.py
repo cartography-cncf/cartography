@@ -4,7 +4,6 @@ from typing import Dict
 from typing import List
 
 import boto3
-import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import load
@@ -41,36 +40,42 @@ def get_apprunner_services(
     described_services: List[Dict[str, Any]] = []
     for service in services:
         service_arn = service["ServiceArn"]
-        try:
-            desc_response = client.describe_service(ServiceArn=service_arn)
-            svc = desc_response["Service"]
-            # Flatten nested fields
-            source_config = svc.get("SourceConfiguration", {})
-            image_repo = source_config.get("ImageRepository", {})
-            svc["ImageIdentifier"] = image_repo.get("ImageIdentifier")
-            svc["AutoDeploymentsEnabled"] = source_config.get("AutoDeploymentsEnabled")
-            auth_config = source_config.get("AuthenticationConfiguration", {})
-            svc["AccessRoleArn"] = auth_config.get("AccessRoleArn")
-
-            instance_config = svc.get("InstanceConfiguration", {})
-            svc["Cpu"] = instance_config.get("Cpu")
-            svc["Memory"] = instance_config.get("Memory")
-            svc["InstanceRoleArn"] = instance_config.get("InstanceRoleArn")
-
-            network_config = svc.get("NetworkConfiguration", {})
-            egress_config = network_config.get("EgressConfiguration", {})
-            svc["EgressType"] = egress_config.get("EgressType")
-            ingress_config = network_config.get("IngressConfiguration", {})
-            svc["IsPubliclyAccessible"] = ingress_config.get("IsPubliclyAccessible")
-
-            described_services.append(svc)
-        except botocore.exceptions.ClientError as e:
-            code = e.response["Error"]["Code"]
-            msg = e.response["Error"]["Message"]
-            logger.warning(
-                f"Could not run AppRunner describe_service due to boto3 error {code}: {msg}. Skipping.",
-            )
+        desc_response = client.describe_service(ServiceArn=service_arn)
+        described_services.append(desc_response["Service"])
     return described_services
+
+
+def transform_apprunner_services(
+    services: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Transform AppRunner services by flattening nested configuration fields
+    for loading into the graph.
+    """
+    transformed: List[Dict[str, Any]] = []
+    for svc in services:
+        svc = dict(svc)
+
+        source_config = svc.get("SourceConfiguration", {})
+        image_repo = source_config.get("ImageRepository", {})
+        svc["ImageIdentifier"] = image_repo.get("ImageIdentifier")
+        svc["AutoDeploymentsEnabled"] = source_config.get("AutoDeploymentsEnabled")
+        auth_config = source_config.get("AuthenticationConfiguration", {})
+        svc["AccessRoleArn"] = auth_config.get("AccessRoleArn")
+
+        instance_config = svc.get("InstanceConfiguration", {})
+        svc["Cpu"] = instance_config.get("Cpu")
+        svc["Memory"] = instance_config.get("Memory")
+        svc["InstanceRoleArn"] = instance_config.get("InstanceRoleArn")
+
+        network_config = svc.get("NetworkConfiguration", {})
+        egress_config = network_config.get("EgressConfiguration", {})
+        svc["EgressType"] = egress_config.get("EgressType")
+        ingress_config = network_config.get("IngressConfiguration", {})
+        svc["IsPubliclyAccessible"] = ingress_config.get("IsPubliclyAccessible")
+
+        transformed.append(svc)
+    return transformed
 
 
 @timeit
@@ -122,9 +127,11 @@ def sync(
 
         services = get_apprunner_services(boto3_session, region)
 
+        transformed_services = transform_apprunner_services(services)
+
         load_apprunner_services(
             neo4j_session,
-            services,
+            transformed_services,
             region,
             current_aws_account_id,
             update_tag,
