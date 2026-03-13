@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import neo4j
@@ -8,6 +9,13 @@ from cartography.graph.job import GraphJob
 from cartography.intel.docker_scout.recommendation_parser import (
     parse_recommendation_text,
 )
+from cartography.models.core.common import PropertyRef
+from cartography.models.core.relationships import CartographyRelProperties
+from cartography.models.core.relationships import CartographyRelSchema
+from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_target_node_matcher
+from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import TargetNodeMatcher
 from cartography.models.docker_scout.image import DockerScoutPublicImageSchema
 from cartography.models.docker_scout.public_image_tag import (
     DockerScoutPublicImageTagSchema,
@@ -16,6 +24,40 @@ from cartography.util import timeit
 from cartography.version import get_cartography_version
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _DockerScoutPublicImageCleanupRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+class _DockerScoutPublicImageCleanupBuiltOnRel(CartographyRelSchema):
+    """
+    Cleanup-only relationship schema.
+
+    The target matcher is intentionally irrelevant here: GraphJob unscoped cleanup
+    only needs the relationship label and target node label to delete stale
+    BUILT_ON edges. Relationship creation still happens via targeted Cypher because
+    Docker Scout exposes only a digest prefix.
+    """
+
+    target_node_label: str = "Image"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("_unused_cleanup_matcher")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "BUILT_ON"
+    properties: _DockerScoutPublicImageCleanupRelProperties = (
+        _DockerScoutPublicImageCleanupRelProperties()
+    )
+
+
+@dataclass(frozen=True)
+class _DockerScoutPublicImageCleanupSchema(DockerScoutPublicImageSchema):
+    other_relationships: OtherRelationships = OtherRelationships(
+        [_DockerScoutPublicImageCleanupBuiltOnRel()],
+    )
 
 
 def _normalize_digest_for_compare(digest: str) -> str:
@@ -227,7 +269,7 @@ def cleanup(
         common_job_parameters,
     ).run(neo4j_session)
     GraphJob.from_node_schema(
-        DockerScoutPublicImageSchema(),
+        _DockerScoutPublicImageCleanupSchema(),
         common_job_parameters,
     ).run(neo4j_session)
 

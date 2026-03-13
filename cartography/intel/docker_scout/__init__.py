@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def _looks_like_docker_scout_report(text: str) -> bool:
-    required_markers = ("Target", "digest", "## Recommended fixes", "Base image is")
+    required_markers = ("Target", "digest", "Base image is")
     return all(marker in text for marker in required_markers)
 
 
