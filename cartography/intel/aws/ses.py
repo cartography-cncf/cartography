@@ -2,6 +2,7 @@ import logging
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 
 import boto3
 import botocore.exceptions
@@ -69,7 +70,7 @@ def get_ses_email_identities(
 def _get_ses_email_identity_detail(
     client: Any,
     identity_name: str,
-) -> Dict[str, Any] | None:
+) -> Optional[Dict[str, Any]]:
     try:
         return client.get_email_identity(EmailIdentity=identity_name)
     except botocore.exceptions.ClientError as e:
