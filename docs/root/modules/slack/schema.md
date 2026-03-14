@@ -10,10 +10,10 @@ SU -- CREATED --> SC
 SU -- MEMBER_OF --> SC
 SU -- MEMBER_OF --> SG
 SU -- CREATED --> SG
-SB -. CREATED .-> SC
-SB -. MEMBER_OF .-> SC
-SB -. MEMBER_OF .-> SG
-SB -. CREATED .-> SG
+SB -- CREATED --> SC
+SB -- MEMBER_OF --> SC
+SB -- MEMBER_OF --> SG
+SB -- CREATED --> SG
 SG -- MEMBER_OF --> SC
 ```
 
@@ -148,12 +148,27 @@ Representation of a bot or app account in Slack. Previously ingested as `SlackUs
     (SlackTeam)-[RESOURCE]->(SlackBot)
     ```
 
-- *(via deprecated SlackUser label)* A SlackBot may be a member of a SlackChannel or SlackGroup, or be the creator of a SlackChannel or SlackGroup
+- A SlackBot is a member of a SlackChannel
 
     ```
     (SlackBot)-[:MEMBER_OF]->(SlackChannel)
+    ```
+
+- A SlackChannel is created by a SlackBot
+
+    ```
     (SlackBot)-[:CREATED]->(SlackChannel)
+    ```
+
+- A SlackBot is a member of a SlackGroup
+
+    ```
     (SlackBot)-[:MEMBER_OF]->(SlackGroup)
+    ```
+
+- A SlackGroup is created by a SlackBot
+
+    ```
     (SlackBot)-[:CREATED]->(SlackGroup)
     ```
 
