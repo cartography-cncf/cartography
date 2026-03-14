@@ -16,6 +16,7 @@ from cartography.models.aws.ec2.auto_scaling_groups import (
     EC2InstanceAutoScalingGroupSchema,
 )
 from cartography.models.aws.ec2.instances import EC2InstanceSchema
+from cartography.models.aws.ec2.ipv6_addresses import EC2Ipv6AddressSchema
 from cartography.models.aws.ec2.keypair_instance import EC2KeyPairInstanceSchema
 from cartography.models.aws.ec2.networkinterface_instance import (
     EC2NetworkInterfaceInstanceSchema,
@@ -41,6 +42,7 @@ Ec2Data = namedtuple(
         "keypair_list",
         "network_interface_list",
         "instance_ebs_volumes_list",
+        "ipv6_address_list",
     ],
 )
 
@@ -91,6 +93,7 @@ def transform_ec2_instances(
     sg_list = []
     network_interface_list = []
     instance_ebs_volumes_list = []
+    ipv6_address_list = []
 
     for reservation in reservations:
         reservation_id = reservation["ReservationId"]
@@ -108,6 +111,25 @@ def transform_ec2_instances(
                 str(time.mktime(launch_time.timetuple())) if launch_time else None
             )
             eks_cluster_name = _get_eks_cluster_name(instance.get("Tags", []))
+
+            # --- Extract primary IPv6 address for this instance ---
+            # AWS does not surface IPv6 at the top-level instance object; it is
+            # only available under NetworkInterfaces[].Ipv6Addresses[]. We look
+            # at the NI with Attachment.DeviceIndex == 0 (the primary interface),
+            # prefer the entry with IsPrimaryIpv6=True, and fall back to the first
+            # entry in the list. If the primary NI has no IPv6, this is None.
+            primary_ipv6 = None
+            for nic in instance.get("NetworkInterfaces", []):
+                if nic.get("Attachment", {}).get("DeviceIndex") == 0:
+                    ipv6_list = nic.get("Ipv6Addresses", [])
+                    if ipv6_list:
+                        primary_entry = next(
+                            (a for a in ipv6_list if a.get("IsPrimaryIpv6")),
+                            ipv6_list[0],
+                        )
+                        primary_ipv6 = primary_entry.get("Ipv6Address")
+                    break
+
             instance_list.append(
                 {
                     "InstanceId": instance_id,
@@ -140,6 +162,7 @@ def transform_ec2_instances(
                         "Configured",
                     ),
                     "EksClusterName": eks_cluster_name,
+                    "IPv6Address": primary_ipv6,
                 },
             )
 
@@ -194,6 +217,25 @@ def transform_ec2_instances(
                         },
                     )
 
+                # --- Extract IPv6 addresses for this network interface ---
+                # Each NI can have zero or more IPv6 addresses. We create a
+                # separate EC2Ipv6Address node per address so they can be
+                # independently queried and linked to DNS AAAA records via the
+                # Ip label on EC2Ipv6Address and the existing DNS_POINTS_TO rel.
+                nic_id = network_interface["NetworkInterfaceId"]
+                for ipv6_entry in network_interface.get("Ipv6Addresses", []):
+                    ipv6_addr = ipv6_entry.get("Ipv6Address")
+                    if ipv6_addr:
+                        ipv6_address_list.append(
+                            {
+                                "Ipv6Address": ipv6_addr,
+                                "NetworkInterfaceId": nic_id,
+                                # IsPrimaryIpv6 may be absent on older API versions;
+                                # default to False rather than None for clean bool storage.
+                                "IsPrimaryIpv6": ipv6_entry.get("IsPrimaryIpv6", False),
+                            },
+                        )
+
             if (
                 "BlockDeviceMappings" in instance
                 and len(instance["BlockDeviceMappings"]) > 0
@@ -219,6 +261,7 @@ def transform_ec2_instances(
         keypair_list=keypair_list,
         network_interface_list=network_interface_list,
         instance_ebs_volumes_list=instance_ebs_volumes_list,
+        ipv6_address_list=ipv6_address_list,
     )
 
 
@@ -349,6 +392,24 @@ def load_ec2_instance_ebs_volumes(
     )
 
 
+@timeit
+def load_ec2_ipv6_addresses(
+    neo4j_session: neo4j.Session,
+    ipv6_address_list: List[Dict[str, Any]],
+    region: str,
+    current_aws_account_id: str,
+    update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        EC2Ipv6AddressSchema(),
+        ipv6_address_list,
+        Region=region,
+        AWS_ID=current_aws_account_id,
+        lastupdated=update_tag,
+    )
+
+
 def load_ec2_instance_data(
     neo4j_session: neo4j.Session,
     region: str,
@@ -361,6 +422,7 @@ def load_ec2_instance_data(
     key_pair_list: List[Dict[str, Any]],
     nic_list: List[Dict[str, Any]],
     ebs_volumes_list: List[Dict[str, Any]],
+    ipv6_address_list: List[Dict[str, Any]],
 ) -> None:
     load_ec2_reservations(
         neo4j_session,
@@ -411,6 +473,13 @@ def load_ec2_instance_data(
         current_aws_account_id,
         update_tag,
     )
+    load_ec2_ipv6_addresses(
+        neo4j_session,
+        ipv6_address_list,
+        region,
+        current_aws_account_id,
+        update_tag,
+    )
 
 
 @timeit
@@ -429,6 +498,9 @@ def cleanup(
         EC2InstanceAutoScalingGroupSchema(),
         common_job_parameters,
     ).run(neo4j_session)
+    GraphJob.from_node_schema(EC2Ipv6AddressSchema(), common_job_parameters).run(
+        neo4j_session,
+    )
 
 
 @timeit
@@ -460,5 +532,6 @@ def sync_ec2_instances(
             ec2_data.keypair_list,
             ec2_data.network_interface_list,
             ec2_data.instance_ebs_volumes_list,
+            ec2_data.ipv6_address_list,
         )
     cleanup(neo4j_session, common_job_parameters)
