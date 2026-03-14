@@ -19,6 +19,10 @@ DNS_ZONES = [
         },
         "visibility": "public",
         "kind": "dns#managedZone",
+        "labels": {
+            "env": "prod",
+            "team": "networking",
+        },
     },
     {
         "name": "test-zone-2",
