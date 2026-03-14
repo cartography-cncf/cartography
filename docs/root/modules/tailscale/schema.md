@@ -13,6 +13,7 @@ G -- MEMBER_OF --> G
 U -- OWNS --> T
 G -- OWNS --> T
 D -- TAGGED --> T
+D -- HAS_POSTURE_ATTRIBUTE --> DPA(DevicePostureAttribute)
 ```
 
 ### TailscaleTailnet
@@ -134,6 +135,30 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
 - `Devices` are tagged with `Tag`
     ```
     (:TailscaleDevice)-[:TAGGED]->(:TailscaleTag)
+    ```
+- `Devices` have posture attributes
+    ```
+    (:TailscaleDevice)-[:HAS_POSTURE_ATTRIBUTE]->(:TailscaleDevicePostureAttribute)
+    ```
+
+
+### TailscaleDevicePostureAttribute
+
+Device posture attributes from security tool integrations (CrowdStrike Falcon, Microsoft Intune, Jamf Pro, Kandji, Kolide, SentinelOne).
+
+| Field | Description |
+|-------|-------------|
+| id | Composite identifier: `{device_id}:{attribute_key}` |
+| firstseen| Timestamp of when a sync job first created this node  |
+| lastupdated |  Timestamp of the last time the node was updated |
+| key | Attribute key (e.g., `falcon:ztaScore`, `intune:complianceState`). Prefix indicates the provider. |
+| value | Attribute value (string, number, or boolean) |
+| updated | When the attribute was last updated by the posture integration |
+
+#### Relationships
+- `DevicePostureAttribute` belongs to a `Device`.
+    ```
+    (:TailscaleDevice)-[:HAS_POSTURE_ATTRIBUTE]->(:TailscaleDevicePostureAttribute)
     ```
 
 
