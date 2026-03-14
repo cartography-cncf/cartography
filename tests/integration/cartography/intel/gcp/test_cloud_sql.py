@@ -203,3 +203,23 @@ def test_sync_sql(
         "id",
         "HAS_BACKUP_CONFIG",
     ) == {(TEST_INSTANCE_ID, f"{TEST_INSTANCE_ID}/backupConfig")}
+
+    # Assert: Check GCPLabel nodes from userLabels
+    assert check_nodes(neo4j_session, "GCPLabel", ["key", "value"]) >= {
+        ("env", "staging"),
+        ("team", "backend"),
+    }
+
+    # Assert: Check LABELED relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudSQLInstance",
+        "id",
+        "GCPLabel",
+        "id",
+        "LABELED",
+        rel_direction_right=True,
+    ) == {
+        (TEST_INSTANCE_ID, f"{TEST_INSTANCE_ID}:env:staging"),
+        (TEST_INSTANCE_ID, f"{TEST_INSTANCE_ID}:team:backend"),
+    }

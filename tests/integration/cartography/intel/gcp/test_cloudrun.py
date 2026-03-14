@@ -168,3 +168,43 @@ def test_sync_cloudrun(
         "email",
         "USES_SERVICE_ACCOUNT",
     ) == {(TEST_JOB_ID, TEST_SA_EMAIL_2)}
+
+    # Assert: Check GCPLabel nodes from Cloud Run service labels
+    assert check_nodes(neo4j_session, "GCPLabel", ["key", "value"]) >= {
+        ("env", "prod"),
+        ("team", "api"),
+    }
+
+    # Assert: Check LABELED relationships
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudRunService",
+        "id",
+        "GCPLabel",
+        "id",
+        "LABELED",
+        rel_direction_right=True,
+    ) == {
+        (TEST_SERVICE_ID, f"{TEST_SERVICE_ID}:env:prod"),
+        (TEST_SERVICE_ID, f"{TEST_SERVICE_ID}:team:api"),
+    }
+
+    # Assert: Check GCPLabel nodes from Cloud Run job labels
+    assert check_nodes(neo4j_session, "GCPLabel", ["key", "value"]) >= {
+        ("env", "staging"),
+        ("team", "batch"),
+    }
+
+    # Assert: Check LABELED relationships for jobs
+    assert check_rels(
+        neo4j_session,
+        "GCPCloudRunJob",
+        "id",
+        "GCPLabel",
+        "id",
+        "LABELED",
+        rel_direction_right=True,
+    ) == {
+        (TEST_JOB_ID, f"{TEST_JOB_ID}:env:staging"),
+        (TEST_JOB_ID, f"{TEST_JOB_ID}:team:batch"),
+    }

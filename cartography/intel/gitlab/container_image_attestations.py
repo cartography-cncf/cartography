@@ -8,6 +8,7 @@ Attestations are discovered via cosign's tag-based scheme:
 """
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import neo4j
@@ -26,6 +27,25 @@ logger = logging.getLogger(__name__)
 # Attestation tag suffixes used by cosign
 ATTESTATION_SUFFIXES = [".sig", ".att"]
 
+_REGISTRY_AUTH_FAILURE_STATUS_CODES = {401, 403}
+
+
+@dataclass(frozen=True)
+class AttestationDiscoverySummary:
+    attempted: int = 0
+    discovered: int = 0
+    failed: int = 0
+
+
+def _is_registry_auth_failure(exc: requests.exceptions.RequestException) -> bool:
+    if not isinstance(exc, requests.exceptions.HTTPError):
+        return False
+    response = exc.response
+    return (
+        response is not None
+        and response.status_code in _REGISTRY_AUTH_FAILURE_STATUS_CODES
+    )
+
 
 def _digest_to_attestation_tag(digest: str, suffix: str) -> str:
     """
@@ -42,7 +62,7 @@ def get_container_image_attestations(
     token: str,
     manifests: list[dict[str, Any]],
     manifest_lists: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], AttestationDiscoverySummary]:
     """
     Discover and fetch attestations for container images.
 
@@ -52,6 +72,8 @@ def get_container_image_attestations(
     """
     all_attestations: list[dict[str, Any]] = []
     seen_digests: set[str] = set()
+    attempted = 0
+    failed = 0
 
     # Cosign-style discovery: probe for .sig and .att tags
     for manifest in manifests:
@@ -69,6 +91,7 @@ def get_container_image_attestations(
 
         for suffix in ATTESTATION_SUFFIXES:
             attestation_tag = _digest_to_attestation_tag(image_digest, suffix)
+            attempted += 1
 
             try:
                 response = fetch_registry_manifest(
@@ -100,11 +123,23 @@ def get_container_image_attestations(
 
                 all_attestations.append(attestation)
 
-            except requests.exceptions.HTTPError:
-                logger.error(
-                    f"Failed to fetch attestation {attestation_tag} for {image_digest}"
+            except requests.exceptions.RequestException as e:
+                if _is_registry_auth_failure(e):
+                    logger.error(
+                        "Registry auth failed while fetching attestation %s for %s: %s",
+                        attestation_tag,
+                        image_digest,
+                        e,
+                    )
+                    raise
+                failed += 1
+                logger.warning(
+                    "Skipping attestation %s for %s after registry request failure: %s",
+                    attestation_tag,
+                    image_digest,
+                    e,
                 )
-                raise
+                continue
 
     # Buildx-style discovery: scan manifest lists for attestation entries
     for manifest_list in manifest_lists:
@@ -136,6 +171,7 @@ def get_container_image_attestations(
 
             # Fetch the attestation manifest
             try:
+                attempted += 1
                 response = fetch_registry_manifest(
                     gitlab_url,
                     registry_url,
@@ -155,14 +191,35 @@ def get_container_image_attestations(
 
                 all_attestations.append(attestation)
 
-            except requests.exceptions.HTTPError:
-                logger.error(f"Failed to fetch buildx attestation {attestation_digest}")
-                raise
+            except requests.exceptions.RequestException as e:
+                if _is_registry_auth_failure(e):
+                    logger.error(
+                        "Registry auth failed while fetching buildx attestation %s: %s",
+                        attestation_digest,
+                        e,
+                    )
+                    raise
+                failed += 1
+                logger.warning(
+                    "Skipping buildx attestation %s after registry request failure: %s",
+                    attestation_digest,
+                    e,
+                )
+                continue
 
-    logger.info(
-        f"Discovered {len(all_attestations)} attestations ({len(manifest_lists)} manifest lists scanned)"
+    summary = AttestationDiscoverySummary(
+        attempted=attempted,
+        discovered=len(all_attestations),
+        failed=failed,
     )
-    return all_attestations
+    logger.info(
+        "Discovered %d attestations across %d probe(s); skipped %d failed probe(s) while scanning %d manifest list(s)",
+        summary.discovered,
+        summary.attempted,
+        summary.failed,
+        len(manifest_lists),
+    )
+    return all_attestations, summary
 
 
 def transform_container_image_attestations(
@@ -241,10 +298,18 @@ def sync_container_image_attestations(
     """
     logger.info(f"Syncing container image attestations for organization {org_url}")
 
-    raw_attestations = get_container_image_attestations(
+    raw_attestations, summary = get_container_image_attestations(
         gitlab_url, token, manifests, manifest_lists
     )
 
     transformed = transform_container_image_attestations(raw_attestations)
     load_container_image_attestations(neo4j_session, transformed, org_url, update_tag)
+    if summary.failed:
+        logger.warning(
+            "Skipping GitLab container image attestations cleanup for %s because %d of %d registry probe(s) failed. Existing attestation data was preserved.",
+            org_url,
+            summary.failed,
+            summary.attempted,
+        )
+        return
     cleanup_container_image_attestations(neo4j_session, common_job_parameters)

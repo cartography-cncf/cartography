@@ -10,6 +10,7 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import get_error_reason
 from cartography.intel.gcp.util import is_api_disabled_error
@@ -202,6 +203,7 @@ def transform_secrets(secrets: List[Dict]) -> List[Dict]:
                 "replication_type": replication_type,
                 "etag": secret.get("etag"),
                 "labels": json.dumps(labels) if labels else None,
+                "raw_labels": labels or {},
                 "topics": json.dumps(topics) if topics else None,
                 "version_aliases": (
                     json.dumps(version_aliases) if version_aliases else None
@@ -340,6 +342,14 @@ def sync(
     secrets = get_secrets(secretmanager, project_id)
     transformed_secrets = transform_secrets(secrets)
     load_secrets(neo4j_session, transformed_secrets, project_id, gcp_update_tag)
+    sync_labels(
+        neo4j_session,
+        transformed_secrets,
+        "secret_manager_secret",
+        project_id,
+        gcp_update_tag,
+        common_job_parameters,
+    )
 
     # Sync secret versions
     all_versions: List[Dict] = []
