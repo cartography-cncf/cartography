@@ -213,6 +213,18 @@ Representation of a single [Channel in Slack](https://api.slack.com/types/channe
     (SlackUser)-[:MEMBER_OF]->(:SlackChannel)
     ```
 
+- A SlackChannel is created by a SlackBot
+
+    ```
+    (SlackBot)-[:CREATED]->(SlackChannel)
+    ```
+
+- A SlackBot is a member of a SlackChannel
+
+    ```
+    (SlackBot)-[:MEMBER_OF]->(SlackChannel)
+    ```
+
 - A SlackGroup is member of a SlackChannel
 
     ```
@@ -267,4 +279,16 @@ Representation of a single [Group in Slack](https://api.slack.com/types/usergrou
 
     ```
     (SlackUser)-[CREATED]->(SlackGroup)
+    ```
+
+- A SlackBot is member of a SlackGroup
+
+    ```
+    (SlackBot)-[MEMBER_OF]->(SlackGroup)
+    ```
+
+- A SlackGroup is created by a SlackBot
+
+    ```
+    (SlackBot)-[CREATED]->(SlackGroup)
     ```
