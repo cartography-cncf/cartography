@@ -25,7 +25,14 @@ GCP_HTTP_ERROR_DETAIL_MAX_CHARS = 240
 GCP_PERMISSION_DENIED_REASONS = frozenset(
     {"forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"}
 )
-GCP_QUOTA_EXCEEDED_REASONS = frozenset({"rateLimitExceeded", "userRateLimitExceeded"})
+GCP_QUOTA_EXCEEDED_REASONS = frozenset(
+    {
+        "rateLimitExceeded",  # legacy REST API style
+        "userRateLimitExceeded",  # legacy REST API style
+        "RATE_LIMIT_EXCEEDED",  # gRPC-transcoded / ErrorInfo style
+        "USER_RATE_LIMIT_EXCEEDED",  # gRPC-transcoded / ErrorInfo style
+    }
+)
 
 # Number of retries for network-level errors (handled natively by googleapiclient)
 GCP_API_NUM_RETRIES = 5

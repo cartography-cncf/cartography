@@ -9,8 +9,8 @@ from googleapiclient.discovery import Resource
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.gke import GCPGKEClusterSchema
@@ -46,6 +46,9 @@ def get_gke_clusters(container: Resource, project_id: str) -> Dict:
                 project_id,
                 summarize_gcp_http_error(e),
             )
+            # Returning empty results on permission/API-disabled errors is intentional:
+            # it allows the cleanup step to remove previously ingested data when access
+            # to this project is lost, so the graph reflects only the current visible state.
             return {}
         raise
 

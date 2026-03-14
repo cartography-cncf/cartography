@@ -340,7 +340,15 @@ class TestIsRetryableGcpHttpError:
         error = HttpError(mock_resp, b"")
         assert is_retryable_gcp_http_error(error) is True
 
-    @pytest.mark.parametrize("reason", ["rateLimitExceeded", "userRateLimitExceeded"])
+    @pytest.mark.parametrize(
+        "reason",
+        [
+            "rateLimitExceeded",  # legacy REST API style
+            "userRateLimitExceeded",  # legacy REST API style
+            "RATE_LIMIT_EXCEEDED",  # gRPC-transcoded / ErrorInfo style
+            "USER_RATE_LIMIT_EXCEEDED",  # gRPC-transcoded / ErrorInfo style
+        ],
+    )
     def test_true_for_quota_exceeded_403(self, reason):
         # Older GCP APIs signal quota exhaustion as 403, not 429.
         # is_retryable_gcp_http_error must agree with classify_gcp_http_error
@@ -349,6 +357,27 @@ class TestIsRetryableGcpHttpError:
         mock_resp.status = 403
         content = json.dumps(
             {"error": {"code": 403, "errors": [{"reason": reason}]}}
+        ).encode("utf-8")
+        error = HttpError(mock_resp, content)
+        assert is_retryable_gcp_http_error(error) is True
+
+    def test_true_for_quota_exceeded_403_grpc_error_info_shape(self):
+        # gRPC-transcoded APIs embed the reason inside error.details[] ErrorInfo.
+        mock_resp = MagicMock()
+        mock_resp.status = 403
+        content = json.dumps(
+            {
+                "error": {
+                    "code": 403,
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "RATE_LIMIT_EXCEEDED",
+                            "domain": "googleapis.com",
+                        }
+                    ],
+                }
+            }
         ).encode("utf-8")
         error = HttpError(mock_resp, content)
         assert is_retryable_gcp_http_error(error) is True
@@ -600,7 +629,15 @@ class TestClassifyGcpHttpError:
         )
         assert classify_gcp_http_error(e) == "transient"
 
-    @pytest.mark.parametrize("reason", ["rateLimitExceeded", "userRateLimitExceeded"])
+    @pytest.mark.parametrize(
+        "reason",
+        [
+            "rateLimitExceeded",  # legacy REST API style
+            "userRateLimitExceeded",  # legacy REST API style
+            "RATE_LIMIT_EXCEEDED",  # gRPC-transcoded / ErrorInfo style
+            "USER_RATE_LIMIT_EXCEEDED",  # gRPC-transcoded / ErrorInfo style
+        ],
+    )
     def test_transient_quota_403(self, reason):
         # Some GCP APIs return 403 (not 429) for quota/rate-limit errors.
         # These must classify as "transient", not "forbidden", so callers
@@ -608,6 +645,25 @@ class TestClassifyGcpHttpError:
         e = _make_http_error(
             403,
             {"error": {"code": 403, "errors": [{"reason": reason}]}},
+        )
+        assert classify_gcp_http_error(e) == "transient"
+
+    def test_transient_quota_403_grpc_error_info_shape(self):
+        # gRPC-transcoded APIs embed the reason inside error.details[] ErrorInfo.
+        e = _make_http_error(
+            403,
+            {
+                "error": {
+                    "code": 403,
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "RATE_LIMIT_EXCEEDED",
+                            "domain": "googleapis.com",
+                        }
+                    ],
+                }
+            },
         )
         assert classify_gcp_http_error(e) == "transient"
 
