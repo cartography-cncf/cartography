@@ -54,6 +54,7 @@ from .ec2.launch_templates import sync_ec2_launch_templates
 from .ec2.load_balancer_v2s import sync_load_balancer_v2_expose
 from .ec2.load_balancer_v2s import sync_load_balancer_v2s
 from .ec2.load_balancers import sync_load_balancers
+from .ec2.nat_gateways import sync_nat_gateways
 from .ec2.network_acls import sync_network_acls
 from .ec2.network_interfaces import sync_network_interfaces
 from .ec2.reserved_instances import sync_ec2_reserved_instances
@@ -102,6 +103,12 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:load_balancer_v2:expose": sync_load_balancer_v2_expose,
         "ec2:tgw": sync_transit_gateways,
         "ec2:vpc": sync_vpc,
+        # `elastic_ip_addresses` must be synced before `ec2:nat_gateway` so that
+        # ElasticIPAddress nodes exist when NAT gateways create ASSOCIATED_WITH relationships.
+        "elastic_ip_addresses": sync_elastic_ip_addresses,
+        # `ec2:nat_gateway` must be synced before `ec2:route_table` so that
+        # ROUTES_TO_NAT_GATEWAY relationships can be created when routes sync.
+        "ec2:nat_gateway": sync_nat_gateways,
         # `ec2:vpc_endpoint` must be synced before `ec2:route_table` so that
         # ROUTES_TO_VPC_ENDPOINT relationships can be created when routes sync.
         "ec2:vpc_endpoint": sync_vpc_endpoints,
@@ -118,7 +125,6 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ecs": ecs.sync,
         "eks": eks.sync,
         "elasticache": elasticache.sync,
-        "elastic_ip_addresses": sync_elastic_ip_addresses,
         "emr": emr.sync,
         "lambda_function": lambda_function.sync,
         "rds": rds.sync,
