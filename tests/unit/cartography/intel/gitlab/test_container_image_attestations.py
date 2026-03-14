@@ -25,6 +25,15 @@ def _make_manifest_response(attestation_digest: str):
     return response
 
 
+def _make_http_error(status_code: int) -> requests.exceptions.HTTPError:
+    response = Mock(spec=requests.Response)
+    response.status_code = status_code
+    return requests.exceptions.HTTPError(
+        f"{status_code} error",
+        response=response,
+    )
+
+
 def test_get_container_image_attestations_continues_after_request_failure(monkeypatch):
     manifests = [
         {
@@ -61,6 +70,36 @@ def test_get_container_image_attestations_continues_after_request_failure(monkey
         discovered=1,
         failed=1,
     )
+
+
+def test_get_container_image_attestations_raises_on_registry_auth_failure(
+    monkeypatch,
+):
+    manifests = [
+        {
+            "_digest": "sha256:abc123",
+            "_registry_url": "https://registry.example.com",
+            "_repository_name": "group/project",
+        }
+    ]
+
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_image_attestations.fetch_registry_manifest",
+        lambda *args, **kwargs: (_ for _ in ()).throw(_make_http_error(403)),
+    )
+
+    try:
+        get_container_image_attestations(
+            "https://gitlab.example.com",
+            "pat",
+            manifests,
+            [],
+        )
+    except requests.exceptions.HTTPError as exc:
+        assert exc.response is not None
+        assert exc.response.status_code == 403
+    else:
+        raise AssertionError("expected registry auth failure to be raised")
 
 
 def test_sync_container_image_attestations_skips_cleanup_after_partial_failure(

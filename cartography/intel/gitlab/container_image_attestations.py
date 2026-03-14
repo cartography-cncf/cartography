@@ -27,12 +27,24 @@ logger = logging.getLogger(__name__)
 # Attestation tag suffixes used by cosign
 ATTESTATION_SUFFIXES = [".sig", ".att"]
 
+_REGISTRY_AUTH_FAILURE_STATUS_CODES = {401, 403}
+
 
 @dataclass(frozen=True)
 class AttestationDiscoverySummary:
     attempted: int = 0
     discovered: int = 0
     failed: int = 0
+
+
+def _is_registry_auth_failure(exc: requests.exceptions.RequestException) -> bool:
+    if not isinstance(exc, requests.exceptions.HTTPError):
+        return False
+    response = exc.response
+    return (
+        response is not None
+        and response.status_code in _REGISTRY_AUTH_FAILURE_STATUS_CODES
+    )
 
 
 def _digest_to_attestation_tag(digest: str, suffix: str) -> str:
@@ -112,6 +124,14 @@ def get_container_image_attestations(
                 all_attestations.append(attestation)
 
             except requests.exceptions.RequestException as e:
+                if _is_registry_auth_failure(e):
+                    logger.error(
+                        "Registry auth failed while fetching attestation %s for %s: %s",
+                        attestation_tag,
+                        image_digest,
+                        e,
+                    )
+                    raise
                 failed += 1
                 logger.warning(
                     "Skipping attestation %s for %s after registry request failure: %s",
@@ -172,6 +192,13 @@ def get_container_image_attestations(
                 all_attestations.append(attestation)
 
             except requests.exceptions.RequestException as e:
+                if _is_registry_auth_failure(e):
+                    logger.error(
+                        "Registry auth failed while fetching buildx attestation %s: %s",
+                        attestation_digest,
+                        e,
+                    )
+                    raise
                 failed += 1
                 logger.warning(
                     "Skipping buildx attestation %s after registry request failure: %s",
