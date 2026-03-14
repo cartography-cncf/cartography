@@ -6,6 +6,7 @@ from cartography.intel.aws.ec2.route_tables import sync_route_tables
 from . import acm
 from . import apigateway
 from . import apigatewayv2
+from . import apprunner
 from . import bedrock
 from . import cloudfront
 from . import cloudtrail
@@ -120,6 +121,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "elasticache": elasticache.sync,
         "elastic_ip_addresses": sync_elastic_ip_addresses,
         "emr": emr.sync,
+        "apprunner": apprunner.sync,
         "lambda_function": lambda_function.sync,
         "rds": rds.sync,
         "redshift": redshift.sync,
