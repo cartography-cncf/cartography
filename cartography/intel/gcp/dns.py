@@ -9,6 +9,7 @@ from googleapiclient.discovery import Resource
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.util import classify_gcp_http_error
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.dns import GCPDNSZoneSchema
@@ -90,6 +91,7 @@ def transform_dns_zones(dns_zones: List[Dict]) -> List[Dict]:
                 "kind": z.get("kind"),
                 "nameservers": z.get("nameServers"),
                 "created_at": z.get("creationTime"),
+                "labels": z.get("labels", {}),
             }
         )
     return zones
@@ -176,6 +178,14 @@ def sync(
     dns_zones_resp = get_dns_zones(dns, project_id)
     dns_zones = transform_dns_zones(dns_zones_resp)
     load_dns_zones(neo4j_session, dns_zones, project_id, gcp_update_tag)
+    sync_labels(
+        neo4j_session,
+        dns_zones,
+        "dns_zone",
+        project_id,
+        gcp_update_tag,
+        common_job_parameters,
+    )
     dns_rrs_resp = get_dns_rrs(dns, dns_zones_resp, project_id)
     dns_rrs = transform_dns_rrs(dns_rrs_resp)
     load_rrs(neo4j_session, dns_rrs, project_id, gcp_update_tag)

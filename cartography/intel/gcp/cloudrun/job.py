@@ -13,6 +13,7 @@ from googleapiclient.errors import HttpError
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.cloudrun.util import discover_cloud_run_locations
+from cartography.intel.gcp.labels import sync_labels
 from cartography.models.gcp.cloudrun.job import GCPCloudRunJobSchema
 from cartography.util import timeit
 
@@ -113,6 +114,7 @@ def transform_jobs(jobs_data: list[dict], project_id: str) -> list[dict]:
                 "container_image": container_image,
                 "service_account_email": service_account_email,
                 "project_id": project_id,
+                "labels": job.get("labels", {}),
             },
         )
     return transformed
@@ -169,6 +171,14 @@ def sync_jobs(
 
     jobs = transform_jobs(jobs_raw, project_id)
     load_jobs(neo4j_session, jobs, project_id, update_tag)
+    sync_labels(
+        neo4j_session,
+        jobs,
+        "cloud_run_job",
+        project_id,
+        update_tag,
+        common_job_parameters,
+    )
 
     cleanup_job_params = common_job_parameters.copy()
     cleanup_job_params["project_id"] = project_id
