@@ -123,7 +123,7 @@ Representation of a bot or app account in Slack. Previously ingested as `SlackUs
 
 > **Ontology Mapping**: This node has the extra label `ThirdPartyApp` to enable cross-platform queries for third-party applications across different systems (e.g., GoogleWorkspaceOAuthApp, KeycloakClient, EntraApplication).
 
-> **Backward Compatibility**: This node also carries a deprecated `SlackUser` extra label so that existing `MATCH (n:SlackUser)` queries continue to return bots. This label will be removed in v1. Note that despite carrying the `SlackUser` label, bots do not participate in `MEMBER_OF` or `CREATED` relationships — only the `RESOURCE` relationship to `SlackTeam` is established.
+> **Backward Compatibility**: This node also carries a deprecated `SlackUser` extra label so that existing `MATCH (n:SlackUser)` queries continue to return bots. This label will be removed in v1. Because bots carry the `SlackUser` label, they may also receive `MEMBER_OF` and `CREATED` relationships from channel/group syncs that target `:SlackUser` nodes.
 
 | Field | Description |
 |-------|--------------|
