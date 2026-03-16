@@ -1812,6 +1812,8 @@ Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/
 
 Representation of a [Certificate within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/certificates/get-certificates).
 
+> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., ACMCertificate, AWSServerCertificate).
+
 | Field | Description |
 |---|---|
 |firstseen| Timestamp of when a sync job discovered this node|

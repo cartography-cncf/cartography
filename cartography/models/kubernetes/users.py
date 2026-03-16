@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -94,6 +95,7 @@ class KubernetesUserToAWSUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class KubernetesUserSchema(CartographyNodeSchema):
     label: str = "KubernetesUser"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
     properties: KubernetesUserNodeProperties = KubernetesUserNodeProperties()
     sub_resource_relationship: KubernetesUserToClusterRel = KubernetesUserToClusterRel()
     other_relationships: OtherRelationships = OtherRelationships(

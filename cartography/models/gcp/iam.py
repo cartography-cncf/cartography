@@ -49,7 +49,9 @@ class GCPServiceAccountSchema(CartographyNodeSchema):
     properties: GCPServiceAccountNodeProperties = GCPServiceAccountNodeProperties()
     sub_resource_relationship: GCPPrincipalToProjectRel = GCPPrincipalToProjectRel()
     # Service accounts are principals; add shared label for cross-module queries
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["GCPPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["GCPPrincipal", "ServiceAccount"]
+    )
 
 
 # =============================================================================
