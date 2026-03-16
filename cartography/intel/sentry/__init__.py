@@ -30,6 +30,13 @@ def start_sentry_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         )
         return
 
+    if not config.sentry_org:
+        logger.warning(
+            "Sentry token is configured but --sentry-org is not set. "
+            "Internal integration tokens require --sentry-org to work correctly.",
+        )
+
+
     base_url = f"{config.sentry_host.rstrip('/')}/api/0"
 
     api_session = requests.Session()
