@@ -51,14 +51,18 @@ PANEL_TAILSCALE = "Tailscale Options"
 PANEL_OPENAI = "OpenAI Options"
 PANEL_ANTHROPIC = "Anthropic Options"
 PANEL_AIRBYTE = "Airbyte Options"
+PANEL_DOCKER_SCOUT = "Docker Scout Options"
 PANEL_TRIVY = "Trivy Options"
 PANEL_SYFT = "Syft Options"
+PANEL_AIBOM = "AIBOM Options"
+PANEL_UBUNTU = "Ubuntu Security Options"
 PANEL_ONTOLOGY = "Ontology Options"
 PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SLACK = "Slack Options"
 PANEL_SENTRY = "Sentry Options"
+PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_STATSD = "StatsD Metrics"
 PANEL_ANALYSIS = "Analysis Options"
@@ -93,14 +97,18 @@ MODULE_PANELS = {
     "openai": PANEL_OPENAI,
     "anthropic": PANEL_ANTHROPIC,
     "airbyte": PANEL_AIRBYTE,
+    "docker_scout": PANEL_DOCKER_SCOUT,
     "trivy": PANEL_TRIVY,
     "syft": PANEL_SYFT,
+    "aibom": PANEL_AIBOM,
+    "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
     "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
     "keycloak": PANEL_KEYCLOAK,
     "slack": PANEL_SLACK,
+    "subimage": PANEL_SUBIMAGE,
     "spacelift": PANEL_SPACELIFT,
     "analysis": PANEL_ANALYSIS,
 }
@@ -381,6 +389,19 @@ class CLI:
                     rich_help_panel=PANEL_NEO4J,
                 ),
             ] = 3600,
+            neo4j_liveness_check_timeout: Annotated[
+                int | None,
+                typer.Option(
+                    "--neo4j-liveness-check-timeout",
+                    help=(
+                        "Time in seconds that a connection can be idle before the driver performs a liveness check "
+                        "(RESET ping) before reusing it. Helps prevent SessionExpired or ConnectionResetError on "
+                        "Aura or clustered Neo4j instances that close idle connections server-side. "
+                        "Uses the Neo4j driver default when not specified."
+                    ),
+                    rich_help_panel=PANEL_NEO4J,
+                ),
+            ] = None,
             neo4j_database: Annotated[
                 str | None,
                 typer.Option(
@@ -583,6 +604,18 @@ class CLI:
             # =================================================================
             # GCP Options
             # =================================================================
+            gcp_requested_syncs: Annotated[
+                str | None,
+                typer.Option(
+                    "--gcp-requested-syncs",
+                    help=(
+                        "Comma-separated list of GCP resources to sync. "
+                        'Example: "compute,iam,storage". See cartography.intel.gcp.resources for full list.'
+                    ),
+                    rich_help_panel=PANEL_GCP,
+                    hidden=PANEL_GCP not in visible_panels,
+                ),
+            ] = None,
             gcp_permission_relationships_file: Annotated[
                 str,
                 typer.Option(
@@ -1188,6 +1221,45 @@ class CLI:
                 ),
             ] = "https://sentry.io",
             # =================================================================
+            # SubImage Options
+            # =================================================================
+            subimage_client_id_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--subimage-client-id-env-var",
+                    help="Environment variable name containing SubImage client ID.",
+                    rich_help_panel=PANEL_SUBIMAGE,
+                    hidden=PANEL_SUBIMAGE not in visible_panels,
+                ),
+            ] = None,
+            subimage_client_secret_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--subimage-client-secret-env-var",
+                    help="Environment variable name containing SubImage client secret.",
+                    rich_help_panel=PANEL_SUBIMAGE,
+                    hidden=PANEL_SUBIMAGE not in visible_panels,
+                ),
+            ] = None,
+            subimage_tenant_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--subimage-tenant-url",
+                    help="SubImage tenant URL, e.g. https://tenant.subimage.io.",
+                    rich_help_panel=PANEL_SUBIMAGE,
+                    hidden=PANEL_SUBIMAGE not in visible_panels,
+                ),
+            ] = None,
+            subimage_authkit_url: Annotated[
+                str,
+                typer.Option(
+                    "--subimage-authkit-url",
+                    help="SubImage AuthKit URL for OAuth2 token exchange.",
+                    rich_help_panel=PANEL_SUBIMAGE,
+                    hidden=PANEL_SUBIMAGE not in visible_panels,
+                ),
+            ] = "https://auth.subimage.io",
+            # =================================================================
             # Airbyte Options
             # =================================================================
             airbyte_client_id: Annotated[
@@ -1217,6 +1289,36 @@ class CLI:
                     hidden=PANEL_AIRBYTE not in visible_panels,
                 ),
             ] = "https://api.airbyte.com/v1",
+            # =================================================================
+            # Docker Scout Options
+            # =================================================================
+            docker_scout_results_dir: Annotated[
+                str | None,
+                typer.Option(
+                    "--docker-scout-results-dir",
+                    help="Local directory containing Docker Scout recommendation text reports.",
+                    rich_help_panel=PANEL_DOCKER_SCOUT,
+                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                ),
+            ] = None,
+            docker_scout_s3_bucket: Annotated[
+                str | None,
+                typer.Option(
+                    "--docker-scout-s3-bucket",
+                    help="S3 bucket name containing Docker Scout recommendation text reports.",
+                    rich_help_panel=PANEL_DOCKER_SCOUT,
+                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                ),
+            ] = None,
+            docker_scout_s3_prefix: Annotated[
+                str | None,
+                typer.Option(
+                    "--docker-scout-s3-prefix",
+                    help="S3 prefix path for Docker Scout recommendation text reports.",
+                    rich_help_panel=PANEL_DOCKER_SCOUT,
+                    hidden=PANEL_DOCKER_SCOUT not in visible_panels,
+                ),
+            ] = None,
             # =================================================================
             # Trivy Options
             # =================================================================
@@ -1275,6 +1377,56 @@ class CLI:
                     help="Local directory containing Syft JSON results.",
                     rich_help_panel=PANEL_SYFT,
                     hidden=PANEL_SYFT not in visible_panels,
+                ),
+            ] = None,
+            # AIBOM Options
+            # =================================================================
+            aibom_s3_bucket: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-s3-bucket",
+                    help="S3 bucket name containing AIBOM scan results.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            aibom_s3_prefix: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-s3-prefix",
+                    help="S3 prefix path for AIBOM scan results.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            aibom_results_dir: Annotated[
+                str | None,
+                typer.Option(
+                    "--aibom-results-dir",
+                    help="Local directory containing AIBOM JSON results.",
+                    rich_help_panel=PANEL_AIBOM,
+                    hidden=PANEL_AIBOM not in visible_panels,
+                ),
+            ] = None,
+            # =================================================================
+            # Ubuntu Security Options
+            # =================================================================
+            ubuntu_security_enabled: Annotated[
+                bool,
+                typer.Option(
+                    "--ubuntu-security-enabled",
+                    help="Enable Ubuntu Security CVE and Notice ingestion.",
+                    rich_help_panel=PANEL_UBUNTU,
+                    hidden=PANEL_UBUNTU not in visible_panels,
+                ),
+            ] = False,
+            ubuntu_security_api_url: Annotated[
+                str | None,
+                typer.Option(
+                    "--ubuntu-security-api-url",
+                    help="Ubuntu Security API base URL. Defaults to https://ubuntu.com.",
+                    rich_help_panel=PANEL_UBUNTU,
+                    hidden=PANEL_UBUNTU not in visible_panels,
                 ),
             ] = None,
             # =================================================================
@@ -1601,6 +1753,14 @@ class CLI:
 
                 parse_and_validate_aws_regions(aws_regions)
 
+            # Validate GCP options
+            if gcp_requested_syncs:
+                from cartography.intel.gcp.util import (
+                    parse_and_validate_gcp_requested_syncs,
+                )
+
+                parse_and_validate_gcp_requested_syncs(gcp_requested_syncs)
+
             # Read Azure client secret
             azure_client_secret = None
             if azure_sp_auth and azure_client_secret_env_var:
@@ -1878,6 +2038,23 @@ class CLI:
                 )
                 sentry_token = os.environ.get(sentry_token_env_var)
 
+            # Read SubImage credentials
+            subimage_client_id = None
+            if subimage_client_id_env_var:
+                logger.debug(
+                    "Reading SubImage client ID from environment variable %s",
+                    subimage_client_id_env_var,
+                )
+                subimage_client_id = os.environ.get(subimage_client_id_env_var)
+
+            subimage_client_secret = None
+            if subimage_client_secret_env_var:
+                logger.debug(
+                    "Reading SubImage client secret from environment variable %s",
+                    subimage_client_secret_env_var,
+                )
+                subimage_client_secret = os.environ.get(subimage_client_secret_env_var)
+
             # Read Airbyte client secret
             airbyte_client_secret = None
             if airbyte_client_id and airbyte_client_secret_env_var:
@@ -1886,6 +2063,14 @@ class CLI:
                     airbyte_client_secret_env_var,
                 )
                 airbyte_client_secret = os.environ.get(airbyte_client_secret_env_var)
+
+            # Log Docker Scout config
+            if docker_scout_results_dir:
+                logger.debug("Docker Scout results dir: %s", docker_scout_results_dir)
+            if docker_scout_s3_bucket:
+                logger.debug("Docker Scout S3 bucket: %s", docker_scout_s3_bucket)
+            if docker_scout_s3_prefix:
+                logger.debug("Docker Scout S3 prefix: %s", docker_scout_s3_prefix)
 
             # Log Trivy config
             if trivy_s3_bucket:
@@ -1902,6 +2087,14 @@ class CLI:
                 logger.debug("Syft S3 prefix: %s", syft_s3_prefix)
             if syft_results_dir:
                 logger.debug("Syft results dir: %s", syft_results_dir)
+
+            # Log AIBOM config
+            if aibom_s3_bucket:
+                logger.debug("AIBOM S3 bucket: %s", aibom_s3_bucket)
+            if aibom_s3_prefix:
+                logger.debug("AIBOM S3 prefix: %s", aibom_s3_prefix)
+            if aibom_results_dir:
+                logger.debug("AIBOM results dir: %s", aibom_results_dir)
 
             # Read Scaleway secret key
             scaleway_secret_key = None
@@ -1991,6 +2184,7 @@ class CLI:
                 neo4j_user=neo4j_user,
                 neo4j_password=neo4j_password,
                 neo4j_max_connection_lifetime=neo4j_max_connection_lifetime,
+                neo4j_liveness_check_timeout=neo4j_liveness_check_timeout,
                 neo4j_database=neo4j_database,
                 selected_modules=selected_modules,
                 update_tag=update_tag,
@@ -2022,6 +2216,7 @@ class CLI:
                 digitalocean_token=digitalocean_token,
                 permission_relationships_file=permission_relationships_file,
                 azure_permission_relationships_file=azure_permission_relationships_file,
+                gcp_requested_syncs=gcp_requested_syncs,
                 gcp_permission_relationships_file=gcp_permission_relationships_file,
                 jamf_base_uri=jamf_base_uri,
                 jamf_user=jamf_user,
@@ -2077,14 +2272,24 @@ class CLI:
                 sentry_token=sentry_token,
                 sentry_org=sentry_org,
                 sentry_host=sentry_host,
+                subimage_client_id=subimage_client_id,
+                subimage_client_secret=subimage_client_secret,
+                subimage_tenant_url=subimage_tenant_url,
+                subimage_authkit_url=subimage_authkit_url,
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
                 airbyte_api_url=airbyte_api_url,
+                docker_scout_results_dir=docker_scout_results_dir,
+                docker_scout_s3_bucket=docker_scout_s3_bucket,
+                docker_scout_s3_prefix=docker_scout_s3_prefix,
                 trivy_s3_bucket=trivy_s3_bucket,
                 trivy_s3_prefix=trivy_s3_prefix,
                 syft_s3_bucket=syft_s3_bucket,
                 syft_s3_prefix=syft_s3_prefix,
                 syft_results_dir=syft_results_dir,
+                aibom_s3_bucket=aibom_s3_bucket,
+                aibom_s3_prefix=aibom_s3_prefix,
+                aibom_results_dir=aibom_results_dir,
                 ontology_users_source=ontology_users_source,
                 ontology_devices_source=ontology_devices_source,
                 trivy_results_dir=trivy_results_dir,
@@ -2108,6 +2313,8 @@ class CLI:
                 slack_token=slack_token,
                 slack_teams=slack_teams,
                 slack_channels_memberships=slack_channels_memberships,
+                ubuntu_security_enabled=ubuntu_security_enabled,
+                ubuntu_security_api_url=ubuntu_security_api_url,
             )
 
             # Run the sync

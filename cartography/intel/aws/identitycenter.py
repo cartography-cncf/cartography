@@ -731,6 +731,7 @@ def _sync_role_assignments(
     neo4j_session: neo4j.Session,
     user_permissionsets_raw: list[dict[str, Any]],
     group_permissionsets_raw: list[dict[str, Any]],
+    identity_store_id: str,
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
@@ -746,9 +747,13 @@ def _sync_role_assignments(
     the ALLOWED_BY edges.
     """
     user_roles = get_principal_roles(neo4j_session, user_permissionsets_raw)
+    for role in user_roles:
+        role["IdentityStoreId"] = identity_store_id
     load_user_roles(neo4j_session, user_roles, current_aws_account_id, update_tag)
 
     group_roles = get_principal_roles(neo4j_session, group_permissionsets_raw)
+    for role in group_roles:
+        role["IdentityStoreId"] = identity_store_id
     load_group_roles(neo4j_session, group_roles, current_aws_account_id, update_tag)
 
 
@@ -797,6 +802,7 @@ def _sync_instance(
             neo4j_session,
             user_assignments,
             group_assignments,
+            identity_store_id,
             current_aws_account_id,
             update_tag,
         )

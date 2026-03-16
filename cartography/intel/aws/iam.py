@@ -19,6 +19,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
 from cartography.models.aws.iam.access_key import AccountAccessKeySchema
 from cartography.models.aws.iam.account_role import AWSAccountAWSRoleSchema
+from cartography.models.aws.iam.account_summary import AWSAccountSummarySchema
 from cartography.models.aws.iam.federated_principal import AWSFederatedPrincipalSchema
 from cartography.models.aws.iam.group import AWSGroupSchema
 from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
@@ -1306,6 +1307,55 @@ def load_server_certificates(
 
 
 @timeit
+def get_account_summary(boto3_session: boto3.Session) -> Dict[str, int]:
+    client = boto3_session.client("iam")
+    response = client.get_account_summary()
+    return response["SummaryMap"]
+
+
+def transform_account_summary(
+    summary_map: Dict[str, int],
+    current_aws_account_id: str,
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": current_aws_account_id,
+            **summary_map,
+        },
+    ]
+
+
+@timeit
+def load_account_summary(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSAccountSummarySchema(),
+        data,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def sync_account_summary(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        "Syncing IAM Account Summary for account '%s'.",
+        current_aws_account_id,
+    )
+    summary_map = get_account_summary(boto3_session)
+    transformed = transform_account_summary(summary_map, current_aws_account_id)
+    load_account_summary(neo4j_session, transformed, aws_update_tag)
+
+
+@timeit
 def sync_server_certificates(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
@@ -1748,6 +1798,12 @@ def sync(
         current_aws_account_id,
         update_tag,
         common_job_parameters,
+    )
+    sync_account_summary(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
     )
     cleanup_iam(neo4j_session, common_job_parameters)
     merge_module_sync_metadata(

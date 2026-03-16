@@ -121,6 +121,25 @@ class SemgrepSCAFindingToCVERel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SemgrepSCAFindingToAssistantRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SemgrepSCAFinding)-[:HAS_ASSISTANT]->(:SemgrepFindingAssistant)
+class SemgrepSCAFindingToAssistantRel(CartographyRelSchema):
+    target_node_label: str = "SemgrepFindingAssistant"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("assistantId")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "HAS_ASSISTANT"
+    properties: SemgrepSCAFindingToAssistantRelProperties = (
+        SemgrepSCAFindingToAssistantRelProperties()
+    )
+
+
+@dataclass(frozen=True)
 class SemgrepSCAFindingSchema(CartographyNodeSchema):
     label: str = "SemgrepSCAFinding"
     properties: SemgrepSCAFindingNodeProperties = SemgrepSCAFindingNodeProperties()
@@ -132,5 +151,6 @@ class SemgrepSCAFindingSchema(CartographyNodeSchema):
             SemgrepSCAFindingToGithubRepoRel(),
             SemgrepSCAFindingToDependencyRel(),
             SemgrepSCAFindingToCVERel(),
+            SemgrepSCAFindingToAssistantRel(),
         ],
     )

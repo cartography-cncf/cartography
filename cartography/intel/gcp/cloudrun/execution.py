@@ -1,8 +1,10 @@
 import logging
 import re
+from typing import Optional
 
 import neo4j
 from google.api_core.exceptions import PermissionDenied
+from google.auth.credentials import Credentials as GoogleCredentials
 from google.auth.exceptions import DefaultCredentialsError
 from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import Resource
@@ -19,7 +21,10 @@ logger = logging.getLogger(__name__)
 
 @timeit
 def get_executions(
-    client: Resource, project_id: str, location: str = "-"
+    client: Resource,
+    project_id: str,
+    location: str = "-",
+    credentials: Optional[GoogleCredentials] = None,
 ) -> list[dict]:
     """
     Gets GCP Cloud Run Executions for a project and location.
@@ -34,7 +39,11 @@ def get_executions(
         # Determine which locations to query
         if location == "-":
             # Discover all Cloud Run locations for this project
-            locations = discover_cloud_run_locations(client, project_id)
+            locations = discover_cloud_run_locations(
+                client,
+                project_id,
+                credentials=credentials,
+            )
         else:
             # Query specific location
             locations = {f"projects/{project_id}/locations/{location}"}
@@ -185,12 +194,13 @@ def sync_executions(
     project_id: str,
     update_tag: int,
     common_job_parameters: dict,
+    credentials: Optional[GoogleCredentials] = None,
 ) -> None:
     """
     Syncs GCP Cloud Run Executions for a project.
     """
     logger.info(f"Syncing Cloud Run Executions for project {project_id}.")
-    executions_raw = get_executions(client, project_id)
+    executions_raw = get_executions(client, project_id, credentials=credentials)
     if not executions_raw:
         logger.info(f"No Cloud Run executions found for project {project_id}.")
 

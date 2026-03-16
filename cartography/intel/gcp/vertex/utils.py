@@ -31,20 +31,29 @@ def handle_vertex_api_response(
     """
     if response.status_code == 404:
         logger.debug(
-            f"Vertex AI {resource_type} not found in {location} for project {project_id}. "
-            f"This location may not have any {resource_type}."
+            "Vertex AI %s not found in %s for project %s. This location may not have any %s.",
+            resource_type,
+            location,
+            project_id,
+            resource_type,
         )
         return None, False
     elif response.status_code == 403:
         logger.warning(
-            f"Access forbidden when trying to get Vertex AI {resource_type} in {location} "
-            f"for project {project_id}."
+            "Access forbidden when trying to get Vertex AI %s in %s for project %s.",
+            resource_type,
+            location,
+            project_id,
         )
         return None, False
     elif response.status_code != 200:
         logger.error(
-            f"Error getting Vertex AI {resource_type} in {location} for project {project_id}: "
-            f"HTTP {response.status_code} - {response.reason}",
+            "Error getting Vertex AI %s in %s for project %s: HTTP %s - %s",
+            resource_type,
+            location,
+            project_id,
+            response.status_code,
+            response.reason,
             exc_info=False,
         )
         return None, False
@@ -55,34 +64,40 @@ def handle_vertex_api_response(
 
 def paginate_vertex_api(
     url: str,
-    headers: Dict[str, str],
+    headers: Optional[Dict[str, str]],
     resource_type: str,
     response_key: str,
     location: str,
     project_id: str,
+    session: Optional[Any] = None,
 ) -> List[Dict]:
     """
     Handle paginated requests to Vertex AI regional endpoints.
 
     :param url: Base API URL (without pagination params)
-    :param headers: HTTP headers including Authorization
+    :param headers: Optional HTTP headers
     :param resource_type: Type of resource (for logging)
     :param response_key: Key in JSON response containing the resource list
     :param location: GCP location/region
     :param project_id: GCP project ID
+    :param session: Optional authorized session used to execute requests
     :return: List of all resources across all pages
     """
     import requests
 
     resources = []
     page_token = None
+    request_headers = headers or {}
 
     while True:
         params: Dict[str, str] = {}
         if page_token:
             params["pageToken"] = page_token
 
-        response = requests.get(url, headers=headers, params=params)
+        if session is not None:
+            response = session.get(url, headers=request_headers, params=params)
+        else:
+            response = requests.get(url, headers=request_headers, params=params)
 
         # Handle response with common error patterns
         data, should_continue = handle_vertex_api_response(
@@ -101,6 +116,10 @@ def paginate_vertex_api(
             break
 
     logger.info(
-        f"Found {len(resources)} Vertex AI {resource_type} in {location} for project {project_id}"
+        "Found %s Vertex AI %s in %s for project %s",
+        len(resources),
+        resource_type,
+        location,
+        project_id,
     )
     return resources

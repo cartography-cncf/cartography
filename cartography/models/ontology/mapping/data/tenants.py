@@ -347,6 +347,8 @@ slack_mapping = OntologyMapping(
 # TailscaleTailnet: No field to map in TailscaleTailnet (minimal properties)
 
 
+# SubImage: No field to map in SubImageTenant (minimal properties beyond id)
+
 TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "airbyte": airbyte_mapping,
     "aws": aws_mapping,

@@ -296,6 +296,23 @@ tailscale_mapping = OntologyMapping(
     ],
 )
 
+# Kubernetes
+kubernetes_mapping = OntologyMapping(
+    module_name="kubernetes",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="KubernetesGroup",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                # description: Not available
+                # email: Not available
+            ],
+        ),
+    ],
+)
+
 GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "aws": aws_mapping,
     "duo": duo_mapping,
@@ -312,4 +329,5 @@ GROUPS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "sentry": sentry_mapping,
     "slack": slack_mapping,
     "tailscale": tailscale_mapping,
+    "kubernetes": kubernetes_mapping,
 }
