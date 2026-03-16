@@ -626,6 +626,13 @@ It generalizes concepts like AWS ECRImage (type=image), GCP Container Images, an
 | _ont_os | Operating system (e.g., "linux", "windows"). |
 | _ont_variant | Architecture variant (e.g., "v8" for ARM). |
 
+#### Relationships
+
+- `Image` can be linked to the public base image identified by Docker Scout:
+    ```
+    (:Image)-[:BUILT_ON]->(:DockerScoutPublicImage)
+    ```
+
 
 ### ImageAttestation
 
