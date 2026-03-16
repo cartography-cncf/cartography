@@ -5,6 +5,7 @@ import neo4j
 import requests
 
 from cartography.client.core.tx import load
+from cartography.intel.sentry.util import call_sentry_api
 from cartography.intel.sentry.util import get_paginated_results
 from cartography.models.sentry.organization import SentryOrganizationSchema
 from cartography.util import timeit
@@ -18,8 +19,9 @@ def sync(
     api_session: requests.Session,
     update_tag: int,
     base_url: str,
+    org_slug: str | None = None,
 ) -> list[dict[str, Any]]:
-    orgs = get(api_session, base_url)
+    orgs = get(api_session, base_url, org_slug)
     transformed = transform(orgs)
     load_organizations(neo4j_session, transformed, update_tag)
     return transformed
@@ -29,7 +31,11 @@ def sync(
 def get(
     api_session: requests.Session,
     base_url: str,
+    org_slug: str | None = None,
 ) -> list[dict[str, Any]]:
+    if org_slug:
+        response = call_sentry_api(api_session, f"{base_url}/organizations/{org_slug}/")
+        return [response.json()]
     return get_paginated_results(api_session, f"{base_url}/organizations/")
 
 

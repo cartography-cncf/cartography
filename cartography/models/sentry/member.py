@@ -51,13 +51,25 @@ class SentryUserToTeamRelProperties(CartographyRelProperties):
 
 # (:SentryUser)-[:MEMBER_OF]->(:SentryTeam)
 @dataclass(frozen=True)
-class SentryUserToTeamRel(CartographyRelSchema):
+class SentryUserToTeamMemberOfRel(CartographyRelSchema):
     target_node_label: str = "SentryTeam"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("team_ids", one_to_many=True)},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "MEMBER_OF"
+    properties: SentryUserToTeamRelProperties = SentryUserToTeamRelProperties()
+
+
+# (:SentryUser)-[:ADMIN_OF]->(:SentryTeam)
+@dataclass(frozen=True)
+class SentryUserToTeamAdminOfRel(CartographyRelSchema):
+    target_node_label: str = "SentryTeam"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("admin_team_ids", one_to_many=True)},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "ADMIN_OF"
     properties: SentryUserToTeamRelProperties = SentryUserToTeamRelProperties()
 
 
@@ -71,6 +83,7 @@ class SentryUserSchema(CartographyNodeSchema):
     )
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
-            SentryUserToTeamRel(),
+            SentryUserToTeamMemberOfRel(),
+            SentryUserToTeamAdminOfRel(),
         ],
     )

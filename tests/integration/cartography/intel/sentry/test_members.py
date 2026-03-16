@@ -50,10 +50,15 @@ def _setup_org_and_teams(neo4j_session):
 
 @patch.object(
     cartography.intel.sentry.members,
+    "_get_team_memberships",
+    return_value=tests.data.sentry.members.SENTRY_TEAM_MEMBERSHIPS,
+)
+@patch.object(
+    cartography.intel.sentry.members,
     "get",
     return_value=tests.data.sentry.members.SENTRY_MEMBERS,
 )
-def test_sync_sentry_members(mock_api, neo4j_session):
+def test_sync_sentry_members(mock_get, mock_memberships, neo4j_session):
     # Arrange
     _setup_org_and_teams(neo4j_session)
     common_job_parameters = {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID}
@@ -95,6 +100,7 @@ def test_sync_sentry_members(mock_api, neo4j_session):
     ) == {("300", TEST_ORG_ID), ("301", TEST_ORG_ID)}
 
     # Assert MEMBER_OF relationship to teams
+    # Marge (owner) -> all teams, Homer -> both teams
     assert check_rels(
         neo4j_session,
         "SentryUser",
@@ -104,7 +110,24 @@ def test_sync_sentry_members(mock_api, neo4j_session):
         "MEMBER_OF",
         rel_direction_right=True,
     ) == {
-        ("300", "200"),  # Marge -> backend-team
+        ("300", "200"),  # Marge (owner) -> backend-team
+        ("300", "201"),  # Marge (owner) -> frontend-team
         ("301", "200"),  # Homer -> backend-team
         ("301", "201"),  # Homer -> frontend-team
+    }
+
+    # Assert ADMIN_OF relationship to teams
+    # Marge (owner) -> admin of all teams, Homer -> admin of backend only
+    assert check_rels(
+        neo4j_session,
+        "SentryUser",
+        "id",
+        "SentryTeam",
+        "id",
+        "ADMIN_OF",
+        rel_direction_right=True,
+    ) == {
+        ("300", "200"),  # Marge (owner) -> backend-team
+        ("300", "201"),  # Marge (owner) -> frontend-team
+        ("301", "200"),  # Homer -> admin of backend-team
     }

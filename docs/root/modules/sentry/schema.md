@@ -8,6 +8,7 @@ O -- RESOURCE --> P(Project)
 O -- RESOURCE --> R(Release)
 P -- RESOURCE --> A(AlertRule)
 U -- MEMBER_OF --> T
+U -- ADMIN_OF --> T
 P -- HAS_TEAM --> T
 ```
 
@@ -26,7 +27,7 @@ Represents a Sentry organization.
 | name | The name of the organization |
 | slug | URL-friendly identifier for the organization |
 | status | Current status of the organization (e.g., active) |
-| date_created | When the organization was created (epoch ms) |
+| date_created | When the organization was created (ISO 8601) |
 | require_2fa | Whether the organization requires 2FA |
 | is_early_adopter | Whether the organization is an early adopter |
 
@@ -54,7 +55,7 @@ Represents a team within a Sentry organization.
 | lastupdated | Timestamp of the last time the node was updated |
 | name | The name of the team |
 | slug | URL-friendly identifier for the team |
-| date_created | When the team was created (epoch ms) |
+| date_created | When the team was created (ISO 8601) |
 | member_count | Number of members in the team |
 
 #### Relationships
@@ -65,6 +66,10 @@ Represents a team within a Sentry organization.
 - `User` is a member of a `Team`
     ```
     (:SentryUser)-[:MEMBER_OF]->(:SentryTeam)
+    ```
+- `User` is an admin of a `Team` (owners are admins of all teams)
+    ```
+    (:SentryUser)-[:ADMIN_OF]->(:SentryTeam)
     ```
 - `Project` has a `Team`
     ```
@@ -86,7 +91,7 @@ Represents a member of a Sentry organization.
 | email | The email address of the member |
 | name | The display name of the member |
 | role | The organization role (e.g., admin, member, owner) |
-| date_created | When the membership was created (epoch ms) |
+| date_created | When the membership was created (ISO 8601) |
 | pending | Whether the invite is still pending |
 | expired | Whether the invite has expired |
 | has_2fa | Whether the user has 2FA enabled |
@@ -99,6 +104,10 @@ Represents a member of a Sentry organization.
 - `User` is a member of a `Team`
     ```
     (:SentryUser)-[:MEMBER_OF]->(:SentryTeam)
+    ```
+- `User` is an admin of a `Team` (owners are admins of all teams)
+    ```
+    (:SentryUser)-[:ADMIN_OF]->(:SentryTeam)
     ```
 
 
@@ -114,8 +123,8 @@ Represents a project in a Sentry organization.
 | name | The name of the project |
 | slug | URL-friendly identifier for the project |
 | platform | The primary platform of the project (e.g., python, javascript) |
-| date_created | When the project was created (epoch ms) |
-| first_event | When the first event was received (epoch ms) |
+| date_created | When the project was created (ISO 8601) |
+| first_event | When the first event was received (ISO 8601) |
 
 #### Relationships
 - `Project` belongs to an `Organization`
@@ -143,8 +152,8 @@ Represents a release in a Sentry organization.
 | lastupdated | Timestamp of the last time the node was updated |
 | version | The full version identifier |
 | short_version | Abbreviated version string |
-| date_created | When the release was created (epoch ms) |
-| date_released | When the release was published (epoch ms) |
+| date_created | When the release was created (ISO 8601) |
+| date_released | When the release was published (ISO 8601) |
 | commit_count | Number of commits in the release |
 | deploy_count | Number of deploys for the release |
 | new_groups | Number of new issues introduced |
@@ -168,7 +177,7 @@ Represents an issue alert rule configured on a Sentry project.
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | name | The name of the alert rule |
-| date_created | When the alert rule was created (epoch ms) |
+| date_created | When the alert rule was created (ISO 8601) |
 | action_match | Logic for conditions: all, any, or none |
 | filter_match | Logic for filters: all, any, or none |
 | frequency | Throttle interval in seconds |

@@ -3,7 +3,7 @@ SENTRY_MEMBERS = [
         "id": "300",
         "email": "mbsimpson@simpson.corp",
         "name": "Marge Simpson",
-        "orgRole": "admin",
+        "orgRole": "owner",
         "dateCreated": "2024-01-15T10:00:00.000Z",
         "pending": False,
         "expired": False,
@@ -12,9 +12,6 @@ SENTRY_MEMBERS = [
             "username": "mbsimpson@simpson.corp",
             "has2fa": True,
         },
-        "teamRoles": [
-            {"teamSlug": "backend-team", "role": None},
-        ],
     },
     {
         "id": "301",
@@ -29,9 +26,10 @@ SENTRY_MEMBERS = [
             "username": "hjsimpson@simpson.corp",
             "has2fa": False,
         },
-        "teamRoles": [
-            {"teamSlug": "backend-team", "role": None},
-            {"teamSlug": "frontend-team", "role": None},
-        ],
     },
 ]
+
+# Mapping returned by _get_team_memberships: member_id -> [(team_id, role), ...]
+SENTRY_TEAM_MEMBERSHIPS = {
+    "301": [("200", "admin"), ("201", "contributor")],
+}

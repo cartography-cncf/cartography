@@ -25,7 +25,8 @@ def sync(
     teams: list[dict[str, Any]],
 ) -> None:
     raw_members = get(api_session, base_url, org_slug)
-    transformed = transform(raw_members, teams)
+    team_memberships = _get_team_memberships(api_session, base_url, org_slug, teams)
+    transformed = transform(raw_members, team_memberships, teams)
     load_members(neo4j_session, transformed, org_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
@@ -42,12 +43,35 @@ def get(
     )
 
 
+def _get_team_memberships(
+    api_session: requests.Session,
+    base_url: str,
+    org_slug: str,
+    teams: list[dict[str, Any]],
+) -> dict[str, list[tuple[str, str]]]:
+    """Build a mapping of member_id -> [(team_id, role), ...] by querying each team's members."""
+    member_to_teams: dict[str, list[tuple[str, str]]] = {}
+    for team in teams:
+        team_slug = team["slug"]
+        team_id = team["id"]
+        team_members = get_paginated_results(
+            api_session,
+            f"{base_url}/teams/{org_slug}/{team_slug}/members/",
+        )
+        for tm in team_members:
+            member_id = str(tm["id"])
+            role = tm.get("teamRole") or "contributor"
+            member_to_teams.setdefault(member_id, []).append((team_id, role))
+    return member_to_teams
+
+
 @timeit
 def transform(
     raw_members: list[dict[str, Any]],
+    team_memberships: dict[str, list[tuple[str, str]]],
     teams: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    team_slug_to_id = {t["slug"]: t["id"] for t in teams}
+    all_team_ids = [t["id"] for t in teams]
     result: list[dict[str, Any]] = []
     for member in raw_members:
         m = member.copy()
@@ -55,11 +79,14 @@ def transform(
         # Extract user details if the member has accepted
         user = member.get("user") or {}
         m["has2fa"] = user.get("has2fa")
-        # Resolve team slugs to team IDs
-        team_slugs = [
-            r.get("teamSlug") for r in member.get("teamRoles", []) if r.get("teamSlug")
-        ]
-        m["team_ids"] = [team_slug_to_id[s] for s in team_slugs if s in team_slug_to_id]
+        # Owners are implicit admins of all teams
+        if member.get("orgRole") == "owner":
+            m["team_ids"] = all_team_ids
+            m["admin_team_ids"] = all_team_ids
+        else:
+            memberships = team_memberships.get(str(member["id"]), [])
+            m["team_ids"] = [tid for tid, _ in memberships]
+            m["admin_team_ids"] = [tid for tid, role in memberships if role == "admin"]
         result.append(m)
     return result
 

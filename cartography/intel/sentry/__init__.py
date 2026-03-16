@@ -43,6 +43,7 @@ def start_sentry_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         api_session,
         config.update_tag,
         base_url,
+        org_slug=config.sentry_org,
     )
 
     for org in orgs:

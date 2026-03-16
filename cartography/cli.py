@@ -1169,6 +1169,15 @@ class CLI:
                     hidden=PANEL_SENTRY not in visible_panels,
                 ),
             ] = None,
+            sentry_org: Annotated[
+                str | None,
+                typer.Option(
+                    "--sentry-org",
+                    help="Sentry organization slug. Required when using an internal integration token.",
+                    rich_help_panel=PANEL_SENTRY,
+                    hidden=PANEL_SENTRY not in visible_panels,
+                ),
+            ] = None,
             sentry_host: Annotated[
                 str,
                 typer.Option(
@@ -2066,6 +2075,7 @@ class CLI:
                 openai_org_id=openai_org_id,
                 anthropic_apikey=anthropic_apikey,
                 sentry_token=sentry_token,
+                sentry_org=sentry_org,
                 sentry_host=sentry_host,
                 airbyte_client_id=airbyte_client_id,
                 airbyte_client_secret=airbyte_client_secret,
