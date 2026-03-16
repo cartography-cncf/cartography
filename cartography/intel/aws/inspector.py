@@ -370,6 +370,14 @@ def _sync_findings_for_account(
                     region,
                 )
             return
+        elif error_code == "ValidationException":
+            logger.warning(
+                "AWS Inspector returned ValidationException for account %s in region %s. "
+                "Inspector may not be enabled. Skipping.",
+                account_id,
+                region,
+            )
+            return
         else:
             raise
 

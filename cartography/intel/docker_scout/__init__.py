@@ -8,6 +8,7 @@ from neo4j import Session
 from cartography.config import Config
 from cartography.intel.docker_scout.scanner import cleanup
 from cartography.intel.docker_scout.scanner import sync_from_file
+from cartography.util import run_analysis_job
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -77,6 +78,11 @@ def sync_docker_scout_from_dir(
             synced_count += 1
 
     if synced_count > 0:
+        run_analysis_job(
+            "docker_scout_parent_image_built_on.json",
+            neo4j_session,
+            common_job_parameters,
+        )
         cleanup(neo4j_session, common_job_parameters)
     else:
         logger.warning(
@@ -139,6 +145,11 @@ def sync_docker_scout_from_s3(
             synced_count += 1
 
     if synced_count > 0:
+        run_analysis_job(
+            "docker_scout_parent_image_built_on.json",
+            neo4j_session,
+            common_job_parameters,
+        )
         cleanup(neo4j_session, common_job_parameters)
     else:
         logger.warning(

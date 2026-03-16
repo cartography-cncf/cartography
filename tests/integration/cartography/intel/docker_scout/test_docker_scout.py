@@ -1,6 +1,7 @@
 import cartography.intel.docker_scout.scanner
 from cartography.intel.docker_scout.scanner import cleanup
 from cartography.intel.docker_scout.scanner import sync_from_file
+from cartography.util import run_analysis_job
 from tests.data.docker_scout.mock_data import MOCK_ECR_RECOMMENDATION_RAW
 from tests.data.docker_scout.mock_data import MOCK_GITLAB_RECOMMENDATION_RAW
 from tests.data.docker_scout.mock_data import TEST_ECR_IMAGE_DIGEST
@@ -21,6 +22,25 @@ def _create_ontology_image(neo4j_session, ont_digest, update_tag):
         ont_digest=ont_digest,
         update_tag=update_tag,
     )
+
+
+def _create_parent_child_ontology_images(neo4j_session, parent_id, child_digest, update_tag):
+    child_id = f"image-for-{child_digest[:18]}"
+    _create_ontology_image(neo4j_session, child_digest, update_tag)
+    neo4j_session.run(
+        """
+        MERGE (parent:Image {id: $parent_id})
+        ON CREATE SET parent.firstseen = timestamp()
+        SET parent.lastupdated = $update_tag
+        WITH parent
+        MATCH (child:Image {id: $child_id})
+        MERGE (parent)-[:CONTAINS_IMAGE]->(child)
+        """,
+        parent_id=parent_id,
+        child_id=child_id,
+        update_tag=update_tag,
+    )
+    return child_id
 
 
 def test_docker_scout_sync_from_file(neo4j_session):
@@ -107,6 +127,15 @@ def test_docker_scout_sync_from_file(neo4j_session):
         "25.8.1-bookworm-slim",
         "current-bookworm-slim",
     ]
+
+    tags_with_digest = neo4j_session.run(
+        """
+        MATCH (b:DockerScoutPublicImageTag)
+        WHERE b.digest IS NOT NULL
+        RETURN count(b) AS count
+        """,
+    ).single()["count"]
+    assert tags_with_digest == 0
 
     assert check_rels(
         neo4j_session,
@@ -198,6 +227,42 @@ def test_docker_scout_sync_from_file(neo4j_session):
         1,
         None,
     )
+
+
+def test_docker_scout_analysis_propagates_built_on_to_parent_image(neo4j_session):
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    parent_image_id = "manifest-list-parent"
+    child_image_id = _create_parent_child_ontology_images(
+        neo4j_session,
+        parent_image_id,
+        TEST_ECR_IMAGE_DIGEST,
+        TEST_UPDATE_TAG,
+    )
+
+    sync_from_file(
+        neo4j_session,
+        MOCK_ECR_RECOMMENDATION_RAW,
+        "test.txt",
+        TEST_UPDATE_TAG,
+    )
+    run_analysis_job(
+        "docker_scout_parent_image_built_on.json",
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    assert check_rels(
+        neo4j_session,
+        "Image",
+        "id",
+        "DockerScoutPublicImage",
+        "id",
+        "BUILT_ON",
+        rel_direction_right=True,
+    ) == {
+        (child_image_id, "node:25-alpine"),
+        (parent_image_id, "node:25-alpine"),
+    }
 
 
 def test_docker_scout_cleanup(neo4j_session):

@@ -1,0 +1,10 @@
+{
+    "name": "Docker Scout parent image built on propagation",
+    "statements": [
+        {
+            "__comment": "Propagate BUILT_ON from child ontology Image nodes to parent ontology Image nodes connected by CONTAINS_IMAGE.",
+            "query": "MATCH (parent:Image)-[:CONTAINS_IMAGE]->(:Image)-[:BUILT_ON]->(base:DockerScoutPublicImage) MERGE (parent)-[r:BUILT_ON]->(base) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG, r._module_name = 'cartography:docker_scout'",
+            "iterative": false
+        }
+    ]
+}
