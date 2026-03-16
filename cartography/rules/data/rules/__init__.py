@@ -93,6 +93,7 @@ from cartography.rules.data.rules.database_instance_exposed import (
 from cartography.rules.data.rules.delegation_boundary_modifiable import (
     delegation_boundary_modifiable,
 )
+from cartography.rules.data.rules.eol_software import eol_software
 from cartography.rules.data.rules.identity_administration_privileges import (
     identity_administration_privileges,
 )
@@ -142,6 +143,7 @@ RULES = {
     compute_instance_exposed.id: compute_instance_exposed,
     database_instance_exposed.id: database_instance_exposed,
     delegation_boundary_modifiable.id: delegation_boundary_modifiable,
+    eol_software.id: eol_software,
     identity_administration_privileges.id: identity_administration_privileges,
     inactive_user_active_accounts.id: inactive_user_active_accounts,
     missing_mfa_rule.id: missing_mfa_rule,
