@@ -24,6 +24,14 @@ Representation of the current public base image identified by a Docker Scout rec
     (Image)-[BUILT_ON]->(DockerScoutPublicImage)
     ```
 
+- A parent ontology `Image` can inherit `BUILT_ON` from a child ontology `Image`.
+
+  This applies when the parent references the child through `CONTAINS_IMAGE`.
+
+    ```
+    (:Image)-[:CONTAINS_IMAGE]->(:Image)-[:BUILT_ON]->(:DockerScoutPublicImage)
+    ```
+
 ### DockerScoutPublicImageTag
 Representation of the current and recommended base image tags parsed from Docker Scout recommendations.
 
@@ -35,7 +43,6 @@ Representation of the current and recommended base image tags parsed from Docker
 | name | Name of the public image |
 | tag | Tag of the public image |
 | alternative_tags | Alternative tags suggested by Docker Scout for this public image tag |
-| digest | Digest of the public image when Docker Scout reports it |
 | size | Size of the public image |
 | flavor | Flavor of the public image |
 | os | Operating system family inferred from the report |

@@ -78,12 +78,12 @@ def sync_docker_scout_from_dir(
             synced_count += 1
 
     if synced_count > 0:
+        cleanup(neo4j_session, common_job_parameters)
         run_analysis_job(
             "docker_scout_parent_image_built_on.json",
             neo4j_session,
             common_job_parameters,
         )
-        cleanup(neo4j_session, common_job_parameters)
     else:
         logger.warning(
             "No Docker Scout files were successfully processed, skipping cleanup to preserve existing data",
@@ -145,12 +145,12 @@ def sync_docker_scout_from_s3(
             synced_count += 1
 
     if synced_count > 0:
+        cleanup(neo4j_session, common_job_parameters)
         run_analysis_job(
             "docker_scout_parent_image_built_on.json",
             neo4j_session,
             common_job_parameters,
         )
-        cleanup(neo4j_session, common_job_parameters)
     else:
         logger.warning(
             "No Docker Scout files were successfully processed, skipping cleanup to preserve existing data",

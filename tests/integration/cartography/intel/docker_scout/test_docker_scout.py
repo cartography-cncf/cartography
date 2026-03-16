@@ -24,7 +24,9 @@ def _create_ontology_image(neo4j_session, ont_digest, update_tag):
     )
 
 
-def _create_parent_child_ontology_images(neo4j_session, parent_id, child_digest, update_tag):
+def _create_parent_child_ontology_images(
+    neo4j_session, parent_id, child_digest, update_tag
+):
     child_id = f"image-for-{child_digest[:18]}"
     _create_ontology_image(neo4j_session, child_digest, update_tag)
     neo4j_session.run(

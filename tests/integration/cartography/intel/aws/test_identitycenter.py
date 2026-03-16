@@ -7,14 +7,13 @@ import pytest
 import cartography.intel.aws.identitycenter
 import tests.data.aws.identitycenter
 from cartography.client.core.tx import load
-from cartography.intel.aws.identitycenter import _sync_permission_sets
 from cartography.intel.aws.identitycenter import get_permission_sets
 from cartography.intel.aws.identitycenter import load_group_roles
 from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
-from cartography.intel.aws.identitycenter import PermissionSetSyncNotSupported
 from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
+from cartography.intel.aws.identitycenter import PermissionSetSyncNotSupported
 from cartography.intel.aws.identitycenter import transform_permission_sets
 from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
@@ -568,28 +567,6 @@ def test_get_permission_sets_raises_non_retryable_error_for_unsupported_instance
         )
 
     assert excinfo.value.__cause__ is error
-
-
-@patch.object(
-    cartography.intel.aws.identitycenter,
-    "get_permission_sets",
-    side_effect=PermissionSetSyncNotSupported("unsupported"),
-)
-def test_sync_permission_sets_returns_false_for_unsupported_instance(
-    mock_permission_sets,
-    neo4j_session,
-):
-    assert (
-        _sync_permission_sets(
-            neo4j_session,
-            boto3_session=MagicMock(),
-            instance_arn="arn:aws:sso:::instance/ssoins-test",
-            region="us-east-1",
-            current_aws_account_id=TEST_ACCOUNT_ID,
-            update_tag=123,
-        )
-        is False
-    )
 
 
 @patch.object(

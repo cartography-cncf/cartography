@@ -4,8 +4,8 @@ from unittest.mock import patch
 import botocore.exceptions
 
 import cartography.intel.aws.inspector
-from cartography.intel.aws.inspector import BATCH_SIZE
 from cartography.intel.aws.inspector import _sync_findings_for_account
+from cartography.intel.aws.inspector import BATCH_SIZE
 from cartography.intel.aws.inspector import sync
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
 from tests.data.aws.inspector import LIST_FINDINGS_NETWORK
