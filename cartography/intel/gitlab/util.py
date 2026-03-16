@@ -59,8 +59,10 @@ def get_registry_token(
         "scope": f"repository:{repository_name}:pull",
     }
 
-    response = requests.get(
+    response = make_request_with_retry(
+        "GET",
         auth_url,
+        headers={},
         params=params,
         auth=("token", token),  # Use personal access token as password
         timeout=DEFAULT_TIMEOUT,
@@ -92,7 +94,8 @@ def fetch_registry_blob(
     jwt_token = get_registry_token(gitlab_url, registry_url, repository_name, token)
     blob_url = f"{registry_url}/v2/{repository_name}/blobs/{blob_digest}"
 
-    response = requests.get(
+    response = make_request_with_retry(
+        "GET",
         blob_url,
         headers={"Authorization": f"Bearer {jwt_token}"},
         timeout=DEFAULT_TIMEOUT,
@@ -104,7 +107,8 @@ def fetch_registry_blob(
         jwt_token = get_registry_token(
             gitlab_url, registry_url, repository_name, token, force_refresh=True
         )
-        response = requests.get(
+        response = make_request_with_retry(
+            "GET",
             blob_url,
             headers={"Authorization": f"Bearer {jwt_token}"},
             timeout=DEFAULT_TIMEOUT,
@@ -134,7 +138,12 @@ def fetch_registry_manifest(
     if accept_header:
         headers["Accept"] = accept_header
 
-    response = requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT)
+    response = make_request_with_retry(
+        "GET",
+        url,
+        headers=headers,
+        timeout=DEFAULT_TIMEOUT,
+    )
 
     # Handle expired token by refreshing and retrying once
     if response.status_code == 401:
@@ -143,7 +152,12 @@ def fetch_registry_manifest(
             gitlab_url, registry_url, repository_name, token, force_refresh=True
         )
         headers["Authorization"] = f"Bearer {jwt_token}"
-        response = requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT)
+        response = make_request_with_retry(
+            "GET",
+            url,
+            headers=headers,
+            timeout=DEFAULT_TIMEOUT,
+        )
 
     return response
 
@@ -157,6 +171,7 @@ def make_request_with_retry(
     url: str,
     headers: dict[str, str],
     params: dict[str, Any] | None = None,
+    auth: tuple[str, str] | None = None,
     max_retries: int = DEFAULT_MAX_RETRIES,
     timeout: int = DEFAULT_TIMEOUT,
 ) -> requests.Response:
@@ -185,6 +200,7 @@ def make_request_with_retry(
                 url,
                 headers=headers,
                 params=params,
+                auth=auth,
                 timeout=timeout,
             )
 

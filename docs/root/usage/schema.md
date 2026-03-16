@@ -29,6 +29,9 @@
 ```{include} ../modules/airbyte/schema.md
 ```
 
+```{include} ../modules/aibom/schema.md
+```
+
 
 ```{include} ../modules/anthropic/schema.md
 ```
@@ -52,6 +55,9 @@
 ```
 
 ```{include} ../modules/digitalocean/schema.md
+```
+
+```{include} ../modules/docker_scout/schema.md
 ```
 
 ```{include} ../modules/duo/schema.md
