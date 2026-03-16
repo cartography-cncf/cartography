@@ -5,6 +5,10 @@ MOCK_INSTANCES = {
             "displayName": "carto-bt-instance",
             "state": "READY",
             "type": "PRODUCTION",
+            "labels": {
+                "env": "dev",
+                "team": "data",
+            },
         },
     ],
 }
