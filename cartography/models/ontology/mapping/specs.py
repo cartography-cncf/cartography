@@ -21,6 +21,8 @@ class OntologyFieldMapping:
         - "nor_boolean": Combines multiple boolean fields (provided in extra['fields']) using a logical NOR operation .
         - "equal_boolean": Compares the field value to a specified boolean value (True/False) provided in extra['value'].
         - "static_value": Sets a static value for the ontology field (provided in extra['value']), ignoring node_field.
+        - "mapping": Maps provider-specific values to normalized ontology values using extra['map'] dict
+          (e.g., {"BASIC": "builtin", "PREDEFINED": "builtin", "CUSTOM": "custom"}). Unmapped values become NULL.
 
     Example:
         OntologyFieldMapping(ontology_field="email", node_field="email_address", required=True)

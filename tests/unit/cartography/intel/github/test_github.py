@@ -116,6 +116,95 @@ def test_fetch_all_retries_connection_errors(
     mock_sleep.assert_called_once_with(2)
 
 
+@typing.no_type_check
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+def test_fetch_all_honors_retry_after_for_403(
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    response_403 = Response()
+    response_403.status_code = 403
+    response_403.headers["retry-after"] = "65"
+    response_403._content = b'{"message":"You have exceeded a secondary rate limit."}'
+    success_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        }
+    }
+    mock_fetch_page.side_effect = [
+        HTTPError("forbidden", response=response_403),
+        success_response,
+    ]
+
+    fetch_all("token", "api_url", "org", "query", "repositories", retries=3)
+
+    assert mock_fetch_page.call_count == 2
+    mock_sleep.assert_called_once_with(65)
+
+
+@typing.no_type_check
+@patch("cartography.intel.github.util.time.sleep")
+@patch("cartography.intel.github.util.handle_rate_limit_sleep")
+@patch("cartography.intel.github.util.fetch_page")
+@patch("cartography.intel.github.util.datetime")
+def test_fetch_all_waits_for_rate_limit_reset_on_403(
+    mock_datetime: Mock,
+    mock_fetch_page: Mock,
+    mock_handle_rate_limit_sleep: Mock,
+    mock_sleep: Mock,
+) -> None:
+    mock_datetime.fromtimestamp = datetime.fromtimestamp
+    now = datetime(
+        year=2040,
+        month=1,
+        day=1,
+        hour=19,
+        minute=0,
+        second=0,
+        tzinfo=tz.utc,
+    )
+    mock_datetime.now = Mock(return_value=now)
+    response_403 = Response()
+    response_403.status_code = 403
+    response_403.headers["x-ratelimit-remaining"] = "0"
+    response_403.headers["x-ratelimit-reset"] = str(
+        int((now + timedelta(minutes=2)).timestamp()),
+    )
+    response_403._content = b'{"message":"API rate limit exceeded"}'
+    success_response = {
+        "data": {
+            "organization": {
+                "repositories": {
+                    "nodes": [],
+                    "edges": [],
+                    "pageInfo": {"endCursor": None, "hasNextPage": False},
+                },
+                "url": "url",
+                "login": "org",
+            },
+        }
+    }
+    mock_fetch_page.side_effect = [
+        HTTPError("forbidden", response=response_403),
+        success_response,
+    ]
+
+    fetch_all("token", "api_url", "org", "query", "repositories", retries=3)
+
+    mock_sleep.assert_called_once_with(timedelta(minutes=3).seconds)
+
+
 @patch("cartography.intel.github.util.time.sleep")
 @patch("cartography.intel.github.util.handle_rest_rate_limit_sleep")
 @patch("cartography.intel.github.util.requests.get")
