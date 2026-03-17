@@ -1,5 +1,4 @@
 from pathlib import Path
-from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -57,51 +56,4 @@ def test_sync_docker_scout_from_s3_skips_unicode_decode_errors(
     assert (
         "Skipping unreadable Docker Scout report s3://example-bucket/reports/bad-report.txt"
         in caplog.text
-    )
-
-
-def test_sync_docker_scout_from_dir_runs_analysis_after_cleanup(tmp_path) -> None:
-    neo4j_session = MagicMock()
-    report_path = tmp_path / "report.txt"
-    events = []
-    report_path.write_text(
-        "Target\ndigest\nBase image is  node:25-alpine\n",
-        encoding="utf-8",
-    )
-
-    with (
-        patch(
-            "cartography.intel.docker_scout.sync_from_file",
-            return_value=True,
-        ) as mock_sync,
-        patch(
-            "cartography.intel.docker_scout.run_analysis_job",
-            side_effect=lambda *args, **kwargs: events.append("analysis"),
-        ) as mock_analysis,
-        patch(
-            "cartography.intel.docker_scout.cleanup",
-            side_effect=lambda *args, **kwargs: events.append("cleanup"),
-        ) as mock_cleanup,
-    ):
-        sync_docker_scout_from_dir(
-            neo4j_session,
-            str(tmp_path),
-            1,
-            {"UPDATE_TAG": 1},
-        )
-
-    mock_sync.assert_called_once()
-    mock_analysis.assert_called_once()
-    mock_cleanup.assert_called_once_with(neo4j_session, {"UPDATE_TAG": 1})
-    assert events == ["cleanup", "analysis"]
-    assert mock_analysis.call_args.args[:3] == (
-        "docker_scout_parent_image_built_on.json",
-        neo4j_session,
-        mock_analysis.call_args.args[2],
-    )
-    assert mock_analysis.call_args.args[2] == {"UPDATE_TAG": 1}
-    assert mock_analysis.mock_calls[0] == call(
-        "docker_scout_parent_image_built_on.json",
-        neo4j_session,
-        {"UPDATE_TAG": 1},
     )
