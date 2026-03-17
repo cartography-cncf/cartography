@@ -101,9 +101,9 @@ gcp_mapping = OntologyMapping(
                     special_handling="mapping",
                     extra={
                         "map": {
-                            "global": "org",
-                            "organization": "org",
-                            "project": "project",
+                            "GLOBAL": "global",
+                            "ORGANIZATION": "org",
+                            "PROJECT": "project",
                         }
                     },
                 ),
