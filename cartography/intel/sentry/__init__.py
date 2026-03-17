@@ -106,14 +106,18 @@ def start_sentry_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             base_url,
         )
 
-        # 6. Sync alert rules (per project)
+        # 6. Sync alert rules (per project, cleanup at org level)
         for project in projects:
             cartography.intel.sentry.alertrules.sync(
                 neo4j_session,
                 api_session,
+                org_id,
                 org_slug,
                 project,
                 config.update_tag,
-                common_job_parameters,
                 base_url,
             )
+        cartography.intel.sentry.alertrules.cleanup(
+            neo4j_session,
+            common_job_parameters,
+        )

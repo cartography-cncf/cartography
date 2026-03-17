@@ -81,10 +81,10 @@ def test_sync_sentry_alert_rules(mock_api, neo4j_session):
     cartography.intel.sentry.alertrules.sync(
         neo4j_session,
         requests.Session(),
+        TEST_ORG_ID,
         TEST_ORG_SLUG,
         project,
         TEST_UPDATE_TAG,
-        common_job_parameters,
         TEST_BASE_URL,
     )
 
@@ -94,13 +94,33 @@ def test_sync_sentry_alert_rules(mock_api, neo4j_session):
         ("501", "New Issue Alert"),
     }
 
-    # Assert RESOURCE relationship to project
+    # Assert HAS_RULE relationship to project
     assert check_rels(
         neo4j_session,
         "SentryAlertRule",
         "id",
         "SentryProject",
         "id",
-        "RESOURCE",
+        "HAS_RULE",
         rel_direction_right=False,
     ) == {("500", "400"), ("501", "400")}
+
+    # Assert RESOURCE relationship to org
+    assert check_rels(
+        neo4j_session,
+        "SentryAlertRule",
+        "id",
+        "SentryOrganization",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {("500", TEST_ORG_ID), ("501", TEST_ORG_ID)}
+
+    # Act: cleanup at org level
+    cartography.intel.sentry.alertrules.cleanup(neo4j_session, common_job_parameters)
+
+    # Assert nodes still exist (same update tag, nothing to clean)
+    assert check_nodes(neo4j_session, "SentryAlertRule", ["id"]) == {
+        ("500",),
+        ("501",),
+    }

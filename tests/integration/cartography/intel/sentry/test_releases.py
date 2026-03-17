@@ -46,10 +46,10 @@ def test_sync_sentry_releases(mock_releases, mock_orgs, neo4j_session):
         TEST_BASE_URL,
     )
 
-    # Assert releases exist (id is the version string)
+    # Assert releases exist (id is org_slug/version to avoid cross-org collisions)
     assert check_nodes(neo4j_session, "SentryRelease", ["id", "version"]) == {
-        ("backend-api@1.0.0", "backend-api@1.0.0"),
-        ("frontend-app@2.0.0", "frontend-app@2.0.0"),
+        (f"{TEST_ORG_SLUG}/backend-api@1.0.0", "backend-api@1.0.0"),
+        (f"{TEST_ORG_SLUG}/frontend-app@2.0.0", "frontend-app@2.0.0"),
     }
 
     # Assert RESOURCE relationship to org
@@ -61,4 +61,7 @@ def test_sync_sentry_releases(mock_releases, mock_orgs, neo4j_session):
         "id",
         "RESOURCE",
         rel_direction_right=False,
-    ) == {("backend-api@1.0.0", TEST_ORG_ID), ("frontend-app@2.0.0", TEST_ORG_ID)}
+    ) == {
+        (f"{TEST_ORG_SLUG}/backend-api@1.0.0", TEST_ORG_ID),
+        (f"{TEST_ORG_SLUG}/frontend-app@2.0.0", TEST_ORG_ID),
+    }

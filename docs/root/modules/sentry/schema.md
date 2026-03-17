@@ -6,7 +6,8 @@ O(Organization) -- RESOURCE --> T(Team)
 O -- RESOURCE --> U(User)
 O -- RESOURCE --> P(Project)
 O -- RESOURCE --> R(Release)
-P -- RESOURCE --> A(AlertRule)
+O -- RESOURCE --> A(AlertRule)
+P -- HAS_RULE --> A
 U -- MEMBER_OF --> T
 U -- ADMIN_OF --> T
 P -- HAS_TEAM --> T
@@ -38,7 +39,8 @@ Represents a Sentry organization.
         :SentryTeam,
         :SentryUser,
         :SentryProject,
-        :SentryRelease)
+        :SentryRelease,
+        :SentryAlertRule)
     ```
 
 
@@ -135,9 +137,9 @@ Represents a project in a Sentry organization.
     ```
     (:SentryProject)-[:HAS_TEAM]->(:SentryTeam)
     ```
-- `AlertRule` belongs to a `Project`
+- `Project` has alert rules
     ```
-    (:SentryProject)-[:RESOURCE]->(:SentryAlertRule)
+    (:SentryProject)-[:HAS_RULE]->(:SentryAlertRule)
     ```
 
 
@@ -147,7 +149,7 @@ Represents a release in a Sentry organization.
 
 | Field | Description |
 |-------|-------------|
-| **id** | The version string (used as unique identifier) |
+| **id** | Org-scoped version string (`{org_slug}/{version}`) |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | version | The full version identifier |
@@ -186,7 +188,11 @@ Represents an issue alert rule configured on a Sentry project.
 | project_slug | Slug of the project this rule belongs to |
 
 #### Relationships
-- `AlertRule` belongs to a `Project`
+- `AlertRule` belongs to an `Organization` (sub-resource for cleanup)
     ```
-    (:SentryProject)-[:RESOURCE]->(:SentryAlertRule)
+    (:SentryOrganization)-[:RESOURCE]->(:SentryAlertRule)
+    ```
+- `AlertRule` is linked to a `Project`
+    ```
+    (:SentryProject)-[:HAS_RULE]->(:SentryAlertRule)
     ```

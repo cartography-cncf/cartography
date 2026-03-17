@@ -17,18 +17,17 @@ logger = logging.getLogger(__name__)
 def sync(
     neo4j_session: neo4j.Session,
     api_session: requests.Session,
+    org_id: str,
     org_slug: str,
     project: dict[str, Any],
     update_tag: int,
-    common_job_parameters: dict[str, Any],
     base_url: str,
 ) -> None:
     project_id = project["id"]
     project_slug = project["slug"]
     raw_rules = get(api_session, base_url, org_slug, project_slug)
     transformed = transform(raw_rules, project_slug)
-    load_alert_rules(neo4j_session, transformed, project_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters, project_id)
+    load_alert_rules(neo4j_session, transformed, org_id, project_id, update_tag)
 
 
 @timeit
@@ -62,6 +61,7 @@ def transform(
 def load_alert_rules(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
+    org_id: str,
     project_id: str,
     update_tag: int,
 ) -> None:
@@ -71,6 +71,7 @@ def load_alert_rules(
         SentryAlertRuleSchema(),
         data,
         lastupdated=update_tag,
+        ORG_ID=org_id,
         PROJECT_ID=project_id,
     )
 
@@ -78,10 +79,7 @@ def load_alert_rules(
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
-    project_id: str,
 ) -> None:
-    # Alert rules are sub-resources of projects, so we need per-project cleanup
-    params = {**common_job_parameters, "PROJECT_ID": project_id}
-    GraphJob.from_node_schema(SentryAlertRuleSchema(), params).run(
+    GraphJob.from_node_schema(SentryAlertRuleSchema(), common_job_parameters).run(
         neo4j_session,
     )
