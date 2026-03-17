@@ -81,8 +81,10 @@ gcp_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="name", node_field="title", required=True
                 ),
-                OntologyFieldMapping(ontology_field="type", node_field="role_type"),
-                OntologyFieldMapping(ontology_field="scope", node_field="scope"),
+                # _ont_type: GCP uses provider-specific values (BASIC/PREDEFINED/CUSTOM)
+                # that don't map to a normalized cross-platform vocabulary yet
+                # _ont_scope: GCP uses provider-specific values (global/organization/project)
+                # that need normalization before ontology use
             ],
         ),
     ],
@@ -183,12 +185,8 @@ oci_mapping = OntologyMapping(
                     special_handling="static_value",
                     extra={"value": "custom"},
                 ),
-                OntologyFieldMapping(
-                    ontology_field="scope",
-                    node_field="",
-                    special_handling="static_value",
-                    extra={"value": "compartment"},
-                ),
+                # _ont_scope: OCI policies can be tenancy-level or compartment-level;
+                # deriving scope from parent relationship is needed for accuracy
             ],
         ),
     ],

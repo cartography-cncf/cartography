@@ -378,8 +378,8 @@ Common role concepts across platforms include:
 | Field | Description |
 |-------|-------------|
 | _ont_name | Display name of the role (REQUIRED). |
-| _ont_type | Whether the role is builtin or custom (e.g., "builtin", "custom", "BASIC", "PREDEFINED", "CUSTOM"). |
-| _ont_scope | The scope level of the role (e.g., "account", "org", "project", "namespace", "cluster", "compartment"). |
+| _ont_type | Whether the role is builtin or custom (e.g., "builtin", "custom"). |
+| _ont_scope | The scope level of the role (e.g., "account", "org", "namespace", "cluster"). |
 | _ont_source | Source of the data. |
 
 
