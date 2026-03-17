@@ -590,13 +590,6 @@ _aibom_nist_ai_coverage_gaps = Fact(
     """,
     cypher_count_query="""
     MATCH (source:AIBOMSource)
-    WHERE
-        coalesce(source.image_matched, false) = false
-        OR toLower(coalesce(source.source_status, 'completed')) <> 'completed'
-        OR (
-            source.analysis_status IS NOT NULL
-            AND toLower(source.analysis_status) <> 'completed'
-        )
     RETURN COUNT(source) AS count
     """,
     asset_id_field="source_id",
@@ -659,19 +652,22 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
         "owner attribution."
     ),
     cypher_query="""
-    MATCH (org:OpenAIOrganization)-[:RESOURCE]->(k)
+    MATCH (k)
     WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey
-    OPTIONAL MATCH (u:OpenAIUser)-[:OWNS]->(k)
-    WITH org, k, count(u) > 0 AS has_user_owner
-    OPTIONAL MATCH (sa:OpenAIServiceAccount)-[:OWNS]->(k)
-    WITH org, k, has_user_owner, count(sa) > 0 AS has_sa_owner
-    WITH org, k, has_user_owner OR has_sa_owner AS has_owner
     OPTIONAL MATCH (project:OpenAIProject)-[:RESOURCE]->(k)
+    OPTIONAL MATCH (org_from_project:OpenAIOrganization)-[:RESOURCE]->(project)
+    OPTIONAL MATCH (org_direct:OpenAIOrganization)-[:RESOURCE]->(k)
+    WITH k, project, coalesce(org_from_project, org_direct) AS org
+    OPTIONAL MATCH (u:OpenAIUser)-[:OWNS]->(k)
+    WITH org, k, project, count(u) > 0 AS has_user_owner
+    OPTIONAL MATCH (sa:OpenAIServiceAccount)-[:OWNS]->(k)
+    WITH org, k, project, has_user_owner, count(sa) > 0 AS has_sa_owner
+    WITH org, k, project, has_user_owner OR has_sa_owner AS has_owner
     WITH
         org,
         k,
-        has_owner,
         project,
+        has_owner,
         CASE
             WHEN k.last_used_at IS NULL THEN true
             ELSE datetime({epochSeconds: toInteger(k.last_used_at)}) < datetime() - duration('P90D')
@@ -695,14 +691,16 @@ _openai_nist_ai_stale_or_unowned_api_keys = Fact(
     ORDER BY provider, organization_id, api_key_name
     """,
     cypher_visual_query="""
-    MATCH p=(org:OpenAIOrganization)-[:RESOURCE]->(k)
+    MATCH (k)
     WHERE k:OpenAIApiKey OR k:OpenAIAdminApiKey
+    OPTIONAL MATCH p=(org_direct:OpenAIOrganization)-[:RESOURCE]->(k)
+    OPTIONAL MATCH p3=(project:OpenAIProject)-[:RESOURCE]->(k)
+    OPTIONAL MATCH p4=(org_from_project:OpenAIOrganization)-[:RESOURCE]->(project)
     OPTIONAL MATCH p1=(u:OpenAIUser)-[:OWNS]->(k)
     OPTIONAL MATCH p2=(sa:OpenAIServiceAccount)-[:OWNS]->(k)
-    OPTIONAL MATCH p3=(project:OpenAIProject)-[:RESOURCE]->(k)
-    WITH p, p1, p2, p3, k
+    WITH p, p1, p2, p3, p4, k
     WITH
-        p, p1, p2, p3,
+        p, p1, p2, p3, p4,
         CASE
             WHEN k.last_used_at IS NULL THEN true
             ELSE datetime({epochSeconds: toInteger(k.last_used_at)}) < datetime() - duration('P90D')

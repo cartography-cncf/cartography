@@ -162,3 +162,31 @@ def test_nist_ai_openai_api_key_query_avoids_invalid_grouping_expression():
 
     assert "has_user_owner, count(sa) > 0 AS has_sa_owner" in fact.cypher_query
     assert "has_user_owner OR has_sa_owner AS has_owner" in fact.cypher_query
+
+
+def test_nist_ai_openai_api_key_query_includes_project_scoped_keys():
+    fact = nist_ai_provider_api_key_hygiene.get_fact_by_id(
+        "openai_nist_ai_stale_or_unowned_api_keys"
+    )
+
+    assert "MATCH (k)" in fact.cypher_query
+    assert (
+        "OPTIONAL MATCH (project:OpenAIProject)-[:RESOURCE]->(k)" in fact.cypher_query
+    )
+    assert (
+        "OPTIONAL MATCH (org_from_project:OpenAIOrganization)-[:RESOURCE]->(project)"
+        in fact.cypher_query
+    )
+    assert "coalesce(org_from_project, org_direct) AS org" in fact.cypher_query
+    assert (
+        "OPTIONAL MATCH p4=(org_from_project:OpenAIOrganization)-[:RESOURCE]->(project)"
+        in fact.cypher_visual_query
+    )
+
+
+def test_nist_ai_aibom_coverage_gap_count_query_counts_all_sources():
+    fact = nist_ai_aibom_coverage_gaps.get_fact_by_id("aibom_nist_ai_coverage_gaps")
+
+    assert fact.cypher_count_query.strip() == (
+        "MATCH (source:AIBOMSource)\n" "    RETURN COUNT(source) AS count"
+    )
