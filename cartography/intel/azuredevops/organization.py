@@ -26,7 +26,7 @@ def get_organization(api_url: str, organization_name: str, access_token: str) ->
     Returns:
         Dict containing organization data or empty dict if failed
     """
-    url = f"{api_url}/_apis/organizations/{organization_name}"
+    url = f"{api_url}/{organization_name}/_apis/projects"
     params = {"api-version": "7.1"}
 
     logger.debug(f"Fetching organization data from: {url}")
@@ -105,7 +105,11 @@ def sync(
     org_name: str,
 ) -> None:
     logger.info(f"Syncing Azure DevOps Organization '{org_name}'")
-    org_data = get_organization(url, org_name, access_token)
+    # There is no direct api to get org data
+    org_data = {
+        "name": org_name,
+        "url": f"{url}/{org_name}",
+    }
     if org_data:
         load_organization(neo4j_session, org_data, common_job_parameters)
         cleanup(neo4j_session, common_job_parameters)

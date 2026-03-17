@@ -108,44 +108,22 @@ def sync_organization(
             org_name,
         )
 
-        # Concurrently sync other resources that depend on projects
-        with ThreadPoolExecutor(
-            max_workers=config.azure_devops_concurrent_requests or 2,
-        ) as executor:
-            futures = {
-                executor.submit(
-                    concurrent_execution,
-                    repos.sync,
-                    config,
-                    common_job_parameters,
-                    access_token,
-                    url,
-                    org_name,
-                    projects_data,
-                ): "repos",
-                executor.submit(
-                    concurrent_execution,
-                    members.sync,
-                    config,
-                    common_job_parameters,
-                    access_token,
-                    url,
-                    org_name,
-                ): "members",
-            }
+        repos.sync(
+            neo4j_session,
+            common_job_parameters,
+            access_token,
+            url,
+            org_name,
+            projects_data
+        )
 
-            for future in as_completed(futures):
-                resource_type = futures[future]
-                try:
-                    future.result()
-                    logger.info(
-                        f"Successfully synced {resource_type} for organization {org_name}",
-                    )
-                except Exception:
-                    logger.exception(
-                        f"Failed to sync {resource_type} for organization {org_name}",
-                        exc_info=True,
-                    )
+        members.sync(
+            neo4j_session,
+            common_job_parameters,
+            access_token,
+            url,
+            org_name
+        )
 
     except exceptions.RequestException as e:
         logger.error(
@@ -220,7 +198,7 @@ def start_azure_devops_ingestion(neo4j_session: neo4j.Session, config: Config) -
 
     try:
         # Decode the base64-encoded configuration
-        auth_details = json.loads(base64.b64decode(config.azure_devops_config).decode())
+        auth_details = config.azure_devops_config
         logger.info("Successfully decoded Azure DevOps configuration")
 
     except (json.JSONDecodeError, TypeError) as e:
