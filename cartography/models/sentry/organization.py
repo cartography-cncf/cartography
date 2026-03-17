@@ -14,7 +14,7 @@ class SentryOrganizationNodeProperties(CartographyNodeProperties):
     slug: PropertyRef = PropertyRef("slug", extra_index=True)
     status: PropertyRef = PropertyRef("status")
     date_created: PropertyRef = PropertyRef("date_created")
-    require_2fa: PropertyRef = PropertyRef("require2FA")
+    require_2fa: PropertyRef = PropertyRef("require2FA", extra_index=True)
     is_early_adopter: PropertyRef = PropertyRef("isEarlyAdopter")
 
 

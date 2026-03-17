@@ -149,7 +149,7 @@ Represents a release in a Sentry organization.
 
 | Field | Description |
 |-------|-------------|
-| **id** | Org-scoped version string (`{org_slug}/{version}`) |
+| **id** | Org-scoped version string (`{org_id}/{version}`) |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | version | The full version identifier |

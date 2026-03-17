@@ -24,7 +24,7 @@ def sync(
     base_url: str,
 ) -> None:
     raw_releases = get(api_session, base_url, org_slug)
-    transformed = transform(raw_releases, org_slug)
+    transformed = transform(raw_releases, org_id)
     load_releases(neo4j_session, transformed, org_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
@@ -42,14 +42,12 @@ def get(
 
 
 @timeit
-def transform(
-    raw_releases: list[dict[str, Any]], org_slug: str
-) -> list[dict[str, Any]]:
+def transform(raw_releases: list[dict[str, Any]], org_id: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for release in raw_releases:
         r = release.copy()
         # Scope id to org to prevent collisions if the same version exists in multiple orgs
-        r["id"] = f"{org_slug}/{release['version']}"
+        r["id"] = f"{org_id}/{release['version']}"
         r["date_created"] = release.get("dateCreated")
         r["date_released"] = release.get("dateReleased")
         result.append(r)
