@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 
@@ -201,6 +202,46 @@ def test_get_blob_json_via_presigned_raises_skip_signal_after_retry_exhaustion(m
         )
 
 
+def test_get_blob_json_via_presigned_redacts_presigned_url_in_http_status_logs(
+    mocker, caplog
+):
+    mock_ecr_client = AsyncMock()
+    signed_url = "https://example.com/blob?X-Amz-Signature=SECRET&X-Amz-Credential=ABC"
+    mock_ecr_client.get_download_url_for_layer.return_value = {
+        "downloadUrl": signed_url
+    }
+
+    request = httpx.Request("GET", signed_url)
+    response = httpx.Response(503, request=request)
+    status_error = httpx.HTTPStatusError(
+        "boom",
+        request=request,
+        response=response,
+    )
+
+    http_client = AsyncMock()
+    http_client.get.side_effect = [status_error, status_error, status_error]
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.asyncio.sleep",
+        new=AsyncMock(),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(ECRLayerFetchTransientError):
+            asyncio.run(
+                get_blob_json_via_presigned(
+                    mock_ecr_client,
+                    "example/repository",
+                    "sha256:12345",
+                    http_client,
+                )
+            )
+
+    assert "X-Amz-Signature" not in caplog.text
+    assert "HTTPStatusError(status_code=503)" in caplog.text
+
+
 def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
     repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
     repo_images_list = [
@@ -247,6 +288,59 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
     assert f"{repo_uri}:good" in image_layers_data
     assert image_digest_map == {f"{repo_uri}:good": "sha256:good"}
     assert isinstance(history_by_diff_id, dict)
+    assert image_attestation_map == {}
+
+
+def test_fetch_image_layers_async_skips_manifest_list_image_when_child_fetch_fails(
+    mocker,
+):
+    repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    repo_images_list = [
+        {
+            "uri": f"{repo_uri}:manifest-list",
+            "imageDigest": "sha256:manifest-list",
+            "repo_uri": repo_uri,
+        },
+    ]
+
+    async def mock_batch_get_manifest(_client, _repo, image_ref, _accepted):
+        if image_ref == "sha256:manifest-list":
+            return (
+                test_data.SAMPLE_MANIFEST_LIST,
+                "application/vnd.docker.distribution.manifest.list.v2+json",
+            )
+        if (
+            image_ref
+            == "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"
+        ):
+            return (
+                test_data.SAMPLE_MANIFEST,
+                "application/vnd.docker.distribution.manifest.v2+json",
+            )
+        raise ECRLayerFetchTransientError("temporary child failure")
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.batch_get_manifest",
+        side_effect=mock_batch_get_manifest,
+    )
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
+        new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
+    )
+
+    image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
+        asyncio.run(
+            fetch_image_layers_async(
+                AsyncMock(),
+                repo_images_list,
+                max_concurrent=4,
+            )
+        )
+    )
+
+    assert image_layers_data == {}
+    assert image_digest_map == {}
+    assert history_by_diff_id == {}
     assert image_attestation_map == {}
 
 

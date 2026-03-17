@@ -103,6 +103,12 @@ def _is_retryable_http_error(error: httpx.HTTPError) -> bool:
     return False
 
 
+def _safe_http_error_for_log(error: httpx.HTTPError) -> str:
+    if isinstance(error, httpx.HTTPStatusError) and error.response is not None:
+        return f"{error.__class__.__name__}(status_code={error.response.status_code})"
+    return f"{error.__class__.__name__}: {error}"
+
+
 def extract_repo_uri_from_image_uri(image_uri: str) -> str:
     """
     Extract repository URI from image URI by removing tag or digest.
@@ -250,7 +256,7 @@ async def get_blob_json_via_presigned(
                     repo,
                     attempt,
                     MAX_BLOB_DOWNLOAD_ATTEMPTS,
-                    error,
+                    _safe_http_error_for_log(error),
                 )
                 await asyncio.sleep(2 ** (attempt - 1))
                 continue
@@ -259,7 +265,7 @@ async def get_blob_json_via_presigned(
                     "Exhausted blob download retries for %s in repo %s after transient HTTP error: %s",
                     digest,
                     repo,
-                    error,
+                    _safe_http_error_for_log(error),
                 )
                 raise ECRLayerFetchTransientError(
                     f"Transient blob download failure for {repo}@{digest}"
@@ -268,7 +274,7 @@ async def get_blob_json_via_presigned(
                 "HTTP error downloading blob %s for repo %s: %s",
                 digest,
                 repo,
-                error,
+                _safe_http_error_for_log(error),
             )
             raise
 
@@ -896,25 +902,22 @@ async def fetch_image_layers_async(
                     _process_child_manifest(manifest_ref)
                     for manifest_ref in doc.get("manifests", [])
                 ]
-                child_results = await asyncio.gather(
-                    *child_tasks, return_exceptions=True
-                )
+                child_results = await asyncio.gather(*child_tasks)
 
                 # Merge results from successful child manifest processing
                 # Track attestation data by child digest for proper mapping
                 attestations_by_child_digest: dict[str, dict[str, str]] = {}
 
                 for result in child_results:
-                    if isinstance(result, tuple) and len(result) == 3:
-                        layer_data, hist_data, attest_data = result
-                        if layer_data:
-                            platform_layers.update(layer_data)
-                        if hist_data:
-                            history_by_diff_id.update(hist_data)
-                        if attest_data:
-                            # attest_data is (child_digest, parent_info) tuple
-                            child_digest, parent_info = attest_data
-                            attestations_by_child_digest[child_digest] = parent_info
+                    layer_data, hist_data, attest_data = result
+                    if layer_data:
+                        platform_layers.update(layer_data)
+                    if hist_data:
+                        history_by_diff_id.update(hist_data)
+                    if attest_data:
+                        # attest_data is (child_digest, parent_info) tuple
+                        child_digest, parent_info = attest_data
+                        attestations_by_child_digest[child_digest] = parent_info
 
                 # Build attestation_data with child digest mapping
                 if attestations_by_child_digest:

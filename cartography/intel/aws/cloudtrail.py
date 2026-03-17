@@ -7,6 +7,10 @@ from typing import List
 import boto3
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
+from botocore.parsers import ResponseParserError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -18,6 +22,10 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 _RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+class CloudTrailTransientRegionFailure(Exception):
+    pass
 
 
 def _is_retryable_cloudtrail_error(error: ClientError) -> bool:
@@ -53,14 +61,19 @@ def get_cloudtrail_trails(
         trails = client.describe_trails()["trailList"]
     except ClientError as error:
         if _is_retryable_cloudtrail_error(error):
-            logger.warning(
-                "Skipping CloudTrail sync for account %s in region %s after AWS SDK retries were exhausted for transient DescribeTrails failure: %s",
-                current_aws_account_id,
-                region,
-                error,
-            )
-            return []
+            raise CloudTrailTransientRegionFailure(
+                "AWS SDK retries were exhausted for transient DescribeTrails failure"
+            ) from error
         raise
+    except (
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        ReadTimeoutError,
+        ResponseParserError,
+    ) as error:
+        raise CloudTrailTransientRegionFailure(
+            "Encountered a transient regional CloudTrail endpoint failure while calling DescribeTrails"
+        ) from error
 
     trails_filtered = []
     for trail in trails:
@@ -92,16 +105,19 @@ def get_cloudtrail_trails(
             )
         except ClientError as error:
             if _is_retryable_cloudtrail_error(error):
-                logger.warning(
-                    "Continuing CloudTrail sync for trail %s in account %s after AWS SDK retries were exhausted for transient GetEventSelectors failure: %s",
-                    trail["TrailARN"],
-                    current_aws_account_id,
-                    error,
-                )
-                trail["EventSelectors"] = []
-                trail["AdvancedEventSelectors"] = []
-            else:
-                raise
+                raise CloudTrailTransientRegionFailure(
+                    f"AWS SDK retries were exhausted for transient GetEventSelectors failure on trail {trail['TrailARN']}"
+                ) from error
+            raise
+        except (
+            ConnectTimeoutError,
+            EndpointConnectionError,
+            ReadTimeoutError,
+            ResponseParserError,
+        ) as error:
+            raise CloudTrailTransientRegionFailure(
+                f"Encountered a transient regional CloudTrail endpoint failure while calling GetEventSelectors on trail {trail['TrailARN']}"
+            ) from error
         trails_filtered.append(trail)
 
     return trails_filtered
@@ -167,13 +183,24 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
+    cleanup_safe = True
     for region in regions:
         logger.info(
             f"Syncing CloudTrail for region '{region}' in account '{current_aws_account_id}'.",
         )
-        trails_filtered = get_cloudtrail_trails(
-            boto3_session, region, current_aws_account_id
-        )
+        try:
+            trails_filtered = get_cloudtrail_trails(
+                boto3_session, region, current_aws_account_id
+            )
+        except CloudTrailTransientRegionFailure as error:
+            cleanup_safe = False
+            logger.warning(
+                "Skipping CloudTrail sync for account %s in region %s after transient CloudTrail failure: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
         trails = transform_cloudtrail_trails(trails_filtered, region)
 
         load_cloudtrail_trails(
@@ -184,4 +211,10 @@ def sync(
             update_tag,
         )
 
-    cleanup(neo4j_session, common_job_parameters)
+    if cleanup_safe:
+        cleanup(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping CloudTrail cleanup for account %s because one or more regions had transient CloudTrail failures. Preserving last-known-good CloudTrail state.",
+            current_aws_account_id,
+        )
