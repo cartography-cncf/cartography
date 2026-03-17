@@ -17,11 +17,14 @@ LB{{LoadBalancer}} -- EXPOSE --> CI{{ComputeInstance}}
 LB{{LoadBalancer}} -- EXPOSE --> CT{{Container}}
 CL{{ComputeCluster}}
 DB{{Database}}
+DZ{{DNSZone}}
 OS{{ObjectStorage}}
 TN{{Tenant}}
 FN{{Function}}
 REPO{{CodeRepository}}
 SC{{Secret}}
+PR{{PermissionRole}}
+NAC{{NetworkAccessControl}}
 PIP(PublicIP) -- POINTS_TO --> LB
 PIP -- POINTS_TO --> CI
 PKG(Package) -- DEPLOYED --> IM{{Image}}
@@ -321,6 +324,22 @@ OAuth apps span across identity providers (Google Workspace, Okta, Entra, Keyclo
     ```
 
 
+### DNSZone
+
+```{note}
+DNSZone is a semantic label.
+```
+
+A DNS zone represents a managed DNS zone across different cloud providers and DNS services.
+It generalizes concepts like AWS Route 53 Hosted Zones, GCP Cloud DNS Zones, and Cloudflare Zones.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The DNS zone name or domain (REQUIRED). |
+| _ont_public | Whether the zone is publicly accessible (boolean). |
+| _ont_source | Source of the data. |
+
+
 ### Database
 
 ```{note}
@@ -339,6 +358,29 @@ It generalizes concepts like AWS RDS instances/clusters, DynamoDB tables, Azure 
 | _ont_db_port | The port number the database listens on. |
 | _ont_db_encrypted | Whether the database storage is encrypted. |
 | _ont_db_location | The physical location/region of the database. |
+
+
+### PermissionRole
+
+```{note}
+PermissionRole is a semantic label.
+```
+
+A permission role represents an IAM role or permission role that can be assumed by principals across different cloud providers and identity platforms.
+It generalizes concepts like AWS IAM Roles, AWS Permission Sets, Azure Role Definitions, GCP IAM Roles, Keycloak Roles, Kubernetes Roles/ClusterRoles, Cloudflare Roles, and OCI Policies.
+
+Common role concepts across platforms include:
+- **Cloud IAM**: AWS IAM Roles, AWS Permission Sets, Azure Role Definitions, GCP IAM Roles, OCI Policies
+- **Container Orchestration**: Kubernetes Roles, Kubernetes ClusterRoles
+- **Identity Providers**: Keycloak Roles
+- **SaaS Platforms**: Cloudflare Roles
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | Display name of the role (REQUIRED). |
+| _ont_type | Whether the role is builtin or custom (e.g., "builtin", "custom"). |
+| _ont_scope | The scope level of the role (e.g., "global", "account", "org", "project", "namespace", "cluster"). |
+| _ont_source | Source of the data. |
 
 
 ### ObjectStorage
@@ -458,6 +500,22 @@ It generalizes concepts like GitHub Repositories and GitLab Projects.
 | _ont_default_branch | The default branch name (e.g., "main", "master"). |
 | _ont_public | Whether the repository is publicly accessible. |
 | _ont_archived | Whether the repository is archived (read-only). |
+
+
+### NetworkAccessControl
+
+```{note}
+NetworkAccessControl is a semantic label.
+```
+
+A network access control represents a security group, firewall rule, or network policy that controls network access across different cloud providers.
+It generalizes concepts like AWS EC2 Security Groups, GCP Firewall Rules, Azure Network Security Groups, Azure Firewalls, and GCP Cloud Armor Policies.
+
+| Field | Description |
+|-------|-------------|
+| _ont_name | The name of the security group or firewall (REQUIRED). |
+| _ont_direction | Traffic direction (e.g., INGRESS, EGRESS), if applicable. |
+| _ont_source | Source of the data. |
 
 
 ### LoadBalancer
