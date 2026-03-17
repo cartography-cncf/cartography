@@ -22,10 +22,6 @@ SECRETS_RESPONSE = {
                 "visibility": "REPOSITORY_VISIBILITY_PRIVATE",
                 "scmType": "SCM_TYPE_GITHUB",
             },
-            "autotriage": {
-                "verdict": "VERDICT_TRUE_POSITIVE",
-                "reason": "Valid API key found in source code",
-            },
         },
     ],
     "cursor": "",

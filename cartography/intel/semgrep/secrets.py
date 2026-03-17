@@ -10,7 +10,6 @@ from requests.exceptions import ReadTimeout
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.semgrep.findings import load_semgrep_finding_assistants
 from cartography.models.semgrep.secrets import SemgrepSecretsFindingSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -82,34 +81,6 @@ def get_secret_findings(
     return all_findings
 
 
-def _extract_secrets_assistants(
-    raw_findings: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
-    """
-    Extracts assistant data from raw secrets findings into a flat list of dicts
-    suitable for loading as SemgrepFindingAssistant nodes. Findings without an autotriage
-    field are skipped.
-    """
-    assistants = []
-    for finding in raw_findings:
-        autotriage = finding.get("autotriage")
-        if not autotriage:
-            continue
-        node: Dict[str, Any] = {"id": f"semgrep-assistant-{finding['id']}"}
-        node["autotriagedVerdict"] = autotriage.get("verdict")
-        node["autotriagedReason"] = autotriage.get("reason")
-        # Other assistant fields are not provided by the secrets API
-        node["autofixFixCode"] = None
-        node["componentTag"] = None
-        node["componentRisk"] = None
-        node["guidanceSummary"] = None
-        node["guidanceInstructions"] = None
-        node["ruleExplanationSummary"] = None
-        node["ruleExplanation"] = None
-        assistants.append(node)
-    return assistants
-
-
 def transform_secret_findings(
     raw_findings: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
@@ -126,7 +97,7 @@ def transform_secret_findings(
         secret_finding["repositoryVisibility"] = repository.get(
             "visibility", ""
         ).replace("REPOSITORY_VISIBILITY_", "")
-        secret_finding["branch"] = finding.get("ref")
+        secret_finding["ref"] = finding.get("ref")
         secret_finding["ruleHashId"] = finding.get("ruleHashId")
         secret_finding["severity"] = finding.get("severity", "").replace(
             "SEVERITY_", ""
@@ -134,7 +105,7 @@ def transform_secret_findings(
         secret_finding["confidence"] = finding.get("confidence", "").replace(
             "CONFIDENCE_", ""
         )
-        secret_finding["secretType"] = finding.get("type")
+        secret_finding["type"] = finding.get("type")
         secret_finding["validationState"] = finding.get("validationState", "").replace(
             "VALIDATION_STATE_", ""
         )
@@ -145,16 +116,9 @@ def transform_secret_findings(
         secret_finding["findingPathUrl"] = finding.get("findingPathUrl")
         secret_finding["refUrl"] = finding.get("refUrl")
         secret_finding["mode"] = finding.get("mode", "").replace("MODE_", "")
-        secret_finding["openedAt"] = finding.get("createdAt")
+        secret_finding["createdAt"] = finding.get("createdAt")
         secret_finding["updatedAt"] = finding.get("updatedAt")
 
-        historical_info = finding.get("historicalInfo", {})
-        if historical_info:
-            secret_finding["historicalGitCommit"] = historical_info.get("gitCommit")
-        else:
-            secret_finding["historicalGitCommit"] = None
-
-        secret_finding["assistantId"] = f"semgrep-assistant-{finding['id']}"
         findings.append(secret_finding)
     return findings
 
@@ -207,12 +171,6 @@ def sync_secrets(
         return
 
     raw_secret_findings = get_secret_findings(semgrep_app_token, deployment_id)
-
-    logger.info("Running Semgrep FindingAssistant sync job for Secrets.")
-    assistants = _extract_secrets_assistants(raw_secret_findings)
-    load_semgrep_finding_assistants(
-        neo4j_session, assistants, deployment_id, update_tag
-    )
 
     logger.info("Running Semgrep Secrets findings sync job.")
     secret_findings = transform_secret_findings(raw_secret_findings)

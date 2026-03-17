@@ -51,11 +51,11 @@ def test_sync_secrets(mock_get_secret_findings, mock_get_deployment, neo4j_sessi
         [
             "id",
             "rule_hash_id",
-            "repository",
-            "branch",
+            "repository_name",
+            "ref",
             "severity",
             "confidence",
-            "secret_type",
+            "type",
             "validation_state",
             "status",
             "finding_path",
@@ -105,41 +105,5 @@ def test_sync_secrets(mock_get_secret_findings, mock_get_deployment, neo4j_sessi
         (
             "simpsoncorp/sample_repo",
             tests.data.semgrep.secrets.SECRETS_FINDING_ID,
-        ),
-    }
-
-    expected_assistant_id = (
-        f"semgrep-assistant-{tests.data.semgrep.secrets.SECRETS_FINDING_ID}"
-    )
-
-    # Assert assistant node
-    assert check_nodes(
-        neo4j_session,
-        "SemgrepFindingAssistant",
-        [
-            "id",
-            "autotriage_verdict",
-            "autotriage_reason",
-        ],
-    ) == {
-        (
-            expected_assistant_id,
-            "VERDICT_TRUE_POSITIVE",
-            "Valid API key found in source code",
-        ),
-    }
-
-    # Assert HAS_ASSISTANT relationship
-    assert check_rels(
-        neo4j_session,
-        "SemgrepSecretsFinding",
-        "id",
-        "SemgrepFindingAssistant",
-        "id",
-        "HAS_ASSISTANT",
-    ) == {
-        (
-            tests.data.semgrep.secrets.SECRETS_FINDING_ID,
-            expected_assistant_id,
         ),
     }
