@@ -6,6 +6,7 @@ from typing import List
 
 import boto3
 import neo4j
+from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
@@ -15,6 +16,28 @@ from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+_RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+def _is_retryable_cloudtrail_error(error: ClientError) -> bool:
+    error_code = error.response.get("Error", {}).get("Code", "")
+    status_code = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return (
+        error_code
+        in {
+            "RequestLimitExceeded",
+            "RequestThrottled",
+            "RequestTimeout",
+            "RequestTimeoutException",
+            "ServiceUnavailable",
+            "ServiceUnavailableException",
+            "Throttling",
+            "ThrottlingException",
+            "TooManyRequestsException",
+        }
+        or status_code in _RETRYABLE_HTTP_STATUS_CODES
+    )
 
 
 @timeit
@@ -26,7 +49,19 @@ def get_cloudtrail_trails(
         "cloudtrail", region_name=region, config=get_botocore_config()
     )
 
-    trails = client.describe_trails()["trailList"]
+    try:
+        trails = client.describe_trails()["trailList"]
+    except ClientError as error:
+        if _is_retryable_cloudtrail_error(error):
+            logger.warning(
+                "Skipping CloudTrail sync for account %s in region %s after transient DescribeTrails failure: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            return []
+        raise
+
     trails_filtered = []
     for trail in trails:
         # Filter by home region to avoid duplicates across regions
@@ -48,12 +83,25 @@ def get_cloudtrail_trails(
                 )
                 continue
 
-        selectors = client.get_event_selectors(TrailName=trail["TrailARN"])
-        trail["EventSelectors"] = selectors.get("EventSelectors", [])
-        trail["AdvancedEventSelectors"] = selectors.get(
-            "AdvancedEventSelectors",
-            [],
-        )
+        try:
+            selectors = client.get_event_selectors(TrailName=trail["TrailARN"])
+            trail["EventSelectors"] = selectors.get("EventSelectors", [])
+            trail["AdvancedEventSelectors"] = selectors.get(
+                "AdvancedEventSelectors",
+                [],
+            )
+        except ClientError as error:
+            if _is_retryable_cloudtrail_error(error):
+                logger.warning(
+                    "Continuing CloudTrail sync for trail %s in account %s after transient GetEventSelectors failure: %s",
+                    trail["TrailARN"],
+                    current_aws_account_id,
+                    error,
+                )
+                trail["EventSelectors"] = []
+                trail["AdvancedEventSelectors"] = []
+            else:
+                raise
         trails_filtered.append(trail)
 
     return trails_filtered

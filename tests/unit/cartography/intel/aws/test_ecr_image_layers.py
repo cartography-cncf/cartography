@@ -1,11 +1,17 @@
 import asyncio
 from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 
+import httpx
 import pytest
 from botocore.exceptions import ClientError
 
+import tests.data.aws.ecr as test_data
 from cartography.intel.aws.ecr_image_layers import batch_get_manifest
+from cartography.intel.aws.ecr_image_layers import ECRLayerFetchTransientError
 from cartography.intel.aws.ecr_image_layers import extract_repo_uri_from_image_uri
+from cartography.intel.aws.ecr_image_layers import fetch_image_layers_async
+from cartography.intel.aws.ecr_image_layers import get_blob_json_via_presigned
 from cartography.intel.aws.ecr_image_layers import transform_ecr_image_layers
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
 
@@ -105,6 +111,143 @@ def test_batch_get_manifest_access_denied_returns_empty_result(error_code):
 
     assert manifest == {}
     assert media_type == ""
+
+
+def test_batch_get_manifest_transient_aws_error_raises_skip_signal():
+    mock_ecr_client = AsyncMock()
+    mock_ecr_client.batch_get_image.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "ServiceUnavailableException",
+                "Message": "Try again later",
+            },
+            "ResponseMetadata": {"HTTPStatusCode": 503},
+        },
+        "BatchGetImage",
+    )
+
+    with pytest.raises(ECRLayerFetchTransientError):
+        asyncio.run(
+            batch_get_manifest(
+                mock_ecr_client,
+                "example/repository",
+                "sha256:12345",
+                ["application/vnd.oci.image.manifest.v1+json"],
+            )
+        )
+
+
+def test_get_blob_json_via_presigned_retries_remote_protocol_error(mocker):
+    mock_ecr_client = AsyncMock()
+    mock_ecr_client.get_download_url_for_layer.return_value = {
+        "downloadUrl": "https://example.com/blob"
+    }
+
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {"value": "ok"}
+
+    http_client = AsyncMock()
+    http_client.get.side_effect = [
+        httpx.RemoteProtocolError("Server disconnected without sending a response."),
+        response,
+    ]
+
+    sleep = mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.asyncio.sleep",
+        new=AsyncMock(),
+    )
+
+    result = asyncio.run(
+        get_blob_json_via_presigned(
+            mock_ecr_client,
+            "example/repository",
+            "sha256:12345",
+            http_client,
+        )
+    )
+
+    assert result == {"value": "ok"}
+    assert http_client.get.await_count == 2
+    sleep.assert_awaited_once()
+
+
+def test_get_blob_json_via_presigned_raises_skip_signal_after_retry_exhaustion(mocker):
+    mock_ecr_client = AsyncMock()
+    mock_ecr_client.get_download_url_for_layer.return_value = {
+        "downloadUrl": "https://example.com/blob"
+    }
+
+    http_client = AsyncMock()
+    http_client.get.side_effect = [
+        httpx.ReadError("boom"),
+        httpx.ReadError("boom"),
+        httpx.ReadError("boom"),
+    ]
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.asyncio.sleep",
+        new=AsyncMock(),
+    )
+
+    with pytest.raises(ECRLayerFetchTransientError):
+        asyncio.run(
+            get_blob_json_via_presigned(
+                mock_ecr_client,
+                "example/repository",
+                "sha256:12345",
+                http_client,
+            )
+        )
+
+
+def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
+    repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
+    repo_images_list = [
+        {
+            "uri": f"{repo_uri}:bad",
+            "imageDigest": "sha256:bad",
+            "repo_uri": repo_uri,
+        },
+        {
+            "uri": f"{repo_uri}:good",
+            "imageDigest": "sha256:good",
+            "repo_uri": repo_uri,
+        },
+    ]
+
+    async def mock_batch_get_manifest(_client, _repo, image_ref, _accepted):
+        if image_ref == "sha256:bad":
+            raise ECRLayerFetchTransientError("temporary failure")
+        return (
+            test_data.SAMPLE_MANIFEST,
+            "application/vnd.docker.distribution.manifest.v2+json",
+        )
+
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.batch_get_manifest",
+        side_effect=mock_batch_get_manifest,
+    )
+    mocker.patch(
+        "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
+        new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
+    )
+
+    image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
+        asyncio.run(
+            fetch_image_layers_async(
+                AsyncMock(),
+                repo_images_list,
+                max_concurrent=2,
+            )
+        )
+    )
+
+    assert f"{repo_uri}:bad" not in image_layers_data
+    assert f"{repo_uri}:good" in image_layers_data
+    assert image_digest_map == {f"{repo_uri}:good": "sha256:good"}
+    assert isinstance(history_by_diff_id, dict)
+    assert image_attestation_map == {}
 
 
 def test_transform_layers_creates_graph_structure():
