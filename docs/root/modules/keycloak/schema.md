@@ -320,6 +320,8 @@ Represents a user in the Keycloak realm with authentication and profile informat
 
 Represents a role in Keycloak that defines permissions and can be assigned to users or groups.
 
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first created this node  |
