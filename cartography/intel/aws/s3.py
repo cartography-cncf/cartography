@@ -77,9 +77,7 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
     buckets = client.list_buckets()
     for bucket in buckets["Buckets"]:
         try:
-            bucket["Region"] = client.get_bucket_location(Bucket=bucket["Name"])[
-                "LocationConstraint"
-            ]
+            bucket["Region"] = client.head_bucket(Bucket=bucket["Name"])["BucketRegion"]
         except ClientError as e:
             should_handle, _ = _is_common_exception(e, bucket["Name"])
             if should_handle:
