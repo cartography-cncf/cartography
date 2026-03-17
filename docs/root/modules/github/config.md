@@ -27,9 +27,9 @@ Fine-grained PATs offer better security through minimal permissions and organiza
 
    | Permission | Access | Required | Why |
    |------------|--------|----------|-----|
-   | **Actions** | Read | Optional | GitHub Actions workflows, runs, and artifacts. |
+   | **Actions** | Read | Optional | GitHub Actions workflow metadata from the Actions API. |
    | **Administration** | Read | Yes (for collaborator/branch protection coverage) | Collaborators and branch protection rules. Without this, Cartography logs warnings and skips this data. |
-   | **Contents** | Read | Yes | Repository files, commit history, dependency manifests. |
+   | **Contents** | Read | Yes | Repository files, commit history, dependency manifests, and workflow YAML content. |
    | **Environments** | Read | Optional | Deployment environments configuration. |
    | **Metadata** | Read | Yes | Auto-added. Repository discovery and basic info. |
    | **Secrets** | Read | Optional | Repository secrets metadata (names, creation dates). |
@@ -84,7 +84,7 @@ Some data requires elevated permissions. Without these, Cartography will log war
 GitHub App authentication provides better security through short-lived tokens and granular, installation-scoped permissions. Use this instead of PATs when you need app-level (not user-level) access.
 
 1. [Create a GitHub App](https://docs.github.com/en/apps/creating-github-apps) with the same repository and organization permissions listed above.
-2. Install the App on your target organization(s).
+2. Install the App on each target organization you want to ingest.
 3. Note the **Client ID** (from the App's settings page) and the **Installation ID** (from the URL when viewing the installation: `https://github.com/organizations/{org}/settings/installations/{installation_id}`).
 4. Generate and download a **private key** from the App's settings page.
 
@@ -160,7 +160,7 @@ You can mix PAT and App authentication across organizations in the same config.
 
 ### GitHub Enterprise
 
-For GitHub Enterprise, use the same token scopes/permissions as above. Set the `url` field in your configuration to your enterprise GraphQL endpoint:
+For self-hosted GitHub Enterprise Server, use the same token scopes/permissions as above and set the `url` field in your configuration to your enterprise GraphQL endpoint:
 
 ```python
 {
@@ -169,6 +169,8 @@ For GitHub Enterprise, use the same token scopes/permissions as above. Set the `
     "name": "your-enterprise-org",
 }
 ```
+
+Cartography can also use GitHub App authentication against GitHub Enterprise Server, but the App must be registered on that GitHub Enterprise Server instance rather than on `github.com`.
 
 ### Troubleshooting
 
