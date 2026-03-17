@@ -186,7 +186,7 @@ async def batch_get_manifest(
             raise ECRLayerFetchTransientError(
                 f"Transient manifest fetch failure for {repo}:{image_ref}"
             ) from error
-        # Fail loudly on throttling or unexpected AWS errors
+        # Fail loudly on unexpected, non-retryable AWS errors
         logger.error(
             "Failed to get manifest for %s:%s due to AWS error %s",
             repo,
