@@ -423,12 +423,6 @@ slack_mapping = OntologyMapping(
                 OntologyFieldMapping(ontology_field="fullname", node_field="real_name"),
                 OntologyFieldMapping(ontology_field="has_mfa", node_field="has_mfa"),
                 OntologyFieldMapping(ontology_field="inactive", node_field="deleted"),
-                OntologyFieldMapping(
-                    ontology_field="system_account",
-                    node_field="is_bot",
-                    extra={"fields": ["is_app_user"]},
-                    special_handling="or_boolean",
-                ),
             ],
         ),
     ],

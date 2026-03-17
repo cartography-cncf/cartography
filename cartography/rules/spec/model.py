@@ -106,6 +106,9 @@ class Module(str, Enum):
     TRIVY = "Trivy"
     """Trivy vulnerability scanner"""
 
+    SUBIMAGE = "SubImage"
+    """SubImage platform"""
+
     CROSS_CLOUD = "Cross-Cloud"
     """Multi-cloud or provider-agnostic rules"""
 
@@ -151,6 +154,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.SPACELIFT: "spacelift",
     Module.TAILSCALE: "tailscale",
     Module.TRIVY: "trivy",
+    Module.SUBIMAGE: "subimage",
 }
 
 
