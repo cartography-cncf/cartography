@@ -172,7 +172,7 @@ async def batch_get_manifest(
             return {}, ""
         if _is_retryable_aws_client_error(error):
             logger.warning(
-                "Skipping manifest fetch for %s:%s after transient AWS error %s",
+                "Transient AWS error fetching manifest for %s:%s: %s",
                 repo,
                 image_ref,
                 error_code or error,
@@ -218,7 +218,7 @@ async def get_blob_json_via_presigned(
     except ClientError as error:
         if _is_retryable_aws_client_error(error):
             logger.warning(
-                "Skipping blob download URL fetch for layer %s in repo %s after transient AWS error %s",
+                "Transient AWS error requesting blob download URL for layer %s in repo %s: %s",
                 digest,
                 repo,
                 error.response.get("Error", {}).get("Code", "unknown"),
@@ -254,16 +254,22 @@ async def get_blob_json_via_presigned(
                 )
                 await asyncio.sleep(2 ** (attempt - 1))
                 continue
+            if _is_retryable_http_error(error):
+                logger.warning(
+                    "Exhausted blob download retries for %s in repo %s after transient HTTP error: %s",
+                    digest,
+                    repo,
+                    error,
+                )
+                raise ECRLayerFetchTransientError(
+                    f"Transient blob download failure for {repo}@{digest}"
+                ) from error
             logger.error(
                 "HTTP error downloading blob %s for repo %s: %s",
                 digest,
                 repo,
                 error,
             )
-            if _is_retryable_http_error(error):
-                raise ECRLayerFetchTransientError(
-                    f"Transient blob download failure for {repo}@{digest}"
-                ) from error
             raise
 
     raise ECRLayerFetchTransientError(
