@@ -79,12 +79,34 @@ gcp_mapping = OntologyMapping(
             node_label="GCPRole",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="name", node_field="title", required=True
+                    ontology_field="name",
+                    node_field="title",
+                    required=True,
                 ),
-                # _ont_type: GCP uses provider-specific values (BASIC/PREDEFINED/CUSTOM)
-                # that don't map to a normalized cross-platform vocabulary yet
-                # _ont_scope: GCP uses provider-specific values (global/organization/project)
-                # that need normalization before ontology use
+                OntologyFieldMapping(
+                    ontology_field="type",
+                    node_field="role_type",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "BASIC": "builtin",
+                            "PREDEFINED": "builtin",
+                            "CUSTOM": "custom",
+                        }
+                    },
+                ),
+                OntologyFieldMapping(
+                    ontology_field="scope",
+                    node_field="scope",
+                    special_handling="mapping",
+                    extra={
+                        "map": {
+                            "global": "org",
+                            "organization": "org",
+                            "project": "project",
+                        }
+                    },
+                ),
             ],
         ),
     ],
