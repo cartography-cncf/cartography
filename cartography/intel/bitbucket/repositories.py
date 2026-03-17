@@ -63,7 +63,7 @@ def transform_repos(workspace_repos: List[Dict], workspace: str) -> Dict:
         repo["workspace"]["uuid"] = repo["workspace"]["uuid"].replace("{", "").replace("}", "")
         repo["project"]["uuid"] = repo["project"]["uuid"].replace("{", "").replace("}", "")
         repo["uuid"] = repo["uuid"].replace("{", "").replace("}", "")
-        repo["primary_language"] = repo.get("language", None)
+        repo["primary_language"] = repo.get("language", "").lower()
         repo["console_link"] = repo.get("links", {}).get("html", {}).get("href", None)
 
         if repo is not None and repo.get("mainbranch") is not None:

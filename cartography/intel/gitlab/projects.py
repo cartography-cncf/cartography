@@ -254,7 +254,7 @@ def sync(
         )
         if project_languages:
             primary_language = max(project_languages, key=project_languages.get)
-            project["primary_language"] = primary_language
+            project["primary_language"] = primary_language.lower()
 
     group_projects = transform_projects_data(group_projects)
 

@@ -286,7 +286,7 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "name": input_repo_object["name"],
             "fullname": input_repo_object["nameWithOwner"],
             "description": input_repo_object["description"],
-            "primary_language": input_repo_object["primaryLanguage"]["name"] if input_repo_object.get("primaryLanguage") else None,
+            "primary_language": (input_repo_object["primaryLanguage"]["name"] if input_repo_object.get("primaryLanguage") else "").lower(),
             "homepage": input_repo_object["homepageUrl"],
             "default_branch": default_branch_name,
             "defaultbranchid": default_branch_id,
