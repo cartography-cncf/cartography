@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timezone
+
 TEST_ACCOUNT_ID = "000000000000"
 TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
@@ -7,8 +10,8 @@ DESCRIBE_STACKS = [
         "StackId": f"arn:aws:cloudformation:{TEST_REGION}:{TEST_ACCOUNT_ID}:stack/test-stack-1/11111111-1111-1111-1111-111111111111",
         "StackName": "test-stack-1",
         "Description": "Test CloudFormation stack for cartography",
-        "CreationTime": "2024-01-01T12:00:00Z",
-        "LastUpdatedTime": "2024-01-02T12:00:00Z",
+        "CreationTime": datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        "LastUpdatedTime": datetime(2024, 1, 2, 12, 0, 0, tzinfo=timezone.utc),
         "StackStatus": "CREATE_COMPLETE",
         "DisableRollback": False,
         "RoleARN": f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/CloudFormationExecutionRole",
@@ -27,7 +30,7 @@ DESCRIBE_STACKS = [
         "StackId": f"arn:aws:cloudformation:{TEST_REGION}:{TEST_ACCOUNT_ID}:stack/test-stack-2/22222222-2222-2222-2222-222222222222",
         "StackName": "test-stack-2",
         "Description": "Second test stack",
-        "CreationTime": "2024-01-03T12:00:00Z",
+        "CreationTime": datetime(2024, 1, 3, 12, 0, 0, tzinfo=timezone.utc),
         "StackStatus": "UPDATE_COMPLETE",
         "StackStatusReason": "User initiated update",
         "DisableRollback": True,
