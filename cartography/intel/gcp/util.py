@@ -25,6 +25,14 @@ GCP_HTTP_ERROR_DETAIL_MAX_CHARS = 240
 GCP_PERMISSION_DENIED_REASONS = frozenset(
     {"forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"}
 )
+GCP_QUOTA_EXCEEDED_REASONS = frozenset(
+    {
+        "rateLimitExceeded",  # legacy REST API style
+        "userRateLimitExceeded",  # legacy REST API style
+        "RATE_LIMIT_EXCEEDED",  # gRPC-transcoded / ErrorInfo style
+        "USER_RATE_LIMIT_EXCEEDED",  # gRPC-transcoded / ErrorInfo style
+    }
+)
 
 # Number of retries for network-level errors (handled natively by googleapiclient)
 GCP_API_NUM_RETRIES = 5
@@ -38,12 +46,19 @@ def is_retryable_gcp_http_error(exc: Exception) -> bool:
     HTTP 429 (rate limit) and 5xx (server errors) are transient and should be retried
     with exponential backoff.
 
+    Some older GCP APIs return 403 with reason rateLimitExceeded or userRateLimitExceeded
+    instead of 429. These are also retryable.
+
     :param exc: The exception to check
     :return: True if the exception is a retryable HTTP error, False otherwise
     """
     if not isinstance(exc, HttpError):
         return False
-    return exc.resp.status in GCP_RETRYABLE_HTTP_STATUS_CODES
+    if exc.resp.status in GCP_RETRYABLE_HTTP_STATUS_CODES:
+        return True
+    if exc.resp.status == 403:
+        return get_error_reason(exc) in GCP_QUOTA_EXCEEDED_REASONS
+    return False
 
 
 def gcp_api_backoff_handler(details: Dict) -> None:
@@ -379,3 +394,50 @@ def is_api_disabled_error(e: HttpError) -> bool:
             parse_error,
         )
         return False
+
+
+def classify_gcp_http_error(e: HttpError) -> str:
+    """
+    Classify a GCP HttpError into a canonical category string.
+
+    Reuses existing helpers (is_api_disabled_error, get_error_reason, etc.) so
+    logic is not duplicated. Malformed or non-JSON bodies never raise; they are
+    classified as "unknown".
+
+    Mapping rules:
+      - 403 + api-disabled pattern (is_api_disabled_error) → "api_disabled"
+      - (other) 403                                        → "forbidden"
+      - 404                                                → "not_found"
+      - 400 + reason "invalid" or "badRequest"            → "invalid"
+      - status in {429, 500, 502, 503, 504}               → "transient"
+      - anything else                                      → "unknown"
+
+    :param e: The HttpError exception to classify
+    :return: One of "api_disabled", "forbidden", "not_found", "invalid",
+             "transient", "unknown"
+    """
+    try:
+        status = int(e.resp.status)
+    except (AttributeError, TypeError, ValueError):
+        return "unknown"
+
+    if status == 403:
+        if is_api_disabled_error(e):
+            return "api_disabled"
+        if get_error_reason(e) in GCP_QUOTA_EXCEEDED_REASONS:
+            return "transient"
+        return "forbidden"
+
+    if status == 404:
+        return "not_found"
+
+    if status == 400:
+        reason = get_error_reason(e)
+        if reason.lower() in ("invalid", "badrequest"):
+            return "invalid"
+        return "unknown"
+
+    if status in GCP_RETRYABLE_HTTP_STATUS_CODES:
+        return "transient"
+
+    return "unknown"
