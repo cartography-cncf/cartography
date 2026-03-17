@@ -79,6 +79,14 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
         try:
             bucket["Region"] = client.head_bucket(Bucket=bucket["Name"])["BucketRegion"]
         except ClientError as e:
+            region = (
+                e.response.get("ResponseMetadata", {})
+                .get("HTTPHeaders", {})
+                .get("x-amz-bucket-region")
+            )
+            if region:
+                bucket["Region"] = region
+                continue
             should_handle, _ = _is_common_exception(e, bucket["Name"])
             if should_handle:
                 bucket["Region"] = None
