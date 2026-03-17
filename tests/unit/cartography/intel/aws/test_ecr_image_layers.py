@@ -213,11 +213,9 @@ def test_get_blob_json_via_presigned_redacts_presigned_url_in_http_status_logs(
 
     request = httpx.Request("GET", signed_url)
     response = httpx.Response(503, request=request)
-    status_error = httpx.HTTPStatusError(
-        "boom",
-        request=request,
-        response=response,
-    )
+    with pytest.raises(httpx.HTTPStatusError) as excinfo:
+        response.raise_for_status()
+    status_error = excinfo.value
 
     http_client = AsyncMock()
     http_client.get.side_effect = [status_error, status_error, status_error]
