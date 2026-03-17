@@ -61,6 +61,7 @@ PANEL_SCALEWAY = "Scaleway Options"
 PANEL_SENTINELONE = "SentinelOne Options"
 PANEL_KEYCLOAK = "Keycloak Options"
 PANEL_SLACK = "Slack Options"
+PANEL_SENTRY = "Sentry Options"
 PANEL_SUBIMAGE = "SubImage Options"
 PANEL_SPACELIFT = "Spacelift Options"
 PANEL_JUMPCLOUD = "JumpCloud Options"
@@ -105,6 +106,7 @@ MODULE_PANELS = {
     "ubuntu": PANEL_UBUNTU,
     "ontology": PANEL_ONTOLOGY,
     "scaleway": PANEL_SCALEWAY,
+    "sentry": PANEL_SENTRY,
     "sentinelone": PANEL_SENTINELONE,
     "keycloak": PANEL_KEYCLOAK,
     "slack": PANEL_SLACK,
@@ -1212,6 +1214,36 @@ class CLI:
                 ),
             ] = None,
             # =================================================================
+            # Sentry Options
+            # =================================================================
+            sentry_token_env_var: Annotated[
+                str | None,
+                typer.Option(
+                    "--sentry-token-env-var",
+                    help="Environment variable name containing Sentry internal integration token.",
+                    rich_help_panel=PANEL_SENTRY,
+                    hidden=PANEL_SENTRY not in visible_panels,
+                ),
+            ] = None,
+            sentry_org: Annotated[
+                str | None,
+                typer.Option(
+                    "--sentry-org",
+                    help="Sentry organization slug. Required when using an internal integration token.",
+                    rich_help_panel=PANEL_SENTRY,
+                    hidden=PANEL_SENTRY not in visible_panels,
+                ),
+            ] = None,
+            sentry_host: Annotated[
+                str,
+                typer.Option(
+                    "--sentry-host",
+                    help="Sentry host URL (default: https://sentry.io). Use for self-hosted instances.",
+                    rich_help_panel=PANEL_SENTRY,
+                    hidden=PANEL_SENTRY not in visible_panels,
+                ),
+            ] = "https://sentry.io",
+            # =================================================================
             # SubImage Options
             # =================================================================
             subimage_client_id_env_var: Annotated[
@@ -2028,6 +2060,15 @@ class CLI:
                 )
                 anthropic_apikey = os.environ.get(anthropic_apikey_env_var)
 
+            # Read Sentry token
+            sentry_token = None
+            if sentry_token_env_var:
+                logger.debug(
+                    "Reading Sentry token from environment variable %s",
+                    sentry_token_env_var,
+                )
+                sentry_token = os.environ.get(sentry_token_env_var)
+
             # Read SubImage credentials
             subimage_client_id = None
             if subimage_client_id_env_var:
@@ -2261,6 +2302,9 @@ class CLI:
                 openai_apikey=openai_apikey,
                 openai_org_id=openai_org_id,
                 anthropic_apikey=anthropic_apikey,
+                sentry_token=sentry_token,
+                sentry_org=sentry_org,
+                sentry_host=sentry_host,
                 subimage_client_id=subimage_client_id,
                 subimage_client_secret=subimage_client_secret,
                 subimage_tenant_url=subimage_tenant_url,
