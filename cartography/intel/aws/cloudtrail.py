@@ -54,7 +54,7 @@ def get_cloudtrail_trails(
     except ClientError as error:
         if _is_retryable_cloudtrail_error(error):
             logger.warning(
-                "Skipping CloudTrail sync for account %s in region %s after transient DescribeTrails failure: %s",
+                "Skipping CloudTrail sync for account %s in region %s after AWS SDK retries were exhausted for transient DescribeTrails failure: %s",
                 current_aws_account_id,
                 region,
                 error,
@@ -93,7 +93,7 @@ def get_cloudtrail_trails(
         except ClientError as error:
             if _is_retryable_cloudtrail_error(error):
                 logger.warning(
-                    "Continuing CloudTrail sync for trail %s in account %s after transient GetEventSelectors failure: %s",
+                    "Continuing CloudTrail sync for trail %s in account %s after AWS SDK retries were exhausted for transient GetEventSelectors failure: %s",
                     trail["TrailARN"],
                     current_aws_account_id,
                     error,
