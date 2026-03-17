@@ -4,8 +4,15 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.models.gcp.labels.label import GCPBigtableInstanceGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPBucketGCPLabelSchema
+from cartography.models.gcp.labels.label import GCPCloudRunJobGCPLabelSchema
+from cartography.models.gcp.labels.label import GCPCloudRunServiceGCPLabelSchema
+from cartography.models.gcp.labels.label import GCPCloudSQLInstanceGCPLabelSchema
+from cartography.models.gcp.labels.label import GCPDNSZoneGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPInstanceGCPLabelSchema
+from cartography.models.gcp.labels.label import GCPSecretManagerSecretGCPLabelSchema
+from cartography.models.gcp.labels.label import GKEClusterGCPLabelSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -25,6 +32,41 @@ LABEL_RESOURCE_TYPE_MAPPINGS: dict[str, dict[str, Any]] = {
         "labels_field": "labels",
         "id_field": "id",
         "schema": GCPBucketGCPLabelSchema(),
+    },
+    "gke_cluster": {
+        "labels_field": "resourceLabels",
+        "id_field": "id",
+        "schema": GKEClusterGCPLabelSchema(),
+    },
+    "cloud_sql_instance": {
+        "labels_field": "userLabels",
+        "id_field": "selfLink",
+        "schema": GCPCloudSQLInstanceGCPLabelSchema(),
+    },
+    "bigtable_instance": {
+        "labels_field": "labels",
+        "id_field": "name",
+        "schema": GCPBigtableInstanceGCPLabelSchema(),
+    },
+    "dns_zone": {
+        "labels_field": "labels",
+        "id_field": "id",
+        "schema": GCPDNSZoneGCPLabelSchema(),
+    },
+    "secret_manager_secret": {
+        "labels_field": "raw_labels",
+        "id_field": "id",
+        "schema": GCPSecretManagerSecretGCPLabelSchema(),
+    },
+    "cloud_run_service": {
+        "labels_field": "labels",
+        "id_field": "id",
+        "schema": GCPCloudRunServiceGCPLabelSchema(),
+    },
+    "cloud_run_job": {
+        "labels_field": "labels",
+        "id_field": "id",
+        "schema": GCPCloudRunJobGCPLabelSchema(),
     },
 }
 

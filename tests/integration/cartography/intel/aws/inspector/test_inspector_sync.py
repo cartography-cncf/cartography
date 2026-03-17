@@ -1,10 +1,15 @@
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import botocore.exceptions
+
 import cartography.intel.aws.inspector
+from cartography.intel.aws.inspector import _sync_findings_for_account
+from cartography.intel.aws.inspector import BATCH_SIZE
 from cartography.intel.aws.inspector import sync
 from tests.data.aws.inspector import LIST_FINDINGS_EC2_PACKAGE
 from tests.data.aws.inspector import LIST_FINDINGS_NETWORK
+from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
 TEST_UPDATE_TAG = 123456
@@ -181,3 +186,37 @@ def test_sync_inspector_ec2_package_findings(mock_get, neo4j_session):
         ("123456789012", "kernel|0:4.9.17-6.29.amzn1.X86_64"),
         ("123456789012", "openssl|0:1.0.2k-1.amzn2.X86_64"),
     }
+
+
+@patch.object(
+    cartography.intel.aws.inspector,
+    "get_inspector_findings",
+    side_effect=botocore.exceptions.ClientError(
+        error_response={"Error": {"Code": "ValidationException", "Message": ""}},
+        operation_name="ListFindings",
+    ),
+)
+def test_sync_findings_for_account_skips_validation_exception(
+    mock_get,
+    neo4j_session,
+):
+    boto3_session = MagicMock()
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    neo4j_session.run("MERGE (:AWSAccount{id: $id})", id=TEST_ACC_ID_1)
+
+    _sync_findings_for_account(
+        neo4j_session,
+        boto3_session,
+        TEST_REGION,
+        TEST_ACC_ID_1,
+        TEST_UPDATE_TAG,
+        TEST_ACC_ID_1,
+    )
+
+    mock_get.assert_called_once_with(
+        boto3_session,
+        TEST_REGION,
+        TEST_ACC_ID_1,
+        BATCH_SIZE,
+    )
+    assert check_nodes(neo4j_session, "AWSInspectorFinding", ["id"]) == set()
