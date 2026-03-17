@@ -58,6 +58,8 @@ def test_transform_public_image_tags_returns_built_from_and_recommendation_rows(
     assert recommendation_rows["node:25-alpine"]["fix_medium"] is None
     assert recommendation_rows["node:25-alpine"]["fix_low"] is None
     assert recommendation_rows["node:slim"]["is_slim"] is True
+    assert "digest" not in rows_by_id["node:25-alpine"]
+    assert "digest" not in recommendation_rows["node:25-alpine"]
 
 
 def test_parse_recommendation_raw_supports_crlf_and_registry_ports() -> None:

@@ -28,8 +28,6 @@ class SlackUserNodeProperties(CartographyNodeProperties):
     is_owner: PropertyRef = PropertyRef("is_owner")
     is_restricted: PropertyRef = PropertyRef("is_restricted")
     is_ultra_restricted: PropertyRef = PropertyRef("is_ultra_restricted")
-    is_bot: PropertyRef = PropertyRef("is_bot")
-    is_app_user: PropertyRef = PropertyRef("is_app_user")
     is_email_confirmed: PropertyRef = PropertyRef("is_email_confirmed")
     team: PropertyRef = PropertyRef("profile.team")
     has_mfa: PropertyRef = PropertyRef("has_mfa")
@@ -57,6 +55,4 @@ class SlackUserSchema(CartographyNodeSchema):
     label: str = "SlackUser"
     properties: SlackUserNodeProperties = SlackUserNodeProperties()
     sub_resource_relationship: SlackTeamToUserRel = SlackTeamToUserRel()
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
-        ["UserAccount"]
-    )  # UserAccount label is used for ontology mapping
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
