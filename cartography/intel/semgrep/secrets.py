@@ -164,11 +164,10 @@ def sync_secrets(
 
     deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
     if not deployment_id:
-        logger.warning(
-            "Missing Semgrep deployment ID, ensure that sync_deployment() has been called."
-            "Skipping Secrets findings sync job.",
+        raise ValueError(
+            "Missing Semgrep deployment ID. Ensure that sync_deployment() has been called "
+            "before sync_secrets()."
         )
-        return
 
     raw_secret_findings = get_secret_findings(semgrep_app_token, deployment_id)
 
