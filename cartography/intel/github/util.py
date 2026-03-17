@@ -34,6 +34,81 @@ class PaginatedGraphqlData(NamedTuple):
     edges: list[dict[str, Any]]
 
 
+def _extract_error_message(response: requests.Response) -> str:
+    """Extract a readable error message from a GitHub API response."""
+    try:
+        payload = response.json()
+    except ValueError:
+        return response.text
+
+    if isinstance(payload, dict):
+        message = payload.get("message")
+        if isinstance(message, str):
+            return message
+        errors = payload.get("errors")
+        if isinstance(errors, list):
+            parts = []
+            for error in errors:
+                if isinstance(error, dict):
+                    error_message = error.get("message")
+                    if isinstance(error_message, str):
+                        parts.append(error_message)
+            if parts:
+                return "; ".join(parts)
+    return response.text
+
+
+def _get_rate_limit_reset_sleep_seconds(response: requests.Response) -> int | None:
+    """Return seconds to sleep until the primary rate limit resets, if available."""
+    remaining = response.headers.get("x-ratelimit-remaining")
+    reset = response.headers.get("x-ratelimit-reset")
+    if remaining != "0" or not reset:
+        return None
+
+    try:
+        reset_at = datetime.fromtimestamp(int(reset), tz=tz.utc)
+    except ValueError:
+        return None
+
+    now = datetime.now(tz.utc)
+    sleep_duration = reset_at - now + timedelta(minutes=1)
+    return max(0, int(sleep_duration.total_seconds()))
+
+
+def _get_retry_sleep_seconds_for_http_error(
+    err: requests.exceptions.HTTPError,
+    retry: int,
+) -> int:
+    """
+    Return a retry delay for HTTP errors, honoring GitHub rate-limit guidance for 403/429.
+    """
+    response = err.response
+    default_sleep_seconds: int = int(2**retry)
+    if response is None:
+        return int(default_sleep_seconds)
+
+    if response.status_code not in (403, 429):
+        return int(default_sleep_seconds)
+
+    retry_after = response.headers.get("retry-after")
+    if retry_after:
+        try:
+            return max(0, int(retry_after))
+        except ValueError:
+            pass
+
+    reset_sleep_seconds = _get_rate_limit_reset_sleep_seconds(response)
+    if reset_sleep_seconds is not None:
+        return reset_sleep_seconds
+
+    message = _extract_error_message(response).lower()
+    if "secondary rate limit" in message or "abuse detection" in message:
+        # GitHub recommends waiting at least one minute before retrying.
+        return int(max(60, default_sleep_seconds))
+
+    return int(default_sleep_seconds)
+
+
 def handle_rate_limit_sleep(token: str) -> None:
     """
     Check the remaining rate limit and sleep if remaining is below threshold
@@ -197,7 +272,29 @@ def fetch_all(
             )
             raise exc
         elif retry > 0:
-            time.sleep(2**retry)
+            sleep_seconds = 2**retry
+            if isinstance(exc, requests.exceptions.HTTPError):
+                sleep_seconds = _get_retry_sleep_seconds_for_http_error(exc, retry)
+                response = exc.response
+                status_code = (
+                    response.status_code if response is not None else "unknown"
+                )
+                message = (
+                    _extract_error_message(response)
+                    if response is not None
+                    else str(exc)
+                )
+                logger.warning(
+                    "GitHub: HTTP %s while retrieving resource `%s` for org `%s`; retry %d/%d in %s seconds. Message: %s",
+                    status_code,
+                    resource_type,
+                    organization,
+                    retry,
+                    retries,
+                    sleep_seconds,
+                    message,
+                )
+            time.sleep(sleep_seconds)
             continue
 
         if "data" not in resp:
