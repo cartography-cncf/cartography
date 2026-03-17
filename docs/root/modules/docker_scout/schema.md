@@ -35,7 +35,6 @@ Representation of the current and recommended base image tags parsed from Docker
 | name | Name of the public image |
 | tag | Tag of the public image |
 | alternative_tags | Alternative tags suggested by Docker Scout for this public image tag |
-| digest | Digest of the public image when Docker Scout reports it |
 | size | Size of the public image |
 | flavor | Flavor of the public image |
 | os | Operating system family inferred from the report |
