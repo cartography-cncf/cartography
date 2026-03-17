@@ -452,6 +452,16 @@ _aibom_nist_ai_agent_inventory = Fact(
         memory_names,
         collect(DISTINCT prompt.name) AS prompt_names
     OPTIONAL MATCH (agent)-[:USES_EMBEDDING]->(embedding:AIEmbedding)
+    WITH
+        source,
+        img,
+        agent,
+        model_names,
+        tool_names,
+        memory_names,
+        prompt_names,
+        count(DISTINCT embedding) AS embedding_count,
+        collect(DISTINCT embedding.name) AS embedding_names
     RETURN
         source.id AS source_id,
         source.image_uri AS image_uri,
@@ -472,8 +482,8 @@ _aibom_nist_ai_agent_inventory = Fact(
         memory_names,
         size(prompt_names) AS prompt_count,
         prompt_names,
-        count(DISTINCT embedding) AS embedding_count,
-        collect(DISTINCT embedding.name) AS embedding_names
+        embedding_count,
+        embedding_names
     ORDER BY image_uri, agent_name
     """,
     cypher_visual_query="""

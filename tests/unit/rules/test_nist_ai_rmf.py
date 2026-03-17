@@ -190,3 +190,14 @@ def test_nist_ai_aibom_coverage_gap_count_query_counts_all_sources():
     assert fact.cypher_count_query.strip() == (
         "MATCH (source:AIBOMSource)\n" "    RETURN COUNT(source) AS count"
     )
+
+
+def test_nist_ai_aibom_agent_inventory_stages_embedding_aggregation():
+    fact = nist_ai_aibom_agent_inventory.get_fact_by_id("aibom_nist_ai_agent_inventory")
+
+    assert "OPTIONAL MATCH (agent)-[:USES_EMBEDDING]->(embedding:AIEmbedding)" in (
+        fact.cypher_query
+    )
+    assert "count(DISTINCT embedding) AS embedding_count" in fact.cypher_query
+    assert "collect(DISTINCT embedding.name) AS embedding_names" in fact.cypher_query
+    assert "embedding_count,\n        embedding_names" in fact.cypher_query
