@@ -169,20 +169,27 @@ def sync_secrets(
             "before sync_secrets()."
         )
 
-    raw_secret_findings = get_secret_findings(semgrep_app_token, deployment_id)
+    try:
+        raw_secret_findings = get_secret_findings(semgrep_app_token, deployment_id)
 
-    logger.info("Running Semgrep Secrets findings sync job.")
-    secret_findings = transform_secret_findings(raw_secret_findings)
-    load_semgrep_secret_findings(
-        neo4j_session, secret_findings, deployment_id, update_tag
-    )
+        logger.info("Running Semgrep Secrets findings sync job.")
+        secret_findings = transform_secret_findings(raw_secret_findings)
+        load_semgrep_secret_findings(
+            neo4j_session, secret_findings, deployment_id, update_tag
+        )
 
-    cleanup_secrets(neo4j_session, common_job_parameters)
-    merge_module_sync_metadata(
-        neo4j_session=neo4j_session,
-        group_type="Semgrep",
-        group_id=deployment_id,
-        synced_type="Secrets",
-        update_tag=update_tag,
-        stat_handler=stat_handler,
-    )
+        cleanup_secrets(neo4j_session, common_job_parameters)
+        merge_module_sync_metadata(
+            neo4j_session=neo4j_session,
+            group_type="Semgrep",
+            group_id=deployment_id,
+            synced_type="Secrets",
+            update_tag=update_tag,
+            stat_handler=stat_handler,
+        )
+    except (ReadTimeout, HTTPError) as e:
+        logger.warning(
+            "Semgrep Secrets sync failed, skipping Secrets for this run: %s",
+            e,
+            exc_info=True,
+        )
