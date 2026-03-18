@@ -94,31 +94,40 @@ def transform_secret_findings(
         secret_finding["id"] = finding["id"]
         repository = finding.get("repository", {})
         secret_finding["repositoryName"] = repository.get("name")
-        secret_finding["repositoryVisibility"] = repository.get(
-            "visibility", ""
-        ).replace("REPOSITORY_VISIBILITY_", "")
-        secret_finding["repositoryScmType"] = repository.get("scmType", "").replace(
-            "SCM_TYPE_", ""
+        visibility = repository.get("visibility")
+        secret_finding["repositoryVisibility"] = (
+            visibility.replace("REPOSITORY_VISIBILITY_", "") if visibility else None
+        )
+        scm_type = repository.get("scmType")
+        secret_finding["repositoryScmType"] = (
+            scm_type.replace("SCM_TYPE_", "") if scm_type else None
         )
         secret_finding["ref"] = finding.get("ref")
         secret_finding["ruleHashId"] = finding.get("ruleHashId")
-        secret_finding["severity"] = finding.get("severity", "").replace(
-            "SEVERITY_", ""
+        severity = finding.get("severity")
+        secret_finding["severity"] = (
+            severity.replace("SEVERITY_", "") if severity else None
         )
-        secret_finding["confidence"] = finding.get("confidence", "").replace(
-            "CONFIDENCE_", ""
+        confidence = finding.get("confidence")
+        secret_finding["confidence"] = (
+            confidence.replace("CONFIDENCE_", "") if confidence else None
         )
         secret_finding["type"] = finding.get("type")
-        secret_finding["validationState"] = finding.get("validationState", "").replace(
-            "VALIDATION_STATE_", ""
+        validation_state = finding.get("validationState")
+        secret_finding["validationState"] = (
+            validation_state.replace("VALIDATION_STATE_", "")
+            if validation_state
+            else None
         )
-        secret_finding["status"] = finding.get("status", "").replace(
-            "FINDING_STATUS_", ""
+        status = finding.get("status")
+        secret_finding["status"] = (
+            status.replace("FINDING_STATUS_", "") if status else None
         )
         secret_finding["findingPath"] = finding.get("findingPath")
         secret_finding["findingPathUrl"] = finding.get("findingPathUrl")
         secret_finding["refUrl"] = finding.get("refUrl")
-        secret_finding["mode"] = finding.get("mode", "").replace("MODE_", "")
+        mode = finding.get("mode")
+        secret_finding["mode"] = mode.replace("MODE_", "") if mode else None
         secret_finding["createdAt"] = finding.get("createdAt")
         secret_finding["updatedAt"] = finding.get("updatedAt")
 
