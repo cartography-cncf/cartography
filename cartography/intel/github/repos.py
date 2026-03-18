@@ -16,7 +16,10 @@ from packaging.requirements import InvalidRequirement
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
+from cartography.intel.github.util import describe_request_error
 from cartography.intel.github.util import fetch_all
+from cartography.intel.github.util import get_retry_delay_seconds
+from cartography.intel.github.util import is_retryable_request_error
 from cartography.util import normalize_datetime
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
@@ -124,14 +127,29 @@ def get(token: str, api_url: str, organization: str) -> List[Dict]:
     :return: A list of dicts representing repos. See tests.data.github.repos for data shape.
     """
     # TODO: link the Github organization to the repositories
-    repos, _ = fetch_all(
-        token,
-        api_url,
-        organization,
-        GITHUB_ORG_REPOS_PAGINATED_GRAPHQL,
-        "repositories",
-    )
-    return repos.nodes
+    try:
+        repos, _ = fetch_all(
+            token,
+            api_url,
+            organization,
+            GITHUB_ORG_REPOS_PAGINATED_GRAPHQL,
+            "repositories",
+        )
+        return repos.nodes
+    except requests.exceptions.RequestException as err:
+        if not is_retryable_request_error(err):
+            raise
+
+        logger.warning(
+            (
+                f"GitHub GraphQL repository sync failed for org `{organization}` "
+                f"with {describe_request_error(err)}; falling back to REST repository listing."
+            ),
+            exc_info=True,
+        )
+
+        rest_repos = get_org_repos(organization, token, api_url)
+        return [_normalize_rest_repo(rest_repo) for rest_repo in rest_repos]
 
 
 def transform(repos_json: List[Dict]) -> Dict:
@@ -159,7 +177,7 @@ def transform(repos_json: List[Dict]) -> Dict:
         _transform_repo_languages(repo_object["url"], repo_object, transformed_repo_languages)
         _transform_repo_objects(repo_object, transformed_repo_list)
         _transform_repo_owners(repo_object["owner"]["url"], repo_object, transformed_repo_owners)
-        _transform_collaborators(repo_object["collaborators"], repo_object["url"], transformed_collaborators)
+        _transform_collaborators(repo_object.get("collaborators"), repo_object["url"], transformed_collaborators)
         _transform_branches(repo_object["url"], repo_object, transformed_branches)
         # _transform_requirements_txt(repo_object["requirements"], repo_object["url"], transformed_requirements_files)
         # _transform_setup_cfg_requirements(repo_object["setupCfg"], repo_object["url"], transformed_requirements_files)
@@ -183,6 +201,11 @@ def transform(repos_json: List[Dict]) -> Dict:
         if last_activity_at is None:
             all_dates = [b["last_commit_timestamp"] for b in repo_branches if b.get("last_commit_timestamp")]
             last_activity_at = max(all_dates) if all_dates else None
+
+        # Fall back to repo's updatedAt when no branch commit timestamps are available
+        # (pushedDate is null for commits not created via a GitHub push event)
+        if last_activity_at is None:
+            last_activity_at = repo.get("pushedat") or repo.get("updatedat")
 
         iso_str, ts_ms = normalize_datetime(last_activity_at)
         repo["last_activity_at"] = iso_str
@@ -211,7 +234,7 @@ def _transform_branches(repo_url: str, repo: Dict, transformed_branches: List[Di
     default_branch = repo.get("defaultBranchRef", {}).get("name") if repo.get("defaultBranchRef") else None
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
 
-    for edge in repo["refs"]["edges"]:
+    for edge in (repo["refs"].get("edges") or []):
         node = edge["node"]
         branch_name = node["name"]
         target = node.get("target")
@@ -273,7 +296,11 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
     # Create a unique ID for a GitHubBranch node representing the default branch of this repo object.
     dbr = input_repo_object["defaultBranchRef"]
     default_branch_name = dbr["name"] if dbr else None
-    default_branch_id = _create_default_branch_id(input_repo_object["url"], dbr["id"]) if dbr else None
+    default_branch_id = (
+        _create_default_branch_id(input_repo_object["url"], dbr["id"])
+        if dbr and dbr.get("id")
+        else None
+    )
 
     # Create a git:// URL from the given SSH URL, if it exists.
     ssh_url = input_repo_object.get("sshUrl")
@@ -286,7 +313,9 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "name": input_repo_object["name"],
             "fullname": input_repo_object["nameWithOwner"],
             "description": input_repo_object["description"],
-            "primary_language": (input_repo_object["primaryLanguage"]["name"] if input_repo_object.get("primaryLanguage") else "").lower(),
+            "primary_language": (
+                input_repo_object["primaryLanguage"]["name"] if input_repo_object.get("primaryLanguage") else ""
+            ).lower(),
             "homepage": input_repo_object["homepageUrl"],
             "default_branch": default_branch_name,
             "defaultbranchid": default_branch_id,
@@ -299,6 +328,7 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "url": input_repo_object["url"],
             "sshurl": ssh_url,
             "updatedat": input_repo_object["updatedAt"],
+            "pushedat": input_repo_object["pushedAt"],
         },
     )
 
@@ -329,7 +359,7 @@ def _transform_repo_languages(repo_url: str, repo: Dict, repo_languages: List[Di
     :param repo_languages: Output array to append transformed results to.
     :return: Nothing.
     """
-    if repo["languages"]["totalCount"] > 0:
+    if repo.get("languages") and repo["languages"]["totalCount"] > 0:
         for language in repo["languages"]["nodes"]:
             repo_languages.append(
                 {
@@ -691,9 +721,63 @@ def load_python_requirements(neo4j_session: neo4j.Session, update_tag: int, requ
     )
 
 
-def get_org_repos(org_name, access_token):
+def _build_org_repos_url(api_url: str, org_name: str) -> str:
+    api_root = api_url.rstrip("/")
+    for suffix, replacement in (
+        ("/api/v3/graphql", "/api/v3"),
+        ("/api/graphql", "/api/v3"),
+        ("/graphql", ""),
+    ):
+        if api_root.endswith(suffix):
+            api_root = f"{api_root[:-len(suffix)]}{replacement}"
+            break
+
+    return f"{api_root}/orgs/{org_name}/repos"
+
+
+def _normalize_rest_repo(repo: Dict[str, Any]) -> Dict[str, Any]:
+    owner = repo.get("owner") or {}
+    owner_login = owner.get("login")
+    owner_url = owner.get("html_url") or (
+        f"https://github.com/{owner_login}" if owner_login else owner.get("url")
+    )
+    default_branch_name = repo.get("default_branch")
+
+    return {
+        "name": repo["name"],
+        "nameWithOwner": repo.get("full_name") or repo["name"],
+        "primaryLanguage": {"name": repo["language"]} if repo.get("language") else None,
+        "url": repo["html_url"],
+        "sshUrl": repo.get("ssh_url"),
+        "createdAt": repo["created_at"],
+        "description": repo.get("description"),
+        "updatedAt": repo["updated_at"],
+        "pushedAt": repo["pushed_at"],
+        "homepageUrl": repo.get("homepage"),
+        "languages": {"totalCount": 0, "nodes": []},
+        "defaultBranchRef": (
+            {"name": default_branch_name, "id": None}
+            if default_branch_name
+            else None
+        ),
+        "isPrivate": repo["private"],
+        "isArchived": repo.get("archived", False),
+        "isDisabled": repo.get("disabled", False),
+        "isLocked": repo.get("locked", False),
+        "owner": {
+            "url": owner_url,
+            "login": owner_login,
+            "__typename": owner.get("type", "Organization"),
+        },
+        "collaborators": None,
+        "requirements": None,
+        "setupCfg": None,
+    }
+
+
+def get_org_repos(org_name: str, access_token: str, api_url: str, retries: int = 5) -> List[Dict[str, Any]]:
     # GitHub API endpoint for listing organization repositories
-    url = f"https://api.github.com/orgs/{org_name}/repos"
+    url = _build_org_repos_url(api_url, org_name)
 
     # Headers for authentication and API version
     headers = {"Authorization": f"token {access_token}", "Accept": "application/vnd.github.v3+json"}
@@ -702,19 +786,48 @@ def get_org_repos(org_name, access_token):
     page = 1
 
     while True:
-        # Make the API request
-        response = requests.get(url, headers=headers, params={"page": page, "per_page": 100})
+        retry = 0
+        repos = None
+        while retry < retries:
+            try:
+                response = requests.get(
+                    url,
+                    headers=headers,
+                    params={"page": page, "per_page": 100},
+                    timeout=(60, 60),
+                )
+                response.raise_for_status()
+                repos = response.json()
+                break
+            except (
+                requests.exceptions.Timeout,
+                requests.exceptions.HTTPError,
+                requests.exceptions.ChunkedEncodingError,
+                requests.exceptions.ConnectionError,
+            ) as err:
+                retry += 1
+                if retry >= retries or not is_retryable_request_error(err):
+                    logger.error(
+                        (
+                            f"GitHub REST repository fallback failed for org `{org_name}` "
+                            f"after {retry} attempts ({describe_request_error(err)})."
+                        ),
+                        exc_info=True,
+                    )
+                    raise
+                logger.warning(
+                    (
+                        f"GitHub REST repository fallback retry for org `{org_name}` "
+                        f"after {describe_request_error(err)} ({retry}/{retries})."
+                    ),
+                )
+                time.sleep(get_retry_delay_seconds(err, retry))
 
-        # Check if the request was successful
-        if response.status_code == 200:
-            repos = response.json()
-            if not repos:
-                break  # No more repositories to fetch
-
-            all_repos.extend(repos)
-            page += 1
-        else:
+        if not repos:
             break
+
+        all_repos.extend(repos)
+        page += 1
 
     return all_repos
 

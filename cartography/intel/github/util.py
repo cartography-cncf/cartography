@@ -18,11 +18,48 @@ logger = logging.getLogger(__name__)
 # Connect and read timeouts of 60 seconds each; see https://requests.readthedocs.io/en/master/user/advanced/#timeouts
 _TIMEOUT = (60, 60)
 _GRAPHQL_RATE_LIMIT_REMAINING_THRESHOLD = 500
+_TRANSIENT_HTTP_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 
 
 class PaginatedGraphqlData(NamedTuple):
     nodes: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
+
+
+def get_http_status_code(err: BaseException) -> Optional[int]:
+    if isinstance(err, requests.exceptions.HTTPError) and err.response is not None:
+        return err.response.status_code
+    return None
+
+
+def is_retryable_request_error(err: BaseException) -> bool:
+    if isinstance(
+        err,
+        (
+            requests.exceptions.Timeout,
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ConnectionError,
+        ),
+    ):
+        return True
+
+    status_code = get_http_status_code(err)
+    return status_code in _TRANSIENT_HTTP_STATUS_CODES if status_code is not None else False
+
+
+def get_retry_delay_seconds(err: BaseException, retry: int) -> int:
+    if isinstance(err, requests.exceptions.HTTPError) and err.response is not None:
+        retry_after = err.response.headers.get("Retry-After")
+        if retry_after and retry_after.isdigit():
+            return int(retry_after)
+    return int(2**retry)
+
+
+def describe_request_error(err: BaseException) -> str:
+    status_code = get_http_status_code(err)
+    if status_code is not None:
+        return f"HTTP {status_code}"
+    return err.__class__.__name__
 
 
 def handle_rate_limit_sleep(token: str) -> None:
@@ -159,23 +196,28 @@ def fetch_all(
         except requests.exceptions.ChunkedEncodingError as err:
             retry += 1
             exc = err
+        except requests.exceptions.ConnectionError as err:
+            retry += 1
+            exc = err
 
         if retry >= retries:
             logger.error(
-                f"GitHub: Could not retrieve page of resource `{resource_type}` due to HTTP error.",
+                (
+                    f"GitHub: Could not retrieve page of resource `{resource_type}` "
+                    f"after {retry} attempts ({describe_request_error(exc)})."
+                ),
                 exc_info=True,
             )
             raise exc
         elif retry > 0:
-            time.sleep(2**retry)
-            continue
-
-        if resp is None:
-            logger.error(
-                f"GitHub: Could not retrieve page of resource `{resource_type}` due to HTTP error.",
-                exc_info=True,
+            logger.warning(
+                (
+                    f"GitHub: retrying page of resource `{resource_type}` "
+                    f"after {describe_request_error(exc)} ({retry}/{retries})."
+                ),
             )
-            raise exc
+            time.sleep(get_retry_delay_seconds(exc, retry))
+            continue
 
         if not (
             resp and
@@ -187,7 +229,10 @@ def fetch_all(
                 f"GitHub: Could not retrieve page of resource `{resource_type}` due to missing organization data.",
                 exc_info=True,
             )
-            raise exc
+            raise exc if exc is not None else Exception(
+                f"GitHub: `{resource_type}` data missing from API response - "
+                "this is likely due to insufficient token permissions (e.g. read:org scope required).",
+            )
 
         resource = resp["data"]["organization"][resource_type]
         if resource_inner_type and resource_inner_type in resource:

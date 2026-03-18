@@ -91,7 +91,7 @@ def load_organization(
         OrgIsVerified=org_data['isVerified'],
         OrgLocation=org_data['location'],
         OrgWebsiteUrl=org_data['websiteUrl'],
-        OrgRequiresTwoFactorAuthentication=org_data['requiresTwoFactorAuthentication'],
+        OrgRequiresTwoFactorAuthentication=org_data.get('requiresTwoFactorAuthentication'),
         UpdateTag=common_job_parameters['UPDATE_TAG'],
         workspace_id=common_job_parameters['WORKSPACE_ID'],
     )
