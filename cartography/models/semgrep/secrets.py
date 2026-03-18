@@ -30,6 +30,7 @@ class SemgrepSecretsFindingNodeProperties(CartographyNodeProperties):
     created_at: PropertyRef = PropertyRef("createdAt")
     updated_at: PropertyRef = PropertyRef("updatedAt")
     repository_visibility: PropertyRef = PropertyRef("repositoryVisibility")
+    repository_scm_type: PropertyRef = PropertyRef("repositoryScmType")
 
 
 @dataclass(frozen=True)

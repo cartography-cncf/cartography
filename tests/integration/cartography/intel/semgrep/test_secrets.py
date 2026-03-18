@@ -60,6 +60,7 @@ def test_sync_secrets(mock_get_secret_findings, mock_get_deployment, neo4j_sessi
             "status",
             "finding_path",
             "mode",
+            "repository_scm_type",
         ],
     ) == {
         (
@@ -74,6 +75,7 @@ def test_sync_secrets(mock_get_secret_findings, mock_get_deployment, neo4j_sessi
             "OPEN",
             "src/ai.py:232",
             "MONITOR",
+            "GITHUB",
         ),
     }
 

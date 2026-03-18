@@ -97,6 +97,9 @@ def transform_secret_findings(
         secret_finding["repositoryVisibility"] = repository.get(
             "visibility", ""
         ).replace("REPOSITORY_VISIBILITY_", "")
+        secret_finding["repositoryScmType"] = repository.get("scmType", "").replace(
+            "SCM_TYPE_", ""
+        )
         secret_finding["ref"] = finding.get("ref")
         secret_finding["ruleHashId"] = finding.get("ruleHashId")
         secret_finding["severity"] = finding.get("severity", "").replace(
