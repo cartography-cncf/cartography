@@ -8,7 +8,6 @@ from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
 from cartography.models.core.relationships import make_target_node_matcher
-from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -30,10 +29,6 @@ class JumpCloudUserNodeProperties(CartographyNodeProperties):
 
 
 @dataclass(frozen=True)
-class JumpCloudUserToHumanRelProperties(CartographyRelProperties):
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-@dataclass(frozen=True)
 class JumpCloudTenantToUserRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
@@ -53,5 +48,6 @@ class JumpCloudTenantToUserRel(CartographyRelSchema):
 @dataclass(frozen=True)
 class JumpCloudUserSchema(CartographyNodeSchema):
     label: str = "JumpCloudUser"
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["UserAccount"])
     properties: JumpCloudUserNodeProperties = JumpCloudUserNodeProperties()
     sub_resource_relationship: JumpCloudTenantToUserRel = JumpCloudTenantToUserRel()

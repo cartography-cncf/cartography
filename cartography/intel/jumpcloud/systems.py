@@ -2,30 +2,29 @@ import logging
 from typing import Any
 
 import neo4j
-from requests import Session
+import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.jumpcloud.tenant import load_tenant
 from cartography.intel.jumpcloud.util import paginated_get
 from cartography.models.jumpcloud.system import JumpCloudSystemSchema
-from cartography.models.jumpcloud.tenant import JumpCloudTenantSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-_TIMEOUT = (60, 60)
 _BASE_URL = "https://console.jumpcloud.com/api/v2/assets/devices"
 
 
 @timeit
 def sync(
     neo4j_session: neo4j.Session,
-    auth_headers: dict[str, str],
+    session: requests.Session,
     org_id: str,
     update_tag: int,
     common_job_parameters: dict[str, Any],
 ) -> None:
     logger.info("Starting JumpCloud systems sync")
-    systems = get(auth_headers)
+    systems = get(session)
     transformed = transform(systems)
     load_systems(neo4j_session, transformed, org_id, update_tag)
     cleanup(neo4j_session, common_job_parameters)
@@ -33,8 +32,8 @@ def sync(
 
 
 @timeit
-def get(headers: dict[str, str]) -> list[dict[str, Any]]:
-    return list(paginated_get(Session(), _BASE_URL, headers, _TIMEOUT))
+def get(session: requests.Session) -> list[dict[str, Any]]:
+    return list(paginated_get(session, _BASE_URL))
 
 
 def _get_field(system: dict[str, Any], *keys: str) -> Any:
@@ -82,12 +81,7 @@ def load_systems(
     org_id: str,
     update_tag: int,
 ) -> None:
-    load(
-        neo4j_session,
-        JumpCloudTenantSchema(),
-        [{"id": org_id}],
-        lastupdated=update_tag,
-    )
+    load_tenant(neo4j_session, org_id, update_tag)
     load(
         neo4j_session,
         JumpCloudSystemSchema(),

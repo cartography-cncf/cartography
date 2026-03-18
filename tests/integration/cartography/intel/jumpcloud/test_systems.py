@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import requests
+
 import cartography.intel.jumpcloud.systems
 import tests.data.jumpcloud.systems
 from tests.integration.util import check_nodes
@@ -35,7 +37,7 @@ def test_sync_jumpcloud_systems(mock_api, neo4j_session):
 
     cartography.intel.jumpcloud.systems.sync(
         neo4j_session,
-        {"x-api-key": "fake-api-key", "Content-Type": "application/json"},
+        requests.Session(),
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID},

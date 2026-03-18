@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import Any
 from typing import Generator
 
@@ -7,15 +6,12 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-_RETRYABLE_STATUS_CODES = {502, 503, 504}
-_MAX_RETRIES = 3
+_TIMEOUT = (60, 60)
 
 
 def paginated_get(
     api_session: requests.Session,
     url: str,
-    headers: dict[str, str],
-    timeout: tuple[int, int],
     params: dict[str, Any] | None = None,
     page_size: int = 100,
     skip_param: str = "skip",
@@ -26,11 +22,11 @@ def paginated_get(
     For list responses, continues paginating as long as a full page is returned.
     For dict responses, continues until an empty page is returned.
 
+    Auth headers, retry logic, and timeout should be configured on the session directly.
+
     Args:
         api_session: The requests session to use for making API calls.
         url: The URL to make the API call to.
-        headers: Auth headers to include with each request.
-        timeout: The timeout for the API call.
         params: Additional query parameters to merge into each request.
         page_size: Number of items to request per page.
 
@@ -40,21 +36,11 @@ def paginated_get(
     base_params: dict[str, Any] = dict(params or {})
     skip = 0
     while True:
-        for attempt in range(_MAX_RETRIES):
-            response = api_session.get(
-                url,
-                headers=headers,
-                params={**base_params, "limit": page_size, skip_param: skip},
-                timeout=timeout,
-            )
-            if response.status_code not in _RETRYABLE_STATUS_CODES:
-                break
-            wait = 2 ** attempt
-            logger.warning(
-                "Got %d from %s (skip=%d), retrying in %ds (attempt %d/%d)",
-                response.status_code, url, skip, wait, attempt + 1, _MAX_RETRIES,
-            )
-            time.sleep(wait)
+        response = api_session.get(
+            url,
+            params={**base_params, "limit": page_size, skip_param: skip},
+            timeout=_TIMEOUT,
+        )
         response.raise_for_status()
         payload = response.json()
         if isinstance(payload, list):

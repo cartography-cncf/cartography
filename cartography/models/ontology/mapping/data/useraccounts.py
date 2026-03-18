@@ -484,6 +484,27 @@ pagerduty_mapping = OntologyMapping(
         ),
     ],
 )
+jumpcloud_mapping = OntologyMapping(
+    module_name="jumpcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JumpCloudUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="firstname", node_field="firstname"),
+                OntologyFieldMapping(ontology_field="lastname", node_field="lastname"),
+                OntologyFieldMapping(ontology_field="username", node_field="username"),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="suspended",
+                    special_handling="invert_boolean",
+                ),
+            ],
+        ),
+    ],
+)
 
 # UserAccount fields:
 # has_mfa
@@ -547,4 +568,5 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "sentry": sentry_mapping,
     "subimage": subimage_mapping,
     "kubernetes": kubernetes_mapping,
+    "jumpcloud": jumpcloud_mapping,
 }

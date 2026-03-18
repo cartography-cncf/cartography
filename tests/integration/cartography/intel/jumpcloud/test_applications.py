@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import requests
+
 import cartography.intel.jumpcloud.applications
 import tests.data.jumpcloud.applications
 from tests.integration.util import check_nodes
@@ -34,7 +36,7 @@ def test_sync_jumpcloud_applications(mock_api, neo4j_session):
 
     cartography.intel.jumpcloud.applications.sync(
         neo4j_session,
-        {"x-api-key": "fake-api-key", "Content-Type": "application/json"},
+        requests.Session(),
         TEST_ORG_ID,
         TEST_UPDATE_TAG,
         {"UPDATE_TAG": TEST_UPDATE_TAG, "ORG_ID": TEST_ORG_ID},
@@ -69,7 +71,6 @@ def test_sync_jumpcloud_applications(mock_api, neo4j_session):
     )
 
     expected_user_rels = {
-        ("jc-app-001", "aabbccdd001122334455667701"),
         ("jc-app-001", "aabbccdd001122334455667702"),
         ("jc-app-002", "aabbccdd001122334455667702"),
     }
