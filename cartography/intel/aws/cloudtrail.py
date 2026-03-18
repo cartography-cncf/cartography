@@ -7,6 +7,7 @@ from typing import List
 import boto3
 import neo4j
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectionClosedError
 from botocore.exceptions import ConnectTimeoutError
 from botocore.exceptions import EndpointConnectionError
 from botocore.exceptions import ReadTimeoutError
@@ -66,6 +67,7 @@ def get_cloudtrail_trails(
             ) from error
         raise
     except (
+        ConnectionClosedError,
         ConnectTimeoutError,
         EndpointConnectionError,
         ReadTimeoutError,
@@ -110,6 +112,7 @@ def get_cloudtrail_trails(
                 ) from error
             raise
         except (
+            ConnectionClosedError,
             ConnectTimeoutError,
             EndpointConnectionError,
             ReadTimeoutError,

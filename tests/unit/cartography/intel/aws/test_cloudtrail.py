@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectionClosedError
 from botocore.exceptions import ConnectTimeoutError
 
 from cartography.intel.aws.cloudtrail import CloudTrailTransientRegionFailure
@@ -24,7 +25,7 @@ def test_get_cloudtrail_trails_raises_transient_region_failure_on_describe_trail
     boto3_session = MagicMock()
     client = boto3_session.client.return_value
     client.describe_trails.side_effect = _client_error(
-        "503",
+        "ServiceUnavailable",
         "Service Unavailable",
         503,
     )
@@ -86,6 +87,22 @@ def test_get_cloudtrail_trails_raises_transient_region_failure_on_transport_time
     client = boto3_session.client.return_value
     client.describe_trails.side_effect = ConnectTimeoutError(
         endpoint_url="https://cloudtrail.us-east-1.amazonaws.com",
+    )
+
+    with pytest.raises(CloudTrailTransientRegionFailure):
+        get_cloudtrail_trails(
+            boto3_session,
+            "us-east-1",
+            "123456789012",
+        )
+
+
+def test_get_cloudtrail_trails_raises_transient_region_failure_on_connection_closed():
+    boto3_session = MagicMock()
+    client = boto3_session.client.return_value
+    client.describe_trails.side_effect = ConnectionClosedError(
+        endpoint_url="https://cloudtrail.us-east-1.amazonaws.com",
+        request=None,
     )
 
     with pytest.raises(CloudTrailTransientRegionFailure):
