@@ -5,6 +5,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 import requests
 from azure.identity import ClientSecretCredential
@@ -36,7 +37,7 @@ def call_azure_devops_api(
     method: str = "GET",
     params: Optional[Dict] = None,
     json_data: Optional[Dict] = None,
-) -> Optional[Dict]:
+) -> Tuple[Optional[Dict], Optional[Dict]]:
     """
     Calls the Azure DevOps REST API with Microsoft Entra ID OAuth authentication.
     """

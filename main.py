@@ -282,7 +282,7 @@ def azure_devops_process_request(logger, params):
                 "tenant_id": params.get("workspace", {}).get("tenantId"),
                 "client_id": os.environ.get("CDX_AZURE_CLIENT_ID"),
                 "client_secret": os.environ.get("CDX_AZURE_CLIENT_SECRET"),
-                "url": "https://vssps.dev.azure.com",
+                "url": "https://dev.azure.com",
                 "name": params.get("workspace", {}).get("account_id")
             },
         ],
