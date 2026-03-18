@@ -102,6 +102,80 @@ kandji_mapping = OntologyMapping(
             ],
         ),
     ],
+    rels=[
+        OntologyRelMapping(
+            __comment__=(
+                "Link KandjiDevice to CrowdstrikeHost when serial numbers match, "
+                "or when both serial numbers are missing and hostnames match."
+            ),
+            query=(
+                "MATCH (k:KandjiDevice), (c:CrowdstrikeHost) "
+                "WHERE "
+                "((k.serial_number IS NOT NULL AND k.serial_number <> '' "
+                "AND c.serial_number IS NOT NULL AND c.serial_number <> '' "
+                "AND k.serial_number = c.serial_number) "
+                "OR ((k.serial_number IS NULL OR k.serial_number = '') "
+                "AND (c.serial_number IS NULL OR c.serial_number = '') "
+                "AND k.device_name = c.hostname)) "
+                "MERGE (k)-[r:POTENTIALLY_SAME_DEVICE]->(c) "
+                "ON CREATE SET r.firstseen = timestamp() "
+                "SET r.lastupdated = $UPDATE_TAG, "
+                "r.match_method = CASE "
+                "WHEN k.serial_number IS NOT NULL AND k.serial_number <> '' "
+                "AND c.serial_number IS NOT NULL AND c.serial_number <> '' "
+                "THEN 'serial_number' ELSE 'hostname' END"
+            ),
+            iterative=False,
+        ),
+        OntologyRelMapping(
+            __comment__=(
+                "Link KandjiDevice to SnipeitAsset when serial numbers match, "
+                "or when both serial numbers are missing and hostnames match."
+            ),
+            query=(
+                "MATCH (k:KandjiDevice), (s:SnipeitAsset) "
+                "WHERE "
+                "((k.serial_number IS NOT NULL AND k.serial_number <> '' "
+                "AND s.serial IS NOT NULL AND s.serial <> '' "
+                "AND k.serial_number = s.serial) "
+                "OR ((k.serial_number IS NULL OR k.serial_number = '') "
+                "AND (s.serial IS NULL OR s.serial = '') "
+                "AND k.device_name = s.name)) "
+                "MERGE (k)-[r:POTENTIALLY_SAME_DEVICE]->(s) "
+                "ON CREATE SET r.firstseen = timestamp() "
+                "SET r.lastupdated = $UPDATE_TAG, "
+                "r.match_method = CASE "
+                "WHEN k.serial_number IS NOT NULL AND k.serial_number <> '' "
+                "AND s.serial IS NOT NULL AND s.serial <> '' "
+                "THEN 'serial_number' ELSE 'hostname' END"
+            ),
+            iterative=False,
+        ),
+        OntologyRelMapping(
+            __comment__=(
+                "Link CrowdstrikeHost to SnipeitAsset when serial numbers match, "
+                "or when both serial numbers are missing and hostnames match."
+            ),
+            query=(
+                "MATCH (c:CrowdstrikeHost), (s:SnipeitAsset) "
+                "WHERE "
+                "((c.serial_number IS NOT NULL AND c.serial_number <> '' "
+                "AND s.serial IS NOT NULL AND s.serial <> '' "
+                "AND c.serial_number = s.serial) "
+                "OR ((c.serial_number IS NULL OR c.serial_number = '') "
+                "AND (s.serial IS NULL OR s.serial = '') "
+                "AND c.hostname = s.name)) "
+                "MERGE (c)-[r:POTENTIALLY_SAME_DEVICE]->(s) "
+                "ON CREATE SET r.firstseen = timestamp() "
+                "SET r.lastupdated = $UPDATE_TAG, "
+                "r.match_method = CASE "
+                "WHEN c.serial_number IS NOT NULL AND c.serial_number <> '' "
+                "AND s.serial IS NOT NULL AND s.serial <> '' "
+                "THEN 'serial_number' ELSE 'hostname' END"
+            ),
+            iterative=False,
+        ),
+    ],
 )
 snipeit_mapping = OntologyMapping(
     module_name="snipeit",

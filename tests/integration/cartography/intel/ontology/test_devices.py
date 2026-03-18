@@ -197,3 +197,55 @@ def test_load_ontology_devices_relationships(neo4j_session):
         )
         == expected_rels
     )
+
+
+def test_link_cross_tool_devices_by_serial_or_hostname(neo4j_session):
+    """Test POTENTIALLY_SAME_DEVICE links across Kandji, CrowdStrike, and SnipeIT."""
+    neo4j_session.run(
+        """
+        CREATE (:KandjiDevice {id: 'k-serial', device_name: 'k-serial-host', serial_number: 'SER-001'})
+        CREATE (:CrowdstrikeHost {id: 'c-serial', hostname: 'c-serial-host', serial_number: 'SER-001'})
+        CREATE (:SnipeitAsset {id: 's-serial', name: 's-serial-host', serial: 'SER-001'})
+        CREATE (:KandjiDevice {id: 'k-hostname', device_name: 'shared-host'})
+        CREATE (:CrowdstrikeHost {id: 'c-hostname', hostname: 'shared-host'})
+        CREATE (:SnipeitAsset {id: 's-hostname', name: 'shared-host'})
+        """
+    )
+
+    cartography.intel.ontology.devices.link_ontology_nodes(
+        neo4j_session,
+        "devices",
+        TEST_UPDATE_TAG,
+    )
+
+    rels = neo4j_session.run(
+        """
+        MATCH (src)-[r:POTENTIALLY_SAME_DEVICE]->(dst)
+        RETURN labels(src)[0] AS src_label,
+               coalesce(src.id, src.hostname, src.device_id) AS src_id,
+               labels(dst)[0] AS dst_label,
+               coalesce(dst.id, dst.hostname, dst.device_id) AS dst_id,
+               r.match_method AS match_method
+        """
+    )
+    actual = {
+        (
+            row["src_label"],
+            row["src_id"],
+            row["dst_label"],
+            row["dst_id"],
+            row["match_method"],
+        )
+        for row in rels
+    }
+
+    expected = {
+        ("KandjiDevice", "k-serial", "CrowdstrikeHost", "c-serial", "serial_number"),
+        ("KandjiDevice", "k-serial", "SnipeitAsset", "s-serial", "serial_number"),
+        ("CrowdstrikeHost", "c-serial", "SnipeitAsset", "s-serial", "serial_number"),
+        ("KandjiDevice", "k-hostname", "CrowdstrikeHost", "c-hostname", "hostname"),
+        ("KandjiDevice", "k-hostname", "SnipeitAsset", "s-hostname", "hostname"),
+        ("CrowdstrikeHost", "c-hostname", "SnipeitAsset", "s-hostname", "hostname"),
+    }
+
+    assert actual == expected
