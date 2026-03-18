@@ -27,41 +27,6 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def concurrent_execution(
-    service_func: Any,
-    config: Config,
-    common_job_parameters: Dict,
-    *args,
-):
-    """
-    Execute a service sync function concurrently with proper error handling.
-    This function creates a new Neo4j session for each concurrent execution
-    to ensure thread safety and proper connection management.
-    """
-    try:
-        neo4j_auth = (config.neo4j_user, config.neo4j_password)
-        neo4j_driver = GraphDatabase.driver(
-            config.neo4j_uri,
-            auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
-        )
-
-        with neo4j_driver.session() as neo4j_session:
-            service_func(
-                neo4j_session,
-                common_job_parameters,
-                *args,
-            )
-
-    except Exception as e:
-        logger.error(
-            f"Error in concurrent execution of {service_func.__module__}: {e}",
-            exc_info=True,
-        )
-        raise
-
-
-@timeit
 def sync_organization(
     neo4j_session: neo4j.Session,
     config: Config,
