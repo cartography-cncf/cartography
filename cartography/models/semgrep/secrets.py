@@ -17,6 +17,7 @@ class SemgrepSecretsFindingNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     rule_hash_id: PropertyRef = PropertyRef("ruleHashId", extra_index=True)
     repository_name: PropertyRef = PropertyRef("repositoryName", extra_index=True)
+    repository_url: PropertyRef = PropertyRef("repositoryUrl")
     ref: PropertyRef = PropertyRef("ref")
     severity: PropertyRef = PropertyRef("severity", extra_index=True)
     confidence: PropertyRef = PropertyRef("confidence")
@@ -62,7 +63,7 @@ class SemgrepSecretsFindingToGithubRepoRelProperties(CartographyRelProperties):
 class SemgrepSecretsFindingToGithubRepoRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"fullname": PropertyRef("repositoryName")},
+        {"id": PropertyRef("repositoryUrl")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "FOUND_IN"

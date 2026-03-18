@@ -120,6 +120,7 @@ Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptu
 | updated_at | Date and time when the finding was last updated in UTC |
 | repository_visibility | Visibility of the repository (e.g. `PUBLIC`, `PRIVATE`) |
 | repository_scm_type | Source control management system of the repository (e.g. `GITHUB`) |
+| repository_url | Full URL of the repository where the finding was discovered (e.g. `https://github.com/org/repo`) |
 
 #### Relationships
 
