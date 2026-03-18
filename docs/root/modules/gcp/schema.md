@@ -185,6 +185,8 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
 
 Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v1/).
 
+> **Ontology Mapping**: This node has the extra label `DNSZone` to enable cross-platform queries for DNS zones across different systems (e.g., AWSDNSZone, GCPDNSZone, CloudflareZone).
+
 | Field      | Description                                             |
 | ---------- | ------------------------------------------------------- |
 | created_at | The date and time the zone was created                  |
@@ -545,6 +547,8 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 
 Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/reference/rest/v1/firewalls/list).
 
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+
 | Field                       | Description |
 | --------------------------- | ----------- |
 | firstseen                   | Timestamp of when a sync job first discovered this node |
@@ -773,6 +777,8 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 ### GCPRole
 
 Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles).
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 Roles exist at different levels in the GCP hierarchy and are synced separately:
 - **Predefined/Basic roles** (`roles/*`) - Global roles defined by Google, synced at the organization level
@@ -1976,6 +1982,8 @@ Representation of a GCP [Instance Group](https://cloud.google.com/compute/docs/r
 ### GCPCloudArmorPolicy
 
 Representation of a GCP [Cloud Armor Security Policy](https://cloud.google.com/compute/docs/reference/rest/v1/securityPolicies). Cloud Armor policies provide DDoS protection and WAF capabilities for backend services.
+
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field | Description |
 |---|---|

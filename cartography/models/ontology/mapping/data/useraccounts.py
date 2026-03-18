@@ -447,6 +447,29 @@ spacelift_mapping = OntologyMapping(
         ),
     ],
 )
+sentry_mapping = OntologyMapping(
+    module_name="sentry",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SentryUser",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="email", node_field="email", required=True
+                ),
+                OntologyFieldMapping(ontology_field="fullname", node_field="name"),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa",
+                    node_field="has_2fa",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="active",
+                    node_field="pending",
+                    special_handling="invert_boolean",
+                ),
+            ],
+        ),
+    ],
+)
 pagerduty_mapping = OntologyMapping(
     module_name="pagerduty",
     nodes=[
@@ -521,6 +544,7 @@ USERACCOUNTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,
     "pagerduty": pagerduty_mapping,
+    "sentry": sentry_mapping,
     "subimage": subimage_mapping,
     "kubernetes": kubernetes_mapping,
 }
