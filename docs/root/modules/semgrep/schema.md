@@ -60,7 +60,6 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | Unique integer id of the finding taken from Semgrep API |
 | **rule_id** | The rule that triggered the finding |
-| **repository** | The repository path where the finding was discovered |
 | **branch** | The branch where the finding was discovered |
 | title | Short title for the finding, set to the rule id |
 | description | Description of the vulnerability from the rule message |
@@ -106,7 +105,6 @@ Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptu
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | Unique integer id of the finding taken from Semgrep API |
 | **rule_hash_id** | Hash id of the rule that triggered the finding |
-| **repository_name** | The repository path where the finding was discovered (e.g. `org/repo`) |
 | **ref** | The branch or ref where the finding was discovered |
 | severity | Severity of the finding (e.g. HIGH, MEDIUM, LOW) |
 | confidence | Confidence level of the finding (e.g. HIGH, MEDIUM, LOW) |
@@ -147,7 +145,6 @@ Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chai
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | Unique id of the finding taken from Semgrep API |
 | **rule_id** | The rule that triggered the finding |
-| **repository** | The repository path where the finding was discovered |
 | **branch** | The branch where the finding was discovered |
 | summary | A short title summarizing of the finding |
 | description | Description of the vulnerability. |

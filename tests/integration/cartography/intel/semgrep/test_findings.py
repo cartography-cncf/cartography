@@ -60,7 +60,6 @@ def test_sync_sast_findings(mock_get_sast_findings, mock_get_deployment, neo4j_s
         [
             "id",
             "rule_id",
-            "repository",
             "repository_url",
             "branch",
             "severity",
@@ -72,7 +71,6 @@ def test_sync_sast_findings(mock_get_sast_findings, mock_get_deployment, neo4j_s
         (
             tests.data.semgrep.sast.SAST_FINDING_ID,
             "python.lang.security.audit.sqli.formatted-sql-query",
-            "simpsoncorp/sample_repo",
             "https://github.com/simpsoncorp/sample_repo",
             "main",
             "HIGH",
@@ -227,7 +225,6 @@ def test_sync_findings(
         [
             "id",
             "lastupdated",
-            "repository",
             "repository_url",
             "branch",
             "rule_id",
@@ -250,7 +247,6 @@ def test_sync_findings(
     ) == [
         tests.data.semgrep.sca.VULN_ID,
         TEST_UPDATE_TAG,
-        "simpsoncorp/sample_repo",
         "https://github.com/simpsoncorp/sample_repo",
         "main",
         "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
@@ -272,7 +268,6 @@ def test_sync_findings(
         "2024-07-11T20:46:25.269650Z",
         tests.data.semgrep.sca.VULN_ID_UNKNOWN,
         TEST_UPDATE_TAG,
-        "simpsoncorp/sample_repo",
         "https://github.com/simpsoncorp/sample_repo",
         "main",
         "ssc-1e99e462-0fc5-4109-ad52-d2b5a7048232",
