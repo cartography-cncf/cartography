@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import botocore.exceptions
+import pytest
 
 import cartography.intel.aws.identitycenter
 import tests.data.aws.identitycenter
@@ -12,6 +13,7 @@ from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
 from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
+from cartography.intel.aws.identitycenter import PermissionSetSyncNotSupported
 from cartography.intel.aws.identitycenter import transform_permission_sets
 from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
@@ -539,10 +541,8 @@ def test_permission_set_to_role_us_west_2(neo4j_session):
     }
 
 
-@patch.object(
-    cartography.intel.aws.identitycenter,
-    "get_permission_sets",
-    side_effect=botocore.exceptions.ClientError(
+def test_get_permission_sets_raises_non_retryable_error_for_unsupported_instance():
+    error = botocore.exceptions.ClientError(
         error_response={
             "Error": {
                 "Code": "ValidationException",
@@ -550,7 +550,29 @@ def test_permission_set_to_role_us_west_2(neo4j_session):
             }
         },
         operation_name="ListPermissionSets",
-    ),
+    )
+
+    mock_session = MagicMock()
+    mock_client = MagicMock()
+    mock_paginator = MagicMock()
+    mock_session.client.return_value = mock_client
+    mock_client.get_paginator.return_value = mock_paginator
+    mock_paginator.paginate.side_effect = error
+
+    with pytest.raises(PermissionSetSyncNotSupported) as excinfo:
+        get_permission_sets(
+            mock_session,
+            "arn:aws:sso:::instance/ssoins-unsupported",
+            "us-east-1",
+        )
+
+    assert excinfo.value.__cause__ is error
+
+
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_permission_sets",
+    side_effect=PermissionSetSyncNotSupported("unsupported"),
 )
 @patch.object(
     cartography.intel.aws.identitycenter,
@@ -936,15 +958,7 @@ def test_allowed_by_scoped_to_identity_store(
                     "SessionDuration": "PT12H",
                 },
             ]
-        raise botocore.exceptions.ClientError(
-            {
-                "Error": {
-                    "Code": "ValidationException",
-                    "Message": "The operation is not supported for this Identity Center instance",
-                },
-            },
-            "ListPermissionSets",
-        )
+        raise PermissionSetSyncNotSupported("unsupported")
 
     mock_permsets.side_effect = _get_permsets
 

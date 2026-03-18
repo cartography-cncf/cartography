@@ -269,6 +269,23 @@ scaleway_mapping = OntologyMapping(
 )
 
 
+# Sentry
+sentry_mapping = OntologyMapping(
+    module_name="sentry",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="SentryOrganization",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="name", node_field="name", required=True
+                ),
+                OntologyFieldMapping(ontology_field="status", node_field="status"),
+                # domain: Not available
+            ],
+        ),
+    ],
+)
+
 # SentinelOne
 sentinelone_mapping = OntologyMapping(
     module_name="sentinelone",
@@ -346,6 +363,7 @@ TENANTS_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "okta": okta_mapping,
     "openai": openai_mapping,
     "scaleway": scaleway_mapping,
+    "sentry": sentry_mapping,
     "sentinelone": sentinelone_mapping,
     "slack": slack_mapping,
     "spacelift": spacelift_mapping,

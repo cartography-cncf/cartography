@@ -117,6 +117,35 @@ class SlackGroupToChannelRel(CartographyRelSchema):
 
 
 @dataclass(frozen=True)
+class SlackGroupToSlackBotRelProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+
+
+@dataclass(frozen=True)
+# (:SlackBot)-[:MEMBER_OF]->(:SlackGroup)
+class SlackGroupToBotRel(CartographyRelSchema):
+    target_node_label: str = "SlackBot"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("member_id")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "MEMBER_OF"
+    properties: SlackGroupToSlackBotRelProperties = SlackGroupToSlackBotRelProperties()
+
+
+@dataclass(frozen=True)
+# (:SlackBot)-[:CREATED]->(:SlackGroup)
+class SlackGroupToBotCreatorRel(CartographyRelSchema):
+    target_node_label: str = "SlackBot"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"id": PropertyRef("created_by")},
+    )
+    direction: LinkDirection = LinkDirection.INWARD
+    rel_label: str = "CREATED"
+    properties: SlackGroupToSlackBotRelProperties = SlackGroupToSlackBotRelProperties()
+
+
+@dataclass(frozen=True)
 class SlackGroupSchema(CartographyNodeSchema):
     label: str = "SlackGroup"
     properties: SlackGroupNodeProperties = SlackGroupNodeProperties()
@@ -126,6 +155,8 @@ class SlackGroupSchema(CartographyNodeSchema):
             SlackGroupToUserRel(),
             SlackGroupToChannelRel(),
             SlackGroupToCreatorRel(),
+            SlackGroupToBotRel(),
+            SlackGroupToBotCreatorRel(),
         ],
     )
     sub_resource_relationship: SlackGroupToSlackTeamRel = SlackGroupToSlackTeamRel()

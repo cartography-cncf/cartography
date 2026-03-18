@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Dict
 from typing import List
@@ -10,7 +9,9 @@ from googleapiclient.discovery import Resource
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.labels import sync_labels
+from cartography.intel.gcp.util import classify_gcp_http_error
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
+from cartography.intel.gcp.util import summarize_gcp_http_error
 from cartography.models.gcp.dns import GCPDNSZoneSchema
 from cartography.models.gcp.dns import GCPRecordSetSchema
 from cartography.util import timeit
@@ -34,20 +35,15 @@ def get_dns_zones(dns: Resource, project_id: str) -> List[Dict]:
             )
         return zones
     except HttpError as e:
-        err = json.loads(e.content.decode("utf-8"))["error"]
-        if (
-            err.get("status", "") == "PERMISSION_DENIED"
-            or err.get("message", "") == "Forbidden"
-        ):
+        if classify_gcp_http_error(e) in ("forbidden", "api_disabled"):
             logger.warning(
-                (
-                    "Could not retrieve DNS zones on project %s due to permissions issues. "
-                    "Code: %s, Message: %s"
-                ),
+                "Could not retrieve DNS zones on project %s due to permissions issues. %s",
                 project_id,
-                err["code"],
-                err["message"],
+                summarize_gcp_http_error(e),
             )
+            # Returning empty results on permission/API-disabled errors is intentional:
+            # it allows the cleanup step to remove previously ingested data when access
+            # to this project is lost, so the graph reflects only the current visible state.
             return []
         raise
 
@@ -73,20 +69,15 @@ def get_dns_rrs(dns: Resource, dns_zones: List[Dict], project_id: str) -> List[D
                 )
         return rrs
     except HttpError as e:
-        err = json.loads(e.content.decode("utf-8"))["error"]
-        if (
-            err.get("status", "") == "PERMISSION_DENIED"
-            or err.get("message", "") == "Forbidden"
-        ):
+        if classify_gcp_http_error(e) in ("forbidden", "api_disabled"):
             logger.warning(
-                (
-                    "Could not retrieve DNS RRS on project %s due to permissions issues. "
-                    "Code: %s, Message: %s"
-                ),
+                "Could not retrieve DNS RRS on project %s due to permissions issues. %s",
                 project_id,
-                err["code"],
-                err["message"],
+                summarize_gcp_http_error(e),
             )
+            # Returning empty results on permission/API-disabled errors is intentional:
+            # it allows the cleanup step to remove previously ingested data when access
+            # to this project is lost, so the graph reflects only the current visible state.
             return []
         raise
 

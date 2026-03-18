@@ -62,6 +62,7 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         ORG_ID=config.openai_org_id,
     )
 
+    known_project_key_ids: set[str] = set()
     for project in cartography.intel.openai.projects.sync(
         neo4j_session,
         api_session,
@@ -80,7 +81,7 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
             project_job_parameters,
             project_id=project["id"],
         )
-        cartography.intel.openai.apikeys.sync(
+        known_project_key_ids |= cartography.intel.openai.apikeys.sync(
             neo4j_session,
             api_session,
             project_job_parameters,
@@ -92,4 +93,5 @@ def start_openai_ingestion(neo4j_session: neo4j.Session, config: Config) -> None
         api_session,
         common_job_parameters,
         ORG_ID=config.openai_org_id,
+        known_project_key_ids=known_project_key_ids,
     )

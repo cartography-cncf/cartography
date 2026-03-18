@@ -113,7 +113,14 @@ def transform_public_image_tags(
     if base_image:
         base_row = {
             "id": f'{base_image["name"]}:{base_image["tag"]}',
-            **base_image,
+            "name": base_image["name"],
+            "tag": base_image["tag"],
+            "alternative_tags": base_image.get("alternative_tags"),
+            "size": base_image.get("size"),
+            "flavor": base_image.get("flavor"),
+            "os": base_image.get("os"),
+            "runtime": base_image.get("runtime"),
+            "is_slim": base_image.get("is_slim"),
             "built_from_public_image_id": public_image_id,
         }
         transformed.append(base_row)
