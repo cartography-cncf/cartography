@@ -43,7 +43,7 @@ def get(
     realm: str,
 ) -> list[dict[str, Any]]:
     url = f"{base_url}/admin/realms/{realm}/client-scopes"
-    req = api_session.get(url, params={"briefRepresentation": False}, timeout=_TIMEOUT)
+    req = api_session.get(url, timeout=_TIMEOUT)
     req.raise_for_status()
     return req.json()
 

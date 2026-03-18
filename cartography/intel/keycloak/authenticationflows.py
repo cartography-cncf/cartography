@@ -46,8 +46,9 @@ def get(
     realm: str,
 ) -> list[dict[str, Any]]:
     url = f"{base_url}/admin/realms/{realm}/authentication/flows"
-    return list(get_paginated(api_session, url, params={"briefRepresentation": False}))
-
+    req = api_session.get(url, timeout=_TIMEOUT)
+    req.raise_for_status()
+    return req.json()
 
 @timeit
 def load_authenticationflows(
