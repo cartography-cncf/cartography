@@ -6,6 +6,7 @@ from cartography.config import Config
 from cartography.intel.semgrep.dependencies import sync_dependencies
 from cartography.intel.semgrep.deployment import sync_deployment
 from cartography.intel.semgrep.findings import sync_findings
+from cartography.intel.semgrep.secrets import sync_secrets
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,12 @@ def start_semgrep_ingestion(
         common_job_parameters,
     )  # noqa: E501
     sync_findings(
+        neo4j_session,
+        config.semgrep_app_token,
+        config.update_tag,
+        common_job_parameters,
+    )
+    sync_secrets(
         neo4j_session,
         config.semgrep_app_token,
         config.update_tag,
