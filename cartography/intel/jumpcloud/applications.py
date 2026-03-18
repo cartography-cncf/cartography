@@ -78,7 +78,7 @@ def get(session: requests.Session) -> list[dict[str, Any]]:
 def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
-            "id": app.get("id"),
+            "id": app["id"],
             "name": app.get("catalog_app_id"),
             "user_ids": list(dict.fromkeys(
                 uid for user in app.get("users", []) if (uid := user.get("user_id"))
