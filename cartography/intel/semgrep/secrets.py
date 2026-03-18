@@ -68,7 +68,7 @@ def get_secret_findings(
         findings = data.get("findings", [])
         has_more = bool(data.get("cursor"))
         if page % 10 == 0:
-            logger.info(f"Processed page {page} of Semgrep Secrets findings.")
+            logger.info("Processed page %d of Semgrep Secrets findings.", page)
         all_findings.extend(findings)
         retries = 0
         page += 1
@@ -134,7 +134,8 @@ def load_semgrep_secret_findings(
     update_tag: int,
 ) -> None:
     logger.debug(
-        f"Loading {len(findings)} SemgrepSecretsFinding objects into the graph."
+        "Loading %d SemgrepSecretsFinding objects into the graph.",
+        len(findings),
     )
     load(
         neo4j_session,
