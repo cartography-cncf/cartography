@@ -70,11 +70,7 @@ def get(session: requests.Session) -> list[dict[str, Any]]:
     applications: list[dict[str, Any]] = []
     for app in paginated_get(session, _APPLICATIONS_URL, skip_param="offset"):
         app_id = app.get("id")
-        try:
-            app["users"] = _get_application_users(session, app_id)
-        except Exception:
-            logger.warning("Failed to fetch users for application %s, skipping users for this app", app_id, exc_info=True)
-            app["users"] = []
+        app["users"] = _get_application_users(session, app_id)
         applications.append(app)
     logger.info("Fetched %d applications total", len(applications))
     return applications
