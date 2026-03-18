@@ -69,7 +69,7 @@ def _get_application_users(
 def get(session: requests.Session) -> list[dict[str, Any]]:
     applications: list[dict[str, Any]] = []
     for app in paginated_get(session, _APPLICATIONS_URL, skip_param="offset"):
-        app_id = app.get("id")
+        app_id = str(app["id"])
         app["users"] = _get_application_users(session, app_id)
         applications.append(app)
     logger.info("Fetched %d applications total", len(applications))
