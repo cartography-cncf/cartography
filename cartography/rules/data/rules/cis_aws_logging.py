@@ -34,6 +34,10 @@ AWS_REFERENCES = [
     ),
 ]
 
+# TODO: Requirement 3.6 can not be implemented
+# Need: KMS key rotation status on KMSKey nodes so AWS-managed and customer-managed
+# keys can be evaluated for automatic rotation.
+
 
 # =============================================================================
 # CIS AWS 3.1: CloudTrail Multi-Region

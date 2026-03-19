@@ -20,6 +20,7 @@ This guide covers how to create security rules in Cartography to identify attack
 12. [Using Ontology in Rules](#using-ontology-in-rules) - Leverage semantic labels
 13. [Compliance Frameworks](#compliance-frameworks) - Framework object for structured metadata
 14. [CIS Benchmark Rules Conventions](#cis-benchmark-rules-conventions) - Compliance rules
+15. [Documenting Benchmark Gaps](#documenting-benchmark-gaps) - TODOs for unsupported requirements
 
 ## Overview
 
@@ -193,6 +194,30 @@ my_rule = Rule(
     ],
 )
 ```
+
+## Documenting Benchmark Gaps
+
+If a benchmark requirement can not be implemented because Cartography does not currently ingest the required data, or because the requirement is fundamentally manual or otherwise not realistically automatable, leave a TODO comment in the relevant rule file.
+
+Use this exact format:
+
+```python
+# TODO: Requirement x.y.z can not be implemented
+# Need: specific missing data, relationship, ingestion, or other prerequisite
+```
+
+Example:
+
+```python
+# TODO: Requirement 5.4 can not be implemented
+# Need: ingest EC2 security group IPv6 ranges so ::/0 administrative access can be queried.
+```
+
+Guidelines:
+- Place the TODO near the benchmark section it belongs to.
+- Be concrete about the missing prerequisite.
+- Do not add a TODO for work that is simply unstarted but feasible with current graph data.
+- If a requirement is intentionally tracked as an AWS best practice instead of a benchmark control, explain that in the rule description or PR rather than using this TODO format.
 
 ## Fact Maturity Levels
 

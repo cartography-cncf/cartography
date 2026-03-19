@@ -35,6 +35,14 @@ CIS_REFERENCES = [
     ),
 ]
 
+# TODO: Requirement 5.1.1 can not be implemented
+# Need: account and region level EC2 EBS encryption-by-default settings, not just
+# per-volume encryption state.
+#
+# TODO: Requirement 5.4 can not be implemented
+# Need: EC2 security group IPv6 ranges (Ipv6Ranges) ingested into AWSIpRange-style
+# nodes so ::/0 administrative access can be queried.
+
 
 # =============================================================================
 # CIS AWS 5.2: Network ACLs deny administrative ports from 0.0.0.0/0

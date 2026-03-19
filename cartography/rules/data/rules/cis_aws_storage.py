@@ -41,6 +41,10 @@ EBS_REFERENCES = [
     ),
 ]
 
+# TODO: Requirement 2.1.3 can not be implemented
+# Need: data discovery and classification coverage for S3 data sensitivity so the
+# benchmark's "discovered, classified, and secured" language can be evaluated.
+
 
 # =============================================================================
 # AWS Best Practice: S3 bucket versioning

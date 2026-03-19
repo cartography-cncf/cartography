@@ -89,6 +89,15 @@ git commit -s -m "feat(module): add new feature"
 
 **Pull Request Descriptions**: All pull requests must follow the template at `.github/pull_request_template.md`. Update the PR description to match the template sections if they are missing or incomplete.
 
+**Benchmark Gaps**: When working on benchmark or compliance coverage and a requirement cannot be implemented because Cartography does not ingest the necessary data or the requirement is not realistically automatable, leave an explicit TODO comment in the relevant rule file. Use this format so future contributors can see the gap immediately:
+
+```python
+# TODO: Requirement x.y.z can not be implemented
+# Need: specific missing data, relationship, or ingestion capability
+```
+
+Only add these TODOs for genuine capability gaps, not for work that is merely unstarted.
+
 ## Quick Start: Copy an Existing Module
 
 The fastest way to get started is to copy the structure from an existing module:
