@@ -1988,6 +1988,14 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | bootmode | The boot mode of the instance.|
 | instancelifecycle | Indicates whether this is a Spot Instance or a Scheduled Instance.|
 | hibernationoptions | Indicates whether the instance is enabled for hibernation.|
+| metadatahttptokens | The EC2 metadata service token setting. `required` means IMDSv2 is required and IMDSv1 is disabled; `optional` means either IMDSv1 or IMDSv2 may be used. |
+| metadatahttpputresponsehoplimit | The maximum number of network hops that an IMDSv2 session token response can travel. |
+| metadatahttpendpoint | Indicates whether the instance metadata HTTP endpoint is enabled. |
+| metadatahttpprotocolipv6 | Indicates whether the IPv6 endpoint for the instance metadata service is enabled. |
+| metadatainstancetags | Indicates whether instance tags are exposed through the instance metadata service. |
+| imdsaccessmode | A derived helper field that normalizes the `metadatahttptokens` setting to `v2_only` or `v1_or_v2` for easier security queries. |
+| imdsv1enabled | A derived boolean that is `true` when IMDSv1 remains allowed on the instance. |
+| imdsv2required | A derived boolean that is `true` when the instance requires IMDSv2 and disables IMDSv1. |
 | eks_cluster_name | The name of the EKS cluster this instance belongs to, if applicable. Extracted from instance tags.|
 | ipv6address | The primary IPv6 address assigned to the instance's primary network interface (DeviceIndex=0), if any. |
 

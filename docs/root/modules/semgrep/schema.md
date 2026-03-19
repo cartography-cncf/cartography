@@ -44,6 +44,12 @@ Represents a Semgrep [Deployment](https://semgrep.dev/api/v1/docs/#tag/Deploymen
     (SemgrepDeployment)-[RESOURCE]->(SemgrepFindingAssistant)
     ```
 
+- A SemgrepDeployment contains SemgrepSecretsFinding's
+
+    ```
+    (SemgrepDeployment)-[RESOURCE]->(SemgrepSecretsFinding)
+    ```
+
 ### SemgrepSASTFinding
 
 Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding. This is a code-level security issue discovered by Semgrep static analysis (SAST). Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/FindingsService/operation/FindingsService_ListFindings.
@@ -87,6 +93,47 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 
     ```
     (SemgrepSASTFinding)-[HAS_ASSISTANT]->(SemgrepFindingAssistant)
+    ```
+
+### SemgrepSecretsFinding
+
+Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptual-overview/) finding. This is a hardcoded secret (e.g. API key, token, credential) discovered by Semgrep scanning source code. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SecretsService.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique integer id of the finding taken from Semgrep API |
+| **rule_hash_id** | Hash id of the rule that triggered the finding |
+| **repository_name** | The repository path where the finding was discovered (e.g. `org/repo`) |
+| **ref** | The branch or ref where the finding was discovered |
+| severity | Severity of the finding (e.g. HIGH, MEDIUM, LOW) |
+| confidence | Confidence level of the finding (e.g. HIGH, MEDIUM, LOW) |
+| type | Type of secret detected (e.g. `OpenAI`, `GitHub`, `AWS`) |
+| validation_state | Whether the secret has been validated (e.g. `CONFIRMED_VALID`, `CONFIRMED_INVALID`, `VALIDATION_ERROR`, `NO_VALIDATOR`) |
+| status | Current status of the finding (e.g. `OPEN`, `FIXED`, `IGNORED`) |
+| finding_path | Path and line number where the secret was found (e.g. `src/config.py:42`) |
+| finding_path_url | URL pointing to the exact location of the secret in the repository |
+| ref_url | URL of the branch/ref where the finding was discovered |
+| mode | Semgrep mode under which the finding was detected (e.g. `MONITOR`, `BLOCK`) |
+| created_at | Date and time when the finding was first seen in UTC |
+| updated_at | Date and time when the finding was last updated in UTC |
+| repository_visibility | Visibility of the repository (e.g. `PUBLIC`, `PRIVATE`) |
+| repository_scm_type | Source control management system of the repository (e.g. `GITHUB`) |
+| repository_url | Full URL of the repository where the finding was discovered (e.g. `https://github.com/org/repo`) |
+
+#### Relationships
+
+- A SemgrepSecretsFinding belongs to a SemgrepDeployment
+
+    ```
+    (SemgrepDeployment)-[RESOURCE]->(SemgrepSecretsFinding)
+    ```
+
+- A SemgrepSecretsFinding connected to a GitHubRepository (optional)
+
+    ```
+    (SemgrepSecretsFinding)-[FOUND_IN]->(GitHubRepository)
     ```
 
 ### SemgrepSCAFinding

@@ -1,4 +1,5 @@
 from cartography.intel.aws.ec2.instances import transform_ec2_instances
+from tests.data.aws.ec2.instances import INSTANCE_WITH_IAM_PROFILE
 from tests.data.aws.ec2.instances_missing_private_ip import (
     DESCRIBE_INSTANCES_MISSING_PRIVATE_IP,
 )
@@ -272,3 +273,16 @@ def test_transform_ipv6_missing_is_primary_defaults_false():
     data = transform_ec2_instances(reservations, FAKE_REGION, FAKE_ACCOUNT_ID)
 
     assert data.ipv6_address_list[0]["IsPrimaryIpv6"] is False
+def test_transform_ec2_instances_extracts_metadata_options():
+    data = transform_ec2_instances(
+        INSTANCE_WITH_IAM_PROFILE, FAKE_REGION, FAKE_ACCOUNT_ID
+    )
+
+    assert data.instance_list[0]["MetadataHttpTokens"] == "required"
+    assert data.instance_list[0]["MetadataHttpPutResponseHopLimit"] == 2
+    assert data.instance_list[0]["MetadataHttpEndpoint"] == "enabled"
+    assert data.instance_list[0]["MetadataHttpProtocolIpv6"] == "disabled"
+    assert data.instance_list[0]["MetadataInstanceTags"] == "disabled"
+    assert data.instance_list[0]["ImdsAccessMode"] == "v2_only"
+    assert data.instance_list[0]["ImdsV1Enabled"] is False
+    assert data.instance_list[0]["ImdsV2Required"] is True
