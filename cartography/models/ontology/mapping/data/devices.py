@@ -8,9 +8,10 @@ bigfix_mapping = OntologyMapping(
     nodes=[
         OntologyNodeMapping(
             node_label="BigfixComputer",
+            eligible_for_source=False,
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="computername", required=True
+                    ontology_field="hostname", node_field="computername"
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
             ],
@@ -23,9 +24,7 @@ crowdstrike_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="CrowdstrikeHost",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="hostname", node_field="hostname", required=True
-                ),
+                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
                 OntologyFieldMapping(
                     ontology_field="os_version", node_field="os_version"
                 ),
@@ -33,7 +32,9 @@ crowdstrike_mapping = OntologyMapping(
                     ontology_field="platform", node_field="platform_name"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="serial_number", node_field="serial_number"
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
                 ),
                 OntologyFieldMapping(
                     ontology_field="instance_id", node_field="instance_id"
@@ -47,9 +48,10 @@ duo_mapping = OntologyMapping(
     nodes=[
         OntologyNodeMapping(
             node_label="DuoEndpoint",
+            eligible_for_source=False,
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="device_name", required=True
+                    ontology_field="hostname", node_field="device_name"
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os_family"),
                 OntologyFieldMapping(
@@ -60,10 +62,9 @@ duo_mapping = OntologyMapping(
         ),
         OntologyNodeMapping(
             node_label="DuoPhone",
+            eligible_for_source=False,
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="hostname", node_field="name", required=True
-                ),
+                OntologyFieldMapping(ontology_field="hostname", node_field="name"),
                 OntologyFieldMapping(ontology_field="model", node_field="model"),
                 OntologyFieldMapping(ontology_field="platform", node_field="platform"),
             ],
@@ -89,10 +90,12 @@ kandji_mapping = OntologyMapping(
             node_label="KandjiDevice",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="device_name", required=True
+                    ontology_field="hostname", node_field="device_name"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="serial_number", node_field="serial_number"
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
                 ),
                 OntologyFieldMapping(
                     ontology_field="os_version", node_field="os_version"
@@ -109,11 +112,9 @@ snipeit_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="SnipeitAsset",
             fields=[
+                OntologyFieldMapping(ontology_field="hostname", node_field="name"),
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="name", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="serial_number", node_field="serial"
+                    ontology_field="serial_number", node_field="serial", required=True
                 ),
                 OntologyFieldMapping(ontology_field="model", node_field="model"),
             ],
@@ -133,10 +134,13 @@ tailscale_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="TailscaleDevice",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="hostname", node_field="hostname", required=True
-                ),
+                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
             ],
         ),
     ],
@@ -155,9 +159,7 @@ googleworkspace_mapping = OntologyMapping(
         OntologyNodeMapping(
             node_label="GoogleWorkspaceDevice",
             fields=[
-                OntologyFieldMapping(
-                    ontology_field="hostname", node_field="hostname", required=True
-                ),
+                OntologyFieldMapping(ontology_field="hostname", node_field="hostname"),
                 OntologyFieldMapping(
                     ontology_field="os_version", node_field="os_version"
                 ),
@@ -166,7 +168,9 @@ googleworkspace_mapping = OntologyMapping(
                     ontology_field="manufacturer", node_field="manufacturer"
                 ),
                 OntologyFieldMapping(
-                    ontology_field="serial_number", node_field="serial_number"
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
                 ),
                 OntologyFieldMapping(
                     ontology_field="platform", node_field="device_type"

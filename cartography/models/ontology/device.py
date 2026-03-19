@@ -14,7 +14,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class DeviceNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("hostname")
+    id: PropertyRef = PropertyRef("serial_number")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     hostname: PropertyRef = PropertyRef("hostname", extra_index=True)
     os: PropertyRef = PropertyRef("os")
@@ -117,6 +117,66 @@ class DeviceToGoogleWorkspaceDeviceRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
+# Serial number-based OBSERVED_AS relationships
+# These duplicate the hostname-based relationships to also match by serial_number,
+# ensuring devices are linked even when hostnames differ across sources.
+
+
+# (:Device)-[:OBSERVED_AS]->(:CrowdstrikeHost) via serial_number
+class DeviceToCrowdstrikeHostBySerialRel(CartographyRelSchema):
+    target_node_label: str = "CrowdstrikeHost"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:KandjiDevice) via serial_number
+class DeviceToKandjiDeviceBySerialRel(CartographyRelSchema):
+    target_node_label: str = "KandjiDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:SnipeitAsset) via serial
+class DeviceToSnipeitAssetBySerialRel(CartographyRelSchema):
+    target_node_label: str = "SnipeitAsset"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:TailscaleDevice) via serial_number
+class DeviceToTailscaleDeviceBySerialRel(CartographyRelSchema):
+    target_node_label: str = "TailscaleDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:GoogleWorkspaceDevice) via serial_number
+class DeviceToGoogleWorkspaceDeviceBySerialRel(CartographyRelSchema):
+    target_node_label: str = "GoogleWorkspaceDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 @dataclass(frozen=True)
 class DeviceSchema(CartographyNodeSchema):
     label: str = "Device"
@@ -133,5 +193,11 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToCrowdstrikeHostRel(),
             DeviceToBigfixComputerRel(),
             DeviceToGoogleWorkspaceDeviceRel(),
+            # Serial number-based duplicates
+            DeviceToCrowdstrikeHostBySerialRel(),
+            DeviceToKandjiDeviceBySerialRel(),
+            DeviceToSnipeitAssetBySerialRel(),
+            DeviceToTailscaleDeviceBySerialRel(),
+            DeviceToGoogleWorkspaceDeviceBySerialRel(),
         ],
     )
