@@ -70,7 +70,7 @@ def transform(
     # Transform the raw data into the format expected by the load function
     for device in raw_data:
         # Extract the first serial number from postureIdentity if available
-        serial_numbers = device.get("postureIdentity", {}).get("serialNumbers", [])
+        serial_numbers = (device.get("postureIdentity") or {}).get("serialNumbers", [])
         device["serial_number"] = serial_numbers[0] if serial_numbers else None
 
         for raw_tag in device.get("tags", []):
