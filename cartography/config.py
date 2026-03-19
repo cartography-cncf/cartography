@@ -20,6 +20,19 @@ class Config:
         liveness check (RESET ping) before reusing it. Helps prevent SessionExpired or ConnectionResetError on
         Aura/clustered Neo4j instances that close idle connections server-side. Maps to the neo4j driver's
         ``liveness_check_timeout`` parameter. Optional.
+    :type neo4j_connection_timeout: int
+    :param neo4j_connection_timeout: Time in seconds for Neo4j driver connection establishment attempts. Optional.
+    :type neo4j_keep_alive: bool
+    :param neo4j_keep_alive: Whether to enable TCP keepalive on Neo4j driver sockets. Optional.
+    :type neo4j_max_transaction_retry_time: int
+    :param neo4j_max_transaction_retry_time: Maximum time in seconds the Neo4j driver may spend retrying
+        managed transactions. Optional.
+    :type neo4j_max_connection_pool_size: int
+    :param neo4j_max_connection_pool_size: Maximum number of connections in the Neo4j driver's connection pool.
+        Optional.
+    :type neo4j_connection_acquisition_timeout: int
+    :param neo4j_connection_acquisition_timeout: Maximum time in seconds to wait for a Neo4j pooled connection.
+        Optional.
     :type neo4j_database: string
     :param neo4j_database: The name of the database in Neo4j to connect to. If not specified, uses your Neo4j database
     settings to infer which database is set to default.
@@ -273,6 +286,11 @@ class Config:
         neo4j_password=None,
         neo4j_max_connection_lifetime=None,
         neo4j_liveness_check_timeout=None,
+        neo4j_connection_timeout=None,
+        neo4j_keep_alive=None,
+        neo4j_max_transaction_retry_time=None,
+        neo4j_max_connection_pool_size=None,
+        neo4j_connection_acquisition_timeout=None,
         neo4j_database=None,
         selected_modules=None,
         update_tag=None,
@@ -409,6 +427,11 @@ class Config:
         self.neo4j_password = neo4j_password
         self.neo4j_max_connection_lifetime = neo4j_max_connection_lifetime
         self.neo4j_liveness_check_timeout = neo4j_liveness_check_timeout
+        self.neo4j_connection_timeout = neo4j_connection_timeout
+        self.neo4j_keep_alive = neo4j_keep_alive
+        self.neo4j_max_transaction_retry_time = neo4j_max_transaction_retry_time
+        self.neo4j_max_connection_pool_size = neo4j_max_connection_pool_size
+        self.neo4j_connection_acquisition_timeout = neo4j_connection_acquisition_timeout
         self.neo4j_database = neo4j_database
         self.selected_modules = selected_modules
         self.update_tag = update_tag

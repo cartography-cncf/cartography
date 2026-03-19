@@ -394,12 +394,24 @@ def run_with_config(sync: Sync, config: Config) -> int:
     neo4j_auth = None
     if config.neo4j_user or config.neo4j_password:
         neo4j_auth = (config.neo4j_user, config.neo4j_password)
+    driver_kwargs = {}
+    optional_driver_kwargs = {
+        "max_connection_lifetime": config.neo4j_max_connection_lifetime,
+        "liveness_check_timeout": config.neo4j_liveness_check_timeout,
+        "connection_timeout": config.neo4j_connection_timeout,
+        "keep_alive": config.neo4j_keep_alive,
+        "max_transaction_retry_time": config.neo4j_max_transaction_retry_time,
+        "max_connection_pool_size": config.neo4j_max_connection_pool_size,
+        "connection_acquisition_timeout": config.neo4j_connection_acquisition_timeout,
+    }
+    for key, value in optional_driver_kwargs.items():
+        if value is not None:
+            driver_kwargs[key] = value
     try:
         neo4j_driver = GraphDatabase.driver(
             config.neo4j_uri,
             auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
-            liveness_check_timeout=config.neo4j_liveness_check_timeout,
+            **driver_kwargs,
         )
     except neo4j.exceptions.ServiceUnavailable as e:
         logger.debug("Error occurred during Neo4j connect.", exc_info=True)
