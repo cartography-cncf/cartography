@@ -81,4 +81,6 @@ class AWSRoleSchema(CartographyNodeSchema):
             AWSRoleToAWSPrincipalTrustRel(),
         ]
     )
-    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["AWSPrincipal"])
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
+        ["AWSPrincipal", "PermissionRole"]
+    )

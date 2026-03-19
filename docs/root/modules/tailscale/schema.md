@@ -118,6 +118,7 @@ A Tailscale device (sometimes referred to as *node* or *machine*), is any comput
 | client_connectivity_mapping_varies_by_dest_ip | 'true' if the host's NAT mappings vary based on the destination IP. |
 | tailnet_lock_error | Indicates an issue with the tailnet lock node-key signature on this device.<br/>This field is only populated when tailnet lock is enabled. |
 | tailnet_lock_key | The node's tailnet lock key.<br/>Every node generates a tailnet lock key (so the value will be present) even if tailnet lock is not enabled.<br/>Learn more about tailnet lock at https://tailscale.com/kb/1226/. |
+| serial_number | The first serial number from posture identity, if available |
 | posture_identity_serial_numbers | Posture identification collection |
 | posture_identity_disabled |  Device posture identification collection enabled |
 

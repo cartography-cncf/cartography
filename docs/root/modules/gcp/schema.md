@@ -185,6 +185,8 @@ Representation of a GCP [Storage Bucket](https://cloud.google.com/storage/docs/j
 
 Representation of a GCP [DNS Zone](https://cloud.google.com/dns/docs/reference/v1/).
 
+> **Ontology Mapping**: This node has the extra label `DNSZone` to enable cross-platform queries for DNS zones across different systems (e.g., AWSDNSZone, GCPDNSZone, CloudflareZone).
+
 | Field      | Description                                             |
 | ---------- | ------------------------------------------------------- |
 | created_at | The date and time the zone was created                  |
@@ -221,6 +223,39 @@ Representation of a GCP [Storage Bucket Label](https://cloud.google.com/storage/
 
     ```
     (GCPBucket)<-[LABELED]-(GCPBucketLabels)
+    ```
+
+
+### Label::GCPLabel
+
+Representation of a GCP [Label](https://cloud.google.com/resource-manager/docs/labels-overview). GCP Labels can be applied to many resource types. This is a unified label node type similar to how `AWSTag` works for AWS resources.
+
+> **Ontology Mapping**: This node has the extra label `Label` to preserve cross-platform semantics for generic key/value labels.
+
+Each resource type has its own declarative schema (e.g., `GCPBucketGCPLabelSchema` and `GCPInstanceGCPLabelSchema`). Bucket-sourced labels also carry the `GCPBucketLabel` extra label for backward compatibility with the legacy per-resource label schema.
+
+| Field         | Description                                                                                                 |
+|---------------|-------------------------------------------------------------------------------------------------------------|
+| firstseen     | Timestamp of when a sync job first discovered this node                                                     |
+| lastupdated   | Timestamp of the last time the node was updated                                                             |
+| id            | The ID of the label. Takes the form `{resource_id}:{key}:{value}`.                                         |
+| key           | The key of the label.                                                                                       |
+| value         | The value of the label.                                                                                     |
+| resource_type | The Cartography node label of the resource this label is attached to (e.g. `GCPBucket`, `GCPInstance`).     |
+
+#### Relationships
+
+- GCP resources can be labeled with GCPLabels.
+
+    ```
+    (GCPBucket)-[LABELED]->(GCPLabel:GCPBucketLabel)
+    (GCPInstance)-[LABELED]->(GCPLabel)
+    ```
+
+- GCPLabel nodes are associated with a GCPProject via the RESOURCE relationship.
+
+    ```
+    (GCPProject)-[RESOURCE]->(GCPLabel)
     ```
 
 
@@ -512,6 +547,8 @@ Representation of a GCP [Subnetwork](https://cloud.google.com/compute/docs/refer
 
 Representation of a GCP [Firewall](https://cloud.google.com/compute/docs/reference/rest/v1/firewalls/list).
 
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+
 | Field                       | Description |
 | --------------------------- | ----------- |
 | firstseen                   | Timestamp of when a sync job first discovered this node |
@@ -716,6 +753,8 @@ Representation of an IP range or subnet.
 
 Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/reference/rest/v1/projects.serviceAccounts).
 
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., KubernetesServiceAccount, OpenAIServiceAccount, ScalewayApplication).
+
 | Field          | Description                                                                                     |
 | -------------- | ----------------------------------------------------------------------------------------------- |
 | id             | The unique identifier for the service account.                                                  |
@@ -738,6 +777,8 @@ Representation of a GCP [Service Account](https://cloud.google.com/iam/docs/refe
 ### GCPRole
 
 Representation of a GCP [Role](https://cloud.google.com/iam/docs/reference/rest/v1/organizations.roles).
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 Roles exist at different levels in the GCP hierarchy and are synced separately:
 - **Predefined/Basic roles** (`roles/*`) - Global roles defined by Google, synced at the organization level
@@ -1941,6 +1982,8 @@ Representation of a GCP [Instance Group](https://cloud.google.com/compute/docs/r
 ### GCPCloudArmorPolicy
 
 Representation of a GCP [Cloud Armor Security Policy](https://cloud.google.com/compute/docs/reference/rest/v1/securityPolicies). Cloud Armor policies provide DDoS protection and WAF capabilities for backend services.
+
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field | Description |
 |---|---|

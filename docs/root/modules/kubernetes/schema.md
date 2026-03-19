@@ -259,6 +259,8 @@ Representation of a [Kubernetes Secret.](https://kubernetes.io/docs/concepts/con
 ### KubernetesServiceAccount
 Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/concepts/security/service-accounts/)
 
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., GCPServiceAccount, OpenAIServiceAccount, ScalewayApplication).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Identifier for the ServiceAccount derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-service-account`) |
@@ -292,8 +294,78 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
     (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
     ```
 
+### KubernetesUser
+Representation of a Kubernetes [User](https://kubernetes.io/docs/reference/access-authn-authz/authentication/) identity in K8s RBAC.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GSuiteUser).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Identifier for the user |
+| name | Name of the Kubernetes user |
+| cluster\_name | Name of the cluster this user belongs to |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesUser` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesUser)
+    ```
+
+- `KubernetesUser` can map to an `OktaUser`.
+    ```
+    (:OktaUser)-[:MAPS_TO]->(:KubernetesUser)
+    ```
+
+- `KubernetesUser` can map to an `AWSRole`.
+    ```
+    (:AWSRole)-[:MAPS_TO]->(:KubernetesUser)
+    ```
+
+- `KubernetesUser` can map to an `AWSUser`.
+    ```
+    (:AWSUser)-[:MAPS_TO]->(:KubernetesUser)
+    ```
+
+### KubernetesGroup
+Representation of a Kubernetes [Group](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) in K8s RBAC.
+
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., OktaGroup, EntraGroup, AWSGroup).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Identifier for the group |
+| name | Name of the Kubernetes group |
+| cluster\_name | Name of the cluster this group belongs to |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesGroup` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesGroup)
+    ```
+
+- `KubernetesGroup` can map to an `OktaGroup`.
+    ```
+    (:OktaGroup)-[:MAPS_TO]->(:KubernetesGroup)
+    ```
+
+- `KubernetesGroup` can map to an `AWSRole`.
+    ```
+    (:AWSRole)-[:MAPS_TO]->(:KubernetesGroup)
+    ```
+
+- `KubernetesGroup` can map to an `AWSUser`.
+    ```
+    (:AWSUser)-[:MAPS_TO]->(:KubernetesGroup)
+    ```
+
 ### KubernetesRole
 Representation of a [Kubernetes Role.](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole)
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|
@@ -366,6 +438,8 @@ Representation of a [Kubernetes RoleBinding.](https://kubernetes.io/docs/referen
 
 ### KubernetesClusterRole
 Representation of a [Kubernetes ClusterRole.](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole)
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|

@@ -19,6 +19,7 @@ from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import normalize_architecture
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
 from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.aws.ecr.image import ECRImageSchema
@@ -26,6 +27,10 @@ from cartography.models.aws.ecr.image_layer import ECRImageLayerSchema
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+
+
+class ECRLayerFetchTransientError(Exception):
+    """Raised when a transient ECR/image-blob fetch failure should skip one image."""
 
 
 EMPTY_LAYER_DIFF_ID = (
@@ -53,6 +58,55 @@ INDEX_MEDIA_TYPES_LOWER = {mt.lower() for mt in INDEX_MEDIA_TYPES}
 
 # Media types that should be skipped when processing manifests
 SKIP_CONFIG_MEDIA_TYPE_FRAGMENTS = {"buildkit", "attestation", "in-toto"}
+RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
+RETRYABLE_ECR_ERROR_CODES = {
+    "InternalFailure",
+    "InternalServerException",
+    "RequestLimitExceeded",
+    "RequestThrottled",
+    "RequestTimeout",
+    "RequestTimeoutException",
+    "ServerException",
+    "ServiceUnavailable",
+    "ServiceUnavailableException",
+    "Throttling",
+    "ThrottlingException",
+    "TooManyRequestsException",
+}
+RETRYABLE_HTTPX_EXCEPTIONS = (
+    httpx.ConnectError,
+    httpx.PoolTimeout,
+    httpx.ReadError,
+    httpx.ReadTimeout,
+    httpx.RemoteProtocolError,
+    httpx.TimeoutException,
+    httpx.WriteError,
+    httpx.WriteTimeout,
+)
+MAX_BLOB_DOWNLOAD_ATTEMPTS = 3
+
+
+def _is_retryable_aws_client_error(error: ClientError) -> bool:
+    error_code = error.response.get("Error", {}).get("Code", "")
+    status_code = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return (
+        error_code in RETRYABLE_ECR_ERROR_CODES
+        or status_code in RETRYABLE_HTTP_STATUS_CODES
+    )
+
+
+def _is_retryable_http_error(error: httpx.HTTPError) -> bool:
+    if isinstance(error, RETRYABLE_HTTPX_EXCEPTIONS):
+        return True
+    if isinstance(error, httpx.HTTPStatusError) and error.response is not None:
+        return error.response.status_code in RETRYABLE_HTTP_STATUS_CODES
+    return False
+
+
+def _safe_http_error_for_log(error: httpx.HTTPError) -> str:
+    if isinstance(error, httpx.HTTPStatusError) and error.response is not None:
+        return f"{error.__class__.__name__}(status_code={error.response.status_code})"
+    return f"{error.__class__.__name__}: {error}"
 
 
 def extract_repo_uri_from_image_uri(image_uri: str) -> str:
@@ -122,7 +176,17 @@ async def batch_get_manifest(
                 error_code,
             )
             return {}, ""
-        # Fail loudly on throttling or unexpected AWS errors
+        if _is_retryable_aws_client_error(error):
+            logger.warning(
+                "Transient AWS error fetching manifest for %s:%s: %s",
+                repo,
+                image_ref,
+                error_code or error,
+            )
+            raise ECRLayerFetchTransientError(
+                f"Transient manifest fetch failure for {repo}:{image_ref}"
+            ) from error
+        # Fail loudly on unexpected, non-retryable AWS errors
         logger.error(
             "Failed to get manifest for %s:%s due to AWS error %s",
             repo,
@@ -158,6 +222,16 @@ async def get_blob_json_via_presigned(
             layerDigest=digest,
         )
     except ClientError as error:
+        if _is_retryable_aws_client_error(error):
+            logger.warning(
+                "Transient AWS error requesting blob download URL for layer %s in repo %s: %s",
+                digest,
+                repo,
+                error.response.get("Error", {}).get("Code", "unknown"),
+            )
+            raise ECRLayerFetchTransientError(
+                f"Transient download URL failure for {repo}@{digest}"
+            ) from error
         logger.error(
             "Failed to request download URL for layer %s in repo %s: %s",
             digest,
@@ -167,19 +241,46 @@ async def get_blob_json_via_presigned(
         raise
 
     url = url_response["downloadUrl"]
-    try:
-        response = await http_client.get(url, timeout=30.0)
-        response.raise_for_status()
-    except httpx.HTTPError as error:
-        logger.error(
-            "HTTP error downloading blob %s for repo %s: %s",
-            digest,
-            repo,
-            error,
-        )
-        raise
+    last_error: httpx.HTTPError | None = None
+    for attempt in range(1, MAX_BLOB_DOWNLOAD_ATTEMPTS + 1):
+        try:
+            response = await http_client.get(url, timeout=30.0)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as error:
+            last_error = error
+            if attempt < MAX_BLOB_DOWNLOAD_ATTEMPTS and _is_retryable_http_error(error):
+                logger.warning(
+                    "Retrying blob download for %s in repo %s after transient HTTP error on attempt %d/%d: %s",
+                    digest,
+                    repo,
+                    attempt,
+                    MAX_BLOB_DOWNLOAD_ATTEMPTS,
+                    _safe_http_error_for_log(error),
+                )
+                await asyncio.sleep(2 ** (attempt - 1))
+                continue
+            if _is_retryable_http_error(error):
+                logger.warning(
+                    "Exhausted blob download retries for %s in repo %s after transient HTTP error: %s",
+                    digest,
+                    repo,
+                    _safe_http_error_for_log(error),
+                )
+                raise ECRLayerFetchTransientError(
+                    f"Transient blob download failure for {repo}@{digest}"
+                ) from error
+            logger.error(
+                "HTTP error downloading blob %s for repo %s: %s",
+                digest,
+                repo,
+                _safe_http_error_for_log(error),
+            )
+            raise
 
-    return response.json()
+    raise ECRLayerFetchTransientError(
+        f"Transient blob download failure for {repo}@{digest}"
+    ) from last_error
 
 
 async def _extract_provenance_from_attestation(
@@ -484,6 +585,25 @@ def transform_ecr_image_layers(
             # Preserve existing ECRImage properties (type, architecture, os, variant, etc.)
             if image_digest in existing_properties_map:
                 membership.update(existing_properties_map[image_digest])
+                if not membership.get("architecture"):
+                    platform_values = list(platforms.keys())
+                    if len(platform_values) == 1:
+                        first_platform = platform_values[0]
+                        arch_hint = (
+                            first_platform.split("/")[1]
+                            if "/" in first_platform
+                            else first_platform
+                        )
+                        normalized_arch = normalize_architecture(arch_hint)
+                        if normalized_arch != "unknown":
+                            membership["architecture"] = normalized_arch
+                    elif len(platform_values) > 1:
+                        # Ambiguous platform hints for this digest; avoid arbitrary picks.
+                        logger.debug(
+                            "Skipping architecture backfill for %s due to multiple platform keys: %s",
+                            image_digest,
+                            platform_values,
+                        )
 
             # Add provenance data if available for this image
             if image_uri in image_attestation_map:
@@ -782,25 +902,22 @@ async def fetch_image_layers_async(
                     _process_child_manifest(manifest_ref)
                     for manifest_ref in doc.get("manifests", [])
                 ]
-                child_results = await asyncio.gather(
-                    *child_tasks, return_exceptions=True
-                )
+                child_results = await asyncio.gather(*child_tasks)
 
                 # Merge results from successful child manifest processing
                 # Track attestation data by child digest for proper mapping
                 attestations_by_child_digest: dict[str, dict[str, str]] = {}
 
                 for result in child_results:
-                    if isinstance(result, tuple) and len(result) == 3:
-                        layer_data, hist_data, attest_data = result
-                        if layer_data:
-                            platform_layers.update(layer_data)
-                        if hist_data:
-                            history_by_diff_id.update(hist_data)
-                        if attest_data:
-                            # attest_data is (child_digest, parent_info) tuple
-                            child_digest, parent_info = attest_data
-                            attestations_by_child_digest[child_digest] = parent_info
+                    layer_data, hist_data, attest_data = result
+                    if layer_data:
+                        platform_layers.update(layer_data)
+                    if hist_data:
+                        history_by_diff_id.update(hist_data)
+                    if attest_data:
+                        # attest_data is (child_digest, parent_info) tuple
+                        child_digest, parent_info = attest_data
+                        attestations_by_child_digest[child_digest] = parent_info
 
                 # Build attestation_data with child digest mapping
                 if attestations_by_child_digest:
@@ -830,10 +947,35 @@ async def fetch_image_layers_async(
             return None
 
     async with httpx.AsyncClient() as http_client:
+
+        async def _fetch_single_image_layers_with_uri(
+            repo_image: dict,
+        ) -> tuple[
+            str,
+            Optional[
+                tuple[
+                    str,
+                    str,
+                    dict[str, list[str]],
+                    dict[str, str],
+                    Optional[dict[str, dict[str, str]]],
+                ]
+            ],
+        ]:
+            try:
+                return repo_image["uri"], await fetch_single_image_layers(
+                    repo_image,
+                    http_client,
+                )
+            except ECRLayerFetchTransientError as error:
+                raise ECRLayerFetchTransientError(
+                    f"{repo_image['uri']}: {error}"
+                ) from error
+
         # Create tasks for all images
         tasks = [
             asyncio.create_task(
-                fetch_single_image_layers(repo_image, http_client),
+                _fetch_single_image_layers_with_uri(repo_image),
             )
             for repo_image in repo_images_list
         ]
@@ -856,7 +998,24 @@ async def fetch_image_layers_async(
         completed = 0
 
         for task in asyncio.as_completed(tasks):
-            result = await task
+            try:
+                _, result = await task
+            except ECRLayerFetchTransientError as error:
+                logger.warning(
+                    "Skipping ECR layer extraction after transient failures were exhausted: %s",
+                    error,
+                    exc_info=True,
+                )
+                completed += 1
+                if completed % progress_interval == 0 or completed == total:
+                    percent = (completed / total) * 100
+                    logger.info(
+                        "Fetched layer metadata for %d/%d images (%.1f%%)",
+                        completed,
+                        total,
+                        percent,
+                    )
+                continue
             completed += 1
 
             if completed % progress_interval == 0 or completed == total:

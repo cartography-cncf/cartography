@@ -14,6 +14,12 @@ Represents a Semgrep [Deployment](https://semgrep.dev/api/v1/docs/#tag/Deploymen
 
 #### Relationships
 
+- A SemgrepDeployment contains SemgrepSASTFinding's
+
+    ```
+    (SemgrepDeployment)-[RESOURCE]->(SemgrepSASTFinding)
+    ```
+
 - A SemgrepDeployment contains SemgrepSCAFinding's
 
     ```
@@ -30,6 +36,104 @@ Represents a Semgrep [Deployment](https://semgrep.dev/api/v1/docs/#tag/Deploymen
 
     ```
     (SemgrepDeployment)-[RESOURCE]->(SemgrepDependency)
+    ```
+
+- A SemgrepDeployment contains SemgrepFindingAssistant's
+
+    ```
+    (SemgrepDeployment)-[RESOURCE]->(SemgrepFindingAssistant)
+    ```
+
+- A SemgrepDeployment contains SemgrepSecretsFinding's
+
+    ```
+    (SemgrepDeployment)-[RESOURCE]->(SemgrepSecretsFinding)
+    ```
+
+### SemgrepSASTFinding
+
+Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-started/) finding. This is a code-level security issue discovered by Semgrep static analysis (SAST). Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/FindingsService/operation/FindingsService_ListFindings.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique integer id of the finding taken from Semgrep API |
+| **rule_id** | The rule that triggered the finding |
+| **repository** | The repository path where the finding was discovered |
+| **branch** | The branch where the finding was discovered |
+| title | Short title for the finding, set to the rule id |
+| description | Description of the vulnerability from the rule message |
+| severity | Severity of the finding (e.g. CRITICAL, HIGH, MEDIUM, LOW) |
+| confidence | Confidence of the finding (e.g. HIGH, MEDIUM, LOW) |
+| categories | List of finding categories (e.g. security) |
+| cwe_names | List of CWE identifiers associated with the rule |
+| owasp_names | List of OWASP category names associated with the rule |
+| file_path | Path of the file where the finding was discovered |
+| start_line | Line where the finding starts |
+| start_col | Column where the finding starts |
+| end_line | Line where the finding ends |
+| end_col | Column where the finding ends |
+| line_of_code_url | URL pointing to the exact line of code in the repository |
+| state | Current state of the finding (e.g. unresolved, fixed, removed, muted) |
+| fix_status | Fix status based on triage (e.g. open, fixed, ignored) |
+| triage_status | Triage status of the finding (e.g. untriaged, ignored, reopened) |
+| opened_at | Date and time when the finding was first seen in UTC |
+| risk_severity | Risk level computed by post-ingestion analysis. INFO for archived repos, otherwise equals severity. See [semgrep_sast_risk_analysis.json](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/scoped_analysis/semgrep_sast_risk_analysis.json) for further details |
+
+#### Relationships
+
+- A SemgrepSASTFinding connected to a GitHubRepository (optional)
+
+    ```
+    (SemgrepSASTFinding)-[FOUND_IN]->(GitHubRepository)
+    ```
+
+- A SemgrepSASTFinding has a SemgrepFindingAssistant (optional)
+
+    ```
+    (SemgrepSASTFinding)-[HAS_ASSISTANT]->(SemgrepFindingAssistant)
+    ```
+
+### SemgrepSecretsFinding
+
+Represents a [Semgrep Secrets](https://semgrep.dev/docs/semgrep-secrets/conceptual-overview/) finding. This is a hardcoded secret (e.g. API key, token, credential) discovered by Semgrep scanning source code. Before ingesting this node, make sure you have run Semgrep CI and that it's connected to Semgrep Cloud Platform [Running Semgrep CI with Semgrep Cloud Platform](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-with-semgrep-cloud-platform/). The API called to retrieve this information is documented at https://semgrep.dev/api/v1/docs/#tag/SecretsService.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique integer id of the finding taken from Semgrep API |
+| **rule_hash_id** | Hash id of the rule that triggered the finding |
+| **repository_name** | The repository path where the finding was discovered (e.g. `org/repo`) |
+| **ref** | The branch or ref where the finding was discovered |
+| severity | Severity of the finding (e.g. HIGH, MEDIUM, LOW) |
+| confidence | Confidence level of the finding (e.g. HIGH, MEDIUM, LOW) |
+| type | Type of secret detected (e.g. `OpenAI`, `GitHub`, `AWS`) |
+| validation_state | Whether the secret has been validated (e.g. `CONFIRMED_VALID`, `CONFIRMED_INVALID`, `VALIDATION_ERROR`, `NO_VALIDATOR`) |
+| status | Current status of the finding (e.g. `OPEN`, `FIXED`, `IGNORED`) |
+| finding_path | Path and line number where the secret was found (e.g. `src/config.py:42`) |
+| finding_path_url | URL pointing to the exact location of the secret in the repository |
+| ref_url | URL of the branch/ref where the finding was discovered |
+| mode | Semgrep mode under which the finding was detected (e.g. `MONITOR`, `BLOCK`) |
+| created_at | Date and time when the finding was first seen in UTC |
+| updated_at | Date and time when the finding was last updated in UTC |
+| repository_visibility | Visibility of the repository (e.g. `PUBLIC`, `PRIVATE`) |
+| repository_scm_type | Source control management system of the repository (e.g. `GITHUB`) |
+| repository_url | Full URL of the repository where the finding was discovered (e.g. `https://github.com/org/repo`) |
+
+#### Relationships
+
+- A SemgrepSecretsFinding belongs to a SemgrepDeployment
+
+    ```
+    (SemgrepDeployment)-[RESOURCE]->(SemgrepSecretsFinding)
+    ```
+
+- A SemgrepSecretsFinding connected to a GitHubRepository (optional)
+
+    ```
+    (SemgrepSecretsFinding)-[FOUND_IN]->(GitHubRepository)
     ```
 
 ### SemgrepSCAFinding
@@ -67,10 +171,10 @@ Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chai
 
 #### Relationships
 
-- An SemgrepSCAFinding connected to a GithubRepository (optional)
+- An SemgrepSCAFinding connected to a GitHubRepository (optional)
 
     ```
-    (SemgrepSCAFinding)-[FOUND_IN]->(GithubRepository)
+    (SemgrepSCAFinding)-[FOUND_IN]->(GitHubRepository)
     ```
 
 - A SemgrepSCAFinding vulnerable dependency usage at SemgrepSCALocation (optional)
@@ -89,6 +193,39 @@ Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chai
 
     ```
     (:SemgrepSCAFinding)<-[:LINKED_TO]-(:CVE)
+    ```
+
+- A SemgrepSCAFinding has a SemgrepFindingAssistant (optional)
+
+    ```
+    (SemgrepSCAFinding)-[HAS_ASSISTANT]->(SemgrepFindingAssistant)
+    ```
+
+### SemgrepFindingAssistant
+
+Represents [Semgrep Assistant](https://semgrep.dev/docs/semgrep-assistant/overview/) AI-generated data attached to a finding. Semgrep Assistant provides automated triage, remediation guidance, code fixes, and component analysis. The assistant node shares the same deployment sub-resource as its parent finding and is linked via `HAS_ASSISTANT`. Only present when Semgrep Assistant is enabled for the deployment.
+
+| Field | Description |
+|-------|--------------|
+| firstseen | Timestamp of when a sync job first discovered this node |
+| lastupdated | Timestamp of the last time the node was updated |
+| **id** | Unique id formed by the prefix `semgrep-assistant-` and the parent finding's integer id |
+| autofix_fix_code | AI-generated source code fix for the finding. Review carefully before applying |
+| autotriage_verdict | AI triage recommendation: `true_positive` to fix, `false_positive` to ignore |
+| autotriage_reason | Reasoning for a `false_positive` verdict; empty string for `true_positive` |
+| component_tag | AI-guessed tag describing the matched code's purpose (e.g. `user data`) |
+| component_risk | Risk level of the component: `high`, `low`, or `neutral` |
+| guidance_summary | Short title explaining how to fix the finding |
+| guidance_instructions | Step-by-step remediation instructions for a developer |
+| rule_explanation_summary | Concise summary of why the rule flagged this code |
+| rule_explanation | Detailed explanation of why the rule flagged the code and what the security impact is |
+
+#### Relationships
+
+- A SemgrepFindingAssistant belongs to a SemgrepDeployment
+
+    ```
+    (SemgrepDeployment)-[RESOURCE]->(SemgrepFindingAssistant)
     ```
 
 ### SemgrepSCALocation
@@ -138,10 +275,10 @@ See [SemgrepDependency](#semgrepdependency) for details.
 
 #### Relationships
 
-- A SemgrepDependency is required by a GithubRepository (optional)
+- A SemgrepDependency is required by a GitHubRepository (optional)
 
     ```
-    (:SemgrepDependency)<-[:REQUIRES{specifier, transitivity, url}]-(:GithubRepository)
+    (:SemgrepDependency)<-[:REQUIRES{specifier, transitivity, url}]-(:GitHubRepository)
     ```
 
     - specifier: A string describing the library version required by the repo (e.g. "==1.0.2")

@@ -10,6 +10,7 @@ from googleapiclient.errors import HttpError
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gcp.artifact_registry.util import get_artifact_registry_locations
+from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.models.gcp.artifact_registry.repository import (
     GCPArtifactRegistryRepositorySchema,
 )
@@ -34,7 +35,7 @@ def get_artifact_registry_repositories(client: Resource, project_id: str) -> lis
             parent = f"projects/{project_id}/locations/{location}"
             request = client.projects().locations().repositories().list(parent=parent)
             while request is not None:
-                response = request.execute()
+                response = gcp_api_execute_with_retry(request)
                 repositories.extend(response.get("repositories", []))
                 request = (
                     client.projects()

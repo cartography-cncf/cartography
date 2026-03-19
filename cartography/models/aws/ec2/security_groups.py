@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -79,6 +80,7 @@ class EC2SecurityGroupToSourceGroupRel(CartographyRelSchema):
 class EC2SecurityGroupSchema(CartographyNodeSchema):
     label: str = "EC2SecurityGroup"
     properties: EC2SecurityGroupNodeProperties = EC2SecurityGroupNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["NetworkAccessControl"])
     sub_resource_relationship: EC2SecurityGroupToAWSAccountRel = (
         EC2SecurityGroupToAWSAccountRel()
     )

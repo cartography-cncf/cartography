@@ -9,6 +9,7 @@ import json
 import logging
 from typing import Any
 from typing import Dict
+from typing import List
 
 import backoff
 from googleapiclient.errors import HttpError
@@ -20,6 +21,18 @@ GCP_RETRYABLE_HTTP_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 GCP_API_MAX_RETRIES = 3
 GCP_API_BACKOFF_BASE = 2
 GCP_API_BACKOFF_MAX = 30
+GCP_HTTP_ERROR_DETAIL_MAX_CHARS = 240
+GCP_PERMISSION_DENIED_REASONS = frozenset(
+    {"forbidden", "insufficientPermissions", "IAM_PERMISSION_DENIED"}
+)
+GCP_QUOTA_EXCEEDED_REASONS = frozenset(
+    {
+        "rateLimitExceeded",  # legacy REST API style
+        "userRateLimitExceeded",  # legacy REST API style
+        "RATE_LIMIT_EXCEEDED",  # gRPC-transcoded / ErrorInfo style
+        "USER_RATE_LIMIT_EXCEEDED",  # gRPC-transcoded / ErrorInfo style
+    }
+)
 
 # Number of retries for network-level errors (handled natively by googleapiclient)
 GCP_API_NUM_RETRIES = 5
@@ -33,12 +46,19 @@ def is_retryable_gcp_http_error(exc: Exception) -> bool:
     HTTP 429 (rate limit) and 5xx (server errors) are transient and should be retried
     with exponential backoff.
 
+    Some older GCP APIs return 403 with reason rateLimitExceeded or userRateLimitExceeded
+    instead of 429. These are also retryable.
+
     :param exc: The exception to check
     :return: True if the exception is a retryable HTTP error, False otherwise
     """
     if not isinstance(exc, HttpError):
         return False
-    return exc.resp.status in GCP_RETRYABLE_HTTP_STATUS_CODES
+    if exc.resp.status in GCP_RETRYABLE_HTTP_STATUS_CODES:
+        return True
+    if exc.resp.status == 403:
+        return get_error_reason(exc) in GCP_QUOTA_EXCEEDED_REASONS
+    return False
 
 
 def gcp_api_backoff_handler(details: Dict) -> None:
@@ -73,12 +93,79 @@ def gcp_api_backoff_handler(details: Dict) -> None:
     )
 
 
+def _truncate_gcp_error_detail(
+    value: str, limit: int = GCP_HTTP_ERROR_DETAIL_MAX_CHARS
+) -> str:
+    value = " ".join(value.split())
+    if len(value) <= limit:
+        return value
+    return value[: limit - 3] + "..."
+
+
+def summarize_gcp_http_error(http_error: HttpError) -> str:
+    """
+    Return a concise, single-line summary for a GCP HttpError.
+    """
+    status = getattr(http_error.resp, "status", "unknown")
+    reason = get_error_reason(http_error)
+    prefix = f"HTTP {status}"
+    if reason:
+        prefix = f"{prefix} {reason}"
+    fallback = f"{prefix}: {_truncate_gcp_error_detail(str(http_error))}"
+
+    try:
+        data = json.loads(http_error.content.decode("utf-8"))
+        if isinstance(data, dict):
+            error_obj = data.get("error", {})
+            if isinstance(error_obj, dict):
+                message = error_obj.get("message")
+                if isinstance(message, str) and message:
+                    return f"{prefix}: {_truncate_gcp_error_detail(message)}"
+    except (UnicodeDecodeError, ValueError, KeyError, IndexError, TypeError):
+        return fallback
+
+    return fallback
+
+
+def gcp_api_giveup_handler(details: Dict) -> None:
+    """
+    Handler that logs exhausted retries concisely.
+
+    The default backoff logger includes the full HttpError repr, which is
+    extremely noisy for non-retryable GCP 403s. Suppress those give-up logs
+    entirely and keep retryable exhaustion to a short one-liner.
+    """
+    tries = details.get("tries")
+    tries_display = str(tries) if tries is not None else "unknown"
+
+    target = details.get("target", "<unknown>")
+    exc = details.get("exception")
+    if exc and isinstance(exc, HttpError):
+        if not is_retryable_gcp_http_error(exc):
+            return
+        logger.warning(
+            "GCP API retries exhausted after %s tries. %s Calling: %s",
+            tries_display,
+            summarize_gcp_http_error(exc),
+            target,
+        )
+        return
+
+    logger.warning(
+        "GCP API retries exhausted after %s tries. Calling: %s",
+        tries_display,
+        target,
+    )
+
+
 @backoff.on_exception(  # type: ignore[misc]
     backoff.expo,
     HttpError,
     max_tries=GCP_API_MAX_RETRIES,
     giveup=lambda e: not is_retryable_gcp_http_error(e),
     on_backoff=gcp_api_backoff_handler,
+    on_giveup=gcp_api_giveup_handler,
+    logger=None,
     base=GCP_API_BACKOFF_BASE,
     max_value=GCP_API_BACKOFF_MAX,
 )
@@ -120,11 +207,78 @@ def get_error_reason(http_error: HttpError) -> str:
     try:
         data = json.loads(http_error.content.decode("utf-8"))
         if isinstance(data, dict):
-            return data["error"]["errors"][0]["reason"]
-        return data[0]["error"]["errors"]["reason"]
+            error_obj = data.get("error", {})
+            if not isinstance(error_obj, dict):
+                return ""
+
+            # Standard GCP error shape.
+            errors = error_obj.get("errors", [])
+            if isinstance(errors, list) and errors:
+                first_error = errors[0]
+                if isinstance(first_error, dict):
+                    reason = first_error.get("reason")
+                    if isinstance(reason, str):
+                        return reason
+
+            # gRPC-transcoded shape often used by newer APIs:
+            # error.details[] with type.googleapis.com/google.rpc.ErrorInfo
+            details = error_obj.get("details", [])
+            if isinstance(details, list):
+                for detail in details:
+                    if isinstance(detail, dict):
+                        reason = detail.get("reason")
+                        if isinstance(reason, str):
+                            return reason
+
+            return ""
+
+        if isinstance(data, list) and data:
+            item = data[0]
+            if isinstance(item, dict):
+                error_obj = item.get("error", {})
+                if isinstance(error_obj, dict):
+                    errors = error_obj.get("errors", [])
+                    if isinstance(errors, list) and errors:
+                        first_error = errors[0]
+                        if isinstance(first_error, dict):
+                            reason = first_error.get("reason")
+                            if isinstance(reason, str):
+                                return reason
+
+        return ""
     except (UnicodeDecodeError, ValueError, KeyError, IndexError, TypeError):
         logger.warning("HttpError: %s", http_error)
         return ""
+
+
+def is_billing_disabled_error(e: HttpError) -> bool:
+    """
+    Check if an HttpError indicates that billing is disabled for the project.
+    """
+    reason = get_error_reason(e)
+    if reason == "BILLING_DISABLED":
+        return True
+
+    try:
+        error_json = json.loads(e.content.decode("utf-8"))
+        err = error_json.get("error", {}) if isinstance(error_json, dict) else {}
+        message = err.get("message", "")
+        if isinstance(message, str):
+            lowered = message.lower()
+            return "requires billing to be enabled" in lowered
+        return False
+    except (ValueError, UnicodeDecodeError, AttributeError):
+        return False
+
+
+def is_permission_denied_error(e: HttpError) -> bool:
+    """
+    Check if an HttpError indicates an IAM permission denied condition.
+
+    This identifies authorization failures distinct from API-disabled and
+    billing-disabled errors.
+    """
+    return get_error_reason(e) in GCP_PERMISSION_DENIED_REASONS
 
 
 def parse_compute_full_uri_to_partial_uri(
@@ -176,6 +330,26 @@ def determine_role_type_and_scope(role_name: str) -> tuple[str, str]:
     return "CUSTOM", "PROJECT"
 
 
+def parse_and_validate_gcp_requested_syncs(gcp_requested_syncs: str) -> List[str]:
+    from cartography.intel.gcp.resources import RESOURCE_FUNCTIONS
+
+    validated_resources: List[str] = []
+    for resource in gcp_requested_syncs.split(","):
+        resource = resource.strip()
+
+        if resource in RESOURCE_FUNCTIONS:
+            validated_resources.append(resource)
+        else:
+            valid_syncs: str = ", ".join(RESOURCE_FUNCTIONS)
+            raise ValueError(
+                f'Error parsing `gcp-requested-syncs`. You specified "{gcp_requested_syncs}". '
+                f"Please check that your string is formatted properly. "
+                f'Example valid input looks like "compute,iam,storage" or "compute, gke, cloud_sql". '
+                f"Our full list of valid values is: {valid_syncs}.",
+            )
+    return validated_resources
+
+
 def is_api_disabled_error(e: HttpError) -> bool:
     """
     Check if an HttpError indicates that a GCP API is not enabled on the project.
@@ -204,11 +378,7 @@ def is_api_disabled_error(e: HttpError) -> bool:
             if reason in ("accessNotConfigured", "SERVICE_DISABLED"):
                 return True
             # Explicitly reject 'forbidden' and other IAM-related reasons
-            if reason in (
-                "forbidden",
-                "insufficientPermissions",
-                "IAM_PERMISSION_DENIED",
-            ):
+            if reason in GCP_PERMISSION_DENIED_REASONS:
                 return False
 
         # Fallback: Check message patterns for APIs that may use different error formats
@@ -224,3 +394,50 @@ def is_api_disabled_error(e: HttpError) -> bool:
             parse_error,
         )
         return False
+
+
+def classify_gcp_http_error(e: HttpError) -> str:
+    """
+    Classify a GCP HttpError into a canonical category string.
+
+    Reuses existing helpers (is_api_disabled_error, get_error_reason, etc.) so
+    logic is not duplicated. Malformed or non-JSON bodies never raise; they are
+    classified as "unknown".
+
+    Mapping rules:
+      - 403 + api-disabled pattern (is_api_disabled_error) → "api_disabled"
+      - (other) 403                                        → "forbidden"
+      - 404                                                → "not_found"
+      - 400 + reason "invalid" or "badRequest"            → "invalid"
+      - status in {429, 500, 502, 503, 504}               → "transient"
+      - anything else                                      → "unknown"
+
+    :param e: The HttpError exception to classify
+    :return: One of "api_disabled", "forbidden", "not_found", "invalid",
+             "transient", "unknown"
+    """
+    try:
+        status = int(e.resp.status)
+    except (AttributeError, TypeError, ValueError):
+        return "unknown"
+
+    if status == 403:
+        if is_api_disabled_error(e):
+            return "api_disabled"
+        if get_error_reason(e) in GCP_QUOTA_EXCEEDED_REASONS:
+            return "transient"
+        return "forbidden"
+
+    if status == 404:
+        return "not_found"
+
+    if status == 400:
+        reason = get_error_reason(e)
+        if reason.lower() in ("invalid", "badrequest"):
+            return "invalid"
+        return "unknown"
+
+    if status in GCP_RETRYABLE_HTTP_STATUS_CODES:
+        return "transient"
+
+    return "unknown"
