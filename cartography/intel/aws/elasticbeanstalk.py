@@ -22,7 +22,7 @@ stat_handler = get_stats_client(__name__)
 
 @timeit
 @aws_handle_regions
-def get_elasticbeanstak_environments(
+def get_elasticbeanstalk_environments(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict[str, Any]]:
@@ -150,7 +150,7 @@ def sync(
             region,
             current_aws_account_id,
         )
-        raw_environments = get_elasticbeanstak_environments(boto3_session, region)
+        raw_environments = get_elasticbeanstalk_environments(boto3_session, region)
         elasticbeanstalk_data = transform_elasticbeanstalk_environments(
             raw_environments, region
         )
