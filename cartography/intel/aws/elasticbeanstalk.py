@@ -70,6 +70,15 @@ def transform_elasticbeanstalk_environments(
             "Region": region,
         }
 
+        # Add flattened lists so that relationships can more easily match on them
+        environment_record["ASG_NAMES"] = []
+        environment_record["INSTANCE_IDS"] = []
+        environment_record["LAUNCHCONFIG_NAMES"] = []
+        environment_record["LAUNCHTEMPLATE_IDS"] = []
+        environment_record["LOADBALANCER_NAMES"] = []
+        environment_record["QUEUE_URLS"] = []
+        environment_record["TRIGGER_NAMES"] = []
+
         if environment.get("Resources"):
             resources = environment["Resources"]
 
