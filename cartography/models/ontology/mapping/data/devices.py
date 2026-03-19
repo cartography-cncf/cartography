@@ -196,7 +196,9 @@ jumpcloud_mapping = OntologyMapping(
                     ontology_field="serial_number", node_field="serial_number"
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
-                OntologyFieldMapping(ontology_field="os_version", node_field="os_version"),
+                OntologyFieldMapping(
+                    ontology_field="os_version", node_field="os_version"
+                ),
                 OntologyFieldMapping(ontology_field="model", node_field="model"),
             ],
         ),

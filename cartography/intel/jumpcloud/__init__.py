@@ -46,7 +46,9 @@ def start_jumpcloud_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retry))
     session.headers.update(
-        cartography.intel.jumpcloud.auth.build_headers(api_key=config.jumpcloud_api_key),
+        cartography.intel.jumpcloud.auth.build_headers(
+            api_key=config.jumpcloud_api_key
+        ),
     )
 
     common_job_parameters = {

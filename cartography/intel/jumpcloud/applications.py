@@ -13,9 +13,7 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 _APPLICATIONS_URL = "https://console.jumpcloud.com/api/v2/saas-management/applications"
-_APPLICATION_USERS_URL = (
-    "https://console.jumpcloud.com/api/v2/saas-management/applications/{application_id}/accounts"
-)
+_APPLICATION_USERS_URL = "https://console.jumpcloud.com/api/v2/saas-management/applications/{application_id}/accounts"
 
 
 @timeit
@@ -75,14 +73,17 @@ def get(session: requests.Session) -> list[dict[str, Any]]:
     logger.info("Fetched %d applications total", len(applications))
     return applications
 
+
 def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
             "id": app["id"],
             "name": app.get("catalog_app_id"),
-            "user_ids": list(dict.fromkeys(
-                uid for user in app.get("users", []) if (uid := user.get("user_id"))
-            )),
+            "user_ids": list(
+                dict.fromkeys(
+                    uid for user in app.get("users", []) if (uid := user.get("user_id"))
+                )
+            ),
         }
         for app in api_result
     ]

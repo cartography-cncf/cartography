@@ -69,7 +69,9 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "os_version": _str_value(_get_field(system, "OS Version", "value")),
                 "os": _str_value(_get_field(system, "Operating System (OS)", "value")),
                 "status": _str_value(_get_field(system, "Status", "value")),
-                "serial_number": _str_value(_get_field(system, "Serial Number", "value")),
+                "serial_number": _str_value(
+                    _get_field(system, "Serial Number", "value")
+                ),
             },
         )
     return result

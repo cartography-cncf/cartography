@@ -37,7 +37,9 @@ def test_sync_jumpcloud_users(mock_api, neo4j_session):
         ("aabbccdd001122334455667701", "mbsimpson@simpson.corp"),
         ("aabbccdd001122334455667702", "hjsimpson@simpson.corp"),
     }
-    assert check_nodes(neo4j_session, "JumpCloudUser", ["id", "email"]) == expected_users
+    assert (
+        check_nodes(neo4j_session, "JumpCloudUser", ["id", "email"]) == expected_users
+    )
 
     # Assert tenant -> user RESOURCE relationships
     expected_tenant_rels = {
@@ -56,4 +58,3 @@ def test_sync_jumpcloud_users(mock_api, neo4j_session):
         )
         == expected_tenant_rels
     )
-

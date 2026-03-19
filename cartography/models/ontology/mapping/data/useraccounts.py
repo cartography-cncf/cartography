@@ -493,7 +493,9 @@ jumpcloud_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="email", node_field="email", required=True
                 ),
-                OntologyFieldMapping(ontology_field="firstname", node_field="firstname"),
+                OntologyFieldMapping(
+                    ontology_field="firstname", node_field="firstname"
+                ),
                 OntologyFieldMapping(ontology_field="lastname", node_field="lastname"),
                 OntologyFieldMapping(ontology_field="username", node_field="username"),
                 OntologyFieldMapping(

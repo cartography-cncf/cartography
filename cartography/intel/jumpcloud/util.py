@@ -48,7 +48,9 @@ def paginated_get(
             logger.debug("paginated_get %s skip=%d got %d items", url, skip, page_len)
             yield from payload
             if page_len < page_size:
-                logger.debug("paginated_get %s done (last page had %d items)", url, page_len)
+                logger.debug(
+                    "paginated_get %s done (last page had %d items)", url, page_len
+                )
                 break
         else:
             page: list[dict[str, Any]] = []

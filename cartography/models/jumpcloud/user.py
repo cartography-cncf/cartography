@@ -42,7 +42,9 @@ class JumpCloudTenantToUserRel(CartographyRelSchema):
     )
     direction: LinkDirection = LinkDirection.INWARD
     rel_label: str = "RESOURCE"
-    properties: JumpCloudTenantToUserRelProperties = JumpCloudTenantToUserRelProperties()
+    properties: JumpCloudTenantToUserRelProperties = (
+        JumpCloudTenantToUserRelProperties()
+    )
 
 
 @dataclass(frozen=True)

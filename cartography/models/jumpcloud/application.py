@@ -62,7 +62,9 @@ class JumpCloudApplicationToUserRel(CartographyRelSchema):
 class JumpCloudApplicationSchema(CartographyNodeSchema):
     label: str = "JumpCloudSaaSApplication"
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["ThirdPartyApp"])
-    properties: JumpCloudApplicationNodeProperties = JumpCloudApplicationNodeProperties()
+    properties: JumpCloudApplicationNodeProperties = (
+        JumpCloudApplicationNodeProperties()
+    )
     sub_resource_relationship: JumpCloudApplicationToTenantRel = (
         JumpCloudApplicationToTenantRel()
     )

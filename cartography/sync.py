@@ -30,10 +30,10 @@ import cartography.intel.gitlab
 import cartography.intel.googleworkspace
 import cartography.intel.gsuite
 import cartography.intel.jamf
+import cartography.intel.jumpcloud
 import cartography.intel.kandji
 import cartography.intel.keycloak
 import cartography.intel.kubernetes
-import cartography.intel.jumpcloud
 import cartography.intel.lastpass
 import cartography.intel.oci
 import cartography.intel.okta
