@@ -48,6 +48,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                     createdAt
                     description
                     updatedAt
+                    pushedAt
                     homepageUrl
                     languages(first: 25){
                         totalCount
@@ -77,6 +78,7 @@ GITHUB_ORG_REPOS_PAGINATED_GRAPHQL = """
                         }
                     }
                     isPrivate
+                    visibility
                     isArchived
                     isDisabled
                     isLocked
@@ -140,7 +142,7 @@ def get(token: str, api_url: str, organization: str) -> List[Dict]:
         if not is_retryable_request_error(err):
             raise
 
-        logger.warning(
+        logger.info(
             (
                 f"GitHub GraphQL repository sync failed for org `{organization}` "
                 f"with {describe_request_error(err)}; falling back to REST repository listing."
@@ -305,6 +307,9 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
     # Create a git:// URL from the given SSH URL, if it exists.
     ssh_url = input_repo_object.get("sshUrl")
     git_url = _create_git_url_from_ssh_url(ssh_url) if ssh_url else None
+    visibility = input_repo_object.get("visibility")
+    if visibility is None:
+        visibility = "private" if input_repo_object["isPrivate"] else "public"
 
     out_repo_list.append(
         {
@@ -320,7 +325,7 @@ def _transform_repo_objects(input_repo_object: Dict, out_repo_list: List[Dict]) 
             "default_branch": default_branch_name,
             "defaultbranchid": default_branch_id,
             "is_private": input_repo_object["isPrivate"],
-            "visibility": "private" if input_repo_object["isPrivate"] else "public",
+            "visibility": visibility,
             "disabled": input_repo_object["isDisabled"],
             "archived": input_repo_object["isArchived"],
             "locked": input_repo_object["isLocked"],
@@ -532,7 +537,7 @@ def load_github_repos(neo4j_session: neo4j.Session, update_tag: int, repo_data: 
     repo.homepage = repository.homepage,
     repo.default_branch = repository.default_branch,
     repo.defaultbranchid = repository.defaultbranchid,
-    repo.is_private = repository.private,
+    repo.is_private = repository.is_private,
     repo.visibility = repository.visibility,
     repo.disabled = repository.disabled,
     repo.archived = repository.archived,
@@ -761,6 +766,7 @@ def _normalize_rest_repo(repo: Dict[str, Any]) -> Dict[str, Any]:
             else None
         ),
         "isPrivate": repo["private"],
+        "visibility": repo.get("visibility") or ("private" if repo["private"] else "public"),
         "isArchived": repo.get("archived", False),
         "isDisabled": repo.get("disabled", False),
         "isLocked": repo.get("locked", False),
