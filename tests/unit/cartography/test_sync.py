@@ -113,3 +113,20 @@ def test_run_with_config_omits_unset_optional_driver_kwargs(mocker):
         "bolt://localhost:7687",
         auth=("neo4j", "password"),
     )
+
+
+def test_config_preserves_existing_positional_arguments():
+    config = Config(
+        "bolt://localhost:7687",
+        "neo4j",
+        "password",
+        300,
+        30,
+        "neo4j-db",
+        "aws,analysis",
+        456,
+    )
+
+    assert config.neo4j_database == "neo4j-db"
+    assert config.selected_modules == "aws,analysis"
+    assert config.update_tag == 456

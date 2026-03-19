@@ -287,11 +287,6 @@ class Config:
         neo4j_max_connection_lifetime=None,
         neo4j_liveness_check_timeout=None,
         neo4j_database=None,
-        neo4j_connection_timeout=None,
-        neo4j_keep_alive=None,
-        neo4j_max_transaction_retry_time=None,
-        neo4j_max_connection_pool_size=None,
-        neo4j_connection_acquisition_timeout=None,
         selected_modules=None,
         update_tag=None,
         aws_sync_all_profiles=False,
@@ -421,6 +416,11 @@ class Config:
         aibom_s3_prefix=None,
         ubuntu_security_enabled=False,
         ubuntu_security_api_url=None,
+        neo4j_connection_timeout=None,
+        neo4j_keep_alive=None,
+        neo4j_max_transaction_retry_time=None,
+        neo4j_max_connection_pool_size=None,
+        neo4j_connection_acquisition_timeout=None,
     ):
         self.neo4j_uri = neo4j_uri
         self.neo4j_user = neo4j_user
