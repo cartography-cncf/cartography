@@ -9,6 +9,8 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from cartography.rules.runners import _run_single_rule
+from cartography.rules.runners import filter_rules_by_framework
+from cartography.rules.runners import parse_framework_filter
 from cartography.rules.spec.model import Fact
 from cartography.rules.spec.model import Framework
 from cartography.rules.spec.model import Maturity
@@ -266,3 +268,89 @@ def test_run_single_rule_propagates_frameworks(mock_run_fact):
     assert rule_result.rule_frameworks[0].scope == "aws"
     assert rule_result.rule_frameworks[0].revision == "5.0"
     assert rule_result.rule_frameworks[0].requirement == "1.14"
+
+
+def test_parse_framework_filter_backward_compatible_formats():
+    assert parse_framework_filter("CIS") == ("CIS", None, None, None)
+    assert parse_framework_filter("CIS:aws") == ("CIS", "aws", None, None)
+    assert parse_framework_filter("CIS:aws:5.0") == ("CIS", "aws", "5.0", None)
+
+
+def test_parse_framework_filter_with_family():
+    assert parse_framework_filter("CIS:aws:foundations") == (
+        "CIS",
+        "aws",
+        None,
+        "foundations",
+    )
+    assert parse_framework_filter("CIS:aws:foundations:6.0") == (
+        "CIS",
+        "aws",
+        "6.0",
+        "foundations",
+    )
+
+
+@patch.dict("cartography.rules.runners.RULES", clear=True)
+def test_filter_rules_by_framework_supports_family():
+    foundations_rule = Rule(
+        id="rule-foundations",
+        name="Foundations Rule",
+        description="Foundations",
+        version="1.0.0",
+        tags=("test",),
+        facts=(),
+        output_model=MagicMock(),
+        frameworks=(
+            Framework(
+                name="CIS AWS Foundations Benchmark",
+                short_name="CIS",
+                scope="aws",
+                family="foundations",
+                revision="6.0",
+                requirement="2.11",
+            ),
+        ),
+    )
+    compute_rule = Rule(
+        id="rule-compute",
+        name="Compute Rule",
+        description="Compute",
+        version="1.0.0",
+        tags=("test",),
+        facts=(),
+        output_model=MagicMock(),
+        frameworks=(
+            Framework(
+                name="CIS AWS Compute Services Benchmark",
+                short_name="CIS",
+                scope="aws",
+                family="compute",
+                revision="1.1",
+                requirement="3.1",
+            ),
+        ),
+    )
+
+    from cartography.rules.runners import RULES
+
+    RULES[foundations_rule.id] = foundations_rule
+    RULES[compute_rule.id] = compute_rule
+
+    all_rule_names = list(RULES.keys())
+
+    assert sorted(filter_rules_by_framework(all_rule_names, "CIS")) == sorted(
+        all_rule_names
+    )
+    assert sorted(filter_rules_by_framework(all_rule_names, "CIS:aws")) == sorted(
+        all_rule_names
+    )
+    assert filter_rules_by_framework(all_rule_names, "CIS:aws:foundations") == [
+        foundations_rule.id
+    ]
+    assert filter_rules_by_framework(all_rule_names, "CIS:aws:foundations:6.0") == [
+        foundations_rule.id
+    ]
+    assert filter_rules_by_framework(all_rule_names, "CIS:aws:compute:1.1") == [
+        compute_rule.id
+    ]

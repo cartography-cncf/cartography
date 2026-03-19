@@ -170,6 +170,7 @@ class Framework:
         short_name: Abbreviated name for filtering (e.g., "cis").
         requirement: The specific requirement identifier (e.g., "1.14").
         scope: Optional platform or domain the framework applies to (e.g., "aws", "gcp").
+        family: Optional benchmark family within the platform (e.g., "foundations", "compute").
         revision: Optional version/revision of the framework (e.g., "5.0").
     """
 
@@ -177,6 +178,7 @@ class Framework:
     short_name: str
     requirement: str
     scope: str | None = None
+    family: str | None = None
     revision: str | None = None
 
     def __post_init__(self) -> None:
@@ -186,6 +188,8 @@ class Framework:
         object.__setattr__(self, "requirement", self.requirement.lower())
         if self.scope is not None:
             object.__setattr__(self, "scope", self.scope.lower())
+        if self.family is not None:
+            object.__setattr__(self, "family", self.family.lower())
         if self.revision is not None:
             object.__setattr__(self, "revision", self.revision.lower())
 
@@ -194,6 +198,7 @@ class Framework:
         short_name: str | None = None,
         scope: str | None = None,
         revision: str | None = None,
+        family: str | None = None,
     ) -> bool:
         """
         Check if this framework matches the given filter criteria.
@@ -202,6 +207,7 @@ class Framework:
             short_name: Filter by short name (case-insensitive).
             scope: Filter by scope (case-insensitive).
             revision: Filter by revision (case-insensitive).
+            family: Filter by benchmark family (case-insensitive).
 
         Returns:
             True if all provided criteria match, False otherwise.
@@ -210,6 +216,9 @@ class Framework:
             return False
         if scope:
             if self.scope is None or self.scope != scope.lower():
+                return False
+        if family:
+            if self.family is None or self.family != family.lower():
                 return False
         if revision:
             if self.revision is None or self.revision != revision.lower():
@@ -329,6 +338,7 @@ class Rule:
         short_name: str | None = None,
         scope: str | None = None,
         revision: str | None = None,
+        family: str | None = None,
     ) -> bool:
         """
         Check if this rule has a framework matching the given criteria.
@@ -337,11 +347,14 @@ class Rule:
             short_name: Filter by framework short name (case-insensitive).
             scope: Filter by framework scope (case-insensitive).
             revision: Filter by framework revision (case-insensitive).
+            family: Filter by framework family (case-insensitive).
 
         Returns:
             True if any framework matches all provided criteria.
         """
-        return any(fw.matches(short_name, scope, revision) for fw in self.frameworks)
+        return any(
+            fw.matches(short_name, scope, revision, family) for fw in self.frameworks
+        )
 
     def get_fact_by_id(self, fact_id: str) -> Fact | None:
         """

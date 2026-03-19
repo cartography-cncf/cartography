@@ -18,6 +18,41 @@ from cartography.rules.spec.result import FactResult
 from cartography.rules.spec.result import RuleResult
 
 
+def parse_framework_filter(
+    framework_filter: str,
+) -> tuple[str | None, str | None, str | None, str | None]:
+    """
+    Parse a framework filter string.
+
+    Supports the following formats (case-insensitive):
+    - "CIS"
+    - "CIS:aws"
+    - "CIS:aws:5.0"
+    - "CIS:aws:foundations"
+    - "CIS:aws:foundations:6.0"
+
+    Returns:
+        Tuple of (short_name, scope, revision, family).
+    """
+    parts = framework_filter.split(":")
+    short_name = parts[0] if len(parts) >= 1 else None
+    scope = parts[1] if len(parts) >= 2 else None
+    revision = None
+    family = None
+
+    if len(parts) >= 3:
+        third = parts[2]
+        if len(parts) >= 4:
+            family = third
+            revision = parts[3]
+        elif any(char.isalpha() for char in third):
+            family = third
+        else:
+            revision = third
+
+    return short_name, scope, revision, family
+
+
 def get_all_frameworks() -> dict[str, list[Framework]]:
     """
     Get all unique frameworks from all rules, grouped by short_name.
@@ -34,7 +69,15 @@ def get_all_frameworks() -> dict[str, list[Framework]]:
 
     # Convert sets to sorted lists
     return {
-        name: sorted(fws, key=lambda f: (f.scope, f.revision, f.requirement))
+        name: sorted(
+            fws,
+            key=lambda f: (
+                f.scope or "",
+                f.family or "",
+                f.revision or "",
+                f.requirement,
+            ),
+        )
         for name, fws in sorted(frameworks_by_name.items())
     }
 
@@ -234,6 +277,8 @@ def filter_rules_by_framework(
     - "CIS" - Match any rule with a CIS framework
     - "CIS:aws" - Match CIS frameworks with scope "aws"
     - "CIS:aws:5.0" - Match CIS frameworks with scope "aws" and revision "5.0"
+    - "CIS:aws:foundations" - Match CIS frameworks with scope "aws" and family "foundations"
+    - "CIS:aws:foundations:6.0" - Match CIS frameworks with scope "aws", family "foundations", and revision "6.0"
 
     Args:
         rule_names: List of rule names to filter.
@@ -242,17 +287,14 @@ def filter_rules_by_framework(
     Returns:
         List of rule names that match the framework filter.
     """
-    parts = framework_filter.split(":")
-    short_name = parts[0] if len(parts) >= 1 else None
-    scope = parts[1] if len(parts) >= 2 else None
-    revision = parts[2] if len(parts) >= 3 else None
+    short_name, scope, revision, family = parse_framework_filter(framework_filter)
 
     filtered = []
     for rule_name in rule_names:
         if rule_name not in RULES:
             continue
         rule = RULES[rule_name]
-        if rule.has_framework(short_name, scope, revision):
+        if rule.has_framework(short_name, scope, revision, family):
             filtered.append(rule_name)
     return filtered
 
@@ -281,7 +323,7 @@ def run_rules(
         output_format (str): Either "text" or "json". Defaults to "text".
         fact_filter (str | None): Optional fact ID to filter execution (case-insensitive).
         exclude_experimental (bool): Whether to exclude experimental facts from execution.
-        framework_filter (str | None): Optional framework filter (e.g., "CIS", "CIS:aws", "CIS:aws:5.0").
+        framework_filter (str | None): Optional framework filter (e.g., "CIS", "CIS:aws", "CIS:aws:5.0", "CIS:aws:foundations:6.0").
 
     Returns:
         int: The exit code (0 for success, 1 for failure).

@@ -15,6 +15,7 @@ from typing_extensions import Annotated
 
 from cartography.rules.data.rules import RULES
 from cartography.rules.runners import get_all_frameworks
+from cartography.rules.runners import parse_framework_filter
 from cartography.rules.runners import run_rules
 
 app = typer.Typer(
@@ -91,7 +92,12 @@ def complete_frameworks(incomplete: str) -> Generator[str, None, None]:
     """
     Autocomplete framework filters for CLI tab completion.
 
-    Supports formats: "CIS", "CIS:aws", "CIS:aws:5.0"
+    Supports formats:
+    - "CIS"
+    - "CIS:aws"
+    - "CIS:aws:5.0"
+    - "CIS:aws:foundations"
+    - "CIS:aws:foundations:6.0"
 
     Args:
         incomplete (str): The partial framework filter typed by the user.
@@ -115,18 +121,42 @@ def complete_frameworks(incomplete: str) -> Generator[str, None, None]:
             if option.startswith(incomplete_lower):
                 yield option
 
-            # Short name + scope + revision (e.g., "cis:aws:5.0")
-            revisions = sorted(
+            # Short name + scope + revision (e.g., "cis:aws:5.0") for frameworks without family
+            plain_revisions = sorted(
                 {
                     fw.revision
                     for fw in fws
-                    if fw.scope == scope and fw.revision is not None
+                    if fw.scope == scope
+                    and fw.family is None
+                    and fw.revision is not None
                 }
             )
-            for revision in revisions:
+            for revision in plain_revisions:
                 full_option = f"{short_name}:{scope}:{revision}"
                 if full_option.startswith(incomplete_lower):
                     yield full_option
+
+            families = sorted(
+                {fw.family for fw in fws if fw.scope == scope and fw.family is not None}
+            )
+            for family in families:
+                family_option = f"{short_name}:{scope}:{family}"
+                if family_option.startswith(incomplete_lower):
+                    yield family_option
+
+                family_revisions = sorted(
+                    {
+                        fw.revision
+                        for fw in fws
+                        if fw.scope == scope
+                        and fw.family == family
+                        and fw.revision is not None
+                    }
+                )
+                for revision in family_revisions:
+                    full_option = f"{short_name}:{scope}:{family}:{revision}"
+                    if full_option.startswith(incomplete_lower):
+                        yield full_option
 
 
 # ----------------------------
@@ -152,27 +182,33 @@ def frameworks_cmd() -> None:
     typer.secho("\nCompliance Frameworks\n", bold=True)
 
     for short_name, fws in frameworks.items():
-        # Get unique scopes and their revisions
-        scopes: dict[str | None, set[str | None]] = {}
+        # Get unique scopes, families, and revisions
+        scopes: dict[str | None, dict[str | None, set[str | None]]] = {}
         for fw in fws:
             if fw.scope not in scopes:
-                scopes[fw.scope] = set()
-            scopes[fw.scope].add(fw.revision)
+                scopes[fw.scope] = {}
+            if fw.family not in scopes[fw.scope]:
+                scopes[fw.scope][fw.family] = set()
+            scopes[fw.scope][fw.family].add(fw.revision)
 
         typer.secho(f"{short_name.upper()}", fg=typer.colors.CYAN)
-        if fws:
-            typer.echo(f"  Name: {fws[0].name}")
-        for scope, revisions in sorted(scopes.items(), key=lambda x: x[0] or ""):
-            rev_list = [r for r in revisions if r is not None]
+        for name in sorted({fw.name for fw in fws}):
+            typer.echo(f"  Name: {name}")
+        for scope, families in sorted(scopes.items(), key=lambda x: x[0] or ""):
             if scope is not None:
-                if rev_list:
+                typer.echo(f"  Scope: {scope}")
+            for family, revisions in sorted(families.items(), key=lambda x: x[0] or ""):
+                rev_list = [r for r in revisions if r is not None]
+                prefix = "    " if scope is not None else "  "
+                if family is not None:
+                    if rev_list:
+                        rev_str = ", ".join(sorted(rev_list))
+                        typer.echo(f"{prefix}Family: {family} (revisions: {rev_str})")
+                    else:
+                        typer.echo(f"{prefix}Family: {family}")
+                elif rev_list:
                     rev_str = ", ".join(sorted(rev_list))
-                    typer.echo(f"  Scope: {scope} (revisions: {rev_str})")
-                else:
-                    typer.echo(f"  Scope: {scope}")
-            elif rev_list:
-                rev_str = ", ".join(sorted(rev_list))
-                typer.echo(f"  Revisions: {rev_str}")
+                    typer.echo(f"{prefix}Revisions: {rev_str}")
 
         # Count rules using this framework
         rule_count = sum(1 for rule in RULES.values() if rule.has_framework(short_name))
@@ -194,7 +230,7 @@ def list_cmd(
         typer.Option(
             "--framework",
             "-f",
-            help="Filter by framework (e.g., CIS, CIS:aws, CIS:aws:5.0)",
+            help="Filter by framework (e.g., CIS, CIS:aws, CIS:aws:5.0, CIS:aws:foundations:6.0)",
             autocompletion=complete_frameworks,
         ),
     ] = None,
@@ -207,6 +243,7 @@ def list_cmd(
         cartography-rules list
         cartography-rules list --framework CIS
         cartography-rules list --framework CIS:aws
+        cartography-rules list --framework CIS:aws:foundations
         cartography-rules list mfa-missing
     """
     # List all rules (optionally filtered by framework)
@@ -216,10 +253,11 @@ def list_cmd(
         fw_scope = None
         fw_revision = None
         if framework:
-            parts = framework.split(":")
-            fw_short_name = parts[0] if len(parts) >= 1 else None
-            fw_scope = parts[1] if len(parts) >= 2 else None
-            fw_revision = parts[2] if len(parts) >= 3 else None
+            fw_short_name, fw_scope, fw_revision, fw_family = parse_framework_filter(
+                framework
+            )
+        else:
+            fw_family = None
 
         if framework:
             typer.secho(f"\nRules matching framework: {framework}\n", bold=True)
@@ -230,7 +268,7 @@ def list_cmd(
         for rule_name, rule_obj in RULES.items():
             # Apply framework filter
             if framework and not rule_obj.has_framework(
-                fw_short_name, fw_scope, fw_revision
+                fw_short_name, fw_scope, fw_revision, fw_family
             ):
                 continue
 
@@ -246,6 +284,8 @@ def list_cmd(
                     fw_parts = [fw.short_name]
                     if fw.scope:
                         fw_parts.append(fw.scope)
+                    if fw.family:
+                        fw_parts.append(fw.family)
                     if fw.revision:
                         fw_parts.append(fw.revision)
                     fw_str = ":".join(fw_parts)
@@ -331,7 +371,7 @@ def run_cmd(
         typer.Option(
             "--framework",
             "-f",
-            help="Filter by framework (e.g., CIS, CIS:aws, CIS:aws:5.0)",
+            help="Filter by framework (e.g., CIS, CIS:aws, CIS:aws:5.0, CIS:aws:foundations:6.0)",
             autocompletion=complete_frameworks,
         ),
     ] = None,
@@ -344,6 +384,7 @@ def run_cmd(
         cartography-rules run all
         cartography-rules run all --framework CIS
         cartography-rules run all --framework CIS:aws:5.0
+        cartography-rules run all --framework CIS:aws:foundations:6.0
         cartography-rules run mfa-missing
         cartography-rules run mfa-missing missing-mfa-cloudflare
     """

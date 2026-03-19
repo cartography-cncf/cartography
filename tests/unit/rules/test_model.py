@@ -11,11 +11,13 @@ def test_framework_normalizes_to_lowercase():
         short_name="CIS",
         requirement="1.14",
         scope="AWS",
+        family="Foundations",
         revision="5.0",
     )
     assert fw.name == "cis aws foundations benchmark"
     assert fw.short_name == "cis"
     assert fw.scope == "aws"
+    assert fw.family == "foundations"
     assert fw.revision == "5.0"
     assert fw.requirement == "1.14"
 
@@ -29,6 +31,7 @@ def test_framework_optional_fields():
         requirement="AC-1",
     )
     assert fw_minimal.scope is None
+    assert fw_minimal.family is None
     assert fw_minimal.revision is None
     assert fw_minimal.requirement == "ac-1"
 
@@ -40,7 +43,20 @@ def test_framework_optional_fields():
         scope="aws",
     )
     assert fw_with_scope.scope == "aws"
+    assert fw_with_scope.family is None
     assert fw_with_scope.revision is None
+
+    # With family only
+    fw_with_family = Framework(
+        name="CIS AWS Compute Services Benchmark",
+        short_name="CIS",
+        requirement="3.1",
+        scope="aws",
+        family="compute",
+    )
+    assert fw_with_family.scope == "aws"
+    assert fw_with_family.family == "compute"
+    assert fw_with_family.revision is None
 
     # With revision only
     fw_with_revision = Framework(
@@ -60,6 +76,7 @@ def test_framework_matches_case_insensitive():
         short_name="CIS",
         requirement="1.14",
         scope="aws",
+        family="foundations",
         revision="5.0",
     )
     # All match variations should work
@@ -67,6 +84,10 @@ def test_framework_matches_case_insensitive():
     assert fw.matches("cis")
     assert fw.matches("CIS", "AWS")
     assert fw.matches("cis", "aws", "5.0")
+    assert fw.matches(short_name="CIS", scope="AWS", family="Foundations")
+    assert fw.matches(
+        short_name="cis", scope="aws", revision="5.0", family="foundations"
+    )
     assert fw.matches(short_name="CIS", scope="AWS", revision="5.0")
 
 
@@ -77,18 +98,21 @@ def test_framework_matches_partial_filter():
         short_name="CIS",
         requirement="1.14",
         scope="aws",
+        family="foundations",
         revision="5.0",
     )
     # Partial matches
     assert fw.matches("cis")
     assert fw.matches("cis", "aws")
     assert fw.matches(scope="aws")
+    assert fw.matches(family="foundations")
     assert fw.matches(revision="5.0")
 
     # Non-matches
     assert not fw.matches("nist")
     assert not fw.matches("cis", "gcp")
     assert not fw.matches("cis", "aws", "4.0")
+    assert not fw.matches(short_name="cis", scope="aws", family="compute")
 
 
 def test_framework_matches_with_optional_fields():
@@ -114,6 +138,7 @@ def test_framework_matches_with_optional_fields():
     assert not fw_no_revision.matches(
         "cis", "aws", "5.0"
     )  # Can't match revision if None
+    assert not fw_no_revision.matches(short_name="cis", scope="aws", family="compute")
 
 
 def test_all_module_keys_in_mapping_except_cross_cloud():
