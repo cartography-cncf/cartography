@@ -273,6 +273,8 @@ def test_transform_ipv6_missing_is_primary_defaults_false():
     data = transform_ec2_instances(reservations, FAKE_REGION, FAKE_ACCOUNT_ID)
 
     assert data.ipv6_address_list[0]["IsPrimaryIpv6"] is False
+
+
 def test_transform_ec2_instances_extracts_metadata_options():
     data = transform_ec2_instances(
         INSTANCE_WITH_IAM_PROFILE, FAKE_REGION, FAKE_ACCOUNT_ID
