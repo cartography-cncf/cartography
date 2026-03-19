@@ -113,7 +113,9 @@ def load_environments(
 ) -> None:
 
     logger.info(
-        f"Loading {len(data)} ElasticBeanstalk environments for region '{region}' into graph."
+        "Loading %d ElasticBeanstalk environments for region '%s' into graph.",
+        len(data),
+        region,
     )
     load(
         neo4j_session,
