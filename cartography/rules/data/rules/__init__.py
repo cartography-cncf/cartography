@@ -3,37 +3,42 @@ from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_6_unrestricted_ss
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_3_7_unrestricted_rdp
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_4_9_public_ip
 from cartography.rules.data.rules.cis_4_0_gcp import cis_gcp_5_2_bucket_uniform_access
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_12_unused_credentials
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_13_multiple_access_keys
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_14_access_key_not_rotated
-from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_15_user_direct_policies
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_11_unused_credentials
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_12_multiple_access_keys
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_13_access_key_not_rotated
+from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_14_user_direct_policies
 from cartography.rules.data.rules.cis_aws_iam import cis_aws_1_18_expired_certificates
+from cartography.rules.data.rules.cis_aws_logging import (
+    aws_cloudtrail_cloudwatch_integration,
+)
 from cartography.rules.data.rules.cis_aws_logging import (
     cis_aws_3_1_cloudtrail_multi_region,
 )
 from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_3_4_cloudtrail_log_validation,
+    cis_aws_3_2_cloudtrail_log_validation,
 )
 from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_3_5_cloudtrail_cloudwatch,
+    cis_aws_3_5_cloudtrail_encryption,
 )
-from cartography.rules.data.rules.cis_aws_logging import (
-    cis_aws_3_7_cloudtrail_encryption,
-)
-from cartography.rules.data.rules.cis_aws_networking import cis_aws_5_1_unrestricted_ssh
-from cartography.rules.data.rules.cis_aws_networking import cis_aws_5_2_unrestricted_rdp
 from cartography.rules.data.rules.cis_aws_networking import (
-    cis_aws_5_4_default_sg_traffic,
+    cis_aws_5_2_nacl_admin_ports_ipv4,
 )
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_1_s3_versioning
+from cartography.rules.data.rules.cis_aws_networking import (
+    cis_aws_5_3_security_group_admin_ports_ipv4,
+)
+from cartography.rules.data.rules.cis_aws_networking import (
+    cis_aws_5_5_default_sg_traffic,
+)
+from cartography.rules.data.rules.cis_aws_networking import cis_aws_5_7_ec2_imdsv2
+from cartography.rules.data.rules.cis_aws_storage import aws_ebs_volume_encryption
+from cartography.rules.data.rules.cis_aws_storage import aws_s3_bucket_access_logging
+from cartography.rules.data.rules.cis_aws_storage import aws_s3_bucket_versioning
+from cartography.rules.data.rules.cis_aws_storage import aws_s3_default_encryption
 from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_2_s3_mfa_delete
 from cartography.rules.data.rules.cis_aws_storage import (
     cis_aws_2_1_4_s3_block_public_access,
 )
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_5_s3_access_logging
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_1_6_s3_encryption
 from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_2_1_rds_encryption
-from cartography.rules.data.rules.cis_aws_storage import cis_aws_2_3_1_ebs_encryption
 from cartography.rules.data.rules.cis_google_workspace import (
     cis_gw_4_1_1_1_admin_2sv_not_enforced,
 )
@@ -123,28 +128,30 @@ from cartography.rules.data.rules.workload_identity_admin_capabilities import (
 # Rule registry - all available rules
 RULES = {
     # CIS AWS IAM Rules (Section 1)
-    cis_aws_1_12_unused_credentials.id: cis_aws_1_12_unused_credentials,
-    cis_aws_1_13_multiple_access_keys.id: cis_aws_1_13_multiple_access_keys,
-    cis_aws_1_14_access_key_not_rotated.id: cis_aws_1_14_access_key_not_rotated,
-    cis_aws_1_15_user_direct_policies.id: cis_aws_1_15_user_direct_policies,
+    cis_aws_1_11_unused_credentials.id: cis_aws_1_11_unused_credentials,
+    cis_aws_1_12_multiple_access_keys.id: cis_aws_1_12_multiple_access_keys,
+    cis_aws_1_13_access_key_not_rotated.id: cis_aws_1_13_access_key_not_rotated,
+    cis_aws_1_14_user_direct_policies.id: cis_aws_1_14_user_direct_policies,
     cis_aws_1_18_expired_certificates.id: cis_aws_1_18_expired_certificates,
     # CIS AWS Storage Rules (Section 2)
-    cis_aws_2_1_1_s3_versioning.id: cis_aws_2_1_1_s3_versioning,
     cis_aws_2_1_2_s3_mfa_delete.id: cis_aws_2_1_2_s3_mfa_delete,
     cis_aws_2_1_4_s3_block_public_access.id: cis_aws_2_1_4_s3_block_public_access,
-    cis_aws_2_1_5_s3_access_logging.id: cis_aws_2_1_5_s3_access_logging,
-    cis_aws_2_1_6_s3_encryption.id: cis_aws_2_1_6_s3_encryption,
     cis_aws_2_2_1_rds_encryption.id: cis_aws_2_2_1_rds_encryption,
-    cis_aws_2_3_1_ebs_encryption.id: cis_aws_2_3_1_ebs_encryption,
     # CIS AWS Logging Rules (Section 3)
     cis_aws_3_1_cloudtrail_multi_region.id: cis_aws_3_1_cloudtrail_multi_region,
-    cis_aws_3_4_cloudtrail_log_validation.id: cis_aws_3_4_cloudtrail_log_validation,
-    cis_aws_3_5_cloudtrail_cloudwatch.id: cis_aws_3_5_cloudtrail_cloudwatch,
-    cis_aws_3_7_cloudtrail_encryption.id: cis_aws_3_7_cloudtrail_encryption,
+    cis_aws_3_2_cloudtrail_log_validation.id: cis_aws_3_2_cloudtrail_log_validation,
+    cis_aws_3_5_cloudtrail_encryption.id: cis_aws_3_5_cloudtrail_encryption,
     # CIS AWS Networking Rules (Section 5)
-    cis_aws_5_1_unrestricted_ssh.id: cis_aws_5_1_unrestricted_ssh,
-    cis_aws_5_2_unrestricted_rdp.id: cis_aws_5_2_unrestricted_rdp,
-    cis_aws_5_4_default_sg_traffic.id: cis_aws_5_4_default_sg_traffic,
+    cis_aws_5_2_nacl_admin_ports_ipv4.id: cis_aws_5_2_nacl_admin_ports_ipv4,
+    cis_aws_5_3_security_group_admin_ports_ipv4.id: cis_aws_5_3_security_group_admin_ports_ipv4,
+    cis_aws_5_5_default_sg_traffic.id: cis_aws_5_5_default_sg_traffic,
+    cis_aws_5_7_ec2_imdsv2.id: cis_aws_5_7_ec2_imdsv2,
+    # AWS Best Practice Rules
+    aws_cloudtrail_cloudwatch_integration.id: aws_cloudtrail_cloudwatch_integration,
+    aws_s3_bucket_versioning.id: aws_s3_bucket_versioning,
+    aws_s3_bucket_access_logging.id: aws_s3_bucket_access_logging,
+    aws_s3_default_encryption.id: aws_s3_default_encryption,
+    aws_ebs_volume_encryption.id: aws_ebs_volume_encryption,
     # SubImage Coverage Rules
     subimage_module_not_configured.id: subimage_module_not_configured,
     subimage_framework_disabled_module_enabled.id: subimage_framework_disabled_module_enabled,

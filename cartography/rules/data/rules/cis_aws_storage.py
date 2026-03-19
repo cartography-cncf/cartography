@@ -27,9 +27,23 @@ CIS_REFERENCES = [
     ),
 ]
 
+S3_REFERENCES = [
+    RuleReference(
+        text="AWS S3 Security Best Practices",
+        url="https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html",
+    ),
+]
+
+EBS_REFERENCES = [
+    RuleReference(
+        text="Amazon EBS Encryption",
+        url="https://docs.aws.amazon.com/ebs/latest/userguide/ebs-encryption.html",
+    ),
+]
+
 
 # =============================================================================
-# CIS AWS 2.1.1: S3 bucket versioning
+# AWS Best Practice: S3 bucket versioning
 # Main node: S3Bucket
 # =============================================================================
 class S3VersioningOutput(Finding):
@@ -74,9 +88,9 @@ _aws_s3_versioning_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_1_1_s3_versioning = Rule(
-    id="cis_aws_2_1_1_s3_versioning",
-    name="CIS AWS 2.1.1: S3 Bucket Versioning",
+aws_s3_bucket_versioning = Rule(
+    id="aws_s3_bucket_versioning",
+    name="AWS Best Practice: S3 Bucket Versioning",
     description=(
         "S3 buckets should have versioning enabled to protect against accidental "
         "deletion and enable recovery of objects."
@@ -85,16 +99,8 @@ cis_aws_2_1_1_s3_versioning = Rule(
     facts=(_aws_s3_versioning_disabled,),
     tags=("storage", "s3", "stride:tampering"),
     version="1.0.0",
-    references=CIS_REFERENCES,
-    frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="5.0",
-            requirement="2.1.1",
-        ),
-    ),
+    references=S3_REFERENCES,
+    frameworks=(),
 )
 
 
@@ -252,7 +258,7 @@ cis_aws_2_1_4_s3_block_public_access = Rule(
 
 
 # =============================================================================
-# CIS AWS 2.1.5: S3 Access Logging
+# AWS Best Practice: S3 Access Logging
 # Main node: S3Bucket
 # =============================================================================
 class S3AccessLoggingOutput(Finding):
@@ -297,9 +303,9 @@ _aws_s3_access_logging_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_1_5_s3_access_logging = Rule(
-    id="cis_aws_2_1_5_s3_access_logging",
-    name="CIS AWS 2.1.5: S3 Bucket Access Logging",
+aws_s3_bucket_access_logging = Rule(
+    id="aws_s3_bucket_access_logging",
+    name="AWS Best Practice: S3 Bucket Access Logging",
     description=(
         "S3 buckets should have server access logging enabled to provide detailed "
         "records for access requests."
@@ -308,21 +314,13 @@ cis_aws_2_1_5_s3_access_logging = Rule(
     facts=(_aws_s3_access_logging_disabled,),
     tags=("storage", "s3", "logging", "stride:repudiation"),
     version="1.0.0",
-    references=CIS_REFERENCES,
-    frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="5.0",
-            requirement="2.1.5",
-        ),
-    ),
+    references=S3_REFERENCES,
+    frameworks=(),
 )
 
 
 # =============================================================================
-# CIS AWS 2.1.6: S3 Default Encryption
+# AWS Best Practice: S3 Default Encryption
 # Main node: S3Bucket
 # =============================================================================
 class S3EncryptionOutput(Finding):
@@ -369,9 +367,9 @@ _aws_s3_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_1_6_s3_encryption = Rule(
-    id="cis_aws_2_1_6_s3_encryption",
-    name="CIS AWS 2.1.6: S3 Default Encryption",
+aws_s3_default_encryption = Rule(
+    id="aws_s3_default_encryption",
+    name="AWS Best Practice: S3 Default Encryption",
     description=(
         "S3 buckets should have default encryption enabled to ensure all objects "
         "are encrypted at rest."
@@ -380,16 +378,8 @@ cis_aws_2_1_6_s3_encryption = Rule(
     facts=(_aws_s3_encryption_disabled,),
     tags=("storage", "s3", "encryption", "stride:information_disclosure"),
     version="1.0.0",
-    references=CIS_REFERENCES,
-    frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="5.0",
-            requirement="2.1.6",
-        ),
-    ),
+    references=S3_REFERENCES,
+    frameworks=(),
 )
 
 
@@ -471,7 +461,7 @@ cis_aws_2_2_1_rds_encryption = Rule(
 
 
 # =============================================================================
-# CIS AWS 2.3.1: EBS Volume Encryption
+# AWS Best Practice: EBS Volume Encryption
 # Main node: EBSVolume
 # =============================================================================
 class EbsEncryptionOutput(Finding):
@@ -520,9 +510,9 @@ _aws_ebs_encryption_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_2_3_1_ebs_encryption = Rule(
-    id="cis_aws_2_3_1_ebs_encryption",
-    name="CIS AWS 2.3.1: EBS Volume Encryption",
+aws_ebs_volume_encryption = Rule(
+    id="aws_ebs_volume_encryption",
+    name="AWS Best Practice: EBS Volume Encryption",
     description=(
         "EBS volumes should be encrypted to protect data at rest and in transit "
         "between the volume and instance."
@@ -531,14 +521,6 @@ cis_aws_2_3_1_ebs_encryption = Rule(
     facts=(_aws_ebs_encryption_disabled,),
     tags=("storage", "ebs", "encryption", "stride:information_disclosure"),
     version="1.0.0",
-    references=CIS_REFERENCES,
-    frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="5.0",
-            requirement="2.3.1",
-        ),
-    ),
+    references=EBS_REFERENCES,
+    frameworks=(),
 )

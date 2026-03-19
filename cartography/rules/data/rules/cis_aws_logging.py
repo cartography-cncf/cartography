@@ -27,6 +27,13 @@ CIS_REFERENCES = [
     ),
 ]
 
+AWS_REFERENCES = [
+    RuleReference(
+        text="AWS CloudTrail Best Practices",
+        url="https://docs.aws.amazon.com/awscloudtrail/latest/userguide/best-practices-security.html",
+    ),
+]
+
 
 # =============================================================================
 # CIS AWS 3.1: CloudTrail Multi-Region
@@ -101,7 +108,7 @@ cis_aws_3_1_cloudtrail_multi_region = Rule(
 
 
 # =============================================================================
-# CIS AWS 3.4: CloudTrail Log File Validation
+# CIS AWS 3.2: CloudTrail Log File Validation
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailLogValidationOutput(Finding):
@@ -148,9 +155,9 @@ _aws_cloudtrail_log_validation_disabled = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_3_4_cloudtrail_log_validation = Rule(
-    id="cis_aws_3_4_cloudtrail_log_validation",
-    name="CIS AWS 3.4: CloudTrail Log File Validation",
+cis_aws_3_2_cloudtrail_log_validation = Rule(
+    id="cis_aws_3_2_cloudtrail_log_validation",
+    name="CIS AWS 3.2: CloudTrail Log File Validation",
     description=(
         "CloudTrail should have log file validation enabled to ensure the integrity "
         "of log files through digitally signed digest files."
@@ -166,14 +173,14 @@ cis_aws_3_4_cloudtrail_log_validation = Rule(
             short_name="CIS",
             scope="aws",
             revision="5.0",
-            requirement="3.4",
+            requirement="3.2",
         ),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 3.5: CloudTrail CloudWatch Integration
+# AWS Best Practice: CloudTrail CloudWatch Integration
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailCloudWatchOutput(Finding):
@@ -220,9 +227,9 @@ _aws_cloudtrail_no_cloudwatch = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_3_5_cloudtrail_cloudwatch = Rule(
-    id="cis_aws_3_5_cloudtrail_cloudwatch",
-    name="CIS AWS 3.5: CloudTrail CloudWatch Integration",
+aws_cloudtrail_cloudwatch_integration = Rule(
+    id="aws_cloudtrail_cloudwatch_integration",
+    name="AWS Best Practice: CloudTrail CloudWatch Integration",
     description=(
         "CloudTrail should be integrated with CloudWatch Logs to enable real-time "
         "analysis and alerting on API activity."
@@ -231,21 +238,13 @@ cis_aws_3_5_cloudtrail_cloudwatch = Rule(
     facts=(_aws_cloudtrail_no_cloudwatch,),
     tags=("logging", "cloudtrail", "cloudwatch", "stride:repudiation"),
     version="1.0.0",
-    references=CIS_REFERENCES,
-    frameworks=(
-        Framework(
-            name="CIS AWS Foundations Benchmark",
-            short_name="CIS",
-            scope="aws",
-            revision="5.0",
-            requirement="3.5",
-        ),
-    ),
+    references=AWS_REFERENCES,
+    frameworks=(),
 )
 
 
 # =============================================================================
-# CIS AWS 3.7: CloudTrail KMS Encryption
+# CIS AWS 3.5: CloudTrail KMS Encryption
 # Main node: CloudTrailTrail
 # =============================================================================
 class CloudTrailEncryptionOutput(Finding):
@@ -292,9 +291,9 @@ _aws_cloudtrail_not_encrypted = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_3_7_cloudtrail_encryption = Rule(
-    id="cis_aws_3_7_cloudtrail_encryption",
-    name="CIS AWS 3.7: CloudTrail KMS Encryption",
+cis_aws_3_5_cloudtrail_encryption = Rule(
+    id="cis_aws_3_5_cloudtrail_encryption",
+    name="CIS AWS 3.5: CloudTrail KMS Encryption",
     description=(
         "CloudTrail logs should be encrypted using AWS KMS customer managed keys "
         "to provide an additional layer of security for sensitive API activity data."
@@ -310,7 +309,7 @@ cis_aws_3_7_cloudtrail_encryption = Rule(
             short_name="CIS",
             scope="aws",
             revision="5.0",
-            requirement="3.7",
+            requirement="3.5",
         ),
     ),
 )

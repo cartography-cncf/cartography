@@ -38,7 +38,7 @@ CIS_REFERENCES = [
 
 
 # =============================================================================
-# CIS AWS 1.14: Access keys not rotated in 90 days
+# CIS AWS 1.13: Access keys not rotated in 90 days
 # Main node: AccountAccessKey
 # =============================================================================
 class AccessKeyNotRotatedOutput(Finding):
@@ -90,9 +90,9 @@ _aws_access_key_not_rotated = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_1_14_access_key_not_rotated = Rule(
-    id="cis_aws_1_14_access_key_not_rotated",
-    name="CIS AWS 1.14: Access Keys Not Rotated",
+cis_aws_1_13_access_key_not_rotated = Rule(
+    id="cis_aws_1_13_access_key_not_rotated",
+    name="CIS AWS 1.13: Access Keys Not Rotated",
     description=(
         "Access keys should be rotated every 90 days or less to reduce the window "
         "of opportunity for compromised keys to be used maliciously."
@@ -108,14 +108,14 @@ cis_aws_1_14_access_key_not_rotated = Rule(
             short_name="CIS",
             scope="aws",
             revision="5.0",
-            requirement="1.14",
+            requirement="1.13",
         ),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 1.12: Unused credentials (45+ days)
+# CIS AWS 1.11: Unused credentials (45+ days)
 # Main node: AccountAccessKey
 # =============================================================================
 class UnusedCredentialsOutput(Finding):
@@ -170,9 +170,9 @@ _aws_unused_credentials = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_1_12_unused_credentials = Rule(
-    id="cis_aws_1_12_unused_credentials",
-    name="CIS AWS 1.12: Unused Credentials",
+cis_aws_1_11_unused_credentials = Rule(
+    id="cis_aws_1_11_unused_credentials",
+    name="CIS AWS 1.11: Unused Credentials",
     description=(
         "Credentials unused for 45 days or greater should be disabled to reduce "
         "the attack surface and prevent unauthorized access."
@@ -188,14 +188,14 @@ cis_aws_1_12_unused_credentials = Rule(
             short_name="CIS",
             scope="aws",
             revision="5.0",
-            requirement="1.12",
+            requirement="1.11",
         ),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 1.15: Users with directly attached policies
+# CIS AWS 1.14: Users with directly attached policies
 # Main node: AWSUser
 # =============================================================================
 class UserDirectPoliciesOutput(Finding):
@@ -240,9 +240,9 @@ _aws_user_direct_policies = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_1_15_user_direct_policies = Rule(
-    id="cis_aws_1_15_user_direct_policies",
-    name="CIS AWS 1.15: Users With Direct Policy Attachments",
+cis_aws_1_14_user_direct_policies = Rule(
+    id="cis_aws_1_14_user_direct_policies",
+    name="CIS AWS 1.14: Users With Direct Policy Attachments",
     description=(
         "IAM users should receive permissions only through groups. Direct policy "
         "attachments make permission management complex and error-prone."
@@ -258,14 +258,14 @@ cis_aws_1_15_user_direct_policies = Rule(
             short_name="CIS",
             scope="aws",
             revision="5.0",
-            requirement="1.15",
+            requirement="1.14",
         ),
     ),
 )
 
 
 # =============================================================================
-# CIS AWS 1.13: Users with multiple active access keys
+# CIS AWS 1.12: Users with multiple active access keys
 # Main node: AWSUser
 # =============================================================================
 class MultipleAccessKeysOutput(Finding):
@@ -315,9 +315,9 @@ _aws_multiple_access_keys = Fact(
     maturity=Maturity.STABLE,
 )
 
-cis_aws_1_13_multiple_access_keys = Rule(
-    id="cis_aws_1_13_multiple_access_keys",
-    name="CIS AWS 1.13: Users With Multiple Active Access Keys",
+cis_aws_1_12_multiple_access_keys = Rule(
+    id="cis_aws_1_12_multiple_access_keys",
+    name="CIS AWS 1.12: Users With Multiple Active Access Keys",
     description=(
         "Each IAM user should have only one active access key. Multiple active keys "
         "increase the attack surface and complicate key rotation."
@@ -333,7 +333,7 @@ cis_aws_1_13_multiple_access_keys = Rule(
             short_name="CIS",
             scope="aws",
             revision="5.0",
-            requirement="1.13",
+            requirement="1.12",
         ),
     ),
 )
