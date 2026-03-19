@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -45,7 +43,7 @@ def get_elasticbeanstalk_environments(
 
 def transform_elasticbeanstalk_environments(
     environments: list[dict[str, Any]], region: str
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
 
     environment_list = []
 
