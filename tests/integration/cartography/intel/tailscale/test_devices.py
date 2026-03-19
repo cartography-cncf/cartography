@@ -19,6 +19,10 @@ TEST_ORG = "simpson.corp"
 
 def _ensure_local_neo4j_has_test_devices(neo4j_session):
     """Helper function to populate Neo4j with test Tailscale devices."""
+    # transform mutates device dicts in-place to add serial_number
+    cartography.intel.tailscale.devices.transform(
+        tests.data.tailscale.devices.TAILSCALE_DEVICES,
+    )
     cartography.intel.tailscale.devices.load_devices(
         neo4j_session,
         tests.data.tailscale.devices.TAILSCALE_DEVICES,
