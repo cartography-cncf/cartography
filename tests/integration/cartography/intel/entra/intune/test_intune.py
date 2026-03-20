@@ -5,6 +5,7 @@ import pytest
 import cartography.intel.entra.intune.compliance_policies
 import cartography.intel.entra.intune.detected_apps
 import cartography.intel.entra.intune.managed_devices
+from cartography.graph.job import GraphJob
 from cartography.intel.entra.intune.compliance_policies import sync_compliance_policies
 from cartography.intel.entra.intune.detected_apps import sync_detected_apps
 from cartography.intel.entra.intune.managed_devices import sync_managed_devices
@@ -62,6 +63,18 @@ def _create_prereq_nodes(neo4j_session):
         "MERGE (g:EntraGroup {id: $id}) SET g.display_name = $name",
         id=TEST_GROUP_ID,
         name="All Users",
+    )
+
+    # Create MEMBER_OF relationships (users in the All Users group)
+    neo4j_session.run(
+        "MATCH (u:EntraUser {id: $uid}), (g:EntraGroup {id: $gid}) MERGE (u)-[:MEMBER_OF]->(g)",
+        uid=TEST_USER_ID_1,
+        gid=TEST_GROUP_ID,
+    )
+    neo4j_session.run(
+        "MATCH (u:EntraUser {id: $uid}), (g:EntraGroup {id: $gid}) MERGE (u)-[:MEMBER_OF]->(g)",
+        uid=TEST_USER_ID_2,
+        gid=TEST_GROUP_ID,
     )
 
 
@@ -173,4 +186,69 @@ async def test_sync_intune(
         "ASSIGNED_TO",
     ) == {
         ("policy-001", TEST_GROUP_ID),
+    }
+
+    # Assert: RESOURCE sub-resource rels to EntraTenant
+    assert check_rels(
+        neo4j_session,
+        "IntuneManagedDevice",
+        "id",
+        "EntraTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("device-001", TEST_TENANT_ID),
+        ("device-002", TEST_TENANT_ID),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "IntuneDetectedApp",
+        "id",
+        "EntraTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("app-001", TEST_TENANT_ID),
+        ("app-002", TEST_TENANT_ID),
+    }
+
+    assert check_rels(
+        neo4j_session,
+        "IntuneCompliancePolicy",
+        "id",
+        "EntraTenant",
+        "id",
+        "RESOURCE",
+        rel_direction_right=False,
+    ) == {
+        ("policy-001", TEST_TENANT_ID),
+        ("policy-002", TEST_TENANT_ID),
+    }
+
+    # Run the analysis job to resolve policy -> device relationships
+    GraphJob.run_from_json_file(
+        "cartography/data/jobs/analysis/intune_compliance_policy_device.json",
+        neo4j_session,
+        {},
+    )
+
+    # Assert: APPLIES_TO relationships
+    # policy-001 (macOS) is assigned to All Users group, both users are members,
+    # so it applies to both devices via group -> user -> device chain.
+    # policy-002 (Android) has applies_to_all_devices=true, so it applies to all devices.
+    assert check_rels(
+        neo4j_session,
+        "IntuneCompliancePolicy",
+        "id",
+        "IntuneManagedDevice",
+        "id",
+        "APPLIES_TO",
+    ) == {
+        ("policy-001", "device-001"),
+        ("policy-001", "device-002"),
+        ("policy-002", "device-001"),
+        ("policy-002", "device-002"),
     }

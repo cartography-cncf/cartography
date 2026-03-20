@@ -1,0 +1,25 @@
+{
+  "name": "Intune compliance policy to device resolution",
+  "statements": [
+    {
+      "__comment": "Clean up previous APPLIES_TO relationships from compliance policies to devices",
+      "query": "MATCH (:IntuneCompliancePolicy)-[r:APPLIES_TO]->(:IntuneManagedDevice) DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "iterative": false
+    },
+    {
+      "__comment": "Policy assigned to a group: traverse group -> user -> device",
+      "query": "MATCH (policy:IntuneCompliancePolicy)-[:ASSIGNED_TO]->(g:EntraGroup)<-[:MEMBER_OF]-(u:EntraUser)-[:ENROLLED_TO]->(device:IntuneManagedDevice) MERGE (policy)-[:APPLIES_TO]->(device) RETURN COUNT(*) AS TotalCompleted",
+      "iterative": false
+    },
+    {
+      "__comment": "Policy applies to all users: match all devices with an enrolled user",
+      "query": "MATCH (policy:IntuneCompliancePolicy) WHERE policy.applies_to_all_users = true MATCH (u:EntraUser)-[:ENROLLED_TO]->(device:IntuneManagedDevice) MERGE (policy)-[:APPLIES_TO]->(device) RETURN COUNT(*) AS TotalCompleted",
+      "iterative": false
+    },
+    {
+      "__comment": "Policy applies to all devices: match all managed devices",
+      "query": "MATCH (policy:IntuneCompliancePolicy) WHERE policy.applies_to_all_devices = true MATCH (device:IntuneManagedDevice) MERGE (policy)-[:APPLIES_TO]->(device) RETURN COUNT(*) AS TotalCompleted",
+      "iterative": false
+    }
+  ]
+}

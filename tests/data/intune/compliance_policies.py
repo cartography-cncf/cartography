@@ -1,5 +1,8 @@
 import datetime
 
+from msgraph.generated.models.device_and_app_management_assignment_target import (
+    DeviceAndAppManagementAssignmentTarget,
+)
 from msgraph.generated.models.device_compliance_policy import DeviceCompliancePolicy
 from msgraph.generated.models.device_compliance_policy_assignment import (
     DeviceCompliancePolicyAssignment,
@@ -43,6 +46,13 @@ MOCK_COMPLIANCE_POLICIES = [
         last_modified_date_time=datetime.datetime(
             2026, 3, 5, 10, 0, 0, tzinfo=datetime.timezone.utc
         ),
-        assignments=[],
+        assignments=[
+            DeviceCompliancePolicyAssignment(
+                id="policy-002_all_devices",
+                target=DeviceAndAppManagementAssignmentTarget(
+                    odata_type="#microsoft.graph.allDevicesAssignmentTarget",
+                ),
+            ),
+        ],
     ),
 ]

@@ -77,10 +77,22 @@ def transform_compliance_policies(
         }
 
         group_ids: list[str] = []
+        applies_to_all_users = False
+        applies_to_all_devices = False
         for assignment in policy.assignments or []:
             target = assignment.target
-            if target and hasattr(target, "group_id") and target.group_id:
+            if target is None:
+                continue
+            odata_target_type = getattr(target, "odata_type", "") or ""
+            if hasattr(target, "group_id") and target.group_id:
                 group_ids.append(target.group_id)
+            elif "allLicensedUsers" in odata_target_type:
+                applies_to_all_users = True
+            elif "allDevices" in odata_target_type:
+                applies_to_all_devices = True
+
+        base["applies_to_all_users"] = applies_to_all_users
+        base["applies_to_all_devices"] = applies_to_all_devices
 
         if group_ids:
             for group_id in group_ids:
@@ -107,6 +119,7 @@ def load_compliance_policies(
     )
 
 
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],

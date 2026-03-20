@@ -20,6 +20,8 @@ class IntuneCompliancePolicyNodeProperties(CartographyNodeProperties):
     version: PropertyRef = PropertyRef("version")
     created_date_time: PropertyRef = PropertyRef("created_date_time")
     last_modified_date_time: PropertyRef = PropertyRef("last_modified_date_time")
+    applies_to_all_users: PropertyRef = PropertyRef("applies_to_all_users")
+    applies_to_all_devices: PropertyRef = PropertyRef("applies_to_all_devices")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
