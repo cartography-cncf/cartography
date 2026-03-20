@@ -11,9 +11,14 @@ from cartography.models.core.relationships import OtherRelationships
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
+# TODO: CVE should be an ontology node so that it can be used as an extra label
+# by other modules (e.g. SemgrepSCAFinding, UbuntuCVE, SentinelOneFinding, TrivyFinding).
+# Those nodes define their own cve_id property with extra_index=True; this node
+# mirrors that field so that queries on CVE.cve_id are indexed consistently.
 @dataclass(frozen=True)
 class CVENodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
+    cve_id: PropertyRef = PropertyRef("id", extra_index=True)
     assigner: PropertyRef = PropertyRef("sourceIdentifier")
     description: PropertyRef = PropertyRef("descriptions_en")
     references: PropertyRef = PropertyRef("references_urls")
