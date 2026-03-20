@@ -11,6 +11,7 @@ from msgraph.graph_service_client import GraphServiceClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.entra.utils import call_with_retries
 from cartography.models.entra.application import EntraApplicationSchema
 from cartography.util import timeit
 
@@ -45,7 +46,15 @@ async def get_entra_applications(
             top=APPLICATIONS_PAGE_SIZE
         )
     )
-    page = await client.applications.get(request_configuration=request_configuration)
+    try:
+        page = await call_with_retries(
+            lambda: client.applications.get(
+                request_configuration=request_configuration
+            ),
+        )
+    except Exception:
+        logger.exception("Failed to fetch Entra applications")
+        raise
 
     while page:
         if page.value:
@@ -55,7 +64,15 @@ async def get_entra_applications(
 
         if not page.odata_next_link:
             break
-        page = await client.applications.with_url(page.odata_next_link).get()
+        try:
+            page = await call_with_retries(
+                lambda: client.applications.with_url(page.odata_next_link).get(),
+            )
+        except Exception:
+            logger.exception(
+                "Failed to fetch next page of Entra applications",
+            )
+            raise
 
     logger.info(f"Retrieved {count} Entra applications total")
 

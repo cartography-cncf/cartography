@@ -1,11 +1,53 @@
+from unittest.mock import patch
+
 import pytest
 
+from cartography.intel.sentinelone.agent import get_agents
 from cartography.intel.sentinelone.agent import transform_agents
 from tests.data.sentinelone.agent import AGENT_ID
 from tests.data.sentinelone.agent import AGENT_ID_2
 from tests.data.sentinelone.agent import AGENT_ID_3
 from tests.data.sentinelone.agent import AGENTS_DATA
 from tests.data.sentinelone.agent import AGENTS_DATA_MINIMAL
+
+
+@patch("cartography.intel.sentinelone.agent.get_paginated_results")
+def test_get_agents_account_scope(mock_get_paginated_results):
+    mock_get_paginated_results.return_value = AGENTS_DATA
+
+    result = get_agents(
+        "https://test-api.sentinelone.net",
+        "test-api-token",
+        account_id="test-account-123",
+    )
+
+    assert result == AGENTS_DATA
+    mock_get_paginated_results.assert_called_once_with(
+        api_url="https://test-api.sentinelone.net",
+        endpoint="web/api/v2.1/agents",
+        api_token="test-api-token",
+        params={"accountIds": "test-account-123", "limit": 1000},
+    )
+
+
+@patch("cartography.intel.sentinelone.agent.get_paginated_results")
+def test_get_agents_site_scope(mock_get_paginated_results):
+    mock_get_paginated_results.return_value = AGENTS_DATA[:1]
+
+    result = get_agents(
+        "https://test-api.sentinelone.net",
+        "test-api-token",
+        account_id="test-account-123",
+        site_id="test-site-123",
+    )
+
+    assert result == AGENTS_DATA[:1]
+    mock_get_paginated_results.assert_called_once_with(
+        api_url="https://test-api.sentinelone.net",
+        endpoint="web/api/v2.1/agents",
+        api_token="test-api-token",
+        params={"siteIds": "test-site-123", "limit": 1000},
+    )
 
 
 def test_transform_agents():

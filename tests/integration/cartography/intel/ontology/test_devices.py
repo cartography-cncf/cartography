@@ -64,6 +64,7 @@ def test_sync_with_empty_source_list(neo4j_session):
         },
         {
             "hostname": "anonymous-pixel",
+            "serial_number": "HACK-PIXEL-01",
             "os": "android",
         },
     ],
@@ -85,7 +86,7 @@ def test_load_ontology_devices_integration(_mock_get_source_nodes, neo4j_session
         ("donut-mac", "SIMP-MAC-HOMER-01", "Macbook Pro"),
         ("itchy-windows", "SIMP-WIN-MARGE-01", "Dell XPS 15"),
         ("bluemarge-linux", "SIMP-LINUX-MARGE-017", "ThinkPad X1 Carbon Gen 11"),
-        ("anonymous-pixel", None, None),
+        ("anonymous-pixel", "HACK-PIXEL-01", None),
         (
             "homer-iphone",
             "SIMP-IOS-HOMER-01",
