@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.sentinelone.api import build_scope_params
 from cartography.intel.sentinelone.api import get_paginated_results
 from cartography.intel.sentinelone.utils import get_application_version_id
 from cartography.models.sentinelone.finding import S1AppFindingSchema
@@ -14,16 +15,20 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get(api_url: str, api_token: str, account_id: str) -> list[dict[str, Any]]:
+def get(
+    api_url: str,
+    api_token: str,
+    account_id: str,
+    site_id: str | None = None,
+) -> list[dict[str, Any]]:
     logger.info("Retrieving SentinelOne AppFinding data")
+    params = build_scope_params(account_id=account_id, site_id=site_id)
+    params["limit"] = 1000
     cves = get_paginated_results(
         api_url=api_url,
         endpoint="/web/api/v2.1/application-management/risks",
         api_token=api_token,
-        params={
-            "limit": 1000,
-            "accountIds": account_id,
-        },
+        params=params,
     )
 
     logger.info("Retrieved %d AppFindings from SentinelOne", len(cves))
@@ -118,13 +123,15 @@ def sync(
     api_url = common_job_parameters.get("API_URL", "")
     api_token = common_job_parameters.get("API_TOKEN", "")
     account_id = common_job_parameters.get("S1_ACCOUNT_ID", "")
+    site_id = common_job_parameters.get("S1_SITE_ID")
     update_tag = common_job_parameters.get("UPDATE_TAG", 0)
 
     if not api_url or not api_token or not account_id or not update_tag:
         logger.error("Missing required parameters for SentinelOne AppFinding sync")
         return
 
-    cves = get(api_url, api_token, account_id)
+    cves = get(api_url, api_token, account_id, site_id)
     transformed_cves = transform(cves)
     load_cves(neo4j_session, transformed_cves, account_id, update_tag)
-    cleanup(neo4j_session, common_job_parameters)
+    if not common_job_parameters.get("S1_SKIP_CLEANUP"):
+        cleanup(neo4j_session, common_job_parameters)

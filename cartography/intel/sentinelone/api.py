@@ -9,6 +9,46 @@ from cartography.util import retries_with_backoff
 _TIMEOUT = (60, 60)
 
 
+def build_scope_params(
+    account_id: str | None = None,
+    site_id: str | None = None,
+) -> dict[str, Any]:
+    """
+    Build SentinelOne query params for either account-scoped or site-scoped syncs.
+    """
+    if site_id:
+        return {"siteIds": site_id}
+    if account_id:
+        return {"accountIds": account_id}
+    return {}
+
+
+def is_site_scope_http_error(exception: Exception) -> bool:
+    """
+    Return True when SentinelOne rejects account enumeration for site-scoped users.
+    """
+    if not isinstance(exception, requests.exceptions.HTTPError):
+        return False
+
+    response = exception.response
+    if response is None or response.status_code != 403:
+        return False
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return False
+
+    errors = payload.get("errors", [])
+    for error in errors:
+        if error.get("code") == 4030010:
+            return True
+        detail = str(error.get("detail", "")).lower()
+        if "site users" in detail:
+            return True
+    return False
+
+
 def _call_sentinelone_api_base(
     api_url: str,
     endpoint: str,

@@ -5,6 +5,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.sentinelone.api import build_scope_params
 from cartography.intel.sentinelone.api import get_paginated_results
 from cartography.models.sentinelone.agent import S1AgentSchema
 from cartography.util import timeit
@@ -13,7 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def get_agents(api_url: str, api_token: str, account_id: str) -> list[dict[str, Any]]:
+def get_agents(
+    api_url: str,
+    api_token: str,
+    account_id: str | None = None,
+    site_id: str | None = None,
+) -> list[dict[str, Any]]:
     """
     Get agent data from SentinelOne API
     :param api_url: The SentinelOne API URL
@@ -23,14 +29,13 @@ def get_agents(api_url: str, api_token: str, account_id: str) -> list[dict[str, 
     """
     logger.info(f"Retrieving SentinelOne agent data for account {account_id}")
 
+    params = build_scope_params(account_id=account_id, site_id=site_id)
+    params["limit"] = 1000
     agents = get_paginated_results(
         api_url=api_url,
         endpoint="web/api/v2.1/agents",
         api_token=api_token,
-        params={
-            "accountIds": account_id,
-            "limit": 1000,
-        },
+        params=params,
     )
 
     logger.info(f"Retrieved {len(agents)} agents from SentinelOne account {account_id}")
@@ -122,12 +127,13 @@ def sync(
     api_url = common_job_parameters["API_URL"]
     api_token = common_job_parameters["API_TOKEN"]
     account_id = common_job_parameters["S1_ACCOUNT_ID"]
+    site_id = common_job_parameters.get("S1_SITE_ID")
     update_tag = common_job_parameters["UPDATE_TAG"]
 
     logger.info(f"Syncing SentinelOne agent data for account {account_id}")
 
     # 1. GET - Fetch data from API
-    agents_raw_data = get_agents(api_url, api_token, account_id)
+    agents_raw_data = get_agents(api_url, api_token, account_id, site_id)
 
     # 2. TRANSFORM - Shape data for ingestion
     transformed_data = transform_agents(agents_raw_data)
@@ -136,4 +142,5 @@ def sync(
     load_agents(neo4j_session, transformed_data, account_id, update_tag)
 
     # 4. CLEANUP - Remove stale data
-    cleanup(neo4j_session, common_job_parameters)
+    if not common_job_parameters.get("S1_SKIP_CLEANUP"):
+        cleanup(neo4j_session, common_job_parameters)

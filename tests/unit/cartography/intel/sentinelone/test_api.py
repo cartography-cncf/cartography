@@ -4,8 +4,10 @@ from unittest.mock import patch
 import pytest
 import requests
 
+from cartography.intel.sentinelone.api import build_scope_params
 from cartography.intel.sentinelone.api import call_sentinelone_api
 from cartography.intel.sentinelone.api import get_paginated_results
+from cartography.intel.sentinelone.api import is_site_scope_http_error
 from tests.data.sentinelone.api import EXPECTED_PAGINATED_RESULT
 from tests.data.sentinelone.api import MOCK_API_RESPONSE_SUCCESS
 from tests.data.sentinelone.api import MOCK_EMPTY_PAGINATION_RESPONSE
@@ -148,3 +150,38 @@ def test_get_paginated_results_with_params(mock_api_call):
         api_token=TEST_API_TOKEN,
         params=TEST_PARAMS,
     )
+
+
+def test_build_scope_params_account_scope():
+    assert build_scope_params(account_id="account-123") == {"accountIds": "account-123"}
+
+
+def test_build_scope_params_site_scope_takes_precedence():
+    assert build_scope_params(account_id="account-123", site_id="site-123") == {
+        "siteIds": "site-123",
+    }
+
+
+def test_is_site_scope_http_error():
+    response = Mock()
+    response.status_code = 403
+    response.json.return_value = {
+        "errors": [
+            {
+                "code": 4030010,
+                "detail": "Action is not allowed to site users",
+            },
+        ],
+    }
+    exc = requests.exceptions.HTTPError(response=response)
+
+    assert is_site_scope_http_error(exc) is True
+
+
+def test_is_site_scope_http_error_false_for_other_http_errors():
+    response = Mock()
+    response.status_code = 403
+    response.json.return_value = {"errors": [{"code": 4030001, "detail": "Forbidden"}]}
+    exc = requests.exceptions.HTTPError(response=response)
+
+    assert is_site_scope_http_error(exc) is False

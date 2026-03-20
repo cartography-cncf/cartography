@@ -1492,6 +1492,15 @@ class CLI:
                     hidden=PANEL_SENTINELONE not in visible_panels,
                 ),
             ] = None,
+            sentinelone_site_ids: Annotated[
+                str | None,
+                typer.Option(
+                    "--sentinelone-site-ids",
+                    help="Comma-separated list of SentinelOne site IDs to sync.",
+                    rich_help_panel=PANEL_SENTINELONE,
+                    hidden=PANEL_SENTINELONE not in visible_panels,
+                ),
+            ] = None,
             sentinelone_api_url: Annotated[
                 str | None,
                 typer.Option(
@@ -2116,6 +2125,16 @@ class CLI:
                     len(sentinelone_account_ids_list),
                 )
 
+            sentinelone_site_ids_list = None
+            if sentinelone_site_ids:
+                sentinelone_site_ids_list = [
+                    id.strip() for id in sentinelone_site_ids.split(",")
+                ]
+                logger.debug(
+                    "Parsed %d SentinelOne site IDs to sync",
+                    len(sentinelone_site_ids_list),
+                )
+
             # Read SentinelOne API token
             sentinelone_api_token = None
             if sentinelone_api_url and sentinelone_api_token_env_var:
@@ -2299,6 +2318,7 @@ class CLI:
                 sentinelone_api_url=sentinelone_api_url,
                 sentinelone_api_token=sentinelone_api_token,
                 sentinelone_account_ids=sentinelone_account_ids_list,
+                sentinelone_site_ids=sentinelone_site_ids_list,
                 spacelift_api_endpoint=spacelift_api_endpoint_resolved,
                 spacelift_api_token=spacelift_api_token,
                 spacelift_api_key_id=spacelift_api_key_id,

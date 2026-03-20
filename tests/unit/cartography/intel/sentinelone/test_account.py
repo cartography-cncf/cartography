@@ -1,5 +1,9 @@
 from cartography.intel.sentinelone.account import transform_accounts
+from cartography.intel.sentinelone.account import transform_accounts_from_sites
+from tests.data.sentinelone.account import ACCOUNT_ID
+from tests.data.sentinelone.account import ACCOUNT_ID_2
 from tests.data.sentinelone.account import ACCOUNTS_DATA
+from tests.data.sentinelone.account import SITES_DATA
 
 
 def test_transform_accounts():
@@ -63,3 +67,30 @@ def test_transform_accounts_empty_list():
     """
     result = transform_accounts([])
     assert result == []
+
+
+def test_transform_accounts_from_sites_groups_parent_accounts():
+    result = transform_accounts_from_sites(SITES_DATA)
+
+    assert result == [
+        {
+            "id": ACCOUNT_ID,
+            "name": "Test Account",
+            "account_type": None,
+            "active_agents": 5,
+            "created_at": "2023-01-01T00:00:00Z",
+            "expiration": "2025-01-01T00:00:00Z",
+            "number_of_sites": 2,
+            "state": "active",
+        },
+        {
+            "id": ACCOUNT_ID_2,
+            "name": "Test Account 2",
+            "account_type": None,
+            "active_agents": 1,
+            "created_at": "2023-01-02T00:00:00Z",
+            "expiration": "2025-01-02T00:00:00Z",
+            "number_of_sites": 1,
+            "state": "active",
+        },
+    ]
