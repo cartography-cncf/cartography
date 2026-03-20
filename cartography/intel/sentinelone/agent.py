@@ -117,6 +117,8 @@ def cleanup(
 def sync(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
+    *,
+    do_cleanup: bool = True,
 ) -> None:
     """
     Sync SentinelOne agents using the standard sync pattern
@@ -142,5 +144,5 @@ def sync(
     load_agents(neo4j_session, transformed_data, account_id, update_tag)
 
     # 4. CLEANUP - Remove stale data
-    if not common_job_parameters.get("S1_SKIP_CLEANUP"):
+    if do_cleanup:
         cleanup(neo4j_session, common_job_parameters)

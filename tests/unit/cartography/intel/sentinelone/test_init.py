@@ -48,11 +48,15 @@ def test_start_sentinelone_ingestion_falls_back_to_site_scoped_sync(
         SentinelOneSyncScope(account_id="account-1", site_id="site-2"),
     ]
     sync_snapshots: list[dict[str, object]] = []
+    sync_cleanup_args: list[bool] = []
 
-    def capture_sync(_neo4j_session, common_job_parameters):
+    def capture_sync(_neo4j_session, common_job_parameters, *, do_cleanup=True):
         sync_snapshots.append(dict(common_job_parameters))
+        sync_cleanup_args.append(do_cleanup)
 
     mock_agent_sync.side_effect = capture_sync
+    mock_application_sync.side_effect = capture_sync
+    mock_finding_sync.side_effect = capture_sync
 
     config = SimpleNamespace(
         update_tag=123456789,
@@ -75,7 +79,8 @@ def test_start_sentinelone_ingestion_falls_back_to_site_scoped_sync(
     for common_job_parameters in sync_snapshots:
         assert common_job_parameters["S1_ACCOUNT_ID"] == "account-1"
         assert common_job_parameters["S1_SITE_ID"] in {"site-1", "site-2"}
-        assert common_job_parameters["S1_SKIP_CLEANUP"] is True
+
+    assert sync_cleanup_args == [False, False, False, False, False, False]
 
     mock_agent_cleanup.assert_called_once()
     mock_application_cleanup.assert_called_once()

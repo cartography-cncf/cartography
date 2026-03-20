@@ -220,6 +220,8 @@ def cleanup(
 def sync(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
+    *,
+    do_cleanup: bool = True,
 ) -> None:
     """
     Sync SentinelOne applications
@@ -260,5 +262,5 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
     )
 
-    if not common_job_parameters.get("S1_SKIP_CLEANUP"):
+    if do_cleanup:
         cleanup(neo4j_session, common_job_parameters)

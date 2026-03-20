@@ -30,29 +30,40 @@ def _sync_scope(
 
     if not site_ids:
         common_job_parameters.pop("S1_SITE_ID", None)
-        common_job_parameters.pop("S1_SKIP_CLEANUP", None)
-
-        cartography.intel.sentinelone.agent.sync(neo4j_session, common_job_parameters)
+        cartography.intel.sentinelone.agent.sync(
+            neo4j_session,
+            common_job_parameters,
+        )
         cartography.intel.sentinelone.application.sync(
             neo4j_session,
             common_job_parameters,
         )
-        cartography.intel.sentinelone.finding.sync(neo4j_session, common_job_parameters)
+        cartography.intel.sentinelone.finding.sync(
+            neo4j_session,
+            common_job_parameters,
+        )
         common_job_parameters.pop("S1_ACCOUNT_ID", None)
         return
 
-    common_job_parameters["S1_SKIP_CLEANUP"] = True
     for site_id in site_ids:
         common_job_parameters["S1_SITE_ID"] = site_id
-        cartography.intel.sentinelone.agent.sync(neo4j_session, common_job_parameters)
+        cartography.intel.sentinelone.agent.sync(
+            neo4j_session,
+            common_job_parameters,
+            do_cleanup=False,
+        )
         cartography.intel.sentinelone.application.sync(
             neo4j_session,
             common_job_parameters,
+            do_cleanup=False,
         )
-        cartography.intel.sentinelone.finding.sync(neo4j_session, common_job_parameters)
+        cartography.intel.sentinelone.finding.sync(
+            neo4j_session,
+            common_job_parameters,
+            do_cleanup=False,
+        )
 
     common_job_parameters.pop("S1_SITE_ID", None)
-    common_job_parameters.pop("S1_SKIP_CLEANUP", None)
     cartography.intel.sentinelone.agent.cleanup(neo4j_session, common_job_parameters)
     cartography.intel.sentinelone.application.cleanup(
         neo4j_session,

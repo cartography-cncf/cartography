@@ -113,6 +113,8 @@ def cleanup(
 def sync(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
+    *,
+    do_cleanup: bool = True,
 ) -> None:
     """
     Sync SentinelOne AppFindings following the standard pattern:
@@ -129,5 +131,5 @@ def sync(
     cves = get(api_url, api_token, account_id, site_id)
     transformed_cves = transform(cves)
     load_cves(neo4j_session, transformed_cves, account_id, update_tag)
-    if not common_job_parameters.get("S1_SKIP_CLEANUP"):
+    if do_cleanup:
         cleanup(neo4j_session, common_job_parameters)
