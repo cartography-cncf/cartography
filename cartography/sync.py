@@ -20,6 +20,7 @@ import cartography.intel.cloudflare
 import cartography.intel.create_indexes
 import cartography.intel.crowdstrike
 import cartography.intel.cve
+import cartography.intel.cve_metadata
 import cartography.intel.digitalocean
 import cartography.intel.docker_scout
 import cartography.intel.duo
@@ -74,6 +75,7 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "googleworkspace": cartography.intel.googleworkspace.start_googleworkspace_ingestion,
         "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
         "cve": cartography.intel.cve.start_cve_ingestion,
+        "cve_metadata": cartography.intel.cve_metadata.start_cve_metadata_ingestion,
         "oci": cartography.intel.oci.start_oci_ingestion,
         "okta": cartography.intel.okta.start_okta_ingestion,
         "openai": cartography.intel.openai.start_openai_ingestion,
