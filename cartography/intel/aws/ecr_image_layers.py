@@ -356,10 +356,14 @@ async def _extract_provenance_from_attestation(
     predicate = attestation_blob.get("predicate", {})
     result: dict[str, Any] = {}
 
-    # Extract parent image from SLSA provenance materials
-    materials = predicate.get("materials", [])
-    for material in materials:
-        uri = material.get("uri", "")
+    # Supports SLSA v0.2 materials and SLSA v1 resolvedDependencies.
+    dependency_list: list[dict[str, Any]] = predicate.get("materials", [])
+    if not dependency_list:
+        build_def = predicate.get("buildDefinition", {})
+        dependency_list = build_def.get("resolvedDependencies", [])
+
+    for dep in dependency_list:
+        uri = dep.get("uri", "")
         uri_l = uri.lower()
         # Look for container image URIs that are NOT the dockerfile itself
         is_container_ref = (
@@ -368,26 +372,30 @@ async def _extract_provenance_from_attestation(
             or uri_l.startswith("oci://")
         )
         if is_container_ref and "dockerfile" not in uri_l:
-            digest_obj = material.get("digest", {})
+            digest_obj = dep.get("digest", {})
             sha256_digest = digest_obj.get("sha256")
             if sha256_digest:
                 result["parent_image_uri"] = uri
                 result["parent_image_digest"] = f"sha256:{sha256_digest}"
                 break
 
-    # Extract source info from BuildKit metadata VCS section
-    # Path: metadata["https://mobyproject.org/buildkit@v1#metadata"].vcs
+    # SLSA v0.2 stores VCS in predicate.metadata, while SLSA v1 uses
+    # runDetails.metadata.buildkit_metadata.vcs.
     metadata = predicate.get("metadata", {})
     buildkit_metadata = metadata.get("https://mobyproject.org/buildkit@v1#metadata", {})
     vcs = buildkit_metadata.get("vcs", {})
+    if not vcs:
+        run_details = predicate.get("runDetails", {})
+        run_metadata = run_details.get("metadata", {})
+        vcs = run_metadata.get("buildkit_metadata", {}).get("vcs", {})
 
     if vcs.get("source"):
         result["source_uri"] = normalize_vcs_url(vcs["source"])
     if vcs.get("revision"):
         result["source_revision"] = vcs["revision"]
 
-    # Extract invocation info from environment
-    # Path: invocation.environment
+    # Prefer GitHub Actions env vars when present, otherwise fall back to the
+    # SLSA v1 builder URL.
     invocation = predicate.get("invocation", {})
     environment = invocation.get("environment", {})
 
@@ -405,11 +413,28 @@ async def _extract_provenance_from_attestation(
     if environment.get("github_run_number"):
         result["invocation_run_number"] = environment["github_run_number"]
 
-    # Extract source file (Dockerfile path) from invocation configSource
-    # Only meaningful when we also have source repository info
+    if "invocation_uri" not in result:
+        run_details = predicate.get("runDetails", {})
+        builder_id = run_details.get("builder", {}).get("id", "")
+        if "github.com" in builder_id and "/actions/runs/" in builder_id:
+            parts = builder_id.split("/actions/runs/")
+            if len(parts) == 2:
+                result["invocation_uri"] = parts[0]
+
+    # SLSA v1 can move the Dockerfile path into
+    # buildDefinition.externalParameters.configSource.path.
     if "source_uri" in result:
         config_source = invocation.get("configSource", {})
-        entry_point = config_source.get("entryPoint", "Dockerfile")
+        entry_point = config_source.get("entryPoint", "")
+        if not entry_point:
+            build_def = predicate.get("buildDefinition", {})
+            entry_point = (
+                build_def.get("externalParameters", {})
+                .get("configSource", {})
+                .get("path", "Dockerfile")
+            )
+        if not entry_point:
+            entry_point = "Dockerfile"
         dockerfile_dir = (
             (vcs.get("localdir:dockerfile") or "").removeprefix("./").rstrip("/")
         )
@@ -902,13 +927,24 @@ async def fetch_image_layers_async(
                     _process_child_manifest(manifest_ref)
                     for manifest_ref in doc.get("manifests", [])
                 ]
-                child_results = await asyncio.gather(*child_tasks)
+                child_results = await asyncio.gather(
+                    *child_tasks,
+                    return_exceptions=True,
+                )
 
                 # Merge results from successful child manifest processing
                 # Track attestation data by child digest for proper mapping
                 attestations_by_child_digest: dict[str, dict[str, str]] = {}
 
                 for result in child_results:
+                    if isinstance(result, ECRLayerFetchTransientError):
+                        logger.warning(
+                            "Skipping child manifest after transient error: %s",
+                            result,
+                        )
+                        continue
+                    if isinstance(result, BaseException):
+                        raise result
                     layer_data, hist_data, attest_data = result
                     if layer_data:
                         platform_layers.update(layer_data)

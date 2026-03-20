@@ -15,6 +15,7 @@ from cartography.client.core.tx import read_single_value_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.entra.applications import APP_ROLE_ASSIGNMENTS_PAGE_SIZE
 from cartography.intel.entra.applications import logger
+from cartography.intel.entra.utils import call_with_retries
 from cartography.models.entra.app_role_assignment import EntraAppRoleAssignmentSchema
 from cartography.util import timeit
 
@@ -61,11 +62,20 @@ async def get_app_role_assignments_for_app(
         )
     )
 
-    assignments_page: AppRoleAssignmentCollectionResponse | None = (
-        await client.service_principals.by_service_principal_id(
-            service_principal_id
-        ).app_role_assigned_to.get(request_configuration=request_config)
-    )
+    try:
+        assignments_page: AppRoleAssignmentCollectionResponse | None = (
+            await call_with_retries(
+                lambda: client.service_principals.by_service_principal_id(
+                    service_principal_id,
+                ).app_role_assigned_to.get(request_configuration=request_config),
+            )
+        )
+    except Exception:
+        logger.exception(
+            "Failed to fetch app role assignments for application %s",
+            app_id,
+        )
+        raise
 
     assignment_count = 0
     page_count = 0
@@ -125,11 +135,20 @@ async def get_app_role_assignments_for_app(
         # app_role_assigned_to builder to ensure AppRoleAssignmentCollectionResponse typing.
         logger.debug(f"Fetching page {page_count + 1} of assignments for {app_id}")
         next_page_url = assignments_page.odata_next_link
-        assignments_page = await (
-            client.service_principals.by_service_principal_id(service_principal_id)
-            .app_role_assigned_to.with_url(next_page_url)
-            .get()
-        )
+        try:
+            assignments_page = await call_with_retries(
+                lambda: client.service_principals.by_service_principal_id(
+                    service_principal_id,
+                )
+                .app_role_assigned_to.with_url(next_page_url)
+                .get(),
+            )
+        except Exception:
+            logger.exception(
+                "Failed to fetch next page of assignments for %s",
+                app_id,
+            )
+            raise
 
     logger.info(
         f"Successfully retrieved {assignment_count} assignments for application {app_id} (pages: {page_count})"
