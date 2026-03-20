@@ -94,14 +94,36 @@ def test_start_sentinelone_ingestion_falls_back_to_site_scoped_sync(
 
 
 @patch("cartography.intel.sentinelone.merge_module_sync_metadata")
+@patch("cartography.intel.sentinelone.finding.cleanup")
+@patch("cartography.intel.sentinelone.application.cleanup")
+@patch("cartography.intel.sentinelone.agent.cleanup")
+@patch("cartography.intel.sentinelone.finding.sync")
+@patch("cartography.intel.sentinelone.application.sync")
+@patch("cartography.intel.sentinelone.agent.sync")
 @patch("cartography.intel.sentinelone.sync_site_scoped_accounts")
 @patch("cartography.intel.sentinelone.sync_accounts")
 def test_start_sentinelone_ingestion_prefers_explicit_site_ids(
     mock_sync_accounts,
     mock_sync_site_scoped_accounts,
+    mock_agent_sync,
+    mock_application_sync,
+    mock_finding_sync,
+    mock_agent_cleanup,
+    mock_application_cleanup,
+    mock_finding_cleanup,
     mock_merge_metadata,
 ):
-    mock_sync_site_scoped_accounts.return_value = []
+    sync_cleanup_args: list[bool] = []
+
+    def capture_sync(_neo4j_session, _common_job_parameters, *, do_cleanup=True):
+        sync_cleanup_args.append(do_cleanup)
+
+    mock_sync_site_scoped_accounts.return_value = [
+        SentinelOneSyncScope(account_id="account-1", site_id="site-1"),
+    ]
+    mock_agent_sync.side_effect = capture_sync
+    mock_application_sync.side_effect = capture_sync
+    mock_finding_sync.side_effect = capture_sync
     config = SimpleNamespace(
         update_tag=123456789,
         sentinelone_api_url="https://test-api.sentinelone.net",
@@ -114,4 +136,9 @@ def test_start_sentinelone_ingestion_prefers_explicit_site_ids(
 
     mock_sync_accounts.assert_not_called()
     mock_sync_site_scoped_accounts.assert_called_once()
+    assert len(sync_cleanup_args) == 3
+    assert all(not do_cleanup for do_cleanup in sync_cleanup_args)
+    mock_agent_cleanup.assert_not_called()
+    mock_application_cleanup.assert_not_called()
+    mock_finding_cleanup.assert_not_called()
     mock_merge_metadata.assert_called_once()

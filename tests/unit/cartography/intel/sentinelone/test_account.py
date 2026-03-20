@@ -1,6 +1,9 @@
+from unittest.mock import MagicMock
+
 import pytest
 
 from cartography.intel.sentinelone.account import get_sites
+from cartography.intel.sentinelone.account import sync_site_scoped_accounts
 from cartography.intel.sentinelone.account import transform_accounts
 from cartography.intel.sentinelone.account import transform_accounts_from_sites
 from tests.data.sentinelone.account import ACCOUNT_ID
@@ -108,6 +111,29 @@ def test_transform_accounts_from_sites_raises_for_missing_account_id():
                     "accountName": "Test Account",
                 },
             ]
+        )
+
+
+def test_sync_site_scoped_accounts_raises_for_missing_site_id(mocker):
+    mocker.patch(
+        "cartography.intel.sentinelone.account.get_sites",
+        return_value=[
+            {
+                "accountId": ACCOUNT_ID,
+                "accountName": "Test Account",
+            },
+        ],
+    )
+    mocker.patch("cartography.intel.sentinelone.account.load_accounts")
+
+    with pytest.raises(KeyError):
+        sync_site_scoped_accounts(
+            MagicMock(),
+            {
+                "API_URL": "https://test-api.sentinelone.net",
+                "API_TOKEN": "test-api-token",
+                "UPDATE_TAG": 123,
+            },
         )
 
 

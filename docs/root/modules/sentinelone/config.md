@@ -36,6 +36,8 @@ In that fallback mode:
   each site response so the existing graph model remains intact.
 - Resources are fetched per site and attached to their parent `S1Account`.
 - `--sentinelone-site-ids` can be used to limit the sync to specific sites.
+- When `--sentinelone-site-ids` is used, Cartography skips account-wide cleanup
+  so data from sibling sites under the same account is not deleted.
 
 If you know you are using a site-scoped token, prefer
 `--sentinelone-site-ids` over `--sentinelone-account-ids`. If you do not pass

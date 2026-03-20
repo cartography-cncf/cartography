@@ -161,6 +161,7 @@ def transform_accounts_from_sites(
                 "name": site.get("accountName"),
                 "account_type": None,
                 "active_agents": 0 if active_licenses is not None else None,
+                # SentinelOne site records expose activeLicenses, not activeAgents.
                 "created_at": site.get("createdAt"),
                 "expiration": site.get("expiration"),
                 "number_of_sites": 0,
@@ -276,7 +277,6 @@ def sync_site_scoped_accounts(
     scopes = [
         SentinelOneSyncScope(account_id=site["accountId"], site_id=site["id"])
         for site in sites_raw_data
-        if site.get("accountId") and site.get("id")
     ]
     logger.info(
         "Resolved %d SentinelOne site scopes across %d parent accounts",

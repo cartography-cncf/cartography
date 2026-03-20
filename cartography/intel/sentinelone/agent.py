@@ -25,6 +25,7 @@ def get_agents(
     :param api_url: The SentinelOne API URL
     :param api_token: The SentinelOne API token
     :param account_id: The SentinelOne account ID
+    :param site_id: Optional SentinelOne site ID for site-scoped syncs
     :return: Raw agent data from API
     """
     logger.info(f"Retrieving SentinelOne agent data for account {account_id}")

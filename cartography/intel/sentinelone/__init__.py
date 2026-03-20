@@ -25,6 +25,8 @@ def _sync_scope(
     common_job_parameters: dict[str, object],
     account_id: str,
     site_ids: list[str] | None = None,
+    *,
+    do_cleanup: bool = True,
 ) -> None:
     common_job_parameters["S1_ACCOUNT_ID"] = account_id
 
@@ -63,6 +65,11 @@ def _sync_scope(
             do_cleanup=False,
         )
 
+    if not do_cleanup:
+        common_job_parameters.pop("S1_SITE_ID", None)
+        common_job_parameters.pop("S1_ACCOUNT_ID", None)
+        return
+
     common_job_parameters.pop("S1_SITE_ID", None)
     cartography.intel.sentinelone.agent.cleanup(neo4j_session, common_job_parameters)
     cartography.intel.sentinelone.application.cleanup(
@@ -99,6 +106,9 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
         logger.info(
             "Syncing SentinelOne using explicit site scope for %d sites",
             len(config.sentinelone_site_ids),
+        )
+        logger.warning(
+            "Skipping SentinelOne cleanup for explicit site-scoped syncs to avoid deleting data from sibling sites under the same account",
         )
         scopes = sync_site_scoped_accounts(
             neo4j_session,
@@ -142,6 +152,7 @@ def start_sentinelone_ingestion(neo4j_session: neo4j.Session, config: Config) ->
             common_job_parameters,
             account_id,
             site_ids=site_ids or None,
+            do_cleanup=not bool(config.sentinelone_site_ids),
         )
 
     # Record that the sync is complete
