@@ -34,6 +34,14 @@ DESCRIBE_INSTANCES = {
                     "HibernationOptions": {
                         "Configured": False,
                     },
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "optional",
+                        "HttpPutResponseHopLimit": 1,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled",
+                    },
                     "Hypervisor": "xen",
                     "IamInstanceProfile": {
                         "Arn": "arn:aws:iam::000000000000:instance-profile/PROFILE_NAME",
@@ -469,6 +477,14 @@ DESCRIBE_INSTANCES = {
                     "EbsOptimized": False,
                     "HibernationOptions": {
                         "Configured": False,
+                    },
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "enabled",
+                        "InstanceMetadataTags": "enabled",
                     },
                     "Hypervisor": "xen",
                     "IamInstanceProfile": {
