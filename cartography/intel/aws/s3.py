@@ -77,7 +77,10 @@ def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
     buckets = client.list_buckets()
     for bucket in buckets["Buckets"]:
         try:
-            bucket["Region"] = client.head_bucket(Bucket=bucket["Name"])["BucketRegion"]
+            resp = client.head_bucket(Bucket=bucket["Name"])
+            bucket["Region"] = resp.get("BucketRegion") or resp["ResponseMetadata"][
+                "HTTPHeaders"
+            ].get("x-amz-bucket-region")
         except ClientError as e:
             region = (
                 e.response.get("ResponseMetadata", {})
@@ -142,9 +145,6 @@ def get_s3_bucket_details(
     ]
 
     async def _get_bucket_detail(bucket: Dict[str, Any]) -> BucketDetail:
-        # Note: bucket['Region'] is sometimes None because
-        # client.get_bucket_location() does not return a location constraint for buckets
-        # in us-east-1 region
         client = s3_regional_clients.get(bucket["Region"])
         if not client:
             client = boto3_session.client(
