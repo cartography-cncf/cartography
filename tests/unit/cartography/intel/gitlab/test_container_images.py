@@ -131,3 +131,62 @@ def test_sync_container_images_processes_repositories_in_batches(monkeypatch):
         {"_digest": "sha256:list-a"},
         {"_digest": "sha256:list-c"},
     ]
+
+
+def test_sync_container_images_cleans_up_when_repositories_empty(monkeypatch):
+    get_images_mock = Mock()
+    transform_images_mock = Mock()
+    transform_layers_mock = Mock()
+    load_images_mock = Mock()
+    load_layers_mock = Mock()
+    cleanup_images_mock = Mock()
+    cleanup_layers_mock = Mock()
+
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.get_container_images",
+        get_images_mock,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.transform_container_images",
+        transform_images_mock,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.transform_container_image_layers",
+        transform_layers_mock,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.load_container_images",
+        load_images_mock,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.load_container_image_layers",
+        load_layers_mock,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.cleanup_container_images",
+        cleanup_images_mock,
+    )
+    monkeypatch.setattr(
+        "cartography.intel.gitlab.container_images.cleanup_container_image_layers",
+        cleanup_layers_mock,
+    )
+
+    manifests, manifest_lists = sync_container_images(
+        neo4j_session=Mock(),
+        gitlab_url="https://gitlab.example.com",
+        token="pat",
+        org_url="https://gitlab.example.com/groups/core",
+        repositories=[],
+        update_tag=123,
+        common_job_parameters={"UPDATE_TAG": 123},
+    )
+
+    get_images_mock.assert_not_called()
+    transform_images_mock.assert_not_called()
+    transform_layers_mock.assert_not_called()
+    load_images_mock.assert_not_called()
+    load_layers_mock.assert_not_called()
+    cleanup_layers_mock.assert_called_once()
+    cleanup_images_mock.assert_called_once()
+    assert manifests == []
+    assert manifest_lists == []

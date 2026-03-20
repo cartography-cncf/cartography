@@ -519,14 +519,21 @@ def sync_container_images(
     """
     all_raw_manifests: list[dict[str, Any]] = []
     all_manifest_lists: list[dict[str, Any]] = []
+    total_repositories = len(repositories)
+    total_batches = (
+        total_repositories + GITLAB_CONTAINER_REPOSITORY_BATCH_SIZE - 1
+    ) // GITLAB_CONTAINER_REPOSITORY_BATCH_SIZE
 
-    repo_batches = (
-        batch(repositories, size=GITLAB_CONTAINER_REPOSITORY_BATCH_SIZE)
-        if repositories
-        else [[]]
-    )
-
-    for repo_batch in repo_batches:
+    for batch_number, repo_batch in enumerate(
+        batch(repositories, size=GITLAB_CONTAINER_REPOSITORY_BATCH_SIZE),
+        start=1,
+    ):
+        logger.info(
+            "Processing GitLab container image batch %d/%d (%d repositories)",
+            batch_number,
+            total_batches,
+            len(repo_batch),
+        )
         raw_manifests, manifest_lists = get_container_images(
             gitlab_url,
             token,
@@ -543,6 +550,9 @@ def sync_container_images(
         # Load layers FIRST so they exist when image relationships are created.
         load_container_image_layers(neo4j_session, layers, org_url, update_tag)
         load_container_images(neo4j_session, images, org_url, update_tag)
+
+    if total_repositories == 0:
+        logger.info("No GitLab container repositories found for %s", org_url)
 
     cleanup_container_image_layers(neo4j_session, common_job_parameters)
     cleanup_container_images(neo4j_session, common_job_parameters)
