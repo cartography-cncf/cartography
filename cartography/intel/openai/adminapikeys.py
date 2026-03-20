@@ -23,12 +23,13 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: Dict[str, Any],
     ORG_ID: str,
+    known_project_key_ids: set[str] | None = None,
 ) -> None:
     adminapikeys = get(
         api_session,
         common_job_parameters["BASE_URL"],
     )
-    transformed_adminapikeys = transform(adminapikeys)
+    transformed_adminapikeys = transform(adminapikeys, known_project_key_ids or set())
     load_adminapikeys(
         neo4j_session,
         transformed_adminapikeys,
@@ -52,14 +53,27 @@ def get(
 
 def transform(
     adminapikeys: List[Dict[str, Any]],
+    known_project_key_ids: set[str] | None = None,
 ) -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
+    skipped = 0
     for adminapikey in adminapikeys:
+        # OpenAI admin_api_keys endpoint bug: it returns project-scoped keys
+        # mislabeled as admin keys. Skip any key already synced as a project key.
+        if known_project_key_ids and adminapikey["id"] in known_project_key_ids:
+            skipped += 1
+            continue
         if adminapikey["owner"]["type"] == "user":
             adminapikey["owner_user_id"] = adminapikey["owner"]["id"]
         else:
             adminapikey["owner_sa_id"] = adminapikey["owner"]["id"]
         result.append(adminapikey)
+    if skipped:
+        logger.debug(
+            "Skipped %d keys from admin_api_keys endpoint that were already synced as project keys "
+            "(OpenAI API bug workaround).",
+            skipped,
+        )
     return result
 
 

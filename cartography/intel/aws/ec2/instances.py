@@ -64,6 +64,29 @@ def _get_eks_cluster_name(tags: List[Dict[str, str]]) -> Optional[str]:
     return None
 
 
+def _transform_metadata_options(metadata_options: Dict[str, Any]) -> Dict[str, Any]:
+    http_tokens = metadata_options.get("HttpTokens")
+    if http_tokens == "required":
+        imds_access_mode = "v2_only"
+    elif http_tokens == "optional":
+        imds_access_mode = "v1_or_v2"
+    else:
+        imds_access_mode = None
+
+    return {
+        "MetadataHttpTokens": http_tokens,
+        "MetadataHttpPutResponseHopLimit": metadata_options.get(
+            "HttpPutResponseHopLimit",
+        ),
+        "MetadataHttpEndpoint": metadata_options.get("HttpEndpoint"),
+        "MetadataHttpProtocolIpv6": metadata_options.get("HttpProtocolIpv6"),
+        "MetadataInstanceTags": metadata_options.get("InstanceMetadataTags"),
+        "ImdsAccessMode": imds_access_mode,
+        "ImdsV1Enabled": http_tokens == "optional" if http_tokens else None,
+        "ImdsV2Required": http_tokens == "required" if http_tokens else None,
+    }
+
+
 @timeit
 @aws_handle_regions
 def get_ec2_instances(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
@@ -108,6 +131,9 @@ def transform_ec2_instances(
                 str(time.mktime(launch_time.timetuple())) if launch_time else None
             )
             eks_cluster_name = _get_eks_cluster_name(instance.get("Tags", []))
+            metadata_options = _transform_metadata_options(
+                instance.get("MetadataOptions", {}),
+            )
             instance_list.append(
                 {
                     "InstanceId": instance_id,
@@ -139,6 +165,7 @@ def transform_ec2_instances(
                     "HibernationOptions": instance.get("HibernationOptions", {}).get(
                         "Configured",
                     ),
+                    **metadata_options,
                     "EksClusterName": eks_cluster_name,
                 },
             )

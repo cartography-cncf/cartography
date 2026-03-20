@@ -845,6 +845,8 @@ Representation of an [AWSUser](https://docs.aws.amazon.com/IAM/latest/APIReferen
 
 Representation of an AWS [IAM Role](https://docs.aws.amazon.com/IAM/latest/APIReference/API_Role.html). An AWS Role is a type of AWS Principal.
 
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
+
 | Field | Description |
 |-------|-------------|
 | firstseen| Timestamp of when a sync job first discovered this node  |
@@ -1604,6 +1606,8 @@ Representation of a generic DNS Zone.
 
 Representation of an AWS DNS [HostedZone](https://docs.aws.amazon.com/Route53/latest/APIReference/API_HostedZone.html).
 
+> **Ontology Mapping**: This node has the extra label `DNSZone` to enable cross-platform queries for DNS zones across different systems (e.g., AWSDNSZone, GCPDNSZone, CloudflareZone).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job first discovered this node  |
@@ -1984,6 +1988,14 @@ Our representation of an AWS [EC2 Instance](https://docs.aws.amazon.com/AWSEC2/l
 | bootmode | The boot mode of the instance.|
 | instancelifecycle | Indicates whether this is a Spot Instance or a Scheduled Instance.|
 | hibernationoptions | Indicates whether the instance is enabled for hibernation.|
+| metadatahttptokens | The EC2 metadata service token setting. `required` means IMDSv2 is required and IMDSv1 is disabled; `optional` means either IMDSv1 or IMDSv2 may be used. |
+| metadatahttpputresponsehoplimit | The maximum number of network hops that an IMDSv2 session token response can travel. |
+| metadatahttpendpoint | Indicates whether the instance metadata HTTP endpoint is enabled. |
+| metadatahttpprotocolipv6 | Indicates whether the IPv6 endpoint for the instance metadata service is enabled. |
+| metadatainstancetags | Indicates whether instance tags are exposed through the instance metadata service. |
+| imdsaccessmode | A derived helper field that normalizes the `metadatahttptokens` setting to `v2_only` or `v1_or_v2` for easier security queries. |
+| imdsv1enabled | A derived boolean that is `true` when IMDSv1 remains allowed on the instance. |
+| imdsv2required | A derived boolean that is `true` when the instance requires IMDSv2 and disables IMDSv1. |
 | eks_cluster_name | The name of the EKS cluster this instance belongs to, if applicable. Extracted from instance tags.|
 
 
@@ -2147,6 +2159,8 @@ Representation of an AWS EC2 [Reservation](https://docs.aws.amazon.com/AWSEC2/la
 
 ### EC2SecurityGroup
 Representation of an AWS EC2 [Security Group](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_SecurityGroup.html).
+
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field | Description |
 |-------|-------------|
@@ -5503,6 +5517,8 @@ Representation of an AWS SSO Group.
 ### AWSPermissionSet
 
 Representation of an AWS Identity Center Permission Set.
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|
