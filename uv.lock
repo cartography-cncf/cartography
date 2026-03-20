@@ -1704,7 +1704,7 @@ grpc = [
 
 [[package]]
 name = "google-api-python-client"
-version = "2.192.0"
+version = "2.193.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "google-api-core" },
@@ -1713,9 +1713,9 @@ dependencies = [
     { name = "httplib2" },
     { name = "uritemplate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/85/d8/489052a40935e45b9b5b3d6accc14b041360c1507bdc659c2e1a19aaa3ff/google_api_python_client-2.192.0.tar.gz", hash = "sha256:d48cfa6078fadea788425481b007af33fe0ab6537b78f37da914fb6fc112eb27", size = 14209505, upload-time = "2026-03-05T15:17:01.598Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/f4/e14b6815d3b1885328dd209676a3a4c704882743ac94e18ef0093894f5c8/google_api_python_client-2.193.0.tar.gz", hash = "sha256:8f88d16e89d11341e0a8b199cafde0fb7e6b44260dffb88d451577cbd1bb5d33", size = 14281006, upload-time = "2026-03-17T18:25:29.415Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/76/ec4128f00fefb9011635ae2abc67d7dacd05c8559378f8f05f0c907c38d8/google_api_python_client-2.192.0-py3-none-any.whl", hash = "sha256:63a57d4457cd97df1d63eb89c5fda03c5a50588dcbc32c0115dd1433c08f4b62", size = 14783267, upload-time = "2026-03-05T15:16:58.804Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/6d/fe75167797790a56d17799b75e1129bb93f7ff061efc7b36e9731bd4be2b/google_api_python_client-2.193.0-py3-none-any.whl", hash = "sha256:c42aa324b822109901cfecab5dc4fc3915d35a7b376835233c916c70610322db", size = 14856490, upload-time = "2026-03-17T18:25:26.608Z" },
 ]
 
 [[package]]
@@ -2714,7 +2714,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.168.1"
+version = "2.168.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -2723,10 +2723,11 @@ dependencies = [
     { name = "pyopenssl" },
     { name = "python-dateutil" },
     { name = "pytz" },
+    { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/eb/68/edf8ffbb42e97ad44d64fce85be00818d979b472dd4377dc948155f811e9/oci-2.168.1.tar.gz", hash = "sha256:b941674171b41e999b8e3adb38d4797d7b42d2bb5ff40d17c26e8ce2a7d4b605", size = 16751235, upload-time = "2026-03-10T10:50:16.244Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/aa/0632d094b788ba676c37a65baa53365751402e59b4d05b3ef71da6db19f7/oci-2.168.2.tar.gz", hash = "sha256:1b0bc7be5eca58fc3ba482f56419710ea3cf09f515e6c0224c3118495684008e", size = 16639772, upload-time = "2026-03-18T04:23:59.049Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/3e/29e05b4f8bed3b4a89b52fc57e76ac86669fc43a59e128eb526e395eda7b/oci-2.168.1-py3-none-any.whl", hash = "sha256:d106cfffc9153b5c9de628877c967ed87bbbfbbc9d411c97feee0eba8f2e4eab", size = 34033119, upload-time = "2026-03-10T10:50:08.501Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/45/5a96430733922efb96bdfbe03cf59a45b3c0f06179a84eafe293cff09819/oci-2.168.2-py3-none-any.whl", hash = "sha256:47e797d408c881e7a17cafd9a51d30c5b216f170598e6f121eb7e61d55639977", size = 33883868, upload-time = "2026-03-18T04:23:51.62Z" },
 ]
 
 [[package]]
@@ -3979,7 +3980,7 @@ wheels = [
 
 [[package]]
 name = "testcontainers"
-version = "4.14.1"
+version = "4.14.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docker" },
@@ -3988,9 +3989,9 @@ dependencies = [
     { name = "urllib3" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8b/02/ef62dec9e4f804189c44df23f0b86897c738d38e9c48282fcd410308632f/testcontainers-4.14.1.tar.gz", hash = "sha256:316f1bb178d829c003acd650233e3ff3c59a833a08d8661c074f58a4fbd42a64", size = 80148, upload-time = "2026-01-31T23:13:46.915Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/ac/a597c3a0e02b26cbed6dd07df68be1e57684766fd1c381dee9b170a99690/testcontainers-4.14.2.tar.gz", hash = "sha256:1340ccf16fe3acd9389a6c9e1d9ab21d9fe99a8afdf8165f89c3e69c1967d239", size = 166841, upload-time = "2026-03-18T05:19:16.696Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c8/31/5e7b23f9e43ff7fd46d243808d70c5e8daf3bc08ecf5a7fb84d5e38f7603/testcontainers-4.14.1-py3-none-any.whl", hash = "sha256:03dfef4797b31c82e7b762a454b6afec61a2a512ad54af47ab41e4fa5415f891", size = 125640, upload-time = "2026-01-31T23:13:45.464Z" },
+    { url = "https://files.pythonhosted.org/packages/13/2d/26b8b30067d94339afee62c3edc9b803a6eb9332f521ba77d8aaab5de873/testcontainers-4.14.2-py3-none-any.whl", hash = "sha256:0d0522c3cd8f8d9627cda41f7a6b51b639fa57bdc492923c045117933c668d68", size = 125712, upload-time = "2026-03-18T05:19:15.29Z" },
 ]
 
 [[package]]
@@ -4059,14 +4060,14 @@ wheels = [
 
 [[package]]
 name = "types-aiobotocore-ecr"
-version = "3.2.1"
+version = "3.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4a/d9/2afb563a9c74b2c194d9d0d469de6ff668510355f57751327dc8aa8dec40/types_aiobotocore_ecr-3.2.1.tar.gz", hash = "sha256:408c080ec002d63571e01dd166e949d261c5fcd0fd6c647666b6c8f14293913b", size = 37043, upload-time = "2026-03-05T02:23:15.954Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/5e/2507fd27aa3faab3b5d30e4ed1d6978ec69cc4c26c305f28c2999ecfcec8/types_aiobotocore_ecr-3.3.0.tar.gz", hash = "sha256:75cb45a18df3410f0f9a0753a7d90860c662e8900d0a2850667e7a11901f4ce1", size = 37055, upload-time = "2026-03-19T02:29:16.529Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/1e/e0b566e3145c82a9793213d15c96c52b7198c4dd9dfde6ff49fc67e6d9f1/types_aiobotocore_ecr-3.2.1-py3-none-any.whl", hash = "sha256:4fbdf14c77f6efee6e170a71e73dc5604f5820e6c457cedf09547f882b8d93c9", size = 43597, upload-time = "2026-03-05T02:23:14.736Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/8a/6579f63e42b0acd6517cde0d592684b7bc1c141b499ab7312333b7d17691/types_aiobotocore_ecr-3.3.0-py3-none-any.whl", hash = "sha256:2cb24bcd463b0ef0e9d08c6a580da7d7a58202026e41d7328e569352ead01edd", size = 43627, upload-time = "2026-03-19T02:29:14.139Z" },
 ]
 
 [[package]]

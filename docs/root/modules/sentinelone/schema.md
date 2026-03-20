@@ -4,6 +4,10 @@
 
 Represents a SentinelOne account, which is the top-level organizational unit for managing SentinelOne resources.
 
+For site-scoped MSSP deployments where the API token cannot enumerate
+`/web/api/v2.1/accounts`, Cartography synthesizes `S1Account` nodes from the
+parent account metadata returned by `/web/api/v2.1/sites`.
+
 > **Ontology Mapping**: This node has the extra label `Tenant` to enable cross-platform queries for tenant accounts across different systems (e.g., OktaOrganization, AWSAccount).
 
 | Field | Description |
