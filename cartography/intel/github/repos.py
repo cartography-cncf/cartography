@@ -128,30 +128,30 @@ def get(token: str, api_url: str, organization: str) -> List[Dict]:
     :param organization: The name of the target Github organization as string.
     :return: A list of dicts representing repos. See tests.data.github.repos for data shape.
     """
-    # TODO: link the Github organization to the repositories
-    try:
-        repos, _ = fetch_all(
-            token,
-            api_url,
-            organization,
-            GITHUB_ORG_REPOS_PAGINATED_GRAPHQL,
-            "repositories",
-        )
-        return repos.nodes
-    except requests.exceptions.RequestException as err:
-        if not is_retryable_request_error(err):
-            raise
+    # # TODO: link the Github organization to the repositories
+    # try:
+    #     repos, _ = fetch_all(
+    #         token,
+    #         api_url,
+    #         organization,
+    #         GITHUB_ORG_REPOS_PAGINATED_GRAPHQL,
+    #         "repositories",
+    #     )
+    #     return repos.nodes
+    # except requests.exceptions.RequestException as err:
+    #     if not is_retryable_request_error(err):
+    #         raise
 
-        logger.info(
-            (
-                f"GitHub GraphQL repository sync failed for org `{organization}` "
-                f"with {describe_request_error(err)}; falling back to REST repository listing."
-            ),
-            exc_info=True,
-        )
+    #     logger.info(
+    #         (
+    #             f"GitHub GraphQL repository sync failed for org `{organization}` "
+    #             f"with {describe_request_error(err)}; falling back to REST repository listing."
+    #         ),
+    #         exc_info=True,
+    #     )
 
-        rest_repos = get_org_repos(organization, token, api_url)
-        return [_normalize_rest_repo(rest_repo) for rest_repo in rest_repos]
+    rest_repos = get_org_repos(organization, token, api_url)
+    return [_normalize_rest_repo(rest_repo) for rest_repo in rest_repos]
 
 
 def transform(repos_json: List[Dict]) -> Dict:
