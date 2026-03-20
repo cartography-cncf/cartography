@@ -81,9 +81,6 @@
 ```{include} ../modules/gsuite/schema.md
 ```
 
-```{include} ../modules/intune/schema.md
-```
-
 ```{include} ../modules/jamf/schema.md
 ```
 

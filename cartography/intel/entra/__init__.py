@@ -10,6 +10,9 @@ from cartography.intel.entra.app_role_assignments import sync_app_role_assignmen
 from cartography.intel.entra.applications import sync_entra_applications
 from cartography.intel.entra.federation.aws_identity_center import sync_entra_federation
 from cartography.intel.entra.groups import sync_entra_groups
+from cartography.intel.entra.intune.compliance_policies import sync_compliance_policies
+from cartography.intel.entra.intune.detected_apps import sync_detected_apps
+from cartography.intel.entra.intune.managed_devices import sync_managed_devices
 from cartography.intel.entra.ou import sync_entra_ous
 from cartography.intel.entra.service_principals import sync_service_principals
 from cartography.intel.entra.users import get_tenant
@@ -153,6 +156,41 @@ def start_entra_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
             neo4j_session,
             config.update_tag,
             config.entra_tenant_id,
+            common_job_parameters,
+        )
+
+        # Run Intune syncs (uses same credentials)
+        credential = ClientSecretCredential(
+            tenant_id=config.entra_tenant_id,
+            client_id=config.entra_client_id,
+            client_secret=config.entra_client_secret,
+        )
+        intune_client = GraphServiceClient(
+            credential,
+            scopes=["https://graph.microsoft.com/.default"],
+        )
+
+        await sync_managed_devices(
+            neo4j_session,
+            intune_client,
+            config.entra_tenant_id,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+        await sync_detected_apps(
+            neo4j_session,
+            intune_client,
+            config.entra_tenant_id,
+            config.update_tag,
+            common_job_parameters,
+        )
+
+        await sync_compliance_policies(
+            neo4j_session,
+            intune_client,
+            config.entra_tenant_id,
+            config.update_tag,
             common_job_parameters,
         )
 

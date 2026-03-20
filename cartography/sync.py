@@ -29,7 +29,6 @@ import cartography.intel.github
 import cartography.intel.gitlab
 import cartography.intel.googleworkspace
 import cartography.intel.gsuite
-import cartography.intel.intune
 import cartography.intel.jamf
 import cartography.intel.kandji
 import cartography.intel.keycloak
@@ -74,7 +73,6 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "gcp": cartography.intel.gcp.start_gcp_ingestion,
         "googleworkspace": cartography.intel.googleworkspace.start_googleworkspace_ingestion,
         "gsuite": cartography.intel.gsuite.start_gsuite_ingestion,
-        "intune": cartography.intel.intune.start_intune_ingestion,
         "cve": cartography.intel.cve.start_cve_ingestion,
         "oci": cartography.intel.oci.start_oci_ingestion,
         "okta": cartography.intel.okta.start_okta_ingestion,

@@ -31,7 +31,7 @@ class IntuneCompliancePolicyRelProperties(CartographyRelProperties):
 # (:IntuneCompliancePolicy)<-[:RESOURCE]-(:IntuneTenant)
 @dataclass(frozen=True)
 class IntuneCompliancePolicyToTenantRel(CartographyRelSchema):
-    target_node_label: str = "IntuneTenant"
+    target_node_label: str = "EntraTenant"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
         {"id": PropertyRef("TENANT_ID", set_in_kwargs=True)},
     )

@@ -2,13 +2,12 @@ from unittest.mock import patch
 
 import pytest
 
-import cartography.intel.intune.compliance_policies
-import cartography.intel.intune.detected_apps
-import cartography.intel.intune.managed_devices
-from cartography.intel.intune.compliance_policies import sync_compliance_policies
-from cartography.intel.intune.detected_apps import sync_detected_apps
-from cartography.intel.intune.managed_devices import sync_managed_devices
-from cartography.intel.intune.tenant import load_tenant
+import cartography.intel.entra.intune.compliance_policies
+import cartography.intel.entra.intune.detected_apps
+import cartography.intel.entra.intune.managed_devices
+from cartography.intel.entra.intune.compliance_policies import sync_compliance_policies
+from cartography.intel.entra.intune.detected_apps import sync_detected_apps
+from cartography.intel.entra.intune.managed_devices import sync_managed_devices
 from tests.data.intune.compliance_policies import MOCK_COMPLIANCE_POLICIES
 from tests.data.intune.compliance_policies import TEST_GROUP_ID
 from tests.data.intune.detected_apps import MOCK_DETECTED_APPS
@@ -39,11 +38,11 @@ async def _mock_get_compliance_policies(client):
 
 def _create_prereq_nodes(neo4j_session):
     """Create prerequisite nodes that the Intune module depends on."""
-    # Create tenant
-    load_tenant(
-        neo4j_session,
-        {"id": TEST_TENANT_ID, "display_name": "Test Tenant"},
-        TEST_UPDATE_TAG,
+    # Create EntraTenant node (normally created by the Entra module)
+    neo4j_session.run(
+        "MERGE (t:AzureTenant:EntraTenant {id: $id}) SET t.display_name = $name",
+        id=TEST_TENANT_ID,
+        name="Test Tenant",
     )
 
     # Create EntraUser nodes
@@ -67,17 +66,17 @@ def _create_prereq_nodes(neo4j_session):
 
 
 @patch.object(
-    cartography.intel.intune.managed_devices,
+    cartography.intel.entra.intune.managed_devices,
     "get_managed_devices",
     side_effect=_mock_get_managed_devices,
 )
 @patch.object(
-    cartography.intel.intune.detected_apps,
+    cartography.intel.entra.intune.detected_apps,
     "get_detected_apps",
     side_effect=_mock_get_detected_apps,
 )
 @patch.object(
-    cartography.intel.intune.compliance_policies,
+    cartography.intel.entra.intune.compliance_policies,
     "get_compliance_policies",
     side_effect=_mock_get_compliance_policies,
 )

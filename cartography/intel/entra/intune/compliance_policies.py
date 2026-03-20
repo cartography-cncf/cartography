@@ -49,17 +49,9 @@ async def get_compliance_policies(
         if not page.odata_next_link:
             break
 
-        try:
-            page = await client.device_management.device_compliance_policies.with_url(
-                page.odata_next_link,
-            ).get()
-        except Exception as e:
-            logger.error(
-                "Failed to fetch next page of Intune compliance policies "
-                "– stopping pagination early: %s",
-                e,
-            )
-            break
+        page = await client.device_management.device_compliance_policies.with_url(
+            page.odata_next_link,
+        ).get()
 
 
 @timeit

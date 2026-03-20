@@ -43,17 +43,9 @@ async def get_managed_devices(
         if not page.odata_next_link:
             break
 
-        try:
-            page = await client.device_management.managed_devices.with_url(
-                page.odata_next_link,
-            ).get()
-        except Exception as e:
-            logger.error(
-                "Failed to fetch next page of Intune managed devices "
-                "– stopping pagination early: %s",
-                e,
-            )
-            break
+        page = await client.device_management.managed_devices.with_url(
+            page.odata_next_link,
+        ).get()
 
 
 def _enum_to_str(val: Any) -> str | None:
