@@ -63,7 +63,8 @@ def test_get_s3_bucket_list_403_with_region_header():
         "Buckets": [{"Name": "forbidden-bucket"}],
     }
     mock_client.head_bucket.side_effect = _make_client_error(
-        403, {"x-amz-bucket-region": "ap-southeast-1"},
+        403,
+        {"x-amz-bucket-region": "ap-southeast-1"},
     )
 
     result = get_s3_bucket_list(mock_session)
