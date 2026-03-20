@@ -77,6 +77,7 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+@timeit
 def load_systems(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
@@ -93,6 +94,7 @@ def load_systems(
     )
 
 
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],

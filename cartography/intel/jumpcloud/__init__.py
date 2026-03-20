@@ -6,8 +6,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 import cartography.intel.jumpcloud.applications
-import cartography.intel.jumpcloud.auth
 import cartography.intel.jumpcloud.systems
+import cartography.intel.jumpcloud.tenant
 import cartography.intel.jumpcloud.users
 from cartography.config import Config
 from cartography.util import timeit
@@ -46,9 +46,10 @@ def start_jumpcloud_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
     session = requests.Session()
     session.mount("https://", HTTPAdapter(max_retries=retry))
     session.headers.update(
-        cartography.intel.jumpcloud.auth.build_headers(
-            api_key=config.jumpcloud_api_key
-        ),
+        {
+            "x-api-key": config.jumpcloud_api_key,
+            "Content-Type": "application/json",
+        }
     )
 
     common_job_parameters = {
@@ -56,6 +57,11 @@ def start_jumpcloud_ingestion(neo4j_session: neo4j.Session, config: Config) -> N
         "ORG_ID": config.jumpcloud_org_id,
     }
 
+    cartography.intel.jumpcloud.tenant.sync(
+        neo4j_session,
+        config.jumpcloud_org_id,
+        config.update_tag,
+    )
     cartography.intel.jumpcloud.users.sync(
         neo4j_session,
         session,

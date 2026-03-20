@@ -503,6 +503,13 @@ jumpcloud_mapping = OntologyMapping(
                     node_field="suspended",
                     special_handling="invert_boolean",
                 ),
+                OntologyFieldMapping(
+                    ontology_field="has_mfa",
+                    node_field="mfa_configured",
+                ),
+                OntologyFieldMapping(
+                    ontology_field="lastactivity", node_field="lastlogin"
+                ),
             ],
         ),
     ],

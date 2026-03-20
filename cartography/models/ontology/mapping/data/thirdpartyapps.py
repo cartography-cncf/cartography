@@ -169,12 +169,10 @@ jumpcloud_mapping = OntologyMapping(
                 OntologyFieldMapping(
                     ontology_field="client_id",
                     node_field="id",
-                    required=True,
                 ),
                 OntologyFieldMapping(
                     ontology_field="name",
                     node_field="name",
-                    required=True,
                 ),
             ],
         ),

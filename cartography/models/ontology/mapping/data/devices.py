@@ -194,10 +194,9 @@ jumpcloud_mapping = OntologyMapping(
             node_label="JumpCloudSystem",
             fields=[
                 OntologyFieldMapping(
-                    ontology_field="hostname", node_field="serial_number", required=True
-                ),
-                OntologyFieldMapping(
-                    ontology_field="serial_number", node_field="serial_number"
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
                 ),
                 OntologyFieldMapping(ontology_field="os", node_field="os"),
                 OntologyFieldMapping(
@@ -208,11 +207,6 @@ jumpcloud_mapping = OntologyMapping(
         ),
     ],
     rels=[
-        OntologyRelMapping(
-            __comment__="Link Device to JumpCloudSystem based on serial_number",
-            query="MATCH (d:Device) WHERE d.serial_number IS NOT NULL MATCH (s:JumpCloudSystem {serial_number: d.serial_number}) MERGE (d)-[r:OBSERVED_AS]->(s) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
-            iterative=False,
-        ),
         OntologyRelMapping(
             __comment__="Link Device to User based on JumpCloudUser-JumpCloudSystem ownership",
             query="MATCH (u:User)-[:HAS_ACCOUNT]->(:JumpCloudUser)-[:OWNS]->(:JumpCloudSystem)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",

@@ -6,7 +6,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.jumpcloud.tenant import load_tenant
 from cartography.intel.jumpcloud.util import paginated_get
 from cartography.models.jumpcloud.application import JumpCloudApplicationSchema
 from cartography.util import timeit
@@ -89,13 +88,13 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+@timeit
 def load_applications(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
     org_id: str,
     update_tag: int,
 ) -> None:
-    load_tenant(neo4j_session, org_id, update_tag)
     load(
         neo4j_session,
         JumpCloudApplicationSchema(),
@@ -105,6 +104,7 @@ def load_applications(
     )
 
 
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],

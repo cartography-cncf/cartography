@@ -6,7 +6,6 @@ import requests
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.jumpcloud.tenant import load_tenant
 from cartography.intel.jumpcloud.util import paginated_get
 from cartography.models.jumpcloud.user import JumpCloudUserSchema
 from cartography.util import timeit
@@ -52,7 +51,6 @@ def load_users(
     org_id: str,
     update_tag: int,
 ) -> None:
-    load_tenant(neo4j_session, org_id, update_tag)
     load(
         neo4j_session,
         JumpCloudUserSchema(),
@@ -62,6 +60,7 @@ def load_users(
     )
 
 
+@timeit
 def cleanup(
     neo4j_session: neo4j.Session,
     common_job_parameters: dict[str, Any],
