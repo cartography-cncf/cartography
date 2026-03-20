@@ -76,7 +76,7 @@ def test_build_create_index_queries_for_matchlink():
     expected_queries = {
         "CREATE INDEX IF NOT EXISTS FOR (n:AWSPrincipal) ON (n.principal_arn);",
         "CREATE INDEX IF NOT EXISTS FOR (n:S3Bucket) ON (n.name);",
-        "CREATE INDEX IF NOT EXISTS FOR ()-[r:CAN_ACCESS]->() ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id);",
+        "CREATE INDEX IF NOT EXISTS FOR ()-[r:CAN_ACCESS]->() ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated);",
     }
 
     # Assert: compare the list of index queries
