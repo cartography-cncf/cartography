@@ -2,26 +2,25 @@
 
 Follow these steps to analyze SentinelOne objects with Cartography.
 
-1. Prepare a SentinelOne API token with appropriate permissions.
+### Create a Service User in SentinelOne
+
+1. In SentinelOne, open **Settings**.
+1. From the top menu, select **Users**.
+1. In the left-hand menu, select **Service Users**.
+1. Select **Actions** and then **Create New Service User**.
+1. Enter a name and expiration date for the Service User and select **Next**.
+1. Choose the account or site that the Service User should have access to and select **Create**.
+1. Copy the API token when it is shown. SentinelOne only displays it once.
+
+The default **Viewer** role is sufficient for Cartography.
+
+### Configure Cartography
+
 1. Pass the SentinelOne API URL to the `--sentinelone-api-url` CLI arg.
 1. Populate an environment variable with the API token.
 1. Pass that environment variable name to the `--sentinelone-api-token-env-var` CLI arg.
 1. Optionally, pass specific account IDs to sync using the `--sentinelone-account-ids` CLI arg (comma-separated).
 1. Optionally, pass specific site IDs to sync using the `--sentinelone-site-ids` CLI arg (comma-separated).
-
-## Required Permissions
-
-The API token requirements depend on the scope of the user or service account
-that issued the token:
-
-- **Account-scoped tokens** should have read access to account and agent
-  information. Cartography will enumerate `/web/api/v2.1/accounts` first and
-  then sync the related resources.
-- **Site-scoped MSSP tokens** do not need permission to enumerate
-  `/web/api/v2.1/accounts`, but they must be able to read the visible sites plus
-  the agent, application inventory, and application risk data for those sites.
-  Cartography uses `/web/api/v2.1/sites` as the fallback entry point for those
-  tokens.
 
 ## MSSP And Site-Scoped Deployments
 
@@ -38,5 +37,6 @@ In that fallback mode:
 - Resources are fetched per site and attached to their parent `S1Account`.
 - `--sentinelone-site-ids` can be used to limit the sync to specific sites.
 
-If you know you are using an MSSP or site-scoped token, prefer
-`--sentinelone-site-ids` over `--sentinelone-account-ids`.
+If you know you are using a site-scoped token, prefer
+`--sentinelone-site-ids` over `--sentinelone-account-ids`. If you do not pass
+explicit site IDs, Cartography will sync all sites visible to that token.
