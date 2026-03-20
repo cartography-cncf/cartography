@@ -6,7 +6,6 @@ fetching can be significantly slower than basic ECR repository/image syncing.
 """
 
 import asyncio
-import json
 import logging
 from typing import Any
 from typing import Optional
@@ -14,14 +13,22 @@ from typing import Optional
 import aioboto3
 import httpx
 import neo4j
-from botocore.exceptions import ClientError
 from types_aiobotocore_ecr import ECRClient
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.ecr_shared import ALL_ACCEPTED
+from cartography.intel.aws.ecr_shared import (
+    batch_get_manifest as shared_batch_get_manifest,
+)
+from cartography.intel.aws.ecr_shared import ECR_DOCKER_MANIFEST_MT
+from cartography.intel.aws.ecr_shared import ECR_OCI_MANIFEST_MT
+from cartography.intel.aws.ecr_shared import ECRFetchTransientError
+from cartography.intel.aws.ecr_shared import (
+    get_blob_json_via_presigned as shared_get_blob_json_via_presigned,
+)
+from cartography.intel.aws.ecr_shared import INDEX_MEDIA_TYPES_LOWER
 from cartography.intel.container_arch import normalize_architecture
-from cartography.intel.supply_chain import extract_workflow_path_from_ref
-from cartography.intel.supply_chain import normalize_vcs_url
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.image_layer import ECRImageLayerSchema
 from cartography.util import timeit
@@ -29,8 +36,7 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
-class ECRLayerFetchTransientError(Exception):
-    """Raised when a transient ECR/image-blob fetch failure should skip one image."""
+ECRLayerFetchTransientError = ECRFetchTransientError
 
 
 EMPTY_LAYER_DIFF_ID = (
@@ -40,90 +46,8 @@ EMPTY_LAYER_DIFF_ID = (
 # Keep per-transaction memory low; each record fan-outs to many relationships.
 ECR_LAYER_BATCH_SIZE = 200
 
-# ECR manifest media types
-ECR_DOCKER_INDEX_MT = "application/vnd.docker.distribution.manifest.list.v2+json"
-ECR_DOCKER_MANIFEST_MT = "application/vnd.docker.distribution.manifest.v2+json"
-ECR_OCI_INDEX_MT = "application/vnd.oci.image.index.v1+json"
-ECR_OCI_MANIFEST_MT = "application/vnd.oci.image.manifest.v1+json"
-
-ALL_ACCEPTED = [
-    ECR_OCI_INDEX_MT,
-    ECR_DOCKER_INDEX_MT,
-    ECR_OCI_MANIFEST_MT,
-    ECR_DOCKER_MANIFEST_MT,
-]
-
-INDEX_MEDIA_TYPES = {ECR_OCI_INDEX_MT, ECR_DOCKER_INDEX_MT}
-INDEX_MEDIA_TYPES_LOWER = {mt.lower() for mt in INDEX_MEDIA_TYPES}
-
 # Media types that should be skipped when processing manifests
 SKIP_CONFIG_MEDIA_TYPE_FRAGMENTS = {"buildkit", "attestation", "in-toto"}
-RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
-RETRYABLE_ECR_ERROR_CODES = {
-    "InternalFailure",
-    "InternalServerException",
-    "RequestLimitExceeded",
-    "RequestThrottled",
-    "RequestTimeout",
-    "RequestTimeoutException",
-    "ServerException",
-    "ServiceUnavailable",
-    "ServiceUnavailableException",
-    "Throttling",
-    "ThrottlingException",
-    "TooManyRequestsException",
-}
-RETRYABLE_HTTPX_EXCEPTIONS = (
-    httpx.ConnectError,
-    httpx.PoolTimeout,
-    httpx.ReadError,
-    httpx.ReadTimeout,
-    httpx.RemoteProtocolError,
-    httpx.TimeoutException,
-    httpx.WriteError,
-    httpx.WriteTimeout,
-)
-MAX_BLOB_DOWNLOAD_ATTEMPTS = 3
-
-
-def _is_retryable_aws_client_error(error: ClientError) -> bool:
-    error_code = error.response.get("Error", {}).get("Code", "")
-    status_code = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
-    return (
-        error_code in RETRYABLE_ECR_ERROR_CODES
-        or status_code in RETRYABLE_HTTP_STATUS_CODES
-    )
-
-
-def _is_retryable_http_error(error: httpx.HTTPError) -> bool:
-    if isinstance(error, RETRYABLE_HTTPX_EXCEPTIONS):
-        return True
-    if isinstance(error, httpx.HTTPStatusError) and error.response is not None:
-        return error.response.status_code in RETRYABLE_HTTP_STATUS_CODES
-    return False
-
-
-def _safe_http_error_for_log(error: httpx.HTTPError) -> str:
-    if isinstance(error, httpx.HTTPStatusError) and error.response is not None:
-        return f"{error.__class__.__name__}(status_code={error.response.status_code})"
-    return f"{error.__class__.__name__}: {error}"
-
-
-def extract_repo_uri_from_image_uri(image_uri: str) -> str:
-    """
-    Extract repository URI from image URI by removing tag or digest.
-
-    Examples:
-        "repo@sha256:digest" -> "repo"
-        "repo:tag" -> "repo"
-        "repo" -> "repo"
-    """
-    if "@sha256:" in image_uri:
-        return image_uri.split("@", 1)[0]
-    elif ":" in image_uri:
-        return image_uri.rsplit(":", 1)[0]
-    else:
-        return image_uri
 
 
 def extract_platform_from_manifest(manifest_ref: dict) -> str:
@@ -150,63 +74,12 @@ def _format_platform(
 async def batch_get_manifest(
     ecr_client: ECRClient, repo: str, image_ref: str, accepted_media_types: list[str]
 ) -> tuple[dict, str]:
-    """Get image manifest using batch_get_image API."""
-    try:
-        resp = await ecr_client.batch_get_image(
-            repositoryName=repo,
-            imageIds=(
-                [{"imageDigest": image_ref}]
-                if image_ref.startswith("sha256:")
-                else [{"imageTag": image_ref}]
-            ),
-            acceptedMediaTypes=accepted_media_types,
-        )
-    except ClientError as error:
-        error_code = error.response.get("Error", {}).get("Code", "")
-        if error_code == "ImageNotFoundException":
-            logger.warning(
-                "Image %s:%s not found while fetching manifest", repo, image_ref
-            )
-            return {}, ""
-        if error_code in {"AccessDenied", "AccessDeniedException"}:
-            logger.warning(
-                "Skipping manifest fetch for %s:%s due to %s (missing ecr:BatchGetImage permission)",
-                repo,
-                image_ref,
-                error_code,
-            )
-            return {}, ""
-        if _is_retryable_aws_client_error(error):
-            logger.warning(
-                "Transient AWS error fetching manifest for %s:%s: %s",
-                repo,
-                image_ref,
-                error_code or error,
-            )
-            raise ECRLayerFetchTransientError(
-                f"Transient manifest fetch failure for {repo}:{image_ref}"
-            ) from error
-        # Fail loudly on unexpected, non-retryable AWS errors
-        logger.error(
-            "Failed to get manifest for %s:%s due to AWS error %s",
-            repo,
-            image_ref,
-            error_code,
-        )
-        raise
-    except Exception:
-        logger.exception(
-            "Unexpected error fetching manifest for %s:%s", repo, image_ref
-        )
-        raise
-
-    if not resp.get("images"):
-        logger.warning(f"No image found for {repo}:{image_ref}")
-        return {}, ""
-
-    manifest_json = json.loads(resp["images"][0]["imageManifest"])
-    media_type = resp["images"][0].get("imageManifestMediaType", "")
-    return manifest_json, media_type
+    return await shared_batch_get_manifest(
+        ecr_client,
+        repo,
+        image_ref,
+        accepted_media_types,
+    )
 
 
 async def get_blob_json_via_presigned(
@@ -215,216 +88,12 @@ async def get_blob_json_via_presigned(
     digest: str,
     http_client: httpx.AsyncClient,
 ) -> dict:
-    """Download and parse JSON blob using presigned URL."""
-    try:
-        url_response = await ecr_client.get_download_url_for_layer(
-            repositoryName=repo,
-            layerDigest=digest,
-        )
-    except ClientError as error:
-        if _is_retryable_aws_client_error(error):
-            logger.warning(
-                "Transient AWS error requesting blob download URL for layer %s in repo %s: %s",
-                digest,
-                repo,
-                error.response.get("Error", {}).get("Code", "unknown"),
-            )
-            raise ECRLayerFetchTransientError(
-                f"Transient download URL failure for {repo}@{digest}"
-            ) from error
-        logger.error(
-            "Failed to request download URL for layer %s in repo %s: %s",
-            digest,
-            repo,
-            error.response.get("Error", {}).get("Code", "unknown"),
-        )
-        raise
-
-    url = url_response["downloadUrl"]
-    last_error: httpx.HTTPError | None = None
-    for attempt in range(1, MAX_BLOB_DOWNLOAD_ATTEMPTS + 1):
-        try:
-            response = await http_client.get(url, timeout=30.0)
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as error:
-            last_error = error
-            if attempt < MAX_BLOB_DOWNLOAD_ATTEMPTS and _is_retryable_http_error(error):
-                logger.warning(
-                    "Retrying blob download for %s in repo %s after transient HTTP error on attempt %d/%d: %s",
-                    digest,
-                    repo,
-                    attempt,
-                    MAX_BLOB_DOWNLOAD_ATTEMPTS,
-                    _safe_http_error_for_log(error),
-                )
-                await asyncio.sleep(2 ** (attempt - 1))
-                continue
-            if _is_retryable_http_error(error):
-                logger.warning(
-                    "Exhausted blob download retries for %s in repo %s after transient HTTP error: %s",
-                    digest,
-                    repo,
-                    _safe_http_error_for_log(error),
-                )
-                raise ECRLayerFetchTransientError(
-                    f"Transient blob download failure for {repo}@{digest}"
-                ) from error
-            logger.error(
-                "HTTP error downloading blob %s for repo %s: %s",
-                digest,
-                repo,
-                _safe_http_error_for_log(error),
-            )
-            raise
-
-    raise ECRLayerFetchTransientError(
-        f"Transient blob download failure for {repo}@{digest}"
-    ) from last_error
-
-
-async def _extract_provenance_from_attestation(
-    ecr_client: ECRClient,
-    repo_name: str,
-    attestation_manifest_digest: str,
-    http_client: httpx.AsyncClient,
-) -> Optional[dict[str, Any]]:
-    """
-    Extract provenance information from an in-toto SLSA attestation.
-
-    This function fetches an attestation manifest, downloads its in-toto layer,
-    and extracts:
-    - Parent image reference from materials
-    - Source repository info from VCS metadata
-    - Build invocation info from environment
-
-    :param ecr_client: ECR client for fetching manifests and layers
-    :param repo_name: ECR repository name
-    :param attestation_manifest_digest: Digest of the attestation manifest
-    :param http_client: HTTP client for downloading blobs
-    :return: Dict with provenance data, or None if no provenance found
-
-    Raises:
-        Exception: If there's an error fetching or parsing the attestation
-    """
-    attestation_manifest, _ = await batch_get_manifest(
+    return await shared_get_blob_json_via_presigned(
         ecr_client,
-        repo_name,
-        attestation_manifest_digest,
-        [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
-    )
-
-    if not attestation_manifest:
-        logger.debug(
-            "No attestation manifest found for digest %s in repo %s",
-            attestation_manifest_digest,
-            repo_name,
-        )
-        return None
-
-    # Get the in-toto layer from the attestation manifest
-    layers = attestation_manifest.get("layers", [])
-    intoto_layer = next(
-        (layer for layer in layers if "in-toto" in layer.get("mediaType", "").lower()),
-        None,
-    )
-
-    if not intoto_layer:
-        logger.debug(
-            "No in-toto layer found in attestation manifest %s",
-            attestation_manifest_digest,
-        )
-        return None
-
-    # Download the in-toto attestation blob
-    intoto_digest = intoto_layer.get("digest")
-    if not intoto_digest:
-        logger.debug("No digest found for in-toto layer")
-        return None
-
-    attestation_blob = await get_blob_json_via_presigned(
-        ecr_client,
-        repo_name,
-        intoto_digest,
+        repo,
+        digest,
         http_client,
     )
-
-    if not attestation_blob:
-        logger.debug("Failed to download attestation blob")
-        return None
-
-    predicate = attestation_blob.get("predicate", {})
-    result: dict[str, Any] = {}
-
-    # Extract parent image from SLSA provenance materials
-    materials = predicate.get("materials", [])
-    for material in materials:
-        uri = material.get("uri", "")
-        uri_l = uri.lower()
-        # Look for container image URIs that are NOT the dockerfile itself
-        is_container_ref = (
-            uri_l.startswith("pkg:docker/")
-            or uri_l.startswith("pkg:oci/")
-            or uri_l.startswith("oci://")
-        )
-        if is_container_ref and "dockerfile" not in uri_l:
-            digest_obj = material.get("digest", {})
-            sha256_digest = digest_obj.get("sha256")
-            if sha256_digest:
-                result["parent_image_uri"] = uri
-                result["parent_image_digest"] = f"sha256:{sha256_digest}"
-                break
-
-    # Extract source info from BuildKit metadata VCS section
-    # Path: metadata["https://mobyproject.org/buildkit@v1#metadata"].vcs
-    metadata = predicate.get("metadata", {})
-    buildkit_metadata = metadata.get("https://mobyproject.org/buildkit@v1#metadata", {})
-    vcs = buildkit_metadata.get("vcs", {})
-
-    if vcs.get("source"):
-        result["source_uri"] = normalize_vcs_url(vcs["source"])
-    if vcs.get("revision"):
-        result["source_revision"] = vcs["revision"]
-
-    # Extract invocation info from environment
-    # Path: invocation.environment
-    invocation = predicate.get("invocation", {})
-    environment = invocation.get("environment", {})
-
-    if environment.get("github_repository"):
-        server_url = environment.get("github_server_url", "https://github.com").rstrip(
-            "/"
-        )
-        result["invocation_uri"] = f"{server_url}/{environment['github_repository']}"
-    if environment.get("github_workflow_ref"):
-        workflow_path = extract_workflow_path_from_ref(
-            environment["github_workflow_ref"]
-        )
-        if workflow_path:
-            result["invocation_workflow"] = workflow_path
-    if environment.get("github_run_number"):
-        result["invocation_run_number"] = environment["github_run_number"]
-
-    # Extract source file (Dockerfile path) from invocation configSource
-    # Only meaningful when we also have source repository info
-    if "source_uri" in result:
-        config_source = invocation.get("configSource", {})
-        entry_point = config_source.get("entryPoint", "Dockerfile")
-        dockerfile_dir = (
-            (vcs.get("localdir:dockerfile") or "").removeprefix("./").rstrip("/")
-        )
-        result["source_file"] = (
-            f"{dockerfile_dir}/{entry_point}" if dockerfile_dir else entry_point
-        )
-
-    if not result:
-        logger.debug(
-            "No provenance data found in attestation %s",
-            attestation_manifest_digest,
-        )
-        return None
-
-    return result
 
 
 async def _diff_ids_for_manifest(
@@ -507,7 +176,6 @@ def transform_ecr_image_layers(
     image_layers_data: dict[str, dict[str, list[str]]],
     image_digest_map: dict[str, str],
     history_by_diff_id: Optional[dict[str, str]] = None,
-    image_attestation_map: Optional[dict[str, dict[str, str]]] = None,
     existing_properties_map: Optional[dict[str, dict[str, Any]]] = None,
 ) -> tuple[list[dict], list[dict]]:
     """
@@ -517,14 +185,11 @@ def transform_ecr_image_layers(
     :param image_layers_data: Map of image URI to platform to diff_ids
     :param image_digest_map: Map of image URI to image digest
     :param history_by_diff_id: Map of diff_id to history command (created_by)
-    :param image_attestation_map: Map of image URI to attestation data (parent_image_uri, parent_image_digest)
     :param existing_properties_map: Map of image digest to existing ECRImage properties (type, architecture, etc.)
     :return: List of layer objects ready for ingestion
     """
     if history_by_diff_id is None:
         history_by_diff_id = {}
-    if image_attestation_map is None:
-        image_attestation_map = {}
     if existing_properties_map is None:
         existing_properties_map = {}
     layers_by_diff_id: dict[str, dict[str, Any]] = {}
@@ -604,38 +269,6 @@ def transform_ecr_image_layers(
                             image_digest,
                             platform_values,
                         )
-
-            # Add provenance data if available for this image
-            if image_uri in image_attestation_map:
-                provenance = image_attestation_map[image_uri]
-                # Parent image info
-                if provenance.get("parent_image_uri"):
-                    membership["parent_image_uri"] = provenance["parent_image_uri"]
-                if provenance.get("parent_image_digest"):
-                    membership["parent_image_digest"] = provenance[
-                        "parent_image_digest"
-                    ]
-                # Source repository info from VCS metadata
-                if provenance.get("source_uri"):
-                    membership["source_uri"] = provenance["source_uri"]
-                if provenance.get("source_revision"):
-                    membership["source_revision"] = provenance["source_revision"]
-                # Build invocation info from GitHub Actions
-                if provenance.get("invocation_uri"):
-                    membership["invocation_uri"] = provenance["invocation_uri"]
-                if provenance.get("invocation_workflow"):
-                    membership["invocation_workflow"] = provenance[
-                        "invocation_workflow"
-                    ]
-                if provenance.get("invocation_run_number"):
-                    membership["invocation_run_number"] = provenance[
-                        "invocation_run_number"
-                    ]
-                # Source file (Dockerfile path) from configSource
-                if provenance.get("source_file"):
-                    membership["source_file"] = provenance["source_file"]
-                membership["from_attestation"] = True
-                membership["confidence"] = "explicit"
 
             memberships_by_digest[image_digest] = membership
 
@@ -730,7 +363,6 @@ async def fetch_image_layers_async(
     dict[str, dict[str, list[str]]],
     dict[str, str],
     dict[str, str],
-    dict[str, dict[str, str]],
 ]:
     """
     Fetch image layers for ECR images in parallel with caching and non-blocking I/O.
@@ -739,12 +371,10 @@ async def fetch_image_layers_async(
         - image_layers_data: Map of image URI to platform to diff_ids
         - image_digest_map: Map of image URI to image digest
         - history_by_diff_id: Map of diff_id to history command (created_by)
-        - image_attestation_map: Map of image URI to attestation data (parent_image_uri, parent_image_digest)
     """
     image_layers_data: dict[str, dict[str, list[str]]] = {}
     image_digest_map: dict[str, str] = {}
     all_history_by_diff_id: dict[str, str] = {}
-    image_attestation_map: dict[str, dict[str, str]] = {}
     semaphore = asyncio.Semaphore(max_concurrent)
 
     # Cache for manifest fetches keyed by (repo_name, imageDigest)
@@ -791,24 +421,11 @@ async def fetch_image_layers_async(
     async def fetch_single_image_layers(
         repo_image: dict,
         http_client: httpx.AsyncClient,
-    ) -> Optional[
-        tuple[
-            str,
-            str,
-            dict[str, list[str]],
-            dict[str, str],
-            Optional[dict[str, dict[str, str]]],
-        ]
-    ]:
+    ) -> Optional[tuple[str, str, dict[str, list[str]], dict[str, str]]]:
         """
-        Fetch layers for a single image and extract attestation if present.
+        Fetch layers for a single image.
 
-        Returns tuple of (uri, digest, platform_layers, history_by_diff_id, attestations_by_child_digest) where:
-        - uri: The image URI
-        - digest: The image digest
-        - platform_layers: Map of platform to list of layer diff_ids
-        - history_by_diff_id: Map of diff_id to history command (created_by)
-        - attestations_by_child_digest: Maps child image digest to parent image info
+        Returns tuple of (uri, digest, platform_layers, history_by_diff_id) or None.
         """
         async with semaphore:
             # Caller guarantees these fields exist in every repo_image
@@ -833,50 +450,24 @@ async def fetch_image_layers_async(
             manifest_media_type = (media_type or doc.get("mediaType", "")).lower()
             platform_layers: dict[str, list[str]] = {}
             history_by_diff_id: dict[str, str] = {}
-            attestation_data: Optional[dict[str, dict[str, str]]] = None
 
             if doc.get("manifests") and manifest_media_type in INDEX_MEDIA_TYPES_LOWER:
 
                 async def _process_child_manifest(
                     manifest_ref: dict,
-                ) -> tuple[
-                    dict[str, list[str]],
-                    dict[str, str],
-                    Optional[tuple[str, dict[str, str]]],
-                ]:
-                    # Check if this is an attestation manifest
+                ) -> tuple[dict[str, list[str]], dict[str, str]]:
+                    # Skip attestation manifests — provenance is handled by ecr:provenance
                     if (
                         manifest_ref.get("annotations", {}).get(
                             "vnd.docker.reference.type"
                         )
                         == "attestation-manifest"
                     ):
-                        # Extract which child image this attestation is for
-                        attests_child_digest = manifest_ref.get("annotations", {}).get(
-                            "vnd.docker.reference.digest"
-                        )
-                        if not attests_child_digest:
-                            return {}, {}, None
-
-                        # Extract provenance from attestation (includes parent image and source info)
-                        attestation_digest = manifest_ref.get("digest")
-                        if attestation_digest:
-                            provenance_info = (
-                                await _extract_provenance_from_attestation(
-                                    ecr_client,
-                                    repo_name,
-                                    attestation_digest,
-                                    http_client,
-                                )
-                            )
-                            if provenance_info:
-                                # Return (attests_child_digest, provenance_info) tuple
-                                return {}, {}, (attests_child_digest, provenance_info)
-                        return {}, {}, None
+                        return {}, {}
 
                     child_digest = manifest_ref.get("digest")
                     if not child_digest:
-                        return {}, {}, None
+                        return {}, {}
 
                     # Use optimized caching for child manifest
                     child_doc, _ = await _fetch_and_cache_manifest(
@@ -885,7 +476,7 @@ async def fetch_image_layers_async(
                         [ECR_OCI_MANIFEST_MT, ECR_DOCKER_MANIFEST_MT],
                     )
                     if not child_doc:
-                        return {}, {}, None
+                        return {}, {}
 
                     platform_hint = extract_platform_from_manifest(manifest_ref)
                     diff_map, history_map = await _diff_ids_for_manifest(
@@ -895,33 +486,33 @@ async def fetch_image_layers_async(
                         http_client,
                         platform_hint,
                     )
-                    return diff_map, history_map, None
+                    return diff_map, history_map
 
                 # Process all child manifests in parallel
                 child_tasks = [
                     _process_child_manifest(manifest_ref)
                     for manifest_ref in doc.get("manifests", [])
                 ]
-                child_results = await asyncio.gather(*child_tasks)
+                child_results = await asyncio.gather(
+                    *child_tasks,
+                    return_exceptions=True,
+                )
 
                 # Merge results from successful child manifest processing
-                # Track attestation data by child digest for proper mapping
-                attestations_by_child_digest: dict[str, dict[str, str]] = {}
-
                 for result in child_results:
-                    layer_data, hist_data, attest_data = result
+                    if isinstance(result, ECRLayerFetchTransientError):
+                        logger.warning(
+                            "Skipping child manifest after transient error: %s",
+                            result,
+                        )
+                        continue
+                    if isinstance(result, BaseException):
+                        raise result
+                    layer_data, hist_data = result
                     if layer_data:
                         platform_layers.update(layer_data)
                     if hist_data:
                         history_by_diff_id.update(hist_data)
-                    if attest_data:
-                        # attest_data is (child_digest, parent_info) tuple
-                        child_digest, parent_info = attest_data
-                        attestations_by_child_digest[child_digest] = parent_info
-
-                # Build attestation_data with child digest mapping
-                if attestations_by_child_digest:
-                    attestation_data = attestations_by_child_digest
             else:
                 diff_map, hist_map = await _diff_ids_for_manifest(
                     ecr_client,
@@ -933,15 +524,12 @@ async def fetch_image_layers_async(
                 platform_layers.update(diff_map)
                 history_by_diff_id.update(hist_map)
 
-            # Return if we found layers or attestation data
-            # Manifest lists may have attestation_data without platform_layers
-            if platform_layers or attestation_data:
+            if platform_layers:
                 return (
                     uri,
                     digest,
                     platform_layers,
                     history_by_diff_id,
-                    attestation_data,
                 )
 
             return None
@@ -952,15 +540,7 @@ async def fetch_image_layers_async(
             repo_image: dict,
         ) -> tuple[
             str,
-            Optional[
-                tuple[
-                    str,
-                    str,
-                    dict[str, list[str]],
-                    dict[str, str],
-                    Optional[dict[str, dict[str, str]]],
-                ]
-            ],
+            Optional[tuple[str, str, dict[str, list[str]], dict[str, str]]],
         ]:
             try:
                 return repo_image["uri"], await fetch_single_image_layers(
@@ -991,7 +571,6 @@ async def fetch_image_layers_async(
                 image_layers_data,
                 image_digest_map,
                 all_history_by_diff_id,
-                image_attestation_map,
             )
 
         progress_interval = max(1, min(100, total // 10 or 1))
@@ -1028,26 +607,13 @@ async def fetch_image_layers_async(
                 )
 
             if result:
-                uri, digest, layer_data, history_data, attestations_by_child_digest = (
-                    result
-                )
+                uri, digest, layer_data, history_data = result
                 if not digest:
                     raise ValueError(f"Empty digest returned for image {uri}")
                 image_layers_data[uri] = layer_data
                 image_digest_map[uri] = digest
                 if history_data:
                     all_history_by_diff_id.update(history_data)
-                if attestations_by_child_digest:
-                    # Map attestation data by child digest URIs
-                    repo_uri = extract_repo_uri_from_image_uri(uri)
-                    for (
-                        child_digest,
-                        parent_info,
-                    ) in attestations_by_child_digest.items():
-                        child_uri = f"{repo_uri}@{child_digest}"
-                        image_attestation_map[child_uri] = parent_info
-                        # Also add to digest map so transform can look up the child digest
-                        image_digest_map[child_uri] = child_digest
 
     logger.info(
         f"Successfully fetched layers for {len(image_layers_data)}/{len(repo_images_list)} images"
@@ -1056,15 +622,10 @@ async def fetch_image_layers_async(
         logger.info(
             f"Extracted history commands for {len(all_history_by_diff_id)} layers"
         )
-    if image_attestation_map:
-        logger.info(
-            f"Found attestations with base image info for {len(image_attestation_map)} images"
-        )
     return (
         image_layers_data,
         image_digest_map,
         all_history_by_diff_id,
-        image_attestation_map,
     )
 
 
@@ -1154,11 +715,10 @@ def sync(
                 repo_uri = img_data["repo_uri"]
                 digest_uri = f"{repo_uri}@{digest}"
 
-                # Fetch manifests for:
-                # - Platform-specific images (type="image") - to get their layers
-                # - Manifest lists (type="manifest_list") - to extract attestation parent image data
-                # Skip only attestations since they don't have useful layer or parent data
-                if image_type != "attestation":
+                # Only fetch manifests for platform-specific images (layers).
+                # Provenance is handled by ecr:provenance; attestations and manifest
+                # lists have no useful layer data.
+                if image_type == "image":
                     repo_images_list.append(
                         {
                             "imageDigest": digest,
@@ -1188,7 +748,6 @@ def sync(
                 dict[str, dict[str, list[str]]],
                 dict[str, str],
                 dict[str, str],
-                dict[str, dict[str, str]],
             ]:
                 async with aioboto3_session.client(
                     "ecr", region_name=region
@@ -1207,7 +766,6 @@ def sync(
                 image_layers_data,
                 image_digest_map,
                 history_by_diff_id,
-                image_attestation_map,
             ) = loop.run_until_complete(_fetch_with_async_client())
 
             logger.info(
@@ -1217,7 +775,6 @@ def sync(
                 image_layers_data,
                 image_digest_map,
                 history_by_diff_id,
-                image_attestation_map,
                 existing_properties,
             )
             load_ecr_image_layers(

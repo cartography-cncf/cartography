@@ -17,6 +17,7 @@ from . import config
 from . import dynamodb
 from . import ecr
 from . import ecr_image_layers
+from . import ecr_provenance
 from . import ecs
 from . import efs
 from . import eks
@@ -112,6 +113,7 @@ RESOURCE_FUNCTIONS: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "ec2:volumes": sync_ebs_volumes,
         "ec2:snapshots": sync_ebs_snapshots,
         "ecr": ecr.sync,
+        "ecr:provenance": ecr_provenance.sync,
         "ecr:image_layers": ecr_image_layers.sync,
         # `ec2:instance` must be synced before `ecs` so that EC2Instance nodes exist
         # when ECSContainerInstance creates IS_INSTANCE relationships.

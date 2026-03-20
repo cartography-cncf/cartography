@@ -10,63 +10,10 @@ from botocore.exceptions import ClientError
 import tests.data.aws.ecr as test_data
 from cartography.intel.aws.ecr_image_layers import batch_get_manifest
 from cartography.intel.aws.ecr_image_layers import ECRLayerFetchTransientError
-from cartography.intel.aws.ecr_image_layers import extract_repo_uri_from_image_uri
 from cartography.intel.aws.ecr_image_layers import fetch_image_layers_async
 from cartography.intel.aws.ecr_image_layers import get_blob_json_via_presigned
 from cartography.intel.aws.ecr_image_layers import transform_ecr_image_layers
 from cartography.intel.supply_chain import extract_workflow_path_from_ref
-
-
-@pytest.mark.parametrize(
-    "input_uri,expected_repo_uri",
-    [
-        # Digest-based URI
-        (
-            "123456789.dkr.ecr.us-east-1.amazonaws.com/my-repo@sha256:abcdef123456789",
-            "123456789.dkr.ecr.us-east-1.amazonaws.com/my-repo",
-        ),
-        # Tag-based URI
-        (
-            "123456789.dkr.ecr.us-east-1.amazonaws.com/my-repo:v1.0.0",
-            "123456789.dkr.ecr.us-east-1.amazonaws.com/my-repo",
-        ),
-        # No tag or digest
-        (
-            "123456789.dkr.ecr.us-east-1.amazonaws.com/my-repo",
-            "123456789.dkr.ecr.us-east-1.amazonaws.com/my-repo",
-        ),
-        # Complex repository name with slashes
-        (
-            "123456789.dkr.ecr.us-west-2.amazonaws.com/team/service/component:latest",
-            "123456789.dkr.ecr.us-west-2.amazonaws.com/team/service/component",
-        ),
-        # Tag with multiple colons in name
-        (
-            "123456789.dkr.ecr.us-east-1.amazonaws.com/namespace/my-repo:v1.0.0",
-            "123456789.dkr.ecr.us-east-1.amazonaws.com/namespace/my-repo",
-        ),
-        # Port in tag (edge case)
-        (
-            "123456789.dkr.ecr.eu-west-1.amazonaws.com/app:build-123",
-            "123456789.dkr.ecr.eu-west-1.amazonaws.com/app",
-        ),
-        # Edge cases
-        # Empty string
-        ("", ""),
-        # Only digest marker (malformed)
-        ("@sha256:", ""),
-        # Only colon (malformed)
-        (":", ""),
-        # Multiple @ symbols (should split on first)
-        ("repo@sha256:abc@def", "repo"),
-        # Mixed digest and tag markers (digest takes precedence)
-        ("repo@sha256:abc:tag", "repo"),
-    ],
-)
-def test_extract_repo_uri_from_image_uri(input_uri, expected_repo_uri):
-    """Test the extract_repo_uri_from_image_uri helper function."""
-    actual_repo_uri = extract_repo_uri_from_image_uri(input_uri)
-    assert actual_repo_uri == expected_repo_uri
 
 
 def test_transform_ecr_image_layers_missing_digest_fails():
@@ -272,13 +219,11 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
         new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
     )
 
-    image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
-        asyncio.run(
-            fetch_image_layers_async(
-                AsyncMock(),
-                repo_images_list,
-                max_concurrent=2,
-            )
+    image_layers_data, image_digest_map, history_by_diff_id = asyncio.run(
+        fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=2,
         )
     )
 
@@ -286,12 +231,16 @@ def test_fetch_image_layers_async_skips_only_transient_image_failure(mocker):
     assert f"{repo_uri}:good" in image_layers_data
     assert image_digest_map == {f"{repo_uri}:good": "sha256:good"}
     assert isinstance(history_by_diff_id, dict)
-    assert image_attestation_map == {}
 
 
-def test_fetch_image_layers_async_skips_manifest_list_image_when_child_fetch_fails(
+def test_fetch_image_layers_async_still_processes_successful_children_when_one_child_fails_transiently(
     mocker,
 ):
+    """When one child manifest in a manifest list fails transiently, the other
+    children should still be processed.  Before the fix, removing
+    ``return_exceptions=True`` from the child ``asyncio.gather`` caused the
+    entire manifest list to be skipped when *any* child (e.g. the attestation
+    manifest) hit a transient error."""
     repo_uri = "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
     repo_images_list = [
         {
@@ -326,20 +275,18 @@ def test_fetch_image_layers_async_skips_manifest_list_image_when_child_fetch_fai
         new=AsyncMock(return_value=test_data.SAMPLE_CONFIG_BLOB),
     )
 
-    image_layers_data, image_digest_map, history_by_diff_id, image_attestation_map = (
-        asyncio.run(
-            fetch_image_layers_async(
-                AsyncMock(),
-                repo_images_list,
-                max_concurrent=4,
-            )
+    image_layers_data, image_digest_map, history_by_diff_id = asyncio.run(
+        fetch_image_layers_async(
+            AsyncMock(),
+            repo_images_list,
+            max_concurrent=4,
         )
     )
 
-    assert image_layers_data == {}
-    assert image_digest_map == {}
-    assert history_by_diff_id == {}
-    assert image_attestation_map == {}
+    # The amd64 child succeeded so layers should still be present
+    assert f"{repo_uri}:manifest-list" in image_layers_data
+    assert image_digest_map == {f"{repo_uri}:manifest-list": "sha256:manifest-list"}
+    assert isinstance(history_by_diff_id, dict)
 
 
 def test_transform_layers_creates_graph_structure():
@@ -456,87 +403,6 @@ def test_transform_layers_creates_graph_structure():
         (m["imageDigest"], tuple(m["layer_diff_ids"])) for m in memberships
     }
     assert observed_memberships == expected_memberships
-
-
-def test_transform_ecr_image_layers_with_attestation_data():
-    """Test that attestation data is correctly added to memberships."""
-    image_layers_data = {
-        "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": {
-            "linux/amd64": [
-                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-                "sha256:2222222222222222222222222222222222222222222222222222222222222222",
-            ]
-        }
-    }
-
-    image_digest_map = {
-        "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
-    }
-
-    image_attestation_map = {
-        "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": {
-            "parent_image_uri": "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/base-images@abc123",
-            "parent_image_digest": "sha256:bbbb000000000000000000000000000000000000000000000000000000000001",
-        }
-    }
-
-    layers, memberships = transform_ecr_image_layers(
-        image_layers_data,
-        image_digest_map,
-        None,  # history_by_diff_id
-        image_attestation_map,
-    )
-
-    # Should have 2 layers
-    assert len(layers) == 2
-
-    # Should have 1 membership with attestation data
-    assert len(memberships) == 1
-    membership = memberships[0]
-
-    assert (
-        membership["imageDigest"]
-        == "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
-    )
-    assert len(membership["layer_diff_ids"]) == 2
-    assert (
-        membership["parent_image_uri"]
-        == "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/base-images@abc123"
-    )
-    assert (
-        membership["parent_image_digest"]
-        == "sha256:bbbb000000000000000000000000000000000000000000000000000000000001"
-    )
-
-
-def test_transform_ecr_image_layers_without_attestation_data():
-    """Test that transform works without attestation data (backward compatibility)."""
-    image_layers_data = {
-        "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": {
-            "linux/amd64": [
-                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-            ]
-        }
-    }
-
-    image_digest_map = {
-        "123456789012.dkr.ecr.us-east-1.amazonaws.com/backend:latest": "sha256:aaaa000000000000000000000000000000000000000000000000000000000001"
-    }
-
-    # No attestation map provided
-    layers, memberships = transform_ecr_image_layers(
-        image_layers_data,
-        image_digest_map,
-    )
-
-    # Should work without errors
-    assert len(layers) == 1
-    assert len(memberships) == 1
-
-    membership = memberships[0]
-    # Should NOT have parent_image_uri or parent_image_digest
-    assert "parent_image_uri" not in membership
-    assert "parent_image_digest" not in membership
 
 
 def test_transform_ecr_image_layers_with_history():
