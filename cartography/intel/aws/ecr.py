@@ -9,9 +9,9 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.ecr_shared import INDEX_MEDIA_TYPES
 from cartography.intel.container_arch import normalize_architecture
 from cartography.models.aws.ecr.image import ECRImageBaseSchema
-from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.repository import ECRRepositorySchema
 from cartography.models.aws.ecr.repository_image import ECRRepositoryImageSchema
 from cartography.util import aws_handle_regions
@@ -22,10 +22,7 @@ from cartography.util import to_synchronous
 logger = logging.getLogger(__name__)
 
 # Manifest list media types
-MANIFEST_LIST_MEDIA_TYPES = {
-    "application/vnd.docker.distribution.manifest.list.v2+json",
-    "application/vnd.oci.image.index.v1+json",
-}
+MANIFEST_LIST_MEDIA_TYPES = INDEX_MEDIA_TYPES
 
 
 REPO_BATCH_SIZE = 100
@@ -219,7 +216,9 @@ def load_ecr_repositories(
 
 
 @timeit
-def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[Dict]]:
+def transform_ecr_repository_images(
+    repo_data: Dict,
+) -> tuple[List[Dict], List[Dict]]:
     """
     Transform ECR repository images into repo image list and ECR image list.
     For manifest lists, creates ECR images for manifest list, platform-specific images, and attestations.
@@ -363,12 +362,12 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     GraphJob.from_node_schema(ECRRepositoryImageSchema(), common_job_parameters).run(
         neo4j_session
     )
-    GraphJob.from_node_schema(ECRImageSchema(), common_job_parameters).run(
+    GraphJob.from_node_schema(ECRImageBaseSchema(), common_job_parameters).run(
         neo4j_session
     )
 
 
-def _get_image_data(
+def get_repository_image_data(
     boto3_session: boto3.session.Session,
     region: str,
     repositories: List[Dict[str, Any]],
@@ -412,10 +411,8 @@ def sync(
             region,
             current_aws_account_id,
         )
-        image_data = {}
         repositories = get_ecr_repositories(boto3_session, region)
-        image_data = _get_image_data(boto3_session, region, repositories)
-        # len here should be 1!
+        image_data = get_repository_image_data(boto3_session, region, repositories)
         load_ecr_repositories(
             neo4j_session,
             repositories,

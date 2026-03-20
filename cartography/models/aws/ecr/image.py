@@ -15,7 +15,7 @@ from cartography.models.core.relationships import TargetNodeMatcher
 
 @dataclass(frozen=True)
 class ECRImageBaseNodeProperties(CartographyNodeProperties):
-    """Properties managed by the basic ECR module (ecr.py) from DescribeImages API."""
+    """Properties managed by the basic ECR module (ecr.py)."""
 
     id: PropertyRef = PropertyRef("imageDigest")
     digest: PropertyRef = PropertyRef("imageDigest", extra_index=True)
@@ -34,7 +34,7 @@ class ECRImageBaseNodeProperties(CartographyNodeProperties):
 
 @dataclass(frozen=True)
 class ECRImageNodeProperties(CartographyNodeProperties):
-    """All ECRImage properties including layer/provenance fields managed by ecr_image_layers."""
+    """ECRImage properties managed by ecr_image_layers."""
 
     id: PropertyRef = PropertyRef("imageDigest")
     digest: PropertyRef = PropertyRef("imageDigest", extra_index=True)
@@ -50,17 +50,6 @@ class ECRImageNodeProperties(CartographyNodeProperties):
     media_type: PropertyRef = PropertyRef("media_type")
     artifact_media_type: PropertyRef = PropertyRef("artifact_media_type")
     child_image_digests: PropertyRef = PropertyRef("child_image_digests")
-    # SLSA Provenance: Source repository info from VCS metadata
-    source_uri: PropertyRef = PropertyRef("source_uri", extra_index=True)
-    source_revision: PropertyRef = PropertyRef("source_revision")
-    # SLSA Provenance: Build invocation info from CI
-    invocation_uri: PropertyRef = PropertyRef("invocation_uri", extra_index=True)
-    invocation_workflow: PropertyRef = PropertyRef(
-        "invocation_workflow", extra_index=True
-    )
-    invocation_run_number: PropertyRef = PropertyRef("invocation_run_number")
-    # SLSA Provenance: Dockerfile path from configSource.entryPoint + vcs localdir
-    source_file: PropertyRef = PropertyRef("source_file")
 
 
 @dataclass(frozen=True)
@@ -167,12 +156,7 @@ class ECRImageAttestsRel(CartographyRelSchema):
 
 @dataclass(frozen=True)
 class ECRImageBaseSchema(CartographyNodeSchema):
-    """Schema used by the basic ECR module (ecr.py) to load image metadata from DescribeImages.
-
-    Only includes properties from the ECR API — does NOT include layer or provenance
-    fields (layer_diff_ids, source_uri, invocation_uri, etc.) so that loading from
-    DescribeImages doesn't clear values set by ecr_image_layers.
-    """
+    """Schema used by ecr.py to load repositories, images, and manifest relationships."""
 
     label: str = "ECRImage"
     properties: ECRImageBaseNodeProperties = ECRImageBaseNodeProperties()
@@ -203,10 +187,7 @@ class ECRImageBaseSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
-    """Full schema used by ecr_image_layers to enrich ECRImage nodes with layer and provenance data.
-
-    Also used for cleanup in ecr.py to handle all relationship types (HAS_LAYER, BUILT_FROM, etc.).
-    """
+    """Schema used by ecr_image_layers to enrich ECRImage nodes with layer data."""
 
     label: str = "ECRImage"
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
@@ -214,9 +195,6 @@ class ECRImageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ECRImageHasLayerRel(),
-            ECRImageToParentImageRel(),
-            ECRImageContainsImageRel(),
-            ECRImageAttestsRel(),
         ],
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(

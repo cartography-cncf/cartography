@@ -339,301 +339,6 @@ def test_transform_marks_empty_layer():
     assert non_empty_layer["is_empty"] is False
 
 
-@patch.object(
-    cartography.intel.aws.ecr,
-    "get_ecr_repositories",
-    return_value=test_data.DESCRIBE_REPOSITORIES["repositories"][:1],
-)
-@patch.object(
-    cartography.intel.aws.ecr,
-    "get_ecr_repository_images",
-    return_value=test_data.LIST_REPOSITORY_IMAGES[
-        "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository"
-    ][:2],
-)
-@patch("cartography.intel.aws.ecr_image_layers.fetch_image_layers_async")
-@patch("cartography.client.aws.ecr.get_ecr_images")
-def test_sync_built_from_relationship(
-    mock_get_ecr_images,
-    mock_fetch_layers,
-    mock_get_repo_images,
-    mock_get_repos,
-    neo4j_session,
-):
-    """Test that BUILT_FROM relationship is created between ECRImage nodes."""
-    parent_digest = (
-        "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-    )
-    child_digest = (
-        "sha256:0000000000000000000000000000000000000000000000000000000000000001"
-    )
-
-    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
-    cartography.intel.aws.ecr.sync(
-        neo4j_session,
-        MagicMock(),
-        [TEST_REGION],
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    mock_get_ecr_images.return_value = {
-        (
-            "us-east-1",
-            "1",
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1",
-            "example-repository",
-            parent_digest,
-        ),
-        (
-            "us-east-1",
-            "2",
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest",
-            "example-repository",
-            child_digest,
-        ),
-    }
-
-    mock_fetch_layers.return_value = (
-        {
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1": {
-                "linux/amd64": test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
-            },
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": {
-                "linux/amd64": test_data.SAMPLE_CONFIG_BLOB["rootfs"]["diff_ids"]
-            },
-        },
-        {
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:1": parent_digest,
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": child_digest,
-        },
-        {},  # history_by_diff_id
-        {
-            "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository:latest": {
-                "parent_image_uri": "pkg:docker/000000000000.dkr.ecr.us-east-1.amazonaws.com/example-repository@1",
-                "parent_image_digest": parent_digest,
-            }
-        },
-    )
-
-    sync_ecr_layers(
-        neo4j_session,
-        MagicMock(),
-        [TEST_REGION],
-        TEST_ACCOUNT_ID,
-        TEST_UPDATE_TAG,
-        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
-    )
-
-    assert check_rels(
-        neo4j_session,
-        "ECRImage",
-        "id",
-        "ECRImage",
-        "id",
-        "BUILT_FROM",
-        rel_direction_right=True,
-    ) >= {(child_digest, parent_digest)}
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "parent_uri,parent_digest",
-    [
-        (
-            "pkg:docker/123456789012.dkr.ecr.us-east-1.amazonaws.com/base-image@v1.0",
-            "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-        ),
-        (
-            "pkg:oci/myregistry.azurecr.io/base-image@v1.0",
-            "sha256:abc123def456",
-        ),
-        (
-            "oci://harbor.example.com/library/alpine@sha256:xyz789",
-            "sha256:xyz789abc",
-        ),
-    ],
-)
-async def test_extract_provenance_from_attestation_uri_schemes(
-    parent_uri, parent_digest
-):
-    """Test extracting provenance from attestation with various URI schemes."""
-    # Arrange
-    mock_ecr_client = MagicMock()
-    mock_http_client = AsyncMock()
-
-    attestation_manifest = (
-        {
-            "layers": [
-                {"mediaType": "application/vnd.in-toto+json", "digest": "sha256:def456"}
-            ]
-        },
-        "application/vnd.oci.image.manifest.v1+json",
-    )
-
-    attestation_blob = {
-        "predicate": {
-            "materials": [
-                {
-                    "uri": parent_uri,
-                    "digest": {"sha256": parent_digest.removeprefix("sha256:")},
-                },
-            ]
-        }
-    }
-
-    original_batch_get_manifest = ecr_layers.batch_get_manifest
-    original_get_blob = ecr_layers.get_blob_json_via_presigned
-
-    ecr_layers.batch_get_manifest = AsyncMock(return_value=attestation_manifest)
-    ecr_layers.get_blob_json_via_presigned = AsyncMock(return_value=attestation_blob)
-
-    try:
-        # Act
-        result = await ecr_layers._extract_provenance_from_attestation(
-            mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
-        )
-
-        # Assert
-        assert result is not None
-        assert result["parent_image_uri"] == parent_uri
-        assert result["parent_image_digest"] == parent_digest
-    finally:
-        ecr_layers.batch_get_manifest = original_batch_get_manifest
-        ecr_layers.get_blob_json_via_presigned = original_get_blob
-
-
-@pytest.mark.asyncio
-async def test_extract_provenance_from_attestation_with_source_info():
-    """Test extracting full provenance including source repo and invocation info."""
-    # Arrange
-    mock_ecr_client = MagicMock()
-    mock_http_client = AsyncMock()
-
-    attestation_manifest = (
-        {
-            "layers": [
-                {"mediaType": "application/vnd.in-toto+json", "digest": "sha256:def456"}
-            ]
-        },
-        "application/vnd.oci.image.manifest.v1+json",
-    )
-
-    # Full SLSA provenance attestation blob with VCS and invocation info
-    attestation_blob = {
-        "predicate": {
-            "materials": [
-                {
-                    "uri": "pkg:docker/base-image@v1.0",
-                    "digest": {"sha256": "parentdigest123"},
-                },
-            ],
-            "invocation": {
-                "environment": {
-                    "github_repository": "subimagesec/subimage",
-                    "github_workflow_ref": "subimagesec/subimage/.github/workflows/build.yaml@refs/heads/main",
-                    "github_run_number": "1470",
-                }
-            },
-            "metadata": {
-                "https://mobyproject.org/buildkit@v1#metadata": {
-                    "vcs": {
-                        "source": "https://github.com/subimagesec/subimage",
-                        "revision": "abc123def456",
-                    }
-                }
-            },
-        }
-    }
-
-    original_batch_get_manifest = ecr_layers.batch_get_manifest
-    original_get_blob = ecr_layers.get_blob_json_via_presigned
-
-    ecr_layers.batch_get_manifest = AsyncMock(return_value=attestation_manifest)
-    ecr_layers.get_blob_json_via_presigned = AsyncMock(return_value=attestation_blob)
-
-    try:
-        # Act
-        result = await ecr_layers._extract_provenance_from_attestation(
-            mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
-        )
-
-        # Assert
-        assert result is not None
-        # Parent image info
-        assert result["parent_image_uri"] == "pkg:docker/base-image@v1.0"
-        assert result["parent_image_digest"] == "sha256:parentdigest123"
-        # Source repository info
-        assert result["source_uri"] == "https://github.com/subimagesec/subimage"
-        assert result["source_revision"] == "abc123def456"
-        # Build invocation info
-        assert result["invocation_uri"] == "https://github.com/subimagesec/subimage"
-        assert result["invocation_workflow"] == ".github/workflows/build.yaml"
-        assert result["invocation_run_number"] == "1470"
-        # Source file defaults to "Dockerfile" when no configSource.entryPoint
-        assert result["source_file"] == "Dockerfile"
-    finally:
-        ecr_layers.batch_get_manifest = original_batch_get_manifest
-        ecr_layers.get_blob_json_via_presigned = original_get_blob
-
-
-@pytest.mark.asyncio
-async def test_extract_provenance_source_file_with_config_source():
-    """Test source_file extraction with configSource.entryPoint and vcs localdir:dockerfile."""
-    mock_ecr_client = MagicMock()
-    mock_http_client = AsyncMock()
-
-    attestation_manifest = (
-        {
-            "layers": [
-                {"mediaType": "application/vnd.in-toto+json", "digest": "sha256:def456"}
-            ]
-        },
-        "application/vnd.oci.image.manifest.v1+json",
-    )
-
-    attestation_blob = {
-        "predicate": {
-            "invocation": {
-                "configSource": {
-                    "entryPoint": "Dockerfile.prod",
-                },
-                "environment": {
-                    "github_repository": "myorg/myrepo",
-                    "github_workflow_ref": "myorg/myrepo/.github/workflows/build.yaml@refs/heads/main",
-                },
-            },
-            "metadata": {
-                "https://mobyproject.org/buildkit@v1#metadata": {
-                    "vcs": {
-                        "source": "https://github.com/myorg/myrepo",
-                        "localdir:dockerfile": "./deploy",
-                    }
-                }
-            },
-        }
-    }
-
-    original_batch_get_manifest = ecr_layers.batch_get_manifest
-    original_get_blob = ecr_layers.get_blob_json_via_presigned
-
-    ecr_layers.batch_get_manifest = AsyncMock(return_value=attestation_manifest)
-    ecr_layers.get_blob_json_via_presigned = AsyncMock(return_value=attestation_blob)
-
-    try:
-        result = await ecr_layers._extract_provenance_from_attestation(
-            mock_ecr_client, "test-repo", "sha256:attestation", mock_http_client
-        )
-
-        assert result is not None
-        assert result["source_uri"] == "https://github.com/myorg/myrepo"
-        assert result["source_file"] == "deploy/Dockerfile.prod"
-    finally:
-        ecr_layers.batch_get_manifest = original_batch_get_manifest
-        ecr_layers.get_blob_json_via_presigned = original_get_blob
-
-
 @pytest.mark.asyncio
 @patch(
     "cartography.intel.aws.ecr_image_layers.get_blob_json_via_presigned",
@@ -645,15 +350,15 @@ async def test_fetch_image_layers_async_handles_manifest_list(
     mock_get_blob_json,
 ):
     repo_image = {
-        "uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared:multi",
+        "uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-shared:multi",
         "imageDigest": "sha256:indexdigest000000000000000000000000000000000000000000000000000000000000",
-        "repo_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared",
+        "repo_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-shared",
     }
 
     manifest_lookup = {
         repo_image["imageDigest"]: (
             test_data.MULTI_ARCH_INDEX,
-            ecr_layers.ECR_OCI_INDEX_MT,
+            "application/vnd.oci.image.index.v1+json",
         ),
         "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": (
             test_data.MULTI_ARCH_AMD64_MANIFEST,
@@ -689,7 +394,7 @@ async def test_fetch_image_layers_async_handles_manifest_list(
 
     mock_get_blob_json.side_effect = fake_get_blob_json
 
-    image_layers_data, digest_map, history_map, attestation_map = (
+    image_layers_data, digest_map, history_map = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -712,19 +417,6 @@ async def test_fetch_image_layers_async_handles_manifest_list(
     # Verify history_map is populated (may be empty if test data doesn't include history)
     assert isinstance(history_map, dict)
 
-    # Verify attestation data is extracted and mapped to child AMD64 image
-    # The attestation in MULTI_ARCH_INDEX attests to the AMD64 image (line 108 of test_data)
-    expected_child_uri = f"000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared@{test_data.MANIFEST_LIST_AMD64_DIGEST}"
-    assert (
-        expected_child_uri in attestation_map
-    ), "Attestation data should be mapped to child image!"
-    assert (
-        attestation_map[expected_child_uri]["parent_image_digest"]
-        == "sha256:parent1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-    )
-    # Verify child digest is in digest_map too
-    assert digest_map[expected_child_uri] == test_data.MANIFEST_LIST_AMD64_DIGEST
-
 
 @pytest.mark.asyncio
 @patch(
@@ -737,9 +429,9 @@ async def test_fetch_image_layers_async_skips_attestation_only(
     mock_get_blob_json,
 ):
     repo_image = {
-        "uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared:attestation",
+        "uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-shared:attestation",
         "imageDigest": "sha256:attestationindex0000000000000000000000000000000000000000000000000000",
-        "repo_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/subimage-shared",
+        "repo_uri": "000000000000.dkr.ecr.us-east-1.amazonaws.com/example-shared",
     }
 
     mock_batch_get_manifest.return_value = (
@@ -747,7 +439,7 @@ async def test_fetch_image_layers_async_skips_attestation_only(
         ecr_layers.ECR_OCI_MANIFEST_MT,
     )
 
-    image_layers_data, digest_map, history_map, attestation_map = (
+    image_layers_data, digest_map, history_map = (
         await ecr_layers.fetch_image_layers_async(
             MagicMock(),
             [repo_image],
@@ -904,8 +596,6 @@ def test_sync_layers_preserves_multi_arch_image_properties(
             f"000000000000.dkr.ecr.us-east-1.amazonaws.com/multi-arch-repository@{test_data.MANIFEST_LIST_ARM64_DIGEST}": test_data.MANIFEST_LIST_ARM64_DIGEST,
         },
         # history_by_diff_id (empty)
-        {},
-        # image_attestation_map (empty)
         {},
     )
 

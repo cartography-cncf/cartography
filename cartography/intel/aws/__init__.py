@@ -137,7 +137,13 @@ def _sync_one_account(
         if func_name not in requested_syncs_set:
             continue
         # Skip permission relationships and tags for now because they rely on data already being in the graph
-        if func_name == "ecr:image_layers":
+        if func_name == "ecr:provenance":
+            # ecr:provenance uses the standard AWS sync args plus aioboto3_session
+            RESOURCE_FUNCTIONS[func_name](
+                **sync_args,
+                aioboto3_session=aioboto3_session,
+            )
+        elif func_name == "ecr:image_layers":
             # has a different signature than the other functions (aioboto3_session replaces boto3_session)
             RESOURCE_FUNCTIONS[func_name](
                 neo4j_session,

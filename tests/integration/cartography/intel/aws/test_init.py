@@ -39,8 +39,8 @@ def make_aws_sync_test_kwargs(
     Returns a dummy dict of kwargs to use for AWS sync functions.
     The keys of this dict are also used to ensure that parameter names for all sync functions are standardized; see
     `test_standardize_aws_sync_kwargs`.
-    Note: aioboto3_session is NOT included here because it's only used by ecr:image_layers, which has a different
-    signature from the standard AWS sync functions.
+    Note: aioboto3_session is not included here because modules that use it expose it as
+    an extra/defaulted argument or use a non-standard signature handled separately.
     """
     return {
         "neo4j_session": neo4j_session,
@@ -309,6 +309,12 @@ def test_sync_one_account_all_sync_functions(
 
     # Test that ALL syncs got called.
     for sync_name in cartography.intel.aws.resources.RESOURCE_FUNCTIONS.keys():
+        if sync_name == "ecr:provenance":
+            AWS_RESOURCE_FUNCTIONS_STUB[sync_name].assert_called_with(
+                **aws_sync_test_kwargs,
+                aioboto3_session=mock_aioboto3_session(),
+            )
+            continue
         # ecr:image_layers has a different signature (uses aioboto3_session instead of boto3_session)
         # and is called with positional args in _sync_one_account
         if sync_name == "ecr:image_layers":
@@ -403,7 +409,7 @@ def test_standardize_aws_sync_kwargs():
     called with positional args in _sync_one_account, so it's excluded from this validation.
     """
     aws_sync_test_kwargs = make_aws_sync_test_kwargs(mock.MagicMock, mock.MagicMock)
-    # aioboto3_session is used only by ecr:image_layers
+    # aioboto3_session is used by ECR deep-inspection modules
     ecr_image_layers_kwargs = [
         "neo4j_session",
         "aioboto3_session",
