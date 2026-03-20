@@ -231,6 +231,8 @@ class Config:
     :param sentinelone_api_token: SentinelOne API token for authentication. Optional.
     :type sentinelone_account_ids: list[str]
     :param sentinelone_account_ids: List of SentinelOne account IDs to sync. Optional.
+    :type sentinelone_site_ids: list[str]
+    :param sentinelone_site_ids: List of SentinelOne site IDs to sync. Optional.
     :type spacelift_api_endpoint: string
     :param spacelift_api_endpoint: Spacelift GraphQL API endpoint. Optional.
     :type spacelift_api_token: string
@@ -391,6 +393,7 @@ class Config:
         sentinelone_api_url=None,
         sentinelone_api_token=None,
         sentinelone_account_ids=None,
+        sentinelone_site_ids=None,
         spacelift_api_endpoint=None,
         spacelift_api_token=None,
         spacelift_api_key_id=None,
@@ -539,6 +542,7 @@ class Config:
         self.sentinelone_api_url = sentinelone_api_url
         self.sentinelone_api_token = sentinelone_api_token
         self.sentinelone_account_ids = sentinelone_account_ids
+        self.sentinelone_site_ids = sentinelone_site_ids
         self.spacelift_api_endpoint = spacelift_api_endpoint
         self.spacelift_api_token = spacelift_api_token
         self.spacelift_api_key_id = spacelift_api_key_id
