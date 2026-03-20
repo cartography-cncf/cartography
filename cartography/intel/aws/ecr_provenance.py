@@ -61,8 +61,8 @@ SET
 STALE_ECR_IMAGE_PROVENANCE_QUERY = """
 MATCH (:AWSAccount {id: $AWS_ID})-[:RESOURCE]->(img:ECRImage)
 WHERE img.region = $Region
-  AND img.provenance_lastupdated IS NOT NULL
-  AND img.provenance_lastupdated <> $update_tag
+  AND img.source_uri IS NOT NULL
+  AND (img.provenance_lastupdated IS NULL OR img.provenance_lastupdated <> $update_tag)
 SET
     img.source_uri = NULL,
     img.source_revision = NULL,

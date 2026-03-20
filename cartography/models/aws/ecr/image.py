@@ -187,7 +187,11 @@ class ECRImageBaseSchema(CartographyNodeSchema):
 
 @dataclass(frozen=True)
 class ECRImageSchema(CartographyNodeSchema):
-    """Schema used by ecr_image_layers to enrich ECRImage nodes with layer data."""
+    """Schema used by ecr_image_layers for layer sync and by ecr.py for cleanup.
+
+    Must include ALL ECRImage relationship types so the cleanup job properly
+    detaches stale HAS_LAYER, BUILT_FROM, CONTAINS_IMAGE, and ATTESTS edges.
+    """
 
     label: str = "ECRImage"
     properties: ECRImageNodeProperties = ECRImageNodeProperties()
@@ -195,6 +199,9 @@ class ECRImageSchema(CartographyNodeSchema):
     other_relationships: OtherRelationships = OtherRelationships(
         [
             ECRImageHasLayerRel(),
+            ECRImageToParentImageRel(),
+            ECRImageContainsImageRel(),
+            ECRImageAttestsRel(),
         ],
     )
     extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(
