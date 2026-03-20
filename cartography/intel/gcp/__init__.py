@@ -301,7 +301,11 @@ def _sync_project_resources(
                 )
                 iam_sync_succeeded = True
             except HttpError as e:
-                if classify_gcp_http_error(e) in ("forbidden", "api_disabled"):
+                category = classify_gcp_http_error(e)
+                status = getattr(e.resp, "status", None)
+                if category in ("forbidden", "api_disabled") or (
+                    category == "transient" and status == 403
+                ):
                     logger.warning(
                         "CAI fallback skipped for project %s: %s. "
                         "Ensure Cloud Asset API is enabled and roles/cloudasset.viewer is granted.",
