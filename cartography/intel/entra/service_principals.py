@@ -42,9 +42,9 @@ async def get_entra_service_principals(
                 request_configuration=request_configuration,
             ),
         )
-    except Exception as e:
-        logger.error("Failed to fetch Entra service principals: %s", e)
-        return
+    except Exception:
+        logger.exception("Failed to fetch Entra service principals")
+        raise
 
     while page:
         if page.value:
@@ -58,12 +58,11 @@ async def get_entra_service_principals(
             page = await call_with_retries(
                 lambda: client.service_principals.with_url(page.odata_next_link).get(),
             )
-        except Exception as e:
-            logger.error(
-                "Failed to fetch next page of Entra service principals – stopping pagination early: %s",
-                e,
+        except Exception:
+            logger.exception(
+                "Failed to fetch next page of Entra service principals",
             )
-            break
+            raise
 
     logger.info(f"Retrieved {count} Entra service principals total")
 

@@ -70,13 +70,12 @@ async def get_app_role_assignments_for_app(
                 ).app_role_assigned_to.get(request_configuration=request_config),
             )
         )
-    except Exception as e:
-        logger.error(
-            "Failed to fetch app role assignments for application %s: %s",
+    except Exception:
+        logger.exception(
+            "Failed to fetch app role assignments for application %s",
             app_id,
-            e,
         )
-        return
+        raise
 
     assignment_count = 0
     page_count = 0
@@ -144,13 +143,12 @@ async def get_app_role_assignments_for_app(
                 .app_role_assigned_to.with_url(next_page_url)
                 .get(),
             )
-        except Exception as e:
-            logger.error(
-                "Failed to fetch next page of assignments for %s – stopping pagination early: %s",
+        except Exception:
+            logger.exception(
+                "Failed to fetch next page of assignments for %s",
                 app_id,
-                e,
             )
-            break
+            raise
 
     logger.info(
         f"Successfully retrieved {assignment_count} assignments for application {app_id} (pages: {page_count})"

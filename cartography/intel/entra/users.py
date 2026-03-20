@@ -95,9 +95,9 @@ async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
         page = await call_with_retries(
             lambda: client.users.get(request_configuration=request_configuration),
         )
-    except Exception as e:
-        logger.error("Failed to fetch Entra users: %s", e)
-        return
+    except Exception:
+        logger.exception("Failed to fetch Entra users")
+        raise
 
     while page:
         if page.value:

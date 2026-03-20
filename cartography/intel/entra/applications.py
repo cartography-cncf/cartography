@@ -52,9 +52,9 @@ async def get_entra_applications(
                 request_configuration=request_configuration
             ),
         )
-    except Exception as e:
-        logger.error("Failed to fetch Entra applications: %s", e)
-        return
+    except Exception:
+        logger.exception("Failed to fetch Entra applications")
+        raise
 
     while page:
         if page.value:
@@ -68,12 +68,11 @@ async def get_entra_applications(
             page = await call_with_retries(
                 lambda: client.applications.with_url(page.odata_next_link).get(),
             )
-        except Exception as e:
-            logger.error(
-                "Failed to fetch next page of Entra applications – stopping pagination early: %s",
-                e,
+        except Exception:
+            logger.exception(
+                "Failed to fetch next page of Entra applications",
             )
-            break
+            raise
 
     logger.info(f"Retrieved {count} Entra applications total")
 

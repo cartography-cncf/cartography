@@ -159,23 +159,12 @@ async def sync_entra_groups(
         groups_batch.append(group)
 
         # Fetch owners and members for this group
-        try:
-            owners = await call_with_retries(get_group_owners, client, group.id)
-            group_owner_map[group.id] = owners
-        except Exception as e:
-            logger.error(f"Failed to fetch owners for group {group.id}: {e}")
-            group_owner_map[group.id] = []
+        owners = await call_with_retries(get_group_owners, client, group.id)
+        group_owner_map[group.id] = owners
 
-        try:
-            users, subgroups = await call_with_retries(
-                get_group_members, client, group.id
-            )
-            user_member_map[group.id] = users
-            group_member_map[group.id] = subgroups
-        except Exception as e:
-            logger.error(f"Failed to fetch members for group {group.id}: {e}")
-            user_member_map[group.id] = []
-            group_member_map[group.id] = []
+        users, subgroups = await call_with_retries(get_group_members, client, group.id)
+        user_member_map[group.id] = users
+        group_member_map[group.id] = subgroups
 
         # Process batch when it reaches the size limit
         if len(groups_batch) >= batch_size:
