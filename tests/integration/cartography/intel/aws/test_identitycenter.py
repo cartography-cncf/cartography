@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import botocore.exceptions
+import pytest
 
 import cartography.intel.aws.identitycenter
 import tests.data.aws.identitycenter
@@ -12,6 +13,7 @@ from cartography.intel.aws.identitycenter import load_identity_center_instances
 from cartography.intel.aws.identitycenter import load_permission_sets
 from cartography.intel.aws.identitycenter import load_sso_groups
 from cartography.intel.aws.identitycenter import load_sso_users
+from cartography.intel.aws.identitycenter import PermissionSetSyncNotSupported
 from cartography.intel.aws.identitycenter import transform_permission_sets
 from cartography.intel.aws.identitycenter import transform_sso_groups
 from cartography.intel.aws.identitycenter import transform_sso_users
@@ -334,6 +336,7 @@ def test_group_allowed_by_role(neo4j_session):
     rel_data = [
         {
             "GroupId": group["GroupId"],
+            "IdentityStoreId": group["IdentityStoreId"],
             "PermissionSetArn": ps["PermissionSetArn"],
             "RoleArn": role_arn,
         }
@@ -538,10 +541,8 @@ def test_permission_set_to_role_us_west_2(neo4j_session):
     }
 
 
-@patch.object(
-    cartography.intel.aws.identitycenter,
-    "get_permission_sets",
-    side_effect=botocore.exceptions.ClientError(
+def test_get_permission_sets_raises_non_retryable_error_for_unsupported_instance():
+    error = botocore.exceptions.ClientError(
         error_response={
             "Error": {
                 "Code": "ValidationException",
@@ -549,7 +550,29 @@ def test_permission_set_to_role_us_west_2(neo4j_session):
             }
         },
         operation_name="ListPermissionSets",
-    ),
+    )
+
+    mock_session = MagicMock()
+    mock_client = MagicMock()
+    mock_paginator = MagicMock()
+    mock_session.client.return_value = mock_client
+    mock_client.get_paginator.return_value = mock_paginator
+    mock_paginator.paginate.side_effect = error
+
+    with pytest.raises(PermissionSetSyncNotSupported) as excinfo:
+        get_permission_sets(
+            mock_session,
+            "arn:aws:sso:::instance/ssoins-unsupported",
+            "us-east-1",
+        )
+
+    assert excinfo.value.__cause__ is error
+
+
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_permission_sets",
+    side_effect=PermissionSetSyncNotSupported("unsupported"),
 )
 @patch.object(
     cartography.intel.aws.identitycenter,
@@ -841,3 +864,171 @@ def test_multi_account_permission_set_assignments(
     assert (
         role_3_exists == 1
     ), f"Role in account 3 should exist in graph but was not found: {role_3_arn}"
+
+
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_user_group_memberships",
+    return_value={},
+)
+@patch.object(
+    cartography.intel.aws.identitycenter,
+    "get_group_permissionsets",
+    return_value=[],
+)
+@patch.object(cartography.intel.aws.identitycenter, "get_user_permissionsets")
+@patch.object(cartography.intel.aws.identitycenter, "get_sso_groups", return_value=[])
+@patch.object(cartography.intel.aws.identitycenter, "get_sso_users")
+@patch.object(cartography.intel.aws.identitycenter, "get_permission_sets")
+@patch.object(cartography.intel.aws.identitycenter, "get_identity_center_instances")
+def test_allowed_by_scoped_to_identity_store(
+    mock_instances,
+    mock_permsets,
+    mock_users,
+    mock_groups,
+    mock_user_permsets,
+    mock_group_permsets,
+    mock_memberships,
+    neo4j_session,
+):
+    """
+    Test that ALLOWED_BY relationships are scoped by identity_store_id,
+    preventing cross-instance leaks when multiple Identity Center instances exist.
+
+    Scenario:
+    - Two Identity Center instances (A and B) with different identity stores
+    - Both stores contain a user with the SAME UserId (simulating UUID collision)
+    - Only instance A has a permission set assignment for the user
+    - Instance B is account-scoped (no permission sets)
+
+    Positive assertion: instance A's ALLOWED_BY is created correctly.
+    Negative assertion: no extra ALLOWED_BY edges are created beyond instance A's
+    assignment — the total count is exactly 1.
+
+    Note on defense-in-depth: The identity_store_id field in the MatchLink
+    target_node_matcher adds a second matching criterion beyond just UserId. In the
+    sequential sync design each instance sets identity_store_id on the node before
+    creating matchlinks, so the scoping is not directly observable end-to-end. It
+    guards against future changes to sync ordering or batching.
+    """
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+
+    SHARED_USER_ID = "shared-user-uuid"
+    INSTANCE_A_ARN = "arn:aws:sso:::instance/ssoins-AAAA"
+    INSTANCE_B_ARN = "arn:aws:sso:::instance/ssoins-BBBB"
+    PERMSET_A_ARN = "arn:aws:sso:::permissionSet/ssoins-AAAA/ps-admin"
+    ROLE_ARN = (
+        f"arn:aws:iam::{TEST_ACCOUNT_ID}:role/aws-reserved/"
+        "sso.amazonaws.com/AWSReservedSSO_AdminAccess_abc123"
+    )
+
+    # Two instances in the same account, different identity stores
+    mock_instances.return_value = [
+        {
+            "InstanceArn": INSTANCE_A_ARN,
+            "IdentityStoreId": "d-AAAA",
+            "OwnerAccountId": TEST_ACCOUNT_ID,
+        },
+        {
+            "InstanceArn": INSTANCE_B_ARN,
+            "IdentityStoreId": "d-BBBB",
+            "OwnerAccountId": TEST_ACCOUNT_ID,
+        },
+    ]
+
+    # Same UserId in both identity stores
+    def _get_users(boto3_session, identity_store_id, region):
+        return [
+            {
+                "UserId": SHARED_USER_ID,
+                "UserName": f"user@{identity_store_id}.com",
+                "IdentityStoreId": identity_store_id,
+            },
+        ]
+
+    mock_users.side_effect = _get_users
+
+    # Instance A supports permission sets; instance B is account-scoped
+    def _get_permsets(boto3_session, instance_arn, region):
+        if instance_arn == INSTANCE_A_ARN:
+            return [
+                {
+                    "Name": "AdminAccess",
+                    "PermissionSetArn": PERMSET_A_ARN,
+                    "SessionDuration": "PT12H",
+                },
+            ]
+        raise PermissionSetSyncNotSupported("unsupported")
+
+    mock_permsets.side_effect = _get_permsets
+
+    # User assigned to permission set in instance A only
+    def _get_user_permsets(boto3_session, users, instance_arn, region):
+        if instance_arn == INSTANCE_A_ARN:
+            return [
+                {
+                    "UserId": SHARED_USER_ID,
+                    "PermissionSetArn": PERMSET_A_ARN,
+                    "AccountId": TEST_ACCOUNT_ID,
+                },
+            ]
+        return []
+
+    mock_user_permsets.side_effect = _get_user_permsets
+
+    # Pre-create the AWSRole matching instance A's permission set
+    neo4j_session.run(
+        "MERGE (a:AWSAccount {id: $id}) SET a.lastupdated = $tag",
+        id=TEST_ACCOUNT_ID,
+        tag=123,
+    )
+    role_data = [
+        {
+            "arn": ROLE_ARN,
+            "name": "AWSReservedSSO_AdminAccess_abc123",
+            "roleid": "AIDAROLETEST",
+            "path": "/aws-reserved/sso.amazonaws.com/",
+            "createdate": "2023-01-01",
+            "trusted_aws_principals": [],
+        },
+    ]
+    load(
+        neo4j_session,
+        AWSRoleSchema(),
+        role_data,
+        lastupdated=123,
+        AWS_ID=TEST_ACCOUNT_ID,
+    )
+
+    # Act - Run the full end-to-end sync across both instances
+    cartography.intel.aws.identitycenter.sync_identity_center_instances(
+        neo4j_session,
+        boto3_session=None,
+        regions=["us-east-1"],
+        current_aws_account_id=TEST_ACCOUNT_ID,
+        update_tag=123,
+        common_job_parameters={"AWS_ID": TEST_ACCOUNT_ID, "UPDATE_TAG": 123},
+    )
+
+    # Assert (positive): ALLOWED_BY was created during instance A's sync
+    allowed_by = neo4j_session.run(
+        """
+        MATCH (user:AWSSSOUser {id: $uid})<-[:ALLOWED_BY]-(role:AWSRole)
+        RETURN role.arn as arn
+        """,
+        uid=SHARED_USER_ID,
+    )
+    actual_arns = {r["arn"] for r in allowed_by}
+    assert actual_arns == {
+        ROLE_ARN
+    }, f"Expected exactly one ALLOWED_BY to {ROLE_ARN}, got {actual_arns}"
+
+    # Assert (negative): No ALLOWED_BY relationships exist beyond instance A's
+    # assignment. This catches cross-instance leaks where instance B (account-scoped,
+    # no permission sets) might incorrectly create ALLOWED_BY edges.
+    total_allowed_by = neo4j_session.run(
+        "MATCH ()-[r:ALLOWED_BY]->() RETURN count(r) as cnt",
+    ).single()["cnt"]
+    assert (
+        total_allowed_by == 1
+    ), f"Expected exactly 1 ALLOWED_BY relationship in the entire graph, got {total_allowed_by}"

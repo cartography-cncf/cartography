@@ -9,6 +9,7 @@ import neo4j.exceptions
 from neo4j import GraphDatabase
 from statsd import StatsClient
 
+import cartography.intel.aibom
 import cartography.intel.airbyte
 import cartography.intel.analysis
 import cartography.intel.anthropic
@@ -20,6 +21,7 @@ import cartography.intel.create_indexes
 import cartography.intel.crowdstrike
 import cartography.intel.cve
 import cartography.intel.digitalocean
+import cartography.intel.docker_scout
 import cartography.intel.duo
 import cartography.intel.entra
 import cartography.intel.gcp
@@ -40,12 +42,15 @@ import cartography.intel.pagerduty
 import cartography.intel.scaleway
 import cartography.intel.semgrep
 import cartography.intel.sentinelone
+import cartography.intel.sentry
 import cartography.intel.slack
 import cartography.intel.snipeit
 import cartography.intel.spacelift
+import cartography.intel.subimage
 import cartography.intel.syft
 import cartography.intel.tailscale
 import cartography.intel.trivy
+import cartography.intel.ubuntu
 import cartography.intel.workday
 from cartography.config import Config
 from cartography.stats import set_stats_client
@@ -84,15 +89,20 @@ TOP_LEVEL_MODULES: OrderedDict[str, Callable[..., None]] = OrderedDict(
         "workday": cartography.intel.workday.start_workday_ingestion,
         "scaleway": cartography.intel.scaleway.start_scaleway_ingestion,
         "semgrep": cartography.intel.semgrep.start_semgrep_ingestion,
+        "sentry": cartography.intel.sentry.start_sentry_ingestion,
         "snipeit": cartography.intel.snipeit.start_snipeit_ingestion,
         "tailscale": cartography.intel.tailscale.start_tailscale_ingestion,
         "jamf": cartography.intel.jamf.start_jamf_ingestion,
         "pagerduty": cartography.intel.pagerduty.start_pagerduty_ingestion,
+        "docker_scout": cartography.intel.docker_scout.start_docker_scout_ingestion,
         "trivy": cartography.intel.trivy.start_trivy_ingestion,
         "syft": cartography.intel.syft.start_syft_ingestion,
+        "aibom": cartography.intel.aibom.start_aibom_ingestion,
+        "ubuntu": cartography.intel.ubuntu.start_ubuntu_ingestion,
         "sentinelone": cartography.intel.sentinelone.start_sentinelone_ingestion,
         "slack": cartography.intel.slack.start_slack_ingestion,
         "spacelift": cartography.intel.spacelift.start_spacelift_ingestion,
+        "subimage": cartography.intel.subimage.start_subimage_ingestion,
         "ontology": cartography.intel.ontology.run,
         # Analysis should be the last stage
         "analysis": cartography.intel.analysis.run,
@@ -384,11 +394,24 @@ def run_with_config(sync: Sync, config: Config) -> int:
     neo4j_auth = None
     if config.neo4j_user or config.neo4j_password:
         neo4j_auth = (config.neo4j_user, config.neo4j_password)
+    driver_kwargs = {}
+    optional_driver_kwargs = {
+        "max_connection_lifetime": config.neo4j_max_connection_lifetime,
+        "liveness_check_timeout": config.neo4j_liveness_check_timeout,
+        "connection_timeout": config.neo4j_connection_timeout,
+        "keep_alive": config.neo4j_keep_alive,
+        "max_transaction_retry_time": config.neo4j_max_transaction_retry_time,
+        "max_connection_pool_size": config.neo4j_max_connection_pool_size,
+        "connection_acquisition_timeout": config.neo4j_connection_acquisition_timeout,
+    }
+    for key, value in optional_driver_kwargs.items():
+        if value is not None:
+            driver_kwargs[key] = value
     try:
         neo4j_driver = GraphDatabase.driver(
             config.neo4j_uri,
             auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
+            **driver_kwargs,
         )
     except neo4j.exceptions.ServiceUnavailable as e:
         logger.debug("Error occurred during Neo4j connect.", exc_info=True)

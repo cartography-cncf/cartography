@@ -23,7 +23,7 @@ def sync(
     api_session: requests.Session,
     common_job_parameters: Dict[str, Any],
     project_id: str,
-) -> None:
+) -> set[str]:
     apikeys = get(
         api_session,
         common_job_parameters["BASE_URL"],
@@ -37,6 +37,7 @@ def sync(
         common_job_parameters["UPDATE_TAG"],
     )
     cleanup(neo4j_session, common_job_parameters)
+    return {key["id"] for key in transformed_apikeys}
 
 
 @timeit

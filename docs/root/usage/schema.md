@@ -29,6 +29,9 @@
 ```{include} ../modules/airbyte/schema.md
 ```
 
+```{include} ../modules/aibom/schema.md
+```
+
 
 ```{include} ../modules/anthropic/schema.md
 ```
@@ -52,6 +55,9 @@
 ```
 
 ```{include} ../modules/digitalocean/schema.md
+```
+
+```{include} ../modules/docker_scout/schema.md
 ```
 
 ```{include} ../modules/duo/schema.md
@@ -114,6 +120,9 @@
 ```{include} ../modules/sentinelone/schema.md
 ```
 
+```{include} ../modules/sentry/schema.md
+```
+
 ```{include} ../modules/slack/schema.md
 ```
 
@@ -126,10 +135,16 @@
 ```{include} ../modules/spacelift/schema.md
 ```
 
+```{include} ../modules/subimage/schema.md
+```
+
 ```{include} ../modules/tailscale/schema.md
 ```
 
 ```{include} ../modules/trivy/schema.md
+```
+
+```{include} ../modules/ubuntu/schema.md
 ```
 
 ```{include} ../modules/workday/schema.md

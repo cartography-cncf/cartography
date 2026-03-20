@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.cloudsql.instance import GCPSqlInstanceSchema
@@ -96,6 +97,7 @@ def transform_sql_instances(instances_data: list[dict], project_id: str) -> list
                 "ip_addresses": ip_addresses_json,
                 "backup_configuration": backup_config_json,
                 "project_id": project_id,
+                "userLabels": settings.get("userLabels", {}),
             },
         )
     return transformed
@@ -154,6 +156,14 @@ def sync_sql_instances(
 
         instances = transform_sql_instances(instances_raw, project_id)
         load_sql_instances(neo4j_session, instances, project_id, update_tag)
+        sync_labels(
+            neo4j_session,
+            instances,
+            "cloud_sql_instance",
+            project_id,
+            update_tag,
+            common_job_parameters,
+        )
 
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["PROJECT_ID"] = project_id
