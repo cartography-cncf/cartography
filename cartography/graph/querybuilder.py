@@ -1458,7 +1458,7 @@ def build_create_index_queries_for_matchlink(
         >>> # Returns:
         >>> # - CREATE INDEX FOR (n:User) ON (n.id)
         >>> # - CREATE INDEX FOR (n:Role) ON (n.name)
-        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id)
+        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated)
 
         >>> # Missing source node matcher
         >>> incomplete_rel = CartographyRelSchema(target_node_label='Role', ...)
@@ -1499,11 +1499,12 @@ def build_create_index_queries_for_matchlink(
             ),
         )
 
-    # Create a composite index for the relationship between the source and target nodes.
-    # https://neo4j.com/docs/cypher-manual/4.3/indexes-for-search-performance/#administration-indexes-create-a-composite-index-for-relationships
+    # Create a composite relationship index that matches the cleanup predicate shape.
+    # Matchlink cleanup filters by sub-resource equality first and then uses lastupdated
+    # as a trailing inequality, so that order avoids broad scans under parallel sync load.
     rel_index_template = Template(
         "CREATE INDEX IF NOT EXISTS FOR ()$rel_direction[r:$RelLabel]$rel_direction_end() "
-        "ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id);",
+        "ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated);",
     )
     if rel_schema.direction == LinkDirection.INWARD:
         result.append(
