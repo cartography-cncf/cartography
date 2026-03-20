@@ -28,7 +28,7 @@ class IntuneDetectedAppRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:IntuneDetectedApp)<-[:RESOURCE]-(:IntuneTenant)
+# (:IntuneDetectedApp)<-[:RESOURCE]-(:EntraTenant)
 @dataclass(frozen=True)
 class IntuneDetectedAppToTenantRel(CartographyRelSchema):
     target_node_label: str = "EntraTenant"

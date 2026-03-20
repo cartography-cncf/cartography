@@ -328,7 +328,7 @@ Representation of a [Managed Device](https://learn.microsoft.com/en-us/graph/api
 - Intune managed devices belong to a tenant
 
     ```cypher
-    (:EntraTenant)-[:RESOURCE]->(:IntuneManagedDevice)
+    (:IntuneManagedDevice)-[:RESOURCE]->(:EntraTenant)
     ```
 
 - Entra users enroll devices in Intune
@@ -358,7 +358,7 @@ Representation of a [Detected App](https://learn.microsoft.com/en-us/graph/api/r
 - Detected apps belong to a tenant
 
     ```cypher
-    (:EntraTenant)-[:RESOURCE]->(:IntuneDetectedApp)
+    (:IntuneDetectedApp)-[:RESOURCE]->(:EntraTenant)
     ```
 
 - Managed devices have detected apps installed
@@ -388,7 +388,7 @@ Representation of a [Device Compliance Policy](https://learn.microsoft.com/en-us
 - Compliance policies belong to a tenant
 
     ```cypher
-    (:EntraTenant)-[:RESOURCE]->(:IntuneCompliancePolicy)
+    (:IntuneCompliancePolicy)-[:RESOURCE]->(:EntraTenant)
     ```
 
 - Compliance policies are assigned to Entra groups

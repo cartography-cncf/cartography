@@ -28,7 +28,7 @@ class IntuneCompliancePolicyRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:IntuneCompliancePolicy)<-[:RESOURCE]-(:IntuneTenant)
+# (:IntuneCompliancePolicy)<-[:RESOURCE]-(:EntraTenant)
 @dataclass(frozen=True)
 class IntuneCompliancePolicyToTenantRel(CartographyRelSchema):
     target_node_label: str = "EntraTenant"
