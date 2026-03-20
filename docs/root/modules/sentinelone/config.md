@@ -11,9 +11,17 @@ Follow these steps to analyze SentinelOne objects with Cartography.
 
 ## Required Permissions
 
-The API token requires the following permissions:
-- **Account** - Read access to account information
-- **Agent** - Read access to agent information
+The API token requirements depend on the scope of the user or service account
+that issued the token:
+
+- **Account-scoped tokens** should have read access to account and agent
+  information. Cartography will enumerate `/web/api/v2.1/accounts` first and
+  then sync the related resources.
+- **Site-scoped MSSP tokens** do not need permission to enumerate
+  `/web/api/v2.1/accounts`, but they must be able to read the visible sites plus
+  the agent, application inventory, and application risk data for those sites.
+  Cartography uses `/web/api/v2.1/sites` as the fallback entry point for those
+  tokens.
 
 ## MSSP And Site-Scoped Deployments
 

@@ -39,8 +39,16 @@ def is_site_scope_http_error(exception: Exception) -> bool:
     except ValueError:
         return False
 
+    if not isinstance(payload, dict):
+        return False
+
     errors = payload.get("errors", [])
+    if not isinstance(errors, list):
+        return False
+
     for error in errors:
+        if not isinstance(error, dict):
+            continue
         if error.get("code") == 4030010:
             return True
         detail = str(error.get("detail", "")).lower()

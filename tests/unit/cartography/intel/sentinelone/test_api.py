@@ -185,3 +185,21 @@ def test_is_site_scope_http_error_false_for_other_http_errors():
     exc = requests.exceptions.HTTPError(response=response)
 
     assert is_site_scope_http_error(exc) is False
+
+
+def test_is_site_scope_http_error_false_for_non_dict_payload():
+    response = Mock()
+    response.status_code = 403
+    response.json.return_value = ["unexpected"]
+    exc = requests.exceptions.HTTPError(response=response)
+
+    assert is_site_scope_http_error(exc) is False
+
+
+def test_is_site_scope_http_error_false_for_non_dict_errors():
+    response = Mock()
+    response.status_code = 403
+    response.json.return_value = {"errors": ["unexpected"]}
+    exc = requests.exceptions.HTTPError(response=response)
+
+    assert is_site_scope_http_error(exc) is False

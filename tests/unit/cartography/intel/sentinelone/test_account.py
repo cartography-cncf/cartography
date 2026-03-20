@@ -1,3 +1,6 @@
+import pytest
+
+from cartography.intel.sentinelone.account import get_sites
 from cartography.intel.sentinelone.account import transform_accounts
 from cartography.intel.sentinelone.account import transform_accounts_from_sites
 from tests.data.sentinelone.account import ACCOUNT_ID
@@ -94,3 +97,41 @@ def test_transform_accounts_from_sites_groups_parent_accounts():
             "state": "active",
         },
     ]
+
+
+def test_transform_accounts_from_sites_raises_for_missing_account_id():
+    with pytest.raises(KeyError):
+        transform_accounts_from_sites(
+            [
+                {
+                    "id": "site-1",
+                    "accountName": "Test Account",
+                },
+            ]
+        )
+
+
+def test_get_sites_paginates(mocker):
+    mock_call = mocker.patch(
+        "cartography.intel.sentinelone.account.call_sentinelone_api",
+        side_effect=[
+            {
+                "data": {"sites": [SITES_DATA[0]]},
+                "pagination": {"nextCursor": "cursor-1"},
+            },
+            {
+                "data": {"sites": [SITES_DATA[1], SITES_DATA[2]]},
+                "pagination": {},
+            },
+        ],
+    )
+
+    result = get_sites("https://test-api.sentinelone.net", "test-api-token")
+
+    assert result == SITES_DATA
+    assert mock_call.call_count == 2
+    assert mock_call.call_args_list[0].kwargs["params"] == {"limit": 1000}
+    assert mock_call.call_args_list[1].kwargs["params"] == {
+        "limit": 1000,
+        "cursor": "cursor-1",
+    }

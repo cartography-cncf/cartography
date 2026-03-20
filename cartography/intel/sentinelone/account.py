@@ -95,13 +95,30 @@ def get_sites(
     """
     logger.info("Retrieving SentinelOne site data")
 
-    response = call_sentinelone_api(
-        api_url=api_url,
-        endpoint="web/api/v2.1/sites",
-        api_token=api_token,
-    )
+    sites_data: list[dict[str, Any]] = []
+    cursor: str | None = None
 
-    sites_data = response.get("data", {}).get("sites", [])
+    while True:
+        params: dict[str, Any] = {"limit": 1000}
+        if cursor:
+            params["cursor"] = cursor
+
+        response = call_sentinelone_api(
+            api_url=api_url,
+            endpoint="web/api/v2.1/sites",
+            api_token=api_token,
+            params=params,
+        )
+
+        page_sites = response.get("data", {}).get("sites", [])
+        if not page_sites:
+            break
+
+        sites_data.extend(page_sites)
+        cursor = (response.get("pagination") or {}).get("nextCursor")
+        if not cursor:
+            break
+
     if site_ids:
         allowed_site_ids = set(site_ids)
         sites_data = [site for site in sites_data if site.get("id") in allowed_site_ids]
@@ -135,13 +152,7 @@ def transform_accounts_from_sites(
     accounts_by_id: dict[str, dict[str, Any]] = {}
 
     for site in sites_data:
-        account_id = site.get("accountId")
-        if not account_id:
-            logger.warning(
-                "Skipping SentinelOne site without accountId: %s", site.get("id")
-            )
-            continue
-
+        account_id = site["accountId"]
         active_licenses = site.get("activeLicenses")
         account = accounts_by_id.setdefault(
             account_id,
