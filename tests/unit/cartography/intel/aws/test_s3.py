@@ -71,8 +71,8 @@ def test_get_s3_bucket_list_403_with_region_header():
 
 
 @patch("cartography.intel.aws.s3._is_common_exception", return_value=(True, True))
-def test_get_s3_bucket_list_common_exception_skips_bucket(mock_is_common):
-    """A common exception (no region header) sets Region to None and skips the bucket."""
+def test_get_s3_bucket_list_common_exception_sets_region_none(mock_is_common):
+    """A common exception (no region header) keeps the bucket and sets Region to None."""
     mock_session = MagicMock()
     mock_client = mock_session.client.return_value
 
