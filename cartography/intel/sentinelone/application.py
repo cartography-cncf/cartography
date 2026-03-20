@@ -70,7 +70,7 @@ def get_application_installs(
 
     application_installs = []
     for i, app in enumerate(app_inventory):
-        logger.info(
+        logger.debug(
             f"Retrieving SentinelOne installs for {app.get('applicationName')} "
             f"{app.get('applicationVendor')} ({i + 1}/{len(app_inventory)})",
         )

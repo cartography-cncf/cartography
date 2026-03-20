@@ -80,7 +80,12 @@ def test_start_sentinelone_ingestion_falls_back_to_site_scoped_sync(
         assert common_job_parameters["S1_ACCOUNT_ID"] == "account-1"
         assert common_job_parameters["S1_SITE_ID"] in {"site-1", "site-2"}
 
-    assert sync_cleanup_args == [False, False, False, False, False, False]
+    assert len(sync_cleanup_args) == (
+        mock_agent_sync.call_count
+        + mock_application_sync.call_count
+        + mock_finding_sync.call_count
+    )
+    assert all(not do_cleanup for do_cleanup in sync_cleanup_args)
 
     mock_agent_cleanup.assert_called_once()
     mock_application_cleanup.assert_called_once()
