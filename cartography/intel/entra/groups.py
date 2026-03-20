@@ -11,6 +11,7 @@ from msgraph.generated.models.group import Group
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.entra.utils import call_with_retries
 from cartography.models.entra.group import EntraGroupSchema
 from cartography.util import timeit
 
@@ -158,11 +159,17 @@ async def sync_entra_groups(
         groups_batch.append(group)
 
         # Fetch owners and members for this group
-        owners = await get_group_owners(client, group.id)
-        group_owner_map[group.id] = owners
+        try:
+            owners = await call_with_retries(get_group_owners, client, group.id)
+            group_owner_map[group.id] = owners
+        except Exception as e:
+            logger.error(f"Failed to fetch owners for group {group.id}: {e}")
+            group_owner_map[group.id] = []
 
         try:
-            users, subgroups = await get_group_members(client, group.id)
+            users, subgroups = await call_with_retries(
+                get_group_members, client, group.id
+            )
             user_member_map[group.id] = users
             group_member_map[group.id] = subgroups
         except Exception as e:

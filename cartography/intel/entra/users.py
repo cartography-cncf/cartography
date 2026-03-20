@@ -11,6 +11,7 @@ from msgraph.generated.models.user import User
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.entra.utils import call_with_retries
 from cartography.models.entra.tenant import EntraTenantSchema
 from cartography.models.entra.user import EntraUserSchema
 from cartography.util import timeit
@@ -68,7 +69,7 @@ async def get_tenant(client: GraphServiceClient) -> Organization:
     """
     Get tenant information from Microsoft Graph API
     """
-    org = await client.organization.get()
+    org = await call_with_retries(client.organization.get)
     return org.value[0]  # Get the first (and typically only) tenant
 
 
@@ -90,7 +91,14 @@ async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
         ),
     )
 
-    page = await client.users.get(request_configuration=request_configuration)
+    try:
+        page = await call_with_retries(
+            lambda: client.users.get(request_configuration=request_configuration),
+        )
+    except Exception as e:
+        logger.error("Failed to fetch Entra users: %s", e)
+        return
+
     while page:
         if page.value:
             for user in page.value:
@@ -99,10 +107,12 @@ async def get_users(client: GraphServiceClient) -> AsyncGenerator[User, None]:
             break
 
         try:
-            page = await client.users.with_url(page.odata_next_link).get()
+            page = await call_with_retries(
+                lambda: client.users.with_url(page.odata_next_link).get(),
+            )
         except Exception as e:
             logger.error(
-                "Failed to fetch next page of Entra ID users – stopping pagination early: %s",
+                "Failed to fetch next page of Entra users – stopping pagination early: %s",
                 e,
             )
             break
