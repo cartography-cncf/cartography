@@ -1,9 +1,11 @@
 from typing import Any
+from typing import Callable
+from typing import cast
 
+import backoff
 import requests
 
 from cartography.util import backoff_handler
-from cartography.util import retries_with_backoff
 
 # Connect and read timeouts of 60 seconds each
 _TIMEOUT = (60, 60)
@@ -55,6 +57,26 @@ def is_site_scope_http_error(exception: Exception) -> bool:
         if "site users" in detail:
             return True
     return False
+
+
+def is_retryable_sentinelone_exception(exception: Exception) -> bool:
+    """
+    Return True only for transient SentinelOne failures worth retrying.
+    """
+    if isinstance(
+        exception,
+        (requests.exceptions.Timeout, requests.exceptions.ConnectionError),
+    ):
+        return True
+
+    if not isinstance(exception, requests.exceptions.HTTPError):
+        return False
+
+    response = exception.response
+    if response is None:
+        return False
+
+    return response.status_code == 429 or 500 <= response.status_code < 600
 
 
 def _call_sentinelone_api_base(
@@ -116,13 +138,29 @@ def call_sentinelone_api(
     :param data: Data to include in the request body for POST/PUT methods
     :return: The JSON response from the API
     """
-    wrapped_func = retries_with_backoff(
-        func=_call_sentinelone_api_base,
-        exception_type=requests.exceptions.RequestException,  # Covers Timeout and HTTPError as subclasses
-        max_tries=5,  # Maximum number of retry attempts
-        on_backoff=backoff_handler,
+
+    def request_once() -> dict[str, Any]:
+        return _call_sentinelone_api_base(
+            api_url,
+            endpoint,
+            api_token,
+            method,
+            params,
+            data,
+        )
+
+    wrapped_func = cast(
+        Callable[[], dict[str, Any]],
+        backoff.on_exception(
+            backoff.expo,
+            requests.exceptions.RequestException,
+            max_tries=5,  # Maximum number of retry attempts
+            on_backoff=backoff_handler,
+            giveup=lambda exception: not is_retryable_sentinelone_exception(exception),
+        )(request_once),
     )
-    return wrapped_func(api_url, endpoint, api_token, method, params, data)
+
+    return wrapped_func()
 
 
 def get_paginated_results(

@@ -38,12 +38,12 @@ def get_accounts(
         api_token=api_token,
     )
 
-    accounts_data = response.get("data", [])
+    accounts_data = response["data"]
 
     # Filter accounts by ID if specified
     if account_ids:
         accounts_data = [
-            account for account in accounts_data if account.get("id") in account_ids
+            account for account in accounts_data if account["id"] in account_ids
         ]
         logger.info(f"Filtered accounts data to {len(accounts_data)} matching accounts")
 
@@ -110,7 +110,7 @@ def get_sites(
             params=params,
         )
 
-        page_sites = response.get("data", {}).get("sites", [])
+        page_sites = response["data"]["sites"]
         if not page_sites:
             break
 
@@ -121,14 +121,14 @@ def get_sites(
 
     if site_ids:
         allowed_site_ids = set(site_ids)
-        sites_data = [site for site in sites_data if site.get("id") in allowed_site_ids]
+        sites_data = [site for site in sites_data if site["id"] in allowed_site_ids]
         logger.info(
             "Filtered SentinelOne sites to %d requested site IDs", len(sites_data)
         )
     if account_ids:
         allowed_account_ids = set(account_ids)
         sites_data = [
-            site for site in sites_data if site.get("accountId") in allowed_account_ids
+            site for site in sites_data if site["accountId"] in allowed_account_ids
         ]
         logger.info(
             "Filtered SentinelOne sites to %d matching parent accounts",

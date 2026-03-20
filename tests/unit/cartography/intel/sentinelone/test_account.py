@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from cartography.intel.sentinelone.account import get_accounts
 from cartography.intel.sentinelone.account import get_sites
 from cartography.intel.sentinelone.account import sync_site_scoped_accounts
 from cartography.intel.sentinelone.account import transform_accounts
@@ -161,3 +162,71 @@ def test_get_sites_paginates(mocker):
         "limit": 1000,
         "cursor": "cursor-1",
     }
+
+
+def test_get_accounts_raises_for_missing_account_id_in_filter(mocker):
+    mocker.patch(
+        "cartography.intel.sentinelone.account.call_sentinelone_api",
+        return_value={
+            "data": [
+                {
+                    "name": "Test Account",
+                },
+            ],
+        },
+    )
+
+    with pytest.raises(KeyError):
+        get_accounts(
+            "https://test-api.sentinelone.net",
+            "test-api-token",
+            account_ids=[ACCOUNT_ID],
+        )
+
+
+def test_get_sites_raises_for_missing_site_id_in_filter(mocker):
+    mocker.patch(
+        "cartography.intel.sentinelone.account.call_sentinelone_api",
+        return_value={
+            "data": {
+                "sites": [
+                    {
+                        "accountId": ACCOUNT_ID,
+                        "accountName": "Test Account",
+                    },
+                ],
+            },
+            "pagination": {},
+        },
+    )
+
+    with pytest.raises(KeyError):
+        get_sites(
+            "https://test-api.sentinelone.net",
+            "test-api-token",
+            site_ids=["site-1"],
+        )
+
+
+def test_get_sites_raises_for_missing_account_id_in_filter(mocker):
+    mocker.patch(
+        "cartography.intel.sentinelone.account.call_sentinelone_api",
+        return_value={
+            "data": {
+                "sites": [
+                    {
+                        "id": "site-1",
+                        "accountName": "Test Account",
+                    },
+                ],
+            },
+            "pagination": {},
+        },
+    )
+
+    with pytest.raises(KeyError):
+        get_sites(
+            "https://test-api.sentinelone.net",
+            "test-api-token",
+            account_ids=[ACCOUNT_ID],
+        )

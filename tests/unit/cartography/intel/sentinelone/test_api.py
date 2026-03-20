@@ -7,6 +7,7 @@ import requests
 from cartography.intel.sentinelone.api import build_scope_params
 from cartography.intel.sentinelone.api import call_sentinelone_api
 from cartography.intel.sentinelone.api import get_paginated_results
+from cartography.intel.sentinelone.api import is_retryable_sentinelone_exception
 from cartography.intel.sentinelone.api import is_site_scope_http_error
 from tests.data.sentinelone.api import EXPECTED_PAGINATED_RESULT
 from tests.data.sentinelone.api import MOCK_API_RESPONSE_SUCCESS
@@ -75,15 +76,44 @@ def test_call_sentinelone_api_with_params(mock_request):
 @patch("time.sleep")
 @patch("cartography.intel.sentinelone.api.requests.request")
 def test_call_sentinelone_api_http_error(mock_request, mock_sleep):
-    """Test API call with HTTP error"""
+    """Test non-retryable HTTP errors fail immediately."""
     mock_response = Mock()
-    mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-        "HTTP 401 Error"
-    )
+    mock_response.status_code = 401
+    http_error = requests.exceptions.HTTPError("HTTP 401 Error", response=mock_response)
+    mock_response.raise_for_status.side_effect = http_error
     mock_request.return_value = mock_response
 
     with pytest.raises(requests.exceptions.HTTPError):
         call_sentinelone_api(TEST_API_URL, TEST_ENDPOINT, TEST_API_TOKEN)
+
+    assert mock_request.call_count == 1
+    mock_sleep.assert_not_called()
+
+
+@patch("time.sleep")
+@patch("cartography.intel.sentinelone.api.requests.request")
+def test_call_sentinelone_api_retries_transient_http_error(mock_request, mock_sleep):
+    """Test retryable HTTP errors are retried."""
+    error_response = Mock()
+    error_response.status_code = 503
+    transient_error = requests.exceptions.HTTPError(
+        "HTTP 503 Error",
+        response=error_response,
+    )
+    success_response = Mock()
+    success_response.json.return_value = MOCK_API_RESPONSE_SUCCESS
+    success_response.raise_for_status.return_value = None
+
+    first_response = Mock()
+    first_response.raise_for_status.side_effect = transient_error
+
+    mock_request.side_effect = [first_response, success_response]
+
+    result = call_sentinelone_api(TEST_API_URL, TEST_ENDPOINT, TEST_API_TOKEN)
+
+    assert result == MOCK_API_RESPONSE_SUCCESS
+    assert mock_request.call_count == 2
+    mock_sleep.assert_called_once()
 
 
 @patch("cartography.intel.sentinelone.api.call_sentinelone_api")
@@ -203,3 +233,24 @@ def test_is_site_scope_http_error_false_for_non_dict_errors():
     exc = requests.exceptions.HTTPError(response=response)
 
     assert is_site_scope_http_error(exc) is False
+
+
+def test_is_retryable_sentinelone_exception():
+    response = Mock()
+    response.status_code = 429
+    http_error = requests.exceptions.HTTPError(response=response)
+
+    assert is_retryable_sentinelone_exception(http_error) is True
+    assert is_retryable_sentinelone_exception(requests.exceptions.Timeout()) is True
+    assert (
+        is_retryable_sentinelone_exception(requests.exceptions.ConnectionError())
+        is True
+    )
+
+
+def test_is_retryable_sentinelone_exception_false_for_non_transient_http_error():
+    response = Mock()
+    response.status_code = 403
+    http_error = requests.exceptions.HTTPError(response=response)
+
+    assert is_retryable_sentinelone_exception(http_error) is False
