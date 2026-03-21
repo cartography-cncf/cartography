@@ -1,4 +1,3 @@
-import copy
 import logging
 import time
 from datetime import datetime
@@ -59,7 +58,8 @@ def _call_cves_api(
         results["timestamp"] = data["timestamp"]
         results["totalResults"] = data["totalResults"]
         results["vulnerabilities"] = results.get("vulnerabilities", []) + data.get(
-            "vulnerabilities", [],
+            "vulnerabilities",
+            [],
         )
 
         total_results = data["totalResults"]
@@ -90,18 +90,19 @@ def get_cves_in_date_range(
         }
         logger.info(
             "Querying NVD for CVEs modified between %s and %s",
-            current_start, current_end,
+            current_start,
+            current_end,
         )
         batch = _call_cves_api(http_session, nist_cve_url, params)
 
         if not cves:
             cves = batch
         else:
-            cves["vulnerabilities"] = (
-                cves.get("vulnerabilities", []) + batch.get("vulnerabilities", [])
+            cves["vulnerabilities"] = cves.get("vulnerabilities", []) + batch.get(
+                "vulnerabilities", []
             )
-            cves["totalResults"] = (
-                cves.get("totalResults", 0) + batch.get("totalResults", 0)
+            cves["totalResults"] = cves.get("totalResults", 0) + batch.get(
+                "totalResults", 0
             )
 
         current_start = current_end
@@ -199,7 +200,9 @@ def get_and_transform_nvd_cves(
 
     logger.info(
         "Fetching NVD CVE data from %s to %s for %d CVEs in graph",
-        start_date, end_date, len(cve_ids_in_graph),
+        start_date,
+        end_date,
+        len(cve_ids_in_graph),
     )
     cve_json = get_cves_in_date_range(http_session, nist_cve_url, start_date, end_date)
     return transform_cves(cve_json, cve_ids_in_graph)

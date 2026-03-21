@@ -25,7 +25,7 @@ def get_epss_scores(
     results: dict[str, dict[str, Any]] = {}
 
     for i in range(0, len(cve_ids), BATCH_SIZE):
-        batch = cve_ids[i:i + BATCH_SIZE]
+        batch = cve_ids[i : i + BATCH_SIZE]
         cve_param = ",".join(batch)
         logger.info(
             "Fetching EPSS scores for %d CVEs (batch %d/%d)",
