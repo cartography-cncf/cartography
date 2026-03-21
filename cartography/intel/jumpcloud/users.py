@@ -45,6 +45,7 @@ def transform(api_result: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+@timeit
 def load_users(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],

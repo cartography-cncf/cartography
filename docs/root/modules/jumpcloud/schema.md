@@ -7,7 +7,6 @@ T -- RESOURCE --> S(JumpCloudSystem)
 T -- RESOURCE --> A(JumpCloudSaaSApplication)
 U -- OWNS --> S
 U -- USES --> A
-H(Human) -- IDENTITY_JUMPCLOUD --> U
 ```
 
 ### JumpCloudTenant
@@ -72,10 +71,6 @@ Representation of a user account in JumpCloud.
 - A `JumpCloudUser` uses a `JumpCloudSaaSApplication`.
     ```
     (:JumpCloudUser)-[:USES]->(:JumpCloudSaaSApplication)
-    ```
-- A `Human` is linked to a `JumpCloudUser` (via analysis job).
-    ```
-    (:Human)-[:IDENTITY_JUMPCLOUD]->(:JumpCloudUser)
     ```
 
 

@@ -118,6 +118,7 @@ class DeviceToGoogleWorkspaceDeviceRel(CartographyRelSchema):
 
 
 # (:Device)-[:OBSERVED_AS]->(:JumpCloudSystem)
+@dataclass(frozen=True)
 class DeviceToJumpCloudSystemRel(CartographyRelSchema):
     target_node_label: str = "JumpCloudSystem"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
