@@ -1,7 +1,5 @@
 import logging
 from typing import Any
-from typing import Dict
-from typing import List
 
 import boto3
 import neo4j
@@ -21,14 +19,14 @@ logger = logging.getLogger(__name__)
 def get_apprunner_services(
     boto3_session: boto3.session.Session,
     region: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     client = boto3_session.client(
         "apprunner",
         region_name=region,
         config=get_botocore_config(),
     )
-    services: List[Dict[str, Any]] = []
-    kwargs: Dict[str, Any] = {}
+    services: list[dict[str, Any]] = []
+    kwargs: dict[str, Any] = {}
     while True:
         response = client.list_services(**kwargs)
         services.extend(response.get("ServiceSummaryList", []))
@@ -37,7 +35,7 @@ def get_apprunner_services(
             break
         kwargs["NextToken"] = next_token
 
-    described_services: List[Dict[str, Any]] = []
+    described_services: list[dict[str, Any]] = []
     for service in services:
         service_arn = service["ServiceArn"]
         desc_response = client.describe_service(ServiceArn=service_arn)
@@ -46,13 +44,13 @@ def get_apprunner_services(
 
 
 def transform_apprunner_services(
-    services: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    services: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """
     Transform AppRunner services by flattening nested configuration fields
     for loading into the graph.
     """
-    transformed: List[Dict[str, Any]] = []
+    transformed: list[dict[str, Any]] = []
     for svc in services:
         svc = dict(svc)
 
@@ -81,13 +79,15 @@ def transform_apprunner_services(
 @timeit
 def load_apprunner_services(
     neo4j_session: neo4j.Session,
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     region: str,
     current_aws_account_id: str,
     aws_update_tag: int,
 ) -> None:
     logger.info(
-        f"Loading AppRunner {len(data)} services for region '{region}' into graph.",
+        "Loading AppRunner %s services for region '%s' into graph.",
+        len(data),
+        region,
     )
     load(
         neo4j_session,
@@ -102,7 +102,7 @@ def load_apprunner_services(
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     logger.debug("Running AppRunner cleanup job.")
     cleanup_job = GraphJob.from_node_schema(
@@ -115,14 +115,16 @@ def cleanup(
 def sync(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.session.Session,
-    regions: List[str],
+    regions: list[str],
     current_aws_account_id: str,
     update_tag: int,
-    common_job_parameters: Dict[str, Any],
+    common_job_parameters: dict[str, Any],
 ) -> None:
     for region in regions:
         logger.info(
-            f"Syncing AppRunner for region '{region}' in account '{current_aws_account_id}'.",
+            "Syncing AppRunner for region '%s' in account '%s'.",
+            region,
+            current_aws_account_id,
         )
 
         services = get_apprunner_services(boto3_session, region)
