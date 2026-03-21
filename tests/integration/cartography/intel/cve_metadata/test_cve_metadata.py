@@ -1,10 +1,11 @@
-from cartography.client.core.tx import load
+import copy
+
 from cartography.intel.cve_metadata import CVE_METADATA_FEED_ID
+from cartography.intel.cve_metadata import load_cve_metadata
+from cartography.intel.cve_metadata import load_cve_metadata_feed
 from cartography.intel.cve_metadata.epss import merge_epss_into_cves
 from cartography.intel.cve_metadata.nvd import get_cve_ids_from_graph
 from cartography.intel.cve_metadata.nvd import transform_cves
-from cartography.models.cve_metadata.cve_metadata import CVEMetadataFeedSchema
-from cartography.models.cve_metadata.cve_metadata import CVEMetadataSchema
 from tests.data.cve_metadata.nvd import GET_NVD_API_DATA
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -35,7 +36,7 @@ def test_sync(neo4j_session):
     cve_ids_in_graph = {"CVE-2023-41782", "CVE-2024-22075"}
 
     # Act - Transform NVD data
-    cves = transform_cves(GET_NVD_API_DATA, cve_ids_in_graph)
+    cves = transform_cves(copy.deepcopy(GET_NVD_API_DATA), cve_ids_in_graph)
 
     # Act - Merge EPSS data
     epss_data = {
@@ -44,23 +45,9 @@ def test_sync(neo4j_session):
     }
     merge_epss_into_cves(cves, epss_data)
 
-    # Act - Load feed
-    feed_data = [{"FEED_ID": CVE_METADATA_FEED_ID}]
-    load(
-        neo4j_session,
-        CVEMetadataFeedSchema(),
-        feed_data,
-        lastupdated=TEST_UPDATE_TAG,
-    )
-
-    # Act - Load CVEMetadata nodes
-    load(
-        neo4j_session,
-        CVEMetadataSchema(),
-        cves,
-        lastupdated=TEST_UPDATE_TAG,
-        FEED_ID=CVE_METADATA_FEED_ID,
-    )
+    # Act - Load via module functions
+    load_cve_metadata_feed(neo4j_session, TEST_UPDATE_TAG)
+    load_cve_metadata(neo4j_session, cves, TEST_UPDATE_TAG)
 
     # Assert - CVEMetadataFeed node exists
     assert check_nodes(

@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import neo4j
 from requests import Session
@@ -33,6 +34,48 @@ def _retryable_session() -> Session:
     )
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
     return session
+
+
+def _ensure_all_cves_present(
+    cves: list[dict[str, Any]],
+    cve_ids: list[str],
+) -> list[dict[str, Any]]:
+    """Ensure every graph CVE has an entry, even if NVD didn't return it."""
+    existing_ids = {cve["id"] for cve in cves}
+    for cve_id in cve_ids:
+        if cve_id not in existing_ids:
+            cves.append({"id": cve_id})
+    return cves
+
+
+def load_cve_metadata_feed(
+    neo4j_session: neo4j.Session,
+    update_tag: int,
+) -> None:
+    """Load the CVEMetadataFeed node."""
+    feed_data = [{"FEED_ID": CVE_METADATA_FEED_ID}]
+    load(
+        neo4j_session,
+        CVEMetadataFeedSchema(),
+        feed_data,
+        lastupdated=update_tag,
+    )
+
+
+def load_cve_metadata(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    update_tag: int,
+) -> None:
+    """Load CVEMetadata nodes into the graph."""
+    logger.info("Loading %d CVEMetadata nodes into the graph.", len(data))
+    load(
+        neo4j_session,
+        CVEMetadataSchema(),
+        data,
+        lastupdated=update_tag,
+        FEED_ID=CVE_METADATA_FEED_ID,
+    )
 
 
 @timeit
@@ -70,33 +113,25 @@ def start_cve_metadata_ingestion(
                 cve_ids_set,
             )
             logger.info("NVD returned metadata for %d CVEs.", len(cves))
+            # Ensure CVEs not in NVD lookback still get entries for EPSS
+            cves = _ensure_all_cves_present(cves, cve_ids)
         else:
-            # Create stub entries for CVEs so EPSS data can still be loaded
             cves = [{"id": cve_id} for cve_id in cve_ids]
 
-        # Step 3: Fetch and merge EPSS scores
+        # Step 3: Fetch and merge EPSS scores (non-fatal on failure)
         if "epss" in sources:
-            epss_data = epss.get_epss_scores(http_session, cve_ids)
-            epss.merge_epss_into_cves(cves, epss_data)
+            try:
+                epss_data = epss.get_epss_scores(http_session, cve_ids)
+                epss.merge_epss_into_cves(cves, epss_data)
+            except Exception:
+                logger.warning(
+                    "Failed to fetch EPSS scores, continuing without EPSS enrichment.",
+                    exc_info=True,
+                )
 
-        # Step 4: Load CVEMetadataFeed node
-        feed_data = [{"FEED_ID": CVE_METADATA_FEED_ID}]
-        load(
-            neo4j_session,
-            CVEMetadataFeedSchema(),
-            feed_data,
-            lastupdated=config.update_tag,
-        )
-
-        # Step 5: Load CVEMetadata nodes
-        logger.info("Loading %d CVEMetadata nodes into the graph.", len(cves))
-        load(
-            neo4j_session,
-            CVEMetadataSchema(),
-            cves,
-            lastupdated=config.update_tag,
-            FEED_ID=CVE_METADATA_FEED_ID,
-        )
+        # Step 4: Load into graph
+        load_cve_metadata_feed(neo4j_session, config.update_tag)
+        load_cve_metadata(neo4j_session, cves, config.update_tag)
 
     merge_module_sync_metadata(
         neo4j_session,
