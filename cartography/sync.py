@@ -413,8 +413,7 @@ def run_with_config(sync: Sync, config: Config) -> int:
         neo4j_driver = GraphDatabase.driver(
             config.neo4j_uri,
             auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
-            liveness_check_timeout=config.neo4j_liveness_check_timeout,
+            **driver_kwargs,
         )
     except neo4j.exceptions.ServiceUnavailable as e:
         logger.debug("Error occurred during Neo4j connect.", exc_info=True)
