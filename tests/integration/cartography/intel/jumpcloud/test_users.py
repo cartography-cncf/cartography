@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import requests
 
+import cartography.intel.jumpcloud.tenant
 import cartography.intel.jumpcloud.users
 import tests.data.jumpcloud.users
 from tests.integration.util import check_nodes
@@ -21,6 +22,7 @@ def test_sync_jumpcloud_users(mock_api, neo4j_session):
     Ensure that JumpCloud users are loaded with correct nodes and relationships.
     """
     # Act
+    cartography.intel.jumpcloud.tenant.sync(neo4j_session, TEST_ORG_ID, TEST_UPDATE_TAG)
     cartography.intel.jumpcloud.users.sync(
         neo4j_session,
         requests.Session(),

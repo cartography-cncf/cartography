@@ -3,6 +3,7 @@ from unittest.mock import patch
 import requests
 
 import cartography.intel.jumpcloud.applications
+import cartography.intel.jumpcloud.tenant
 import tests.data.jumpcloud.applications
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
@@ -34,6 +35,7 @@ def test_sync_jumpcloud_applications(mock_api, neo4j_session):
         UpdateTag=TEST_UPDATE_TAG,
     )
 
+    cartography.intel.jumpcloud.tenant.sync(neo4j_session, TEST_ORG_ID, TEST_UPDATE_TAG)
     cartography.intel.jumpcloud.applications.sync(
         neo4j_session,
         requests.Session(),
