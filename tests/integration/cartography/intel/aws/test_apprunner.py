@@ -1,6 +1,10 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 import cartography.intel.aws.apprunner
 import tests.data.aws.apprunner
 from cartography.intel.aws.apprunner import cleanup
+from tests.integration.cartography.intel.aws.common import create_test_account
 from tests.integration.util import check_nodes
 from tests.integration.util import check_rels
 
@@ -9,28 +13,24 @@ TEST_REGION = "us-east-1"
 TEST_UPDATE_TAG = 123456789
 
 
-def _create_test_accounts(neo4j_session):
-    # Create Test AWSAccount
-    neo4j_session.run(
-        """
-        MERGE (aws:AWSAccount{id: $aws_account_id})
-        ON CREATE SET aws.firstseen = timestamp()
-        SET aws.lastupdated = $aws_update_tag, aws :Tenant
-        """,
-        aws_account_id=TEST_ACCOUNT_ID,
-        aws_update_tag=TEST_UPDATE_TAG,
-    )
+@patch.object(
+    cartography.intel.aws.apprunner,
+    "get_apprunner_services",
+    return_value=tests.data.aws.apprunner.DESCRIBE_SERVICES,
+)
+def test_sync_apprunner_services_nodes(mock_get, neo4j_session):
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-
-def test_load_apprunner_services_nodes(neo4j_session):
     # Act
-    data = tests.data.aws.apprunner.DESCRIBE_SERVICES
-    cartography.intel.aws.apprunner.load_apprunner_services(
+    cartography.intel.aws.apprunner.sync(
         neo4j_session,
-        data,
-        TEST_REGION,
+        boto3_session,
+        [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     # Assert
@@ -41,17 +41,24 @@ def test_load_apprunner_services_nodes(neo4j_session):
     assert check_nodes(neo4j_session, "AppRunnerService", ["arn"]) == expected_nodes
 
 
-def test_load_apprunner_services_relationships(neo4j_session):
-    _create_test_accounts(neo4j_session)
+@patch.object(
+    cartography.intel.aws.apprunner,
+    "get_apprunner_services",
+    return_value=tests.data.aws.apprunner.DESCRIBE_SERVICES,
+)
+def test_sync_apprunner_services_relationships(mock_get, neo4j_session):
+    # Arrange
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
 
-    # Act: Load Test AppRunner Services
-    data = tests.data.aws.apprunner.DESCRIBE_SERVICES
-    cartography.intel.aws.apprunner.load_apprunner_services(
+    # Act
+    cartography.intel.aws.apprunner.sync(
         neo4j_session,
-        data,
-        TEST_REGION,
+        boto3_session,
+        [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
 
     # Assert
@@ -78,16 +85,22 @@ def test_load_apprunner_services_relationships(neo4j_session):
     )
 
 
-def test_cleanup_apprunner(neo4j_session):
-    # Arrange: load AppRunner service data
-    data = tests.data.aws.apprunner.DESCRIBE_SERVICES
-    _create_test_accounts(neo4j_session)
-    cartography.intel.aws.apprunner.load_apprunner_services(
+@patch.object(
+    cartography.intel.aws.apprunner,
+    "get_apprunner_services",
+    return_value=tests.data.aws.apprunner.DESCRIBE_SERVICES,
+)
+def test_cleanup_apprunner(mock_get, neo4j_session):
+    # Arrange: sync AppRunner service data
+    boto3_session = MagicMock()
+    create_test_account(neo4j_session, TEST_ACCOUNT_ID, TEST_UPDATE_TAG)
+    cartography.intel.aws.apprunner.sync(
         neo4j_session,
-        data,
-        TEST_REGION,
+        boto3_session,
+        [TEST_REGION],
         TEST_ACCOUNT_ID,
         TEST_UPDATE_TAG,
+        {"UPDATE_TAG": TEST_UPDATE_TAG, "AWS_ID": TEST_ACCOUNT_ID},
     )
     # Arrange: load in an unrelated EC2 instance. This should not be affected by the AppRunner module's cleanup job.
     neo4j_session.run(
