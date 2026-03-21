@@ -12,13 +12,13 @@
       "iterative": false
     },
     {
-      "__comment": "Policy applies to all users: match all devices with an enrolled user",
-      "query": "MATCH (policy:IntuneCompliancePolicy) WHERE policy.applies_to_all_users = true MATCH (u:EntraUser)-[:ENROLLED_TO]->(device:IntuneManagedDevice) MERGE (policy)-[:APPLIES_TO]->(device) RETURN COUNT(*) AS TotalCompleted",
+      "__comment": "Policy applies to all users: match all devices with an enrolled user in the same tenant",
+      "query": "MATCH (policy:IntuneCompliancePolicy)<-[:RESOURCE]-(t:EntraTenant)-[:RESOURCE]->(device:IntuneManagedDevice) WHERE policy.applies_to_all_users = true MATCH (u:EntraUser)-[:ENROLLED_TO]->(device) MERGE (policy)-[:APPLIES_TO]->(device) RETURN COUNT(*) AS TotalCompleted",
       "iterative": false
     },
     {
-      "__comment": "Policy applies to all devices: match all managed devices",
-      "query": "MATCH (policy:IntuneCompliancePolicy) WHERE policy.applies_to_all_devices = true MATCH (device:IntuneManagedDevice) MERGE (policy)-[:APPLIES_TO]->(device) RETURN COUNT(*) AS TotalCompleted",
+      "__comment": "Policy applies to all devices: match all managed devices in the same tenant",
+      "query": "MATCH (policy:IntuneCompliancePolicy)<-[:RESOURCE]-(t:EntraTenant)-[:RESOURCE]->(device:IntuneManagedDevice) WHERE policy.applies_to_all_devices = true MERGE (policy)-[:APPLIES_TO]->(device) RETURN COUNT(*) AS TotalCompleted",
       "iterative": false
     }
   ]

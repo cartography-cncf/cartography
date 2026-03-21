@@ -380,6 +380,8 @@ Representation of a [Device Compliance Policy](https://learn.microsoft.com/en-us
 | version | Version of the policy |
 | created_date_time | When the policy was created |
 | last_modified_date_time | When the policy was last modified |
+| applies_to_all_users | Whether the policy is assigned to all licensed users |
+| applies_to_all_devices | Whether the policy is assigned to all managed devices |
 | firstseen | Timestamp of when a sync job first created this node |
 | lastupdated | Timestamp of the last time the node was updated |
 
@@ -395,4 +397,10 @@ Representation of a [Device Compliance Policy](https://learn.microsoft.com/en-us
 
     ```cypher
     (:IntuneCompliancePolicy)-[:ASSIGNED_TO]->(:EntraGroup)
+    ```
+
+- Compliance policies apply to managed devices (resolved by analysis job)
+
+    ```cypher
+    (:IntuneCompliancePolicy)-[:APPLIES_TO]->(:IntuneManagedDevice)
     ```
