@@ -5,6 +5,7 @@ from cartography.intel.cve_metadata import load_cve_metadata
 from cartography.intel.cve_metadata import load_cve_metadata_feed
 from cartography.intel.cve_metadata.epss import merge_epss_into_cves
 from cartography.intel.cve_metadata.nvd import get_cve_ids_from_graph
+from cartography.intel.cve_metadata.nvd import merge_nvd_into_cves
 from cartography.intel.cve_metadata.nvd import transform_cves
 from tests.data.cve_metadata.nvd import GET_NVD_API_DATA
 from tests.integration.util import check_nodes
@@ -33,12 +34,16 @@ def test_get_cve_ids_from_graph(neo4j_session):
 def test_sync(neo4j_session):
     # Arrange
     _create_cve_nodes(neo4j_session)
-    cve_ids_in_graph = {"CVE-2023-41782", "CVE-2024-22075"}
+    cve_ids = ["CVE-2023-41782", "CVE-2024-22075"]
 
-    # Act - Transform NVD data
-    cves = transform_cves(copy.deepcopy(GET_NVD_API_DATA), cve_ids_in_graph)
+    # Act - Start from graph CVE IDs (authoritative list)
+    cves = [{"id": cve_id} for cve_id in cve_ids]
 
-    # Act - Merge EPSS data
+    # Act - Enrich with NVD data
+    nvd_data = transform_cves(copy.deepcopy(GET_NVD_API_DATA), set(cve_ids))
+    merge_nvd_into_cves(cves, nvd_data)
+
+    # Act - Enrich with EPSS data
     epss_data = {
         "CVE-2023-41782": {"epss_score": 0.00043, "epss_percentile": 0.08931},
         "CVE-2024-22075": {"epss_score": 0.97530, "epss_percentile": 0.99940},

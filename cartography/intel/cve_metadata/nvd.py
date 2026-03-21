@@ -122,12 +122,12 @@ def _get_primary_metric(metrics: list[dict[str, Any]] | None) -> dict[str, Any] 
 def transform_cves(
     cve_json: dict[Any, Any],
     cve_ids_in_graph: set[str],
-) -> list[dict[Any, Any]]:
+) -> dict[str, dict[Any, Any]]:
     """
     Transform NVD CVE data, filtering to only CVEs present in the graph.
-    Extracts CVSS metrics and CISA KEV fields from NVD responses.
+    Returns a dict keyed by CVE ID for easy merging.
     """
-    cves = []
+    cves: dict[str, dict[Any, Any]] = {}
     for data in cve_json.get("vulnerabilities", []):
         try:
             cve = data["cve"]
@@ -180,22 +180,31 @@ def transform_cves(
         except Exception:
             logger.error("Failed to transform CVE data: %s", data)
             raise
-        cves.append(cve)
+        cves[cve["id"]] = cve
     return cves
+
+
+def merge_nvd_into_cves(
+    cves: list[dict[str, Any]],
+    nvd_data: dict[str, dict[Any, Any]],
+) -> None:
+    """Merge NVD metadata into CVE dicts in-place."""
+    for cve in cves:
+        nvd_entry = nvd_data.get(cve["id"])
+        if nvd_entry:
+            cve.update(nvd_entry)
 
 
 def get_and_transform_nvd_cves(
     http_session: Session,
-    neo4j_session: neo4j.Session,
     nist_cve_url: str,
     cve_ids_in_graph: set[str],
-) -> list[dict[Any, Any]]:
+) -> dict[str, dict[Any, Any]]:
     """
     Fetch all recently modified CVEs from NVD and filter to those in the graph.
     Uses a 2-year lookback window to capture recent modifications.
     """
     end_date = datetime.now(tz=timezone.utc)
-    # Look back far enough to capture modifications to older CVEs
     start_date = end_date - timedelta(days=730)
 
     logger.info(

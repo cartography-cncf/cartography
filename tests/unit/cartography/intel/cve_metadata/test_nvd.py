@@ -1,5 +1,6 @@
 import copy
 
+from cartography.intel.cve_metadata.nvd import merge_nvd_into_cves
 from cartography.intel.cve_metadata.nvd import transform_cves
 from tests.data.cve_metadata.nvd import GET_NVD_API_DATA
 
@@ -13,16 +14,14 @@ def test_transform_cves_filters_to_graph_cves():
     """Only CVEs present in the graph should be returned."""
     cve_ids_in_graph = {"CVE-2023-41782", "CVE-2024-22075"}
     result = transform_cves(_fresh_data(), cve_ids_in_graph)
-    result_ids = {cve["id"] for cve in result}
-    assert result_ids == {"CVE-2023-41782", "CVE-2024-22075"}
-    # CVE-9999-0001 should be filtered out
-    assert "CVE-9999-0001" not in result_ids
+    assert set(result.keys()) == {"CVE-2023-41782", "CVE-2024-22075"}
+    assert "CVE-9999-0001" not in result
 
 
 def test_transform_cves_extracts_descriptions():
     cve_ids_in_graph = {"CVE-2023-41782"}
     result = transform_cves(_fresh_data(), cve_ids_in_graph)
-    cve = result[0]
+    cve = result["CVE-2023-41782"]
     assert cve["descriptions_en"] == [
         "There is a DLL hijacking vulnerability in ZTE ZXCLOUD iRAI.",
     ]
@@ -31,7 +30,7 @@ def test_transform_cves_extracts_descriptions():
 def test_transform_cves_extracts_cvss():
     cve_ids_in_graph = {"CVE-2024-22075"}
     result = transform_cves(_fresh_data(), cve_ids_in_graph)
-    cve = result[0]
+    cve = result["CVE-2024-22075"]
     assert cve["baseScore"] == 6.1
     assert cve["baseSeverity"] == "MEDIUM"
     assert cve["attackVector"] == "NETWORK"
@@ -43,7 +42,7 @@ def test_transform_cves_extracts_kev_fields():
     """CISA KEV fields should be passed through from NVD response."""
     cve_ids_in_graph = {"CVE-2024-22075"}
     result = transform_cves(_fresh_data(), cve_ids_in_graph)
-    cve = result[0]
+    cve = result["CVE-2024-22075"]
     assert cve["cisaExploitAdd"] == "2024-01-08"
     assert cve["cisaActionDue"] == "2024-01-29"
     assert cve["cisaRequiredAction"] == "Apply mitigations per vendor instructions."
@@ -54,7 +53,7 @@ def test_transform_cves_no_kev_fields():
     """CVEs without KEV data should not have those keys set."""
     cve_ids_in_graph = {"CVE-2023-41782"}
     result = transform_cves(_fresh_data(), cve_ids_in_graph)
-    cve = result[0]
+    cve = result["CVE-2023-41782"]
     assert cve.get("cisaExploitAdd") is None
     assert cve.get("cisaActionDue") is None
 
@@ -62,14 +61,14 @@ def test_transform_cves_no_kev_fields():
 def test_transform_cves_extracts_weaknesses():
     cve_ids_in_graph = {"CVE-2023-41782"}
     result = transform_cves(_fresh_data(), cve_ids_in_graph)
-    cve = result[0]
+    cve = result["CVE-2023-41782"]
     assert cve["weaknesses"] == ["CWE-20"]
 
 
 def test_transform_cves_extracts_references():
     cve_ids_in_graph = {"CVE-2023-41782"}
     result = transform_cves(_fresh_data(), cve_ids_in_graph)
-    cve = result[0]
+    cve = result["CVE-2023-41782"]
     assert cve["references_urls"] == [
         "https://support.zte.com.cn/support/news/LoopholeInfoDetail.aspx?newsId=1032984",
     ]
@@ -78,4 +77,20 @@ def test_transform_cves_extracts_references():
 def test_transform_cves_empty_graph():
     """When no CVE IDs are in the graph, result should be empty."""
     result = transform_cves(_fresh_data(), set())
-    assert result == []
+    assert result == {}
+
+
+def test_merge_nvd_into_cves():
+    """NVD data should be merged into existing CVE dicts."""
+    cves = [{"id": "CVE-2024-22075"}, {"id": "CVE-9999-0001"}]
+    nvd_data = {
+        "CVE-2024-22075": {
+            "id": "CVE-2024-22075",
+            "baseScore": 6.1,
+            "baseSeverity": "MEDIUM",
+        },
+    }
+    merge_nvd_into_cves(cves, nvd_data)
+    assert cves[0]["baseScore"] == 6.1
+    # CVE not in NVD should remain a stub
+    assert "baseScore" not in cves[1]
