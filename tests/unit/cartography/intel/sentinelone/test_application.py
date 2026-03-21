@@ -294,6 +294,29 @@ def test_get_application_data_empty_response(mock_get_paginated_results):
 
 
 @patch("cartography.intel.sentinelone.application.get_paginated_results")
+def test_get_application_data_site_scope(mock_get_paginated_results):
+    mock_get_paginated_results.return_value = APPLICATIONS_DATA[:1]
+
+    result = get_application_data(
+        TEST_ACCOUNT_ID,
+        TEST_API_URL,
+        TEST_API_TOKEN,
+        site_id="test-site-123",
+    )
+
+    mock_get_paginated_results.assert_called_once_with(
+        api_url=TEST_API_URL,
+        endpoint="/web/api/v2.1/application-management/inventory",
+        api_token=TEST_API_TOKEN,
+        params={
+            "siteIds": "test-site-123",
+            "limit": 1000,
+        },
+    )
+    assert result == APPLICATIONS_DATA[:1]
+
+
+@patch("cartography.intel.sentinelone.application.get_paginated_results")
 def test_get_application_installs_empty_inventory(mock_get_paginated_results):
     """
     Test that get_application_installs handles empty application inventory
@@ -329,6 +352,32 @@ def test_get_application_installs_missing_required_fields(mock_get_paginated_res
 
     # Verify no API calls were made due to early failure
     mock_get_paginated_results.assert_not_called()
+
+
+@patch("cartography.intel.sentinelone.application.get_paginated_results")
+def test_get_application_installs_site_scope(mock_get_paginated_results):
+    mock_get_paginated_results.return_value = APPLICATION_INSTALLS_DATA[:1]
+
+    result = get_application_installs(
+        APPLICATIONS_DATA[:1],
+        TEST_ACCOUNT_ID,
+        TEST_API_URL,
+        TEST_API_TOKEN,
+        site_id="test-site-123",
+    )
+
+    mock_get_paginated_results.assert_called_once_with(
+        api_url=TEST_API_URL,
+        endpoint="/web/api/v2.1/application-management/inventory/endpoints",
+        api_token=TEST_API_TOKEN,
+        params={
+            "siteIds": "test-site-123",
+            "limit": 1000,
+            "applicationName": "Office 365",
+            "applicationVendor": "Microsoft",
+        },
+    )
+    assert result == APPLICATION_INSTALLS_DATA[:1]
 
 
 @patch("cartography.intel.sentinelone.application.get_paginated_results")
