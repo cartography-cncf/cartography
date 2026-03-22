@@ -279,6 +279,10 @@ class Config:
     :param aibom_s3_bucket: S3 bucket containing AIBOM scan results. Optional.
     :type aibom_s3_prefix: str
     :param aibom_s3_prefix: S3 prefix path containing AIBOM scan results. Optional.
+    :type jumpcloud_api_key: str
+    :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
+    :type jumpcloud_org_id: str
+    :param jumpcloud_org_id: JumpCloud organization ID used as the tenant identifier. Optional.
     """
 
     def __init__(
@@ -419,6 +423,8 @@ class Config:
         aibom_s3_prefix=None,
         ubuntu_security_enabled=False,
         ubuntu_security_api_url=None,
+        jumpcloud_api_key=None,
+        jumpcloud_org_id=None,
         neo4j_connection_timeout=None,
         neo4j_keep_alive=None,
         neo4j_max_transaction_retry_time=None,
@@ -568,3 +574,5 @@ class Config:
         self.aibom_s3_prefix = aibom_s3_prefix
         self.ubuntu_security_enabled = ubuntu_security_enabled
         self.ubuntu_security_api_url = ubuntu_security_api_url
+        self.jumpcloud_api_key = jumpcloud_api_key
+        self.jumpcloud_org_id = jumpcloud_org_id
