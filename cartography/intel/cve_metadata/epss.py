@@ -39,13 +39,23 @@ def get_epss_scores(
             timeout=CONNECT_AND_READ_TIMEOUT,
         )
         response.raise_for_status()
-        data = response.json()
+        try:
+            data = response.json()
+        except ValueError:
+            logger.warning(
+                "EPSS batch %d returned invalid JSON, skipping.", i // BATCH_SIZE + 1
+            )
+            continue
 
         for entry in data.get("data", []):
-            results[entry["cve"]] = {
-                "epss_score": float(entry["epss"]),
-                "epss_percentile": float(entry["percentile"]),
-            }
+            try:
+                results[entry["cve"]] = {
+                    "epss_score": float(entry["epss"]),
+                    "epss_percentile": float(entry["percentile"]),
+                }
+            except (KeyError, ValueError):
+                logger.warning("Skipping malformed EPSS entry: %s", entry)
+                continue
 
     logger.info("Fetched EPSS scores for %d CVEs", len(results))
     return results
