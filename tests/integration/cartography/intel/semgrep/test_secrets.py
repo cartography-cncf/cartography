@@ -51,6 +51,7 @@ def test_sync_secrets(mock_get_secret_findings, mock_get_deployment, neo4j_sessi
         [
             "id",
             "rule_hash_id",
+            "repository_name",
             "ref",
             "severity",
             "confidence",
@@ -66,6 +67,7 @@ def test_sync_secrets(mock_get_secret_findings, mock_get_deployment, neo4j_sessi
         (
             tests.data.semgrep.secrets.SECRETS_FINDING_ID,
             "lBU41LA",
+            "simpsoncorp/sample_repo",
             "main",
             "HIGH",
             "HIGH",

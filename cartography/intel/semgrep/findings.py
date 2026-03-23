@@ -135,10 +135,12 @@ def transform_sca_vulns(
     for vuln in raw_vulns:
         sca_vuln: Dict[str, Any] = {}
         # Mandatory fields
+        repository_name = vuln["repository"]["name"]
         rule_id = vuln["rule"]["name"]
         vulnerability_class = _get_vuln_class(vuln)
         package = vuln["found_dependency"]["package"]
         sca_vuln["id"] = vuln["id"]
+        sca_vuln["repositoryName"] = repository_name
         sca_vuln["repositoryUrl"] = vuln["repository"]["url"]
         sca_vuln["branch"] = vuln["ref"]
         sca_vuln["ruleId"] = rule_id
@@ -290,8 +292,10 @@ def transform_sast_findings(
     findings = []
     for finding in raw_findings:
         sast_finding: Dict[str, Any] = {}
+        repository_name = finding["repository"]["name"]
         rule_id = finding["rule"]["name"]
         sast_finding["id"] = finding["id"]
+        sast_finding["repositoryName"] = repository_name
         sast_finding["repositoryUrl"] = finding["repository"]["url"]
         sast_finding["branch"] = finding["ref"]
         sast_finding["ruleId"] = rule_id

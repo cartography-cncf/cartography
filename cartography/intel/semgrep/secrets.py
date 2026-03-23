@@ -93,6 +93,7 @@ def transform_secret_findings(
         secret_finding: Dict[str, Any] = {}
         secret_finding["id"] = finding["id"]
         repository = finding.get("repository", {})
+        secret_finding["repositoryName"] = repository.get("name")
         secret_finding["repositoryUrl"] = repository.get("url")
         visibility = repository.get("visibility")
         secret_finding["repositoryVisibility"] = (
