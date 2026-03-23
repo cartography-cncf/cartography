@@ -15,6 +15,9 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class CVEMetadataNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    # Source tracking
+    source_nvd: PropertyRef = PropertyRef("source_nvd")
+    source_epss: PropertyRef = PropertyRef("source_epss")
     # NVD fields
     description: PropertyRef = PropertyRef("descriptions_en")
     references: PropertyRef = PropertyRef("references_urls")
@@ -43,19 +46,6 @@ class CVEMetadataNodeProperties(CartographyNodeProperties):
     # EPSS fields
     epss_score: PropertyRef = PropertyRef("epss_score")
     epss_percentile: PropertyRef = PropertyRef("epss_percentile")
-
-
-# Feed node (sub-resource for cleanup lifecycle)
-@dataclass(frozen=True)
-class CVEMetadataFeedNodeProperties(CartographyNodeProperties):
-    id: PropertyRef = PropertyRef("FEED_ID")
-    lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-
-
-@dataclass(frozen=True)
-class CVEMetadataFeedSchema(CartographyNodeSchema):
-    label: str = "CVEMetadataFeed"
-    properties: CVEMetadataFeedNodeProperties = CVEMetadataFeedNodeProperties()
 
 
 # Relationships

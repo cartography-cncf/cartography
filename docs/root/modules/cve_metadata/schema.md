@@ -9,6 +9,8 @@ Enrichment metadata for a [CVE](../cve/schema.md) node, sourced from NVD and EPS
 | firstseen | Timestamp of when a sync job first discovered this node |
 | lastupdated | Timestamp of the last time the node was updated |
 | **id** | The CVE ID (e.g., CVE-2024-22075) |
+| source\_nvd | Whether NVD enrichment was enabled for this sync |
+| source\_epss | Whether EPSS enrichment was enabled for this sync |
 | description | The english description of the vulnerability |
 | references | Reference URLs |
 | problem\_types | A list of CWE identifiers |

@@ -10,8 +10,8 @@ from cartography.client.core.tx import load
 from cartography.config import Config
 from cartography.intel.cve_metadata import epss
 from cartography.intel.cve_metadata import nvd
-from cartography.models.cve_metadata.cve_metadata import CVEMetadataFeedSchema
 from cartography.models.cve_metadata.cve_metadata import CVEMetadataSchema
+from cartography.models.cve_metadata.cve_metadata_feed import CVEMetadataFeedSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import timeit
@@ -23,19 +23,7 @@ CVE_METADATA_FEED_ID = "CVE_METADATA"
 ALL_SOURCES = {"nvd", "epss"}
 
 
-def _retryable_session() -> Session:
-    session = Session()
-    retry_policy = Retry(
-        total=8,
-        connect=1,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-    )
-    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
-    return session
-
-
+@timeit
 def load_cve_metadata_feed(
     neo4j_session: neo4j.Session,
     update_tag: int,
@@ -50,6 +38,7 @@ def load_cve_metadata_feed(
     )
 
 
+@timeit
 def load_cve_metadata(
     neo4j_session: neo4j.Session,
     data: list[dict[str, Any]],
@@ -91,9 +80,26 @@ def start_cve_metadata_ingestion(
     logger.info("Found %d CVE nodes in graph to enrich.", len(cve_ids))
 
     # Build one entry per graph CVE; each source enriches these dicts
-    cves = [{"id": cve_id} for cve_id in cve_ids]
+    cves: list[dict[str, Any]] = [
+        {
+            "id": cve_id,
+            "source_nvd": "nvd" in sources,
+            "source_epss": "epss" in sources,
+        }
+        for cve_id in cve_ids
+    ]
 
-    with _retryable_session() as http_session:
+    session = Session()
+    retry_policy = Retry(
+        total=8,
+        connect=1,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry_policy))
+
+    with session as http_session:
         # Step 2: Enrich with NVD data
         if "nvd" in sources:
             try:

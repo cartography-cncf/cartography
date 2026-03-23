@@ -37,7 +37,9 @@ def test_sync(neo4j_session):
     cve_ids = ["CVE-2023-41782", "CVE-2024-22075"]
 
     # Act - Start from graph CVE IDs (authoritative list)
-    cves = [{"id": cve_id} for cve_id in cve_ids]
+    cves = [
+        {"id": cve_id, "source_nvd": True, "source_epss": True} for cve_id in cve_ids
+    ]
 
     # Act - Enrich with NVD data
     nvd_data = transform_cves(copy.deepcopy(GET_NVD_API_DATA), set(cve_ids))

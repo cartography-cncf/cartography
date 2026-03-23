@@ -71,6 +71,7 @@ def _call_cves_api(
     return results
 
 
+@timeit
 def get_cves_in_date_range(
     http_session: Session,
     nist_cve_url: str,
