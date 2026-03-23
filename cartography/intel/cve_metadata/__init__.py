@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import neo4j
+import requests
 from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
@@ -100,28 +101,22 @@ def start_cve_metadata_ingestion(
     session.mount("https://", HTTPAdapter(max_retries=retry_policy))
 
     with session as http_session:
-        # Step 2: Enrich with NVD data
+        # Step 2: Enrich with NVD data (failures propagate — NVD is the primary source)
         if "nvd" in sources:
-            try:
-                nvd_data = nvd.get_and_transform_nvd_cves(
-                    http_session,
-                    config.cve_metadata_nist_url,
-                    set(cve_ids),
-                )
-                nvd.merge_nvd_into_cves(cves, nvd_data)
-                logger.info("NVD enriched %d CVEs.", len(nvd_data))
-            except Exception:
-                logger.warning(
-                    "Failed to fetch NVD data, continuing without NVD enrichment.",
-                    exc_info=True,
-                )
+            nvd_data = nvd.get_and_transform_nvd_cves(
+                http_session,
+                config.cve_metadata_nist_url,
+                set(cve_ids),
+            )
+            nvd.merge_nvd_into_cves(cves, nvd_data)
+            logger.info("NVD enriched %d CVEs.", len(nvd_data))
 
-        # Step 3: Enrich with EPSS scores
+        # Step 3: Enrich with EPSS scores (non-fatal — optional enrichment)
         if "epss" in sources:
             try:
                 epss_data = epss.get_epss_scores(http_session, cve_ids)
                 epss.merge_epss_into_cves(cves, epss_data)
-            except Exception:
+            except requests.exceptions.RequestException:
                 logger.warning(
                     "Failed to fetch EPSS scores, continuing without EPSS enrichment.",
                     exc_info=True,
