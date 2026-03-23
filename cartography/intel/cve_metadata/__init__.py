@@ -116,7 +116,7 @@ def start_cve_metadata_ingestion(
             try:
                 epss_data = epss.get_epss_scores(http_session, cve_ids)
                 epss.merge_epss_into_cves(cves, epss_data)
-            except requests.exceptions.RequestException:
+            except (requests.exceptions.RequestException, ValueError, KeyError):
                 logger.warning(
                     "Failed to fetch EPSS scores, continuing without EPSS enrichment.",
                     exc_info=True,
