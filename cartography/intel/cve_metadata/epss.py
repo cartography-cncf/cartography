@@ -53,7 +53,7 @@ def get_epss_scores(
                     "epss_score": float(entry["epss"]),
                     "epss_percentile": float(entry["percentile"]),
                 }
-            except (KeyError, ValueError):
+            except (KeyError, ValueError, TypeError):
                 logger.warning("Skipping malformed EPSS entry: %s", entry)
                 continue
 
