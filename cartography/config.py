@@ -283,6 +283,12 @@ class Config:
     :param jumpcloud_api_key: JumpCloud API key for authentication. Optional.
     :type jumpcloud_org_id: str
     :param jumpcloud_org_id: JumpCloud organization ID used as the tenant identifier. Optional.
+    :type jfrog_artifactory_base_url: str
+    :param jfrog_artifactory_base_url: JFrog Artifactory base URL. Optional.
+    :type jfrog_artifactory_token: str
+    :param jfrog_artifactory_token: JFrog Artifactory access token. Optional.
+    :type jfrog_artifactory_tenant_id: str
+    :param jfrog_artifactory_tenant_id: JFrog Artifactory tenant identifier. Optional.
     """
 
     def __init__(
@@ -425,6 +431,9 @@ class Config:
         ubuntu_security_api_url=None,
         jumpcloud_api_key=None,
         jumpcloud_org_id=None,
+        jfrog_artifactory_base_url=None,
+        jfrog_artifactory_token=None,
+        jfrog_artifactory_tenant_id=None,
         neo4j_connection_timeout=None,
         neo4j_keep_alive=None,
         neo4j_max_transaction_retry_time=None,
@@ -576,3 +585,6 @@ class Config:
         self.ubuntu_security_api_url = ubuntu_security_api_url
         self.jumpcloud_api_key = jumpcloud_api_key
         self.jumpcloud_org_id = jumpcloud_org_id
+        self.jfrog_artifactory_base_url = jfrog_artifactory_base_url
+        self.jfrog_artifactory_token = jfrog_artifactory_token
+        self.jfrog_artifactory_tenant_id = jfrog_artifactory_tenant_id
