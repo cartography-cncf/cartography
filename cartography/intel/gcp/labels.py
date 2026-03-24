@@ -4,6 +4,7 @@ from typing import Any
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import run_write_query
 from cartography.models.gcp.labels.label import GCPBigtableInstanceGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPBucketGCPLabelSchema
 from cartography.models.gcp.labels.label import GCPCloudRunJobGCPLabelSchema
@@ -212,7 +213,8 @@ def cleanup(
         return
     schema = mapping["schema"]
     resource_node_label = schema.other_relationships.rels[0].target_node_label
-    neo4j_session.run(
+    run_write_query(
+        neo4j_session,
         """
         MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(l:GCPLabel)
         WHERE l.resource_type = $RESOURCE_NODE_LABEL
@@ -222,7 +224,7 @@ def cleanup(
         PROJECT_ID=common_job_parameters["PROJECT_ID"],
         UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
         RESOURCE_NODE_LABEL=resource_node_label,
-    ).consume()
+    )
 
 
 @timeit

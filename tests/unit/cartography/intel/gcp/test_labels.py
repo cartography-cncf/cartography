@@ -1,3 +1,7 @@
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
+from cartography.intel.gcp.labels import cleanup
 from cartography.intel.gcp.labels import get_labels
 
 
@@ -41,3 +45,24 @@ def test_get_labels_unknown_resource_type():
     """
     labels = get_labels([{"id": "x", "labels": {"a": "b"}}], "unknown_type")
     assert labels == []
+
+
+@patch("cartography.intel.gcp.labels.run_write_query")
+def test_cleanup_uses_retryable_write_query(mock_run_write_query):
+    session = MagicMock()
+
+    cleanup(
+        session,
+        "gcp_bucket",
+        {"PROJECT_ID": "project-123", "UPDATE_TAG": 123},
+    )
+
+    mock_run_write_query.assert_called_once()
+    args, kwargs = mock_run_write_query.call_args
+    assert args[0] is session
+    assert "MATCH (:GCPProject {id: $PROJECT_ID})-[:RESOURCE]->(l:GCPLabel)" in args[1]
+    assert kwargs == {
+        "PROJECT_ID": "project-123",
+        "UPDATE_TAG": 123,
+        "RESOURCE_NODE_LABEL": "GCPBucket",
+    }
