@@ -19,7 +19,7 @@ def _create_cve_nodes(neo4j_session):
         """
         UNWIND $cve_ids AS cve_id
         MERGE (c:CVE{id: cve_id})
-        ON CREATE SET c.firstseen = timestamp()
+        ON CREATE SET c.firstseen = timestamp(), c.cve_id = cve_id
         """,
         cve_ids=["CVE-2023-41782", "CVE-2024-22075"],
     )
@@ -37,9 +37,7 @@ def test_sync(neo4j_session):
     cve_ids = ["CVE-2023-41782", "CVE-2024-22075"]
 
     # Act - Start from graph CVE IDs (authoritative list)
-    cves = [
-        {"id": cve_id, "source_nvd": True, "source_epss": True} for cve_id in cve_ids
-    ]
+    cves = [{"id": cve_id} for cve_id in cve_ids]
 
     # Act - Enrich with NVD data
     nvd_data = transform_cves(copy.deepcopy(GET_NVD_API_DATA), set(cve_ids))
@@ -53,7 +51,7 @@ def test_sync(neo4j_session):
     merge_epss_into_cves(cves, epss_data)
 
     # Act - Load via module functions
-    load_cve_metadata_feed(neo4j_session, TEST_UPDATE_TAG)
+    load_cve_metadata_feed(neo4j_session, TEST_UPDATE_TAG, {"nvd", "epss"})
     load_cve_metadata(neo4j_session, cves, TEST_UPDATE_TAG)
 
     # Assert - CVEMetadataFeed node exists
@@ -103,7 +101,7 @@ def test_sync(neo4j_session):
         "CVEMetadata",
         "id",
         "CVE",
-        "id",
+        "cve_id",
         "ENRICHES",
     ) == {
         ("CVE-2023-41782", "CVE-2023-41782"),

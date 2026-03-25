@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime
 
 from cartography.intel.cve_metadata.nvd import merge_nvd_into_cves
 from cartography.intel.cve_metadata.nvd import transform_cves
@@ -22,20 +23,30 @@ def test_transform_cves_extracts_descriptions():
     cve_ids_in_graph = {"CVE-2023-41782"}
     result = transform_cves(_fresh_data(), cve_ids_in_graph)
     cve = result["CVE-2023-41782"]
-    assert cve["descriptions_en"] == [
-        "There is a DLL hijacking vulnerability in ZTE ZXCLOUD iRAI.",
-    ]
+    assert (
+        cve["description_en"]
+        == "There is a DLL hijacking vulnerability in ZTE ZXCLOUD iRAI."
+    )
 
 
 def test_transform_cves_extracts_cvss():
     cve_ids_in_graph = {"CVE-2024-22075"}
     result = transform_cves(_fresh_data(), cve_ids_in_graph)
     cve = result["CVE-2024-22075"]
+    assert cve["cvss_version"] == "3.1"
     assert cve["baseScore"] == 6.1
     assert cve["baseSeverity"] == "MEDIUM"
     assert cve["attackVector"] == "NETWORK"
     assert cve["exploitabilityScore"] == 2.8
     assert cve["impactScore"] == 2.7
+
+
+def test_transform_cves_parses_dates():
+    cve_ids_in_graph = {"CVE-2023-41782"}
+    result = transform_cves(_fresh_data(), cve_ids_in_graph)
+    cve = result["CVE-2023-41782"]
+    assert cve["published"] == datetime.fromisoformat("2024-01-05T02:15:07.147")
+    assert cve["lastModified"] == datetime.fromisoformat("2024-01-05T11:54:11.040")
 
 
 def test_transform_cves_extracts_kev_fields():
