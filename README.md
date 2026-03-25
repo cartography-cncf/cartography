@@ -14,13 +14,11 @@ Cartography is a Python tool that pulls infrastructure assets and their relation
 **What it connects:** AWS, GCP, Azure, Kubernetes, GitHub, Okta, Entra ID, CrowdStrike, and [30+ more platforms](#supported-platforms).
 
 **Questions it answers:**
-- Which identities have access to which datastores?
-- What are the cross-tenant permission relationships in my environment?
+- Which identities have access to which datastores? How about across multiple tenants?
 - Am I affected by any critical vulnerabilities or compromised software packages?
 - What are the network paths in and out of my environment?
 - Which compute instances are exposed to the internet?
-- Which storage buckets allow anonymous access?
-- What AI agents are running in production?
+- What AI agents are running in production, and what permissions do they have?
 
 ![Visualization of RDS nodes and AWS nodes](docs/root/images/accountsandrds.png)
 
