@@ -8,6 +8,7 @@ from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
 from cartography.client.core.tx import load
+from cartography.client.core.tx import read_list_of_values_tx
 from cartography.config import Config
 from cartography.intel.cve_metadata import epss
 from cartography.intel.cve_metadata import nvd
@@ -25,12 +26,30 @@ ALL_SOURCES = {"nvd", "epss"}
 
 
 @timeit
+def get_cve_ids_from_graph(neo4j_session: neo4j.Session) -> list[str]:
+    """Query Neo4j for all CVE node IDs present in the graph."""
+    query = """
+    MATCH (c:CVE)
+    WHERE c.cve_id STARTS WITH "CVE"
+    RETURN DISTINCT c.cve_id
+    """
+    return [str(cve_id) for cve_id in read_list_of_values_tx(neo4j_session, query)]
+
+
+@timeit
 def load_cve_metadata_feed(
     neo4j_session: neo4j.Session,
     update_tag: int,
+    sources: set[str],
 ) -> None:
     """Load the CVEMetadataFeed node."""
-    feed_data = [{"FEED_ID": CVE_METADATA_FEED_ID}]
+    feed_data = [
+        {
+            "FEED_ID": CVE_METADATA_FEED_ID,
+            "source_nvd": "nvd" in sources,
+            "source_epss": "epss" in sources,
+        }
+    ]
     load(
         neo4j_session,
         CVEMetadataFeedSchema(),
@@ -74,21 +93,14 @@ def start_cve_metadata_ingestion(
         )
 
     # Step 1: Get all CVE IDs from the graph — this is the authoritative list
-    cve_ids = nvd.get_cve_ids_from_graph(neo4j_session)
+    cve_ids = get_cve_ids_from_graph(neo4j_session)
     if not cve_ids:
         logger.info("No CVE nodes found in graph, skipping CVE metadata enrichment.")
         return
     logger.info("Found %d CVE nodes in graph to enrich.", len(cve_ids))
 
     # Build one entry per graph CVE; each source enriches these dicts
-    cves: list[dict[str, Any]] = [
-        {
-            "id": cve_id,
-            "source_nvd": "nvd" in sources,
-            "source_epss": "epss" in sources,
-        }
-        for cve_id in cve_ids
-    ]
+    cves: list[dict[str, Any]] = [{"id": cve_id} for cve_id in cve_ids]
 
     session = Session()
     retry_policy = Retry(
@@ -105,7 +117,6 @@ def start_cve_metadata_ingestion(
         if "nvd" in sources:
             nvd_data = nvd.get_and_transform_nvd_cves(
                 http_session,
-                config.cve_metadata_nist_url,
                 set(cve_ids),
             )
             nvd.merge_nvd_into_cves(cves, nvd_data)
@@ -123,7 +134,7 @@ def start_cve_metadata_ingestion(
                 )
 
         # Step 4: Load into graph
-        load_cve_metadata_feed(neo4j_session, config.update_tag)
+        load_cve_metadata_feed(neo4j_session, config.update_tag, sources)
         load_cve_metadata(neo4j_session, cves, config.update_tag)
 
     merge_module_sync_metadata(

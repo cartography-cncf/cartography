@@ -15,13 +15,11 @@ from cartography.models.core.relationships import TargetNodeMatcher
 class CVEMetadataNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("id")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
-    # Source tracking
-    source_nvd: PropertyRef = PropertyRef("source_nvd")
-    source_epss: PropertyRef = PropertyRef("source_epss")
     # NVD fields
-    description: PropertyRef = PropertyRef("descriptions_en")
+    description: PropertyRef = PropertyRef("description_en")
     references: PropertyRef = PropertyRef("references_urls")
     problem_types: PropertyRef = PropertyRef("weaknesses")
+    cvss_version: PropertyRef = PropertyRef("cvss_version")
     vector_string: PropertyRef = PropertyRef("vectorString")
     attack_vector: PropertyRef = PropertyRef("attackVector")
     attack_complexity: PropertyRef = PropertyRef("attackComplexity")
@@ -76,7 +74,7 @@ class CVEMetadataToCVERelProperties(CartographyRelProperties):
 class CVEMetadataToCVERel(CartographyRelSchema):
     target_node_label: str = "CVE"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"id": PropertyRef("id")},
+        {"cve_id": PropertyRef("id")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "ENRICHES"

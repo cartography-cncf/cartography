@@ -342,7 +342,6 @@ class Config:
         nist_cve_url=None,
         cve_enabled=False,
         cve_api_key: str | None = None,
-        cve_metadata_nist_url="https://services.nvd.nist.gov/rest/json/cves/2.0/",
         cve_metadata_src: list[str] | None = None,
         crowdstrike_client_id=None,
         crowdstrike_client_secret=None,
@@ -495,7 +494,6 @@ class Config:
         self.nist_cve_url = nist_cve_url
         self.cve_enabled = cve_enabled
         self.cve_api_key: str | None = cve_api_key
-        self.cve_metadata_nist_url = cve_metadata_nist_url
         self.cve_metadata_src: list[str] | None = cve_metadata_src
         self.crowdstrike_client_id = crowdstrike_client_id
         self.crowdstrike_client_secret = crowdstrike_client_secret

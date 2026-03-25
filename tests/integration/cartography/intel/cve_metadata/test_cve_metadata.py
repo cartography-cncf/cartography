@@ -1,10 +1,10 @@
 import copy
 
 from cartography.intel.cve_metadata import CVE_METADATA_FEED_ID
+from cartography.intel.cve_metadata import get_cve_ids_from_graph
 from cartography.intel.cve_metadata import load_cve_metadata
 from cartography.intel.cve_metadata import load_cve_metadata_feed
 from cartography.intel.cve_metadata.epss import merge_epss_into_cves
-from cartography.intel.cve_metadata.nvd import get_cve_ids_from_graph
 from cartography.intel.cve_metadata.nvd import merge_nvd_into_cves
 from cartography.intel.cve_metadata.nvd import transform_cves
 from tests.data.cve_metadata.nvd import GET_NVD_API_DATA

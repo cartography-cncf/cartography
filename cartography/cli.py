@@ -897,15 +897,6 @@ class CLI:
             # =================================================================
             # CVE Metadata Options
             # =================================================================
-            cve_metadata_nist_url: Annotated[
-                str,
-                typer.Option(
-                    "--cve-metadata-nist-url",
-                    help="Base URL for NIST NVD API used by CVE metadata enrichment.",
-                    rich_help_panel=PANEL_CVE_METADATA,
-                    hidden=PANEL_CVE_METADATA not in visible_panels,
-                ),
-            ] = "https://services.nvd.nist.gov/rest/json/cves/2.0/",
             cve_metadata_src: Annotated[
                 list[str] | None,
                 typer.Option(
@@ -2308,7 +2299,6 @@ class CLI:
                 nist_cve_url=nist_cve_url,
                 cve_enabled=cve_enabled,
                 cve_api_key=cve_api_key,
-                cve_metadata_nist_url=cve_metadata_nist_url,
                 cve_metadata_src=cve_metadata_src,
                 crowdstrike_client_id=crowdstrike_client_id,
                 crowdstrike_client_secret=crowdstrike_client_secret,

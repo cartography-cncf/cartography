@@ -9,6 +9,8 @@ from cartography.models.core.nodes import CartographyNodeSchema
 class CVEMetadataFeedNodeProperties(CartographyNodeProperties):
     id: PropertyRef = PropertyRef("FEED_ID")
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
+    source_nvd: PropertyRef = PropertyRef("source_nvd")
+    source_epss: PropertyRef = PropertyRef("source_epss")
 
 
 @dataclass(frozen=True)
