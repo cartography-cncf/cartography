@@ -37,6 +37,7 @@ class CVEMetadataNodeProperties(CartographyNodeProperties):
     last_modified_date: PropertyRef = PropertyRef("lastModified")
     vuln_status: PropertyRef = PropertyRef("vulnStatus")
     # NVD KEV fields (from CISA data embedded in NVD responses)
+    is_kev: PropertyRef = PropertyRef("is_kev", extra_index=True)
     cisa_exploit_add: PropertyRef = PropertyRef("cisaExploitAdd")
     cisa_action_due: PropertyRef = PropertyRef("cisaActionDue")
     cisa_required_action: PropertyRef = PropertyRef("cisaRequiredAction")

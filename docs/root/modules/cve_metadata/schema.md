@@ -29,6 +29,7 @@ Enrichment metadata for a [CVE](../cve/schema.md) node, sourced from NVD and EPS
 | published\_date | The date the CVE was published |
 | last\_modified\_date | The date the CVE was last modified |
 | vuln\_status | The vulnerability analysis status |
+| is\_kev | Whether this CVE is in the CISA KEV catalog (indexed) |
 | cisa\_exploit\_add | Date added to CISA KEV catalog (if applicable) |
 | cisa\_action\_due | CISA remediation due date (if applicable) |
 | cisa\_required\_action | CISA required remediation action (if applicable) |

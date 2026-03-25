@@ -137,8 +137,8 @@ def transform_cves(
                 if cve.get(date_field):
                     cve[date_field] = datetime.fromisoformat(cve[date_field])
 
-            # CISA KEV fields are already top-level in cve dict if present:
-            # cisaExploitAdd, cisaActionDue, cisaRequiredAction, cisaVulnerabilityName
+            # CISA KEV fields are already top-level in cve dict if present
+            cve["is_kev"] = cve.get("cisaExploitAdd") is not None
 
         except Exception:
             logger.error("Failed to transform CVE data: %s", data)
