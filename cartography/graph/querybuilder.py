@@ -709,7 +709,6 @@ def _build_attach_sub_resource_statement(
 
     sub_resource_attach_template = Template(
         """
-        WITH i, item
         OPTIONAL MATCH (j:$SubResourceLabel{$MatchClause})
         WITH i, item, j WHERE j IS NOT NULL
         $RelMergeClause
@@ -804,7 +803,6 @@ def _build_attach_additional_links_statement(
 
     additional_links_template = Template(
         """
-        WITH i, item
         OPTIONAL MATCH ($node_var:$AddlLabel)
         WHERE
             $WhereClause
@@ -931,7 +929,7 @@ def _build_attach_relationships_statement(
     query_template = Template(
         """
         WITH i, item
-        CALL {
+        CALL (i, item) {
             $attach_relationships_statement
         }
         """,
