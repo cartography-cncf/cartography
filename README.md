@@ -1,19 +1,24 @@
 ![Cartography](docs/root/images/logo-horizontal.png)
 
+<div align="center">
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/cartography-cncf/cartography/badge)](https://scorecard.dev/viewer/?uri=github.com/cartography-cncf/cartography)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9637/badge)](https://www.bestpractices.dev/projects/9637)
 ![build](https://github.com/cartography-cncf/cartography/actions/workflows/publish-to-ghcr-and-pypi.yml/badge.svg)
+
+[Documentation](https://cartography-cncf.github.io/cartography/).
+</div>
 
 Cartography is a Python tool that pulls infrastructure assets and their relationships from multiple platforms into a [Neo4j](https://www.neo4j.com) graph database.
 
 **What it connects:** AWS, GCP, Azure, Kubernetes, GitHub, Okta, Entra ID, CrowdStrike, and [30+ more platforms](#supported-platforms).
 
-**What questions it answers:**
+**Questions it answers:**
 - Which identities have access to which datastores?
 - What are the cross-tenant permission relationships in my environment?
+- Am I affected by any critical vulnerabilities or compromised software packages?
 - What are the network paths in and out of my environment?
-- Which EC2 instances are exposed to the internet?
-- Which S3 buckets allow anonymous access?
+- Which compute instances are exposed to the internet?
+- Which storage buckets allow anonymous access?
 
 ![Visualization of RDS nodes and AWS nodes](docs/root/images/accountsandrds.png)
 
@@ -58,8 +63,6 @@ RETURN a.name, rds.id
 MATCH (instance:EC2Instance{exposed_internet: true})
 RETURN instance.instanceid, instance.publicdnsname
 ```
-
-![poweruser.png](docs/root/images/poweruser.png)
 
 See the [querying tutorial](https://cartography-cncf.github.io/cartography/usage/tutorial.html) and [data schema](https://cartography-cncf.github.io/cartography/usage/schema.html) for more use-cases.
 
@@ -113,16 +116,10 @@ See [the rules docs](https://cartography-cncf.github.io/cartography/usage/rules.
 </details>
 
 
-## Docs
-
-See the [full documentation](https://cartography-cncf.github.io/cartography/).
-
-
 ## Community
 
 - Join us on Slack: [CNCF Slack](https://communityinviter.com/apps/cloud-native/cncf) in the `#cartography` channel.
 - [Monthly community meeting](https://zoom-lfx.platform.linuxfoundation.org/meetings/cartography?view=week) — [minutes](https://docs.google.com/document/d/1VyRKmB0dpX185I15BmNJZpfAJ_Ooobwz0U1WIhjDxvw) · [past recordings](https://www.youtube.com/playlist?list=PLMga2YJvAGzidUWJB_fnG7EHI4wsDDsE1)
-- You can learn more about the story behind Cartography in our [presentation at BSidesSF 2019](https://www.youtube.com/watch?v=ZukUmZSKSek).
 
 
 ## Contributing
