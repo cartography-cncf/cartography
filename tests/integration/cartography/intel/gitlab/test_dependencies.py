@@ -208,7 +208,7 @@ def test_load_gitlab_dependencies_has_dep_relationships(neo4j_session):
 
 
 def test_load_gitlab_dependencies_properties(neo4j_session):
-    """Test that dependency properties are loaded correctly."""
+    """Test that all dependency properties are loaded correctly."""
     # Arrange
     _create_test_project(neo4j_session)
 
@@ -220,38 +220,54 @@ def test_load_gitlab_dependencies_properties(neo4j_session):
         TEST_UPDATE_TAG,
     )
 
-    # Assert - Check all properties
+    # Assert - Check all properties including new fields
     expected_nodes = {
         (
             "https://gitlab.example.com/myorg/awesome-project:npm:express@4.18.2",
             "express",
             "4.18.2",
             "npm",
+            "npm",
+            "^4.18.0",
+            "pkg:npm/express@4.18.2",
+            "npm|express|4.18.2",
         ),
         (
             "https://gitlab.example.com/myorg/awesome-project:npm:lodash@4.17.21",
             "lodash",
             "4.17.21",
             "npm",
+            "npm",
+            "~4.17.0",
+            "pkg:npm/lodash@4.17.21",
+            "npm|lodash|4.17.21",
         ),
         (
             "https://gitlab.example.com/myorg/awesome-project:pypi:requests@2.31.0",
             "requests",
             "2.31.0",
             "pypi",
+            "pypi",
+            ">=2.31.0,<3.0",
+            "pkg:pypi/requests@2.31.0",
+            "pypi|requests|2.31.0",
         ),
         (
             "https://gitlab.example.com/myorg/awesome-project:golang:gin@1.9.1",
             "gin",
             "1.9.1",
             "golang",
+            "golang",
+            "v1.9.1",
+            "pkg:golang/gin@1.9.1",
+            "golang|gin|1.9.1",
         ),
     }
     assert (
         check_nodes(
             neo4j_session,
             "GitLabDependency",
-            ["id", "name", "version", "package_manager"],
+            ["id", "name", "version", "package_manager", "ecosystem", "requirements", "purl", "normalized_id"],
         )
         == expected_nodes
     )

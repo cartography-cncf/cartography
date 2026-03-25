@@ -25,11 +25,18 @@ class GitLabDependencyNodeProperties(CartographyNodeProperties):
     """
 
     id: PropertyRef = PropertyRef("id")  # Unique identifier
-    name: PropertyRef = PropertyRef("name", extra_index=True)  # Package/library name
-    version: PropertyRef = PropertyRef("version")  # Version requirement
+    name: PropertyRef = PropertyRef("name", extra_index=True)  # Canonicalized package name
+    original_name: PropertyRef = PropertyRef("original_name")  # Original package name from SBOM
+    version: PropertyRef = PropertyRef("version")  # Resolved version
+    requirements: PropertyRef = PropertyRef("requirements")  # Version constraint from manifest
+    ecosystem: PropertyRef = PropertyRef("ecosystem")  # Normalized ecosystem (e.g., pypi, npm)
     package_manager: PropertyRef = PropertyRef(
         "package_manager"
-    )  # npm, pip, bundler, maven, etc.
+    )  # npm, pypi, golang, maven, etc.
+    manifest_file: PropertyRef = PropertyRef("manifest_file")  # Manifest filename
+    purl: PropertyRef = PropertyRef("purl")  # Package URL (e.g., pkg:pypi/requests@2.31.0)
+    type: PropertyRef = PropertyRef("type")  # Package type from PURL
+    normalized_id: PropertyRef = PropertyRef("normalized_id", extra_index=True)  # Cross-tool matching ID
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 

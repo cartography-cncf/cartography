@@ -1,4 +1,5 @@
 from cartography.intel.gitlab.dependencies import _parse_cyclonedx_sbom
+from cartography.intel.gitlab.dependencies import transform_dependencies
 
 
 def test_parse_cyclonedx_sbom_links_manifest_from_metadata():
@@ -55,6 +56,7 @@ def test_parse_cyclonedx_sbom_links_manifest_from_metadata():
     assert dep1["version"] == "4.18.2"
     assert dep1["manifest_path"] == "package.json"
     assert dep1["manifest_id"] == "https://gitlab.com/org/project/blob/package.json"
+    assert dep1["purl"] == "pkg:npm/express@4.18.2"
 
     # Second dependency
     dep2 = result[1]
@@ -62,6 +64,7 @@ def test_parse_cyclonedx_sbom_links_manifest_from_metadata():
     assert dep2["version"] == "4.17.21"
     assert dep2["manifest_path"] == "package.json"
     assert dep2["manifest_id"] == "https://gitlab.com/org/project/blob/package.json"
+    assert dep2["purl"] == "pkg:npm/lodash@4.17.21"
 
 
 def test_parse_cyclonedx_sbom_no_manifest_id_when_path_not_found():
@@ -106,6 +109,7 @@ def test_parse_cyclonedx_sbom_no_manifest_id_when_path_not_found():
     assert dep["name"] == "axios"
     assert dep["manifest_path"] == "packages/client/package.json"
     assert "manifest_id" not in dep
+    assert dep["purl"] == "pkg:npm/axios@1.6.0"
 
 
 def test_parse_cyclonedx_sbom_no_metadata_properties():
@@ -142,6 +146,7 @@ def test_parse_cyclonedx_sbom_no_metadata_properties():
     assert dep["name"] == "react"
     assert dep["manifest_path"] == ""
     assert "manifest_id" not in dep
+    assert dep["purl"] == "pkg:npm/react@18.2.0"
 
 
 def test_parse_cyclonedx_sbom_skips_non_library_components():
@@ -245,3 +250,114 @@ def test_parse_cyclonedx_sbom_skips_components_without_name():
     # Assert: only named component is returned
     assert len(result) == 1
     assert result[0]["name"] == "valid-lib"
+
+
+def test_parse_cyclonedx_sbom_preserves_purl():
+    """
+    Test that purl is passed through from CycloneDX components.
+    """
+    sbom_data = {
+        "components": [
+            {
+                "type": "library",
+                "name": "Django",
+                "version": "4.2.0",
+                "purl": "pkg:pypi/Django@4.2.0",
+            },
+            {
+                "type": "library",
+                "name": "no-purl",
+                "version": "1.0.0",
+            },
+        ],
+    }
+
+    result = _parse_cyclonedx_sbom(sbom_data, [])
+
+    assert result[0]["purl"] == "pkg:pypi/Django@4.2.0"
+    assert result[1]["purl"] is None
+
+
+def test_transform_dependencies_computes_derived_fields():
+    """
+    Test that transform_dependencies computes ecosystem, purl-derived fields,
+    canonical names, and requirements from manifest parsing.
+    """
+    raw_deps = [
+        {
+            "name": "Django",
+            "version": "4.2.0",
+            "package_manager": "pypi",
+            "manifest_path": "requirements.txt",
+            "purl": "pkg:pypi/Django@4.2.0",
+        },
+    ]
+    requirements = {
+        "requirements.txt": {
+            "django": ">=4.2,<5.0",
+        },
+    }
+
+    result = transform_dependencies(
+        raw_deps,
+        "https://gitlab.com/org/project",
+        requirements,
+    )
+
+    assert len(result) == 1
+    dep = result[0]
+    assert dep["name"] == "django"  # Canonicalized
+    assert dep["original_name"] == "Django"
+    assert dep["ecosystem"] == "pypi"
+    assert dep["type"] == "pypi"
+    assert dep["purl"] == "pkg:pypi/Django@4.2.0"
+    assert dep["normalized_id"] == "pypi|django|4.2.0"
+    assert dep["requirements"] == ">=4.2,<5.0"
+    assert dep["manifest_file"] == "requirements.txt"
+
+
+def test_transform_dependencies_no_requirements():
+    """
+    Test that transform works when no requirements are available.
+    """
+    raw_deps = [
+        {
+            "name": "express",
+            "version": "4.18.2",
+            "package_manager": "npm",
+            "manifest_path": "package.json",
+            "purl": "pkg:npm/express@4.18.2",
+        },
+    ]
+
+    result = transform_dependencies(raw_deps, "https://gitlab.com/org/project")
+
+    assert len(result) == 1
+    dep = result[0]
+    assert dep["requirements"] is None
+    assert dep["ecosystem"] == "npm"
+    assert dep["type"] == "npm"
+    assert dep["normalized_id"] == "npm|express|4.18.2"
+
+
+def test_transform_dependencies_no_purl():
+    """
+    Test that transform handles dependencies without purl gracefully.
+    """
+    raw_deps = [
+        {
+            "name": "some-lib",
+            "version": "1.0.0",
+            "package_manager": "unknown",
+            "manifest_path": "",
+            "purl": None,
+        },
+    ]
+
+    result = transform_dependencies(raw_deps, "https://gitlab.com/org/project")
+
+    assert len(result) == 1
+    dep = result[0]
+    assert dep["type"] is None
+    assert dep["normalized_id"] is None
+    assert dep["purl"] is None

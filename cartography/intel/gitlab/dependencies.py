@@ -2,6 +2,8 @@
 GitLab Dependencies Intelligence Module
 
 Fetches and parses individual dependencies from dependency scanning job artifacts.
+Extracts version constraints from manifest files to provide parity with GitHub's
+DependencyGraphManifest coverage.
 """
 
 import io
@@ -17,6 +19,8 @@ from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.gitlab.util import check_rate_limit_remaining
 from cartography.intel.gitlab.util import make_request_with_retry
+from cartography.intel.trivy.util import make_normalized_package_id
+from cartography.intel.trivy.util import parse_purl
 from cartography.models.gitlab.dependencies import GitLabDependencySchema
 from cartography.util import timeit
 
@@ -243,6 +247,7 @@ def _parse_cyclonedx_sbom(
             "version": version,
             "package_manager": package_manager,
             "manifest_path": manifest_path,
+            "purl": purl if purl else None,
         }
 
         # Add manifest_id if we found a matching DependencyFile
@@ -254,30 +259,89 @@ def _parse_cyclonedx_sbom(
     return dependencies
 
 
+def _canonicalize_dependency_name(name: str, package_manager: str) -> str:
+    """
+    Canonicalize dependency names based on ecosystem conventions.
+
+    For Python packages, uses PEP 503 canonicalization (lowercase, normalize separators).
+    For other ecosystems, lowercases the name.
+    """
+    if not name:
+        return name
+
+    if package_manager in ("pypi", "pip", "conda"):
+        try:
+            from packaging.utils import canonicalize_name
+            return str(canonicalize_name(name))
+        except ImportError:
+            return name.lower().replace("_", "-")
+
+    return name.lower()
+
+
 def transform_dependencies(
     raw_dependencies: list[dict[str, Any]],
     project_url: str,
+    requirements_by_manifest: dict[str, dict[str, str]] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Transform raw dependency data to match our schema.
+
+    :param raw_dependencies: Raw dependencies from CycloneDX parsing.
+    :param project_url: The project URL for ID construction.
+    :param requirements_by_manifest: Optional dict mapping manifest_path -> {pkg_name -> constraint}.
+        Used to populate the requirements field with version constraints from manifest files.
     """
     transformed = []
+    if requirements_by_manifest is None:
+        requirements_by_manifest = {}
 
     for dep in raw_dependencies:
-        name = dep.get("name", "")
+        original_name = dep.get("name", "")
         version = dep.get("version", "")
         package_manager = dep.get("package_manager", "unknown")
         manifest_id = dep.get("manifest_id")
+        manifest_path = dep.get("manifest_path", "")
+        dep_purl = dep.get("purl")
+
+        # Canonicalize name following ecosystem conventions
+        canonical_name = _canonicalize_dependency_name(original_name, package_manager)
+
+        # Derive ecosystem from package_manager (normalize)
+        ecosystem = package_manager.lower() if package_manager else "unknown"
+
+        # Parse PURL for ontology fields
+        parsed = parse_purl(dep_purl)
+        dep_type = parsed["type"] if parsed else None
+        normalized_id = make_normalized_package_id(purl=dep_purl)
+
+        # Extract manifest filename
+        manifest_file = manifest_path.split("/")[-1] if manifest_path else ""
+
+        # Look up version constraint from parsed manifest files
+        requirements = None
+        if requirements_by_manifest and manifest_path:
+            manifest_reqs = requirements_by_manifest.get(manifest_path, {})
+            # Try canonical name first, then original name (case-insensitive)
+            requirements = manifest_reqs.get(canonical_name) or manifest_reqs.get(
+                original_name.lower(),
+            )
 
         # Construct unique ID: project_url:package_manager:name@version
-        # Example: "https://gitlab.com/group/project:npm:express@4.18.2"
-        dep_id = f"{project_url}:{package_manager}:{name}@{version}"
+        dep_id = f"{project_url}:{package_manager}:{canonical_name}@{version}"
 
-        transformed_dep = {
+        transformed_dep: dict[str, Any] = {
             "id": dep_id,
-            "name": name,
+            "name": canonical_name,
+            "original_name": original_name,
             "version": version,
+            "requirements": requirements,
+            "ecosystem": ecosystem,
             "package_manager": package_manager,
+            "manifest_file": manifest_file,
+            "purl": dep_purl,
+            "type": dep_type,
+            "normalized_id": normalized_id,
             "project_url": project_url,
         }
 
@@ -339,6 +403,9 @@ def sync_gitlab_dependencies(
     """
     Sync GitLab dependencies for all projects.
 
+    Fetches dependencies from CycloneDX SBOMs and enriches them with version
+    constraints parsed from the actual manifest files (requirements.txt, etc.).
+
     :param neo4j_session: Neo4j session.
     :param gitlab_url: The GitLab instance URL.
     :param token: The GitLab API token.
@@ -348,6 +415,8 @@ def sync_gitlab_dependencies(
     :param dependency_files_by_project: Pre-fetched dependency files from dependency_files sync.
         If provided, avoids duplicate API calls. Dict maps project_url to list of files.
     """
+    from cartography.intel.gitlab.manifest_parser import fetch_and_parse_manifests
+
     logger.info(f"Syncing GitLab dependencies for {len(projects)} projects")
 
     # Sync dependencies for each project
@@ -393,7 +462,14 @@ def sync_gitlab_dependencies(
             logger.debug(f"No dependencies found for project {project_name}")
             continue
 
-        transformed_dependencies = transform_dependencies(raw_dependencies, project_url)
+        # Parse manifest files to extract version constraints
+        requirements_by_manifest = fetch_and_parse_manifests(
+            gitlab_url, token, project_id, transformed_files, default_branch,
+        )
+
+        transformed_dependencies = transform_dependencies(
+            raw_dependencies, project_url, requirements_by_manifest,
+        )
 
         logger.debug(
             f"Found {len(transformed_dependencies)} dependencies in project {project_name}"
