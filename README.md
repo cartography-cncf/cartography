@@ -6,7 +6,7 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9637/badge)](https://www.bestpractices.dev/projects/9637)
 ![build](https://github.com/cartography-cncf/cartography/actions/workflows/publish-to-ghcr-and-pypi.yml/badge.svg)
 
-[Documentation](https://cartography-cncf.github.io/cartography/).
+[Documentation](https://cartography-cncf.github.io/cartography/)
 </div>
 
 Cartography is a Python tool that pulls infrastructure assets and their relationships from multiple platforms into a [Neo4j](https://www.neo4j.com) graph database.
