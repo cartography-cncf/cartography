@@ -20,6 +20,7 @@ Cartography is a Python tool that pulls infrastructure assets and their relation
 - What are the network paths in and out of my environment?
 - Which compute instances are exposed to the internet?
 - Which storage buckets allow anonymous access?
+- What AI agents are running in production?
 
 ![Visualization of RDS nodes and AWS nodes](docs/root/images/accountsandrds.png)
 
