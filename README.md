@@ -9,7 +9,7 @@
 [Documentation](https://cartography-cncf.github.io/cartography/)
 </div>
 
-Cartography is a Python tool that pulls infrastructure assets and their relationships from multiple platforms into a [Neo4j](https://www.neo4j.com) graph database.
+Cartography is a Python tool that pulls infrastructure assets and their relationships into a [Neo4j](https://www.neo4j.com) graph database.
 
 **What it connects:** AWS, GCP, Azure, Kubernetes, GitHub, Okta, Entra ID, CrowdStrike, and [30+ more platforms](#supported-platforms).
 
