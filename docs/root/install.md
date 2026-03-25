@@ -195,8 +195,6 @@ Do this if you prefer to install and manage all the dependencies yourself. Carto
 
 1. **Run Neo4j graph database version 5.x or higher.**
 
-        ⚠️ Neo4j 4.x is no longer supported. You must use Neo4j 5.x or higher.
-
     1. We recommend running Neo4j as a Docker container so that you save time and don't need to install Java. Run `docker run --publish=7474:7474 --publish=7687:7687 -v data:/data --env=NEO4J_AUTH=none neo4j:5-community`.
 
     1. Otherwise, if you prefer to **install Neo4j from scratch**,
