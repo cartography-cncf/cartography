@@ -101,6 +101,21 @@ def test_is_permission_set_sync_unsupported_error():
     assert _is_permission_set_sync_unsupported_error(error)
 
 
+def test_is_permission_set_sync_unsupported_error_for_account_instance_message():
+    """Test support for AWS account-instance specific unsupported error wording."""
+    error = botocore.exceptions.ClientError(
+        error_response={
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "This operation is not supported for account instances of IAM Identity Center.",
+            },
+        },
+        operation_name="ListPermissionSets",
+    )
+
+    assert _is_permission_set_sync_unsupported_error(error)
+
+
 def test_is_permission_set_sync_unsupported_error_returns_false_for_other_errors():
     """Test that other ValidationExceptions are not treated as unsupported instance errors."""
     error = botocore.exceptions.ClientError(
