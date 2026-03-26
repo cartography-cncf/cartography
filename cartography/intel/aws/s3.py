@@ -146,7 +146,7 @@ def get_s3_bucket_details(
             client = create_boto3_client(
                 boto3_session,
                 "s3",
-                bucket["Region"],
+                region_name=bucket["Region"],
                 config=get_botocore_config(max_pool_connections=50),
             )
             s3_regional_clients[bucket["Region"]] = client
