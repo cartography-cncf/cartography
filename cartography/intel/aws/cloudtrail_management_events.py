@@ -11,6 +11,7 @@ import neo4j
 
 from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.cloudtrail.management_events import AssumedRoleMatchLink
 from cartography.models.aws.cloudtrail.management_events import (
@@ -44,8 +45,8 @@ def get_assume_role_events(
     :rtype: List[Dict[str, Any]]
     :return: List of CloudTrail AssumeRole events
     """
-    client = boto3_session.client(
-        "cloudtrail", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "cloudtrail", region_name=region, config=get_botocore_config()
     )
 
     # Calculate time range
@@ -99,8 +100,8 @@ def get_saml_role_events(
     :rtype: List[Dict[str, Any]]
     :return: List of CloudTrail AssumeRoleWithSAML events
     """
-    client = boto3_session.client(
-        "cloudtrail", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "cloudtrail", region_name=region, config=get_botocore_config()
     )
 
     # Calculate time range
@@ -156,8 +157,8 @@ def get_web_identity_role_events(
     :rtype: List[Dict[str, Any]]
     :return: List of CloudTrail AssumeRoleWithWebIdentity events
     """
-    client = boto3_session.client(
-        "cloudtrail", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "cloudtrail", region_name=region, config=get_botocore_config()
     )
 
     # Calculate time range

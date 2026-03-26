@@ -14,6 +14,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.bedrock.knowledge_base import AWSBedrockKnowledgeBaseSchema
 from cartography.util import aws_handle_regions
@@ -31,7 +32,8 @@ def get_knowledge_bases(
     Retrieve all knowledge bases in AWS Bedrock for a given region.
     """
     logger.info("Fetching Bedrock knowledge bases in region %s", region)
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "bedrock-agent",
         region_name=region,
         config=get_botocore_config(),

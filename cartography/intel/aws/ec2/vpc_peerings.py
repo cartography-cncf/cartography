@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.vpc import AWSVpcSchema
 from cartography.models.aws.ec2.vpc_cidr import AWSIPv4CidrBlockSchema
@@ -26,7 +27,8 @@ def get_vpc_peerings_data(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "ec2",
         region_name=region,
         config=get_botocore_config(),

@@ -11,6 +11,7 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.dns import ingest_dns_record_by_fqdn
 from cartography.models.aws.elasticsearch.domain import ESDomainSchema
@@ -271,7 +272,8 @@ def sync(
             region,
             current_aws_account_id,
         )
-        client = boto3_session.client(
+        client = create_boto3_client(
+            boto3_session,
             "es",
             region_name=region,
             config=get_botocore_config(),

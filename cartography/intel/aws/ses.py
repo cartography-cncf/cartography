@@ -10,6 +10,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ses import SESEmailIdentitySchema
 from cartography.util import aws_handle_regions
@@ -25,7 +26,8 @@ def get_ses_email_identities(
     region: str,
     current_aws_account_id: str,
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "sesv2",
         region_name=region,
         config=get_botocore_config(),

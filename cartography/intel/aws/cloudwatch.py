@@ -8,6 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.cloudwatch.log_metric_filter import (
     CloudWatchLogMetricFilterSchema,
@@ -25,8 +26,8 @@ logger = logging.getLogger(__name__)
 def get_cloudwatch_log_groups(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "logs", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "logs", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("describe_log_groups")
     logGroups = []
@@ -40,8 +41,8 @@ def get_cloudwatch_log_groups(
 def get_cloudwatch_log_metric_filters(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
-    logs_client = boto3_session.client(
-        "logs", region_name=region, config=get_botocore_config()
+    logs_client = create_boto3_client(
+        boto3_session, "logs", region_name=region, config=get_botocore_config()
     )
     paginator = logs_client.get_paginator("describe_metric_filters")
     metric_filters = []
@@ -81,8 +82,8 @@ def transform_metric_filters(
 def get_cloudwatch_metric_alarms(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "cloudwatch", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "cloudwatch", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("describe_alarms")
     alarms = []

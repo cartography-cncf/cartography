@@ -12,8 +12,7 @@ import botocore.exceptions
 import neo4j
 
 from cartography.config import Config
-from cartography.intel.aws.util.botocore_config import wrap_aioboto3_session
-from cartography.intel.aws.util.botocore_config import wrap_boto3_session
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.common import parse_and_validate_aws_regions
 from cartography.intel.aws.util.common import parse_and_validate_aws_requested_syncs
 from cartography.stats import get_stats_client
@@ -83,11 +82,8 @@ def _sync_one_account(
     aws_requested_syncs: Iterable[str] = RESOURCE_FUNCTIONS.keys(),
     aioboto3_session: aioboto3.Session | None = None,
 ) -> None:
-    boto3_session = wrap_boto3_session(boto3_session)
     if aioboto3_session is None:
-        aioboto3_session = wrap_aioboto3_session(aioboto3.Session())
-    else:
-        aioboto3_session = wrap_aioboto3_session(aioboto3_session)
+        aioboto3_session = aioboto3.Session()
 
     # Autodiscover the regions supported by the account unless the user has specified the regions to sync.
     if not regions:
@@ -236,7 +232,7 @@ def _autodiscover_accounts(
     logger.info("Trying to autodiscover accounts.")
     try:
         # Fetch all accounts
-        client = boto3_session.client("organizations")
+        client = create_boto3_client(boto3_session, "organizations")
         paginator = client.get_paginator("list_accounts")
         accounts: List[Dict] = []
         for page in paginator.paginate():
@@ -288,13 +284,11 @@ def _sync_multiple_accounts(
         common_job_parameters["AWS_ID"] = account_id
         if num_accounts == 1:
             # Use the default boto3 session because boto3 gets confused if you give it a profile name with 1 account
-            boto3_session = wrap_boto3_session(boto3.Session())
-            aioboto3_session = wrap_aioboto3_session(aioboto3.Session())
+            boto3_session = boto3.Session()
+            aioboto3_session = aioboto3.Session()
         else:
-            boto3_session = wrap_boto3_session(boto3.Session(profile_name=profile_name))
-            aioboto3_session = wrap_aioboto3_session(
-                aioboto3.Session(profile_name=profile_name),
-            )
+            boto3_session = boto3.Session(profile_name=profile_name)
+            aioboto3_session = aioboto3.Session(profile_name=profile_name)
 
         _autodiscover_accounts(
             neo4j_session,
@@ -429,7 +423,7 @@ def start_aws_ingestion(neo4j_session: neo4j.Session, config: Config) -> None:
         "aws_tagging_api_cleanup_batch": config.aws_tagging_api_cleanup_batch,
     }
     try:
-        boto3_session = wrap_boto3_session(boto3.Session())
+        boto3_session = boto3.Session()
     except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError) as e:
         logger.debug("Error occurred calling boto3.Session().", exc_info=True)
         logger.error(

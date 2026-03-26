@@ -4,6 +4,7 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import load
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.iam.instanceprofile import InstanceProfileSchema
 from cartography.util import aws_handle_regions
@@ -13,7 +14,7 @@ from cartography.util import timeit
 @timeit
 @aws_handle_regions
 def get_iam_instance_profiles(boto3_session: boto3.Session) -> list[dict[str, Any]]:
-    client = boto3_session.client("iam", config=get_botocore_config())
+    client = create_boto3_client(boto3_session, "iam", config=get_botocore_config())
     paginator = client.get_paginator("list_instance_profiles")
     instance_profiles = []
     for page in paginator.paginate():

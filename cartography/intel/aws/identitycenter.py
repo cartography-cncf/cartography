@@ -9,6 +9,7 @@ from cartography.client.core.tx import load
 from cartography.client.core.tx import load_matchlinks
 from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.identitycenter.awsidentitycenter import (
     AWSIdentityCenterInstanceSchema,
 )
@@ -57,7 +58,7 @@ def get_identity_center_instances(
     """
     Get all AWS IAM Identity Center instances in the current region
     """
-    client = boto3_session.client("sso-admin", region_name=region)
+    client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     instances = []
 
     paginator = client.get_paginator("list_instances")
@@ -101,7 +102,7 @@ def get_permission_sets(
     """
     Get all permission sets for a given Identity Center instance
     """
-    client = boto3_session.client("sso-admin", region_name=region)
+    client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     permission_sets = []
 
     try:
@@ -187,7 +188,7 @@ def get_sso_users(
     """
     Get all SSO users for a given Identity Store
     """
-    client = boto3_session.client("identitystore", region_name=region)
+    client = create_boto3_client(boto3_session, "identitystore", region_name=region)
     users = []
 
     paginator = client.get_paginator("list_users")
@@ -209,7 +210,7 @@ def get_sso_groups(
     """
     Get all SSO groups for a given Identity Store
     """
-    client = boto3_session.client("identitystore", region_name=region)
+    client = create_boto3_client(boto3_session, "identitystore", region_name=region)
     groups: list[dict[str, Any]] = []
 
     paginator = client.get_paginator("list_groups")
@@ -369,7 +370,7 @@ def get_user_permissionsets(
     to be assigned to just a subset of those!
     """
     logger.info(f"Getting permissionsets for {len(users)} users")
-    client = boto3_session.client("sso-admin", region_name=region)
+    client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     user_permissionsets = []
 
     for user in users:
@@ -404,7 +405,7 @@ def get_group_permissionsets(
     Get permissionsets for SSO groups, taking into account which accounts the group is assigned to.
     """
     logger.info(f"Getting permissionsets for {len(groups)} groups")
-    client = boto3_session.client("sso-admin", region_name=region)
+    client = create_boto3_client(boto3_session, "sso-admin", region_name=region)
     group_permissionsets: list[dict[str, Any]] = []
 
     for group in groups:
@@ -438,7 +439,7 @@ def get_user_group_memberships(
     """
     Return a mapping of UserId -> [GroupIds] for all group memberships in the identity store.
     """
-    client = boto3_session.client("identitystore", region_name=region)
+    client = create_boto3_client(boto3_session, "identitystore", region_name=region)
     user_groups: dict[str, list[str]] = {}
 
     for group in groups:

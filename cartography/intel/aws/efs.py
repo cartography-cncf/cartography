@@ -8,6 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.efs.access_point import EfsAccessPointSchema
 from cartography.models.aws.efs.file_system import EfsFileSystemSchema
@@ -23,8 +24,8 @@ logger = logging.getLogger(__name__)
 def get_efs_file_systems(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "efs", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "efs", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("describe_file_systems")
     fileSystems = []
@@ -74,8 +75,8 @@ def transform_efs_file_systems(
 def get_efs_mount_targets(
     fileSystems: List[Dict[str, Any]], boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "efs", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "efs", region_name=region, config=get_botocore_config()
     )
     file_system_ids = []
     for file_system in fileSystems:
@@ -94,8 +95,8 @@ def get_efs_mount_targets(
 def get_efs_access_points(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
-    client = boto3_session.client(
-        "efs", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "efs", region_name=region, config=get_botocore_config()
     )
 
     paginator = client.get_paginator("describe_access_points")

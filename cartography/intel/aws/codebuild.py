@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.codebuild.project import CodeBuildProjectSchema
 from cartography.util import aws_handle_regions
@@ -38,8 +39,8 @@ def get_all_codebuild_projects(
     boto3_session: boto3.Session, region: str
 ) -> List[Dict[str, Any]]:
 
-    client = boto3_session.client(
-        "codebuild", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "codebuild", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("list_projects")
 

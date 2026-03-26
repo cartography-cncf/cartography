@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.auto_scaling_groups import AutoScalingGroupSchema
 from cartography.models.aws.ec2.auto_scaling_groups import (
@@ -37,7 +38,8 @@ def get_ec2_auto_scaling_groups(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "autoscaling",
         region_name=region,
         config=get_botocore_config(),
@@ -55,7 +57,8 @@ def get_launch_configurations(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> list[dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "autoscaling",
         region_name=region,
         config=get_botocore_config(),

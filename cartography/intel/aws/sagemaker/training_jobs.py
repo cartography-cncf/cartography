@@ -7,6 +7,7 @@ import neo4j
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.sagemaker.util import extract_bucket_name_from_s3_uri
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.sagemaker.training_job import AWSSageMakerTrainingJobSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
@@ -23,7 +24,7 @@ def get_training_jobs(
     """
     Get all SageMaker Training Jobs in the given region.
     """
-    client = boto3_session.client("sagemaker", region_name=region)
+    client = create_boto3_client(boto3_session, "sagemaker", region_name=region)
     paginator = client.get_paginator("list_training_jobs")
     training_jobs: list[dict[str, Any]] = []
 

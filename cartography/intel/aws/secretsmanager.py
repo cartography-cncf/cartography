@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.secretsmanager.secret import SecretsManagerSecretSchema
 from cartography.models.aws.secretsmanager.secret_version import (
     SecretsManagerSecretVersionSchema,
@@ -24,7 +25,7 @@ stat_handler = get_stats_client(__name__)
 @timeit
 @aws_handle_regions
 def get_secret_list(boto3_session: boto3.session.Session, region: str) -> List[Dict]:
-    client = boto3_session.client("secretsmanager", region_name=region)
+    client = create_boto3_client(boto3_session, "secretsmanager", region_name=region)
     paginator = client.get_paginator("list_secrets")
     secrets: List[Dict] = []
     for page in paginator.paginate():
@@ -111,7 +112,7 @@ def get_secret_versions(
     Note: list_secret_version_ids is not paginatable through boto3's paginator,
     so we implement manual pagination.
     """
-    client = boto3_session.client("secretsmanager", region_name=region)
+    client = create_boto3_client(boto3_session, "secretsmanager", region_name=region)
     next_token = None
     versions = []
 
