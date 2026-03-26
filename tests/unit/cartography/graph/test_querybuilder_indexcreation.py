@@ -32,7 +32,6 @@ def test_build_create_index_queries_for_emr():
         "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n.id);",
         # _ont_ field indexes on the ComputeCluster semantic label
         "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_source);",
-        "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_id);",
         "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_name);",
         "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_region);",
         "CREATE INDEX IF NOT EXISTS FOR (n:ComputeCluster) ON (n._ont_version);",

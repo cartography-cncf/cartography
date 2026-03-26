@@ -245,7 +245,6 @@ It generalizes concepts like EC2 Instances, DigitalOcean Droplets, and Scaleway 
 
 | Field | Description |
 |-------|-------------|
-| _ont_id | The unique identifier for the instance. |
 | _ont_name | The name of the instance. |
 | _ont_region | The region or zone where the instance is located. |
 | _ont_public_ip_address | The public IP address of the instance. |
@@ -266,7 +265,6 @@ It generalizes concepts like ECS Containers, Kubernetes Containers, and Azure Co
 
 | Field | Description |
 |-------|-------------|
-| _ont_id | The unique identifier for the container. |
 | _ont_name | The name of the container. |
 | _ont_image | The container image (e.g., nginx:latest). |
 | _ont_image_digest | The digest/SHA256 of the container image. |
@@ -289,7 +287,6 @@ It generalizes concepts like AWS EKS clusters, AWS ECS clusters, AWS EMR cluster
 
 | Field | Description |
 |-------|-------------|
-| _ont_id | The unique identifier for the cluster. |
 | _ont_name | The name of the cluster. |
 | _ont_region | The region or location where the cluster is deployed. |
 | _ont_version | The version of the cluster engine (e.g., Kubernetes version, EMR release label). |
