@@ -48,6 +48,7 @@ class DeviceToJumpCloudSystemRel(CartographyRelSchema):
 
 
 # (:Device)-[:OBSERVED_AS]->(:CrowdstrikeHost) via serial_number
+@dataclass(frozen=True)
 class DeviceToCrowdstrikeHostBySerialRel(CartographyRelSchema):
     target_node_label: str = "CrowdstrikeHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -59,6 +60,7 @@ class DeviceToCrowdstrikeHostBySerialRel(CartographyRelSchema):
 
 
 # (:Device)-[:OBSERVED_AS]->(:KandjiDevice) via serial_number
+@dataclass(frozen=True)
 class DeviceToKandjiDeviceBySerialRel(CartographyRelSchema):
     target_node_label: str = "KandjiDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -70,6 +72,7 @@ class DeviceToKandjiDeviceBySerialRel(CartographyRelSchema):
 
 
 # (:Device)-[:OBSERVED_AS]->(:SnipeitAsset) via serial
+@dataclass(frozen=True)
 class DeviceToSnipeitAssetBySerialRel(CartographyRelSchema):
     target_node_label: str = "SnipeitAsset"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -81,6 +84,7 @@ class DeviceToSnipeitAssetBySerialRel(CartographyRelSchema):
 
 
 # (:Device)-[:OBSERVED_AS]->(:TailscaleDevice) via serial_number
+@dataclass(frozen=True)
 class DeviceToTailscaleDeviceBySerialRel(CartographyRelSchema):
     target_node_label: str = "TailscaleDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -92,6 +96,7 @@ class DeviceToTailscaleDeviceBySerialRel(CartographyRelSchema):
 
 
 # (:Device)-[:OBSERVED_AS]->(:GoogleWorkspaceDevice) via serial_number
+@dataclass(frozen=True)
 class DeviceToGoogleWorkspaceDeviceBySerialRel(CartographyRelSchema):
     target_node_label: str = "GoogleWorkspaceDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
