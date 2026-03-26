@@ -293,22 +293,12 @@ def _build_ontology_node_properties_statement(
 
         # Skip validation for special_handling that don't require node_field
         if not node_propertyref:
-            # Composite schemas (no sub_resource_relationship) intentionally
-            # define only a subset of node properties, so missing ontology
-            # fields are expected — log at debug. For primary schemas, keep
-            # the warning as it may indicate a real mapping issue.
-            if node_schema.sub_resource_relationship is None:
-                logger.debug(
-                    "Field '%s' not found in node properties for composite node schema %s (expected)",
-                    mapping_field.node_field,
-                    node_schema.__class__.__name__,
-                )
-            else:
-                logger.warning(
-                    "Field '%s' not found in node properties for node schema %s",
-                    mapping_field.node_field,
-                    node_schema.__class__.__name__,
-                )
+            # This should not occur due to unit test but failing gracefully
+            logger.warning(
+                "Field '%s' not found in node properties for node schema %s",
+                mapping_field.node_field,
+                node_schema.__class__.__name__,
+            )
             continue
         if mapping_field.special_handling == "invert_boolean":
             set_clauses.append(
