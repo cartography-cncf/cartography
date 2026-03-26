@@ -4,28 +4,20 @@ from typing import Dict
 from typing import List
 
 import boto3
-import botocore.config
+import botocore
 import neo4j
 from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.dns import ingest_dns_record_by_fqdn
 from cartography.models.aws.elasticsearch.domain import ESDomainSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
-
-
-# TODO memoize this
-def _get_botocore_config() -> botocore.config.Config:
-    return botocore.config.Config(
-        retries={
-            "max_attempts": 8,
-        },
-    )
 
 
 @timeit
@@ -282,7 +274,7 @@ def sync(
         client = boto3_session.client(
             "es",
             region_name=region,
-            config=_get_botocore_config(),
+            config=get_botocore_config(max_attempts=8),
         )
         data = _get_es_domains(client)
         domains_data = _transform_es_domains(data)

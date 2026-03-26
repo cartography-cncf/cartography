@@ -1,12 +1,3 @@
-import botocore.config
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 
-
-# TODO memoize this
-def get_botocore_config() -> botocore.config.Config:
-    return botocore.config.Config(
-        read_timeout=360,
-        retries={
-            "max_attempts": 10,
-            "mode": "adaptive",
-        },
-    )
+__all__ = ["get_botocore_config"]
