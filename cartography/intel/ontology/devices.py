@@ -60,11 +60,10 @@ def _should_run_hostname_matchlink(
 ) -> bool:
     """Check if hostname matchlink should be run for a given module.
 
-    For modules with serial_number matching, both conditions must be met:
-    1. At least one OBSERVED_AS relationship exists (confirming module data is in the graph)
+    Conditions checked:
+    1. For modules with serial_number: at least one OBSERVED_AS exists (confirming module data)
     2. Hostnames on target nodes are unique (no duplicates)
-
-    For modules without serial_number matching, only check hostname uniqueness.
+    3. Hostnames on Device nodes are unique (no duplicates on source side)
     """
     if has_serial_rel:
         result = neo4j_session.run(
@@ -89,7 +88,22 @@ def _should_run_hostname_matchlink(
 
     if not result or not result["unique_hostnames"]:
         logger.debug(
-            "Duplicate hostnames found for %s, skipping hostname matchlink.",
+            "Duplicate hostnames found on %s nodes, skipping hostname matchlink.",
+            target_label,
+        )
+        return False
+
+    # Check hostname uniqueness on Device nodes (source side)
+    result = neo4j_session.run(
+        "MATCH (d:Device) WHERE d.lastupdated = $update_tag AND d.hostname IS NOT NULL "
+        "WITH count(DISTINCT d.hostname) as distinct_count, count(d) as total_count "
+        "RETURN distinct_count = total_count as unique_hostnames",
+        update_tag=update_tag,
+    ).single()
+
+    if not result or not result["unique_hostnames"]:
+        logger.debug(
+            "Duplicate hostnames found on Device nodes, skipping hostname matchlink for %s.",
             target_label,
         )
         return False
