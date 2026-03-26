@@ -145,7 +145,11 @@ def _run_hostname_matchlinks(
             continue
 
         if not _should_run_hostname_matchlink(
-            neo4j_session, target_label, hostname_field, has_serial_rel, update_tag,
+            neo4j_session,
+            target_label,
+            hostname_field,
+            has_serial_rel,
+            update_tag,
         ):
             continue
 

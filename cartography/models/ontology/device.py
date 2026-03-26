@@ -139,10 +139,12 @@ class DeviceSchema(CartographyNodeSchema):
 class DeviceHostnameMatchLinkProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("UPDATE_TAG", set_in_kwargs=True)
     _sub_resource_label: PropertyRef = PropertyRef(
-        "_sub_resource_label", set_in_kwargs=True,
+        "_sub_resource_label",
+        set_in_kwargs=True,
     )
     _sub_resource_id: PropertyRef = PropertyRef(
-        "_sub_resource_id", set_in_kwargs=True,
+        "_sub_resource_id",
+        set_in_kwargs=True,
     )
 
 
@@ -281,8 +283,18 @@ HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema, bool]] = [
     ("KandjiDevice", "device_name", DeviceToKandjiDeviceHostnameMatchLink(), True),
     ("SnipeitAsset", "name", DeviceToSnipeitAssetHostnameMatchLink(), True),
     ("TailscaleDevice", "hostname", DeviceToTailscaleDeviceHostnameMatchLink(), True),
-    ("GoogleWorkspaceDevice", "hostname", DeviceToGoogleWorkspaceDeviceHostnameMatchLink(), True),
+    (
+        "GoogleWorkspaceDevice",
+        "hostname",
+        DeviceToGoogleWorkspaceDeviceHostnameMatchLink(),
+        True,
+    ),
     ("DuoEndpoint", "device_name", DeviceToDuoEndpointHostnameMatchLink(), False),
     ("DuoPhone", "name", DeviceToDuoPhoneHostnameMatchLink(), False),
-    ("BigfixComputer", "computername", DeviceToBigfixComputerHostnameMatchLink(), False),
+    (
+        "BigfixComputer",
+        "computername",
+        DeviceToBigfixComputerHostnameMatchLink(),
+        False,
+    ),
 ]
