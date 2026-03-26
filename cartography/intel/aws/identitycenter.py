@@ -42,7 +42,10 @@ def _is_permission_set_sync_unsupported_error(
         return False
 
     message = error_info.get("Message", "").lower()
-    return "not supported for this identity center instance" in message
+    return (
+        "not supported for this identity center instance" in message
+        or "not supported for account instances of iam identity center" in message
+    )
 
 
 @timeit
