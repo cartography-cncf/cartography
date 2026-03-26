@@ -187,11 +187,40 @@ googleworkspace_mapping = OntologyMapping(
     ],
 )
 
+jumpcloud_mapping = OntologyMapping(
+    module_name="jumpcloud",
+    nodes=[
+        OntologyNodeMapping(
+            node_label="JumpCloudSystem",
+            fields=[
+                OntologyFieldMapping(
+                    ontology_field="serial_number",
+                    node_field="serial_number",
+                    required=True,
+                ),
+                OntologyFieldMapping(ontology_field="os", node_field="os"),
+                OntologyFieldMapping(
+                    ontology_field="os_version", node_field="os_version"
+                ),
+                OntologyFieldMapping(ontology_field="model", node_field="model"),
+            ],
+        ),
+    ],
+    rels=[
+        OntologyRelMapping(
+            __comment__="Link Device to User based on JumpCloudUser-JumpCloudSystem ownership",
+            query="MATCH (u:User)-[:HAS_ACCOUNT]->(:JumpCloudUser)-[:OWNS]->(:JumpCloudSystem)<-[:OBSERVED_AS]-(d:Device) MERGE (u)-[r:OWNS]->(d) ON CREATE SET r.firstseen = timestamp() SET r.lastupdated = $UPDATE_TAG",
+            iterative=False,
+        ),
+    ],
+)
+
 DEVICES_ONTOLOGY_MAPPING: dict[str, OntologyMapping] = {
     "bigfix": bigfix_mapping,
     "crowdstrike": crowdstrike_mapping,
     "duo": duo_mapping,
     "googleworkspace": googleworkspace_mapping,
+    "jumpcloud": jumpcloud_mapping,
     "kandji": kandji_mapping,
     "snipeit": snipeit_mapping,
     "tailscale": tailscale_mapping,

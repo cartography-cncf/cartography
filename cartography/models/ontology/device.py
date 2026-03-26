@@ -117,6 +117,18 @@ class DeviceToGoogleWorkspaceDeviceRel(CartographyRelSchema):
     properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
 
 
+# (:Device)-[:OBSERVED_AS]->(:JumpCloudSystem)
+@dataclass(frozen=True)
+class DeviceToJumpCloudSystemRel(CartographyRelSchema):
+    target_node_label: str = "JumpCloudSystem"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"serial_number": PropertyRef("serial_number")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
+
+
 # Serial number-based OBSERVED_AS relationships
 # These duplicate the hostname-based relationships to also match by serial_number,
 # ensuring devices are linked even when hostnames differ across sources.
@@ -193,6 +205,7 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToCrowdstrikeHostRel(),
             DeviceToBigfixComputerRel(),
             DeviceToGoogleWorkspaceDeviceRel(),
+            DeviceToJumpCloudSystemRel(),
             # Serial number-based duplicates
             DeviceToCrowdstrikeHostBySerialRel(),
             DeviceToKandjiDeviceBySerialRel(),
