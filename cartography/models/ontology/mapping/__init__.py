@@ -117,16 +117,7 @@ def get_semantic_label_mapping_from_node_schema(
 
     Returns:
         The corresponding OntologyNodeMapping if found, else None.
-        Returns None for composite schemas (no sub_resource_relationship)
-        since they only define a subset of node properties and the primary
-        schema is responsible for setting ontology fields.
     """
-    # Composite schemas intentionally define only a subset of node properties.
-    # Skip ontology mapping for them to avoid false warnings about missing
-    # fields that belong to other composite schemas for the same node label.
-    if node_schema.sub_resource_relationship is None:
-        return None
-
     for module_name, module_mappings in SEMANTIC_LABELS_MAPPING.items():
         if module_name == "ontology":
             continue
