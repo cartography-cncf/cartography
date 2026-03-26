@@ -1425,6 +1425,28 @@ def build_create_index_queries(node_schema: CartographyNodeSchema) -> list[str]:
             if prop_ref.extra_index
         ],
     )
+
+    # Create indexes on _ont_ fields for semantic labels (extra node labels).
+    # When a node has a semantic label mapping, index all _ont_ fields on the extra label
+    # so that cross-provider queries on the semantic label are fast.
+    ontology_mapping = get_semantic_label_mapping_from_node_schema(node_schema)
+    if ontology_mapping and node_schema.extra_node_labels:
+        for label in node_schema.extra_node_labels.labels:
+            label_name = label if isinstance(label, str) else label.label
+            result.append(
+                index_template.safe_substitute(
+                    TargetNodeLabel=label_name,
+                    TargetAttribute="_ont_source",
+                ),
+            )
+            for mapping_field in ontology_mapping.fields:
+                result.append(
+                    index_template.safe_substitute(
+                        TargetNodeLabel=label_name,
+                        TargetAttribute=f"_ont_{mapping_field.ontology_field}",
+                    ),
+                )
+
     return result
 
 
