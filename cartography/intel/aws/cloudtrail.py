@@ -15,7 +15,7 @@ from botocore.parsers import ResponseParserError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.cloudtrail.trail import CloudTrailTrailSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit

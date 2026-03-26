@@ -6,7 +6,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.route_table_associations import (
     RouteTableAssociationSchema,
 )

@@ -7,11 +7,10 @@ import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import run_write_query
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 

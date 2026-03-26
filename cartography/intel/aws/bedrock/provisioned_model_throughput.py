@@ -14,13 +14,12 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.bedrock.provisioned_model_throughput import (
     AWSBedrockProvisionedModelThroughputSchema,
 )
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 

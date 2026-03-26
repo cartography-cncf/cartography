@@ -1,5 +1,3 @@
-from cartography.intel.aws.bedrock.util import get_botocore_config as get_bedrock_config
-from cartography.intel.aws.ec2.util import get_botocore_config as get_ec2_config
 from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.intel.aws.util.botocore_config import wrap_aioboto3_session
 from cartography.intel.aws.util.botocore_config import wrap_boto3_session
@@ -37,11 +35,6 @@ def test_get_botocore_config_is_memoized_for_same_arguments():
     config_two = get_botocore_config(max_pool_connections=50)
 
     assert config_one is config_two
-
-
-def test_ec2_and_bedrock_helpers_share_the_common_config_builder():
-    assert get_ec2_config() is get_botocore_config()
-    assert get_bedrock_config() is get_botocore_config()
 
 
 def test_wrap_boto3_session_injects_default_config_into_clients_and_resources():

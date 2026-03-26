@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.routetable_vpc_endpoint import (
     AWSRouteTableVPCEndpointSchema,
 )
@@ -19,8 +20,6 @@ from cartography.models.aws.ec2.subnet_vpc_endpoint import EC2SubnetVPCEndpointS
 from cartography.models.aws.ec2.vpc_endpoint import AWSVpcEndpointSchema
 from cartography.util import aws_handle_regions
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 

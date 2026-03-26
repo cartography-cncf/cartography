@@ -8,7 +8,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.efs.access_point import EfsAccessPointSchema
 from cartography.models.aws.efs.file_system import EfsFileSystemSchema
 from cartography.models.aws.efs.mount_target import EfsMountTargetSchema
