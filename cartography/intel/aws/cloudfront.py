@@ -17,6 +17,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.cloudfront.distribution import CloudFrontDistributionSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
@@ -46,7 +47,11 @@ def get_cloudfront_distributions(
     CloudFront is a global service, so we query from us-east-1.
     """
     logger.info("Fetching CloudFront distributions")
-    client = boto3_session.client("cloudfront", region_name=CLOUDFRONT_REGION)
+    client = create_boto3_client(
+        boto3_session,
+        "cloudfront",
+        region_name=CLOUDFRONT_REGION,
+    )
 
     distributions: list[dict[str, Any]] = []
     paginator = client.get_paginator("list_distributions")

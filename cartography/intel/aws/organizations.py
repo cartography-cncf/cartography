@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import run_write_query
 from cartography.intel.aws.iam import sync_root_principal
+from cartography.intel.aws.util.botocore_config import wrap_boto3_session
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ def get_account_from_arn(arn: str) -> str:
 
 
 def get_caller_identity(boto3_session: boto3.session.Session) -> Dict:
+    boto3_session = wrap_boto3_session(boto3_session)
     client = boto3_session.client("sts")
     return client.get_caller_identity()
 
@@ -52,7 +54,9 @@ def get_aws_accounts_from_botocore_config(boto3_session: boto3.session.Session) 
             logger.debug("Skipping AWS profile 'default'.")
             continue
         try:
-            profile_boto3_session = boto3.Session(profile_name=profile_name)
+            profile_boto3_session = wrap_boto3_session(
+                boto3.Session(profile_name=profile_name),
+            )
         except (
             botocore.exceptions.BotoCoreError,
             botocore.exceptions.ClientError,

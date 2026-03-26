@@ -274,7 +274,7 @@ def sync(
         client = boto3_session.client(
             "es",
             region_name=region,
-            config=get_botocore_config(max_attempts=8),
+            config=get_botocore_config(),
         )
         data = _get_es_domains(client)
         domains_data = _transform_es_domains(data)
