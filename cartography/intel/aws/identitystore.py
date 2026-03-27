@@ -345,7 +345,7 @@ def load_identity_center_account_assignments(
                     permissions_set_managed_policies = {
                         permissions_set_id: copy.deepcopy(managed_policies.get(permissions_set["PermissionSetArn"], {})),
                     }
-                    transform_policy_data(permissions_set_managed_policies, PolicyType.managed.value)
+                    transform_policy_data(permissions_set_managed_policies, PolicyType.managed.value, current_aws_account_id)
                     load_policy_data(
                         neo4j_session,
                         permissions_set_managed_policies,
@@ -357,7 +357,7 @@ def load_identity_center_account_assignments(
                     permissions_set_inline_policies = {
                         permissions_set_id: copy.deepcopy(inline_policies.get(permissions_set["PermissionSetArn"], {})),
                     }
-                    transform_policy_data(permissions_set_inline_policies, PolicyType.inline.value)
+                    transform_policy_data(permissions_set_inline_policies, PolicyType.inline.value, current_aws_account_id)
                     load_policy_data(
                         neo4j_session,
                         permissions_set_inline_policies,
@@ -539,9 +539,9 @@ def sync_identity_center_permissions_sets(
         aws_update_tag,
     )
 
-    transform_policy_data(unloaded_managed_policies, PolicyType.managed.value)
+    transform_policy_data(unloaded_managed_policies, PolicyType.managed.value, current_aws_account_id)
     load_policy_data(neo4j_session, unloaded_managed_policies, PolicyType.managed.value, current_aws_account_id, aws_update_tag)
-    transform_policy_data(unloaded_inline_policies, PolicyType.inline.value)
+    transform_policy_data(unloaded_inline_policies, PolicyType.inline.value, current_aws_account_id)
     load_policy_data(neo4j_session, unloaded_inline_policies, PolicyType.inline.value, current_aws_account_id, aws_update_tag)
 
 
