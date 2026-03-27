@@ -5,6 +5,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 import requests
 from azure.identity import ClientSecretCredential
@@ -36,14 +37,13 @@ def call_azure_devops_api(
     method: str = "GET",
     params: Optional[Dict] = None,
     json_data: Optional[Dict] = None,
-) -> Optional[Dict]:
+) -> Tuple[Optional[Dict], Optional[Dict]]:
     """
     Calls the Azure DevOps REST API with Microsoft Entra ID OAuth authentication.
     """
     headers = {
         "Accept": "application/json",
-        "Authorization": f"Bearer {access_token}",
-        "User-Agent": "Cartography-AzureDevOps/1.0",
+        "Authorization": f"Bearer {access_token}"
     }
 
     for attempt in range(MAX_RETRIES):
@@ -59,8 +59,8 @@ def call_azure_devops_api(
             response.raise_for_status()
 
             if response.status_code == 204:  # No Content
-                return None
-            return response.json()
+                return None, None
+            return response.json(), response.headers
 
         except requests.exceptions.HTTPError as e:
             if (
@@ -88,7 +88,7 @@ def call_azure_devops_api(
                     f"HTTP error calling Azure DevOps API: {e}. "
                     f"Details: {error_details}",
                 )
-                return None
+                return None, None
 
         except requests.exceptions.RequestException as e:
             if attempt < MAX_RETRIES - 1:
@@ -101,9 +101,9 @@ def call_azure_devops_api(
                 logger.error(
                     f"Failed to call Azure DevOps API at {url} after {MAX_RETRIES} attempts: {e}",
                 )
-                return None
+                return None, None
 
-    return None
+    return None, None
 
 
 def call_azure_devops_api_pagination(
@@ -119,7 +119,7 @@ def call_azure_devops_api_pagination(
     current_params = params.copy() if params else {}
 
     while current_url:
-        response = call_azure_devops_api(
+        response, headers = call_azure_devops_api(
             current_url, access_token, params=current_params,
         )
         if not response:
@@ -137,7 +137,7 @@ def call_azure_devops_api_pagination(
         results.extend(page_results)
 
         # Check for continuation token in the headers
-        continuation_token = response.headers.get("x-ms-continuationtoken")
+        continuation_token = headers.get("x-ms-continuationtoken")
         if continuation_token:
             from urllib.parse import urlencode, urlparse, parse_qs, urlunparse
 

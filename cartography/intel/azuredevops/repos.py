@@ -116,7 +116,7 @@ def load_repositories(
         r.isdisabled = repo.isDisabled,
         r.archived = repo.isDisabled,
         r.weburl = repo.webUrl,
-        r.project = repo.project,
+        r.project = repo.project.name,
         r.visibility = repo.project_visibility,
         r.is_private = CASE WHEN repo.project_visibility = 'private' THEN true ELSE false END,
         r.primary_language = repo.primary_language,

@@ -27,41 +27,6 @@ logger = logging.getLogger(__name__)
 
 
 @timeit
-def concurrent_execution(
-    service_func: Any,
-    config: Config,
-    common_job_parameters: Dict,
-    *args,
-):
-    """
-    Execute a service sync function concurrently with proper error handling.
-    This function creates a new Neo4j session for each concurrent execution
-    to ensure thread safety and proper connection management.
-    """
-    try:
-        neo4j_auth = (config.neo4j_user, config.neo4j_password)
-        neo4j_driver = GraphDatabase.driver(
-            config.neo4j_uri,
-            auth=neo4j_auth,
-            max_connection_lifetime=config.neo4j_max_connection_lifetime,
-        )
-
-        with neo4j_driver.session() as neo4j_session:
-            service_func(
-                neo4j_session,
-                common_job_parameters,
-                *args,
-            )
-
-    except Exception as e:
-        logger.error(
-            f"Error in concurrent execution of {service_func.__module__}: {e}",
-            exc_info=True,
-        )
-        raise
-
-
-@timeit
 def sync_organization(
     neo4j_session: neo4j.Session,
     config: Config,
@@ -108,44 +73,22 @@ def sync_organization(
             org_name,
         )
 
-        # Concurrently sync other resources that depend on projects
-        with ThreadPoolExecutor(
-            max_workers=config.azure_devops_concurrent_requests or 2,
-        ) as executor:
-            futures = {
-                executor.submit(
-                    concurrent_execution,
-                    repos.sync,
-                    config,
-                    common_job_parameters,
-                    access_token,
-                    url,
-                    org_name,
-                    projects_data,
-                ): "repos",
-                executor.submit(
-                    concurrent_execution,
-                    members.sync,
-                    config,
-                    common_job_parameters,
-                    access_token,
-                    url,
-                    org_name,
-                ): "members",
-            }
+        repos.sync(
+            neo4j_session,
+            common_job_parameters,
+            access_token,
+            url,
+            org_name,
+            projects_data
+        )
 
-            for future in as_completed(futures):
-                resource_type = futures[future]
-                try:
-                    future.result()
-                    logger.info(
-                        f"Successfully synced {resource_type} for organization {org_name}",
-                    )
-                except Exception:
-                    logger.exception(
-                        f"Failed to sync {resource_type} for organization {org_name}",
-                        exc_info=True,
-                    )
+        members.sync(
+            neo4j_session,
+            common_job_parameters,
+            access_token,
+            url,
+            org_name
+        )
 
     except exceptions.RequestException as e:
         logger.error(
@@ -220,7 +163,7 @@ def start_azure_devops_ingestion(neo4j_session: neo4j.Session, config: Config) -
 
     try:
         # Decode the base64-encoded configuration
-        auth_details = json.loads(base64.b64decode(config.azure_devops_config).decode())
+        auth_details = config.azure_devops_config
         logger.info("Successfully decoded Azure DevOps configuration")
 
     except (json.JSONDecodeError, TypeError) as e:

@@ -84,6 +84,8 @@ def gcp_cartography_worker(event, ctx):
         bitbucket_process_request(logger, params)
     elif params.get("templateType") == "GITLABINVENTORYVIEWS":
         gitlab_process_request(logger, params)
+    elif params.get("templateType") == "AZUREDEVOPSINVENTORYVIEWS":
+        azure_devops_process_request(logger, params)
 
     return {
         "statusCode": 200,
@@ -228,6 +230,91 @@ def github_process_request(logger, params):
     }
 
     resp = cartography.cli.run_github(body)
+
+    if "status" in resp and resp["status"] == "success":
+        if resp.get("pagination", None):
+            services = []
+            for service, pagination in resp.get("pagination", {}).items():
+                if pagination.get("hasNextPage", False):
+                    services.append(
+                        {
+                            "name": service,
+                            "pagination": {
+                                "pageSize": pagination.get("pageSize", 1),
+                                "pageNo": pagination.get("pageNo", 0) + 1,
+                            },
+                        },
+                    )
+            if len(services) > 0:
+                resp["services"] = services
+
+            else:
+                del resp["updateTag"]
+
+            del resp["pagination"]
+
+        logger.info(f"successfully processed cartography: {resp}")
+
+    else:
+        logger.info(f"failed to process cartography: {resp['message']}")
+
+    publish_response(logger, body, resp, params)
+
+    logger.info(f"inventory sync gcp response - {params.get('eventId')}: {json.dumps(resp)}")
+
+    return {"status": "success"}
+
+
+def azure_devops_process_request(logger, params):
+    logger.info(f"request - {params.get('templateType')} - {params.get('eventId')} - {params.get('workspace')}")
+
+    svcs = []
+    for svc in params.get("services", []):
+        page = svc.get("pagination", {}).get("pageSize")
+        if page:
+            svc["pagination"]["pageSize"] = 10000
+
+        svcs.append(svc)
+
+    azure_devops_config = {
+        "organization": [
+            {
+                "tenant_id": params.get("workspace", {}).get("tenantId"),
+                "client_id": os.environ.get("CDX_AZURE_CLIENT_ID"),
+                "client_secret": os.environ.get("CDX_AZURE_CLIENT_SECRET"),
+                "url": "https://dev.azure.com",
+                "name": params.get("workspace", {}).get("account_id")
+            },
+        ],
+    }
+
+    body = {
+        "neo4j": {
+            "uri": params.get("neo4j", {}).get("uri", ""),
+            "user": params.get("neo4j", {}).get("user", ""),
+            "pwd": params.get("neo4j", {}).get("pwd", ""),
+            "connection_lifetime": 200,
+        },
+        "logging": {
+            "mode": "verbose",
+        },
+        "azure_devops_config": azure_devops_config,
+        "params": {
+            "sessionString": params.get("sessionString"),
+            "eventId": params.get("eventId"),
+            "templateType": params.get("templateType"),
+            "workspace": params.get("workspace"),
+            "actions": params.get("actions"),
+            "resultTopic": params.get("resultTopic"),
+            "requestTopic": params.get("requestTopic"),
+            "partial": params.get("partial"),
+            "services": params.get("services"),
+        },
+        "services": svcs,
+        "updateTag": params.get("runTimestamp"),
+    }
+
+    resp = cartography.cli.run_azure_devops(body)
 
     if "status" in resp and resp["status"] == "success":
         if resp.get("pagination", None):

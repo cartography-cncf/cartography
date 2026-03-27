@@ -81,7 +81,7 @@ def load_projects(
 
     MERGE (p:AzureDevOpsProject{id: project.id})
     ON CREATE SET p.firstseen = timestamp()
-    ON MATCH SET
+    SET
         p.lastupdated = $UPDATE_TAG,
         p.name = project.name,
         p.url = project.url,
