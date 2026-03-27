@@ -884,7 +884,7 @@ def _load_policy_tx(
     MERGE (policy) <-[r:POLICY]-(principal)
     SET r.lastupdated = $aws_update_tag
     """
-    if policy_type == PolicyType.managed:
+    if policy_type == PolicyType.managed.value:
         ingest_policy = """
         MERGE (policy:AWSPolicy{id: $PolicyId})
         ON CREATE SET
@@ -928,7 +928,7 @@ def _load_policy_tx(
     MERGE (policy) <-[r:POLICY]-(principal)
     SET r.lastupdated = $aws_update_tag
     """
-    if policy_type == PolicyType.managed:
+    if policy_type == PolicyType.managed.value:
         ingest_sso_policy = """
         MERGE (policy:AWSPolicy{id: $PolicyId})
         ON CREATE SET
