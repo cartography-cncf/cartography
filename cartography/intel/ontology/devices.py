@@ -8,7 +8,6 @@ from cartography.client.core.tx import load_matchlinks
 from cartography.graph.job import GraphJob
 from cartography.intel.ontology.utils import get_source_nodes_from_graph
 from cartography.intel.ontology.utils import link_ontology_nodes
-from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.ontology.device import DeviceSchema
 from cartography.models.ontology.device import HOSTNAME_MATCHLINKS
 from cartography.util import timeit
@@ -32,8 +31,8 @@ def sync(
         data,
         update_tag,
     )
-    _run_hostname_matchlinks(neo4j_session, update_tag)
     link_ontology_nodes(neo4j_session, "devices", update_tag)
+    _run_hostname_matchlinks(neo4j_session, update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
 
@@ -138,9 +137,6 @@ def _run_hostname_matchlinks(
     device_hostnames = _get_device_hostnames(neo4j_session, update_tag)
 
     for target_label, hostname_field, matchlink, has_serial_rel in HOSTNAME_MATCHLINKS:
-        # Always run cleanup to remove stale hostname matchlinks
-        _cleanup_hostname_matchlink(neo4j_session, matchlink, update_tag)
-
         if not device_hostnames:
             continue
 
@@ -164,21 +160,6 @@ def _run_hostname_matchlinks(
         )
 
 
-def _cleanup_hostname_matchlink(
-    neo4j_session: neo4j.Session,
-    matchlink: CartographyRelSchema,
-    update_tag: int,
-) -> None:
-    """Clean up stale hostname matchlink relationships."""
-    cleanup_job = GraphJob.from_matchlink(
-        matchlink,
-        MATCHLINK_SUB_RESOURCE_LABEL,
-        MATCHLINK_SUB_RESOURCE_ID,
-        update_tag,
-    )
-    cleanup_job.run(neo4j_session)
-
-
 @timeit
 def cleanup(
     neo4j_session: neo4j.Session,
@@ -187,3 +168,11 @@ def cleanup(
     GraphJob.from_node_schema(DeviceSchema(), common_job_parameters).run(
         neo4j_session,
     )
+    # Clean up stale hostname matchlink relationships
+    for _, _, matchlink, _ in HOSTNAME_MATCHLINKS:
+        GraphJob.from_matchlink(
+            matchlink,
+            MATCHLINK_SUB_RESOURCE_LABEL,
+            MATCHLINK_SUB_RESOURCE_ID,
+            common_job_parameters["UPDATE_TAG"],
+        ).run(neo4j_session)
