@@ -8,8 +8,6 @@ from dataclasses import field
 from pathlib import Path
 from typing import Any
 
-import dockerfile as dockerfile_pkg
-
 logger = logging.getLogger(__name__)
 
 
@@ -308,27 +306,90 @@ def _parse_base_image_reference(from_value: str) -> tuple[str, str | None, str |
 
 
 def _parse_instructions(content: str) -> list[DockerfileInstruction]:
-    """Parse Dockerfile content into a list of instructions."""
-    return _parse_with_dockerfile_package(content)
+    """Parse Dockerfile instructions using a lightweight in-repo parser.
 
-
-def _parse_with_dockerfile_package(content: str) -> list[DockerfileInstruction]:
-    """Parse using the dockerfile package for accurate parsing.
-
-    :raises Exception: If parsing fails (e.g., invalid Dockerfile syntax)
+    This parser intentionally focuses on extracting instruction/value pairs needed
+    for supply-chain matching instead of fully implementing Dockerfile grammar.
     """
-    instructions = []
-    parsed = dockerfile_pkg.parse_string(content)
-    for cmd in parsed:
-        value = " ".join(cmd.value) if cmd.value else ""
+    lines = content.splitlines()
+    instructions: list[DockerfileInstruction] = []
+    i = 0
+
+    while i < len(lines):
+        current_line = lines[i]
+        stripped = current_line.strip()
+
+        # Ignore empty lines and full-line comments (including parser directives).
+        if not stripped or stripped.startswith("#"):
+            i += 1
+            continue
+
+        start_line = i + 1
+        logical_line = stripped
+
+        # Join continued lines ending with an unescaped backslash.
+        while _has_line_continuation(logical_line) and i + 1 < len(lines):
+            logical_line = logical_line.rstrip()[:-1].strip()
+            i += 1
+            # NOTE: We currently keep comment-only continuation lines in the value.
+            # This is a known simplification vs Docker's full parser behavior.
+            logical_line = f"{logical_line} {lines[i].strip()}"
+
+        cmd, value = _split_instruction(logical_line)
+        if cmd is None:
+            i += 1
+            continue
+
+        heredoc_delimiter = _extract_heredoc_delimiter(value)
+        if heredoc_delimiter:
+            i += 1
+            found_terminator = False
+            while i < len(lines):
+                line = lines[i]
+                if line.strip() == heredoc_delimiter:
+                    found_terminator = True
+                    break
+                value = f"{value}\n{line}"
+                i += 1
+            if not found_terminator:
+                logger.warning(
+                    "Unterminated Dockerfile heredoc delimiter '%s' while parsing.",
+                    heredoc_delimiter,
+                )
+
         instructions.append(
             DockerfileInstruction(
-                cmd=cmd.cmd,
+                cmd=cmd,
                 value=value,
-                line_number=cmd.start_line,
+                line_number=start_line,
             )
         )
+        i += 1
+
     return instructions
+
+
+def _has_line_continuation(line: str) -> bool:
+    stripped = line.rstrip()
+    trailing_backslashes = len(stripped) - len(stripped.rstrip("\\"))
+    return trailing_backslashes % 2 == 1
+
+
+def _split_instruction(line: str) -> tuple[str | None, str]:
+    match = re.match(r"^([A-Za-z]+)(?:\s+(.*))?$", line.strip())
+    if not match:
+        return None, ""
+    cmd = match.group(1).upper()
+    value = (match.group(2) or "").strip()
+    return cmd, value
+
+
+def _extract_heredoc_delimiter(value: str) -> str | None:
+    # Docker heredoc form: <<EOF or <<-EOF (including quoted delimiters).
+    match = re.search(r"<<-?\s*([\"']?)([A-Za-z_][A-Za-z0-9_]*)\1", value)
+    if match:
+        return match.group(2)
+    return None
 
 
 def _parse_stages(content: str) -> list[DockerfileStage]:

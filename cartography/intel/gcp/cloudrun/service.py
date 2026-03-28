@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.gcp.labels import sync_labels
 from cartography.intel.gcp.util import gcp_api_execute_with_retry
 from cartography.intel.gcp.util import is_api_disabled_error
 from cartography.models.gcp.cloudrun.service import GCPCloudRunServiceSchema
@@ -85,7 +86,9 @@ def transform_services(services_data: list[dict], project_id: str) -> list[dict]
                 "location": location,
                 "uri": service.get("uri"),
                 "latest_ready_revision": latest_ready_revision,
+                "ingress": service.get("ingress"),
                 "project_id": project_id,
+                "labels": service.get("labels", {}),
             },
         )
     return transformed
@@ -145,6 +148,14 @@ def sync_services(
 
         services = transform_services(services_raw, project_id)
         load_services(neo4j_session, services, project_id, update_tag)
+        sync_labels(
+            neo4j_session,
+            services,
+            "cloud_run_service",
+            project_id,
+            update_tag,
+            common_job_parameters,
+        )
 
         cleanup_job_params = common_job_parameters.copy()
         cleanup_job_params["project_id"] = project_id

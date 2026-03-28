@@ -19,6 +19,7 @@ from cartography.graph.job import GraphJob
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
 from cartography.models.aws.iam.access_key import AccountAccessKeySchema
 from cartography.models.aws.iam.account_role import AWSAccountAWSRoleSchema
+from cartography.models.aws.iam.account_summary import AWSAccountSummarySchema
 from cartography.models.aws.iam.federated_principal import AWSFederatedPrincipalSchema
 from cartography.models.aws.iam.group import AWSGroupSchema
 from cartography.models.aws.iam.inline_policy import AWSInlinePolicySchema
@@ -257,14 +258,21 @@ def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
     for role in role_list:
         name = role["RoleName"]
         role_arn = role["Arn"]
-        resource_role = resource_client.Role(name)
-        role_tags = resource_role.tags
+        try:
+            resource_role = resource_client.Role(name)
+            role_tags = resource_role.tags
+        except resource_client.meta.client.exceptions.NoSuchEntityException:
+            logger.warning(
+                "resource_client.Role('%s').tags failed with NoSuchEntityException; skipping.",
+                name,
+            )
+            continue
         if not role_tags:
             continue
 
         tag_data = {
             "ResourceARN": role_arn,
-            "Tags": resource_role.tags,
+            "Tags": role_tags,
         }
         role_tag_data.append(tag_data)
 
@@ -280,8 +288,15 @@ def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
     for user in user_list:
         name = user["UserName"]
         user_arn = user["Arn"]
-        resource_user = resource_client.User(name)
-        user_tags = resource_user.tags
+        try:
+            resource_user = resource_client.User(name)
+            user_tags = resource_user.tags
+        except resource_client.meta.client.exceptions.NoSuchEntityException:
+            logger.warning(
+                "resource_client.User('%s').tags failed with NoSuchEntityException; skipping.",
+                name,
+            )
+            continue
         if not user_tags:
             continue
 
@@ -292,29 +307,6 @@ def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
         user_tag_data.append(tag_data)
 
     return user_tag_data
-
-
-@timeit
-@aws_handle_regions
-def get_group_tags(boto3_session: boto3.Session) -> List[Dict]:
-    group_list = get_group_list_data(boto3_session)["Groups"]
-    resource_client = boto3_session.resource("iam")
-    group_tag_data: List[Dict] = []
-    for group in group_list:
-        name = group["GroupName"]
-        group_arn = group["Arn"]
-        resource_group = resource_client.Group(name)
-        group_tags = resource_group.tags
-        if not group_tags:
-            continue
-
-        tag_data = {
-            "ResourceARN": group_arn,
-            "Tags": group_tags,
-        }
-        group_tag_data.append(tag_data)
-
-    return group_tag_data
 
 
 @timeit
@@ -1315,6 +1307,55 @@ def load_server_certificates(
 
 
 @timeit
+def get_account_summary(boto3_session: boto3.Session) -> Dict[str, int]:
+    client = boto3_session.client("iam")
+    response = client.get_account_summary()
+    return response["SummaryMap"]
+
+
+def transform_account_summary(
+    summary_map: Dict[str, int],
+    current_aws_account_id: str,
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": current_aws_account_id,
+            **summary_map,
+        },
+    ]
+
+
+@timeit
+def load_account_summary(
+    neo4j_session: neo4j.Session,
+    data: list[dict[str, Any]],
+    aws_update_tag: int,
+) -> None:
+    load(
+        neo4j_session,
+        AWSAccountSummarySchema(),
+        data,
+        lastupdated=aws_update_tag,
+    )
+
+
+@timeit
+def sync_account_summary(
+    neo4j_session: neo4j.Session,
+    boto3_session: boto3.Session,
+    current_aws_account_id: str,
+    aws_update_tag: int,
+) -> None:
+    logger.info(
+        "Syncing IAM Account Summary for account '%s'.",
+        current_aws_account_id,
+    )
+    summary_map = get_account_summary(boto3_session)
+    transformed = transform_account_summary(summary_map, current_aws_account_id)
+    load_account_summary(neo4j_session, transformed, aws_update_tag)
+
+
+@timeit
 def sync_server_certificates(
     neo4j_session: neo4j.Session,
     boto3_session: boto3.Session,
@@ -1757,6 +1798,12 @@ def sync(
         current_aws_account_id,
         update_tag,
         common_job_parameters,
+    )
+    sync_account_summary(
+        neo4j_session,
+        boto3_session,
+        current_aws_account_id,
+        update_tag,
     )
     cleanup_iam(neo4j_session, common_job_parameters)
     merge_module_sync_metadata(

@@ -8,14 +8,17 @@ import boto3
 import neo4j
 
 from cartography.client.core.tx import execute_write_with_retry
-from cartography.intel.aws.iam import get_group_tags
 from cartography.intel.aws.iam import get_role_tags
 from cartography.intel.aws.iam import get_user_tags
+from cartography.stats import get_stats_client
 from cartography.util import aws_handle_regions
 from cartography.util import batch
 from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
+stat_handler = get_stats_client(__name__)
+
+DEFAULT_CLEANUP_BATCH_SIZE = 1000
 
 
 def get_short_id_from_ec2_arn(arn: str) -> str:
@@ -170,7 +173,6 @@ TAG_RESOURCE_TYPE_MAPPINGS: Dict = {
     "elasticmapreduce:cluster": {"label": "EMRCluster", "property": "arn"},
     "es:domain": {"label": "ESDomain", "property": "arn"},
     "kms:key": {"label": "KMSKey", "property": "arn"},
-    "iam:group": {"label": "AWSGroup", "property": "arn"},
     "iam:role": {"label": "AWSRole", "property": "arn"},
     "iam:user": {"label": "AWSUser", "property": "arn"},
     "lambda:function": {"label": "AWSLambda", "property": "id"},
@@ -203,10 +205,6 @@ def get_tags(
     if "iam:user" in resource_types:
         resources.extend(get_user_tags(boto3_session))
         resource_types = [rt for rt in resource_types if rt != "iam:user"]
-
-    if "iam:group" in resource_types:
-        resources.extend(get_group_tags(boto3_session))
-        resource_types = [rt for rt in resource_types if rt != "iam:group"]
 
     if not resource_types:
         return resources
@@ -383,7 +381,7 @@ _RESOURCE_CLEANUP_PATHS: Dict[str, str] = {
 def _run_cleanup_until_empty(
     neo4j_session: neo4j.Session,
     query: str,
-    batch_size: int = 1000,
+    batch_size: int = DEFAULT_CLEANUP_BATCH_SIZE,
     **kwargs: Any,
 ) -> int:
     """Run a cleanup query in batches until no more items are deleted.
@@ -395,6 +393,10 @@ def _run_cleanup_until_empty(
         """Transaction function that runs a cleanup query and returns deletion count."""
         result = tx.run(query, **params)
         summary = result.consume()
+        stat_handler.incr("nodes_deleted", summary.counters.nodes_deleted)
+        stat_handler.incr(
+            "relationships_deleted", summary.counters.relationships_deleted
+        )
         return summary.counters.nodes_deleted + summary.counters.relationships_deleted
 
     total_deleted = 0
@@ -415,6 +417,9 @@ def _run_cleanup_until_empty(
 @timeit
 def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
     """Clean up stale AWSTag nodes and TAGGED relationships."""
+    cleanup_batch_size = common_job_parameters.get(
+        "aws_tagging_api_cleanup_batch", DEFAULT_CLEANUP_BATCH_SIZE
+    )
     # Clean up tags and relationships for each resource type
     for label, path in _RESOURCE_CLEANUP_PATHS.items():
         # Delete stale tag nodes
@@ -426,6 +431,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
             WITH n LIMIT $LIMIT_SIZE
             DETACH DELETE n
             """,
+            batch_size=cleanup_batch_size,
             AWS_ID=common_job_parameters["AWS_ID"],
             UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
         )
@@ -438,6 +444,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
             WITH r LIMIT $LIMIT_SIZE
             DELETE r
             """,
+            batch_size=cleanup_batch_size,
             AWS_ID=common_job_parameters["AWS_ID"],
             UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
         )
@@ -451,6 +458,7 @@ def cleanup(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
         WITH n LIMIT $LIMIT_SIZE
         DETACH DELETE n
         """,
+        batch_size=cleanup_batch_size,
         UPDATE_TAG=common_job_parameters["UPDATE_TAG"],
     )
 
@@ -489,4 +497,7 @@ def sync(
                 current_aws_account_id=current_aws_account_id,
                 aws_update_tag=update_tag,
             )
-    cleanup(neo4j_session, common_job_parameters)
+    cleanup(
+        neo4j_session,
+        common_job_parameters,
+    )

@@ -184,6 +184,8 @@ Representation of an [Azure Role Assignment](https://learn.microsoft.com/en-us/a
 
 Representation of an [Azure Role Definition](https://learn.microsoft.com/en-us/azure/role-based-access-control/role-definitions). Role definitions describe the permissions that can be granted, including allowed actions, not actions, data actions, and not data actions.
 
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
+
 | Field | Description |
 |-------|-------------|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -287,6 +289,8 @@ Representation of an [Azure Virtual Machine](https://docs.microsoft.com/en-us/re
 |ultra\_ssd\_enabled | Enables or disables a capability on the virtual machine or virtual machine scale set.|
 |priority | Specifies the priority for the virtual machine|
 |eviction\_policy | Specifies the eviction policy for the Virtual Machine|
+|exposed\_internet | Whether the VM is exposed to the internet (direct or via LB). Set by an analysis job. |
+|exposed\_internet\_type | List of exposure types (e.g., `['direct']`, `['lb']`, `['direct', 'lb']`). Set by an analysis job. |
 
 #### Relationships
 
@@ -1808,6 +1812,8 @@ Representation of a [Key within an Azure Key Vault](https://learn.microsoft.com/
 
 Representation of a [Certificate within an Azure Key Vault](https://learn.microsoft.com/en-us/rest/api/keyvault/certificates/get-certificates).
 
+> **Ontology Mapping**: This node has the extra label `Certificate` to enable cross-platform queries for managed certificates across different systems (e.g., ACMCertificate, AWSServerCertificate).
+
 | Field | Description |
 |---|---|
 |firstseen| Timestamp of when a sync job discovered this node|
@@ -1834,6 +1840,8 @@ Representation of a [Certificate within an Azure Key Vault](https://learn.micros
 ### AzureKubernetesCluster
 
 Representation of an [Azure Kubernetes Service Cluster](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/get).
+
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, GKECluster, KubernetesCluster).
 
 | Field | Description |
 |---|---|
@@ -1892,6 +1900,7 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 |type| The type of the resource (e.g., `Microsoft.ContainerInstance/containerGroups`). |
 |provisioning_state| The deployment status of the Container Instance (e.g., Succeeded). |
 |ip_address| The public IP address of the Container Instance, if one is assigned. |
+|ip_address_type| The IP type of the Container Instance (`Public` or `Private`) when available. |
 |os_type| The operating system type of the Container Instance (e.g., Linux or Windows). |
 
 #### Relationships
@@ -1903,6 +1912,10 @@ Representation of an [Azure Container Instance](https://learn.microsoft.com/en-u
 - Azure Container Instances can be tagged with Azure Tags.
     ```cypher
     (AzureContainerInstance)-[:TAGGED]->(AzureTag)
+    ```
+- VNet-integrated Container Instances are attached to a Subnet.
+    ```cypher
+    (AzureContainerInstance)-[:ATTACHED_TO]->(:AzureSubnet)
     ```
 
 ### AzureLoadBalancer
@@ -1919,6 +1932,7 @@ Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/res
 | name       | The name of the Load Balancer.                              |
 | location   | The Azure region where the Load Balancer is deployed.       |
 | sku_name   | The SKU of the Load Balancer (e.g., `Standard`, `Basic`).   |
+| exposed\_internet | Whether the Load Balancer has a public frontend IP. Set by an analysis job. |
 
 #### Relationships
 
@@ -1943,6 +1957,14 @@ Representation of an [Azure Load Balancer](https://learn.microsoft.com/en-us/res
     ```cypher
     (AzureLoadBalancer)-[:TAGGED]->(AzureTag)
     ```
+- Internet-facing Load Balancers can expose private VMs. Set by an analysis job.
+    ```cypher
+    (AzureLoadBalancer)-[:EXPOSE]->(:AzureVirtualMachine)
+    ```
+- Azure Firewalls can protect Load Balancers via VNet traversal. Set by an analysis job. This is a topology-based approximation and does not validate effective route path or firewall rule evaluation.
+    ```cypher
+    (AzureFirewall)-[:PROTECTS]->(:AzureLoadBalancer)
+    ```
 
 ### AzureLoadBalancerFrontendIPConfiguration
 
@@ -1957,6 +1979,13 @@ Representation of a Frontend IP Configuration for an Azure Load Balancer.
 | private\_ip\_address   | The private IP address of the configuration, if applicable.              |
 | public\_ip\_address\_id | The resource ID of the associated Public IP Address object, if applicable. |
 
+#### Relationships
+
+- A Frontend IP Configuration can be associated with a Public IP Address.
+    ```cypher
+    (AzureLoadBalancerFrontendIPConfiguration)-[:ASSOCIATED_WITH]->(:AzurePublicIPAddress)
+    ```
+
 ### AzureLoadBalancerBackendPool
 
 Representation of a Backend Pool for an Azure Load Balancer.
@@ -1967,6 +1996,13 @@ Representation of a Backend Pool for an Azure Load Balancer.
 | lastupdated | Timestamp of the last time the node was updated   |
 | **id** | The full resource ID of the Backend Pool.         |
 | name        | The name of the Backend Pool.                     |
+
+#### Relationships
+
+- A Backend Pool routes traffic to Network Interfaces.
+    ```cypher
+    (AzureLoadBalancerBackendPool)-[:ROUTES_TO]->(:AzureNetworkInterface)
+    ```
 
 ### AzureLoadBalancerRule
 
@@ -2084,6 +2120,8 @@ Representation of a [Subnet within an Azure Virtual Network](https://learn.micro
 
 Representation of an [Azure Network Security Group (NSG)](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/network-security-groups/get).
 
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
+
 | Field       | Description                                           |
 | ----------- | ----------------------------------------------------- |
 | firstseen   | Timestamp of when a sync job discovered this node     |
@@ -2109,6 +2147,8 @@ Representation of an [Azure Network Security Group (NSG)](https://learn.microsof
 Representation of an [Azure Firewall](https://learn.microsoft.com/en-us/rest/api/firewall/azure-firewalls/get).
 
 Azure Firewall is a cloud-native network security service that provides threat protection for cloud workloads running in Azure. It's a fully stateful firewall as a service with built-in high availability and unrestricted cloud scalability.
+
+> **Ontology Mapping**: This node has the extra label `NetworkAccessControl` to enable cross-platform queries for security groups and firewall rules across different systems (e.g., EC2SecurityGroup, GCPFirewall, AzureNetworkSecurityGroup).
 
 | Field       | Description                                           |
 | ----------- | ----------------------------------------------------- |

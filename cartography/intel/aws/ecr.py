@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.container_arch import normalize_architecture
 from cartography.models.aws.ecr.image import ECRImageBaseSchema
 from cartography.models.aws.ecr.image import ECRImageSchema
 from cartography.models.aws.ecr.repository import ECRRepositorySchema
@@ -25,6 +26,9 @@ MANIFEST_LIST_MEDIA_TYPES = {
     "application/vnd.docker.distribution.manifest.list.v2+json",
     "application/vnd.oci.image.index.v1+json",
 }
+
+
+REPO_BATCH_SIZE = 100
 
 
 @timeit
@@ -106,7 +110,11 @@ def _get_platform_specific_digests(
             {
                 "digest": digest,
                 "type": "attestation" if is_attestation else "image",
-                "architecture": architecture,
+                "architecture": (
+                    normalize_architecture(architecture)
+                    if architecture is not None
+                    else None
+                ),
                 "os": os_name,
                 "variant": platform_info.get("variant"),
                 "attestation_type": (
@@ -278,7 +286,11 @@ def transform_ecr_repository_images(repo_data: Dict) -> tuple[List[Dict], List[D
                         ecr_images_dict[manifest_digest] = {
                             "imageDigest": manifest_digest,
                             "type": manifest_img.get("type"),
-                            "architecture": manifest_img.get("architecture"),
+                            "architecture": (
+                                normalize_architecture(manifest_img.get("architecture"))
+                                if manifest_img.get("architecture") is not None
+                                else None
+                            ),
                             "os": manifest_img.get("os"),
                             "variant": manifest_img.get("variant"),
                             "attestation_type": manifest_img.get("attestation_type"),
@@ -378,7 +390,9 @@ def _get_image_data(
 
     # Sort repositories by name to ensure consistent processing order
     sorted_repos = sorted(repositories, key=lambda x: x["repositoryName"])
-    to_synchronous(*[async_get_images(repo) for repo in sorted_repos])
+    for i in range(0, len(sorted_repos), REPO_BATCH_SIZE):
+        batch = sorted_repos[i : i + REPO_BATCH_SIZE]
+        to_synchronous(*[async_get_images(repo) for repo in batch])
 
     return image_data
 

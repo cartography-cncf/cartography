@@ -130,6 +130,44 @@ def test_sync_guardduty_findings(
         # Note: S3Bucket finding with severity 5.0 excluded by HIGH threshold
     }
 
+    # Assert - Check that finding date fields were populated from the expected API paths
+    finding_dates = neo4j_session.run(
+        """
+        MATCH (f:GuardDutyFinding)
+        RETURN
+            f.id AS id,
+            toString(f.createdat) AS createdat,
+            toString(f.updatedat) AS updatedat,
+            toString(f.eventfirstseen) AS eventfirstseen,
+            toString(f.eventlastseen) AS eventlastseen
+        """,
+    ).data()
+    assert {
+        (
+            row["id"],
+            row["createdat"],
+            row["updatedat"],
+            row["eventfirstseen"],
+            row["eventlastseen"],
+        )
+        for row in finding_dates
+    } == {
+        (
+            "74b1234567890abcdef1234567890abcdef",
+            "2023-01-15T10:30:00",
+            "2023-01-15T10:45:00",
+            "2023-01-15T10:30:00",
+            "2023-01-15T10:45:00",
+        ),
+        (
+            "96d3456789012cdef3456789012cdef01",
+            "2023-01-17T09:15:00",
+            "2023-01-17T09:30:00",
+            "2023-01-17T09:15:00",
+            "2023-01-17T09:30:00",
+        ),
+    }
+
     # Assert - Check that GuardDuty detectors are connected to the AWSAccount
     assert check_rels(
         neo4j_session,

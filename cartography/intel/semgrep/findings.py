@@ -11,8 +11,10 @@ from requests.exceptions import ReadTimeout
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.models.semgrep.assistant import SemgrepFindingAssistantSchema
 from cartography.models.semgrep.findings import SemgrepSCAFindingSchema
 from cartography.models.semgrep.locations import SemgrepSCALocationSchema
+from cartography.models.semgrep.sast import SemgrepSASTFindingSchema
 from cartography.stats import get_stats_client
 from cartography.util import merge_module_sync_metadata
 from cartography.util import run_scoped_analysis_job
@@ -50,7 +52,7 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
         "ref": "_default",
         "dedup": "true",
     }
-    logger.info(f"Retrieving Semgrep SCA vulns for deployment '{deployment_slug}'.")
+    logger.info("Retrieving Semgrep SCA vulns for deployment '%s'.", deployment_slug)
     while has_more:
 
         try:
@@ -64,7 +66,8 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
             data = response.json()
         except (ReadTimeout, HTTPError):
             logger.warning(
-                f"Failed to retrieve Semgrep SCA vulns for page {page}. Retrying...",
+                "Failed to retrieve Semgrep SCA vulns for page %d. Retrying...",
+                page,
             )
             retries += 1
             if retries >= _MAX_RETRIES:
@@ -73,13 +76,13 @@ def get_sca_vulns(semgrep_app_token: str, deployment_slug: str) -> List[Dict[str
         vulns = data["findings"]
         has_more = len(vulns) > 0
         if page % 10 == 0:
-            logger.info(f"Processed page {page} of Semgrep SCA vulnerabilities.")
+            logger.info("Processed page %d of Semgrep SCA vulnerabilities.", page)
         all_vulns.extend(vulns)
         retries = 0
         page += 1
         request_data["page"] = page
 
-    logger.info(f"Retrieved {len(all_vulns)} Semgrep SCA vulns in {page} pages.")
+    logger.info("Retrieved %d Semgrep SCA vulns in %d pages.", len(all_vulns), page)
     return all_vulns
 
 
@@ -138,6 +141,7 @@ def transform_sca_vulns(
         package = vuln["found_dependency"]["package"]
         sca_vuln["id"] = vuln["id"]
         sca_vuln["repositoryName"] = repository_name
+        sca_vuln["repositoryUrl"] = vuln["repository"]["url"]
         sca_vuln["branch"] = vuln["ref"]
         sca_vuln["ruleId"] = rule_id
         sca_vuln["title"] = package + ":" + vulnerability_class
@@ -179,6 +183,7 @@ def transform_sca_vulns(
         sca_vuln["fixStatus"] = vuln["status"]
         sca_vuln["triageStatus"] = vuln["triage_state"]
         sca_vuln["confidence"] = vuln["confidence"]
+        sca_vuln["assistantId"] = f"semgrep-assistant-{vuln['id']}"
         usage = vuln.get("usage")
         if usage:
             usage_dict = {}
@@ -204,11 +209,133 @@ def load_semgrep_sca_vulns(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(vulns)} SemgrepSCAFinding objects into the graph.")
+    logger.debug("Loading %d SemgrepSCAFinding objects into the graph.", len(vulns))
     load(
         neo4j_session,
         SemgrepSCAFindingSchema(),
         vulns,
+        lastupdated=update_tag,
+        DEPLOYMENT_ID=deployment_id,
+    )
+
+
+@timeit
+def get_sast_findings(
+    semgrep_app_token: str, deployment_slug: str
+) -> List[Dict[str, Any]]:
+    """
+    Gets the SAST findings associated with the passed Semgrep App token and deployment slug.
+    param: semgrep_app_token: The Semgrep App token to use for authentication.
+    param: deployment_slug: The Semgrep deployment slug to use for retrieving SAST findings.
+    """
+    all_findings = []
+    findings_url = f"https://semgrep.dev/api/v1/deployments/{deployment_slug}/findings"
+    has_more = True
+    page = 0
+    retries = 0
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {semgrep_app_token}",
+    }
+
+    request_data: dict[str, Any] = {
+        "page": page,
+        "page_size": _PAGE_SIZE,
+        "issue_type": "sast",
+        "ref": "_default",
+        "dedup": "true",
+    }
+    logger.info(
+        "Retrieving Semgrep SAST findings for deployment '%s'.", deployment_slug
+    )
+    while has_more:
+        try:
+            response = requests.get(
+                findings_url,
+                params=request_data,
+                headers=headers,
+                timeout=_TIMEOUT,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except (ReadTimeout, HTTPError):
+            logger.warning(
+                "Failed to retrieve Semgrep SAST findings for page %d. Retrying...",
+                page,
+            )
+            retries += 1
+            if retries >= _MAX_RETRIES:
+                raise
+            continue
+        findings = data["findings"]
+        has_more = len(findings) > 0
+        if page % 10 == 0:
+            logger.info("Processed page %d of Semgrep SAST findings.", page)
+        all_findings.extend(findings)
+        retries = 0
+        page += 1
+        request_data["page"] = page
+
+    logger.info(
+        "Retrieved %d Semgrep SAST findings in %d pages.", len(all_findings), page
+    )
+    return all_findings
+
+
+def transform_sast_findings(
+    raw_findings: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Transforms the raw SAST findings response from Semgrep API into a list of dicts
+    that can be used to create the SemgrepSASTFinding nodes.
+    """
+    findings = []
+    for finding in raw_findings:
+        sast_finding: Dict[str, Any] = {}
+        repository_name = finding["repository"]["name"]
+        rule_id = finding["rule"]["name"]
+        sast_finding["id"] = finding["id"]
+        sast_finding["repositoryName"] = repository_name
+        sast_finding["repositoryUrl"] = finding["repository"]["url"]
+        sast_finding["branch"] = finding["ref"]
+        sast_finding["ruleId"] = rule_id
+        sast_finding["title"] = rule_id
+        sast_finding["description"] = finding["rule"]["message"]
+        sast_finding["severity"] = finding["severity"].upper()
+        confidence = finding.get("confidence")
+        sast_finding["confidence"] = confidence.upper() if confidence else None
+        sast_finding["categories"] = finding.get("categories", [])
+        sast_finding["cweNames"] = finding["rule"].get("cwe_names", [])
+        sast_finding["owaspNames"] = finding["rule"].get("owasp_names", [])
+        location = finding.get("location", {})
+        if location:
+            sast_finding["filePath"] = location.get("file_path")
+            sast_finding["startLine"] = location.get("line")
+            sast_finding["startCol"] = location.get("column")
+            sast_finding["endLine"] = location.get("end_line")
+            sast_finding["endCol"] = location.get("end_column")
+        sast_finding["lineOfCodeUrl"] = finding.get("line_of_code_url")
+        sast_finding["state"] = finding.get("state")
+        sast_finding["fixStatus"] = finding.get("status")
+        sast_finding["triageStatus"] = finding.get("triage_state")
+        sast_finding["openedAt"] = finding.get("created_at")
+        sast_finding["assistantId"] = f"semgrep-assistant-{finding['id']}"
+        findings.append(sast_finding)
+    return findings
+
+
+@timeit
+def load_semgrep_sast_findings(
+    neo4j_session: neo4j.Session,
+    findings: List[Dict[str, Any]],
+    deployment_id: str,
+    update_tag: int,
+) -> None:
+    logger.debug("Loading %d SemgrepSASTFinding objects into the graph.", len(findings))
+    load(
+        neo4j_session,
+        SemgrepSASTFindingSchema(),
+        findings,
         lastupdated=update_tag,
         DEPLOYMENT_ID=deployment_id,
     )
@@ -221,7 +348,7 @@ def load_semgrep_sca_usages(
     deployment_id: str,
     update_tag: int,
 ) -> None:
-    logger.info(f"Loading {len(usages)} SemgrepSCALocation objects into the graph.")
+    logger.debug("Loading %d SemgrepSCALocation objects into the graph.", len(usages))
     load(
         neo4j_session,
         SemgrepSCALocationSchema(),
@@ -231,23 +358,171 @@ def load_semgrep_sca_usages(
     )
 
 
+def _extract_assistants(
+    raw_findings: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """
+    Extracts assistant data from raw findings (SAST or SCA) into a flat list of dicts
+    suitable for loading as SemgrepFindingAssistant nodes. Findings without an assistant
+    field are skipped.
+    """
+    assistants = []
+    for finding in raw_findings:
+        assistant = finding.get("assistant")
+        if not assistant:
+            continue
+        node: Dict[str, Any] = {"id": f"semgrep-assistant-{finding['id']}"}
+        autofix = assistant.get("autofix") or {}
+        autotriage = assistant.get("autotriage") or {}
+        component = assistant.get("component") or {}
+        guidance = assistant.get("guidance") or {}
+        rule_explanation = assistant.get("rule_explanation") or {}
+        node["autofixFixCode"] = autofix.get("fix_code")
+        node["autotriagedVerdict"] = autotriage.get("verdict")
+        node["autotriagedReason"] = autotriage.get("reason")
+        node["componentTag"] = component.get("tag")
+        node["componentRisk"] = component.get("risk")
+        node["guidanceSummary"] = guidance.get("summary")
+        node["guidanceInstructions"] = guidance.get("instructions")
+        node["ruleExplanationSummary"] = rule_explanation.get("summary")
+        node["ruleExplanation"] = rule_explanation.get("explanation")
+        assistants.append(node)
+    return assistants
+
+
 @timeit
-def cleanup(
+def load_semgrep_finding_assistants(
     neo4j_session: neo4j.Session,
-    common_job_parameters: Dict[str, Any],
+    assistants: List[Dict[str, Any]],
+    deployment_id: str,
+    update_tag: int,
 ) -> None:
-    logger.info("Running Semgrep SCA findings cleanup job.")
-    findings_cleanup_job = GraphJob.from_node_schema(
-        SemgrepSCAFindingSchema(),
-        common_job_parameters,
+    logger.debug(
+        "Loading %d SemgrepFindingAssistant objects into the graph.", len(assistants)
     )
-    findings_cleanup_job.run(neo4j_session)
-    logger.info("Running Semgrep SCA Locations cleanup job.")
-    locations_cleanup_job = GraphJob.from_node_schema(
-        SemgrepSCALocationSchema(),
-        common_job_parameters,
+    load(
+        neo4j_session,
+        SemgrepFindingAssistantSchema(),
+        assistants,
+        lastupdated=update_tag,
+        DEPLOYMENT_ID=deployment_id,
     )
-    locations_cleanup_job.run(neo4j_session)
+
+
+@timeit
+def sync_sast_findings(
+    neo4j_session: neo4j.Session,
+    semgrep_app_token: str,
+    deployment_id: str,
+    deployment_slug: str,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> bool:
+    """
+    Fetches, transforms, and loads Semgrep SAST findings for the given deployment.
+    Returns True on success, False if the API call failed.
+    """
+    try:
+        raw_findings = get_sast_findings(semgrep_app_token, deployment_slug)
+        logger.info("Running Semgrep FindingAssistant sync job (SAST).")
+        load_semgrep_finding_assistants(
+            neo4j_session,
+            _extract_assistants(raw_findings),
+            deployment_id,
+            update_tag,
+        )
+        logger.info("Running Semgrep SAST findings sync job.")
+        load_semgrep_sast_findings(
+            neo4j_session,
+            transform_sast_findings(raw_findings),
+            deployment_id,
+            update_tag,
+        )
+        run_scoped_analysis_job(
+            "semgrep_sast_risk_analysis.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+        merge_module_sync_metadata(
+            neo4j_session=neo4j_session,
+            group_type="Semgrep",
+            group_id=deployment_id,
+            synced_type="SAST",
+            update_tag=update_tag,
+            stat_handler=stat_handler,
+        )
+        logger.info("Running Semgrep SAST findings cleanup job.")
+        GraphJob.from_node_schema(
+            SemgrepSASTFindingSchema(),
+            common_job_parameters,
+        ).run(neo4j_session)
+        return True
+    except (ReadTimeout, HTTPError) as e:
+        logger.warning(
+            "Semgrep SAST sync failed, skipping SAST for this run: %s",
+            e,
+            exc_info=True,
+        )
+        return False
+
+
+@timeit
+def sync_sca_findings(
+    neo4j_session: neo4j.Session,
+    semgrep_app_token: str,
+    deployment_id: str,
+    deployment_slug: str,
+    update_tag: int,
+    common_job_parameters: Dict[str, Any],
+) -> bool:
+    """
+    Fetches, transforms, and loads Semgrep SCA findings for the given deployment.
+    Returns True on success, False if the API call failed.
+    """
+    try:
+        raw_vulns = get_sca_vulns(semgrep_app_token, deployment_slug)
+        logger.info("Running Semgrep FindingAssistant sync job (SCA).")
+        load_semgrep_finding_assistants(
+            neo4j_session,
+            _extract_assistants(raw_vulns),
+            deployment_id,
+            update_tag,
+        )
+        logger.info("Running Semgrep SCA findings sync job.")
+        vulns, usages = transform_sca_vulns(raw_vulns)
+        load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
+        load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
+        run_scoped_analysis_job(
+            "semgrep_sca_risk_analysis.json",
+            neo4j_session,
+            common_job_parameters,
+        )
+        merge_module_sync_metadata(
+            neo4j_session=neo4j_session,
+            group_type="Semgrep",
+            group_id=deployment_id,
+            synced_type="SCA",
+            update_tag=update_tag,
+            stat_handler=stat_handler,
+        )
+        logger.info("Running Semgrep SCA findings cleanup job.")
+        GraphJob.from_node_schema(
+            SemgrepSCAFindingSchema(),
+            common_job_parameters,
+        ).run(neo4j_session)
+        logger.info("Running Semgrep SCA Locations cleanup job.")
+        GraphJob.from_node_schema(
+            SemgrepSCALocationSchema(),
+            common_job_parameters,
+        ).run(neo4j_session)
+        return True
+    except (ReadTimeout, HTTPError) as e:
+        logger.warning(
+            "Semgrep SCA sync failed, skipping SCA for this run: %s",
+            e,
+            exc_info=True,
+        )
+        return False
 
 
 @timeit
@@ -257,33 +532,37 @@ def sync_findings(
     update_tag: int,
     common_job_parameters: Dict[str, Any],
 ) -> None:
-
     deployment_id = common_job_parameters.get("DEPLOYMENT_ID")
     deployment_slug = common_job_parameters.get("DEPLOYMENT_SLUG")
     if not deployment_id or not deployment_slug:
         logger.warning(
-            "Missing Semgrep deployment ID or slug, ensure that sync_deployment() has been called."
-            "Skipping SCA findings sync job.",
+            "Missing Semgrep deployment ID or slug, ensure that sync_deployment() has been called. "
+            "Skipping findings sync job.",
         )
         return
 
-    logger.info("Running Semgrep SCA findings sync job.")
-    raw_vulns = get_sca_vulns(semgrep_app_token, deployment_slug)
-    vulns, usages = transform_sca_vulns(raw_vulns)
-    load_semgrep_sca_vulns(neo4j_session, vulns, deployment_id, update_tag)
-    load_semgrep_sca_usages(neo4j_session, usages, deployment_id, update_tag)
-    run_scoped_analysis_job(
-        "semgrep_sca_risk_analysis.json",
+    sast_succeeded = sync_sast_findings(
         neo4j_session,
+        semgrep_app_token,
+        deployment_id,
+        deployment_slug,
+        update_tag,
+        common_job_parameters,
+    )
+    sca_succeeded = sync_sca_findings(
+        neo4j_session,
+        semgrep_app_token,
+        deployment_id,
+        deployment_slug,
+        update_tag,
         common_job_parameters,
     )
 
-    cleanup(neo4j_session, common_job_parameters)
-    merge_module_sync_metadata(
-        neo4j_session=neo4j_session,
-        group_type="Semgrep",
-        group_id=deployment_id,
-        synced_type="SCA",
-        update_tag=update_tag,
-        stat_handler=stat_handler,
-    )
+    # Assistant cleanup runs after both pipelines so we don't prematurely
+    # remove assistants belonging to the other finding type.
+    if sast_succeeded or sca_succeeded:
+        logger.info("Running Semgrep FindingAssistant cleanup job.")
+        GraphJob.from_node_schema(
+            SemgrepFindingAssistantSchema(),
+            common_job_parameters,
+        ).run(neo4j_session)

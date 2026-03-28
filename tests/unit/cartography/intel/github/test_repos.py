@@ -1,8 +1,6 @@
 from copy import deepcopy
 from unittest.mock import patch
 
-import pytest
-
 import cartography.intel.github.repos
 from cartography.intel.github.repos import _create_git_url_from_ssh_url
 from cartography.intel.github.repos import _merge_repos_with_privileged_details
@@ -11,6 +9,7 @@ from cartography.intel.github.repos import _transform_dependency_graph
 from cartography.intel.github.repos import _transform_dependency_manifests
 from cartography.intel.github.repos import _transform_python_requirements
 from cartography.intel.github.repos import transform
+from tests.data.github.repos import DEP_MANIFESTS_BY_URL
 from tests.data.github.repos import DEPENDENCY_GRAPH_WITH_MULTIPLE_ECOSYSTEMS
 from tests.data.github.repos import GET_REPOS
 
@@ -212,8 +211,10 @@ def test_transform_includes_branch_protection_rules():
 
 
 def test_transform_prefers_dependency_graph_over_requirements_txt():
-    repo = GET_REPOS[2]
+    repo = dict(GET_REPOS[2])
     repo_url = repo["url"]
+    # Simulate what sync() does: inject dep manifests fetched separately
+    repo["dependencyGraphManifests"] = DEP_MANIFESTS_BY_URL[repo_url]
 
     result = transform(
         [repo],
@@ -300,11 +301,21 @@ def test_repos_need_privileged_details_when_fields_present():
 @patch.object(
     cartography.intel.github.repos,
     "get_repo_privileged_details_by_url",
-    side_effect=RuntimeError("privileged fetch failed"),
+    side_effect=ValueError("privileged fetch failed"),
+)
+@patch.object(cartography.intel.github.repos, "run_cleanup_job")
+@patch.object(cartography.intel.github.repos, "load")
+@patch.object(
+    cartography.intel.github.repos,
+    "_get_repo_collaborators_for_multiple_repos",
+    return_value={},
 )
 @patch.object(cartography.intel.github.repos, "get")
-def test_sync_raises_when_privileged_fetch_fails(
+def test_sync_continues_when_privileged_fetch_fails(
     mock_get,
+    mock_get_repo_collaborators,
+    mock_load,
+    mock_run_cleanup_job,
     mock_get_privileged,
 ):
     repo = deepcopy(GET_REPOS[0])
@@ -313,11 +324,19 @@ def test_sync_raises_when_privileged_fetch_fails(
     repo.pop("branchProtectionRules", None)
     mock_get.return_value = [repo]
 
-    with pytest.raises(RuntimeError, match="privileged fetch failed"):
-        cartography.intel.github.repos.sync(
-            None,
-            {"UPDATE_TAG": TEST_UPDATE_TAG},
-            "token",
-            "https://api.github.com/graphql",
-            "example-org",
-        )
+    cartography.intel.github.repos.sync(
+        None,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+        "token",
+        "https://api.github.com/graphql",
+        "example-org",
+    )
+
+    mock_get_privileged.assert_called_once_with(
+        "token",
+        "https://api.github.com/graphql",
+        "example-org",
+    )
+    assert mock_get_repo_collaborators.call_count == 2
+    mock_load.assert_called_once()
+    mock_run_cleanup_job.assert_called_once()

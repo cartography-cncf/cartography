@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from cartography.models.core.common import PropertyRef
 from cartography.models.core.nodes import CartographyNodeProperties
 from cartography.models.core.nodes import CartographyNodeSchema
+from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
@@ -144,6 +145,7 @@ class OCIPolicyToCompartmentRefRel(CartographyRelSchema):
 class OCIPolicySchema(CartographyNodeSchema):
     label: str = "OCIPolicy"
     properties: OCIPolicyNodeProperties = OCIPolicyNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
     sub_resource_relationship: OCIPolicyToOCITenancyRel = OCIPolicyToOCITenancyRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [
@@ -163,6 +165,7 @@ class OCIPolicyWithReferencesSchema(CartographyNodeSchema):
 
     label: str = "OCIPolicy"
     properties: OCIPolicyRefNodeProperties = OCIPolicyRefNodeProperties()
+    extra_node_labels: ExtraNodeLabels = ExtraNodeLabels(["PermissionRole"])
     sub_resource_relationship: OCIPolicyToOCITenancyRel = OCIPolicyToOCITenancyRel()
     other_relationships: OtherRelationships = OtherRelationships(
         [

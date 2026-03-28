@@ -12,6 +12,7 @@ from typing import Union
 
 import boto3
 import botocore
+import botocore.config
 import neo4j
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
@@ -41,6 +42,8 @@ from cartography.util import to_synchronous
 logger = logging.getLogger(__name__)
 stat_handler = get_stats_client(__name__)
 
+BUCKET_BATCH_SIZE = 50
+
 
 # Sentinel value to indicate a fetch operation failed (vs None for "no configuration")
 # When a fetch returns FETCH_FAILED, we skip loading that property group to preserve existing data.
@@ -66,7 +69,10 @@ MaybeFailed = Union[Optional[Dict], _FetchFailed]
 
 @timeit
 def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
-    client = boto3_session.client("s3")
+    client = boto3_session.client(
+        "s3",
+        config=botocore.config.Config(max_pool_connections=50),
+    )
     # NOTE no paginator available for this operation
     buckets = client.list_buckets()
     for bucket in buckets["Buckets"]:
@@ -135,7 +141,11 @@ def get_s3_bucket_details(
         # in us-east-1 region
         client = s3_regional_clients.get(bucket["Region"])
         if not client:
-            client = boto3_session.client("s3", bucket["Region"])
+            client = boto3_session.client(
+                "s3",
+                bucket["Region"],
+                config=botocore.config.Config(max_pool_connections=50),
+            )
             s3_regional_clients[bucket["Region"]] = client
         (
             acl,
@@ -165,10 +175,13 @@ def get_s3_bucket_details(
             bucket_logging,
         )
 
-    bucket_details = to_synchronous(
-        *[_get_bucket_detail(bucket) for bucket in bucket_data["Buckets"]],
-    )
-    yield from bucket_details
+    buckets = bucket_data["Buckets"]
+    for i in range(0, len(buckets), BUCKET_BATCH_SIZE):
+        batch = buckets[i : i + BUCKET_BATCH_SIZE]
+        bucket_details = to_synchronous(
+            *[_get_bucket_detail(bucket) for bucket in batch],
+        )
+        yield from bucket_details
 
 
 @timeit
@@ -1249,7 +1262,10 @@ def _sync_s3_notifications(
     Sync S3 bucket notification configurations to Neo4j.
     """
     logger.info("Syncing S3 bucket notifications")
-    s3_client = boto3_session.client("s3")
+    s3_client = boto3_session.client(
+        "s3",
+        config=botocore.config.Config(max_pool_connections=BUCKET_BATCH_SIZE),
+    )
     notifications = []
 
     for bucket in bucket_data["Buckets"]:

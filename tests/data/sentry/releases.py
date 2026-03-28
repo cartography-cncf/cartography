@@ -1,0 +1,26 @@
+SENTRY_RELEASES = [
+    {
+        "id": 1001,
+        "version": "backend-api@1.0.0",
+        "shortVersion": "1.0.0",
+        "dateCreated": "2024-03-01T10:00:00.000Z",
+        "dateReleased": "2024-03-01T12:00:00.000Z",
+        "commitCount": 5,
+        "deployCount": 1,
+        "newGroups": 2,
+        "ref": "abc123",
+        "url": None,
+    },
+    {
+        "id": 1002,
+        "version": "frontend-app@2.0.0",
+        "shortVersion": "2.0.0",
+        "dateCreated": "2024-03-10T10:00:00.000Z",
+        "dateReleased": None,
+        "commitCount": 12,
+        "deployCount": 0,
+        "newGroups": 0,
+        "ref": None,
+        "url": None,
+    },
+]

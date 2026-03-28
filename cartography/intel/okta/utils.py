@@ -19,16 +19,19 @@ def is_last_page(response: PagedResults) -> bool:
     return not ("next" in response.links)
 
 
-def create_api_client(okta_org: str, path_name: str, api_key: str) -> ApiClient:
+def create_api_client(
+    okta_org: str, path_name: str, api_key: str, okta_base_domain: str = "okta.com"
+) -> ApiClient:
     """
     Create Okta ApiClient
     :param okta_org: Okta organization name
     :param path_name: API Path
     :param api_key: Okta api key
+    :param okta_base_domain: Base domain for Okta API requests (default: okta.com)
     :return: Instance of ApiClient
     """
     api_client = ApiClient(
-        base_url=f"https://{okta_org}.okta.com/",
+        base_url=f"https://{okta_org}.{okta_base_domain}/",
         pathname=path_name,
         api_token=api_key,
     )

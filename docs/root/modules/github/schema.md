@@ -118,6 +118,14 @@ WRITE, MAINTAIN, TRIAGE, and READ ([Reference](https://docs.github.com/en/graphq
   - **last_commit_date**: ISO 8601 timestamp of the user's most recent commit to the repository
   - **first_commit_date**: ISO 8601 timestamp of the user's oldest commit to the repository within the 30-day period
 
+- GitHubRepositories can have Semgrep findings (optional, requires Semgrep integration).
+
+    ```
+    (SemgrepSASTFinding)-[:FOUND_IN]->(GitHubRepository)
+    (SemgrepSCAFinding)-[:FOUND_IN]->(GitHubRepository)
+    (SemgrepSecretsFinding)-[:FOUND_IN]->(GitHubRepository)
+    ```
+
 ### GitHubOrganization
 
 Representation of a single GitHubOrganization [organization object](https://developer.github.com/v4/object/organization/). This node contains minimal data for the GitHub Organization.
@@ -168,6 +176,7 @@ Representation of a single GitHubOrganization [organization object](https://deve
 
 A GitHubTeam [organization object](https://docs.github.com/en/graphql/reference/objects#team).
 
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., AWSGroup, EntraGroup, GoogleWorkspaceGroup).
 
 | Field | Description |
 |-------|--------------|

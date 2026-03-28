@@ -3,6 +3,8 @@
 ### KubernetesCluster
 Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/overview/what-is-kubernetes/)
 
+> **Ontology Mapping**: This node has the extra label `ComputeCluster` to enable cross-platform queries for compute clusters across different systems (e.g., EKSCluster, ECSCluster, AzureKubernetesCluster, GKECluster).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Identifier for the cluster i.e. UID of `kube-system` namespace |
@@ -15,6 +17,14 @@ Representation of a [Kubernetes Cluster.](https://kubernetes.io/docs/concepts/ov
 | go_version | Version of Go used to compile Kubernetes (e.g. go1.20.5) |
 | compiler | Compiler used to build Kubernetes (e.g. gc) |
 | platform | Operating system and architecture the cluster is running on (e.g. linux/amd64) |
+| api_server_url | Kubernetes API server URL from kubeconfig |
+| kubeconfig_insecure_skip_tls_verify | Whether kubeconfig is configured to skip API server TLS verification |
+| kubeconfig_has_certificate_authority_data | True when kubeconfig has inline `certificate-authority-data` for this cluster |
+| kubeconfig_has_certificate_authority_file | True when kubeconfig has a `certificate-authority` file path for this cluster |
+| kubeconfig_ca_file_path | CA file path from kubeconfig when `certificate-authority` is configured |
+| kubeconfig_has_client_certificate | True when kubeconfig user has a client cert (`client-certificate` or `client-certificate-data`) |
+| kubeconfig_has_client_key | True when kubeconfig user has a client key (`client-key` or `client-key-data`) |
+| kubeconfig_tls_configuration_status | Derived kubeconfig TLS posture (`valid_config`, `insecure_skip_tls`, `missing_ca_material`, `unknown`) |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 
@@ -86,6 +96,8 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 | labels | Labels are key-value pairs contained in the `PodSpec` and fetched from `pod.metadata.labels`. Stored as a JSON-encoded string. |
 | **cluster\_name** | Name of the Kubernetes cluster where this pod is deployed |
 | node | Name of the Kubernetes node where this pod is currently scheduled and running. Fetched from `pod.spec.node_name`. |
+| exposed\_internet | Set by analysis job. `true` if this pod is reachable from an internet-facing load balancer. |
+| exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 
@@ -93,6 +105,11 @@ Representation of a [Kubernetes Pod.](https://kubernetes.io/docs/concepts/worklo
 - `KubernetesPod` has `KubernetesContainer`.
     ```
     (:KubernetesPod)-[:CONTAINS]->(:KubernetesContainer)
+    ```
+
+- An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesPod`. Created by the `k8s_lb_exposure` analysis job.
+    ```
+    (:AWSLoadBalancerV2)-[:EXPOSE {exposure_type: 'via_lb_only'}]->(:KubernetesPod)
     ```
 
 ### KubernetesContainer
@@ -117,6 +134,8 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
 | cpu\_request | Minimum amount of CPU guaranteed to be available to the container (e.g. "100m", "1") |
 | memory\_limit | Maximum amount of memory the container is allowed to use (e.g. "256Mi", "2Gi") |
 | cpu\_limit | Maximum amount of CPU the container is allowed to use (e.g. "500m", "2") |
+| exposed\_internet | Set by analysis job. `true` if this container is reachable from an internet-facing load balancer. |
+| exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 
@@ -131,6 +150,11 @@ Representation of a [Kubernetes Container.](https://kubernetes.io/docs/concepts/
     ```
     (:KubernetesContainer)-[:HAS_IMAGE]->(:ECRImage)
     (:KubernetesContainer)-[:HAS_IMAGE]->(:GitLabContainerImage)
+    ```
+
+- An internet-facing `AWSLoadBalancerV2` exposes a `KubernetesContainer`. Created by the `k8s_lb_exposure` analysis job.
+    ```
+    (:AWSLoadBalancerV2)-[:EXPOSE {exposure_type: 'via_lb_only'}]->(:KubernetesContainer)
     ```
 
 ### KubernetesService
@@ -149,6 +173,8 @@ Representation of a [Kubernetes Service.](https://kubernetes.io/docs/concepts/se
 | load\_balancer\_ip | IP of the load balancer when service type is `LoadBalancer` |
 | load\_balancer\_ingress | The list of load balancer ingress points, typically containing the hostname and IP. Stored as a JSON-encoded string. |
 | **cluster\_name** | Name of the Kubernetes cluster where this service is deployed |
+| exposed\_internet | Set by analysis job. `true` if this service is backed by an internet-facing load balancer. |
+| exposed\_internet\_type | Set by analysis job. List of exposure types (e.g. `['lb']`). |
 | firstseen | Timestamp of when a sync job first discovered this node |
 | **lastupdated** | Timestamp of the last time the node was updated |
 
@@ -233,6 +259,8 @@ Representation of a [Kubernetes Secret.](https://kubernetes.io/docs/concepts/con
 ### KubernetesServiceAccount
 Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/concepts/security/service-accounts/)
 
+> **Ontology Mapping**: This node has the extra label `ServiceAccount` to enable cross-platform queries for service accounts across different systems (e.g., GCPServiceAccount, OpenAIServiceAccount, ScalewayApplication).
+
 | Field | Description |
 |-------|-------------|
 | **id** | Identifier for the ServiceAccount derived from cluster_name, namespace and name (e.g. `my-cluster/default/my-service-account`) |
@@ -266,8 +294,78 @@ Representation of a [Kubernetes ServiceAccount.](https://kubernetes.io/docs/conc
     (:KubernetesClusterRoleBinding)-[:SUBJECT]->(:KubernetesServiceAccount)
     ```
 
+### KubernetesUser
+Representation of a Kubernetes [User](https://kubernetes.io/docs/reference/access-authn-authz/authentication/) identity in K8s RBAC.
+
+> **Ontology Mapping**: This node has the extra label `UserAccount` to enable cross-platform queries for user accounts across different systems (e.g., OktaUser, EntraUser, GSuiteUser).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Identifier for the user |
+| name | Name of the Kubernetes user |
+| cluster\_name | Name of the cluster this user belongs to |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesUser` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesUser)
+    ```
+
+- `KubernetesUser` can map to an `OktaUser`.
+    ```
+    (:OktaUser)-[:MAPS_TO]->(:KubernetesUser)
+    ```
+
+- `KubernetesUser` can map to an `AWSRole`.
+    ```
+    (:AWSRole)-[:MAPS_TO]->(:KubernetesUser)
+    ```
+
+- `KubernetesUser` can map to an `AWSUser`.
+    ```
+    (:AWSUser)-[:MAPS_TO]->(:KubernetesUser)
+    ```
+
+### KubernetesGroup
+Representation of a Kubernetes [Group](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) in K8s RBAC.
+
+> **Ontology Mapping**: This node has the extra label `UserGroup` to enable cross-platform queries for user groups across different systems (e.g., OktaGroup, EntraGroup, AWSGroup).
+
+| Field | Description |
+|-------|-------------|
+| **id** | Identifier for the group |
+| name | Name of the Kubernetes group |
+| cluster\_name | Name of the cluster this group belongs to |
+| firstseen | Timestamp of when a sync job first discovered this node |
+| **lastupdated** | Timestamp of the last time the node was updated |
+
+#### Relationships
+- `KubernetesGroup` belongs to a `KubernetesCluster`.
+    ```
+    (:KubernetesCluster)-[:RESOURCE]->(:KubernetesGroup)
+    ```
+
+- `KubernetesGroup` can map to an `OktaGroup`.
+    ```
+    (:OktaGroup)-[:MAPS_TO]->(:KubernetesGroup)
+    ```
+
+- `KubernetesGroup` can map to an `AWSRole`.
+    ```
+    (:AWSRole)-[:MAPS_TO]->(:KubernetesGroup)
+    ```
+
+- `KubernetesGroup` can map to an `AWSUser`.
+    ```
+    (:AWSUser)-[:MAPS_TO]->(:KubernetesGroup)
+    ```
+
 ### KubernetesRole
 Representation of a [Kubernetes Role.](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole)
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|
@@ -340,6 +438,8 @@ Representation of a [Kubernetes RoleBinding.](https://kubernetes.io/docs/referen
 
 ### KubernetesClusterRole
 Representation of a [Kubernetes ClusterRole.](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole)
+
+> **Ontology Mapping**: This node has the extra label `PermissionRole` to enable cross-platform queries for IAM roles and permission roles across different systems (e.g., AWSRole, AzureRoleDefinition, GCPRole, KubernetesRole).
 
 | Field | Description |
 |-------|-------------|

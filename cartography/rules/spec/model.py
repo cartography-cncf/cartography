@@ -52,6 +52,9 @@ class Module(str, Enum):
     GITHUB = "GitHub"
     """GitHub source code management"""
 
+    GITLAB = "GitLab"
+    """GitLab source code management"""
+
     GOOGLEWORKSPACE = "GoogleWorkspace"
     """Google Workspace identity and access management"""
 
@@ -103,6 +106,9 @@ class Module(str, Enum):
     TRIVY = "Trivy"
     """Trivy vulnerability scanner"""
 
+    SUBIMAGE = "SubImage"
+    """SubImage platform"""
+
     CROSS_CLOUD = "Cross-Cloud"
     """Multi-cloud or provider-agnostic rules"""
 
@@ -130,6 +136,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.ENTRA: "entra",
     Module.GCP: "gcp",
     Module.GITHUB: "github",
+    Module.GITLAB: "gitlab",
     Module.GOOGLEWORKSPACE: "googleworkspace",
     Module.JAMF: "jamf",
     Module.KANDJI: "kandji",
@@ -147,6 +154,7 @@ MODULE_TO_CARTOGRAPHY_INTEL = {
     Module.SPACELIFT: "spacelift",
     Module.TAILSCALE: "tailscale",
     Module.TRIVY: "trivy",
+    Module.SUBIMAGE: "subimage",
 }
 
 

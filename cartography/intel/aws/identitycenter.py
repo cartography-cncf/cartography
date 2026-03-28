@@ -29,6 +29,10 @@ from cartography.util import timeit
 logger = logging.getLogger(__name__)
 
 
+class PermissionSetSyncNotSupported(Exception):
+    """Raised when an Identity Center instance does not support permission set operations."""
+
+
 def _is_permission_set_sync_unsupported_error(
     error: botocore.exceptions.ClientError,
 ) -> bool:
@@ -38,7 +42,10 @@ def _is_permission_set_sync_unsupported_error(
         return False
 
     message = error_info.get("Message", "").lower()
-    return "not supported for this identity center instance" in message
+    return (
+        "not supported for this identity center instance" in message
+        or "not supported for account instances of iam identity center" in message
+    )
 
 
 @timeit
@@ -97,17 +104,24 @@ def get_permission_sets(
     client = boto3_session.client("sso-admin", region_name=region)
     permission_sets = []
 
-    paginator = client.get_paginator("list_permission_sets")
-    for page in paginator.paginate(InstanceArn=instance_arn):
-        # Get detailed info for each permission set
-        for arn in page.get("PermissionSets", []):
-            details = client.describe_permission_set(
-                InstanceArn=instance_arn,
-                PermissionSetArn=arn,
-            )
-            permission_set = details.get("PermissionSet", {})
-            if permission_set:
-                permission_sets.append(permission_set)
+    try:
+        paginator = client.get_paginator("list_permission_sets")
+        for page in paginator.paginate(InstanceArn=instance_arn):
+            # Get detailed info for each permission set
+            for arn in page.get("PermissionSets", []):
+                details = client.describe_permission_set(
+                    InstanceArn=instance_arn,
+                    PermissionSetArn=arn,
+                )
+                permission_set = details.get("PermissionSet", {})
+                if permission_set:
+                    permission_sets.append(permission_set)
+    except botocore.exceptions.ClientError as error:
+        if _is_permission_set_sync_unsupported_error(error):
+            raise PermissionSetSyncNotSupported(
+                "The operation is not supported for this Identity Center instance",
+            ) from error
+        raise
 
     return permission_sets
 
@@ -625,17 +639,15 @@ def _sync_permission_sets(
             update_tag,
         )
         return True
-    except botocore.exceptions.ClientError as error:
-        if _is_permission_set_sync_unsupported_error(error):
-            logger.warning(
-                "Skipping permission set sync for Identity Center instance %s in region %s "
-                "because the instance does not support permission sets. "
-                "Will attempt to sync users and groups only.",
-                instance_arn,
-                region,
-            )
-            return False
-        raise
+    except PermissionSetSyncNotSupported:
+        logger.warning(
+            "Skipping permission set sync for Identity Center instance %s in region %s "
+            "because the instance does not support permission sets. "
+            "Will attempt to sync users and groups only.",
+            instance_arn,
+            region,
+        )
+        return False
 
 
 def _sync_groups_and_users(
@@ -731,6 +743,7 @@ def _sync_role_assignments(
     neo4j_session: neo4j.Session,
     user_permissionsets_raw: list[dict[str, Any]],
     group_permissionsets_raw: list[dict[str, Any]],
+    identity_store_id: str,
     current_aws_account_id: str,
     update_tag: int,
 ) -> None:
@@ -746,9 +759,13 @@ def _sync_role_assignments(
     the ALLOWED_BY edges.
     """
     user_roles = get_principal_roles(neo4j_session, user_permissionsets_raw)
+    for role in user_roles:
+        role["IdentityStoreId"] = identity_store_id
     load_user_roles(neo4j_session, user_roles, current_aws_account_id, update_tag)
 
     group_roles = get_principal_roles(neo4j_session, group_permissionsets_raw)
+    for role in group_roles:
+        role["IdentityStoreId"] = identity_store_id
     load_group_roles(neo4j_session, group_roles, current_aws_account_id, update_tag)
 
 
@@ -797,6 +814,7 @@ def _sync_instance(
             neo4j_session,
             user_assignments,
             group_assignments,
+            identity_store_id,
             current_aws_account_id,
             update_tag,
         )

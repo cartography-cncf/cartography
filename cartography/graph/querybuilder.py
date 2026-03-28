@@ -233,6 +233,39 @@ def _build_ontology_field_statement_nor_boolean(
     )
 
 
+def _build_ontology_field_statement_mapping(
+    mapping_field: OntologyFieldMapping,
+    property_ref: PropertyRef,
+) -> str | None:
+    """Maps provider-specific values to normalized ontology values using a Cypher CASE expression.
+
+    The mapping dict is provided in extra['map'] as {source_value: normalized_value}.
+    Unmapped values result in NULL (property not set).
+    """
+    value_map = mapping_field.extra.get("map")
+    if value_map is None:
+        logger.warning(
+            "mapping special handling requires 'map' in extra for field %s",
+            mapping_field.ontology_field,
+        )
+        return None
+    if not isinstance(value_map, dict):
+        logger.warning(
+            "mapping special handling 'map' in extra for field %s must be a dict",
+            mapping_field.ontology_field,
+        )
+        return None
+
+    when_clauses = []
+    for source_val, normalized_val in value_map.items():
+        escaped_source = _escape_cypher_string(str(source_val))
+        escaped_normalized = _escape_cypher_string(str(normalized_val))
+        when_clauses.append(f'WHEN "{escaped_source}" THEN "{escaped_normalized}"')
+
+    case_expr = f"CASE {property_ref} " + " ".join(when_clauses) + " END"
+    return f"i._ont_{mapping_field.ontology_field} = {case_expr}"
+
+
 def _build_ontology_node_properties_statement(
     node_schema: CartographyNodeSchema,
     node_property_map: dict[str, PropertyRef],
@@ -300,6 +333,12 @@ def _build_ontology_node_properties_statement(
             )
             if nor_boolean_statement:
                 set_clauses.append(nor_boolean_statement)
+        elif mapping_field.special_handling == "mapping":
+            mapping_statement = _build_ontology_field_statement_mapping(
+                mapping_field, node_propertyref
+            )
+            if mapping_statement:
+                set_clauses.append(mapping_statement)
         else:
             simple_field_template = Template("i.$node_property = $property_ref")
             set_clauses.append(
@@ -1419,7 +1458,7 @@ def build_create_index_queries_for_matchlink(
         >>> # Returns:
         >>> # - CREATE INDEX FOR (n:User) ON (n.id)
         >>> # - CREATE INDEX FOR (n:Role) ON (n.name)
-        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id)
+        >>> # - CREATE INDEX FOR ()-[r:HAS_ROLE]->() ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated)
 
         >>> # Missing source node matcher
         >>> incomplete_rel = CartographyRelSchema(target_node_label='Role', ...)
@@ -1460,11 +1499,12 @@ def build_create_index_queries_for_matchlink(
             ),
         )
 
-    # Create a composite index for the relationship between the source and target nodes.
-    # https://neo4j.com/docs/cypher-manual/4.3/indexes-for-search-performance/#administration-indexes-create-a-composite-index-for-relationships
+    # Create a composite relationship index that matches the cleanup predicate shape.
+    # Matchlink cleanup filters by sub-resource equality first and then uses lastupdated
+    # as a trailing inequality, so that order avoids broad scans under parallel sync load.
     rel_index_template = Template(
         "CREATE INDEX IF NOT EXISTS FOR ()$rel_direction[r:$RelLabel]$rel_direction_end() "
-        "ON (r.lastupdated, r._sub_resource_label, r._sub_resource_id);",
+        "ON (r._sub_resource_label, r._sub_resource_id, r.lastupdated);",
     )
     if rel_schema.direction == LinkDirection.INWARD:
         result.append(

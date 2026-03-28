@@ -3,6 +3,10 @@ import logging
 from cartography.models.core.nodes import CartographyNodeSchema
 from cartography.models.ontology.device import DeviceSchema
 from cartography.models.ontology.mapping.data.apikeys import APIKEYS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.certificates import (
+    CERTIFICATES_ONTOLOGY_MAPPING,
+)
+from cartography.models.ontology.mapping.data.clusters import CLUSTERS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.coderepositories import (
     CODEREPOSITORIES_ONTOLOGY_MAPPING,
 )
@@ -19,9 +23,14 @@ from cartography.models.ontology.mapping.data.databases import (
     DATABASES_ONTOLOGY_MAPPING,
 )
 from cartography.models.ontology.mapping.data.devices import DEVICES_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.dnszones import DNSZONES_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.firewalls import (
+    FIREWALLS_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.functions import (
     FUNCTIONS_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.groups import GROUPS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.images import IMAGES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.loadbalancers import (
     LOADBALANCERS_ONTOLOGY_MAPPING,
@@ -33,7 +42,11 @@ from cartography.models.ontology.mapping.data.packages import PACKAGES_ONTOLOGY_
 from cartography.models.ontology.mapping.data.publicips import (
     PUBLIC_IPS_ONTOLOGY_MAPPING,
 )
+from cartography.models.ontology.mapping.data.roles import ROLES_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.secrets import SECRETS_ONTOLOGY_MAPPING
+from cartography.models.ontology.mapping.data.serviceaccounts import (
+    SERVICEACCOUNTS_ONTOLOGY_MAPPING,
+)
 from cartography.models.ontology.mapping.data.tenants import TENANTS_ONTOLOGY_MAPPING
 from cartography.models.ontology.mapping.data.thirdpartyapps import (
     THIRDPARTYAPPS_ONTOLOGY_MAPPING,
@@ -66,17 +79,24 @@ SEMANTIC_LABELS_MAPPING: dict[str, dict[str, OntologyMapping]] = {
     "useraccounts": USERACCOUNTS_ONTOLOGY_MAPPING,
     "apikeys": APIKEYS_ONTOLOGY_MAPPING,
     "coderepositories": CODEREPOSITORIES_ONTOLOGY_MAPPING,
+    "computeclusters": CLUSTERS_ONTOLOGY_MAPPING,
     "computeinstance": COMPUTE_INSTANCE_ONTOLOGY_MAPPING,
     "containers": CONTAINER_ONTOLOGY_MAPPING,
     "containerregistries": CONTAINERREGISTRIES_ONTOLOGY_MAPPING,
     "databases": DATABASES_ONTOLOGY_MAPPING,
+    "dnszones": DNSZONES_ONTOLOGY_MAPPING,
+    "firewalls": FIREWALLS_ONTOLOGY_MAPPING,
     "functions": FUNCTIONS_ONTOLOGY_MAPPING,
+    "groups": GROUPS_ONTOLOGY_MAPPING,
     "images": IMAGES_ONTOLOGY_MAPPING,
     "loadbalancers": LOADBALANCERS_ONTOLOGY_MAPPING,
     "objectstorage": OBJECT_STORAGE_ONTOLOGY_MAPPING,
+    "roles": ROLES_ONTOLOGY_MAPPING,
     "secrets": SECRETS_ONTOLOGY_MAPPING,
     "thirdpartyapps": THIRDPARTYAPPS_ONTOLOGY_MAPPING,
     "tenants": TENANTS_ONTOLOGY_MAPPING,
+    "serviceaccounts": SERVICEACCOUNTS_ONTOLOGY_MAPPING,
+    "certificates": CERTIFICATES_ONTOLOGY_MAPPING,
 }
 
 ONTOLOGY_MODELS: dict[str, type[CartographyNodeSchema] | None] = {

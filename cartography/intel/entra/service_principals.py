@@ -10,6 +10,7 @@ from msgraph.generated.models.service_principal import ServicePrincipal
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.entra.utils import call_with_retries
 from cartography.models.entra.service_principal import EntraServicePrincipalSchema
 from cartography.util import timeit
 
@@ -35,9 +36,15 @@ async def get_entra_service_principals(
             top=SERVICE_PRINCIPALS_PAGE_SIZE
         )
     )
-    page = await client.service_principals.get(
-        request_configuration=request_configuration
-    )
+    try:
+        page = await call_with_retries(
+            lambda: client.service_principals.get(
+                request_configuration=request_configuration,
+            ),
+        )
+    except Exception:
+        logger.exception("Failed to fetch Entra service principals")
+        raise
 
     while page:
         if page.value:
@@ -47,7 +54,15 @@ async def get_entra_service_principals(
 
         if not page.odata_next_link:
             break
-        page = await client.service_principals.with_url(page.odata_next_link).get()
+        try:
+            page = await call_with_retries(
+                lambda: client.service_principals.with_url(page.odata_next_link).get(),
+            )
+        except Exception:
+            logger.exception(
+                "Failed to fetch next page of Entra service principals",
+            )
+            raise
 
     logger.info(f"Retrieved {count} Entra service principals total")
 
@@ -63,12 +78,14 @@ async def get_service_principal_by_app_id(
     :param app_id: Application ID to search for
     :return: ServicePrincipal object or None if not found
     """
-    service_principals_page = await client.service_principals.get(
-        request_configuration=client.service_principals.ServicePrincipalsRequestBuilderGetRequestConfiguration(
-            query_parameters=client.service_principals.ServicePrincipalsRequestBuilderGetQueryParameters(
-                filter=f"appId eq '{app_id}'"
-            )
-        )
+    service_principals_page = await call_with_retries(
+        lambda: client.service_principals.get(
+            request_configuration=client.service_principals.ServicePrincipalsRequestBuilderGetRequestConfiguration(
+                query_parameters=client.service_principals.ServicePrincipalsRequestBuilderGetQueryParameters(
+                    filter=f"appId eq '{app_id}'",
+                ),
+            ),
+        ),
     )
 
     if not service_principals_page or not service_principals_page.value:
