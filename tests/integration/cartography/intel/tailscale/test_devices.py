@@ -19,6 +19,10 @@ TEST_ORG = "simpson.corp"
 
 def _ensure_local_neo4j_has_test_devices(neo4j_session):
     """Helper function to populate Neo4j with test Tailscale devices."""
+    # transform mutates device dicts in-place to add serial_number
+    cartography.intel.tailscale.devices.transform(
+        tests.data.tailscale.devices.TAILSCALE_DEVICES,
+    )
     cartography.intel.tailscale.devices.load_devices(
         neo4j_session,
         tests.data.tailscale.devices.TAILSCALE_DEVICES,
@@ -68,18 +72,19 @@ def test_load_tailscale_devices(mock_api, neo4j_session):
 
     # Using a direct query to assert Device properties because addresses is a unhashable list
     result = neo4j_session.run(
-        "MATCH (n:TailscaleDevice) RETURN n.id AS id, n.addresses AS addresses",
+        "MATCH (n:TailscaleDevice) RETURN n.id AS id, n.addresses AS addresses, n.serial_number AS serial_number",
     )
-    expected_addresses = {
-        ("abcskgfgCN789", ()),
-        ("p892kg92CNTRL", ("100.64.0.1", "fd7a:115c:a1e0::1")),
-        ("n2fskgfgCNT89", ("100.64.0.2",)),
-        ("n292kg92CNTRL", ()),
+    expected = {
+        ("abcskgfgCN789", (), "HACK-PIXEL-01"),
+        ("p892kg92CNTRL", ("100.64.0.1", "fd7a:115c:a1e0::1"), None),
+        ("n2fskgfgCNT89", ("100.64.0.2",), "SIMP-MAC-HOMER-01"),
+        ("n292kg92CNTRL", (), None),
     }
-    actual_addresses = {
-        (r["id"], tuple(r["addresses"]) if r["addresses"] else ()) for r in result
+    actual = {
+        (r["id"], tuple(r["addresses"]) if r["addresses"] else (), r["serial_number"])
+        for r in result
     }
-    assert actual_addresses == expected_addresses
+    assert actual == expected
 
     # Assert Devices are connected with Tailnet
     expected_rels = {

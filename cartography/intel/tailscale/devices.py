@@ -56,6 +56,7 @@ def get(
     req = api_session.get(
         f"{base_url}/tailnet/{org}/devices",
         timeout=_TIMEOUT,
+        params={"fields": "all"},
     )
     req.raise_for_status()
     results = req.json()["devices"]
@@ -63,12 +64,16 @@ def get(
 
 
 def transform(
-    raw_data: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    raw_data: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Extracts tags from the raw data and returns a list of dictionaries"""
-    transformed_tags: Dict[str, Dict[str, Any]] = {}
+    transformed_tags: dict[str, dict[str, Any]] = {}
     # Transform the raw data into the format expected by the load function
     for device in raw_data:
+        # Extract the first serial number from postureIdentity if available
+        serial_numbers = (device.get("postureIdentity") or {}).get("serialNumbers", [])
+        device["serial_number"] = serial_numbers[0] if serial_numbers else None
+
         for raw_tag in device.get("tags", []):
             if raw_tag not in transformed_tags:
                 transformed_tags[raw_tag] = {
