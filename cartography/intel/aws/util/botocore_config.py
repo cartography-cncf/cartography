@@ -7,7 +7,7 @@ import botocore.config
 @lru_cache(maxsize=None)
 def get_botocore_config(
     *,
-    read_timeout: int = 360,
+    read_timeout: int = 120,
     max_attempts: int = 10,
     retry_mode: str = "adaptive",
     max_pool_connections: int | None = None,
@@ -24,7 +24,7 @@ def get_botocore_config(
     return botocore.config.Config(**kwargs)
 
 
-def create_boto3_client(
+def _create_client(
     session: Any,
     service_name: str,
     *args: Any,
@@ -35,6 +35,22 @@ def create_boto3_client(
         service_name,
         *args,
         config=config or get_botocore_config(),
+        **kwargs,
+    )
+
+
+def create_boto3_client(
+    session: Any,
+    service_name: str,
+    *args: Any,
+    config: botocore.config.Config | None = None,
+    **kwargs: Any,
+) -> Any:
+    return _create_client(
+        session,
+        service_name,
+        *args,
+        config=config,
         **kwargs,
     )
 
@@ -61,9 +77,10 @@ def create_aioboto3_client(
     config: botocore.config.Config | None = None,
     **kwargs: Any,
 ) -> Any:
-    return session.client(
+    return _create_client(
+        session,
         service_name,
         *args,
-        config=config or get_botocore_config(),
+        config=config,
         **kwargs,
     )

@@ -17,7 +17,7 @@ def test_get_botocore_config_defaults_to_adaptive_retries():
 
     assert config.retries["max_attempts"] == 10
     assert config.retries["mode"] == "adaptive"
-    assert config.read_timeout == 360
+    assert config.read_timeout == 120
 
 
 def test_get_botocore_config_supports_pool_and_retry_overrides():
