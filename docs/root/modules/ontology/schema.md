@@ -72,6 +72,11 @@ When mappings are applied, nodes automatically receive `_ont_*` properties with 
 - **Data normalization**: Access standardized field values regardless of source format
 - **Source tracking**: The `_ont_source` property indicates which module provided the data
 
+:::{important}
+Semantic-label queries should use the documented `_ont_*` field names directly, for example `_ont_name`, `_ont_region`, or `_ont_source`.
+If you still have queries using `_ont_id`, update them to the current field that represents that concept for the semantic label you are querying.
+:::
+
 ### User
 
 ```{note}

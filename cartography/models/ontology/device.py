@@ -276,24 +276,22 @@ class DeviceToGoogleWorkspaceDeviceHostnameMatchLink(CartographyRelSchema):
 
 
 # Configuration for hostname matchlinks used by the intel module.
-# Each tuple: (target_label, target_hostname_field, matchlink_schema, has_serial_rel)
-HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema, bool]] = [
-    ("CrowdstrikeHost", "hostname", DeviceToCrowdstrikeHostHostnameMatchLink(), True),
-    ("KandjiDevice", "device_name", DeviceToKandjiDeviceHostnameMatchLink(), True),
-    ("SnipeitAsset", "name", DeviceToSnipeitAssetHostnameMatchLink(), True),
-    ("TailscaleDevice", "hostname", DeviceToTailscaleDeviceHostnameMatchLink(), True),
+# Each tuple: (target_label, target_hostname_field, matchlink_schema)
+HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
+    ("CrowdstrikeHost", "hostname", DeviceToCrowdstrikeHostHostnameMatchLink()),
+    ("KandjiDevice", "device_name", DeviceToKandjiDeviceHostnameMatchLink()),
+    ("SnipeitAsset", "name", DeviceToSnipeitAssetHostnameMatchLink()),
+    ("TailscaleDevice", "hostname", DeviceToTailscaleDeviceHostnameMatchLink()),
     (
         "GoogleWorkspaceDevice",
         "hostname",
         DeviceToGoogleWorkspaceDeviceHostnameMatchLink(),
-        True,
     ),
-    ("DuoEndpoint", "device_name", DeviceToDuoEndpointHostnameMatchLink(), False),
-    ("DuoPhone", "name", DeviceToDuoPhoneHostnameMatchLink(), False),
+    ("DuoEndpoint", "device_name", DeviceToDuoEndpointHostnameMatchLink()),
+    ("DuoPhone", "name", DeviceToDuoPhoneHostnameMatchLink()),
     (
         "BigfixComputer",
         "computername",
         DeviceToBigfixComputerHostnameMatchLink(),
-        False,
     ),
 ]

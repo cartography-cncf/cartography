@@ -119,7 +119,7 @@ def _run_hostname_matchlinks(
     """
     device_hostnames = _get_device_hostnames(neo4j_session, update_tag)
 
-    for target_label, hostname_field, matchlink, _has_serial_rel in HOSTNAME_MATCHLINKS:
+    for target_label, hostname_field, matchlink in HOSTNAME_MATCHLINKS:
         if not device_hostnames:
             continue
 
@@ -151,7 +151,7 @@ def cleanup(
         neo4j_session,
     )
     # Clean up stale hostname matchlink relationships
-    for _, _, matchlink, _ in HOSTNAME_MATCHLINKS:
+    for _, _, matchlink in HOSTNAME_MATCHLINKS:
         GraphJob.from_matchlink(
             matchlink,
             MATCHLINK_SUB_RESOURCE_LABEL,
