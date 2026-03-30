@@ -56,6 +56,7 @@ def get(
     req = api_session.get(
         f"{base_url}/tailnet/{org}/devices",
         timeout=_TIMEOUT,
+        params={"fields": "all"},
     )
     req.raise_for_status()
     results = req.json()["devices"]

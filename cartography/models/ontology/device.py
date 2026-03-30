@@ -7,8 +7,10 @@ from cartography.models.core.nodes import ExtraNodeLabels
 from cartography.models.core.relationships import CartographyRelProperties
 from cartography.models.core.relationships import CartographyRelSchema
 from cartography.models.core.relationships import LinkDirection
+from cartography.models.core.relationships import make_source_node_matcher
 from cartography.models.core.relationships import make_target_node_matcher
 from cartography.models.core.relationships import OtherRelationships
+from cartography.models.core.relationships import SourceNodeMatcher
 from cartography.models.core.relationships import TargetNodeMatcher
 
 
@@ -29,94 +31,6 @@ class DeviceToNodeRelProperties(CartographyRelProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
 
 
-# (:Device)-[:OBSERVED_AS]->(:DuoEndpoint)
-class DeviceToDuoEndpointRel(CartographyRelSchema):
-    target_node_label: str = "DuoEndpoint"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"device_name": PropertyRef("hostname")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "OBSERVED_AS"
-    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
-
-
-# (:Device)-[:OBSERVED_AS]->(:DuoPhone)
-class DeviceToDuoPhoneRel(CartographyRelSchema):
-    target_node_label: str = "DuoPhone"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("hostname")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "OBSERVED_AS"
-    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
-
-
-# (:Device)-[:OBSERVED_AS]->(:KandjiDevice)
-class DeviceToKandjiDeviceRel(CartographyRelSchema):
-    target_node_label: str = "KandjiDevice"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"device_name": PropertyRef("hostname")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "OBSERVED_AS"
-    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
-
-
-# (:Device)-[:OBSERVED_AS]->(:SnipeitAsset)
-class DeviceToSnipeitAssetRel(CartographyRelSchema):
-    target_node_label: str = "SnipeitAsset"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"name": PropertyRef("hostname")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "OBSERVED_AS"
-    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
-
-
-# (:Device)-[:OBSERVED_AS]->(:TailscaleDevice)
-class DeviceToTailscaleDeviceRel(CartographyRelSchema):
-    target_node_label: str = "TailscaleDevice"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"hostname": PropertyRef("hostname")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "OBSERVED_AS"
-    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
-
-
-# (:Device)-[:OBSERVED_AS]->(:CrowdstrikeHost)
-class DeviceToCrowdstrikeHostRel(CartographyRelSchema):
-    target_node_label: str = "CrowdstrikeHost"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"hostname": PropertyRef("hostname")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "OBSERVED_AS"
-    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
-
-
-# (:Device)-[:OBSERVED_AS]->(:BigfixComputer)
-class DeviceToBigfixComputerRel(CartographyRelSchema):
-    target_node_label: str = "BigfixComputer"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"computername": PropertyRef("hostname")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "OBSERVED_AS"
-    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
-
-
-# (:Device)-[:OBSERVED_AS]->(:GoogleWorkspaceDevice)
-class DeviceToGoogleWorkspaceDeviceRel(CartographyRelSchema):
-    target_node_label: str = "GoogleWorkspaceDevice"
-    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"hostname": PropertyRef("hostname")},
-    )
-    direction: LinkDirection = LinkDirection.OUTWARD
-    rel_label: str = "OBSERVED_AS"
-    properties: DeviceToNodeRelProperties = DeviceToNodeRelProperties()
-
-
 # (:Device)-[:OBSERVED_AS]->(:JumpCloudSystem)
 @dataclass(frozen=True)
 class DeviceToJumpCloudSystemRel(CartographyRelSchema):
@@ -130,11 +44,11 @@ class DeviceToJumpCloudSystemRel(CartographyRelSchema):
 
 
 # Serial number-based OBSERVED_AS relationships
-# These duplicate the hostname-based relationships to also match by serial_number,
-# ensuring devices are linked even when hostnames differ across sources.
+# These match devices by serial_number, which is the primary matching strategy.
 
 
 # (:Device)-[:OBSERVED_AS]->(:CrowdstrikeHost) via serial_number
+@dataclass(frozen=True)
 class DeviceToCrowdstrikeHostBySerialRel(CartographyRelSchema):
     target_node_label: str = "CrowdstrikeHost"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -146,6 +60,7 @@ class DeviceToCrowdstrikeHostBySerialRel(CartographyRelSchema):
 
 
 # (:Device)-[:OBSERVED_AS]->(:KandjiDevice) via serial_number
+@dataclass(frozen=True)
 class DeviceToKandjiDeviceBySerialRel(CartographyRelSchema):
     target_node_label: str = "KandjiDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -157,6 +72,7 @@ class DeviceToKandjiDeviceBySerialRel(CartographyRelSchema):
 
 
 # (:Device)-[:OBSERVED_AS]->(:SnipeitAsset) via serial
+@dataclass(frozen=True)
 class DeviceToSnipeitAssetBySerialRel(CartographyRelSchema):
     target_node_label: str = "SnipeitAsset"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -168,6 +84,7 @@ class DeviceToSnipeitAssetBySerialRel(CartographyRelSchema):
 
 
 # (:Device)-[:OBSERVED_AS]->(:TailscaleDevice) via serial_number
+@dataclass(frozen=True)
 class DeviceToTailscaleDeviceBySerialRel(CartographyRelSchema):
     target_node_label: str = "TailscaleDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -179,6 +96,7 @@ class DeviceToTailscaleDeviceBySerialRel(CartographyRelSchema):
 
 
 # (:Device)-[:OBSERVED_AS]->(:GoogleWorkspaceDevice) via serial_number
+@dataclass(frozen=True)
 class DeviceToGoogleWorkspaceDeviceBySerialRel(CartographyRelSchema):
     target_node_label: str = "GoogleWorkspaceDevice"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
@@ -197,16 +115,8 @@ class DeviceSchema(CartographyNodeSchema):
     scoped_cleanup: bool = False
     other_relationships: OtherRelationships = OtherRelationships(
         rels=[
-            DeviceToDuoEndpointRel(),
-            DeviceToDuoPhoneRel(),
-            DeviceToKandjiDeviceRel(),
-            DeviceToSnipeitAssetRel(),
-            DeviceToTailscaleDeviceRel(),
-            DeviceToCrowdstrikeHostRel(),
-            DeviceToBigfixComputerRel(),
-            DeviceToGoogleWorkspaceDeviceRel(),
             DeviceToJumpCloudSystemRel(),
-            # Serial number-based duplicates
+            # Serial number-based relationships
             DeviceToCrowdstrikeHostBySerialRel(),
             DeviceToKandjiDeviceBySerialRel(),
             DeviceToSnipeitAssetBySerialRel(),
@@ -214,3 +124,174 @@ class DeviceSchema(CartographyNodeSchema):
             DeviceToGoogleWorkspaceDeviceBySerialRel(),
         ],
     )
+
+
+# ---------------------------------------------------------------------------
+# Hostname-based matchlinks
+# These are fallback relationships that match devices by hostname when both
+# sides have unique hostnames. They can also supplement serial-number matches
+# for providers that support both strategies.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class DeviceHostnameMatchLinkProperties(CartographyRelProperties):
+    lastupdated: PropertyRef = PropertyRef("UPDATE_TAG", set_in_kwargs=True)
+    _sub_resource_label: PropertyRef = PropertyRef(
+        "_sub_resource_label",
+        set_in_kwargs=True,
+    )
+    _sub_resource_id: PropertyRef = PropertyRef(
+        "_sub_resource_id",
+        set_in_kwargs=True,
+    )
+
+
+# (:Device)-[:OBSERVED_AS]->(:DuoEndpoint) via hostname
+@dataclass(frozen=True)
+class DeviceToDuoEndpointHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "DuoEndpoint"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"device_name": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:DuoPhone) via hostname
+@dataclass(frozen=True)
+class DeviceToDuoPhoneHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "DuoPhone"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:KandjiDevice) via hostname
+@dataclass(frozen=True)
+class DeviceToKandjiDeviceHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "KandjiDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"device_name": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:SnipeitAsset) via hostname
+@dataclass(frozen=True)
+class DeviceToSnipeitAssetHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "SnipeitAsset"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"name": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:TailscaleDevice) via hostname
+@dataclass(frozen=True)
+class DeviceToTailscaleDeviceHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "TailscaleDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:CrowdstrikeHost) via hostname
+@dataclass(frozen=True)
+class DeviceToCrowdstrikeHostHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "CrowdstrikeHost"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:BigfixComputer) via hostname
+@dataclass(frozen=True)
+class DeviceToBigfixComputerHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "BigfixComputer"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"computername": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
+# (:Device)-[:OBSERVED_AS]->(:GoogleWorkspaceDevice) via hostname
+@dataclass(frozen=True)
+class DeviceToGoogleWorkspaceDeviceHostnameMatchLink(CartographyRelSchema):
+    target_node_label: str = "GoogleWorkspaceDevice"
+    target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    source_node_label: str = "Device"
+    source_node_matcher: SourceNodeMatcher = make_source_node_matcher(
+        {"hostname": PropertyRef("hostname")},
+    )
+    direction: LinkDirection = LinkDirection.OUTWARD
+    rel_label: str = "OBSERVED_AS"
+    properties: DeviceHostnameMatchLinkProperties = DeviceHostnameMatchLinkProperties()
+
+
+# Configuration for hostname matchlinks used by the intel module.
+# Each tuple: (target_label, target_hostname_field, matchlink_schema)
+HOSTNAME_MATCHLINKS: list[tuple[str, str, CartographyRelSchema]] = [
+    ("CrowdstrikeHost", "hostname", DeviceToCrowdstrikeHostHostnameMatchLink()),
+    ("KandjiDevice", "device_name", DeviceToKandjiDeviceHostnameMatchLink()),
+    ("SnipeitAsset", "name", DeviceToSnipeitAssetHostnameMatchLink()),
+    ("TailscaleDevice", "hostname", DeviceToTailscaleDeviceHostnameMatchLink()),
+    (
+        "GoogleWorkspaceDevice",
+        "hostname",
+        DeviceToGoogleWorkspaceDeviceHostnameMatchLink(),
+    ),
+    ("DuoEndpoint", "device_name", DeviceToDuoEndpointHostnameMatchLink()),
+    ("DuoPhone", "name", DeviceToDuoPhoneHostnameMatchLink()),
+    (
+        "BigfixComputer",
+        "computername",
+        DeviceToBigfixComputerHostnameMatchLink(),
+    ),
+]

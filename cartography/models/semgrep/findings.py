@@ -17,6 +17,7 @@ class SemgrepSCAFindingNodeProperties(CartographyNodeProperties):
     lastupdated: PropertyRef = PropertyRef("lastupdated", set_in_kwargs=True)
     rule_id: PropertyRef = PropertyRef("ruleId", extra_index=True)
     repository: PropertyRef = PropertyRef("repositoryName", extra_index=True)
+    repository_url: PropertyRef = PropertyRef("repositoryUrl")
     branch: PropertyRef = PropertyRef("branch")
     summary: PropertyRef = PropertyRef("title", extra_index=True)
     description: PropertyRef = PropertyRef("description")
@@ -73,7 +74,7 @@ class SemgrepSCAFindingToGithubRepoRelProperties(CartographyRelProperties):
 class SemgrepSCAFindingToGithubRepoRel(CartographyRelSchema):
     target_node_label: str = "GitHubRepository"
     target_node_matcher: TargetNodeMatcher = make_target_node_matcher(
-        {"fullname": PropertyRef("repositoryName")},
+        {"id": PropertyRef("repositoryUrl")},
     )
     direction: LinkDirection = LinkDirection.OUTWARD
     rel_label: str = "FOUND_IN"

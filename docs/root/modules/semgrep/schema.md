@@ -79,6 +79,7 @@ Represents a [Semgrep SAST](https://semgrep.dev/docs/semgrep-code/getting-starte
 | fix_status | Fix status based on triage (e.g. open, fixed, ignored) |
 | triage_status | Triage status of the finding (e.g. untriaged, ignored, reopened) |
 | opened_at | Date and time when the finding was first seen in UTC |
+| repository_url | Full URL of the repository where the finding was discovered (e.g. `https://github.com/org/repo`) |
 | risk_severity | Risk level computed by post-ingestion analysis. INFO for archived repos, otherwise equals severity. See [semgrep_sast_risk_analysis.json](https://github.com/cartography-cncf/cartography/blob/master/cartography/data/jobs/scoped_analysis/semgrep_sast_risk_analysis.json) for further details |
 
 #### Relationships
@@ -167,6 +168,7 @@ Represents a [Semgrep Supply Chain](https://semgrep.dev/docs/semgrep-supply-chai
 | fix_status | Whether the finding is fixed or not based on triage (e.g. open, fixed, ignored) |
 | triage_status | Whether the finding is triaged or not (e.g. untriaged, ignored, reopened) |
 | confidence | Confidence of the finding based on Semgrep analysis (e.g. high, medium, low) |
+| repository_url | Full URL of the repository where the finding was discovered (e.g. `https://github.com/org/repo`) |
 
 
 #### Relationships
