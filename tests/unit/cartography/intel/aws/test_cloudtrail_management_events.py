@@ -1,3 +1,14 @@
+import inspect
+from unittest.mock import MagicMock
+
+import pytest
+from botocore.exceptions import ClientError
+
+from cartography.intel.aws.cloudtrail_management_events import (
+    CloudTrailManagementEventsTransientRegionFailure,
+)
+from cartography.intel.aws.cloudtrail_management_events import get_assume_role_events
+from cartography.intel.aws.cloudtrail_management_events import sync_assume_role_events
 from cartography.intel.aws.cloudtrail_management_events import (
     transform_assume_role_events_to_role_assumptions,
 )
@@ -156,3 +167,46 @@ def test_transform_web_identity_role_events_with_null_request_parameters():
 
     # Assert - Events with null requestParameters should be skipped, resulting in empty list
     assert len(result) == 0
+
+
+def test_get_assume_role_events_raises_transient_region_failure_on_lookup_events_503():
+    boto3_session = MagicMock()
+    client = boto3_session.client.return_value
+    paginator = client.get_paginator.return_value
+    paginator.paginate.side_effect = ClientError(
+        {
+            "Error": {"Code": "503", "Message": "Service Unavailable"},
+            "ResponseMetadata": {"HTTPStatusCode": 503},
+        },
+        "LookupEvents",
+    )
+
+    get_assume_role_events_unwrapped = inspect.unwrap(get_assume_role_events)
+
+    with pytest.raises(CloudTrailManagementEventsTransientRegionFailure):
+        get_assume_role_events_unwrapped(boto3_session, "us-east-1", 24)
+
+
+def test_sync_assume_role_events_skips_cleanup_after_transient_region_failure(mocker):
+    mocker.patch(
+        "cartography.intel.aws.cloudtrail_management_events.get_assume_role_events",
+        side_effect=CloudTrailManagementEventsTransientRegionFailure(
+            "temporary failure"
+        ),
+    )
+    cleanup = mocker.patch("cartography.intel.aws.cloudtrail_management_events.cleanup")
+    load_role_assumptions = mocker.patch(
+        "cartography.intel.aws.cloudtrail_management_events.load_role_assumptions"
+    )
+
+    sync_assume_role_events(
+        MagicMock(),
+        MagicMock(),
+        ["us-east-1"],
+        "123456789012",
+        1,
+        {"aws_cloudtrail_management_events_lookback_hours": 24},
+    )
+
+    load_role_assumptions.assert_not_called()
+    cleanup.assert_not_called()

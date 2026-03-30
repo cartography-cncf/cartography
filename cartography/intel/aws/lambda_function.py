@@ -7,6 +7,12 @@ from typing import List
 import boto3
 import botocore
 import neo4j
+from botocore.exceptions import ClientError
+from botocore.exceptions import ConnectionClosedError
+from botocore.exceptions import ConnectTimeoutError
+from botocore.exceptions import EndpointConnectionError
+from botocore.exceptions import ReadTimeoutError
+from botocore.parsers import ResponseParserError
 from policyuniverse.policy import Policy
 
 from cartography.client.core.tx import load
@@ -23,6 +29,39 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
+_RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+class LambdaTransientRegionFailure(Exception):
+    pass
+
+
+class LambdaSubResourceTransientFailure(Exception):
+    pass
+
+
+def _is_retryable_lambda_error(error: ClientError) -> bool:
+    error_code = error.response.get("Error", {}).get("Code", "")
+    status_code = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return (
+        error_code
+        in {
+            "InternalFailure",
+            "InternalServerException",
+            "RequestLimitExceeded",
+            "RequestThrottled",
+            "RequestTimeout",
+            "RequestTimeoutException",
+            "ServiceException",
+            "ServiceUnavailable",
+            "ServiceUnavailableException",
+            "Throttling",
+            "ThrottlingException",
+            "TooManyRequestsException",
+        }
+        or status_code in _RETRYABLE_HTTP_STATUS_CODES
+    )
+
 
 @timeit
 @aws_handle_regions
@@ -33,9 +72,26 @@ def get_lambda_data(boto3_session: boto3.session.Session, region: str) -> List[D
     client = create_boto3_client(boto3_session, "lambda", region_name=region)
     paginator = client.get_paginator("list_functions")
     lambda_functions = []
-    for page in paginator.paginate():
-        for each_function in page["Functions"]:
-            lambda_functions.append(each_function)
+    try:
+        for page in paginator.paginate():
+            for each_function in page["Functions"]:
+                lambda_functions.append(each_function)
+    except ClientError as error:
+        if _is_retryable_lambda_error(error):
+            raise LambdaTransientRegionFailure(
+                "AWS SDK retries were exhausted for transient ListFunctions failure"
+            ) from error
+        raise
+    except (
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        ReadTimeoutError,
+        ResponseParserError,
+    ) as error:
+        raise LambdaTransientRegionFailure(
+            "Encountered a transient regional Lambda endpoint failure while calling ListFunctions"
+        ) from error
     return lambda_functions
 
 
@@ -118,8 +174,25 @@ def get_function_aliases(
 ) -> List[Any]:
     aliases: List[Any] = []
     paginator = client.get_paginator("list_aliases")
-    for page in paginator.paginate(FunctionName=lambda_function["FunctionName"]):
-        aliases.extend(page["Aliases"])
+    try:
+        for page in paginator.paginate(FunctionName=lambda_function["FunctionName"]):
+            aliases.extend(page["Aliases"])
+    except ClientError as error:
+        if _is_retryable_lambda_error(error):
+            raise LambdaSubResourceTransientFailure(
+                f"AWS SDK retries were exhausted for transient ListAliases failure on function {lambda_function['FunctionArn']}"
+            ) from error
+        raise
+    except (
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        ReadTimeoutError,
+        ResponseParserError,
+    ) as error:
+        raise LambdaSubResourceTransientFailure(
+            f"Encountered a transient Lambda endpoint failure while calling ListAliases on function {lambda_function['FunctionArn']}"
+        ) from error
 
     return aliases
 
@@ -132,8 +205,25 @@ def get_event_source_mappings(
 ) -> List[Any]:
     event_source_mappings: List[Any] = []
     paginator = client.get_paginator("list_event_source_mappings")
-    for page in paginator.paginate(FunctionName=lambda_function["FunctionName"]):
-        event_source_mappings.extend(page["EventSourceMappings"])
+    try:
+        for page in paginator.paginate(FunctionName=lambda_function["FunctionName"]):
+            event_source_mappings.extend(page["EventSourceMappings"])
+    except ClientError as error:
+        if _is_retryable_lambda_error(error):
+            raise LambdaSubResourceTransientFailure(
+                f"AWS SDK retries were exhausted for transient ListEventSourceMappings failure on function {lambda_function['FunctionArn']}"
+            ) from error
+        raise
+    except (
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        ReadTimeoutError,
+        ResponseParserError,
+    ) as error:
+        raise LambdaSubResourceTransientFailure(
+            f"Encountered a transient Lambda endpoint failure while calling ListEventSourceMappings on function {lambda_function['FunctionArn']}"
+        ) from error
 
     return event_source_mappings
 
@@ -253,27 +343,83 @@ def load_lambda_layers(
 
 
 @timeit
-def cleanup_lambda(neo4j_session: neo4j.Session, common_job_parameters: Dict) -> None:
-    """
-    Clean up Lambda resources
-    """
-    logger.info("Running Lambda cleanup")
+def cleanup_lambda_functions(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
+    GraphJob.from_node_schema(AWSLambdaSchema(), common_job_parameters).run(
+        neo4j_session
+    )
 
-    # Clean up child entities first
+
+@timeit
+def cleanup_lambda_aliases(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
     GraphJob.from_node_schema(
         AWSLambdaFunctionAliasSchema(), common_job_parameters
     ).run(neo4j_session)
+
+
+@timeit
+def cleanup_lambda_event_source_mappings(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
     GraphJob.from_node_schema(
         AWSLambdaEventSourceMappingSchema(), common_job_parameters
     ).run(neo4j_session)
+
+
+@timeit
+def cleanup_lambda_layers(
+    neo4j_session: neo4j.Session, common_job_parameters: Dict
+) -> None:
     GraphJob.from_node_schema(AWSLambdaLayerSchema(), common_job_parameters).run(
         neo4j_session
     )
 
-    # Clean up parent Lambda nodes last
-    GraphJob.from_node_schema(AWSLambdaSchema(), common_job_parameters).run(
-        neo4j_session
-    )
+
+@timeit
+def cleanup_lambda(
+    neo4j_session: neo4j.Session,
+    common_job_parameters: Dict,
+    *,
+    aliases_cleanup_safe: bool = True,
+    event_source_mappings_cleanup_safe: bool = True,
+    layers_cleanup_safe: bool = True,
+    functions_cleanup_safe: bool = True,
+) -> None:
+    """
+    Clean up Lambda resources.
+    """
+    logger.info("Running Lambda cleanup")
+
+    if aliases_cleanup_safe:
+        cleanup_lambda_aliases(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping Lambda alias cleanup because one or more functions had transient alias fetch failures. Preserving last-known-good alias state."
+        )
+
+    if event_source_mappings_cleanup_safe:
+        cleanup_lambda_event_source_mappings(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping Lambda event source mapping cleanup because one or more functions had transient event source mapping fetch failures. Preserving last-known-good event source mapping state."
+        )
+
+    if layers_cleanup_safe:
+        cleanup_lambda_layers(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping Lambda layer cleanup because one or more regions had transient Lambda layer sync failures. Preserving last-known-good layer state."
+        )
+
+    if functions_cleanup_safe:
+        cleanup_lambda_functions(neo4j_session, common_job_parameters)
+    else:
+        logger.warning(
+            "Skipping Lambda function cleanup because one or more regions had transient Lambda failures. Preserving last-known-good Lambda state."
+        )
 
 
 @timeit
@@ -284,17 +430,27 @@ def sync_aliases(
     region: str,
     current_aws_account_id: str,
     update_tag: int,
-) -> None:
+) -> bool:
     """
     Sync Lambda function aliases for all functions in the region.
     """
     all_aliases = []
 
+    cleanup_safe = True
     for lambda_function in lambda_functions:
         function_arn = lambda_function["FunctionArn"]
 
         # Get, transform, and collect aliases
-        aliases = get_function_aliases(lambda_function, client)
+        try:
+            aliases = get_function_aliases(lambda_function, client)
+        except LambdaSubResourceTransientFailure as error:
+            cleanup_safe = False
+            logger.warning(
+                "Skipping Lambda aliases for function %s after transient alias fetch failure: %s",
+                function_arn,
+                error,
+            )
+            continue
         if aliases:
             transformed_aliases = transform_lambda_aliases(aliases, function_arn)
             all_aliases.extend(transformed_aliases)
@@ -303,6 +459,7 @@ def sync_aliases(
     load_lambda_function_aliases(
         neo4j_session, all_aliases, region, current_aws_account_id, update_tag
     )
+    return cleanup_safe
 
 
 @timeit
@@ -312,15 +469,25 @@ def sync_event_source_mappings(
     client: Any,
     current_aws_account_id: str,
     update_tag: int,
-) -> None:
+) -> bool:
     """
     Sync Lambda event source mappings for all functions in the region.
     """
     all_esms = []
 
+    cleanup_safe = True
     for lambda_function in lambda_functions:
         # Get and collect event source mappings (no transformation needed)
-        esms = get_event_source_mappings(lambda_function, client)
+        try:
+            esms = get_event_source_mappings(lambda_function, client)
+        except LambdaSubResourceTransientFailure as error:
+            cleanup_safe = False
+            logger.warning(
+                "Skipping Lambda event source mappings for function %s after transient event source mapping fetch failure: %s",
+                lambda_function["FunctionArn"],
+                error,
+            )
+            continue
         if esms:
             all_esms.extend(esms)
 
@@ -328,6 +495,7 @@ def sync_event_source_mappings(
     load_lambda_event_source_mappings(
         neo4j_session, all_esms, current_aws_account_id, update_tag
     )
+    return cleanup_safe
 
 
 @timeit
@@ -364,6 +532,10 @@ def sync(
     update_tag: int,
     common_job_parameters: Dict,
 ) -> None:
+    aliases_cleanup_safe = True
+    event_source_mappings_cleanup_safe = True
+    layers_cleanup_safe = True
+    functions_cleanup_safe = True
     for region in regions:
         logger.info(
             "Syncing Lambda for region in '%s' in account '%s'.",
@@ -372,7 +544,20 @@ def sync(
         )
 
         # Get and load core lambda functions
-        data = get_lambda_data(boto3_session, region)
+        try:
+            data = get_lambda_data(boto3_session, region)
+        except LambdaTransientRegionFailure as error:
+            aliases_cleanup_safe = False
+            event_source_mappings_cleanup_safe = False
+            layers_cleanup_safe = False
+            functions_cleanup_safe = False
+            logger.warning(
+                "Skipping Lambda sync for account %s in region %s after transient Lambda failure: %s",
+                current_aws_account_id,
+                region,
+                error,
+            )
+            continue
         permissions_by_arn = get_lambda_permissions(data, boto3_session, region)
         transformed_data = transform_lambda_functions(data, permissions_by_arn, region)
         load_lambda_functions(
@@ -387,21 +572,27 @@ def sync(
         client = create_boto3_client(boto3_session, "lambda", region_name=region)
 
         # Sync all sub-entities
-        sync_aliases(
-            neo4j_session,
-            data,
-            client,
-            region,
-            current_aws_account_id,
-            update_tag,
+        aliases_cleanup_safe = (
+            sync_aliases(
+                neo4j_session,
+                data,
+                client,
+                region,
+                current_aws_account_id,
+                update_tag,
+            )
+            and aliases_cleanup_safe
         )
 
-        sync_event_source_mappings(
-            neo4j_session,
-            data,
-            client,
-            current_aws_account_id,
-            update_tag,
+        event_source_mappings_cleanup_safe = (
+            sync_event_source_mappings(
+                neo4j_session,
+                data,
+                client,
+                current_aws_account_id,
+                update_tag,
+            )
+            and event_source_mappings_cleanup_safe
         )
 
         sync_lambda_layers(
@@ -410,5 +601,11 @@ def sync(
             current_aws_account_id,
             update_tag,
         )
-
-    cleanup_lambda(neo4j_session, common_job_parameters)
+    cleanup_lambda(
+        neo4j_session,
+        common_job_parameters,
+        aliases_cleanup_safe=aliases_cleanup_safe,
+        event_source_mappings_cleanup_safe=event_source_mappings_cleanup_safe,
+        layers_cleanup_safe=layers_cleanup_safe,
+        functions_cleanup_safe=functions_cleanup_safe,
+    )
