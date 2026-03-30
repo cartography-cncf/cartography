@@ -81,6 +81,9 @@
 ```{include} ../modules/gsuite/schema.md
 ```
 
+```{include} ../modules/jumpcloud/schema.md
+```
+
 ```{include} ../modules/jamf/schema.md
 ```
 

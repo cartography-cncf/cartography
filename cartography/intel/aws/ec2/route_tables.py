@@ -6,7 +6,8 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
-from cartography.intel.aws.ec2.util import get_botocore_config
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.ec2.route_table_associations import (
     RouteTableAssociationSchema,
 )
@@ -75,8 +76,8 @@ def _get_route_id_and_target(
 def get_route_tables(
     boto3_session: boto3.session.Session, region: str
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client(
-        "ec2", region_name=region, config=get_botocore_config()
+    client = create_boto3_client(
+        boto3_session, "ec2", region_name=region, config=get_botocore_config()
     )
     paginator = client.get_paginator("describe_route_tables")
     route_tables: list[dict[str, Any]] = []

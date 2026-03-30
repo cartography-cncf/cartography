@@ -12,7 +12,6 @@ from typing import Union
 
 import boto3
 import botocore
-import botocore.config
 import neo4j
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
@@ -21,6 +20,8 @@ from policyuniverse.policy import Policy
 from cartography.client.core.tx import load
 from cartography.client.core.tx import run_write_query
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.models.aws.s3.acl import S3AclSchema
 from cartography.models.aws.s3.bucket import S3BucketEncryptionSchema
 from cartography.models.aws.s3.bucket import S3BucketLoggingSchema
@@ -69,9 +70,10 @@ MaybeFailed = Union[Optional[Dict], _FetchFailed]
 
 @timeit
 def get_s3_bucket_list(boto3_session: boto3.session.Session) -> List[Dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "s3",
-        config=botocore.config.Config(max_pool_connections=50),
+        config=get_botocore_config(max_pool_connections=50),
     )
     # NOTE no paginator available for this operation
     buckets = client.list_buckets()
@@ -141,10 +143,11 @@ def get_s3_bucket_details(
         # in us-east-1 region
         client = s3_regional_clients.get(bucket["Region"])
         if not client:
-            client = boto3_session.client(
+            client = create_boto3_client(
+                boto3_session,
                 "s3",
-                bucket["Region"],
-                config=botocore.config.Config(max_pool_connections=50),
+                region_name=bucket["Region"],
+                config=get_botocore_config(max_pool_connections=50),
             )
             s3_regional_clients[bucket["Region"]] = client
         (
@@ -1262,9 +1265,10 @@ def _sync_s3_notifications(
     Sync S3 bucket notification configurations to Neo4j.
     """
     logger.info("Syncing S3 bucket notifications")
-    s3_client = boto3_session.client(
+    s3_client = create_boto3_client(
+        boto3_session,
         "s3",
-        config=botocore.config.Config(max_pool_connections=BUCKET_BATCH_SIZE),
+        config=get_botocore_config(max_pool_connections=BUCKET_BATCH_SIZE),
     )
     notifications = []
 

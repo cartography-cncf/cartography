@@ -17,6 +17,8 @@ from cartography.client.core.tx import read_list_of_dicts_tx
 from cartography.client.core.tx import read_list_of_values_tx
 from cartography.graph.job import GraphJob
 from cartography.intel.aws.permission_relationships import principal_allowed_on_resource
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import create_boto3_resource
 from cartography.models.aws.iam.access_key import AccountAccessKeySchema
 from cartography.models.aws.iam.account_role import AWSAccountAWSRoleSchema
 from cartography.models.aws.iam.account_summary import AWSAccountSummarySchema
@@ -79,7 +81,7 @@ def get_policy_name_from_arn(arn: str) -> str:
 
 @timeit
 def get_group_policies(boto3_session: boto3.Session, group_name: str) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     paginator = client.get_paginator("list_group_policies")
     policy_names: List[Dict] = []
     for page in paginator.paginate(GroupName=group_name):
@@ -93,7 +95,7 @@ def get_group_policy_info(
     group_name: str,
     policy_name: str,
 ) -> Any:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     return client.get_group_policy(GroupName=group_name, PolicyName=policy_name)
 
 
@@ -102,7 +104,7 @@ def get_group_membership_data(
     boto3_session: boto3.Session,
     group_name: str,
 ) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     try:
         memberships = client.get_group(GroupName=group_name)
         return memberships
@@ -121,7 +123,7 @@ def get_group_policy_data(
     boto3_session: boto3.Session,
     group_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for group in group_list:
         name = group["GroupName"]
@@ -140,7 +142,7 @@ def get_group_managed_policy_data(
     boto3_session: boto3.Session,
     group_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for group in group_list:
         name = group["GroupName"]
@@ -159,7 +161,7 @@ def get_user_policy_data(
     boto3_session: boto3.Session,
     user_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for user in user_list:
         name = user["UserName"]
@@ -183,7 +185,7 @@ def get_user_managed_policy_data(
     boto3_session: boto3.Session,
     user_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for user in user_list:
         name = user["UserName"]
@@ -207,7 +209,7 @@ def get_role_policy_data(
     boto3_session: boto3.Session,
     role_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for role in role_list:
         name = role["RoleName"]
@@ -231,7 +233,7 @@ def get_role_managed_policy_data(
     boto3_session: boto3.Session,
     role_list: List[Dict],
 ) -> Dict:
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     policies = {}
     for role in role_list:
         name = role["RoleName"]
@@ -253,7 +255,7 @@ def get_role_managed_policy_data(
 @aws_handle_regions
 def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
     role_list = get_role_list_data(boto3_session)["Roles"]
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     role_tag_data: List[Dict] = []
     for role in role_list:
         name = role["RoleName"]
@@ -283,7 +285,7 @@ def get_role_tags(boto3_session: boto3.Session) -> List[Dict]:
 @aws_handle_regions
 def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
     user_list = get_user_list_data(boto3_session)["Users"]
-    resource_client = boto3_session.resource("iam")
+    resource_client = create_boto3_resource(boto3_session, "iam")
     user_tag_data: List[Dict] = []
     for user in user_list:
         name = user["UserName"]
@@ -311,7 +313,7 @@ def get_user_tags(boto3_session: boto3.Session) -> List[Dict]:
 
 @timeit
 def get_user_list_data(boto3_session: boto3.Session) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
 
     paginator = client.get_paginator("list_users")
     users: List[Dict] = []
@@ -322,7 +324,7 @@ def get_user_list_data(boto3_session: boto3.Session) -> Dict:
 
 @timeit
 def get_group_list_data(boto3_session: boto3.Session) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     paginator = client.get_paginator("list_groups")
     groups: List[Dict] = []
     for page in paginator.paginate():
@@ -332,7 +334,7 @@ def get_group_list_data(boto3_session: boto3.Session) -> Dict:
 
 @timeit
 def get_role_list_data(boto3_session: boto3.Session) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     paginator = client.get_paginator("list_roles")
     roles: List[Dict] = []
     for page in paginator.paginate():
@@ -343,7 +345,7 @@ def get_role_list_data(boto3_session: boto3.Session) -> Dict:
 @timeit
 @aws_handle_regions
 def get_saml_providers(boto3_session: boto3.session.Session) -> dict[str, Any]:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     # list_saml_providers returns a single page
     response = client.list_saml_providers()
     # Shape into a dict list similar to other getters
@@ -371,7 +373,7 @@ def load_saml_providers(
 @timeit
 @aws_handle_regions
 def get_server_certificates(boto3_session: boto3.Session) -> list[dict[str, Any]]:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     paginator = client.get_paginator("list_server_certificates")
     certificates: list[dict[str, Any]] = []
     for page in paginator.paginate():
@@ -408,7 +410,7 @@ def get_account_access_key_data(
     boto3_session: boto3.Session,
     username: str,
 ) -> Dict:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     # NOTE we can get away without using a paginator here because users are limited to two access keys
     access_keys: Dict = {}
     try:
@@ -1047,7 +1049,7 @@ def get_mfa_devices(
     boto3_session: boto3.Session,
     user_list: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     mfa_devices: list[dict[str, Any]] = []
     for user in user_list:
         name = user["UserName"]
@@ -1308,7 +1310,7 @@ def load_server_certificates(
 
 @timeit
 def get_account_summary(boto3_session: boto3.Session) -> Dict[str, int]:
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
     response = client.get_account_summary()
     return response["SummaryMap"]
 
@@ -1568,7 +1570,7 @@ def get_service_last_accessed_details(
     This is a two-step process: generate job, then get results.
     Handles pagination to retrieve all services accessed.
     """
-    client = boto3_session.client("iam")
+    client = create_boto3_client(boto3_session, "iam")
 
     try:
         response = client.generate_service_last_accessed_details(Arn=arn)
