@@ -284,3 +284,55 @@ def test_link_ontology_devices_ignores_stale_observed_as_relationships(neo4j_ses
         ).single()["count"]
         == 0
     )
+
+
+def test_cleanup_removes_stale_user_owns_device_relationships(neo4j_session):
+    """Device cleanup should delete stale ontology-derived User-OWNS-Device edges."""
+    neo4j_session.run("MATCH (n) DETACH DELETE n")
+    stale_tag = TEST_UPDATE_TAG - 1
+
+    neo4j_session.run(
+        """
+        MERGE (u:User:Ontology {id: 'hjsimpson@simpson.corp'})
+        SET u.email = 'hjsimpson@simpson.corp',
+            u.lastupdated = $update_tag
+
+        MERGE (d:Device:Ontology {id: 'SIMP-MAC-HOMER-01'})
+        SET d.serial_number = 'SIMP-MAC-HOMER-01',
+            d.hostname = 'donut-mac',
+            d.lastupdated = $update_tag
+
+        MERGE (asset:SnipeitAsset {id: 'asset-1'})
+        SET asset.name = 'donut-mac',
+            asset.serial = 'SIMP-MAC-HOMER-01'
+
+        MERGE (u)-[owns:OWNS]->(d)
+        SET owns.lastupdated = $stale_tag
+
+        MERGE (d)-[obs:OBSERVED_AS]->(asset)
+        SET obs.lastupdated = $update_tag
+        """,
+        update_tag=TEST_UPDATE_TAG,
+        stale_tag=stale_tag,
+    )
+
+    cartography.intel.ontology.devices.cleanup(
+        neo4j_session,
+        {"UPDATE_TAG": TEST_UPDATE_TAG},
+    )
+
+    stale_owns_count = neo4j_session.run(
+        """
+        MATCH (:User {id: 'hjsimpson@simpson.corp'})-[r:OWNS]->(:Device {id: 'SIMP-MAC-HOMER-01'})
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert stale_owns_count == 0
+
+    fresh_observed_as_count = neo4j_session.run(
+        """
+        MATCH (:Device {id: 'SIMP-MAC-HOMER-01'})-[r:OBSERVED_AS]->(:SnipeitAsset {id: 'asset-1'})
+        RETURN count(r) AS count
+        """
+    ).single()["count"]
+    assert fresh_observed_as_count == 1
