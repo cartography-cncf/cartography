@@ -7,11 +7,11 @@ import botocore.exceptions
 import neo4j
 
 from cartography.client.core.tx import run_write_query
+from cartography.intel.aws.util.botocore_config import create_boto3_client
+from cartography.intel.aws.util.botocore_config import get_botocore_config
 from cartography.util import aws_handle_regions
 from cartography.util import run_cleanup_job
 from cartography.util import timeit
-
-from .util import get_botocore_config
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,8 @@ def get_transit_gateways(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "ec2",
         region_name=region,
         config=get_botocore_config(),
@@ -46,7 +47,8 @@ def get_tgw_attachments(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "ec2",
         region_name=region,
         config=get_botocore_config(),
@@ -71,7 +73,8 @@ def get_tgw_vpc_attachments(
     boto3_session: boto3.session.Session,
     region: str,
 ) -> List[Dict]:
-    client = boto3_session.client(
+    client = create_boto3_client(
+        boto3_session,
         "ec2",
         region_name=region,
         config=get_botocore_config(),

@@ -7,6 +7,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.guardduty.detectors import GuardDutyDetectorSchema
 from cartography.models.aws.guardduty.findings import GuardDutyFindingSchema
 from cartography.stats import get_stats_client
@@ -60,7 +61,7 @@ def get_detectors(
     """
     Get GuardDuty detector IDs for all detectors in a region.
     """
-    client = boto3_session.client("guardduty", region_name=region)
+    client = create_boto3_client(boto3_session, "guardduty", region_name=region)
 
     # Get all detector IDs in this region
     detectors_response = client.list_detectors()
@@ -80,7 +81,7 @@ def get_detector_details(
     if not detector_ids:
         return []
 
-    client = boto3_session.client("guardduty", region_name=region)
+    client = create_boto3_client(boto3_session, "guardduty", region_name=region)
     detectors: list[dict[str, Any]] = []
 
     for detector_id in detector_ids:
@@ -115,7 +116,7 @@ def get_findings(
     Only fetches unarchived findings to avoid including closed/resolved findings.
     Optionally filters by severity threshold.
     """
-    client = boto3_session.client("guardduty", region_name=region)
+    client = create_boto3_client(boto3_session, "guardduty", region_name=region)
 
     # Build FindingCriteria - always exclude archived findings
     criteria = {"service.archived": {"Equals": ["false"]}}

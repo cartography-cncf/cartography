@@ -9,6 +9,7 @@ import neo4j
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.intel.container_arch import normalize_architecture
 from cartography.models.aws.ecr.image import ECRImageBaseSchema
 from cartography.models.aws.ecr.image import ECRImageSchema
@@ -38,7 +39,7 @@ def get_ecr_repositories(
     region: str,
 ) -> List[Dict]:
     logger.info("Getting ECR repositories for region '%s'.", region)
-    client = boto3_session.client("ecr", region_name=region)
+    client = create_boto3_client(boto3_session, "ecr", region_name=region)
     paginator = client.get_paginator("describe_repositories")
     ecr_repositories: List[Dict] = []
     for page in paginator.paginate():
@@ -145,7 +146,7 @@ def get_ecr_repository_images(
         repository_name,
         region,
     )
-    client = boto3_session.client("ecr", region_name=region)
+    client = create_boto3_client(boto3_session, "ecr", region_name=region)
     list_paginator = client.get_paginator("list_images")
 
     # First pass: Collect all image details and track manifest list referenced digests

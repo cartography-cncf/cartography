@@ -8,6 +8,7 @@ from botocore.exceptions import ClientError
 
 from cartography.client.core.tx import load
 from cartography.graph.job import GraphJob
+from cartography.intel.aws.util.botocore_config import create_boto3_client
 from cartography.models.aws.s3.account_public_access_block import (
     S3AccountPublicAccessBlockSchema,
 )
@@ -29,7 +30,7 @@ def get_account_public_access_block(
     Get the S3 Account Public Access Block settings for a region.
     Returns a list containing at most one item (the block configuration).
     """
-    client = boto3_session.client("s3control", region_name=region)
+    client = create_boto3_client(boto3_session, "s3control", region_name=region)
     try:
         # Use the provided account_id instead of retrieving it
         response = client.get_public_access_block(AccountId=account_id)
