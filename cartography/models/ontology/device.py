@@ -128,10 +128,9 @@ class DeviceSchema(CartographyNodeSchema):
 
 # ---------------------------------------------------------------------------
 # Hostname-based matchlinks
-# These are fallback relationships that match devices by hostname.
-# They are only executed when:
-# - For modules with serial_number: serial_number links exist AND hostnames are unique
-# - For modules without serial_number: hostnames are unique
+# These are fallback relationships that match devices by hostname when both
+# sides have unique hostnames. They can also supplement serial-number matches
+# for providers that support both strategies.
 # ---------------------------------------------------------------------------
 
 

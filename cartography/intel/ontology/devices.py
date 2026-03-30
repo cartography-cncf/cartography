@@ -31,8 +31,8 @@ def sync(
         data,
         update_tag,
     )
-    link_ontology_nodes(neo4j_session, "devices", update_tag)
     _run_hostname_matchlinks(neo4j_session, update_tag)
+    link_ontology_nodes(neo4j_session, "devices", update_tag)
     cleanup(neo4j_session, common_job_parameters)
 
 
@@ -54,30 +54,14 @@ def _should_run_hostname_matchlink(
     neo4j_session: neo4j.Session,
     target_label: str,
     hostname_field: str,
-    has_serial_rel: bool,
     update_tag: int,
 ) -> bool:
     """Check if hostname matchlink should be run for a given module.
 
     Conditions checked:
-    1. For modules with serial_number: at least one OBSERVED_AS exists (confirming module data)
-    2. Hostnames on target nodes are unique (no duplicates)
-    3. Hostnames on Device nodes are unique (no duplicates on source side)
+    1. Hostnames on target nodes are unique (no duplicates)
+    2. Hostnames on Device nodes are unique (no duplicates on source side)
     """
-    if has_serial_rel:
-        result = neo4j_session.run(
-            f"MATCH (:Device)-[r:OBSERVED_AS]->(:{target_label}) "
-            "WHERE r.lastupdated = $update_tag "
-            "RETURN count(r) > 0 as has_links",
-            update_tag=update_tag,
-        ).single()
-        if not result or not result["has_links"]:
-            logger.debug(
-                "No serial_number OBSERVED_AS links found for %s, skipping hostname matchlink.",
-                target_label,
-            )
-            return False
-
     # Check hostname uniqueness on target nodes
     result = neo4j_session.run(
         f"MATCH (t:{target_label}) WHERE t.`{hostname_field}` IS NOT NULL "
@@ -130,13 +114,12 @@ def _run_hostname_matchlinks(
 ) -> None:
     """Run hostname-based matchlinks for all configured modules.
 
-    Hostname matching is a fallback strategy: it is only used when
-    serial_number matching is not available or as a supplement when
-    serial_number links already exist and hostnames are unique.
+    Hostname matching is a fallback strategy for unmatched devices and can also
+    supplement serial-number matching when both sides have unique hostnames.
     """
     device_hostnames = _get_device_hostnames(neo4j_session, update_tag)
 
-    for target_label, hostname_field, matchlink, has_serial_rel in HOSTNAME_MATCHLINKS:
+    for target_label, hostname_field, matchlink, _has_serial_rel in HOSTNAME_MATCHLINKS:
         if not device_hostnames:
             continue
 
@@ -144,7 +127,6 @@ def _run_hostname_matchlinks(
             neo4j_session,
             target_label,
             hostname_field,
-            has_serial_rel,
             update_tag,
         ):
             continue
