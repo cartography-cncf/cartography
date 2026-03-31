@@ -66,7 +66,7 @@ Use `make test_coverage` to run unit and integration tests with branch coverage 
 Maintainers can inspect coverage results in GitHub Actions on the `Test Suite` workflow:
 
 - The job log includes the terminal coverage summary with missing lines.
-- Each test job uploads a `coverage-report-neo4j4` or `coverage-report-neo4j5` artifact containing `coverage.xml`.
+- Each test job uploads a coverage artifact containing `coverage.xml`.
 
 ### Implementing custom sync commands
 
