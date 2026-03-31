@@ -18,7 +18,7 @@
     },
     {
       "__comment": "Clean up stale APPLIES_TO relationships for the current tenant only",
-      "query": "MATCH (:EntraTenant {id: $TENANT_ID})-[:RESOURCE]->(policy:IntuneCompliancePolicy)-[r:APPLIES_TO]->(:IntuneManagedDevice) WHERE r.lastupdated <> $UPDATE_TAG WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
+      "query": "MATCH (:EntraTenant {id: $TENANT_ID})-[:RESOURCE]->(policy:IntuneCompliancePolicy)-[r:APPLIES_TO]->(:IntuneManagedDevice) WHERE r.lastupdated <> $UPDATE_TAG OR r.lastupdated IS NULL WITH r LIMIT $LIMIT_SIZE DELETE r RETURN COUNT(*) AS TotalCompleted",
       "iterative": true
     }
   ]
