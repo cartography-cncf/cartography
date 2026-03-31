@@ -22,8 +22,37 @@ from cartography.util import timeit
 
 logger = logging.getLogger(__name__)
 
-# Default dependency scanning job name (GitLab's default)
+# Dependency scanning job names used by GitLab.
 DEFAULT_DEPENDENCY_SCAN_JOB_NAME = "gemnasium-dependency_scanning"
+AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME = "gemnasium-python-dependency_scanning"
+AUTODEVOPS_MAVEN_DEPENDENCY_SCAN_JOB_NAME = "gemnasium-maven-dependency_scanning"
+DEFAULT_DEPENDENCY_SCAN_JOB_NAMES = (
+    DEFAULT_DEPENDENCY_SCAN_JOB_NAME,
+    AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME,
+    AUTODEVOPS_MAVEN_DEPENDENCY_SCAN_JOB_NAME,
+)
+
+
+def _select_dependency_scan_job(
+    jobs: list[dict[str, Any]],
+    dependency_scan_job_name: str,
+) -> dict[str, Any] | None:
+    """
+    Select the latest dependency scan job from successful jobs.
+
+    If the default job name is configured, this supports all known GitLab
+    dependency scan job names (default + AutoDevOps language-specific names).
+    For any custom job name, only that specific name is matched.
+    """
+    if dependency_scan_job_name == DEFAULT_DEPENDENCY_SCAN_JOB_NAME:
+        candidate_names = set(DEFAULT_DEPENDENCY_SCAN_JOB_NAMES)
+    else:
+        candidate_names = {dependency_scan_job_name}
+
+    for job in jobs:
+        if job.get("name") in candidate_names:
+            return job
+    return None
 
 
 def get_dependencies(
@@ -47,8 +76,11 @@ def get_dependencies(
     :param project_id: The numeric project ID.
     :param dependency_files: List of transformed dependency files for mapping.
     :param default_branch: The default branch to fetch artifacts from.
-    :param dependency_scan_job_name: The name of the dependency scanning job
-        (default: 'gemnasium-dependency_scanning').
+    :param dependency_scan_job_name: The dependency scanning job name to look for.
+        If left as the default ('gemnasium-dependency_scanning'), Cartography
+        also supports AutoDevOps job names:
+        'gemnasium-python-dependency_scanning' and
+        'gemnasium-maven-dependency_scanning'.
     :return: List of dependency dictionaries.
     """
     headers = {
@@ -68,6 +100,7 @@ def get_dependencies(
     }
 
     job_id: int | None = None
+    dep_scan_job: dict[str, Any] | None = None
     try:
         response = make_request_with_retry("GET", jobs_url, headers, params)
         response.raise_for_status()
@@ -75,21 +108,19 @@ def get_dependencies(
         jobs = response.json()
 
         # Find the most recent dependency scanning job matching the configured name
-        dep_scan_job = None
-        for job in jobs:
-            if job.get("name") == dependency_scan_job_name:
-                dep_scan_job = job
-                break
+        dep_scan_job = _select_dependency_scan_job(jobs, dependency_scan_job_name)
 
         if not dep_scan_job:
             logger.debug(
-                f"No successful '{dependency_scan_job_name}' job found for project ID {project_id}"
+                f"No successful dependency scanning job found for project ID {project_id}. "
+                f"Searched for configured job '{dependency_scan_job_name}'."
             )
             return []
 
         job_id = dep_scan_job.get("id")
+        job_name = dep_scan_job.get("name", dependency_scan_job_name)
         logger.debug(
-            f"Found dependency scanning job ID {job_id} for project ID {project_id}"
+            f"Found dependency scanning job '{job_name}' (ID {job_id}) for project ID {project_id}"
         )
 
     except requests.exceptions.RequestException as e:
@@ -97,10 +128,11 @@ def get_dependencies(
         return []
 
     # Download the job artifacts
+    if not dep_scan_job:
+        return []
+
     artifacts_url = f"{gitlab_url}/api/v4/projects/{project_id}/jobs/artifacts/{default_branch}/download"
-    params_artifacts: dict[str, str] = {
-        "job": dependency_scan_job_name,
-    }
+    params_artifacts: dict[str, str] = {"job": dep_scan_job["name"]}
 
     logger.debug(
         f"Downloading artifacts from branch '{default_branch}' for project ID {project_id}"

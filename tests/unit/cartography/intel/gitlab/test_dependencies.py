@@ -1,4 +1,42 @@
+import io
+import json
+import zipfile
+from unittest.mock import Mock
+
 from cartography.intel.gitlab.dependencies import _parse_cyclonedx_sbom
+from cartography.intel.gitlab.dependencies import _select_dependency_scan_job
+from cartography.intel.gitlab.dependencies import (
+    AUTODEVOPS_MAVEN_DEPENDENCY_SCAN_JOB_NAME,
+)
+from cartography.intel.gitlab.dependencies import (
+    AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME,
+)
+from cartography.intel.gitlab.dependencies import DEFAULT_DEPENDENCY_SCAN_JOB_NAME
+from cartography.intel.gitlab.dependencies import get_dependencies
+
+
+def _build_artifacts_zip(files: dict[str, dict]) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for path, payload in files.items():
+            archive.writestr(path, json.dumps(payload))
+    return buffer.getvalue()
+
+
+def _build_response(
+    *,
+    status_code: int = 200,
+    json_data: list[dict] | None = None,
+    content: bytes = b"",
+) -> Mock:
+    response = Mock()
+    response.status_code = status_code
+    response.headers = {}
+    response.content = content
+    response.raise_for_status.return_value = None
+    if json_data is not None:
+        response.json.return_value = json_data
+    return response
 
 
 def test_parse_cyclonedx_sbom_links_manifest_from_metadata():
@@ -245,3 +283,92 @@ def test_parse_cyclonedx_sbom_skips_components_without_name():
     # Assert: only named component is returned
     assert len(result) == 1
     assert result[0]["name"] == "valid-lib"
+
+
+def test_select_dependency_scan_job_supports_autodevops_job_names():
+    jobs = [
+        {"id": 300, "name": AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME},
+        {"id": 299, "name": DEFAULT_DEPENDENCY_SCAN_JOB_NAME},
+    ]
+
+    job = _select_dependency_scan_job(jobs, DEFAULT_DEPENDENCY_SCAN_JOB_NAME)
+
+    assert job is not None
+    assert job["id"] == 300
+    assert job["name"] == AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME
+
+
+def test_select_dependency_scan_job_honors_custom_name_only():
+    jobs = [
+        {"id": 200, "name": AUTODEVOPS_MAVEN_DEPENDENCY_SCAN_JOB_NAME},
+        {"id": 199, "name": DEFAULT_DEPENDENCY_SCAN_JOB_NAME},
+    ]
+
+    job = _select_dependency_scan_job(jobs, "custom-dependency-job")
+
+    assert job is None
+
+
+def test_get_dependencies_uses_discovered_autodevops_job_name_for_artifacts(
+    mocker,
+) -> None:
+    jobs_response = _build_response(
+        json_data=[
+            {"id": 300, "name": AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME},
+            {"id": 299, "name": DEFAULT_DEPENDENCY_SCAN_JOB_NAME},
+        ]
+    )
+    artifacts_response = _build_response(
+        content=_build_artifacts_zip(
+            {
+                "gl-sbom-npm.cdx.json": {
+                    "metadata": {
+                        "properties": [
+                            {
+                                "name": "gitlab:dependency_scanning:input_file:path",
+                                "value": "package.json",
+                            },
+                        ],
+                    },
+                    "components": [
+                        {
+                            "type": "library",
+                            "name": "express",
+                            "version": "4.18.2",
+                            "purl": "pkg:npm/express@4.18.2",
+                        },
+                    ],
+                },
+            }
+        )
+    )
+    request = mocker.patch(
+        "cartography.intel.gitlab.dependencies.make_request_with_retry",
+        side_effect=[jobs_response, artifacts_response],
+    )
+    mocker.patch("cartography.intel.gitlab.dependencies.check_rate_limit_remaining")
+
+    dependencies = get_dependencies(
+        "https://gitlab.example.com",
+        "token",
+        42,
+        [
+            {
+                "id": "https://gitlab.example.com/group/project/-/blob/main/package.json",
+                "path": "package.json",
+            },
+        ],
+    )
+
+    assert dependencies == [
+        {
+            "name": "express",
+            "version": "4.18.2",
+            "package_manager": "npm",
+            "manifest_path": "package.json",
+            "manifest_id": "https://gitlab.example.com/group/project/-/blob/main/package.json",
+        },
+    ]
+    assert request.call_args_list[1].args[3] == {
+        "job": AUTODEVOPS_PYTHON_DEPENDENCY_SCAN_JOB_NAME
+    }
