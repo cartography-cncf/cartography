@@ -226,9 +226,13 @@ class AppContext:
         config = json.loads(config)
         self.sns_offline_url = self.get_value(config, ['common', 'sns', 'offlineURL'])
 
-        self.aws_cartography_queue_url = self.get_value(config, ["common", "cartography", "queueUrl"])
+        self.aws_cartography_queue_url = self.get_value(config, ["common", "cartography", "aws", "queueUrl", "us"])
+        if os.environ.get("CDX_DC") == "IN":
+            self.aws_cartography_queue_url = self.get_value(config, ["common", "cartography", "aws", "queueUrl", "in"])
+        elif os.environ.get("CDX_DC") == "MC1":
+            self.aws_cartography_queue_url = self.get_value(config, ["common", "cartography", "aws", "queueUrl", "mc1"])
         if os.environ.get("CDX_CLOUD_TYPE") == "AZURE":
-            self.aws_cartography_queue_url = self.get_value(config, ["common", "cartography", "azure", "queueUrl"])
+            self.aws_cartography_queue_url = self.get_value(config, ["common", "cartography", "azure", "queueUrl", "us"])
 
         if config.get('audit'):
             cfg = config['audit']
